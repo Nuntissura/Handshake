@@ -98,6 +98,7 @@ pub enum AgentCapability {
     EditRichDocument,
     InspectEvidence,
     MutateGraph,
+    RunQuietBackgroundWork,
     WriteLocalIndex,
     WriteMailbox,
     NavigateBackend,
@@ -204,6 +205,7 @@ impl AgentLaneIdentity {
                 ClaimWorkspace,
                 EditRichDocument,
                 MutateGraph,
+                RunQuietBackgroundWork,
                 WriteLocalIndex,
                 WriteMailbox,
                 NavigateBackend,
@@ -212,6 +214,7 @@ impl AgentLaneIdentity {
             AgentLaneKind::Cloud => {
                 vec![
                     ClaimWorkspace,
+                    RunQuietBackgroundWork,
                     WriteMailbox,
                     NavigateBackend,
                     RecordCheckpoint,
@@ -222,6 +225,7 @@ impl AgentLaneIdentity {
                 ClaimWorkspace,
                 EditRichDocument,
                 MutateGraph,
+                RunQuietBackgroundWork,
                 WriteMailbox,
                 NavigateBackend,
                 RecordCheckpoint,
@@ -232,6 +236,7 @@ impl AgentLaneIdentity {
             AgentLaneKind::Indexer => {
                 vec![
                     ClaimWorkspace,
+                    RunQuietBackgroundWork,
                     WriteLocalIndex,
                     NavigateBackend,
                     RecordCheckpoint,
@@ -241,6 +246,7 @@ impl AgentLaneIdentity {
                 ClaimWorkspace,
                 EditRichDocument,
                 MutateGraph,
+                RunQuietBackgroundWork,
                 NavigateBackend,
                 RecordCheckpoint,
             ],
@@ -249,6 +255,7 @@ impl AgentLaneIdentity {
                 ClaimWorkspace,
                 EditRichDocument,
                 MutateGraph,
+                RunQuietBackgroundWork,
                 WriteLocalIndex,
                 WriteMailbox,
                 NavigateBackend,
@@ -411,6 +418,99 @@ pub struct SwarmEvidenceInspectionSnapshot {
     pub checkpoints: Vec<RecoveryCheckpointRecord>,
     pub recovery_receipts: Vec<RecoveryReceiptRecord>,
     pub indexing_leases: Vec<IndexingLeaseRecord>,
+    pub quiet_background_work: Vec<QuietBackgroundWorkRecord>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuietBackgroundWorkKind {
+    Indexing,
+    BackendNavigation,
+    VisualCapture,
+    TestRun,
+}
+
+impl QuietBackgroundWorkKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Indexing => "indexing",
+            Self::BackendNavigation => "backend_navigation",
+            Self::VisualCapture => "visual_capture",
+            Self::TestRun => "test_run",
+        }
+    }
+
+    fn parse(value: &str) -> StateRecoveryResult<Self> {
+        match value {
+            "indexing" => Ok(Self::Indexing),
+            "backend_navigation" => Ok(Self::BackendNavigation),
+            "visual_capture" => Ok(Self::VisualCapture),
+            "test_run" => Ok(Self::TestRun),
+            other => Err(StateRecoveryError::InvalidInput(format!(
+                "unknown quiet background work kind: {other}"
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuietBackgroundPolicy {
+    pub work_kind: QuietBackgroundWorkKind,
+    pub no_foreground_window: bool,
+    pub no_focus_steal: bool,
+    pub no_os_shell_window: bool,
+    pub bounded: bool,
+    pub observable: bool,
+}
+
+impl QuietBackgroundPolicy {
+    pub fn quiet_for(work_kind: QuietBackgroundWorkKind) -> Self {
+        Self {
+            work_kind,
+            no_foreground_window: true,
+            no_focus_steal: true,
+            no_os_shell_window: true,
+            bounded: true,
+            observable: true,
+        }
+    }
+
+    pub fn all_quiet(&self) -> bool {
+        self.no_foreground_window
+            && self.no_focus_steal
+            && self.no_os_shell_window
+            && self.bounded
+            && self.observable
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct QuietBackgroundWorkRequest {
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub work_kind: QuietBackgroundWorkKind,
+    pub subject_id: String,
+    pub session_id: String,
+    pub policy: QuietBackgroundPolicy,
+    pub evidence_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QuietBackgroundWorkRecord {
+    pub receipt_id: String,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub work_kind: QuietBackgroundWorkKind,
+    pub subject_id: String,
+    pub lane: AgentLaneIdentity,
+    pub session_id: String,
+    pub policy: QuietBackgroundPolicy,
+    pub evidence_ref: String,
+    pub event_ledger_event_id: String,
+    pub created_at_utc: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -500,6 +600,12 @@ pub struct NavigationCommandSpec {
     pub required_params: &'static [&'static str],
 }
 
+impl NavigationCommandSpec {
+    pub fn quiet_policy(&self) -> QuietBackgroundPolicy {
+        QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ResolvedNavigationCommand {
     pub command: BackendNavigationCommand,
@@ -507,6 +613,13 @@ pub struct ResolvedNavigationCommand {
     pub route: &'static str,
     pub params: Value,
     pub deterministic_cache_key: String,
+    pub quiet_policy: QuietBackgroundPolicy,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct QuietResolvedNavigationCommand {
+    pub resolved: ResolvedNavigationCommand,
+    pub quiet_receipt: QuietBackgroundWorkRecord,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -545,6 +658,7 @@ impl NavigationCommandSet {
             route: spec.route,
             params,
             deterministic_cache_key: format!("NAV-{key_hash}"),
+            quiet_policy: spec.quiet_policy(),
         })
     }
 }
@@ -727,6 +841,7 @@ pub struct IndexingLeaseRequest {
     pub index_run_id: String,
     pub priority: i32,
     pub ttl_seconds: i64,
+    pub quiet_policy: QuietBackgroundPolicy,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -743,6 +858,7 @@ pub struct IndexingLeaseRecord {
     pub ttl_seconds: i64,
     pub status: IndexLeaseStatus,
     pub blocked_by_lease_id: Option<String>,
+    pub quiet_policy: QuietBackgroundPolicy,
     pub event_ledger_event_id: String,
 }
 
@@ -957,6 +1073,18 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
+        let quiet_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_quiet_background_work
+            WHERE workspace_id = $1
+            ORDER BY created_at_utc DESC, receipt_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(SwarmEvidenceInspectionSnapshot {
             workspace_id: request.workspace_id,
@@ -976,6 +1104,123 @@ impl ParallelSwarmStateRecoveryStore {
                 .into_iter()
                 .map(index_lease_from_row)
                 .collect::<StateRecoveryResult<Vec<_>>>()?,
+            quiet_background_work: quiet_rows
+                .into_iter()
+                .map(quiet_background_work_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
+        })
+    }
+
+    pub async fn record_quiet_background_work(
+        &self,
+        request: QuietBackgroundWorkRequest,
+    ) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
+        require_capability(&request.lane, AgentCapability::RunQuietBackgroundWork)?;
+        ensure_safe_token("workspace_id", &request.workspace_id)?;
+        ensure_safe_token("wp_id", &request.wp_id)?;
+        ensure_safe_token("mt_id", &request.mt_id)?;
+        ensure_safe_token("subject_id", &request.subject_id)?;
+        ensure_safe_token("session_id", &request.session_id)?;
+        validate_quiet_background_policy(request.work_kind, &request.policy)?;
+        ensure_bounded_text("evidence_ref", &request.evidence_ref, 512)?;
+
+        let receipt_id = format!("PSR-QUIET-{}", Uuid::now_v7());
+        let persistent_lane = request.lane.scrubbed_for_persistence();
+        let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
+        let policy_json = serde_json::to_value(&request.policy)?;
+        let mut tx = self.pool.begin().await?;
+        let event_id = self
+            .append_event_tx(
+                &mut tx,
+                KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
+                "parallel_swarm_quiet_background_work",
+                &receipt_id,
+                &persistent_lane,
+                &request.session_id,
+                json!({
+                    "schema_id": "hsk.parallel_swarm.quiet_background_work@1",
+                    "receipt_id": &receipt_id,
+                    "workspace_id": &request.workspace_id,
+                    "wp_id": &request.wp_id,
+                    "mt_id": &request.mt_id,
+                    "work_kind": request.work_kind,
+                    "subject_id": &request.subject_id,
+                    "quiet_policy": &request.policy,
+                    "evidence_ref": &request.evidence_ref,
+                }),
+            )
+            .await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_agent_quiet_background_work (
+                receipt_id, workspace_id, wp_id, mt_id, work_kind, subject_id,
+                lane_id, actor_id, lane_kind, attribution_jsonb, session_id,
+                quiet_policy_jsonb, evidence_ref, event_ledger_event_id
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            RETURNING *
+            "#,
+        )
+        .bind(&receipt_id)
+        .bind(&request.workspace_id)
+        .bind(&request.wp_id)
+        .bind(&request.mt_id)
+        .bind(request.work_kind.as_str())
+        .bind(&request.subject_id)
+        .bind(&persistent_lane.lane_id)
+        .bind(&persistent_lane.actor_id)
+        .bind(persistent_lane.lane_kind.as_str())
+        .bind(lane_json)
+        .bind(&request.session_id)
+        .bind(policy_json)
+        .bind(&request.evidence_ref)
+        .bind(&event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        quiet_background_work_from_row(row)
+    }
+
+    pub async fn resolve_backend_navigation_quiet(
+        &self,
+        lane: AgentLaneIdentity,
+        session_id: String,
+        wp_id: String,
+        mt_id: String,
+        command: BackendNavigationCommand,
+        params: Value,
+    ) -> StateRecoveryResult<QuietResolvedNavigationCommand> {
+        let resolved = NavigationCommandSet::default().resolve(command, params)?;
+        let workspace_id = resolved
+            .params
+            .get("workspace_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                StateRecoveryError::InvalidInput(
+                    "quiet backend navigation requires workspace_id".to_string(),
+                )
+            })?
+            .to_string();
+        let evidence_ref = format!(
+            "backend-nav://{}#{}",
+            resolved.command_id, resolved.deterministic_cache_key
+        );
+        let quiet_receipt = self
+            .record_quiet_background_work(QuietBackgroundWorkRequest {
+                lane,
+                workspace_id,
+                wp_id,
+                mt_id,
+                work_kind: QuietBackgroundWorkKind::BackendNavigation,
+                subject_id: resolved.deterministic_cache_key.clone(),
+                session_id,
+                policy: resolved.quiet_policy.clone(),
+                evidence_ref,
+            })
+            .await?;
+        Ok(QuietResolvedNavigationCommand {
+            resolved,
+            quiet_receipt,
         })
     }
 
@@ -1280,6 +1525,7 @@ impl ParallelSwarmStateRecoveryStore {
         request: IndexingLeaseRequest,
     ) -> StateRecoveryResult<IndexingLeaseRecord> {
         validate_ttl(request.ttl_seconds)?;
+        validate_quiet_background_policy(QuietBackgroundWorkKind::Indexing, &request.quiet_policy)?;
         require_capability(&request.lane, AgentCapability::WriteLocalIndex)?;
         self.reclaim_orphaned_indexing_leases().await?;
         let active = self.active_index_writer_for_scope(&request.scope).await?;
@@ -1310,6 +1556,35 @@ impl ParallelSwarmStateRecoveryStore {
         }
     }
 
+    pub async fn try_acquire_indexing_lease(
+        &self,
+        request: IndexingLeaseRequest,
+    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
+        validate_ttl(request.ttl_seconds)?;
+        validate_quiet_background_policy(QuietBackgroundWorkKind::Indexing, &request.quiet_policy)?;
+        require_capability(&request.lane, AgentCapability::WriteLocalIndex)?;
+        self.reclaim_orphaned_indexing_leases().await?;
+        if self
+            .active_index_writer_for_scope(&request.scope)
+            .await?
+            .is_some()
+        {
+            return Ok(None);
+        }
+        match self
+            .insert_indexing_lease_outcome(&request, IndexLeaseStatus::Acquired, None)
+            .await
+        {
+            Ok(record) => Ok(Some(record)),
+            Err(StateRecoveryError::Sqlx(sqlx::Error::Database(db_err)))
+                if db_err.is_unique_violation() =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     async fn insert_indexing_lease_outcome(
         &self,
         request: &IndexingLeaseRequest,
@@ -1325,13 +1600,13 @@ impl ParallelSwarmStateRecoveryStore {
             INSERT INTO knowledge_parallel_indexing_lease_queue (
                 lease_id, workspace_id, wp_id, mt_id, scope_kind, scope_id,
                 lane_id, actor_id, lane_kind, attribution_jsonb, session_id,
-                index_run_id, priority, ttl_seconds, status, blocked_by_lease_id,
-                acquired_at_utc, expires_at_utc
+                index_run_id, priority, ttl_seconds, quiet_policy_jsonb, status,
+                blocked_by_lease_id, acquired_at_utc, expires_at_utc
             )
             VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-                CASE WHEN $15 = 'acquired' THEN NOW() ELSE NULL END,
-                CASE WHEN $15 = 'acquired' THEN NOW() + ($14::BIGINT * INTERVAL '1 second') ELSE NULL END
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+                CASE WHEN $16 = 'acquired' THEN NOW() ELSE NULL END,
+                CASE WHEN $16 = 'acquired' THEN NOW() + ($14::BIGINT * INTERVAL '1 second') ELSE NULL END
             )
             "#,
         )
@@ -1349,6 +1624,7 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(&request.index_run_id)
         .bind(request.priority)
         .bind(request.ttl_seconds)
+        .bind(serde_json::to_value(&request.quiet_policy)?)
         .bind(status.as_str())
         .bind(blocked_by.as_deref())
         .execute(&mut *tx)
@@ -1380,6 +1656,7 @@ impl ParallelSwarmStateRecoveryStore {
                     "index_run_id": &request.index_run_id,
                     "status": status,
                     "blocked_by_lease_id": blocked_by.as_deref(),
+                    "quiet_policy": &request.quiet_policy,
                 }),
             )
             .await?;
@@ -1496,6 +1773,7 @@ impl ParallelSwarmStateRecoveryStore {
                     "index_run_id": &promoted.index_run_id,
                     "status": IndexLeaseStatus::Acquired,
                     "blocked_by_lease_id": Option::<String>::None,
+                    "quiet_policy": &promoted.quiet_policy,
                 }),
             )
             .await?;
@@ -1551,6 +1829,7 @@ impl ParallelSwarmStateRecoveryStore {
                         "index_run_id": &lease.index_run_id,
                         "status": IndexLeaseStatus::Reclaimed,
                         "blocked_by_lease_id": lease.blocked_by_lease_id.as_deref(),
+                        "quiet_policy": &lease.quiet_policy,
                     }),
                 )
                 .await?;
@@ -1867,6 +2146,30 @@ fn recovery_receipt_from_row(row: PgRow) -> StateRecoveryResult<RecoveryReceiptR
     })
 }
 
+fn quiet_background_work_from_row(row: PgRow) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
+    let lane = lane_from_parts(
+        row.try_get("lane_id")?,
+        row.try_get("actor_id")?,
+        row.try_get("lane_kind")?,
+        row.try_get("attribution_jsonb")?,
+    )?;
+    let policy: QuietBackgroundPolicy = serde_json::from_value(row.try_get("quiet_policy_jsonb")?)?;
+    Ok(QuietBackgroundWorkRecord {
+        receipt_id: row.try_get("receipt_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        wp_id: row.try_get("wp_id")?,
+        mt_id: row.try_get("mt_id")?,
+        work_kind: QuietBackgroundWorkKind::parse(row.try_get::<String, _>("work_kind")?.as_str())?,
+        subject_id: row.try_get("subject_id")?,
+        lane,
+        session_id: row.try_get("session_id")?,
+        policy,
+        evidence_ref: row.try_get("evidence_ref")?,
+        event_ledger_event_id: row.try_get("event_ledger_event_id")?,
+        created_at_utc: row.try_get("created_at_utc")?,
+    })
+}
+
 fn index_lease_from_row(row: PgRow) -> StateRecoveryResult<IndexingLeaseRecord> {
     let scope = scope_from_parts(
         row.try_get("scope_kind")?,
@@ -1891,6 +2194,7 @@ fn index_lease_from_row(row: PgRow) -> StateRecoveryResult<IndexingLeaseRecord> 
         ttl_seconds: row.try_get("ttl_seconds")?,
         status: IndexLeaseStatus::parse(row.try_get::<String, _>("status")?.as_str())?,
         blocked_by_lease_id: row.try_get("blocked_by_lease_id")?,
+        quiet_policy: serde_json::from_value(row.try_get("quiet_policy_jsonb")?)?,
         event_ledger_event_id: row.try_get("event_ledger_event_id")?,
     })
 }
@@ -2021,6 +2325,53 @@ fn bounded_inspection_limit(limit: i64) -> StateRecoveryResult<i64> {
         ));
     }
     Ok(limit)
+}
+
+fn validate_quiet_background_policy(
+    expected_kind: QuietBackgroundWorkKind,
+    policy: &QuietBackgroundPolicy,
+) -> StateRecoveryResult<()> {
+    if policy.work_kind != expected_kind {
+        return Err(StateRecoveryError::InvalidInput(format!(
+            "quiet policy work_kind must be {}",
+            expected_kind.as_str()
+        )));
+    }
+    if !policy.no_foreground_window {
+        return Err(StateRecoveryError::InvalidInput(
+            "quiet policy requires no_foreground_window".to_string(),
+        ));
+    }
+    if !policy.no_focus_steal {
+        return Err(StateRecoveryError::InvalidInput(
+            "quiet policy requires no_focus_steal".to_string(),
+        ));
+    }
+    if !policy.no_os_shell_window {
+        return Err(StateRecoveryError::InvalidInput(
+            "quiet policy requires no_os_shell_window".to_string(),
+        ));
+    }
+    if !policy.bounded {
+        return Err(StateRecoveryError::InvalidInput(
+            "quiet policy requires bounded".to_string(),
+        ));
+    }
+    if !policy.observable {
+        return Err(StateRecoveryError::InvalidInput(
+            "quiet policy requires observable".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_bounded_text(field: &str, value: &str, max_len: usize) -> StateRecoveryResult<()> {
+    if value.trim().is_empty() || value.len() > max_len {
+        return Err(StateRecoveryError::InvalidInput(format!(
+            "{field} must be non-empty and at most {max_len} bytes"
+        )));
+    }
+    Ok(())
 }
 
 fn require_capability(

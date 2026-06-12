@@ -37,6 +37,7 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
@@ -44,10 +45,15 @@ use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeParserStatus,
     KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind,
     KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge, NewKnowledgeEntity,
-    NewKnowledgeIndexRun, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
+    NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
 use crate::storage::postgres::PostgresDatabase;
-use crate::storage::Database;
+use crate::storage::{Database, StorageError};
+use crate::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, ClaimScope, IndexingLeaseRecord, IndexingLeaseRequest,
+    ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy, QuietBackgroundWorkKind,
+    QuietBackgroundWorkRecord, QuietBackgroundWorkRequest,
+};
 
 use super::config_schema::{detect_config_format, extract_config_facts, ConfigFactKind};
 use super::docs_todo::{extract_doc_passages, extract_operator_strings, DocPassageKind};
@@ -106,6 +112,17 @@ pub struct CodeFileIndexOutcome {
     pub receipt_event_id: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct QuietCodeIndexRun {
+    pub index_run_id: String,
+    pub indexing_lease: IndexingLeaseRecord,
+    pub quiet_receipt: QuietBackgroundWorkRecord,
+}
+
+fn new_code_index_run_id() -> String {
+    format!("KIR-{}", Uuid::now_v7().simple())
+}
+
 impl CodeIndexEngine {
     pub fn new(db: Arc<PostgresDatabase>) -> Self {
         Self { db }
@@ -157,6 +174,19 @@ impl CodeIndexEngine {
         root_id: Option<&str>,
     ) -> CodeIndexResult<String> {
         ctx.validate()?;
+        let index_run_id = new_code_index_run_id();
+        self.start_run_with_id(ctx, &index_run_id, workspace_id, root_id)
+            .await?;
+        Ok(index_run_id)
+    }
+
+    async fn start_run_with_id(
+        &self,
+        ctx: &CodeIndexContext,
+        index_run_id: &str,
+        workspace_id: &str,
+        root_id: Option<&str>,
+    ) -> CodeIndexResult<()> {
         let start_event_id = self
             .append_receipt_event(
                 ctx,
@@ -171,19 +201,92 @@ impl CodeIndexEngine {
                 }),
             )
             .await?;
-        let run = self
-            .db
-            .start_knowledge_index_run(NewKnowledgeIndexRun {
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_index_runs
+                (index_run_id, workspace_id, root_id, scope, actor_kind,
+                 actor_id, worktree_id, start_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            "#,
+        )
+        .bind(index_run_id)
+        .bind(workspace_id)
+        .bind(root_id)
+        .bind(json!({"index_kind": "code", "extractor_version": CODE_EXTRACTOR_VERSION}))
+        .bind(ctx.actor.actor_kind())
+        .bind(ctx.actor.actor_id())
+        .bind(Option::<String>::None)
+        .bind(start_event_id)
+        .execute(self.db.pool())
+        .await
+        .map_err(StorageError::from)?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn start_quiet_run(
+        &self,
+        ctx: &CodeIndexContext,
+        swarm_state: &ParallelSwarmStateRecoveryStore,
+        lane: AgentLaneIdentity,
+        wp_id: &str,
+        mt_id: &str,
+        workspace_id: &str,
+        root_id: Option<&str>,
+        priority: i32,
+        ttl_seconds: i64,
+    ) -> CodeIndexResult<QuietCodeIndexRun> {
+        ctx.validate()?;
+        let index_run_id = new_code_index_run_id();
+        let source_root_id = root_id.unwrap_or(workspace_id).to_string();
+        let indexing_lease = swarm_state
+            .try_acquire_indexing_lease(IndexingLeaseRequest {
                 workspace_id: workspace_id.to_string(),
-                root_id: root_id.map(|s| s.to_string()),
-                scope: json!({"index_kind": "code", "extractor_version": CODE_EXTRACTOR_VERSION}),
-                actor_kind: ctx.actor.actor_kind().to_string(),
-                actor_id: ctx.actor.actor_id().to_string(),
-                worktree_id: None,
-                start_receipt_event_id: Some(start_event_id),
+                wp_id: wp_id.to_string(),
+                mt_id: mt_id.to_string(),
+                scope: ClaimScope::IndexRun {
+                    workspace_id: workspace_id.to_string(),
+                    source_root_id,
+                },
+                lane: lane.clone(),
+                session_id: ctx.session_run_id.clone(),
+                index_run_id: index_run_id.clone(),
+                priority,
+                ttl_seconds,
+                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
             })
+            .await
+            .map_err(|err| {
+                CodeIndexError::Validation(format!("quiet indexing lease failed: {err}"))
+            })?
+            .ok_or_else(|| {
+                CodeIndexError::Validation(format!(
+                    "quiet indexing run {index_run_id} did not acquire index lease"
+                ))
+            })?;
+        let quiet_receipt = swarm_state
+            .record_quiet_background_work(QuietBackgroundWorkRequest {
+                lane,
+                workspace_id: workspace_id.to_string(),
+                wp_id: wp_id.to_string(),
+                mt_id: mt_id.to_string(),
+                work_kind: QuietBackgroundWorkKind::Indexing,
+                subject_id: index_run_id.clone(),
+                session_id: ctx.session_run_id.clone(),
+                policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+                evidence_ref: format!("knowledge-index-run://{index_run_id}"),
+            })
+            .await
+            .map_err(|err| {
+                CodeIndexError::Validation(format!("quiet indexing receipt failed: {err}"))
+            })?;
+        self.start_run_with_id(ctx, &index_run_id, workspace_id, root_id)
             .await?;
-        Ok(run.index_run_id)
+        Ok(QuietCodeIndexRun {
+            index_run_id,
+            indexing_lease,
+            quiet_receipt,
+        })
     }
 
     /// Index one code file's content. The source MUST already be registered as

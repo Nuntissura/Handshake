@@ -66,6 +66,11 @@ use crate::storage::knowledge::{
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
+use crate::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, AgentLaneKind, AttributionMode, LocalCloudAttribution,
+    ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy, QuietBackgroundWorkKind,
+    QuietBackgroundWorkRequest,
+};
 use crate::AppState;
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
@@ -226,6 +231,53 @@ async fn record_nav_receipt(
     })?;
     let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
     Ok(stored.event_id)
+}
+
+async fn record_quiet_nav_receipt(
+    state: &AppState,
+    ctx: &NavContext,
+    workspace_id: &str,
+    nav_receipt_event_id: &str,
+) -> Result<String, ApiError> {
+    let actor_token = safe_lane_token(ctx.actor.actor_id());
+    let lane = AgentLaneIdentity::new(
+        format!("lane-backend-nav-{actor_token}"),
+        format!("nav-{actor_token}"),
+        AgentLaneKind::System,
+        LocalCloudAttribution {
+            mode: AttributionMode::System,
+            provider: None,
+            runtime: Some("backend_navigation_api".to_string()),
+            model_label: "backend-navigation".to_string(),
+            credential_ref: None,
+            provider_metadata: json!({
+                "actor_kind": ctx.actor.actor_kind(),
+            }),
+        },
+    )
+    .map_err(|err| bad_request(format!("invalid navigation quiet lane: {err}")))?;
+    let store =
+        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let record = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane,
+            workspace_id: workspace_id.to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::BackendNavigation,
+            subject_id: nav_receipt_event_id.to_string(),
+            session_id: ctx.session_run_id.clone(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
+            evidence_ref: format!("event://{nav_receipt_event_id}"),
+        })
+        .await
+        .map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "quiet_receipt_failed", "detail": err.to_string()})),
+            )
+        })?;
+    Ok(record.receipt_id)
 }
 
 // ---------------------------------------------------------------------------
@@ -403,11 +455,14 @@ async fn lookup_symbols(
         json!({"workspace_id": params.workspace_id, "name": name, "path": path, "matches": results.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "workspace_id": params.workspace_id,
         "matches": results,
         "nav_receipt_event_id": receipt,
+        "quiet_background_work_receipt_id": quiet_receipt,
     })))
 }
 
@@ -423,8 +478,10 @@ async fn get_symbol(
     let body = symbol_to_json(&db, &symbol).await;
     let receipt =
         record_nav_receipt(&db, &ctx, "symbol_get", json!({"entity_id": entity_id})).await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
     Ok(Json(
-        json!({"symbol": body, "nav_receipt_event_id": receipt}),
+        json!({"symbol": body, "nav_receipt_event_id": receipt, "quiet_background_work_receipt_id": quiet_receipt}),
     ))
 }
 
@@ -487,6 +544,8 @@ async fn symbol_references(
         json!({"entity_id": entity_id, "callers": callers.len(), "callees": callees.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -494,6 +553,7 @@ async fn symbol_references(
         "callers": callers,
         "callees": callees,
         "nav_receipt_event_id": receipt,
+        "quiet_background_work_receipt_id": quiet_receipt,
     })))
 }
 
@@ -541,12 +601,15 @@ async fn symbol_tests(
         json!({"entity_id": entity_id, "tests": tests.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
         "staleness": self_staleness,
         "tests": tests,
         "nav_receipt_event_id": receipt,
+        "quiet_background_work_receipt_id": quiet_receipt,
     })))
 }
 
@@ -593,12 +656,15 @@ async fn symbol_spans(
         json!({"entity_id": entity_id, "spans": spans.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
         "staleness": self_staleness,
         "spans": spans,
         "nav_receipt_event_id": receipt,
+        "quiet_background_work_receipt_id": quiet_receipt,
     })))
 }
 
@@ -638,6 +704,8 @@ async fn file_lens(
         json!({"workspace_id": params.workspace_id, "relative_path": relative_path, "entries": payload.entries.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
 
     let mut body = serde_json::to_value(&payload).map_err(|err| {
         (
@@ -647,6 +715,10 @@ async fn file_lens(
     })?;
     if let Value::Object(map) = &mut body {
         map.insert("nav_receipt_event_id".to_string(), json!(receipt));
+        map.insert(
+            "quiet_background_work_receipt_id".to_string(),
+            json!(quiet_receipt),
+        );
     }
     Ok(Json(body))
 }
@@ -733,6 +805,26 @@ fn is_safe_relative_path(path: &str) -> bool {
     }
     path.split('/')
         .all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+}
+
+fn safe_lane_token(value: &str) -> String {
+    let mut token: String = value
+        .chars()
+        .filter_map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.' | '/' | '#') {
+                Some(c)
+            } else if c.is_whitespace() {
+                Some('_')
+            } else {
+                None
+            }
+        })
+        .take(96)
+        .collect();
+    if token.is_empty() {
+        token = "unknown".to_string();
+    }
+    token
 }
 
 /// Map a code-index error to HTTP.

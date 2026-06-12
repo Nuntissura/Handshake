@@ -20,6 +20,10 @@ use crate::storage::{
     },
     Database, NewGovernanceCheckRun, WriteContext,
 };
+use crate::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
+    QuietBackgroundWorkKind, QuietBackgroundWorkRecord, QuietBackgroundWorkRequest,
+};
 
 /// FR-EVT-GOV-CHECK-001
 pub const FR_EVT_GOV_CHECK_STARTED: &str = "FR-EVT-GOV-CHECK-001";
@@ -97,6 +101,23 @@ pub struct CheckRunner {
 }
 
 #[derive(Debug, Clone)]
+pub struct QuietCheckRunRequest {
+    pub descriptor: CheckDescriptor,
+    pub session_id: Uuid,
+    pub granted_capabilities: Vec<String>,
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct QuietCheckRunResult {
+    pub result: CheckResult,
+    pub quiet_receipt: QuietBackgroundWorkRecord,
+}
+
+#[derive(Debug, Clone)]
 struct CapturedEvidence {
     artifact_id: String,
     content_hash: String,
@@ -134,6 +155,17 @@ impl CheckRunner {
         session_id: Uuid,
         granted_capabilities: &[String],
     ) -> Result<CheckResult, CheckRunnerError> {
+        self.run_check_with_planned_evidence(descriptor, session_id, granted_capabilities, None)
+            .await
+    }
+
+    async fn run_check_with_planned_evidence(
+        &self,
+        descriptor: CheckDescriptor,
+        session_id: Uuid,
+        granted_capabilities: &[String],
+        planned_evidence_artifact_id: Option<Uuid>,
+    ) -> Result<CheckResult, CheckRunnerError> {
         let _pre_check = CheckRunnerLifecycle::PreCheck(CheckPreCheck {
             check_id: descriptor.check_id,
             descriptor: descriptor.clone(),
@@ -153,8 +185,12 @@ impl CheckRunner {
         {
             Some(result) => (result, None),
             None => {
-                self.run_execution_phase(&descriptor, &descriptor_hash)
-                    .await?
+                self.run_execution_phase(
+                    &descriptor,
+                    &descriptor_hash,
+                    planned_evidence_artifact_id,
+                )
+                .await?
             }
         };
         let elapsed_ms = started_at.elapsed().as_millis() as u64;
@@ -190,6 +226,55 @@ impl CheckRunner {
         });
 
         Ok(result)
+    }
+
+    pub async fn run_quiet_check(
+        &self,
+        swarm_state: &ParallelSwarmStateRecoveryStore,
+        request: QuietCheckRunRequest,
+    ) -> Result<QuietCheckRunResult, CheckRunnerError> {
+        let descriptor = request.descriptor;
+        let session_id = request.session_id;
+        let missing = self.missing_capabilities(&descriptor, &request.granted_capabilities);
+        if !missing.is_empty() {
+            return Err(CheckRunnerError::CapabilityGate(missing));
+        }
+        if !self.supported_kinds.contains(&descriptor.check_kind) {
+            return Err(CheckRunnerError::Generic(format!(
+                "quiet check kind {} is not supported by this runtime",
+                descriptor.check_kind
+            )));
+        }
+        let planned_evidence_artifact_id = Uuid::now_v7();
+        let evidence_ref = quiet_check_evidence_ref(planned_evidence_artifact_id);
+        let quiet_receipt = swarm_state
+            .record_quiet_background_work(QuietBackgroundWorkRequest {
+                lane: request.lane,
+                workspace_id: request.workspace_id,
+                wp_id: request.wp_id,
+                mt_id: request.mt_id,
+                work_kind: QuietBackgroundWorkKind::TestRun,
+                subject_id: descriptor.check_id.to_string(),
+                session_id: session_id.to_string(),
+                policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun),
+                evidence_ref,
+            })
+            .await
+            .map_err(|err| {
+                CheckRunnerError::Generic(format!("quiet test-run receipt failed: {err}"))
+            })?;
+        let result = self
+            .run_check_with_planned_evidence(
+                descriptor.clone(),
+                session_id,
+                &request.granted_capabilities,
+                Some(planned_evidence_artifact_id),
+            )
+            .await?;
+        Ok(QuietCheckRunResult {
+            result,
+            quiet_receipt,
+        })
     }
 
     async fn run_pre_check(
@@ -237,6 +322,7 @@ impl CheckRunner {
         &self,
         descriptor: &CheckDescriptor,
         descriptor_hash: &str,
+        planned_evidence_artifact_id: Option<Uuid>,
     ) -> Result<(CheckResult, Option<CapturedEvidence>), CheckRunnerError> {
         let _ = CheckRunnerLifecycle::Check(CheckExecution {
             check_id: descriptor.check_id,
@@ -256,7 +342,12 @@ impl CheckRunner {
         };
 
         let evidence = self
-            .capture_evidence_if_applicable(&descriptor, descriptor_hash, &mut result)
+            .capture_evidence_if_applicable(
+                &descriptor,
+                descriptor_hash,
+                &mut result,
+                planned_evidence_artifact_id,
+            )
             .await?;
         Ok((result, evidence))
     }
@@ -466,14 +557,15 @@ impl CheckRunner {
         descriptor: &CheckDescriptor,
         descriptor_hash: &str,
         result: &mut CheckResult,
+        planned_evidence_artifact_id: Option<Uuid>,
     ) -> Result<Option<CapturedEvidence>, CheckRunnerError> {
         let status = result.status();
-        let should_capture = matches!(status, "pass" | "fail" | "advisory_only");
+        let should_capture = matches!(status, "pass" | "fail" | "advisory_only" | "blocked");
         if !should_capture {
             return Ok(None);
         }
 
-        let artifact_id = Uuid::now_v7();
+        let artifact_id = planned_evidence_artifact_id.unwrap_or_else(Uuid::now_v7);
         let artifact_id_str = artifact_id.to_string();
         let payload = json!({
             "check_id": descriptor.check_id,
@@ -562,6 +654,10 @@ impl CheckRunner {
         hasher.update(&bytes);
         Ok(hex::encode(hasher.finalize()))
     }
+}
+
+fn quiet_check_evidence_ref(planned_evidence_artifact_id: Uuid) -> String {
+    format!("artifact://governance-check/{planned_evidence_artifact_id}")
 }
 
 /// Canonical executable check result status.

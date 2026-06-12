@@ -275,6 +275,7 @@ pub enum KernelEventType {
     KnowledgeProjectionRebuilt,
     KnowledgeUserManualEntryRecorded,
     KnowledgeValidationRecorded,
+    KnowledgeQuietBackgroundWorkRecorded,
 }
 
 impl KernelEventType {
@@ -342,6 +343,9 @@ impl KernelEventType {
             Self::KnowledgeProjectionRebuilt => "KNOWLEDGE_PROJECTION_REBUILT",
             Self::KnowledgeUserManualEntryRecorded => "KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED",
             Self::KnowledgeValidationRecorded => "KNOWLEDGE_VALIDATION_RECORDED",
+            Self::KnowledgeQuietBackgroundWorkRecorded => {
+                "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
+            }
         }
     }
 
@@ -407,6 +411,7 @@ impl KernelEventType {
             KernelEventType::KnowledgeProjectionRebuilt,
             KernelEventType::KnowledgeUserManualEntryRecorded,
             KernelEventType::KnowledgeValidationRecorded,
+            KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
         ]
     }
 }

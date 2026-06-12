@@ -15,6 +15,10 @@ use crate::storage::artifacts::{
     artifact_root_rel, write_file_artifact, ArtifactClassification, ArtifactError, ArtifactLayer,
     ArtifactManifest, ArtifactPayloadKind,
 };
+use crate::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
+    QuietBackgroundWorkKind, QuietBackgroundWorkRecord, QuietBackgroundWorkRequest,
+};
 
 /// HBR-QUIET: suppress the console window Windows would otherwise pop when the
 /// screenshot adapter shells out to `node`. No-op off Windows.
@@ -200,6 +204,9 @@ pub enum ProductScreenshotExecutionError {
     Validation(&'static str),
     /// The native PNG could not be persisted as a real ArtifactStore artifact.
     ArtifactStore(String),
+    /// The visual capture succeeded, but the PostgreSQL/EventLedger quiet-work
+    /// receipt could not be recorded.
+    QuietReceipt(String),
 }
 
 impl From<ArtifactError> for ProductScreenshotExecutionError {
@@ -724,6 +731,21 @@ pub struct NativeProductScreenshotResultV1 {
     pub redaction_applied: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct QuietProductScreenshotCaptureRequestV1 {
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct QuietNativeProductScreenshotResultV1 {
+    pub capture: NativeProductScreenshotResultV1,
+    pub quiet_receipt: QuietBackgroundWorkRecord,
+}
+
 /// Record a native CDP screenshot as a governed ArtifactStore artifact, with NO
 /// Playwright dependency.
 ///
@@ -746,6 +768,114 @@ pub fn record_native_product_screenshot(
     focus_audit: Option<&FocusAuditReport>,
     protection: &VisualEvidenceProtectionV1,
     workspace_root: impl AsRef<Path>,
+) -> Result<NativeProductScreenshotResultV1, ProductScreenshotExecutionError> {
+    record_native_product_screenshot_with_artifact_id(
+        request,
+        evidence,
+        focus_audit,
+        protection,
+        workspace_root,
+        Uuid::now_v7(),
+    )
+}
+
+fn validate_native_product_screenshot_before_quiet_receipt(
+    request: &ProductScreenshotRequestV1,
+    evidence: &NativeScreenshotEvidence,
+    focus_audit: Option<&FocusAuditReport>,
+    protection: &VisualEvidenceProtectionV1,
+) -> Result<(), ProductScreenshotExecutionError> {
+    if request.request_id.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "request_id is required",
+        ));
+    }
+    if request.scope != evidence.scope {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "evidence scope must match request scope",
+        ));
+    }
+    if !target_matches_scope(request.scope, &request.target_ref) {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "target_ref must match screenshot scope",
+        ));
+    }
+    if !evidence.from_surface {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "native capture must be fromSurface (no foreground steal)",
+        ));
+    }
+    if !evidence.focus_audit_clean {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "native capture rejected: focus audit was not clean",
+        ));
+    }
+    if let Some(report) = focus_audit {
+        if assert_no_handshake_foreground(report).is_err() {
+            return Err(ProductScreenshotExecutionError::Validation(
+                "native capture rejected: Handshake-owned foreground event during capture",
+            ));
+        }
+    }
+    if protection.retention_class.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "visual evidence protection requires a retention_class",
+        ));
+    }
+    if protection.exportable && protection.redact_regions.is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "unredacted captures must never be exportable",
+        ));
+    }
+
+    let decoded = image::load_from_memory_with_format(&evidence.png_bytes, image::ImageFormat::Png)
+        .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+    let width = decoded.width();
+    let height = decoded.height();
+    if width == 0 || height == 0 {
+        return Err(ProductScreenshotExecutionError::InvalidPng(
+            "PNG dimensions must be positive".to_string(),
+        ));
+    }
+    if !protection.redact_regions.is_empty() {
+        let mut rgba = decoded.to_rgba8();
+        for region in &protection.redact_regions {
+            if region.width == 0 || region.height == 0 {
+                return Err(ProductScreenshotExecutionError::Validation(
+                    "redaction regions must have positive dimensions",
+                ));
+            }
+            let x_end = region.x.checked_add(region.width);
+            let y_end = region.y.checked_add(region.height);
+            if x_end.is_none_or(|end| end > width) || y_end.is_none_or(|end| end > height) {
+                return Err(ProductScreenshotExecutionError::Validation(
+                    "redaction regions must lie within the capture bounds",
+                ));
+            }
+            for y in region.y..region.y + region.height {
+                for x in region.x..region.x + region.width {
+                    rgba.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        let mut redacted = Vec::new();
+        image::DynamicImage::ImageRgba8(rgba)
+            .write_to(
+                &mut std::io::Cursor::new(&mut redacted),
+                image::ImageFormat::Png,
+            )
+            .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+    }
+    Ok(())
+}
+
+fn record_native_product_screenshot_with_artifact_id(
+    request: &ProductScreenshotRequestV1,
+    evidence: NativeScreenshotEvidence,
+    focus_audit: Option<&FocusAuditReport>,
+    protection: &VisualEvidenceProtectionV1,
+    workspace_root: impl AsRef<Path>,
+    artifact_store_id: Uuid,
 ) -> Result<NativeProductScreenshotResultV1, ProductScreenshotExecutionError> {
     // --- Request shape validation (reuse the governed request invariants). ---
     if request.request_id.trim().is_empty() {
@@ -798,9 +928,8 @@ pub fn record_native_product_screenshot(
     }
 
     // --- Decode + dimension-check the PNG (real image, never a stub blob). ----
-    let decoded =
-        image::load_from_memory_with_format(&evidence.png_bytes, image::ImageFormat::Png)
-            .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+    let decoded = image::load_from_memory_with_format(&evidence.png_bytes, image::ImageFormat::Png)
+        .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
     let width = decoded.width();
     let height = decoded.height();
     if width == 0 || height == 0 {
@@ -847,7 +976,6 @@ pub fn record_native_product_screenshot(
     // --- Persist the PNG as a real ArtifactStore L1 image artifact. -----------
     let workspace_root = workspace_root.as_ref();
     let png_sha256_hex = sha256_hex_raw(&stored_png_bytes);
-    let artifact_store_id = Uuid::now_v7();
     let manifest = ArtifactManifest {
         artifact_id: artifact_store_id,
         layer: ArtifactLayer::L1,
@@ -902,6 +1030,52 @@ pub fn record_native_product_screenshot(
         png_sha256: format!("sha256:{png_sha256_hex}"),
         focus_audit_run_id: focus_audit.map(|report| report.run_id.clone()),
         redaction_applied,
+    })
+}
+
+pub async fn record_native_product_screenshot_quiet(
+    request: &ProductScreenshotRequestV1,
+    evidence: NativeScreenshotEvidence,
+    focus_audit: Option<&FocusAuditReport>,
+    protection: &VisualEvidenceProtectionV1,
+    workspace_root: impl AsRef<Path>,
+    swarm_state: &ParallelSwarmStateRecoveryStore,
+    quiet: QuietProductScreenshotCaptureRequestV1,
+) -> Result<QuietNativeProductScreenshotResultV1, ProductScreenshotExecutionError> {
+    validate_native_product_screenshot_before_quiet_receipt(
+        request,
+        &evidence,
+        focus_audit,
+        protection,
+    )?;
+    let artifact_store_id = Uuid::now_v7();
+    let subject_id = format!("artifact.native.{artifact_store_id}");
+    let evidence_ref = format!("artifact-store://L1/{artifact_store_id}/payload");
+    let quiet_receipt = swarm_state
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: quiet.lane,
+            workspace_id: quiet.workspace_id,
+            wp_id: quiet.wp_id,
+            mt_id: quiet.mt_id,
+            work_kind: QuietBackgroundWorkKind::VisualCapture,
+            subject_id,
+            session_id: quiet.session_id,
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture),
+            evidence_ref,
+        })
+        .await
+        .map_err(|err| ProductScreenshotExecutionError::QuietReceipt(err.to_string()))?;
+    let capture = record_native_product_screenshot_with_artifact_id(
+        request,
+        evidence,
+        focus_audit,
+        protection,
+        workspace_root,
+        artifact_store_id,
+    )?;
+    Ok(QuietNativeProductScreenshotResultV1 {
+        capture,
+        quiet_receipt,
     })
 }
 

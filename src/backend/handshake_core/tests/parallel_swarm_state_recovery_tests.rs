@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-209..216 ParallelSwarmStateRecovery integration proof.
+//! WP-KERNEL-009 MT-209..219 ParallelSwarmStateRecovery integration proof.
 //!
 //! These tests run against real PostgreSQL through the existing knowledge
 //! PostgreSQL harness. They prove backend behavior, not status text:
@@ -9,13 +9,38 @@
 
 mod knowledge_pg_support;
 
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    io::Cursor,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
+use async_trait::async_trait;
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
+use handshake_core::governance_check_runner::{
+    CheckDescriptor, CheckResult, CheckRunner, CheckRunnerError, QuietCheckRunRequest,
+};
+use handshake_core::kernel::product_screenshot_capture::{
+    record_native_product_screenshot_quiet, NativeScreenshotEvidence,
+    ProductScreenshotExecutionError, ProductScreenshotRequestV1,
+    QuietProductScreenshotCaptureRequestV1, ScreenshotCaptureExecutionSurface,
+    ScreenshotCaptureScope, ScreenshotCaptureTriggerKind, VisualEvidenceProtectionV1,
+};
+use handshake_core::kernel::KernelActor;
+use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
+use handshake_core::knowledge_code_index::CodeIndexError;
 use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 use handshake_core::swarm_orchestration::state_recovery::{
     AgentCapability, AgentLaneIdentity, AgentLaneKind, AttributionMode, BackendNavigationCommand,
     ClaimScope, ClaimStatus, IndexLeaseStatus, IndexingLeaseRequest, LocalCloudAttribution,
     ModelProviderKind, NavigationCommandSet, ParallelSwarmStateRecoveryStore,
+    QuietBackgroundPolicy, QuietBackgroundWorkKind, QuietBackgroundWorkRequest,
     RecoveryCheckpointRequest, RecoveryResumePointer, RoleMailboxHandoffRequest,
     StateRecoveryError, SwarmEvidenceInspectionRequest, SwarmReceiptStatus, WorkClaimRequest,
 };
@@ -24,6 +49,57 @@ use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Barrier;
 use uuid::Uuid;
+
+#[derive(Default)]
+struct NoopRecorder;
+
+#[async_trait]
+impl FlightRecorder for NoopRecorder {
+    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+#[derive(Default)]
+struct CountingRecorder {
+    events: AtomicUsize,
+}
+
+impl CountingRecorder {
+    fn recorded_events(&self) -> usize {
+        self.events.load(Ordering::SeqCst)
+    }
+}
+
+#[async_trait]
+impl FlightRecorder for CountingRecorder {
+    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        self.events.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
 
 async fn recovery_store() -> Option<(sqlx::PgPool, ParallelSwarmStateRecoveryStore)> {
     let Some(pg) = knowledge_pg().await else {
@@ -35,7 +111,7 @@ async fn recovery_store() -> Option<(sqlx::PgPool, ParallelSwarmStateRecoverySto
         .connect(&pg.schema_url)
         .await
         .expect("connect isolated parallel swarm schema");
-    let event_db = PostgresDatabase::new(pool.clone()).into_arc();
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
     let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
     Some((pool, store))
 }
@@ -148,6 +224,40 @@ async fn ledger_event_type_and_status(pool: &sqlx::PgPool, event_id: &str) -> (S
     .fetch_one(pool)
     .await
     .expect("fetch ledger event type and status")
+}
+
+async fn ledger_event_type(pool: &sqlx::PgPool, event_id: &str) -> String {
+    sqlx::query_scalar(
+        r#"
+        SELECT event_type
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(event_id)
+    .fetch_one(pool)
+    .await
+    .expect("fetch ledger event type")
+}
+
+async fn quiet_background_work_count(
+    pool: &sqlx::PgPool,
+    workspace_id: &str,
+    subject_id: &str,
+) -> i64 {
+    sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_quiet_background_work
+        WHERE workspace_id = $1
+          AND subject_id = $2
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(subject_id)
+    .fetch_one(pool)
+    .await
+    .expect("count quiet background work")
 }
 
 async fn swarm_evidence_counts(
@@ -657,6 +767,7 @@ async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
             index_run_id: format!("index-run-{}", Uuid::now_v7()),
             priority: 10,
             ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
         })
         .await;
     assert_invalid_input_contains(lease_result, "WriteLocalIndex");
@@ -1089,6 +1200,7 @@ async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
             index_run_id: format!("index-run-validator-isolation-{}", Uuid::now_v7()),
             priority: 1,
             ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
         })
         .await
         .expect("seed indexing lease");
@@ -1271,6 +1383,834 @@ async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn quiet_background_work_receipts_reject_foreground_or_focus_stealing_work() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-quiet-background-{}", Uuid::now_v7());
+    let local = local_lane("quiet-background");
+    let mut loud_visual = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture);
+    loud_visual.no_foreground_window = false;
+    let loud_subject = format!("visual-loud-{}", Uuid::now_v7());
+    let loud_result = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: local.clone(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::VisualCapture,
+            subject_id: loud_subject.clone(),
+            session_id: "session-quiet-loud-deny".to_string(),
+            policy: loud_visual,
+            evidence_ref: "visual-capture://foreground-attempt".to_string(),
+        })
+        .await;
+    assert_invalid_input_contains(loud_result, "no_foreground_window");
+    assert_eq!(
+        quiet_background_work_count(&pool, &workspace_id, &loud_subject).await,
+        0,
+        "rejected foreground visual capture must not persist a quiet-work row"
+    );
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_quiet_background_work",
+            "subject_id",
+            &loud_subject,
+        )
+        .await,
+        0,
+        "rejected foreground visual capture must not emit a false receipt"
+    );
+
+    let quiet_subject = format!("visual-headless-{}", Uuid::now_v7());
+    let quiet_record = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: local.clone(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::VisualCapture,
+            subject_id: quiet_subject.clone(),
+            session_id: "session-quiet-visual".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture),
+            evidence_ref: "visual-capture://headless-loopback".to_string(),
+        })
+        .await
+        .expect("quiet visual capture receipt");
+    assert_eq!(
+        quiet_record.work_kind,
+        QuietBackgroundWorkKind::VisualCapture
+    );
+    assert!(quiet_record.policy.all_quiet());
+    assert!(quiet_record.event_ledger_event_id.starts_with("KE-"));
+    assert_eq!(
+        ledger_event_type(&pool, &quiet_record.event_ledger_event_id).await,
+        "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
+    );
+
+    let payload: serde_json::Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&quiet_record.event_ledger_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("quiet work event payload");
+    assert_eq!(payload["quiet_policy"]["work_kind"], "visual_capture");
+    assert_eq!(payload["quiet_policy"]["no_foreground_window"], true);
+    assert_eq!(payload["quiet_policy"]["no_focus_steal"], true);
+    assert_eq!(payload["quiet_policy"]["no_os_shell_window"], true);
+
+    let validator = lane_with_kind("quiet-inspector", AgentLaneKind::Validator);
+    let snapshot = store
+        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+            lane: validator.clone(),
+            workspace_id: workspace_id.clone(),
+            limit: 50,
+        })
+        .await
+        .expect("validator inspects quiet background evidence");
+    assert!(
+        snapshot
+            .quiet_background_work
+            .iter()
+            .any(|row| row.receipt_id == quiet_record.receipt_id),
+        "validator evidence inspection must expose quiet background work receipts"
+    );
+
+    let validator_subject = format!("validator-quiet-write-deny-{}", Uuid::now_v7());
+    let validator_result = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: validator,
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::BackendNavigation,
+            subject_id: validator_subject.clone(),
+            session_id: "session-validator-quiet-write-deny".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
+            evidence_ref: "backend-nav://validation-state".to_string(),
+        })
+        .await;
+    assert_invalid_input_contains(validator_result, "RunQuietBackgroundWork");
+    assert_eq!(
+        quiet_background_work_count(&pool, &workspace_id, &validator_subject).await,
+        0,
+        "validator lanes may inspect quiet evidence but must not write it"
+    );
+
+    let invalid_policy_cases = [
+        ("no_focus_steal", {
+            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
+            policy.no_focus_steal = false;
+            policy
+        }),
+        ("bounded", {
+            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
+            policy.bounded = false;
+            policy
+        }),
+        ("observable", {
+            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
+            policy.observable = false;
+            policy
+        }),
+        (
+            "work_kind",
+            QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        ),
+    ];
+    for (expected, policy) in invalid_policy_cases {
+        let subject_id = format!("quiet-invalid-{expected}-{}", Uuid::now_v7());
+        let result = store
+            .record_quiet_background_work(QuietBackgroundWorkRequest {
+                lane: local.clone(),
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-219".to_string(),
+                work_kind: QuietBackgroundWorkKind::TestRun,
+                subject_id: subject_id.clone(),
+                session_id: format!("session-quiet-invalid-{expected}"),
+                policy,
+                evidence_ref: format!("test-run://quiet-invalid-{expected}"),
+            })
+            .await;
+        assert_invalid_input_contains(result, expected);
+        assert_eq!(
+            quiet_background_work_count(&pool, &workspace_id, &subject_id).await,
+            0,
+            "invalid quiet policy {expected} must not persist a quiet-work row"
+        );
+    }
+
+    let missing_evidence_subject = format!("quiet-missing-evidence-{}", Uuid::now_v7());
+    let missing_evidence_result = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: local,
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::TestRun,
+            subject_id: missing_evidence_subject.clone(),
+            session_id: "session-quiet-missing-evidence".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun),
+            evidence_ref: "".to_string(),
+        })
+        .await;
+    assert_invalid_input_contains(missing_evidence_result, "evidence_ref");
+    assert_eq!(
+        quiet_background_work_count(&pool, &workspace_id, &missing_evidence_subject).await,
+        0,
+        "quiet-work receipts require a concrete evidence_ref"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn indexing_leases_and_backend_navigation_are_quiet_by_contract() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+    let workspace_id = format!("workspace-quiet-index-{}", Uuid::now_v7());
+
+    let nav = NavigationCommandSet::default();
+    for command in nav.commands() {
+        let policy = command.quiet_policy();
+        assert_eq!(policy.work_kind, QuietBackgroundWorkKind::BackendNavigation);
+        assert!(
+            policy.all_quiet(),
+            "backend navigation command {} must be quiet by contract",
+            command.command_id
+        );
+    }
+    let resolved = nav
+        .resolve(
+            BackendNavigationCommand::ValidationState,
+            json!({"workspace_id": workspace_id.clone()}),
+        )
+        .expect("quiet backend navigation resolves");
+    assert_eq!(
+        resolved.quiet_policy.work_kind,
+        QuietBackgroundWorkKind::BackendNavigation
+    );
+    assert!(resolved.quiet_policy.all_quiet());
+    assert_eq!(
+        quiet_background_work_count(&pool, &workspace_id, &resolved.deterministic_cache_key).await,
+        0,
+        "pure navigation resolution must not pretend to have durable quiet evidence"
+    );
+    let quiet_nav = store
+        .resolve_backend_navigation_quiet(
+            local_lane("quiet-nav"),
+            "session-quiet-nav".to_string(),
+            "WP-KERNEL-009".to_string(),
+            "MT-219".to_string(),
+            BackendNavigationCommand::ValidationState,
+            json!({"workspace_id": workspace_id.clone()}),
+        )
+        .await
+        .expect("quiet backend navigation resolves with durable receipt");
+    assert_eq!(
+        quiet_nav.resolved.deterministic_cache_key,
+        resolved.deterministic_cache_key
+    );
+    assert_eq!(
+        quiet_nav.quiet_receipt.work_kind,
+        QuietBackgroundWorkKind::BackendNavigation
+    );
+    assert_eq!(
+        quiet_nav.quiet_receipt.subject_id,
+        quiet_nav.resolved.deterministic_cache_key
+    );
+    assert!(quiet_nav.quiet_receipt.policy.all_quiet());
+    assert_eq!(
+        ledger_event_type(&pool, &quiet_nav.quiet_receipt.event_ledger_event_id).await,
+        "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
+    );
+    assert_eq!(
+        quiet_background_work_count(
+            &pool,
+            &workspace_id,
+            &quiet_nav.resolved.deterministic_cache_key,
+        )
+        .await,
+        1,
+        "persisted backend navigation must leave validator-inspectable quiet evidence"
+    );
+
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace_id.clone(),
+        source_root_id: "quiet-index-root".to_string(),
+    };
+    let quiet_lease = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("quiet-index-a"),
+            session_id: "session-quiet-index-a".to_string(),
+            index_run_id: format!("index-run-quiet-{}", Uuid::now_v7()),
+            priority: 10,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("quiet indexing lease");
+    assert_eq!(
+        quiet_lease.quiet_policy.work_kind,
+        QuietBackgroundWorkKind::Indexing
+    );
+    assert!(quiet_lease.quiet_policy.all_quiet());
+
+    let stored_policy: serde_json::Value = sqlx::query_scalar(
+        "SELECT quiet_policy_jsonb FROM knowledge_parallel_indexing_lease_queue WHERE lease_id = $1",
+    )
+    .bind(&quiet_lease.lease_id)
+    .fetch_one(&pool)
+    .await
+    .expect("stored quiet indexing policy");
+    assert_eq!(stored_policy["work_kind"], "indexing");
+    assert_eq!(stored_policy["no_foreground_window"], true);
+    assert_eq!(stored_policy["no_focus_steal"], true);
+    assert_eq!(stored_policy["no_os_shell_window"], true);
+
+    let event_payload: serde_json::Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&quiet_lease.event_ledger_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("quiet lease event payload");
+    assert_eq!(event_payload["quiet_policy"]["work_kind"], "indexing");
+    assert_eq!(event_payload["quiet_policy"]["no_foreground_window"], true);
+
+    let mut loud_index = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing);
+    loud_index.no_os_shell_window = false;
+    let loud_run_id = format!("index-run-loud-{}", Uuid::now_v7());
+    let loud_result = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            scope,
+            lane: local_lane("quiet-index-loud"),
+            session_id: "session-quiet-index-loud".to_string(),
+            index_run_id: loud_run_id.clone(),
+            priority: 20,
+            ttl_seconds: 600,
+            quiet_policy: loud_index,
+        })
+        .await;
+    assert_invalid_input_contains(loud_result, "no_os_shell_window");
+    let loud_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE index_run_id = $1",
+    )
+    .bind(&loud_run_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected loud indexing lease");
+    assert_eq!(loud_rows, 0);
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_indexing_lease",
+            "index_run_id",
+            &loud_run_id,
+        )
+        .await,
+        0,
+        "rejected loud indexing work must not emit a false lease receipt"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let workspace = event_db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("real-quiet-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create workspace for real quiet entrypoints");
+    let workspace_id = workspace.id;
+
+    let index_engine = CodeIndexEngine::new(event_db.clone());
+    let code_context = CodeIndexContext {
+        actor: KernelActor::System("quiet-code-index".to_string()),
+        kernel_task_run_id: "KTR-quiet-code-index".to_string(),
+        session_run_id: "SR-quiet-code-index".to_string(),
+        correlation_id: Some("CORR-quiet-code-index".to_string()),
+    };
+    let quiet_run = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            local_lane("real-quiet-index"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await
+        .expect("real code-index run starts through quiet path");
+    assert_eq!(quiet_run.indexing_lease.status, IndexLeaseStatus::Acquired);
+    assert_eq!(
+        quiet_run.indexing_lease.index_run_id,
+        quiet_run.index_run_id
+    );
+    assert_eq!(
+        quiet_run.quiet_receipt.work_kind,
+        QuietBackgroundWorkKind::Indexing
+    );
+    assert_eq!(quiet_run.quiet_receipt.subject_id, quiet_run.index_run_id);
+    let index_run_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE index_run_id = $1")
+            .bind(&quiet_run.index_run_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count quiet code-index run");
+    assert_eq!(
+        index_run_rows, 1,
+        "quiet indexing proof must start a real knowledge_index_runs row"
+    );
+
+    let artifact_root = tempfile::tempdir().expect("temp visual artifact root");
+    let screenshot_request = ProductScreenshotRequestV1 {
+        request_id: format!("request.native.quiet.{}", Uuid::now_v7()),
+        scope: ScreenshotCaptureScope::Module,
+        target_ref: "module://quiet-background-work".to_string(),
+        requested_by_role: "CODER".to_string(),
+        trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
+        window_title: "Handshake Desktop Shell".to_string(),
+        width: 1,
+        height: 1,
+        capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
+        flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work".to_string(),
+        execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
+        workdir_ref: "repo-root://".to_string(),
+    };
+    let quiet_capture = record_native_product_screenshot_quiet(
+        &screenshot_request,
+        NativeScreenshotEvidence {
+            png_bytes: tiny_png_bytes(),
+            width: 1,
+            height: 1,
+            scope: ScreenshotCaptureScope::Module,
+            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
+            from_surface: true,
+            focus_audit_clean: true,
+        },
+        None,
+        &VisualEvidenceProtectionV1::default(),
+        artifact_root.path(),
+        &store,
+        QuietProductScreenshotCaptureRequestV1 {
+            lane: local_lane("real-quiet-visual"),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            session_id: "session-real-quiet-visual".to_string(),
+        },
+    )
+    .await
+    .expect("real native screenshot capture records quiet receipt");
+    assert_eq!(
+        quiet_capture.quiet_receipt.work_kind,
+        QuietBackgroundWorkKind::VisualCapture
+    );
+    assert_eq!(
+        quiet_capture.quiet_receipt.subject_id,
+        quiet_capture.capture.artifact.artifact_id
+    );
+    assert_eq!(
+        quiet_capture.quiet_receipt.evidence_ref,
+        quiet_capture.capture.artifact.screenshot_ref
+    );
+
+    let check_artifact_root = tempfile::tempdir().expect("temp check artifact root");
+    let check_runner = CheckRunner::new(
+        Arc::new(NoopRecorder),
+        check_artifact_root.path().to_path_buf(),
+    );
+    let quiet_check = check_runner
+        .run_quiet_check(
+            &store,
+            QuietCheckRunRequest {
+                descriptor: CheckDescriptor::new(Uuid::now_v7(), "quiet native check", "native"),
+                session_id: Uuid::now_v7(),
+                granted_capabilities: vec!["governance.check.run".to_string()],
+                lane: local_lane("real-quiet-test"),
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-219".to_string(),
+            },
+        )
+        .await
+        .expect("real check runner records quiet receipt");
+    assert_eq!(quiet_check.result.status(), "pass");
+    assert_eq!(
+        quiet_check.quiet_receipt.work_kind,
+        QuietBackgroundWorkKind::TestRun
+    );
+    let check_evidence_id = match &quiet_check.result {
+        CheckResult::Pass(details) => details
+            .evidence_artifact_id
+            .as_deref()
+            .expect("native quiet check pass must write evidence artifact"),
+        other => panic!("expected quiet native check pass, got {other:?}"),
+    };
+    assert_eq!(
+        quiet_check.quiet_receipt.evidence_ref,
+        format!("artifact://governance-check/{check_evidence_id}"),
+        "quiet check receipt must cite the real check artifact written by the runner"
+    );
+
+    let quiet_rows: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_quiet_background_work
+        WHERE workspace_id = $1
+          AND work_kind IN ('indexing', 'visual_capture', 'test_run')
+        "#,
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count real quiet entrypoint rows");
+    assert_eq!(
+        quiet_rows, 3,
+        "real product entrypoints must leave durable quiet rows for indexing, visual capture, and tests"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn quiet_entrypoint_denials_happen_before_product_side_effects() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let workspace = event_db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("quiet-denied-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create workspace for quiet denial proof");
+    let workspace_id = workspace.id;
+
+    let index_engine = CodeIndexEngine::new(event_db.clone());
+    let code_context = CodeIndexContext {
+        actor: KernelActor::System("quiet-code-index-denied".to_string()),
+        kernel_task_run_id: "KTR-quiet-code-index-denied".to_string(),
+        session_run_id: "SR-quiet-code-index-denied".to_string(),
+        correlation_id: Some("CORR-quiet-code-index-denied".to_string()),
+    };
+    let denied_index = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            lane_with_kind("denied-quiet-index", AgentLaneKind::Validator),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await;
+    match denied_index {
+        Err(CodeIndexError::Validation(message)) => assert!(
+            message.contains("WriteLocalIndex"),
+            "denied quiet index must fail before the KIR write on lane capability, got {message}"
+        ),
+        other => panic!("expected denied quiet index validation error, got {other:?}"),
+    }
+    let index_run_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count denied quiet KIR rows");
+    assert_eq!(
+        index_run_rows, 0,
+        "denied quiet indexing must not leave an orphan knowledge_index_runs row"
+    );
+
+    let first_quiet_index = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            local_lane("contention-quiet-index-a"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await
+        .expect("first quiet index acquires same-scope lease");
+    let contended_index = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            local_lane("contention-quiet-index-b"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await;
+    match contended_index {
+        Err(CodeIndexError::Validation(message)) => assert!(
+            message.contains("did not acquire index lease"),
+            "contended quiet index must fail without queueing a future orphan, got {message}"
+        ),
+        other => panic!("expected contended quiet index validation error, got {other:?}"),
+    }
+    let index_lease_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count contended quiet index leases");
+    assert_eq!(
+        index_lease_rows, 1,
+        "contended quiet indexing must not persist a queued lease without KIR/quiet receipt"
+    );
+    let index_run_rows_after_contention: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count KIR rows after contention");
+    assert_eq!(
+        index_run_rows_after_contention, 1,
+        "contended quiet indexing must leave only the acquired KIR row"
+    );
+    assert_eq!(
+        first_quiet_index.quiet_receipt.subject_id,
+        first_quiet_index.index_run_id
+    );
+
+    let artifact_root = tempfile::tempdir().expect("temp denied visual artifact root");
+    let denied_capture = record_native_product_screenshot_quiet(
+        &ProductScreenshotRequestV1 {
+            request_id: format!("request.native.quiet.denied.{}", Uuid::now_v7()),
+            scope: ScreenshotCaptureScope::Module,
+            target_ref: "module://quiet-background-work-denied".to_string(),
+            requested_by_role: "CODER".to_string(),
+            trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
+            window_title: "Handshake Desktop Shell".to_string(),
+            width: 1,
+            height: 1,
+            capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
+            flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work-denied".to_string(),
+            execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
+            workdir_ref: "repo-root://".to_string(),
+        },
+        NativeScreenshotEvidence {
+            png_bytes: tiny_png_bytes(),
+            width: 1,
+            height: 1,
+            scope: ScreenshotCaptureScope::Module,
+            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
+            from_surface: true,
+            focus_audit_clean: true,
+        },
+        None,
+        &VisualEvidenceProtectionV1::default(),
+        artifact_root.path(),
+        &store,
+        QuietProductScreenshotCaptureRequestV1 {
+            lane: lane_with_kind("denied-quiet-visual", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            session_id: "session-denied-quiet-visual".to_string(),
+        },
+    )
+    .await;
+    match denied_capture {
+        Err(ProductScreenshotExecutionError::QuietReceipt(message)) => assert!(
+            message.contains("RunQuietBackgroundWork"),
+            "denied quiet screenshot must fail on quiet capability before artifact write, got {message}"
+        ),
+        other => panic!("expected denied quiet screenshot receipt error, got {other:?}"),
+    }
+    assert!(
+        std::fs::read_dir(artifact_root.path())
+            .expect("read denied visual artifact root")
+            .next()
+            .is_none(),
+        "denied quiet screenshot must not write ArtifactStore payloads"
+    );
+
+    let invalid_focus_root = tempfile::tempdir().expect("temp invalid focus artifact root");
+    let invalid_focus_capture = record_native_product_screenshot_quiet(
+        &ProductScreenshotRequestV1 {
+            request_id: format!("request.native.quiet.invalid-focus.{}", Uuid::now_v7()),
+            scope: ScreenshotCaptureScope::Module,
+            target_ref: "module://quiet-background-work-invalid-focus".to_string(),
+            requested_by_role: "CODER".to_string(),
+            trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
+            window_title: "Handshake Desktop Shell".to_string(),
+            width: 1,
+            height: 1,
+            capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
+            flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work-invalid-focus"
+                .to_string(),
+            execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
+            workdir_ref: "repo-root://".to_string(),
+        },
+        NativeScreenshotEvidence {
+            png_bytes: tiny_png_bytes(),
+            width: 1,
+            height: 1,
+            scope: ScreenshotCaptureScope::Module,
+            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
+            from_surface: true,
+            focus_audit_clean: false,
+        },
+        None,
+        &VisualEvidenceProtectionV1::default(),
+        invalid_focus_root.path(),
+        &store,
+        QuietProductScreenshotCaptureRequestV1 {
+            lane: local_lane("invalid-focus-quiet-visual"),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            session_id: "session-invalid-focus-quiet-visual".to_string(),
+        },
+    )
+    .await;
+    match invalid_focus_capture {
+        Err(ProductScreenshotExecutionError::Validation(message)) => assert!(
+            message.contains("focus audit was not clean"),
+            "invalid focus capture must fail before quiet receipt, got {message}"
+        ),
+        other => panic!("expected invalid focus validation error, got {other:?}"),
+    }
+    assert!(
+        std::fs::read_dir(invalid_focus_root.path())
+            .expect("read invalid focus artifact root")
+            .next()
+            .is_none(),
+        "invalid focus quiet screenshot must not write ArtifactStore payloads"
+    );
+
+    let check_recorder = Arc::new(CountingRecorder::default());
+    let check_artifact_root = tempfile::tempdir().expect("temp denied check artifact root");
+    let check_runner = CheckRunner::new(
+        check_recorder.clone(),
+        check_artifact_root.path().to_path_buf(),
+    );
+    let denied_check = check_runner
+        .run_quiet_check(
+            &store,
+            QuietCheckRunRequest {
+                descriptor: CheckDescriptor::new(Uuid::now_v7(), "quiet denied check", "native"),
+                session_id: Uuid::now_v7(),
+                granted_capabilities: vec!["governance.check.run".to_string()],
+                lane: lane_with_kind("denied-quiet-test", AgentLaneKind::Validator),
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-219".to_string(),
+            },
+        )
+        .await;
+    match denied_check {
+        Err(CheckRunnerError::Generic(message)) => assert!(
+            message.contains("RunQuietBackgroundWork"),
+            "denied quiet check must fail on quiet capability before run_check, got {message}"
+        ),
+        other => panic!("expected denied quiet check receipt error, got {other:?}"),
+    }
+    assert_eq!(
+        check_recorder.recorded_events(),
+        0,
+        "denied quiet check must not emit Flight Recorder events"
+    );
+    assert!(
+        std::fs::read_dir(check_artifact_root.path())
+            .expect("read denied check artifact root")
+            .next()
+            .is_none(),
+        "denied quiet check must not write check artifacts"
+    );
+
+    let missing_capability_recorder = Arc::new(CountingRecorder::default());
+    let missing_capability_root =
+        tempfile::tempdir().expect("temp missing-capability check artifact root");
+    let missing_capability_runner = CheckRunner::new(
+        missing_capability_recorder.clone(),
+        missing_capability_root.path().to_path_buf(),
+    );
+    let missing_capability_check = missing_capability_runner
+        .run_quiet_check(
+            &store,
+            QuietCheckRunRequest {
+                descriptor: CheckDescriptor::new(
+                    Uuid::now_v7(),
+                    "quiet missing capability check",
+                    "native",
+                ),
+                session_id: Uuid::now_v7(),
+                granted_capabilities: Vec::new(),
+                lane: local_lane("missing-capability-quiet-test"),
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-219".to_string(),
+            },
+        )
+        .await;
+    match missing_capability_check {
+        Err(CheckRunnerError::CapabilityGate(missing)) => assert!(
+            missing.contains(&"governance.check.run".to_string()),
+            "quiet check preflight must report missing governance check capability"
+        ),
+        other => panic!("expected missing-capability quiet check error, got {other:?}"),
+    }
+    assert_eq!(
+        missing_capability_recorder.recorded_events(),
+        0,
+        "missing-capability quiet check must not emit Flight Recorder events"
+    );
+    assert!(
+        std::fs::read_dir(missing_capability_root.path())
+            .expect("read missing-capability check artifact root")
+            .next()
+            .is_none(),
+        "missing-capability quiet check must not write planned check artifacts"
+    );
+
+    let quiet_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count denied quiet rows");
+    assert_eq!(
+        quiet_rows, 1,
+        "denied/invalid quiet entrypoints must not persist extra quiet receipts beyond the acquired contention seed"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_handoff_requires_write_mailbox_capability() {
     let Some((pool, store)) = recovery_store().await else {
         return;
@@ -1318,6 +2258,19 @@ async fn mailbox_handoff_requires_write_mailbox_capability() {
             "denied mailbox writers must not leave EventLedger handoff receipts"
         );
     }
+}
+
+fn tiny_png_bytes() -> Vec<u8> {
+    let mut bytes = Vec::new();
+    let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+        1,
+        1,
+        image::Rgba([0, 0, 0, 255]),
+    ));
+    image
+        .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+        .expect("tiny png writes");
+    bytes
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1856,6 +2809,7 @@ async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaim
             index_run_id: format!("index-run-{}", Uuid::now_v7()),
             priority: 10,
             ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
         })
         .await
         .expect("first index lease");
@@ -1872,6 +2826,7 @@ async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaim
             index_run_id: format!("index-run-{}", Uuid::now_v7()),
             priority: 20,
             ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
         })
         .await
         .expect("second index lease queues");
@@ -1934,6 +2889,22 @@ async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaim
         ledger_event_type_and_status(&pool, &reclaimed[0].event_ledger_event_id).await;
     assert_eq!(reclaimed_event_type, "KNOWLEDGE_INDEX_RUN_CANCELLED");
     assert_eq!(reclaimed_status, "reclaimed");
+    let reclaimed_payload: serde_json::Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&reclaimed[0].event_ledger_event_id)
+            .fetch_one(&pool)
+            .await
+            .expect("reclaimed lease event payload");
+    assert_eq!(reclaimed_payload["quiet_policy"]["work_kind"], "indexing");
+    assert_eq!(
+        reclaimed_payload["quiet_policy"]["no_foreground_window"],
+        true
+    );
+    assert_eq!(reclaimed_payload["quiet_policy"]["no_focus_steal"], true);
+    assert_eq!(
+        reclaimed_payload["quiet_policy"]["no_os_shell_window"],
+        true
+    );
     assert!(
         store
             .active_index_writer_for_scope(&scope)
@@ -1974,6 +2945,7 @@ async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events()
                 index_run_id: format!("index-run-{}", Uuid::now_v7()),
                 priority: 10,
                 ttl_seconds: 600,
+                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
             })
             .await
     });
@@ -1994,6 +2966,7 @@ async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events()
                 index_run_id: format!("index-run-{}", Uuid::now_v7()),
                 priority: 20,
                 ttl_seconds: 600,
+                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
             })
             .await
     });

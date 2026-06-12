@@ -249,6 +249,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         lookup_body["nav_receipt_event_id"].is_string(),
         "lookup must leave a retrieval receipt"
     );
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &lookup_body, "lookup").await;
     let matches = lookup_body["matches"].as_array().expect("matches array");
     let add_match = matches
         .iter()
@@ -278,6 +279,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("detail send");
     assert_eq!(detail.status(), 200);
     let detail_body: Value = detail.json().await.expect("detail json");
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &detail_body, "detail").await;
     assert_eq!(detail_body["symbol"]["display_name"], "add");
     assert_eq!(
         detail_body["symbol"]["staleness"]["state"], "fresh",
@@ -294,6 +296,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("refs send");
     assert_eq!(refs.status(), 200);
     let refs_body: Value = refs.json().await.expect("refs json");
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &refs_body, "references").await;
     let callers = refs_body["callers"].as_array().expect("callers");
     assert!(
         callers
@@ -330,6 +333,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("tests send");
     assert_eq!(tests.status(), 200);
     let tests_body: Value = tests.json().await.expect("tests json");
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &tests_body, "tests").await;
     let test_list = tests_body["tests"].as_array().expect("tests array");
     assert!(
         test_list
@@ -357,6 +361,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("spans send");
     assert_eq!(spans.status(), 200);
     let spans_body: Value = spans.json().await.expect("spans json");
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &spans_body, "spans").await;
     let span_list = spans_body["spans"].as_array().expect("spans array");
     assert!(!span_list.is_empty(), "add must expose citation spans");
     assert!(span_list.iter().any(|s| s["span_kind"] == "ast"));
@@ -390,6 +395,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         "lens should list add"
     );
     assert!(lens_body["nav_receipt_event_id"].is_string());
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &lens_body, "lens").await;
 
     // --- Unknown symbol id -> 404 ---------------------------------------------
     let missing = nav_headers(
@@ -499,4 +505,38 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+async fn quiet_nav_receipt_count(pg: &KnowledgePg, workspace_id: &str, receipt_id: &str) -> i64 {
+    let mut conn = pg.raw_connection().await;
+    sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_quiet_background_work
+        WHERE workspace_id = $1
+          AND receipt_id = $2
+          AND work_kind = 'backend_navigation'
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(receipt_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("count backend navigation quiet receipt")
+}
+
+async fn assert_backend_nav_quiet_receipt(
+    pg: &KnowledgePg,
+    workspace_id: &str,
+    body: &Value,
+    route_label: &str,
+) {
+    let receipt = body["quiet_background_work_receipt_id"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{route_label} must leave a quiet background-work receipt"));
+    assert_eq!(
+        quiet_nav_receipt_count(pg, workspace_id, receipt).await,
+        1,
+        "{route_label} route must persist backend-navigation quiet work through PostgreSQL"
+    );
 }
