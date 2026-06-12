@@ -1793,12 +1793,25 @@ pub struct KnowledgeRichDocument {
     pub promotion_receipt_event_id: Option<String>,
     /// Outbound projection refs: `[{"projection_id": "KWP-..."}, ...]`.
     pub projection_refs: Value,
+    /// MT-145 RichDocumentIdentityModel: project membership (a stable project
+    /// id / token, never an absolute path).
+    pub project_ref: Option<String>,
+    /// MT-145: folder membership (a stable, workspace-relative folder token,
+    /// never an absolute path).
+    pub folder_ref: Option<String>,
+    /// MT-145: authority classification (`draft` | `promoted` | `archived`).
+    pub authority_label: String,
+    /// MT-145: owning actor kind (operator/local_model/cloud_model/validator/
+    /// system); all-or-nothing with `owner_actor_id`.
+    pub owner_actor_kind: Option<String>,
+    /// MT-145: owning actor id.
+    pub owner_actor_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 /// Insert payload for [`KnowledgeRichDocument`].
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct NewKnowledgeRichDocument {
     pub workspace_id: String,
     pub document_id: Option<String>,
@@ -1808,6 +1821,20 @@ pub struct NewKnowledgeRichDocument {
     pub crdt_document_id: Option<String>,
     pub crdt_snapshot_id: Option<String>,
     pub promotion_receipt_event_id: Option<String>,
+    /// MT-145 RichDocumentIdentityModel fields. Defaults: no project/folder, an
+    /// `promoted` authority label, no owner. Use
+    /// [`NewKnowledgeRichDocument::with_identity`] to set them.
+    #[serde(default)]
+    pub project_ref: Option<String>,
+    #[serde(default)]
+    pub folder_ref: Option<String>,
+    /// `draft` | `promoted` | `archived`; defaults to `promoted` when empty.
+    #[serde(default)]
+    pub authority_label: Option<String>,
+    #[serde(default)]
+    pub owner_actor_kind: Option<String>,
+    #[serde(default)]
+    pub owner_actor_id: Option<String>,
 }
 
 /// One promoted revision in the append-only version history.
@@ -1862,6 +1889,7 @@ const KNOWLEDGE_RICH_DOCUMENT_COLUMNS: &str = r#"
     rich_document_id, workspace_id, document_id, title, schema_version,
     doc_version, content_json, content_sha256, crdt_document_id,
     crdt_snapshot_id, promotion_receipt_event_id, projection_refs,
+    project_ref, folder_ref, authority_label, owner_actor_kind, owner_actor_id,
     created_at, updated_at
 "#;
 
@@ -1879,6 +1907,11 @@ fn rich_document_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeRichDocument {
         crdt_snapshot_id: row.get("crdt_snapshot_id"),
         promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
         projection_refs: row.get("projection_refs"),
+        project_ref: row.get("project_ref"),
+        folder_ref: row.get("folder_ref"),
+        authority_label: row.get("authority_label"),
+        owner_actor_kind: row.get("owner_actor_kind"),
+        owner_actor_id: row.get("owner_actor_id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
@@ -1901,6 +1934,118 @@ fn code_node_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeEditorCodeNode {
         worker_requirements: row.get("worker_requirements"),
         source_mapping: row.get("source_mapping"),
         lint_diagnostics: row.get("lint_diagnostics"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-152 EmbedReferenceModel + MT-153 BrokenEmbedRepairState:
+// knowledge_document_embeds (migration 0281). Embeds are TYPED references
+// (artifact/media/source id or typed http(s) URL), never absolute paths; a
+// missing target is a repairable 'broken' row with a reason.
+// ---------------------------------------------------------------------------
+
+/// A typed embed reference attached to a document embed block (MT-152/153).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KnowledgeDocumentEmbed {
+    pub embed_id: String,
+    pub rich_document_id: String,
+    /// MT-148 stable block id of the embed block.
+    pub block_id: String,
+    /// `artifact` | `media` | `source` | `url`.
+    pub ref_kind: String,
+    /// The id or typed http(s) URL; never an absolute path (DB-enforced).
+    pub ref_value: String,
+    pub caption: Option<String>,
+    /// `ok` | `broken` (MT-153).
+    pub repair_state: String,
+    pub repair_reason: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for a document embed (MT-152). The `repair_state`/`reason`
+/// are set through the dedicated repair-state method, not on upsert.
+#[derive(Clone, Debug, Serialize)]
+pub struct UpsertKnowledgeDocumentEmbed {
+    pub rich_document_id: String,
+    pub block_id: String,
+    pub ref_kind: String,
+    pub ref_value: String,
+    pub caption: Option<String>,
+}
+
+const KNOWLEDGE_DOCUMENT_EMBED_COLUMNS: &str = r#"
+    embed_id, rich_document_id, block_id, ref_kind, ref_value, caption,
+    repair_state, repair_reason, created_at, updated_at
+"#;
+
+fn document_embed_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeDocumentEmbed {
+    KnowledgeDocumentEmbed {
+        embed_id: row.get("embed_id"),
+        rich_document_id: row.get("rich_document_id"),
+        block_id: row.get("block_id"),
+        ref_kind: row.get("ref_kind"),
+        ref_value: row.get("ref_value"),
+        caption: row.get("caption"),
+        repair_state: row.get("repair_state"),
+        repair_reason: row.get("repair_reason"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-155 DocumentBacklinkBridge: knowledge_document_backlinks (migration
+// 0282). Document-scoped backlinks keyed by a STABLE relationship_id derived
+// from the document content (deterministic across re-extraction).
+// ---------------------------------------------------------------------------
+
+/// A persisted document backlink edge (MT-155).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KnowledgeDocumentBacklink {
+    pub backlink_id: String,
+    pub workspace_id: String,
+    /// Stable, deterministic across re-extraction (`KDLNK-...`).
+    pub relationship_id: String,
+    pub source_document_id: String,
+    /// `file|folder|project|spec|wp|symbol|wikilink|mention|tag`.
+    pub link_kind: String,
+    pub target: String,
+    /// MT-148 stable block id the reference came from.
+    pub block_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for a document backlink (MT-155). The `relationship_id` is
+/// supplied by the caller (derived in `knowledge_document::backlink`), and the
+/// upsert is keyed on `(workspace_id, relationship_id)`.
+#[derive(Clone, Debug, Serialize)]
+pub struct UpsertKnowledgeDocumentBacklink {
+    pub workspace_id: String,
+    pub relationship_id: String,
+    pub source_document_id: String,
+    pub link_kind: String,
+    pub target: String,
+    pub block_id: String,
+}
+
+const KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS: &str = r#"
+    backlink_id, workspace_id, relationship_id, source_document_id, link_kind,
+    target, block_id, created_at, updated_at
+"#;
+
+fn document_backlink_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeDocumentBacklink {
+    KnowledgeDocumentBacklink {
+        backlink_id: row.get("backlink_id"),
+        workspace_id: row.get("workspace_id"),
+        relationship_id: row.get("relationship_id"),
+        source_document_id: row.get("source_document_id"),
+        link_kind: row.get("link_kind"),
+        target: row.get("target"),
+        block_id: row.get("block_id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
@@ -2689,6 +2834,40 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
     ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>>;
 
+    /// MT-157 batch op: rename a document (title only). Does NOT bump
+    /// doc_version (content is unchanged); a safe metadata-only op.
+    async fn rename_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+        title: &str,
+    ) -> StorageResult<KnowledgeRichDocument>;
+
+    /// MT-157 batch op: move a document to a project/folder. `None` for an arg
+    /// clears that membership; `Some(value)` sets it. Metadata-only.
+    async fn move_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+        project_ref: Option<&str>,
+        folder_ref: Option<&str>,
+    ) -> StorageResult<KnowledgeRichDocument>;
+
+    /// MT-157 batch op: set a document's authority label
+    /// (`draft`|`promoted`|`archived`). Metadata-only.
+    async fn set_knowledge_rich_document_authority_label(
+        &self,
+        rich_document_id: &str,
+        authority_label: &str,
+    ) -> StorageResult<KnowledgeRichDocument>;
+
+    /// Lists a workspace's rich documents, optionally scoped to a project/
+    /// folder (MT-145 membership lookup, MT-157 batch targeting).
+    async fn list_knowledge_rich_documents(
+        &self,
+        workspace_id: &str,
+        project_ref: Option<&str>,
+        folder_ref: Option<&str>,
+    ) -> StorageResult<Vec<KnowledgeRichDocument>>;
+
     /// Upserts a Monaco code node by its stable (document, node_path)
     /// identity; the round-trip integrity hash is recomputed from the exact
     /// code text on every write.
@@ -2701,6 +2880,67 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
     ) -> StorageResult<Vec<KnowledgeEditorCodeNode>>;
+
+    // -- MT-152/153 document embeds (typed refs + broken-embed repair) ---------------
+    /// Upserts a typed embed reference by its stable `(document, block_id)`
+    /// identity (MT-152). Absolute-path targets are rejected by the DB CHECK;
+    /// a re-save of the document upserts the embed for that block in place.
+    async fn upsert_knowledge_document_embed(
+        &self,
+        upsert: UpsertKnowledgeDocumentEmbed,
+    ) -> StorageResult<KnowledgeDocumentEmbed>;
+
+    async fn list_knowledge_document_embeds(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+
+    /// Marks an embed broken (MT-153) with a repair reason, or repairs it back
+    /// to `ok` (pass `None` for the reason). Returns the updated embed.
+    async fn set_knowledge_document_embed_repair_state(
+        &self,
+        embed_id: &str,
+        broken_reason: Option<&str>,
+    ) -> StorageResult<KnowledgeDocumentEmbed>;
+
+    /// Lists only the broken embeds for a document (the repair queue, MT-153).
+    async fn list_knowledge_document_broken_embeds(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+
+    // -- MT-155 document backlinks (stable relationship id) --------------------------
+    /// Upserts a document backlink by its stable `(workspace, relationship_id)`
+    /// identity (MT-155). The relationship id is caller-derived and stable
+    /// across re-extraction runs.
+    async fn upsert_knowledge_document_backlink(
+        &self,
+        upsert: UpsertKnowledgeDocumentBacklink,
+    ) -> StorageResult<KnowledgeDocumentBacklink>;
+
+    /// Replaces ALL backlinks for a source document with the supplied set in
+    /// one transaction (MT-155 rebuild: the document content is the source of
+    /// truth, so a re-extract is delete-all + insert, idempotent). Returns the
+    /// persisted backlinks.
+    async fn replace_knowledge_document_backlinks(
+        &self,
+        source_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentBacklink>,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+
+    /// Lists the backlinks a source document emits (MT-155).
+    async fn list_knowledge_document_backlinks_from(
+        &self,
+        source_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
+
+    /// Reverse lookup: who links TO this target (MT-155 backlink direction).
+    async fn list_knowledge_document_backlinks_to(
+        &self,
+        workspace_id: &str,
+        link_kind: &str,
+        target: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>>;
 
     // -- MT-060 context bundles + retrieval traces ----------------------------------
     /// Persists a kernel ContextBundle V1 run with its per-item retrieval
@@ -4197,6 +4437,25 @@ impl KnowledgeStore for PostgresDatabase {
                 "knowledge rich document schema_version must be non-empty and trimmed",
             ));
         }
+        // MT-145 identity defaults + validation. authority_label defaults to
+        // 'promoted'; an owner is all-or-nothing (kind <-> id).
+        let authority_label = new_document
+            .authority_label
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("promoted")
+            .to_string();
+        if !matches!(authority_label.as_str(), "draft" | "promoted" | "archived") {
+            return Err(StorageError::Validation(
+                "knowledge rich document authority_label must be draft|promoted|archived",
+            ));
+        }
+        if new_document.owner_actor_kind.is_some() != new_document.owner_actor_id.is_some() {
+            return Err(StorageError::Validation(
+                "knowledge rich document owner_actor_kind and owner_actor_id must be set together",
+            ));
+        }
         let rich_document_id = new_knowledge_id("KRD");
         let content_sha256 = knowledge_canonical_json_sha256(&new_document.content_json);
 
@@ -4206,8 +4465,10 @@ impl KnowledgeStore for PostgresDatabase {
             INSERT INTO knowledge_rich_documents
                 (rich_document_id, workspace_id, document_id, title,
                  schema_version, content_json, content_sha256,
-                 crdt_document_id, crdt_snapshot_id, promotion_receipt_event_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 crdt_document_id, crdt_snapshot_id, promotion_receipt_event_id,
+                 project_ref, folder_ref, authority_label,
+                 owner_actor_kind, owner_actor_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
@@ -4222,6 +4483,11 @@ impl KnowledgeStore for PostgresDatabase {
             .bind(&new_document.crdt_document_id)
             .bind(&new_document.crdt_snapshot_id)
             .bind(&new_document.promotion_receipt_event_id)
+            .bind(&new_document.project_ref)
+            .bind(&new_document.folder_ref)
+            .bind(&authority_label)
+            .bind(&new_document.owner_actor_kind)
+            .bind(&new_document.owner_actor_id)
             .fetch_one(&mut *tx)
             .await?;
         let document = rich_document_from_pg(&row);
@@ -4364,6 +4630,109 @@ impl KnowledgeStore for PostgresDatabase {
             .collect())
     }
 
+    async fn rename_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+        title: &str,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        if title.trim() != title || title.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge rich document title must be non-empty and trimmed",
+            ));
+        }
+        let sql = format!(
+            r#"
+            UPDATE knowledge_rich_documents
+            SET title = $2, updated_at = NOW()
+            WHERE rich_document_id = $1
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .bind(title)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        Ok(rich_document_from_pg(&row))
+    }
+
+    async fn move_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+        project_ref: Option<&str>,
+        folder_ref: Option<&str>,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        let sql = format!(
+            r#"
+            UPDATE knowledge_rich_documents
+            SET project_ref = $2, folder_ref = $3, updated_at = NOW()
+            WHERE rich_document_id = $1
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .bind(project_ref)
+            .bind(folder_ref)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        Ok(rich_document_from_pg(&row))
+    }
+
+    async fn set_knowledge_rich_document_authority_label(
+        &self,
+        rich_document_id: &str,
+        authority_label: &str,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        if !matches!(authority_label, "draft" | "promoted" | "archived") {
+            return Err(StorageError::Validation(
+                "knowledge rich document authority_label must be draft|promoted|archived",
+            ));
+        }
+        let sql = format!(
+            r#"
+            UPDATE knowledge_rich_documents
+            SET authority_label = $2, updated_at = NOW()
+            WHERE rich_document_id = $1
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .bind(authority_label)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        Ok(rich_document_from_pg(&row))
+    }
+
+    async fn list_knowledge_rich_documents(
+        &self,
+        workspace_id: &str,
+        project_ref: Option<&str>,
+        folder_ref: Option<&str>,
+    ) -> StorageResult<Vec<KnowledgeRichDocument>> {
+        // NULL-safe optional scoping: when an arg is None it is not filtered.
+        let sql = format!(
+            r#"
+            SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
+            WHERE workspace_id = $1
+              AND ($2::text IS NULL OR project_ref = $2)
+              AND ($3::text IS NULL OR folder_ref = $3)
+            ORDER BY updated_at DESC, rich_document_id
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(project_ref)
+            .bind(folder_ref)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(rich_document_from_pg).collect())
+    }
+
     async fn upsert_knowledge_editor_code_node(
         &self,
         upsert: UpsertEditorCodeNode,
@@ -4427,6 +4796,219 @@ impl KnowledgeStore for PostgresDatabase {
             .fetch_all(self.pool())
             .await?;
         Ok(rows.iter().map(code_node_from_pg).collect())
+    }
+
+    async fn upsert_knowledge_document_embed(
+        &self,
+        upsert: UpsertKnowledgeDocumentEmbed,
+    ) -> StorageResult<KnowledgeDocumentEmbed> {
+        if upsert.block_id.trim() != upsert.block_id || upsert.block_id.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge document embed block_id must be non-empty and trimmed",
+            ));
+        }
+        if !matches!(
+            upsert.ref_kind.as_str(),
+            "artifact" | "media" | "source" | "url"
+        ) {
+            return Err(StorageError::Validation(
+                "knowledge document embed ref_kind must be artifact|media|source|url",
+            ));
+        }
+        let embed_id = new_knowledge_id("KEMB");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_document_embeds
+                (embed_id, rich_document_id, block_id, ref_kind, ref_value,
+                 caption)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (rich_document_id, block_id) DO UPDATE SET
+                ref_kind = EXCLUDED.ref_kind,
+                ref_value = EXCLUDED.ref_value,
+                caption = EXCLUDED.caption,
+                -- An upsert re-points the embed; resolution is fresh, so reset
+                -- the repair state to ok (MT-153 repair through relink).
+                repair_state = 'ok',
+                repair_reason = NULL,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_DOCUMENT_EMBED_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&embed_id)
+            .bind(&upsert.rich_document_id)
+            .bind(&upsert.block_id)
+            .bind(&upsert.ref_kind)
+            .bind(&upsert.ref_value)
+            .bind(&upsert.caption)
+            .fetch_one(self.pool())
+            .await?;
+        Ok(document_embed_from_pg(&row))
+    }
+
+    async fn list_knowledge_document_embeds(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_DOCUMENT_EMBED_COLUMNS} FROM knowledge_document_embeds
+             WHERE rich_document_id = $1 ORDER BY block_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(document_embed_from_pg).collect())
+    }
+
+    async fn set_knowledge_document_embed_repair_state(
+        &self,
+        embed_id: &str,
+        broken_reason: Option<&str>,
+    ) -> StorageResult<KnowledgeDocumentEmbed> {
+        let (state, reason) = match broken_reason {
+            Some(reason) => ("broken", Some(reason)),
+            None => ("ok", None),
+        };
+        let sql = format!(
+            r#"
+            UPDATE knowledge_document_embeds
+            SET repair_state = $2, repair_reason = $3, updated_at = NOW()
+            WHERE embed_id = $1
+            RETURNING {KNOWLEDGE_DOCUMENT_EMBED_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(embed_id)
+            .bind(state)
+            .bind(reason)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge document embed"))?;
+        Ok(document_embed_from_pg(&row))
+    }
+
+    async fn list_knowledge_document_broken_embeds(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_DOCUMENT_EMBED_COLUMNS} FROM knowledge_document_embeds
+             WHERE rich_document_id = $1 AND repair_state = 'broken' ORDER BY block_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(document_embed_from_pg).collect())
+    }
+
+    async fn upsert_knowledge_document_backlink(
+        &self,
+        upsert: UpsertKnowledgeDocumentBacklink,
+    ) -> StorageResult<KnowledgeDocumentBacklink> {
+        let backlink_id = new_knowledge_id("KDBL");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_document_backlinks
+                (backlink_id, workspace_id, relationship_id, source_document_id,
+                 link_kind, target, block_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (workspace_id, relationship_id) DO UPDATE SET
+                source_document_id = EXCLUDED.source_document_id,
+                link_kind = EXCLUDED.link_kind,
+                target = EXCLUDED.target,
+                block_id = EXCLUDED.block_id,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&backlink_id)
+            .bind(&upsert.workspace_id)
+            .bind(&upsert.relationship_id)
+            .bind(&upsert.source_document_id)
+            .bind(&upsert.link_kind)
+            .bind(&upsert.target)
+            .bind(&upsert.block_id)
+            .fetch_one(self.pool())
+            .await?;
+        Ok(document_backlink_from_pg(&row))
+    }
+
+    async fn replace_knowledge_document_backlinks(
+        &self,
+        source_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentBacklink>,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        // Rebuild semantics: the document content is the source of truth, so a
+        // re-extract is delete-all-for-source + insert in one transaction.
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("DELETE FROM knowledge_document_backlinks WHERE source_document_id = $1")
+            .bind(source_document_id)
+            .execute(&mut *tx)
+            .await?;
+        let mut out = Vec::with_capacity(upserts.len());
+        for upsert in upserts {
+            let backlink_id = new_knowledge_id("KDBL");
+            let sql = format!(
+                r#"
+                INSERT INTO knowledge_document_backlinks
+                    (backlink_id, workspace_id, relationship_id,
+                     source_document_id, link_kind, target, block_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS}
+                "#
+            );
+            let row = sqlx::query(&sql)
+                .bind(&backlink_id)
+                .bind(&upsert.workspace_id)
+                .bind(&upsert.relationship_id)
+                .bind(&upsert.source_document_id)
+                .bind(&upsert.link_kind)
+                .bind(&upsert.target)
+                .bind(&upsert.block_id)
+                .fetch_one(&mut *tx)
+                .await?;
+            out.push(document_backlink_from_pg(&row));
+        }
+        tx.commit().await?;
+        Ok(out)
+    }
+
+    async fn list_knowledge_document_backlinks_from(
+        &self,
+        source_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS} FROM knowledge_document_backlinks
+             WHERE source_document_id = $1 ORDER BY link_kind, target, block_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(source_document_id)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(document_backlink_from_pg).collect())
+    }
+
+    async fn list_knowledge_document_backlinks_to(
+        &self,
+        workspace_id: &str,
+        link_kind: &str,
+        target: &str,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS} FROM knowledge_document_backlinks
+             WHERE workspace_id = $1 AND link_kind = $2 AND target = $3
+             ORDER BY source_document_id, block_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(link_kind)
+            .bind(target)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(document_backlink_from_pg).collect())
     }
 
     async fn record_knowledge_context_bundle(

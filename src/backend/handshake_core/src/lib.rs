@@ -178,6 +178,13 @@ pub mod kernel;
 /// partial-failure handling, and a backend code-navigation API.
 #[cfg(feature = "runtime-full")]
 pub mod knowledge_code_index;
+/// WP-KERNEL-009 RichDocumentCore (MT-145..MT-160): the canonical structured
+/// rich-document block-tree model, Raw/Derived/Display separation, stable block
+/// ids, deterministic projections/import, embed-reference + broken-embed repair
+/// model, document backlink/search-index bridge inputs, and the server-enforced
+/// document permission boundary backing the editor, Loom, and UserManual.
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_document;
 /// WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): allowlisted,
 /// hash-based, secret-aware project source ingestion with extraction
 /// receipts, ingestion spans, and a durable repair queue.

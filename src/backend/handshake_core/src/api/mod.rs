@@ -12,6 +12,7 @@ pub mod jobs;
 pub mod kernel;
 pub mod knowledge_code_nav;
 pub mod knowledge_crdt;
+pub mod knowledge_documents;
 pub mod knowledge_ingestion;
 pub mod knowledge_memory;
 pub mod knowledge_retrieval;
@@ -34,6 +35,7 @@ pub fn routes(state: AppState) -> Router {
     let kernel_routes = kernel::routes(state.clone());
     let knowledge_code_nav_routes = knowledge_code_nav::routes(state.clone());
     let knowledge_crdt_routes = knowledge_crdt::routes(state.clone());
+    let knowledge_documents_routes = knowledge_documents::routes(state.clone());
     let knowledge_ingestion_routes = knowledge_ingestion::routes(state.clone());
     let knowledge_memory_routes = knowledge_memory::routes(state.clone());
     let knowledge_retrieval_routes = knowledge_retrieval::routes(state.clone());
@@ -55,6 +57,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(kernel_routes)
         .merge(knowledge_code_nav_routes)
         .merge(knowledge_crdt_routes)
+        .merge(knowledge_documents_routes)
         .merge(knowledge_ingestion_routes)
         .merge(knowledge_memory_routes)
         .merge(knowledge_retrieval_routes)
