@@ -20,6 +20,7 @@ pub mod logs;
 pub mod loom;
 pub mod paths;
 pub mod role_mailbox;
+pub mod user_manual;
 pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
@@ -39,6 +40,7 @@ pub fn routes(state: AppState) -> Router {
     let knowledge_ingestion_routes = knowledge_ingestion::routes(state.clone());
     let knowledge_memory_routes = knowledge_memory::routes(state.clone());
     let knowledge_retrieval_routes = knowledge_retrieval::routes(state.clone());
+    let user_manual_routes = user_manual::routes(state.clone());
     let atelier_routes = atelier::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
@@ -61,5 +63,6 @@ pub fn routes(state: AppState) -> Router {
         .merge(knowledge_ingestion_routes)
         .merge(knowledge_memory_routes)
         .merge(knowledge_retrieval_routes)
+        .merge(user_manual_routes)
         .merge(atelier_routes)
 }

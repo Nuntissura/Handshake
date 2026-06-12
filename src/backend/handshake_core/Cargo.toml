@@ -604,6 +604,23 @@ name = "knowledge_crdt_proposal_tests"
 path = "tests/knowledge_crdt_proposal_tests.rs"
 required-features = ["test-utils"]
 
+# WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): real-PostgreSQL
+# proof for the canonical UserManual surface (storage, API, content accuracy).
+[[test]]
+name = "user_manual_storage_tests"
+path = "tests/user_manual_storage_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "user_manual_api_tests"
+path = "tests/user_manual_api_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "user_manual_content_tests"
+path = "tests/user_manual_content_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): real-PostgreSQL
 # proof for the bootstrap compiler, drift/staleness, and fan-out surfaces.
 [[test]]
@@ -614,4 +631,9 @@ required-features = ["test-utils"]
 [[test]]
 name = "project_wiki_drift_tests"
 path = "tests/project_wiki_drift_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "project_wiki_fanout_tests"
+path = "tests/project_wiki_fanout_tests.rs"
 required-features = ["test-utils"]

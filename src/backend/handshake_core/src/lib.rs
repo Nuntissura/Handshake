@@ -262,6 +262,12 @@ pub mod terminal;
 pub mod test_harness;
 #[cfg(feature = "tokenization")]
 pub mod tokenization;
+/// WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): the canonical
+/// UserManual product surface (PostgreSQL/EventLedger authority; legacy
+/// `model_manual` is a declared deprecated shim mapped via
+/// `user_manual::migration_plan`).
+#[cfg(feature = "runtime-full")]
+pub mod user_manual;
 #[cfg(feature = "runtime-full")]
 pub mod workflows;
 #[cfg(feature = "runtime-full")]

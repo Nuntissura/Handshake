@@ -141,6 +141,33 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // WP-KERNEL-009 MT-195/MT-196: seed (or hash-resync) the built-in
+    // UserManual corpus so the no-context manual surface is queryable from
+    // boot. Idempotent (content-hash short-circuit; receipts only for changed
+    // rows). A seed failure is logged loudly but does not abort startup — the
+    // freshness route reports `unseeded_version` and the gated
+    // POST /usermanual/resync recovers.
+    {
+        let manual_db = handshake_core::storage::postgres::PostgresDatabase::new(
+            control_plane.postgres_pool.clone(),
+        );
+        match handshake_core::user_manual::seed::ensure_seeded(&manual_db).await {
+            Ok(report) => tracing::info!(
+                target: "handshake_core::user_manual",
+                manual_version = %report.manual_version,
+                pages_total = report.pages_total,
+                pages_changed = report.pages_changed,
+                tools_total = report.tools_total,
+                "UserManual corpus ensured"
+            ),
+            Err(err) => tracing::error!(
+                target: "handshake_core::user_manual",
+                error = %err,
+                "UserManual seed failed at startup (POST /usermanual/resync to recover)"
+            ),
+        }
+    }
+
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
     // Executed non-blockingly but initiated before server start.

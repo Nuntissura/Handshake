@@ -1,0 +1,12 @@
+-- WP-KERNEL-009 MT-194 UserManualStorageModel (down).
+DROP TABLE IF EXISTS user_manual_legacy_aliases;
+DROP TABLE IF EXISTS user_manual_versions;
+DROP TABLE IF EXISTS user_manual_feature_entries;
+DROP INDEX IF EXISTS idx_user_manual_tool_entries_route;
+DROP TABLE IF EXISTS user_manual_tool_entries;
+DROP INDEX IF EXISTS idx_user_manual_anchors_value;
+DROP TABLE IF EXISTS user_manual_anchors;
+DROP INDEX IF EXISTS idx_user_manual_sections_page;
+DROP TABLE IF EXISTS user_manual_sections;
+DROP INDEX IF EXISTS idx_user_manual_pages_kind;
+DROP TABLE IF EXISTS user_manual_pages;
