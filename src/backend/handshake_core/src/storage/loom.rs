@@ -532,6 +532,35 @@ pub const LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT: u32 = 5000;
 /// Default degree above which a node is suppressed as a hub in the global graph.
 pub const LOOM_GLOBAL_GRAPH_DEFAULT_HUB_DEGREE: u32 = 50;
 
+// ---------------------------------------------------------------------------
+// MT-182 TagsAndTagHubs
+//
+// Master Spec §10.12 [LM-TAG-001..005] / §7.1.4.3: a #tag is a first-class
+// LoomBlock (content_type=tag_hub) carrying its own content, sub-tags (SUB_TAG
+// edges) and backlinks ("even your tags are just notes"; closest external
+// analog: Tana supertags). #tag edges are categorical; SUB_TAG models the
+// nested-tag hierarchy (e.g. #project/alpha => SUB_TAG(child=alpha,
+// parent=project)). Authority = loom_blocks + loom_edges.
+// ---------------------------------------------------------------------------
+
+/// A tag hub surface: the tag block itself plus its sub-tags (nested-tag
+/// children), the blocks tagged with it, and its backlink count.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomTagHub {
+    /// The tag_hub LoomBlock (its title is the tag name; it carries its own
+    /// content like any note via its document_id).
+    pub block: LoomBlock,
+    /// Direct child tags: blocks that are the SOURCE of a SUB_TAG edge whose
+    /// TARGET is this tag (the nested-tag hierarchy, [LM-TAG-003]).
+    pub sub_tags: Vec<LoomBlock>,
+    /// Blocks tagged with this tag: SOURCES of TAG edges whose TARGET is this
+    /// tag. (Direct only; nested membership is exposed via list_blocks_for_tag
+    /// with include_subtags.)
+    pub tagged_blocks: Vec<LoomBlock>,
+    /// Number of incoming edges (backlinks) to this tag hub.
+    pub backlink_count: i64,
+}
+
 /// Build a surrounding-text snippet for a match located by `match_start`
 /// (char index) and `match_len` (char length) within `text`. Returns a window
 /// of up to `LOOM_SNIPPET_CONTEXT_CHARS` characters of context on each side,

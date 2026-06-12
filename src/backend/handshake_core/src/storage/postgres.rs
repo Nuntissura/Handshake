@@ -63,6 +63,42 @@ impl PostgresDatabase {
         &self.pool
     }
 
+    /// MT-182: the source blocks of edges of a given type whose TARGET is
+    /// `target_block_id` (e.g. sub-tags = SUB_TAG sources, tagged blocks = TAG
+    /// sources). Deterministic order; newest first.
+    async fn loom_blocks_by_incoming_edge(
+        &self,
+        workspace_id: &str,
+        target_block_id: &str,
+        edge_type: &str,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT DISTINCT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_edges e
+            JOIN loom_blocks b
+              ON b.workspace_id = e.workspace_id
+             AND b.block_id = e.source_block_id
+            WHERE e.workspace_id = $1
+              AND e.target_block_id = $2
+              AND e.edge_type = $3
+            ORDER BY b.updated_at DESC, b.block_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(target_block_id)
+        .bind(edge_type)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(map_loom_block).collect()
+    }
+
     /// MT-179/180: assemble a `LoomGraph` from a fixed node id set. Fetches the
     /// blocks, their ProjectKnowledgeIndex bridge entity ids (stale marker +
     /// citation), and the edges WHOSE BOTH ENDPOINTS are in the node set (within
@@ -5479,6 +5515,136 @@ impl super::Database for PostgresDatabase {
             suppressed,
         )
         .await
+    }
+
+    // -- MT-182 TagsAndTagHubs -------------------------------------------------
+
+    async fn list_tag_hubs(
+        &self,
+        workspace_id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        let limit_i64 = limit.clamp(1, 500) as i64;
+        let offset_i64 = offset as i64;
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_blocks b
+            WHERE b.workspace_id = $1 AND b.content_type = 'tag_hub'
+            ORDER BY b.updated_at DESC, b.block_id ASC
+            LIMIT $2 OFFSET $3
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(limit_i64)
+        .bind(offset_i64)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(map_loom_block).collect()
+    }
+
+    async fn get_tag_hub(
+        &self,
+        workspace_id: &str,
+        tag_block_id: &str,
+    ) -> StorageResult<super::LoomTagHub> {
+        // Must exist AND be a tag_hub (fail-closed).
+        let block = self.get_loom_block(workspace_id, tag_block_id).await?;
+        if !matches!(block.content_type, LoomBlockContentType::TagHub) {
+            return Err(StorageError::Validation("loom block is not a tag_hub"));
+        }
+
+        // Direct sub-tags: SOURCES of SUB_TAG edges whose TARGET is this tag.
+        let sub_tags = self
+            .loom_blocks_by_incoming_edge(workspace_id, tag_block_id, "sub_tag")
+            .await?;
+        // Tagged blocks: SOURCES of TAG edges whose TARGET is this tag.
+        let tagged_blocks = self
+            .loom_blocks_by_incoming_edge(workspace_id, tag_block_id, "tag")
+            .await?;
+
+        let backlink_count: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*)::BIGINT FROM loom_edges
+               WHERE workspace_id = $1 AND target_block_id = $2"#,
+        )
+        .bind(workspace_id)
+        .bind(tag_block_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(super::LoomTagHub {
+            block,
+            sub_tags,
+            tagged_blocks,
+            backlink_count,
+        })
+    }
+
+    async fn list_blocks_for_tag(
+        &self,
+        workspace_id: &str,
+        tag_block_id: &str,
+        include_subtags: bool,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        let block = self.get_loom_block(workspace_id, tag_block_id).await?;
+        if !matches!(block.content_type, LoomBlockContentType::TagHub) {
+            return Err(StorageError::Validation("loom block is not a tag_hub"));
+        }
+
+        let limit_i64 = limit.clamp(1, 500) as i64;
+        let offset_i64 = offset as i64;
+
+        // The set of tag ids to match: the tag itself, plus (when requested) all
+        // DESCENDANT sub-tags via the SUB_TAG hierarchy (child SOURCE ->
+        // parent TARGET), cycle-guarded.
+        let rows = sqlx::query(
+            r#"
+            WITH RECURSIVE tag_set(tag_id, path) AS (
+                SELECT $2::TEXT, ARRAY[$2]::TEXT[]
+                UNION ALL
+                SELECT e.source_block_id, ts.path || e.source_block_id
+                FROM loom_edges e
+                JOIN tag_set ts ON e.target_block_id = ts.tag_id
+                WHERE e.workspace_id = $1
+                  AND e.edge_type = 'sub_tag'
+                  AND $4::BOOL = TRUE
+                  AND NOT e.source_block_id = ANY(ts.path)
+            )
+            SELECT DISTINCT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_edges te
+            JOIN loom_blocks b
+              ON b.workspace_id = te.workspace_id
+             AND b.block_id = te.source_block_id
+            WHERE te.workspace_id = $1
+              AND te.edge_type = 'tag'
+              AND te.target_block_id IN (SELECT tag_id FROM tag_set)
+            ORDER BY b.updated_at DESC, b.block_id ASC
+            LIMIT $3 OFFSET $5
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(tag_block_id)
+        .bind(limit_i64)
+        .bind(include_subtags)
+        .bind(offset_i64)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(map_loom_block).collect()
     }
 
     async fn upsert_calendar_source(

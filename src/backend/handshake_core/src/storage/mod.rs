@@ -2166,6 +2166,43 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom global graph backend"))
     }
 
+    // -- MT-182 TagsAndTagHubs -------------------------------------------------
+    /// List all tag-hub blocks in a workspace (content_type=tag_hub), newest
+    /// first, paginated. The tag-as-first-class-block surface ([LM-TAG-002]).
+    async fn list_tag_hubs(
+        &self,
+        _workspace_id: &str,
+        _limit: u32,
+        _offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        Err(StorageError::NotImplemented("loom tag hub backend"))
+    }
+
+    /// The tag-hub surface for one tag block: the block, its direct sub-tags
+    /// (SUB_TAG children), the blocks tagged with it (direct TAG sources), and
+    /// its backlink count. Fails closed if the block is not a tag_hub.
+    async fn get_tag_hub(
+        &self,
+        _workspace_id: &str,
+        _tag_block_id: &str,
+    ) -> StorageResult<LoomTagHub> {
+        Err(StorageError::NotImplemented("loom tag hub backend"))
+    }
+
+    /// The blocks tagged with a tag (search filter by tag, [LM-TAG-001]). When
+    /// `include_subtags` is true, blocks tagged with any DESCENDANT sub-tag are
+    /// included too (nested-tag membership, [LM-TAG-003]). Paginated.
+    async fn list_blocks_for_tag(
+        &self,
+        _workspace_id: &str,
+        _tag_block_id: &str,
+        _include_subtags: bool,
+        _limit: u32,
+        _offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        Err(StorageError::NotImplemented("loom tag hub backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

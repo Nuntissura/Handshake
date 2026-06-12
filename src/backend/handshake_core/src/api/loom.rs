@@ -100,6 +100,16 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/unlinked-mentions",
             get(scan_loom_block_unlinked_mentions),
         )
+        // MT-182: tag hubs (tags as first-class blocks) + nested tags
+        .route("/workspaces/:workspace_id/loom/tags", get(list_loom_tag_hubs))
+        .route(
+            "/workspaces/:workspace_id/loom/tags/:tag_block_id",
+            get(get_loom_tag_hub),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/tags/:tag_block_id/blocks",
+            get(list_loom_blocks_for_tag),
+        )
         // Loom edges
         .route(
             "/workspaces/:workspace_id/loom/edges",
@@ -314,6 +324,74 @@ async fn scan_loom_block_unlinked_mentions(
         .await
         .map_err(map_storage_error)?;
     Ok(Json(mentions))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomTagListQuery {
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
+    offset: Option<u32>,
+}
+
+/// MT-182: list all tag-hub blocks (tags as first-class blocks).
+async fn list_loom_tag_hubs(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomTagListQuery>,
+) -> ApiResult<Json<Vec<LoomBlock>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let limit = query.limit.unwrap_or(100).min(500);
+    let offset = query.offset.unwrap_or(0);
+    let tags = state
+        .storage
+        .list_tag_hubs(&workspace_id, limit, offset)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(tags))
+}
+
+/// MT-182: the tag-hub surface (block + sub-tags + tagged blocks + backlinks).
+async fn get_loom_tag_hub(
+    State(state): State<AppState>,
+    Path((workspace_id, tag_block_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomTagHub>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let hub = state
+        .storage
+        .get_tag_hub(&workspace_id, &tag_block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(hub))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomTagBlocksQuery {
+    /// Include blocks tagged with descendant sub-tags (nested-tag membership).
+    #[serde(default)]
+    include_subtags: Option<bool>,
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
+    offset: Option<u32>,
+}
+
+/// MT-182: blocks tagged with a tag (search filter by tag; optional nested).
+async fn list_loom_blocks_for_tag(
+    State(state): State<AppState>,
+    Path((workspace_id, tag_block_id)): Path<(String, String)>,
+    Query(query): Query<LoomTagBlocksQuery>,
+) -> ApiResult<Json<Vec<LoomBlock>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let include_subtags = query.include_subtags.unwrap_or(false);
+    let limit = query.limit.unwrap_or(100).min(500);
+    let offset = query.offset.unwrap_or(0);
+    let blocks = state
+        .storage
+        .list_blocks_for_tag(&workspace_id, &tag_block_id, include_subtags, limit, offset)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(blocks))
 }
 
 async fn patch_loom_block(
