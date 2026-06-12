@@ -165,12 +165,32 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
 
   // Reconcile external code changes (undo/redo, collaborative edits, reload)
   // into the Monaco model without clobbering the user's caret on self-edits.
+  //
+  // Iteration-3 M5/M7: setValue() RESET Monaco's undo stack, caret, scroll and
+  // folds on every external reconcile. pushEditOperations applies the change
+  // as a regular edit (undo-able, caret-mapped) and the saved view state
+  // restores scroll/selection. UNDO OWNERSHIP CONTRACT (M7): ProseMirror owns
+  // DOCUMENT-level history (block add/remove + attr snapshots); Monaco owns
+  // intra-block text history while focus is inside the code island. A PM undo
+  // that reverts the code attr flows through this reconcile as one more
+  // Monaco edit — the two stacks stay coherent instead of diverging.
   useEffect(() => {
     const instance = editorRef.current;
     if (!instance) return;
     if (instance.getValue() !== code) {
       applyingRef.current = true;
-      instance.setValue(code);
+      const model = instance.getModel();
+      if (model) {
+        const viewState = instance.saveViewState();
+        model.pushEditOperations(
+          [],
+          [{ range: model.getFullModelRange(), text: code }],
+          () => null,
+        );
+        if (viewState) instance.restoreViewState(viewState);
+      } else {
+        instance.setValue(code);
+      }
       applyingRef.current = false;
     }
   }, [code]);
