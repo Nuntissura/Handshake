@@ -125,7 +125,13 @@ pub fn rank_candidates(
                     vector: f.vector,
                     graph,
                     pack: None,
-                    trust_adjust: if f.via_hub { Some(-1.0) } else { None },
+                    // Adversarial-v2 MT-134 LOW: record the ACTUAL hub penalty
+                    // applied, not a -1.0 sentinel, so the trace is truthful.
+                    trust_adjust: if f.via_hub {
+                        Some(-weights.hub_penalty)
+                    } else {
+                        None
+                    },
                 },
                 base_score,
                 tiebreak: f.candidate_id,
@@ -190,10 +196,13 @@ mod tests {
         let normal = score_candidate(&feat("a", 0.8, 0.8, false), &w);
         let hub = score_candidate(&feat("a", 0.8, 0.8, true), &w);
         assert!(hub < normal);
-        // Still present in the ranking (not removed).
+        // Still present in the ranking (not removed), and the trace records
+        // the ACTUAL penalty applied (adversarial-v2 MT-134 LOW: no -1.0
+        // sentinel misreporting the real -0.25 default hub penalty).
         let ranked = rank_candidates(vec![feat("a", 0.8, 0.8, true)], &w);
         assert_eq!(ranked.len(), 1);
-        assert_eq!(ranked[0].scores.trust_adjust, Some(-1.0));
+        assert_eq!(ranked[0].scores.trust_adjust, Some(-w.hub_penalty));
+        assert_eq!(ranked[0].scores.trust_adjust, Some(-0.25));
     }
 
     #[test]
