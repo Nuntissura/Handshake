@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-217-ParallelEditorAgentSafety",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T18:38:08.560Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-217.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,67 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260612",
+    "implementation_commit": "91efe116",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T18:38:08.560Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "91efe116",
+            "slice": "MT-217 rich-document and graph-mutation claim safety"
+          }
+        ],
+        "summary": "MT-217 adds PostgreSQL-backed rich_document and graph_mutation claim scopes, explicit EditRichDocument/MutateGraph capabilities for local/operator/editor/system lanes, denial for validator/cloud/indexer lanes, and pre-side-effect validation that rejects malformed or mismatched editor mutation scopes before rows or EventLedger receipts can be written."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T18:38:08.560Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts -- --nocapture",
+            "result": "RED before hardening: failed with expected invalid input containing rich_document.workspace_id, got success; GREEN after hardening: PASS 1/1"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests editor -- --nocapture",
+            "result": "PASS; 3/3 MT-217 focused editor mutation claim tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests -- --nocapture",
+            "result": "PASS; 19/19 parallel swarm state recovery PostgreSQL/EventLedger tests passed"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T18:38:08.560Z",
+        "reviewer": "multi_agent:019ebd07-87ab-75a0-8ce0-166c7c0b0c1c",
+        "result": "PASS_AFTER_HARDENING",
+        "summary": "Reviewer initially failed the patch for malformed or misattributed rich_document/graph_mutation scopes persisting before reader rejection. Hardened with pre-insert scope validation and negative tests proving zero claim rows and zero parallel_swarm_claim receipts for malformed inputs. Re-review passed; residual risk is that the down migration fails closed if new-scope rows exist, and non-MT-217 legacy scope validation remains intentionally unchanged."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T18:38:08.560Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT217",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
