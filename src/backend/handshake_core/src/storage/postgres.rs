@@ -6331,7 +6331,10 @@ impl super::Database for PostgresDatabase {
         self.get_loom_wiki_projection(workspace_id, projection_id)
             .await?;
         // Deleting a projection mutates NO authority record (the
-        // projection-never-authority law); overlays cascade via their FK.
+        // projection-never-authority law). Operator overlays are AUTHORITY
+        // rows and SURVIVE this delete (soft reference since migration 0301;
+        // the 0295 CASCADE was a law violation - it destroyed authority on
+        // projection churn).
         self.delete_knowledge_wiki_projection(projection_id).await
     }
 

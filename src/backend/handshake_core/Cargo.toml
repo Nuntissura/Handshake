@@ -637,3 +637,8 @@ required-features = ["test-utils"]
 name = "project_wiki_fanout_tests"
 path = "tests/project_wiki_fanout_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "project_wiki_fanout_tests"
+path = "tests/project_wiki_fanout_tests.rs"
+required-features = ["test-utils"]

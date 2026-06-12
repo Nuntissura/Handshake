@@ -180,6 +180,9 @@ async fn authority_fingerprint(pg: &KnowledgePg) -> String {
         "knowledge_code_files",
         "knowledge_rich_documents",
         "loom_blocks",
+        // Operator annotations are AUTHORITY rows (MT-185) and must survive
+        // projection deletion (soft reference since migration 0301).
+        "loom_wiki_overlays",
         "kernel_event_ledger",
     ];
     let mut out = String::new();
@@ -409,7 +412,21 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
         .expect("bootstrap compile");
     assert!(!outcome.pages.is_empty());
 
-    // Snapshot EVERY authority table AFTER the compile.
+    // An operator overlay on a generated page is AUTHORITY (MT-185) and must
+    // survive the deletion of the page it annotates.
+    let annotated = &outcome.pages[0];
+    let overlay = pg
+        .db
+        .add_loom_wiki_overlay(
+            &workspace_id,
+            &annotated.projection_id,
+            "operator note: byte-identity proof anchor",
+            None,
+        )
+        .await
+        .expect("add overlay");
+
+    // Snapshot EVERY authority table AFTER the compile (incl. the overlay).
     let before = authority_fingerprint(&pg).await;
 
     // Delete every generated page (the projection-delete path).
@@ -429,9 +446,19 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
     assert!(remaining.is_empty(), "all generated pages deleted");
 
     // …and authority is BYTE-IDENTICAL (including the EventLedger: deleting
-    // projections appends nothing and mutates nothing).
+    // projections appends nothing and mutates nothing; including the operator
+    // overlay: annotations survive projection churn).
     let after = authority_fingerprint(&pg).await;
     assert_eq!(before, after, "authority byte-identical after deleting the whole wiki");
+    let overlays = pg
+        .db
+        .list_loom_wiki_overlays(&workspace_id, &annotated.projection_id)
+        .await
+        .expect("list overlays after page delete");
+    assert!(
+        overlays.iter().any(|o| o.overlay_id == overlay.overlay_id),
+        "operator overlay (authority) survives deleting the page it annotated"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
