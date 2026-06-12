@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-205-UserManualVisualDebugProof",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T17:48:02.005Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-205.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,63 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260612",
+    "implementation_commit": "1c208066",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "fcf9bce3",
+            "slice": "UserManual backend/runtime registration and doc-vs-runtime consistency base for MT-193..208"
+          },
+          {
+            "sha": "1c208066",
+            "slice": "UserManual UI access wiring for editor command palette, diagnostics tab, and panel access surfaces"
+          }
+        ],
+        "summary": "MT-200/205 UserManual access is wired through real UI/API surfaces; duplicate selector hardening keeps canonical UserManual diagnostics IDs unique while preserving backend stable IDs for access rows."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "commands": [
+          {
+            "command": "pnpm test -- src/lib/api.test.ts src/components/UserManualPanel.test.tsx src/App.test.tsx",
+            "result": "PASS; 32/32 tests passed for UserManual UI/API access"
+          },
+          {
+            "command": "pnpm exec tsc --noEmit --pretty false",
+            "result": "PASS during implementation proof"
+          },
+          {
+            "command": "pnpm build",
+            "result": "PASS during implementation proof"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "reviewer": "multi_agent:019ebca9-bfac-7b32-997d-1db262306bbb",
+        "result": "PASS",
+        "summary": "Reviewer passed MT-205 selector hardening: canonical hs-usermanual-diagnostics-tab only on pane-A UserManual tab; noncanonical panes use pane-specific IDs; access rows expose stable backend IDs separately."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
