@@ -14,6 +14,8 @@ import {
   parseWikilink,
   extractWikilinks,
   classifyWikilink,
+  clampRefKind,
+  KNOWN_BACKEND_REF_KINDS,
 } from "../editor/wikilink";
 
 describe("wikilink parser (MT-163)", () => {
@@ -131,6 +133,37 @@ describe("HsLinkNode (MT-163, real Tiptap editor)", () => {
     expect(addInput?.call(ctx).length).toBe(1);
     expect(addPaste?.call(ctx).length).toBe(1);
     editor.destroy();
+  });
+
+  it("clamps spoofed ref kinds from pasted HTML and drops the claimed resolved flag (iteration-3 L3)", () => {
+    const editor = makeEditor();
+    // Hostile pasted HTML: unknown kind claiming to be a trusted resolved chip.
+    editor.commands.insertContent(
+      `<span data-testid="hs-link" data-ref-kind="totally_fake_kind" data-ref-value="x" data-label="trust me" data-resolved="true">trust me</span>`,
+    );
+    const spoofed = findNode(editor.getJSON(), "hsLink");
+    expect(spoofed?.attrs?.refKind).toBe("unknown");
+    expect(spoofed?.attrs?.resolved).toBe(false);
+    editor.destroy();
+
+    // Legitimate kinds keep their attrs through the same parse path.
+    const editor2 = makeEditor();
+    editor2.commands.insertContent(
+      `<span data-testid="hs-link" data-ref-kind="wp" data-ref-value="WP-KERNEL-009" data-label="WP-KERNEL-009" data-resolved="true">WP-KERNEL-009</span>`,
+    );
+    const legit = findNode(editor2.getJSON(), "hsLink");
+    expect(legit?.attrs?.refKind).toBe("wp");
+    expect(legit?.attrs?.resolved).toBe(true);
+    editor2.destroy();
+  });
+
+  it("clampRefKind accepts every known backend kind and rejects the rest (iteration-3 L3)", () => {
+    for (const kind of KNOWN_BACKEND_REF_KINDS) {
+      expect(clampRefKind(kind)).toEqual({ refKind: kind, known: true });
+    }
+    expect(clampRefKind("nope")).toEqual({ refKind: "unknown", known: false });
+    expect(clampRefKind("")).toEqual({ refKind: "unknown", known: false });
+    expect(clampRefKind(null)).toEqual({ refKind: "unknown", known: false });
   });
 });
 

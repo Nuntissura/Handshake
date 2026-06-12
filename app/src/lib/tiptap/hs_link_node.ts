@@ -21,7 +21,12 @@
 
 import { Node, mergeAttributes, nodeInputRule, nodePasteRule } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import { WIKILINK_REGEX, WIKILINK_REGEX_GLOBAL, classifyWikilink } from "../editor/wikilink";
+import {
+  WIKILINK_REGEX,
+  WIKILINK_REGEX_GLOBAL,
+  classifyWikilink,
+  clampRefKind,
+} from "../editor/wikilink";
 import { HsLinkView, type HsLinkNodeOptions } from "../../components/HsLinkView";
 import type { EmbedResolverContext } from "../editor/embed_assets";
 
@@ -68,7 +73,9 @@ export const HsLinkNode = Node.create<HsLinkNodeOptions>({
     return {
       refKind: {
         default: "unknown",
-        parseHTML: (element) => element.getAttribute("data-ref-kind") ?? "unknown",
+        // Iteration-3 L3: pasted HTML could mint a chip with ANY
+        // data-ref-kind string; the kind is clamped to the known vocabulary.
+        parseHTML: (element) => clampRefKind(element.getAttribute("data-ref-kind")).refKind,
         renderHTML: (attributes) => ({ "data-ref-kind": String(attributes.refKind) }),
       },
       refValue: {
@@ -83,7 +90,12 @@ export const HsLinkNode = Node.create<HsLinkNodeOptions>({
       },
       resolved: {
         default: true,
-        parseHTML: (element) => element.getAttribute("data-resolved") !== "false",
+        // L3: an unknown/spoofed kind also DROPS the claimed resolved flag so
+        // the chip renders visibly unresolved instead of confidently trusted.
+        parseHTML: (element) => {
+          if (!clampRefKind(element.getAttribute("data-ref-kind")).known) return false;
+          return element.getAttribute("data-resolved") !== "false";
+        },
         renderHTML: (attributes) => ({ "data-resolved": attributes.resolved ? "true" : "false" }),
       },
     };

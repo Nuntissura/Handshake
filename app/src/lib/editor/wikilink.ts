@@ -90,3 +90,23 @@ export function extractWikilinks(text: string): ParsedWikilink[] {
   }
   return results;
 }
+
+/** Every backend ref kind a typed link node may legitimately carry. */
+export const KNOWN_BACKEND_REF_KINDS: ReadonlySet<string> = new Set(
+  [...WP009_WIKILINK_KIND_BY_PREFIX.values()].map((d) => d.backendRefKind),
+);
+
+/**
+ * Clamps an externally-supplied ref kind to the known vocabulary (iteration-3
+ * L3): pasted HTML could previously mint a confident-looking resolved chip
+ * with ANY data-ref-kind string. Unknown kinds clamp to "unknown" and the
+ * caller must drop any claimed resolved flag with them.
+ */
+export function clampRefKind(raw: string | null | undefined): {
+  refKind: string;
+  known: boolean;
+} {
+  const kind = (raw ?? "").trim();
+  if (KNOWN_BACKEND_REF_KINDS.has(kind)) return { refKind: kind, known: true };
+  return { refKind: "unknown", known: false };
+}

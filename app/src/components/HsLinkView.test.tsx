@@ -19,6 +19,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 import { RichTextEditor } from "./RichTextEditor";
 import type { EmbedAssetMetadata } from "../lib/editor/embed_assets";
+import { onHsLinkNavigate, type HsLinkNavigateDetail } from "../lib/editor/link_navigation";
 
 const WS = "ws-embed-test";
 const BASE = "http://127.0.0.1:9";
@@ -177,10 +178,29 @@ describe("HsLinkView media embeds (MT-244)", () => {
     expect(chip.getAttribute("data-ref-kind")).toBe("wp");
     expect(chip.getAttribute("data-ref-value")).toBe("WP-KERNEL-009");
     expect(chip.className).toContain("hs-link--resolved");
-    expect(chip.getAttribute("title")).toBe("wp:WP-KERNEL-009");
+    expect(chip.getAttribute("title")).toContain("wp:WP-KERNEL-009");
     expect(chip.textContent).toContain("WP-KERNEL-009");
     // No embed surfaces for a chip kind.
     expect(screen.queryByTestId("hs-embed-error")).toBeNull();
     expect(screen.queryByTestId("hs-embed-loading")).toBeNull();
+  });
+
+  it("dispatches a typed navigation intent when a chip is clicked (iteration-3 EXT-NAV-LINK-001)", async () => {
+    await mountWithEmbeds(docWithLink("wp", "WP-KERNEL-009"), {});
+    const chip = await screen.findByTestId("hs-link");
+    expect(chip.getAttribute("data-navigable")).toBe("true");
+
+    const received: HsLinkNavigateDetail[] = [];
+    const unsubscribe = onHsLinkNavigate((detail) => received.push(detail));
+    await act(async () => {
+      fireEvent.click(chip);
+    });
+    unsubscribe();
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual({
+      refKind: "wp",
+      refValue: "WP-KERNEL-009",
+      label: "WP-KERNEL-009",
+    });
   });
 });
