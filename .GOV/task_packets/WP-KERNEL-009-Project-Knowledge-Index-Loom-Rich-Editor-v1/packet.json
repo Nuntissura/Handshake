@@ -20,14 +20,14 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-12T03:54:37.454Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
     "spec_enrichment_proposal": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json",
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
     "spec_current": ".GOV/spec/SPEC_CURRENT.md",
-    "spec_bundle": ".GOV/spec/master-spec-v02.192"
+    "spec_bundle": ".GOV/spec/master-spec-v02.193"
   },
   "markdown_projection": {
     "path": "NOT_GENERATED_BY_DEFAULT",
@@ -272,6 +272,12 @@
         "at_utc": "2026-06-12T03:37:21.486Z",
         "decision": "Master Spec update authorized (signature ilja120620260530)",
         "detail": "Create bundle v02.193 from v02.192 with additive sections describing the unified work surface (Notes naming, unified surface composition, CKC embeds, save-to-format/HTML projection, project-wiki compile layer); update SPEC_CURRENT.md pointer + packet spec_bundle reference after the bundle lands."
+      },
+      {
+        "id": "DEC-006",
+        "at_utc": "2026-06-12T03:54:37.454Z",
+        "decision": "Parity gap-check + hardening gate before whole-WP validation",
+        "detail": "Operator order 2026-06-12: test and check for gaps/missing features compared to the original IDE (VS Code) and Obsidian; concerns addressed and everything hardened; finish all remaining MTs. Gate: after the build groups land, run (1) a parity audit of the built editor + Notes surfaces against .GOV/reference/wp009_editor_loom_capability_inventory.json AND the original VS Code/Obsidian feature sets, (2) runtime tests of the audited surfaces (not status-reading), (3) a hardening iteration fixing confirmed gaps/concerns. Repeat until no P0/P1 gap remains or the operator descopes. Remaining MT inventory at order time: Loom engine 177-192 (in-flight), UserManual 193-208, Swarm 209-224, SecurityPortability 225-240, UnifiedWorkSurface 241-243 (244 in-flight), backend-cleanup deferrals 101(verify 8b829f96)/102/107/109/110/111/112, BLK-002 clippy hygiene."
       }
     ]
   },
