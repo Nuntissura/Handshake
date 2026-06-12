@@ -173,6 +173,10 @@ pub struct LoomBlock {
     pub original_filename: Option<String>,
     pub content_hash: Option<String>,
     pub pinned: bool,
+    /// MT-183: user-controlled ordinal for the reorderable Pins grid. `None`
+    /// (un-ordered) pins sort after explicitly-ordered pins, then by recency.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pin_order: Option<i32>,
     pub journal_date: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -201,6 +205,10 @@ pub struct LoomBlockUpdate {
     pub title: Option<String>,
     pub pinned: Option<bool>,
     pub journal_date: Option<String>,
+    /// MT-183: set/clear the Pins-grid ordinal. Send a value to position the
+    /// pin; send `null` via the dedicated reorder endpoint to clear it.
+    #[serde(default)]
+    pub pin_order: Option<i32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

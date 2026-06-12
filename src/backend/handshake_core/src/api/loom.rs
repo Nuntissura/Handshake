@@ -91,6 +91,11 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/knowledge",
             get(get_loom_block_knowledge_bridge),
         )
+        // MT-183: reorderable Pins grid ordinal
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
+            axum::routing::put(set_loom_block_pin_order),
+        )
         // MT-178: backlinks (linked, with context) + unlinked mentions
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/backlinks",
@@ -326,6 +331,44 @@ async fn scan_loom_block_unlinked_mentions(
     Ok(Json(mentions))
 }
 
+#[derive(Debug, Deserialize)]
+struct SetPinOrderRequest {
+    /// The new ordinal, or `null` to clear it (un-order the pin).
+    #[serde(default)]
+    pin_order: Option<i32>,
+}
+
+/// MT-183: set or clear a block's Pins-grid ordinal (reorderable grid).
+async fn set_loom_block_pin_order(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<SetPinOrderRequest>,
+) -> ApiResult<Json<LoomBlock>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+    let block = state
+        .storage
+        .set_loom_block_pin_order(&ctx, &workspace_id, &block_id, payload.pin_order)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockUpdated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_block_updated",
+            "block_id": block.block_id,
+            "fields_changed": ["pin_order"],
+            "updated_by": "user",
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(block))
+}
+
 #[derive(Debug, Deserialize, Default)]
 struct LoomTagListQuery {
     #[serde(default)]
@@ -411,6 +454,9 @@ async fn patch_loom_block(
     }
     if update.journal_date.is_some() {
         fields_changed.push("journal_date");
+    }
+    if update.pin_order.is_some() {
+        fields_changed.push("pin_order");
     }
 
     let block = state

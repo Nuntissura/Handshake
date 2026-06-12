@@ -1475,6 +1475,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
                 title: Some("Portable".into()),
                 pinned: Some(true),
                 journal_date: Some("2026-03-14".into()),
+                pin_order: None,
             },
         )
         .await?;

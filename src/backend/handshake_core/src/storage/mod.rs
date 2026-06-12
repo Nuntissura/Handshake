@@ -2203,6 +2203,20 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom tag hub backend"))
     }
 
+    // -- MT-183 PinsFavoritesAndUnlinked ---------------------------------------
+    /// Set or clear a block's Pins-grid ordinal ([LM-VIEW-004] reorderable
+    /// grid). `pin_order = None` clears the ordinal (the dedicated reorder path,
+    /// which the COALESCE-based patch cannot express). Returns the updated block.
+    async fn set_loom_block_pin_order(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _pin_order: Option<i32>,
+    ) -> StorageResult<LoomBlock> {
+        Err(StorageError::NotImplemented("loom pin order backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

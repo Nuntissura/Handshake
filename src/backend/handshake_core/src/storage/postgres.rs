@@ -1716,6 +1716,9 @@ fn map_loom_block(row: PgRow) -> StorageResult<LoomBlock> {
         original_filename: row.get("original_filename"),
         content_hash: row.get("content_hash"),
         pinned: pinned_int != 0,
+        // MT-183: pin_order is tolerant — SELECTs that do not project it (most)
+        // yield None; only the Pins view + single-block reads populate it.
+        pin_order: row.try_get::<Option<i32>, _>("pin_order").ok().flatten(),
         journal_date: row.get("journal_date"),
         created_at: map_timestamp(&row, "created_at"),
         updated_at: map_timestamp(&row, "updated_at"),
@@ -3719,6 +3722,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                pin_order,
                 journal_date,
                 created_at,
                 updated_at,
@@ -3857,13 +3861,14 @@ impl super::Database for PostgresDatabase {
                 title = COALESCE($1, title),
                 pinned = COALESCE($2, pinned),
                 journal_date = COALESCE($3, journal_date),
-                last_actor_kind = $4,
-                last_actor_id = $5,
-                last_job_id = $6,
-                last_workflow_id = $7,
-                edit_event_id = $8,
-                updated_at = $9
-            WHERE workspace_id = $10 AND block_id = $11
+                pin_order = COALESCE($4, pin_order),
+                last_actor_kind = $5,
+                last_actor_id = $6,
+                last_job_id = $7,
+                last_workflow_id = $8,
+                edit_event_id = $9,
+                updated_at = $10
+            WHERE workspace_id = $11 AND block_id = $12
             RETURNING
                 block_id,
                 workspace_id,
@@ -3874,6 +3879,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                pin_order,
                 journal_date,
                 created_at,
                 updated_at,
@@ -3890,6 +3896,7 @@ impl super::Database for PostgresDatabase {
         .bind(update.title)
         .bind(pinned)
         .bind(update.journal_date)
+        .bind(update.pin_order)
         .bind(actor_kind)
         .bind(actor_id)
         .bind(job_id)
@@ -4502,7 +4509,7 @@ impl super::Database for PostgresDatabase {
         let offset_i64 = offset as i64;
         let select_filters = filters.clone();
 
-        let select_blocks = |extra_where: Option<&'static str>| {
+        let select_blocks = |extra_where: Option<&'static str>, order_by: &'static str| {
             let filters = select_filters.clone();
             async move {
                 let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
@@ -4517,6 +4524,7 @@ impl super::Database for PostgresDatabase {
                     b.original_filename,
                     b.content_hash,
                     b.pinned,
+                    b.pin_order,
                     b.journal_date,
                     b.created_at,
                     b.updated_at,
@@ -4596,7 +4604,8 @@ impl super::Database for PostgresDatabase {
                     separated.push_unseparated("))");
                 }
 
-                qb.push(" ORDER BY b.updated_at DESC ");
+                qb.push(" ");
+                qb.push(order_by);
                 qb.push(" LIMIT ").push_bind(limit_i64);
                 qb.push(" OFFSET ").push_bind(offset_i64);
 
@@ -4611,16 +4620,24 @@ impl super::Database for PostgresDatabase {
 
         match view_type {
             LoomViewType::All => {
-                let blocks = select_blocks(None).await?;
+                let blocks = select_blocks(None, "ORDER BY b.updated_at DESC, b.block_id ASC").await?;
                 Ok(LoomViewResponse::All { blocks })
             }
             LoomViewType::Pins => {
-                let blocks = select_blocks(Some("b.pinned != 0")).await?;
+                // MT-183: the reorderable Pins grid — explicit pin_order first
+                // (NULLS LAST so newly pinned, un-ordered blocks trail), then by
+                // recency for a deterministic, stable feed.
+                let blocks = select_blocks(
+                    Some("b.pinned != 0"),
+                    "ORDER BY b.pin_order ASC NULLS LAST, b.updated_at DESC, b.block_id ASC",
+                )
+                .await?;
                 Ok(LoomViewResponse::Pins { blocks })
             }
             LoomViewType::Unlinked => {
-                let blocks = select_blocks(Some(
-                    r#"
+                let blocks = select_blocks(
+                    Some(
+                        r#"
                     NOT EXISTS (
                         SELECT 1
                         FROM loom_edges e
@@ -4629,7 +4646,9 @@ impl super::Database for PostgresDatabase {
                           AND e.edge_type IN ('mention', 'tag')
                     )
                     "#,
-                ))
+                    ),
+                    "ORDER BY b.updated_at DESC, b.block_id ASC",
+                )
                 .await?;
                 Ok(LoomViewResponse::Unlinked { blocks })
             }
@@ -5645,6 +5664,63 @@ impl super::Database for PostgresDatabase {
         .fetch_all(&self.pool)
         .await?;
         rows.into_iter().map(map_loom_block).collect()
+    }
+
+    // -- MT-183 PinsFavoritesAndUnlinked ---------------------------------------
+
+    async fn set_loom_block_pin_order(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        pin_order: Option<i32>,
+    ) -> StorageResult<LoomBlock> {
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|v| v.to_string());
+        let workflow_id = metadata.workflow_id.map(|v| v.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        // Directly SET pin_order (NULL clears it). $1 is bound as Option<i32>,
+        // so NULL is a real value here, not a no-op like COALESCE.
+        let row = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                pin_order = $1,
+                last_actor_kind = $2,
+                last_actor_id = $3,
+                last_job_id = $4,
+                last_workflow_id = $5,
+                edit_event_id = $6,
+                updated_at = $7
+            WHERE workspace_id = $8 AND block_id = $9
+            RETURNING
+                block_id, workspace_id, content_type, document_id, asset_id,
+                title, original_filename, content_hash, pinned, pin_order,
+                journal_date, created_at, updated_at, imported_at,
+                backlink_count, mention_count, tag_count, derived_json,
+                preview_status, thumbnail_asset_id, proxy_asset_id
+            "#,
+        )
+        .bind(pin_order)
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => map_loom_block(row),
+            None => Err(StorageError::NotFound("loom_block")),
+        }
     }
 
     async fn upsert_calendar_source(
