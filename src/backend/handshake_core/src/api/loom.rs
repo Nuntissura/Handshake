@@ -86,6 +86,11 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/metrics/recompute",
             post(recompute_loom_block_metrics),
         )
+        // MT-177: ProjectKnowledgeIndex/EventLedger authority bridge
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/knowledge",
+            get(get_loom_block_knowledge_bridge),
+        )
         // Loom edges
         .route(
             "/workspaces/:workspace_id/loom/edges",
@@ -179,6 +184,17 @@ async fn create_loom_block(
         .await
         .map_err(map_storage_error)?;
 
+    // MT-177: a LoomBlock is born resolving to ProjectKnowledgeIndex +
+    // EventLedger authority. The bridge upserts a knowledge_entities row and
+    // appends a KNOWLEDGE_LOOM_BLOCK_INDEXED receipt. Fail-closed: if the
+    // authority bridge cannot be written the block create is an error, so a
+    // block can never exist as a parallel-store-only row.
+    state
+        .storage
+        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
+        .await
+        .map_err(map_storage_error)?;
+
     let block_id = block.block_id.clone();
     let block_workspace_id = block.workspace_id.clone();
     let event = FlightRecorderEvent::new(
@@ -211,6 +227,32 @@ async fn get_loom_block(
         .await
         .map_err(map_storage_error)?;
     Ok(Json(block))
+}
+
+/// MT-177: read the LoomBlock <-> ProjectKnowledgeIndex/EventLedger authority
+/// bridge. Returns the knowledge entity id + EventLedger receipt id that prove
+/// the block resolves to Postgres/EventLedger authority. 404 if the block does
+/// not exist; a 200 with a bridge body proves the authority binding.
+async fn get_loom_block_knowledge_bridge(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomKnowledgeBridge>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    // Confirm the block exists first so a missing block is a clean 404 rather
+    // than an empty-bridge 404.
+    state
+        .storage
+        .get_loom_block(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let bridge = state
+        .storage
+        .get_loom_block_knowledge_bridge(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?
+        .ok_or_else(|| not_found("loom_block_not_bridged"))?;
+    Ok(Json(bridge))
 }
 
 async fn patch_loom_block(
@@ -333,7 +375,7 @@ async fn ensure_edge_target_exists(
 
             let title = title.ok_or_else(|| bad_request("HSK-400-LOOM-TARGET-TITLE-REQUIRED"))?;
             let ctx = WriteContext::human(None);
-            state
+            let created = state
                 .storage
                 .create_loom_block(
                     &ctx,
@@ -352,6 +394,13 @@ async fn ensure_edge_target_exists(
                         derived: LoomBlockDerived::default(),
                     },
                 )
+                .await
+                .map_err(map_storage_error)?;
+            // MT-177: an auto-created link/tag target is also a LoomBlock and
+            // must resolve to ProjectKnowledgeIndex + EventLedger authority.
+            state
+                .storage
+                .bridge_loom_block_to_knowledge(&ctx, workspace_id, &created.block_id)
                 .await
                 .map_err(map_storage_error)?;
             Ok(())
@@ -615,6 +664,14 @@ async fn import_loom_asset(
                 derived,
             },
         )
+        .await
+        .map_err(map_storage_error)?;
+
+    // MT-177: the imported file block resolves to ProjectKnowledgeIndex +
+    // EventLedger authority before we report success.
+    state
+        .storage
+        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
         .await
         .map_err(map_storage_error)?;
 

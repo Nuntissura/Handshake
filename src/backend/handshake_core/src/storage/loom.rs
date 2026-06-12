@@ -366,3 +366,61 @@ pub struct LoomBlockSearchResult {
     #[serde(default)]
     pub score: f64,
 }
+
+// ---------------------------------------------------------------------------
+// MT-177 LoomBlockKnowledgeBridge
+//
+// The authority binding that makes the Loom surface resolve to the
+// ProjectKnowledgeIndex (knowledge_entities) + EventLedger, rather than living
+// as a parallel store. Per Master Spec §10.12 #9.1.1 (WP-KERNEL-009 authority
+// supersession) the ONLY authority path is PostgreSQL + EventLedger; this is
+// the positive binding for that rule.
+// ---------------------------------------------------------------------------
+
+/// The single authority backend for the Loom surface under WP-KERNEL-009.
+///
+/// There is intentionally only one variant. §10.12 #9.1.1 forbids any SQLite /
+/// cache / offline / sidecar authority path for WP-009 Loom; the storage crate
+/// compiles no `sqlite` module (see `storage/mod.rs`), so Postgres is the only
+/// reachable backend and this enum makes that explicit and assertable in tests.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomAuthorityBackend {
+    /// PostgreSQL + EventLedger — the sole WP-009 Loom authority.
+    PostgresEventLedger,
+}
+
+impl LoomAuthorityBackend {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LoomAuthorityBackend::PostgresEventLedger => "postgres_event_ledger",
+        }
+    }
+
+    /// True iff this backend is a single-source-of-truth authority path (never
+    /// a cache / offline / sidecar). Always true: the only variant is the
+    /// Postgres+EventLedger authority.
+    pub fn is_authority(&self) -> bool {
+        matches!(self, LoomAuthorityBackend::PostgresEventLedger)
+    }
+}
+
+/// The queryable, idempotent authority link between a `LoomBlock` and its
+/// ProjectKnowledgeIndex entity (`knowledge_entities`, entity_kind=`loom_block`)
+/// plus the EventLedger receipt that proves the bridge/index operation.
+///
+/// Backed by the `loom_block_knowledge_bridge` table (migration 0292).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomKnowledgeBridge {
+    /// The bridged LoomBlock (`loom_blocks.block_id`).
+    pub block_id: String,
+    pub workspace_id: String,
+    /// The ProjectKnowledgeIndex authority handle
+    /// (`knowledge_entities.entity_id`, KEN-...).
+    pub entity_id: String,
+    /// EventLedger receipt id (`kernel_event_ledger.event_id`) for the
+    /// `KNOWLEDGE_LOOM_BLOCK_INDEXED` event.
+    pub index_event_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}

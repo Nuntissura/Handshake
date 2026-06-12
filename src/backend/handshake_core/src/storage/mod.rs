@@ -2055,6 +2055,55 @@ pub trait Database: Send + Sync {
         offset: u32,
     ) -> StorageResult<Vec<LoomBlockSearchResult>>;
 
+    // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
+    /// The single authority backend for the Loom surface. WP-KERNEL-009
+    /// §10.12 #9.1.1 forbids any SQLite/cache/offline/sidecar authority path;
+    /// the only durable Loom authority is PostgreSQL + EventLedger.
+    fn loom_authority_backend(&self) -> LoomAuthorityBackend {
+        LoomAuthorityBackend::PostgresEventLedger
+    }
+
+    /// Bridge a `LoomBlock` to the ProjectKnowledgeIndex + EventLedger
+    /// (MT-177). Upserts a `knowledge_entities` row (entity_kind=`loom_block`,
+    /// entity_key=block_id), appends a `KNOWLEDGE_LOOM_BLOCK_INDEXED`
+    /// EventLedger receipt, and upserts the `loom_block_knowledge_bridge` link.
+    ///
+    /// Idempotent: the knowledge entity's natural identity is
+    /// (workspace, `loom_block`, block_id) and the bridge row is keyed on
+    /// block_id, so re-bridging the same block updates in place and re-points
+    /// to a fresh receipt rather than duplicating authority rows.
+    async fn bridge_loom_block_to_knowledge(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<LoomKnowledgeBridge> {
+        Err(StorageError::NotImplemented(
+            "loom block knowledge bridge backend",
+        ))
+    }
+
+    /// Read the authority bridge for a LoomBlock, if it has been bridged.
+    async fn get_loom_block_knowledge_bridge(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<Option<LoomKnowledgeBridge>> {
+        Err(StorageError::NotImplemented(
+            "loom block knowledge bridge backend",
+        ))
+    }
+
+    /// List every authority bridge in a workspace.
+    async fn list_loom_block_knowledge_bridges(
+        &self,
+        _workspace_id: &str,
+    ) -> StorageResult<Vec<LoomKnowledgeBridge>> {
+        Err(StorageError::NotImplemented(
+            "loom block knowledge bridge backend",
+        ))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

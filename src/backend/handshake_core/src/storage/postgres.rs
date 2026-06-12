@@ -1557,6 +1557,46 @@ fn map_loom_block(row: PgRow) -> StorageResult<LoomBlock> {
     })
 }
 
+/// MT-177: extractor version stamped onto the bridge knowledge entity's
+/// detection provenance and the EventLedger receipt payload. Bump when the
+/// bridge derivation changes so a re-index is attributable.
+const LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
+
+/// MT-177: map a `loom_block_knowledge_bridge` row (TIMESTAMPTZ columns).
+fn map_loom_knowledge_bridge(row: &PgRow) -> super::LoomKnowledgeBridge {
+    super::LoomKnowledgeBridge {
+        block_id: row.get("block_id"),
+        workspace_id: row.get("workspace_id"),
+        entity_id: row.get("entity_id"),
+        index_event_id: row.get("index_event_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+/// MT-177: pick the EventLedger actor for a bridge receipt from the write
+/// context's actor kind. The bridge is normally a system-internal indexing
+/// step, but an operator- or AI-initiated bridge is attributed accordingly so
+/// the receipt's actor matches who triggered it.
+fn kernel_actor_for_bridge(ctx: &WriteContext) -> KernelActor {
+    let actor_id = ctx
+        .actor_id
+        .clone()
+        .unwrap_or_else(|| "loom_block_knowledge_bridge".to_string());
+    match ctx.actor_kind {
+        super::WriteActorKind::Human => KernelActor::Operator(actor_id),
+        super::WriteActorKind::Ai => KernelActor::ModelAdapter(actor_id),
+        super::WriteActorKind::System => KernelActor::System(actor_id),
+    }
+}
+
+/// MT-177: a kernel-event builder failure is a programmer/data error, surfaced
+/// as a typed validation error with a stable, leak-free code.
+fn kernel_event_build_error(err: crate::kernel::KernelError) -> &'static str {
+    tracing::error!(target: "handshake_core", error = %err, "loom_bridge_event_build_failed");
+    "loom bridge EventLedger receipt build failed"
+}
+
 fn map_loom_edge(row: PgRow) -> StorageResult<LoomEdge> {
     let edge_type = LoomEdgeType::from_str(row.get::<String, _>("edge_type").as_str())?;
     let created_by = LoomEdgeCreatedBy::from_str(row.get::<String, _>("created_by").as_str())?;
@@ -4783,6 +4823,160 @@ impl super::Database for PostgresDatabase {
             .collect::<StorageResult<Vec<_>>>()?;
 
         Ok(blocks)
+    }
+
+    // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
+
+    async fn bridge_loom_block_to_knowledge(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<super::LoomKnowledgeBridge> {
+        use crate::storage::knowledge::{
+            KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity,
+        };
+
+        // 1. The block must exist and belong to the workspace. This both
+        //    fail-closes on a missing/foreign block and gives us the
+        //    display_name for the ProjectKnowledgeIndex entity.
+        let block = self.get_loom_block(workspace_id, block_id).await?;
+
+        // A knowledge entity REQUIRES a non-empty display_name (0135 CHECK).
+        // A LoomBlock title/filename can be absent (e.g. an imported file with
+        // no title yet), so fall back to a stable, human-meaningful label
+        // derived from the block id and content type. NEVER an absolute path.
+        let display_name = block
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                block
+                    .original_filename
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            })
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| {
+                format!("{} {}", block.content_type.as_str(), block.block_id)
+            });
+
+        // 2. Upsert the ProjectKnowledgeIndex authority entity. Natural identity
+        //    (workspace, 'loom_block', block_id) — stable + idempotent.
+        let entity = self
+            .upsert_knowledge_entity(NewKnowledgeEntity {
+                workspace_id: workspace_id.to_string(),
+                entity_kind: KnowledgeEntityKind::LoomBlock,
+                entity_key: block.block_id.clone(),
+                display_name,
+                detection_provenance: json!({
+                    "extractor": "loom_block_knowledge_bridge",
+                    "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+                    "method": "mt177_bridge",
+                    "content_type": block.content_type.as_str(),
+                }),
+                primary_source_id: None,
+                detected_in_run: None,
+                evidence_span_ids: Vec::new(),
+            })
+            .await?;
+
+        // 3. Append the EventLedger receipt (KNOWLEDGE_LOOM_BLOCK_INDEXED).
+        //    EventLedger is authority (§10.12 #9.1.1); the bridge row's
+        //    index_event_id FK proves a receipt exists. The bridge is a
+        //    system-internal indexing operation, so it uses a deterministic
+        //    Loom-scoped synthetic run id (mirrors KnowledgeIndexRun events
+        //    that are not driven by an interactive session).
+        let actor = kernel_actor_for_bridge(ctx);
+        let run_id = format!("LOOM-BRIDGE-{workspace_id}");
+        let payload = json!({
+            "type": "knowledge_loom_block_indexed",
+            "workspace_id": workspace_id,
+            "block_id": block.block_id,
+            "entity_id": entity.entity_id,
+            "content_type": block.content_type.as_str(),
+            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeLoomBlockIndexed,
+            actor,
+        )
+        .aggregate("knowledge_loom_block", entity.entity_id.clone())
+        .idempotency_key(format!(
+            "KEI-loom-bridge-{}-{}",
+            entity.entity_id, entity.updated_at.timestamp_nanos_opt().unwrap_or_default()
+        ))
+        .source_component("loom_block_knowledge_bridge")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+        let stored_event = self.append_kernel_event(event).await?;
+
+        // 4. Upsert the authority bridge row (block_id -> entity_id + receipt).
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_block_knowledge_bridge
+                (block_id, workspace_id, entity_id, index_event_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (block_id) DO UPDATE SET
+                entity_id = EXCLUDED.entity_id,
+                index_event_id = EXCLUDED.index_event_id,
+                updated_at = NOW()
+            RETURNING block_id, workspace_id, entity_id, index_event_id,
+                      created_at, updated_at
+            "#,
+        )
+        .bind(&block.block_id)
+        .bind(workspace_id)
+        .bind(&entity.entity_id)
+        .bind(&stored_event.event_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(map_loom_knowledge_bridge(&row))
+    }
+
+    async fn get_loom_block_knowledge_bridge(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Option<super::LoomKnowledgeBridge>> {
+        let row = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, entity_id, index_event_id,
+                   created_at, updated_at
+            FROM loom_block_knowledge_bridge
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(map_loom_knowledge_bridge))
+    }
+
+    async fn list_loom_block_knowledge_bridges(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<super::LoomKnowledgeBridge>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, entity_id, index_event_id,
+                   created_at, updated_at
+            FROM loom_block_knowledge_bridge
+            WHERE workspace_id = $1
+            ORDER BY created_at ASC, block_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(map_loom_knowledge_bridge).collect())
     }
 
     async fn upsert_calendar_source(
