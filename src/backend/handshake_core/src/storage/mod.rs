@@ -2104,6 +2104,35 @@ pub trait Database: Send + Sync {
         ))
     }
 
+    // -- MT-178 BacklinkComputation --------------------------------------------
+    /// Linked backlinks for a block: every incoming edge (MENTION/TAG/...) with
+    /// the referencing source block and a surrounding-text context snippet
+    /// (§10.12 [LM-BACK-001]). Ordered oldest-first by edge creation.
+    async fn get_backlinks_with_context(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<Vec<LoomBacklink>> {
+        Err(StorageError::NotImplemented("loom backlink backend"))
+    }
+
+    /// Unlinked mentions for a block (§10.12 [LM-BACK-002] / [LM-VIEW-002]):
+    /// blocks whose searchable text contains the viewed block's title/aliases
+    /// on a word boundary but which have NO formal MENTION/TAG edge to it, so
+    /// one click converts them to edges. `aliases` may add extra terms to scan
+    /// for beyond the block's own title. `limit` bounds the scan result set.
+    async fn scan_unlinked_mentions(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+        _aliases: &[String],
+        _limit: u32,
+    ) -> StorageResult<Vec<LoomUnlinkedMention>> {
+        Err(StorageError::NotImplemented(
+            "loom unlinked mention backend",
+        ))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

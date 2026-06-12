@@ -424,3 +424,180 @@ pub struct LoomKnowledgeBridge {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+// ---------------------------------------------------------------------------
+// MT-178 BacklinkComputation
+//
+// Master Spec §10.12 [LM-BACK-001..003] / Pattern H-5: every block surface
+// shows the blocks referencing it (linked mentions) with a surrounding-text
+// context snippet, PLUS unlinked mentions — text occurrences of a block's
+// title/aliases that are NOT yet formal links, surfaced so one click converts
+// them to edges (Obsidian unlinked-mentions idiom; feeds the Unlinked view).
+// Authority is the loom_edges + loom_blocks Postgres store (no parallel index).
+// ---------------------------------------------------------------------------
+
+/// A linked backlink: an incoming `LoomEdge` (MENTION/TAG/...) together with the
+/// referencing source block and a surrounding-text context snippet.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomBacklink {
+    /// The incoming edge whose `target_block_id` is the block being viewed.
+    pub edge: LoomEdge,
+    /// The block that references the viewed block (the edge source).
+    pub source_block: LoomBlock,
+    /// Surrounding-text snippet for the reference. `None` when the source block
+    /// exposes no readable text (e.g. an asset-only file block with no title).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_snippet: Option<String>,
+}
+
+/// An unlinked mention: a block whose searchable text contains the viewed
+/// block's title (or an alias) but which has NO formal MENTION/TAG edge to it.
+/// One click converts it to a real edge.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomUnlinkedMention {
+    /// The block that mentions the viewed block's title in plain text.
+    pub source_block: LoomBlock,
+    /// The matched term (the viewed block's title/alias).
+    pub matched_term: String,
+    /// A surrounding-text snippet showing the unlinked occurrence.
+    pub snippet: String,
+    /// Char offset of the match within the source block's scanned text.
+    pub match_offset: i64,
+}
+
+/// Marker bounding a context snippet window (chars of surrounding context on
+/// each side of a match). Kept small so backlink panels stay snappy and a
+/// snippet never leaks an entire document.
+pub const LOOM_SNIPPET_CONTEXT_CHARS: usize = 48;
+
+/// Build a surrounding-text snippet for a match located by `match_start`
+/// (char index) and `match_len` (char length) within `text`. Returns a window
+/// of up to `LOOM_SNIPPET_CONTEXT_CHARS` characters of context on each side,
+/// with leading/trailing ellipses when the window is clipped. Operates on
+/// Unicode scalar values (chars), never byte offsets, so multi-byte text is
+/// never split mid-character.
+pub fn loom_context_snippet(text: &str, match_start: usize, match_len: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.is_empty() || match_start >= chars.len() {
+        return text.trim().chars().take(LOOM_SNIPPET_CONTEXT_CHARS * 2).collect();
+    }
+    let match_end = match_start.saturating_add(match_len).min(chars.len());
+    let window_start = match_start.saturating_sub(LOOM_SNIPPET_CONTEXT_CHARS);
+    let window_end = match_end
+        .saturating_add(LOOM_SNIPPET_CONTEXT_CHARS)
+        .min(chars.len());
+
+    let mut snippet = String::new();
+    if window_start > 0 {
+        snippet.push_str("...");
+    }
+    let core: String = chars[window_start..window_end].iter().collect();
+    snippet.push_str(core.trim());
+    if window_end < chars.len() {
+        snippet.push_str("...");
+    }
+    snippet
+}
+
+/// Find the first case-insensitive, word-boundary occurrence of `term` in
+/// `text`, returning `(char_start, char_len)`. Word-boundary means the match is
+/// not flanked by alphanumeric characters (so "plan" does not match "planning"
+/// or "explanation"). Returns `None` when `term` is empty or absent.
+///
+/// This is the unlinked-mention detector: a plain-text occurrence of a block's
+/// title that is a candidate for promotion to a formal edge.
+pub fn loom_find_unlinked_term(text: &str, term: &str) -> Option<(usize, usize)> {
+    let term_trimmed = term.trim();
+    if term_trimmed.is_empty() {
+        return None;
+    }
+    let hay: Vec<char> = text.chars().collect();
+    let needle: Vec<char> = term_trimmed.to_lowercase().chars().collect();
+    if needle.is_empty() || needle.len() > hay.len() {
+        return None;
+    }
+    let hay_lower: Vec<char> = hay
+        .iter()
+        .flat_map(|c| c.to_lowercase())
+        .collect();
+    // to_lowercase can change length for some scripts; fall back to a simple
+    // per-char lowercase comparison aligned to the original char vector to keep
+    // offsets meaningful. Guard the rare expansion case by recomputing on the
+    // original-length lowercase view.
+    let hay_lc: Vec<char> = hay.iter().map(|c| c.to_ascii_lowercase()).collect();
+    let scan: &Vec<char> = if hay_lc.len() == hay.len() {
+        &hay_lc
+    } else {
+        &hay_lower
+    };
+
+    let is_word = |c: char| c.is_alphanumeric();
+    let last_start = scan.len().saturating_sub(needle.len());
+    for start in 0..=last_start {
+        if scan[start..start + needle.len()] == needle[..] {
+            let before_ok = start == 0 || !is_word(scan[start - 1]);
+            let after_idx = start + needle.len();
+            let after_ok = after_idx >= scan.len() || !is_word(scan[after_idx]);
+            if before_ok && after_ok {
+                return Some((start, needle.len()));
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod mt178_helper_tests {
+    use super::*;
+
+    #[test]
+    fn snippet_windows_around_match_with_ellipses() {
+        let text = "The quick brown fox jumps over the lazy dog and keeps running far away here";
+        // match "fox" (start char 16, len 3)
+        let start = text.find("fox").map(|b| text[..b].chars().count()).unwrap();
+        let snip = loom_context_snippet(text, start, 3);
+        assert!(snip.contains("fox"), "snippet keeps the match: {snip}");
+        // short text on the left -> no leading ellipsis; long tail -> trailing ellipsis
+        assert!(snip.starts_with("The"), "left context not clipped: {snip}");
+        assert!(snip.ends_with("..."), "right context clipped: {snip}");
+    }
+
+    #[test]
+    fn snippet_handles_match_at_start_and_short_text() {
+        let snip = loom_context_snippet("hello world", 0, 5);
+        assert_eq!(snip, "hello world");
+        assert!(!snip.starts_with("..."));
+        assert!(!snip.ends_with("..."));
+    }
+
+    #[test]
+    fn snippet_never_splits_multibyte_chars() {
+        let text = "café au lait résumé naïve façade";
+        let start = text.chars().position(|c| c == 'r').unwrap();
+        let snip = loom_context_snippet(text, start, 6);
+        // valid UTF-8 string out (no panic, accents preserved)
+        assert!(snip.contains("résumé"), "multibyte preserved: {snip}");
+    }
+
+    #[test]
+    fn unlinked_term_matches_on_word_boundary_only() {
+        // exact word match
+        assert!(loom_find_unlinked_term("see the Roadmap today", "Roadmap").is_some());
+        // case-insensitive
+        assert!(loom_find_unlinked_term("the ROADMAP is set", "roadmap").is_some());
+        // NOT a substring of a larger word
+        assert!(loom_find_unlinked_term("planning is hard", "plan").is_none());
+        assert!(loom_find_unlinked_term("the explanation", "plan").is_none());
+        // empty term never matches
+        assert!(loom_find_unlinked_term("anything", "").is_none());
+        assert!(loom_find_unlinked_term("anything", "   ").is_none());
+    }
+
+    #[test]
+    fn unlinked_term_returns_char_offset() {
+        let text = "alpha beta gamma";
+        let (start, len) = loom_find_unlinked_term(text, "beta").expect("match");
+        assert_eq!(start, 6);
+        assert_eq!(len, 4);
+    }
+}

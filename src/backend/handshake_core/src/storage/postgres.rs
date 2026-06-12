@@ -1574,6 +1574,27 @@ fn map_loom_knowledge_bridge(row: &PgRow) -> super::LoomKnowledgeBridge {
     }
 }
 
+/// MT-178: the human-readable text of a LoomBlock used for backlink snippets
+/// and unlinked-mention scanning. Combines the title and the derived
+/// full_text_index (the same text `search_loom_blocks` matches), title first so
+/// a snippet leads with the most salient text. Never includes ids or paths.
+fn loom_block_scan_text(block: &LoomBlock) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    if let Some(title) = block.title.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+        parts.push(title);
+    }
+    if let Some(text) = block
+        .derived
+        .full_text_index
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        parts.push(text);
+    }
+    parts.join("\n")
+}
+
 /// MT-177: pick the EventLedger actor for a bridge receipt from the write
 /// context's actor kind. The bridge is normally a system-internal indexing
 /// step, but an operator- or AI-initiated bridge is attributed accordingly so
@@ -4988,6 +5009,171 @@ impl super::Database for PostgresDatabase {
         .fetch_all(&self.pool)
         .await?;
         Ok(rows.iter().map(map_loom_knowledge_bridge).collect())
+    }
+
+    // -- MT-178 BacklinkComputation --------------------------------------------
+
+    async fn get_backlinks_with_context(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<super::LoomBacklink>> {
+        // The viewed block must exist (clean fail-closed; also gives us the
+        // title used to locate the reference inside each source block's text).
+        let target = self.get_loom_block(workspace_id, block_id).await?;
+        let target_title = target
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| value.to_string());
+
+        // Reuse the existing incoming-edge query (authority = loom_edges).
+        let edges = self.get_backlinks(workspace_id, block_id).await?;
+
+        let mut backlinks = Vec::with_capacity(edges.len());
+        for edge in edges {
+            let source_block = self
+                .get_loom_block(workspace_id, &edge.source_block_id)
+                .await?;
+            let scanned = loom_block_scan_text(&source_block);
+            // Locate the reference: prefer the viewed block's title; otherwise
+            // fall back to a leading window of the source block's own text.
+            let context_snippet = target_title
+                .as_deref()
+                .and_then(|title| {
+                    super::loom_find_unlinked_term(&scanned, title)
+                        .map(|(start, len)| super::loom_context_snippet(&scanned, start, len))
+                })
+                .or_else(|| {
+                    let trimmed = scanned.trim();
+                    if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(super::loom_context_snippet(&scanned, 0, 0))
+                    }
+                });
+            backlinks.push(super::LoomBacklink {
+                edge,
+                source_block,
+                context_snippet,
+            });
+        }
+        Ok(backlinks)
+    }
+
+    async fn scan_unlinked_mentions(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        aliases: &[String],
+        limit: u32,
+    ) -> StorageResult<Vec<super::LoomUnlinkedMention>> {
+        let target = self.get_loom_block(workspace_id, block_id).await?;
+
+        // The terms to scan for: the block's own title plus any provided
+        // aliases. Empty/whitespace terms are dropped.
+        let mut terms: Vec<String> = Vec::new();
+        if let Some(title) = target
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            terms.push(title.to_string());
+        }
+        for alias in aliases {
+            let trimmed = alias.trim();
+            if !trimmed.is_empty() {
+                terms.push(trimmed.to_string());
+            }
+        }
+        if terms.is_empty() {
+            // A block with no title/aliases has nothing to be unlinked-mentioned
+            // by; return empty rather than scanning the whole workspace.
+            return Ok(Vec::new());
+        }
+
+        // Candidate source blocks: any OTHER block in the workspace whose
+        // title / original_filename / full_text_index contains a term
+        // (cheap ILIKE prefilter), that does NOT already have a formal
+        // MENTION/TAG edge to the target (those are LINKED, not unlinked).
+        let scan_limit = limit.clamp(1, 500) as i64;
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            r#"
+            SELECT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_blocks b
+            WHERE b.workspace_id =
+            "#,
+        );
+        qb.push_bind(workspace_id);
+        qb.push(" AND b.block_id <> ").push_bind(block_id);
+        // Not already linked to the target by a mention/tag edge.
+        qb.push(
+            r#" AND NOT EXISTS (
+                SELECT 1 FROM loom_edges e
+                WHERE e.workspace_id = b.workspace_id
+                  AND e.source_block_id = b.block_id
+                  AND e.target_block_id = "#,
+        );
+        qb.push_bind(block_id);
+        qb.push(" AND e.edge_type IN ('mention','tag','sub_tag')) ");
+        // ILIKE prefilter on any term.
+        qb.push(" AND ( ");
+        for (idx, term) in terms.iter().enumerate() {
+            if idx > 0 {
+                qb.push(" OR ");
+            }
+            let pattern = format!("%{}%", escape_like_token(term));
+            qb.push(" COALESCE(b.title,'') ILIKE ")
+                .push_bind(pattern.clone());
+            qb.push(" OR COALESCE(b.original_filename,'') ILIKE ")
+                .push_bind(pattern.clone());
+            qb.push(" OR COALESCE((b.derived_json::jsonb ->> 'full_text_index'),'') ILIKE ")
+                .push_bind(pattern);
+        }
+        qb.push(" ) ");
+        qb.push(" ORDER BY b.updated_at DESC, b.block_id ASC ");
+        qb.push(" LIMIT ").push_bind(scan_limit);
+
+        let rows = qb.build().fetch_all(&self.pool).await?;
+
+        let mut mentions = Vec::new();
+        for row in rows {
+            let source_block = map_loom_block(row)?;
+            let scanned = loom_block_scan_text(&source_block);
+            // Precise word-boundary detection + offset for the first matching
+            // term (the ILIKE prefilter can over-match substrings; this is the
+            // authoritative unlinked-mention test).
+            let mut best: Option<(String, usize, usize)> = None;
+            for term in &terms {
+                if let Some((start, len)) = super::loom_find_unlinked_term(&scanned, term) {
+                    let is_better = match &best {
+                        Some((_, best_start, _)) => start < *best_start,
+                        None => true,
+                    };
+                    if is_better {
+                        best = Some((term.clone(), start, len));
+                    }
+                }
+            }
+            if let Some((matched_term, start, len)) = best {
+                let snippet = super::loom_context_snippet(&scanned, start, len);
+                mentions.push(super::LoomUnlinkedMention {
+                    source_block,
+                    matched_term,
+                    snippet,
+                    match_offset: start as i64,
+                });
+            }
+        }
+        Ok(mentions)
     }
 
     async fn upsert_calendar_source(

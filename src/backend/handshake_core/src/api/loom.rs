@@ -91,6 +91,15 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/knowledge",
             get(get_loom_block_knowledge_bridge),
         )
+        // MT-178: backlinks (linked, with context) + unlinked mentions
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/backlinks",
+            get(get_loom_block_backlinks),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/unlinked-mentions",
+            get(scan_loom_block_unlinked_mentions),
+        )
         // Loom edges
         .route(
             "/workspaces/:workspace_id/loom/edges",
@@ -253,6 +262,48 @@ async fn get_loom_block_knowledge_bridge(
         .map_err(map_storage_error)?
         .ok_or_else(|| not_found("loom_block_not_bridged"))?;
     Ok(Json(bridge))
+}
+
+/// MT-178: linked backlinks for a block (incoming MENTION/TAG/... edges) each
+/// with the referencing source block and a surrounding-text context snippet.
+async fn get_loom_block_backlinks(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<Vec<crate::storage::LoomBacklink>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let backlinks = state
+        .storage
+        .get_backlinks_with_context(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(backlinks))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct UnlinkedMentionQuery {
+    /// Comma-separated extra alias terms to scan for beyond the block title.
+    #[serde(default)]
+    aliases: Option<String>,
+    #[serde(default)]
+    limit: Option<u32>,
+}
+
+/// MT-178: unlinked mentions for a block — blocks whose text contains the
+/// block's title/aliases on a word boundary but have no formal edge to it.
+async fn scan_loom_block_unlinked_mentions(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Query(query): Query<UnlinkedMentionQuery>,
+) -> ApiResult<Json<Vec<crate::storage::LoomUnlinkedMention>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let aliases = split_ids(query.aliases);
+    let limit = query.limit.unwrap_or(100).min(500);
+    let mentions = state
+        .storage
+        .scan_unlinked_mentions(&workspace_id, &block_id, &aliases, limit)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(mentions))
 }
 
 async fn patch_loom_block(
