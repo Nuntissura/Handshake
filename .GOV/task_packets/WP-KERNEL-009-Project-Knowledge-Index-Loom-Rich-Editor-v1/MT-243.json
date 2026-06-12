@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-243-WikiIncrementalIngestFanOut",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-12T14:58:36.348Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-243.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -73,7 +73,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-242",
@@ -81,12 +81,64 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "completed_by": "KERNEL_BUILDER-20260612",
+    "implementation_commit": "7a6326d9",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "8c9a1ef6",
+            "slice": "initial MT-243 wiki incremental fan-out implementation"
+          },
+          {
+            "sha": "7a6326d9",
+            "slice": "adversarial hardening: source-backed entity citation fan-out + stable decision projection identity"
+          }
+        ],
+        "summary": "MT-243 now expands source fan-out to pages with entity citations whose source_id matches the changed source, recomputes those entity hashes with the same resolver used by drift, and regenerates entity/decision pages by stable projection_id instead of title-keyed upsert. Decision page titles are stable on entity_key + entity-id suffix, with display_name rendered in page content, so display-name edits update the original projection instead of forking duplicate pages."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "commands": [
+          {
+            "command": "cargo test --features runtime-full,test-utils --test project_wiki_fanout_tests --no-run",
+            "result": "PASS; project_wiki_fanout_tests binary built successfully, warnings only"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe mt243_source_fanout_includes_source_backed_decision_pages --nocapture",
+            "result": "PASS; 1 passed; source edit marks source-backed decision stale, fan-out includes/regenerates it, drift closes to zero"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe mt243_entity_display_name_change_updates_decision_without_duplicate --nocapture",
+            "result": "PASS; 1 passed; entity display-name change updates the same projection_id, leaves one decision page, rerun is empty"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe --nocapture",
+            "result": "PASS; 6 passed, 0 failed"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_wiki/fanout.rs src/backend/handshake_core/src/knowledge_wiki/compiler.rs src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/tests/project_wiki_fanout_tests.rs",
+            "result": "PASS; clean (CRLF warnings only)"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "reviewer": "multi_agent:019ebc3c-848b-78e0-b924-f8d98a848cbc",
+        "result": "PASS",
+        "summary": "Reviewer found no blocking findings. Boundary probes confirmed producer/consumer JSONB citation shape, drift/fan-out parity through get_wiki_entity_states + entity_content_hash, and projection-id replacement avoiding duplicate pages. Residual non-blocking risk: future hostile/manual title mutation can still surface as DB uniqueness error under the table-level unique title constraint."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T14:58:36.348Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260612-134940",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
