@@ -32,12 +32,26 @@ import {
   type EditorBackendError,
 } from "../lib/editor/backend_error";
 import { assertEditorSchema } from "../lib/editor/schema_versioning";
+import type { EmbedResolverContext } from "../lib/editor/embed_assets";
 import { logEvent } from "../state/debugEvents";
 
 type Props = {
   documentId: string;
   onDeleted?: () => void;
 };
+
+// MT-244: one embed context object per workspace id, module-cached so the
+// RichTextEditor extension memo sees a stable reference across renders.
+const EMBED_CONTEXT_CACHE = new Map<string, EmbedResolverContext>();
+
+function embedContextFor(workspaceId: string): EmbedResolverContext {
+  let context = EMBED_CONTEXT_CACHE.get(workspaceId);
+  if (!context) {
+    context = { workspaceId };
+    EMBED_CONTEXT_CACHE.set(workspaceId, context);
+  }
+  return context;
+}
 
 export function RichDocumentView({ documentId }: Props) {
   const [load, setLoad] = useState<RichDocLoad | null>(null);
@@ -161,6 +175,9 @@ export function RichDocumentView({ documentId }: Props) {
   if (!load) return null;
 
   const doc = load.document;
+  // Stable per-workspace embed context (MT-244): a fresh object every render
+  // would rebuild the whole extension set, so reuse one per workspace id.
+  const embedContext = embedContextFor(doc.workspace_id);
 
   return (
     <div
@@ -208,6 +225,11 @@ export function RichDocumentView({ documentId }: Props) {
                 setIsDirty(true);
               }}
               backendError={backendError}
+              // MT-244: bind media embed NodeViews to the document's workspace
+              // so [[HS_images:…]]/[[video:…]]/album/slideshow resolve REAL
+              // backend assets; memoized so the editor is not rebuilt per render.
+              embedContext={embedContext}
+              documentTitle={doc.title}
             />
             <div className="document-editor__status" data-testid="rich-document-status">
               {lastSavedAt && (

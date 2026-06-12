@@ -23,26 +23,38 @@ import {
 import { HsLinkNode } from "../tiptap/hs_link_node";
 import { MonacoCodeBlockNode } from "../tiptap/monaco_code_block_node";
 import { AutoCodeBlockRules } from "../tiptap/auto_code_block_rules";
+import { FindDecorations } from "../tiptap/find_decorations";
+import type { EmbedResolverContext } from "./embed_assets";
 
 export interface HandshakeEditorExtensionOptions extends Wp009ExtensionSetOptions {
   /** Opt-in Yjs/CRDT doc (forwarded to the foundation collaboration binding). */
   collaborationDocument?: YDoc;
+  /**
+   * Workspace/transport context for media embed NodeViews (MT-244). Omitted =
+   * media embeds render a typed no_workspace error state (fail-closed); the
+   * document model is identical either way.
+   */
+  embedContext?: EmbedResolverContext;
 }
 
 /**
  * Builds the complete Handshake rich-editor extension list (foundation set +
  * WP-009 custom nodes/rules). Order matters: the foundation set first (so
  * StarterKit's schema is present), then the custom block nodes, then the
- * behavior extension (auto-code-block rules) that references those nodes.
+ * behavior extensions (auto-code-block rules, find decorations) that reference
+ * those nodes.
  */
 export function buildHandshakeEditorExtensions(
   options: HandshakeEditorExtensionOptions = {},
 ): AnyExtension[] {
   return [
     ...buildWp009ExtensionSet(options),
-    HsLinkNode,
+    options.embedContext
+      ? HsLinkNode.configure({ embedContext: options.embedContext })
+      : HsLinkNode,
     MonacoCodeBlockNode,
     AutoCodeBlockRules,
+    FindDecorations,
   ];
 }
 
@@ -51,4 +63,5 @@ export const HANDSHAKE_EDITOR_CUSTOM_EXTENSION_NAMES = [
   "hsLink",
   "monacoCodeBlock",
   "autoCodeBlockRules",
+  "findDecorations",
 ] as const;

@@ -2,6 +2,13 @@ import { loadViewModeFromStorage } from "./viewMode";
 
 const BASE_URL = "http://127.0.0.1:37501";
 
+/**
+ * The Handshake REST base, exported for surfaces that build typed backend URLs
+ * outside this module (e.g. media embed asset resolution, MT-244) so the base
+ * stays single-sourced here.
+ */
+export const API_BASE_URL = BASE_URL;
+
 type FetchOptions = {
   method?: string;
   body?: unknown;

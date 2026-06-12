@@ -57,6 +57,7 @@ import type {
   EditorBackendError,
   EditorBackendErrorKind,
 } from "../lib/editor/backend_error";
+import type { EmbedResolverContext } from "../lib/editor/embed_assets";
 import { DependencyFailureBanner } from "./DependencyFailureBanner";
 
 export type { EditorBackendError } from "../lib/editor/backend_error";
@@ -71,6 +72,13 @@ export type RichTextEditorProps = {
   onSelectionSnapshot?: (snapshot: SelectionSnapshot | null) => void;
   /** Typed backend error rendered inline (MT-174); null = none. */
   backendError?: EditorBackendError | null;
+  /**
+   * Workspace/transport context for media embed NodeViews (MT-244). Omitted =
+   * media embeds render a typed no_workspace error (fail-closed).
+   */
+  embedContext?: EmbedResolverContext;
+  /** Document title used for export file naming (MT-244); optional. */
+  documentTitle?: string;
   /** Extension factory override (tests / DI). */
   extensionFactory?: () => AnyExtension[];
 };
@@ -96,10 +104,13 @@ function buildGuardedExtensions(
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {
-  const { extensionFactory } = props;
+  const { extensionFactory, embedContext } = props;
   const extensions = useMemo(
-    () => buildGuardedExtensions(extensionFactory ?? (() => buildHandshakeEditorExtensions())),
-    [extensionFactory],
+    () =>
+      buildGuardedExtensions(
+        extensionFactory ?? (() => buildHandshakeEditorExtensions({ embedContext })),
+      ),
+    [extensionFactory, embedContext],
   );
   if (extensions === null) {
     // Never blank: show the typed failure surface + an inline notice.

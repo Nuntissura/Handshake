@@ -13,9 +13,17 @@
 // MT-172 visual debugging. An unresolved prefix is preserved as
 // data-ref-kind="unknown" (never dropped) and styled distinctly so a broken
 // link is visible, not silent (MT-174 spirit).
+//
+// MT-244 adds the NodeView (HsLinkView): media kinds (images/video/album/
+// slideshow) render REAL backend assets fail-closed; all other kinds keep the
+// MT-163 chip rendering. The embed workspace context flows through the
+// extension options (embedContext) so the persisted document is unchanged.
 
 import { Node, mergeAttributes, nodeInputRule, nodePasteRule } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
 import { WIKILINK_REGEX, WIKILINK_REGEX_GLOBAL, classifyWikilink } from "../editor/wikilink";
+import { HsLinkView, type HsLinkNodeOptions } from "../../components/HsLinkView";
+import type { EmbedResolverContext } from "../editor/embed_assets";
 
 export interface HsLinkAttributes {
   refKind: string;
@@ -23,6 +31,8 @@ export interface HsLinkAttributes {
   label: string;
   resolved: boolean;
 }
+
+export type { EmbedResolverContext };
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -38,12 +48,21 @@ declare module "@tiptap/core" {
  * single indivisible inline token (you cannot place the caret inside it), which
  * is the correct model for a resolved link chip.
  */
-export const HsLinkNode = Node.create({
+export const HsLinkNode = Node.create<HsLinkNodeOptions>({
   name: "hsLink",
   group: "inline",
   inline: true,
   atom: true,
   selectable: true,
+
+  addOptions() {
+    return {
+      // Workspace/transport context for media embed resolution (MT-244).
+      // Null = no workspace bound; media embeds render a typed no_workspace
+      // error (fail-closed) while non-media chips render unchanged.
+      embedContext: null,
+    };
+  },
 
   addAttributes() {
     return {
@@ -94,6 +113,13 @@ export const HsLinkNode = Node.create({
     const label = String(node.attrs.label || "");
     const base = `[[${node.attrs.refKind}:${node.attrs.refValue}`;
     return label && label !== node.attrs.refValue ? `${base}|${label}]]` : `${base}]]`;
+  },
+
+  addNodeView() {
+    // MT-244: media kinds (images/video/album/slideshow) render real embeds;
+    // every other kind renders the exact MT-163 chip. renderHTML below stays
+    // the serialization shape (getHTML/exports/copy-paste round-trip).
+    return ReactNodeViewRenderer(HsLinkView);
   },
 
   addCommands() {
