@@ -1,13 +1,16 @@
-// WP-KERNEL-009 / MT-020 — dependency-policy harness build.
+// WP-KERNEL-009 / MT-020 (+ MT-175/176) — offline harness build.
 //
-// Builds harness/dependency-policy.html (a REAL product surface mounting the
-// bundled Monaco + Tiptap stack) into app/dist-harness with relative asset
-// paths, so the offline Playwright spec (MT-030) and the worker-bundling
-// check (MT-027) operate on genuine built artifacts. Workers are emitted as
-// local chunks by Vite's `?worker` handling — no CDN, no runtime downloads.
+// Builds the REAL product harness surfaces into app/dist-harness with relative
+// asset paths, so the offline Playwright specs operate on genuine built
+// artifacts. Workers are emitted as local chunks by Vite's `?worker` handling —
+// no CDN, no runtime downloads.
+//   - harness/dependency-policy.html: bundled Monaco + Tiptap stack (MT-020/027/030).
+//   - harness/rich-editor.html: the INTEGRATED RichTextEditor with an embedded
+//     Monaco code block + typed wikilinks (MT-175 no-external-app proof +
+//     MT-176 round-trip offline visual test).
 //
 // Build:  pnpm run build:harness
-// Output: app/dist-harness/harness/dependency-policy.html (+ assets/)
+// Output: app/dist-harness/harness/{dependency-policy,rich-editor}.html (+ assets/)
 
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -25,7 +28,10 @@ export default defineConfig({
     outDir: "dist-harness",
     emptyOutDir: true,
     rollupOptions: {
-      input: resolve(appDir, "harness", "dependency-policy.html"),
+      input: {
+        "dependency-policy": resolve(appDir, "harness", "dependency-policy.html"),
+        "rich-editor": resolve(appDir, "harness", "rich-editor.html"),
+      },
     },
   },
 });
