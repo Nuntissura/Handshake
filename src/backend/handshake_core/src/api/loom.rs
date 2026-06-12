@@ -135,6 +135,16 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/graph/traverse",
             get(traverse_loom_graph),
         )
+        // MT-179 local graph neighborhood (undirected, filters/depth/stale/citations)
+        .route(
+            "/workspaces/:workspace_id/loom/graph/local",
+            get(local_loom_graph),
+        )
+        // MT-180 global project graph (performance limits + hub suppression)
+        .route(
+            "/workspaces/:workspace_id/loom/graph/global",
+            get(global_loom_graph),
+        )
         .route(
             "/workspaces/:workspace_id/loom/metrics/recompute",
             post(recompute_all_loom_metrics),
@@ -1071,6 +1081,82 @@ async fn traverse_loom_graph(
             .map(|(block, depth)| LoomGraphTraversalNode { block, depth })
             .collect(),
     ))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomLocalGraphQuery {
+    start_block_id: Option<String>,
+    #[serde(default)]
+    max_depth: Option<u32>,
+    #[serde(default)]
+    edge_types: Option<String>,
+    #[serde(default)]
+    node_limit: Option<u32>,
+}
+
+/// MT-179: local graph neighborhood (undirected BFS) with filters, depth,
+/// stale markers, and ProjectKnowledgeIndex citations.
+async fn local_loom_graph(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomLocalGraphQuery>,
+) -> ApiResult<Json<crate::storage::LoomGraph>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let start_block_id = query
+        .start_block_id
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
+    let max_depth = clamp_loom_graph_depth(query.max_depth);
+    let edge_types = parse_loom_edge_types(query.edge_types)?;
+    let node_limit = query.node_limit.unwrap_or(200).min(5000);
+
+    let graph = state
+        .storage
+        .local_graph(
+            &workspace_id,
+            &start_block_id,
+            max_depth,
+            &edge_types,
+            node_limit,
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(graph))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomGlobalGraphQuery {
+    #[serde(default)]
+    edge_types: Option<String>,
+    #[serde(default)]
+    node_limit: Option<u32>,
+    #[serde(default)]
+    hub_degree_threshold: Option<u32>,
+}
+
+/// MT-180: project-level global graph with performance limits + hub suppression.
+async fn global_loom_graph(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomGlobalGraphQuery>,
+) -> ApiResult<Json<crate::storage::LoomGraph>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let edge_types = parse_loom_edge_types(query.edge_types)?;
+    let node_limit = query
+        .node_limit
+        .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT)
+        .min(crate::storage::LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT);
+    let hub_degree_threshold = query
+        .hub_degree_threshold
+        .unwrap_or(crate::storage::LOOM_GLOBAL_GRAPH_DEFAULT_HUB_DEGREE);
+
+    let graph = state
+        .storage
+        .global_graph(&workspace_id, &edge_types, node_limit, hub_degree_threshold)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(graph))
 }
 
 async fn recompute_loom_block_metrics(

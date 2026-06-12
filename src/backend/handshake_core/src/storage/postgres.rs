@@ -62,6 +62,137 @@ impl PostgresDatabase {
     pub(crate) fn pool(&self) -> &PgPool {
         &self.pool
     }
+
+    /// MT-179/180: assemble a `LoomGraph` from a fixed node id set. Fetches the
+    /// blocks, their ProjectKnowledgeIndex bridge entity ids (stale marker +
+    /// citation), and the edges WHOSE BOTH ENDPOINTS are in the node set (within
+    /// the edge_type filter). Per-node degree is counted within the returned
+    /// edges; `ai_suggested` edges are marked stale.
+    async fn assemble_loom_graph(
+        &self,
+        workspace_id: &str,
+        node_ids: &[String],
+        depth_by_id: &std::collections::HashMap<String, u32>,
+        edge_type_filter: Option<&Vec<String>>,
+        truncated: bool,
+        suppressed_hub_ids: Vec<String>,
+    ) -> StorageResult<super::LoomGraph> {
+        if node_ids.is_empty() {
+            return Ok(super::LoomGraph {
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated,
+                suppressed_hub_ids,
+            });
+        }
+
+        // Blocks for the node set.
+        let block_rows = sqlx::query(
+            r#"
+            SELECT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_blocks b
+            WHERE b.workspace_id = $1 AND b.block_id = ANY($2::TEXT[])
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(node_ids)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut blocks_by_id: std::collections::HashMap<String, LoomBlock> =
+            std::collections::HashMap::new();
+        for row in block_rows {
+            let block = map_loom_block(row)?;
+            blocks_by_id.insert(block.block_id.clone(), block);
+        }
+
+        // ProjectKnowledgeIndex citations: bridge entity ids for the node set.
+        let bridge_rows = sqlx::query(
+            r#"
+            SELECT block_id, entity_id
+            FROM loom_block_knowledge_bridge
+            WHERE workspace_id = $1 AND block_id = ANY($2::TEXT[])
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(node_ids)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut entity_by_block: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for row in bridge_rows {
+            entity_by_block.insert(row.get("block_id"), row.get("entity_id"));
+        }
+
+        // Edges with BOTH endpoints in the node set (induced subgraph), within
+        // the edge_type filter.
+        let edge_rows = sqlx::query(
+            r#"
+            SELECT
+                edge_id, workspace_id, source_block_id, target_block_id,
+                edge_type, created_by, created_at, crdt_site_id,
+                source_document_id, source_text_block_id, offset_start, offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND source_block_id = ANY($2::TEXT[])
+              AND target_block_id = ANY($2::TEXT[])
+              AND ($3::TEXT[] IS NULL OR edge_type = ANY($3::TEXT[]))
+            ORDER BY created_at ASC, edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(node_ids)
+        .bind(edge_type_filter)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut degree: std::collections::HashMap<String, u32> =
+            std::collections::HashMap::new();
+        let mut edges = Vec::with_capacity(edge_rows.len());
+        for row in edge_rows {
+            let edge = map_loom_edge(row)?;
+            *degree.entry(edge.source_block_id.clone()).or_default() += 1;
+            *degree.entry(edge.target_block_id.clone()).or_default() += 1;
+            let stale = matches!(edge.edge_type, LoomEdgeType::AiSuggested);
+            edges.push(super::LoomGraphEdge { edge, stale });
+        }
+
+        // Nodes in deterministic order (BFS depth then id).
+        let mut ordered_ids: Vec<String> = blocks_by_id.keys().cloned().collect();
+        ordered_ids.sort_by(|a, b| {
+            let da = depth_by_id.get(a).copied().unwrap_or(0);
+            let db = depth_by_id.get(b).copied().unwrap_or(0);
+            da.cmp(&db).then_with(|| a.cmp(b))
+        });
+
+        let mut nodes = Vec::with_capacity(ordered_ids.len());
+        for id in ordered_ids {
+            let Some(block) = blocks_by_id.remove(&id) else {
+                continue;
+            };
+            let entity_id = entity_by_block.get(&id).cloned();
+            nodes.push(super::LoomGraphNode {
+                block,
+                depth: depth_by_id.get(&id).copied().unwrap_or(0),
+                degree: degree.get(&id).copied().unwrap_or(0),
+                // Stale = not bridged to the ProjectKnowledgeIndex authority.
+                stale: entity_id.is_none(),
+                entity_id,
+            });
+        }
+
+        Ok(super::LoomGraph {
+            nodes,
+            edges,
+            truncated,
+            suppressed_hub_ids,
+        })
+    }
 }
 
 async fn ensure_locus_schema_postgres(pool: &PgPool) -> StorageResult<()> {
@@ -5174,6 +5305,180 @@ impl super::Database for PostgresDatabase {
             }
         }
         Ok(mentions)
+    }
+
+    // -- MT-179 LocalGraphApi --------------------------------------------------
+
+    async fn local_graph(
+        &self,
+        workspace_id: &str,
+        start_block_id: &str,
+        max_depth: u32,
+        edge_types: &[LoomEdgeType],
+        node_limit: u32,
+    ) -> StorageResult<super::LoomGraph> {
+        // Start must exist (fail-closed).
+        self.get_loom_block(workspace_id, start_block_id).await?;
+
+        let depth = max_depth.max(1);
+        let cap = node_limit.clamp(1, 5000) as i64;
+        let edge_type_filter = (!edge_types.is_empty()).then(|| {
+            edge_types
+                .iter()
+                .map(|e| e.as_str().to_string())
+                .collect::<Vec<_>>()
+        });
+
+        // UNDIRECTED neighborhood: a local graph shows what a block is connected
+        // to in BOTH directions. The recursive CTE walks edges treating each as
+        // bidirectional (source<->target), with a visited-path cycle guard.
+        // We collect the node id set (with min BFS depth) including the start.
+        let id_rows = sqlx::query(
+            r#"
+            WITH RECURSIVE nbr(block_id, depth, path) AS (
+                SELECT $2::TEXT, 0, ARRAY[$2]::TEXT[]
+                UNION ALL
+                SELECT
+                    nxt.other,
+                    n.depth + 1,
+                    n.path || nxt.other
+                FROM nbr n
+                JOIN LATERAL (
+                    SELECT e.target_block_id AS other
+                    FROM loom_edges e
+                    WHERE e.workspace_id = $1
+                      AND e.source_block_id = n.block_id
+                      AND ($4::TEXT[] IS NULL OR e.edge_type = ANY($4::TEXT[]))
+                    UNION
+                    SELECT e.source_block_id AS other
+                    FROM loom_edges e
+                    WHERE e.workspace_id = $1
+                      AND e.target_block_id = n.block_id
+                      AND ($4::TEXT[] IS NULL OR e.edge_type = ANY($4::TEXT[]))
+                ) nxt ON TRUE
+                WHERE n.depth < $3
+                  AND NOT nxt.other = ANY(n.path)
+            )
+            SELECT block_id, MIN(depth)::BIGINT AS depth
+            FROM nbr
+            GROUP BY block_id
+            ORDER BY depth ASC, block_id ASC
+            LIMIT $5
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(start_block_id)
+        .bind(depth as i32)
+        .bind(edge_type_filter.as_ref())
+        .bind(cap + 1) // fetch one extra to detect truncation
+        .fetch_all(&self.pool)
+        .await?;
+
+        let truncated = id_rows.len() as i64 > cap;
+        let kept: Vec<(String, i64)> = id_rows
+            .into_iter()
+            .take(cap as usize)
+            .map(|r| (r.get::<String, _>("block_id"), r.get::<i64, _>("depth")))
+            .collect();
+        let depth_by_id: std::collections::HashMap<String, u32> = kept
+            .iter()
+            .map(|(id, d)| (id.clone(), *d as u32))
+            .collect();
+        let node_ids: Vec<String> = kept.iter().map(|(id, _)| id.clone()).collect();
+
+        self.assemble_loom_graph(workspace_id, &node_ids, &depth_by_id, edge_type_filter.as_ref(), truncated, Vec::new())
+            .await
+    }
+
+    // -- MT-180 GlobalGraphApi -------------------------------------------------
+
+    async fn global_graph(
+        &self,
+        workspace_id: &str,
+        edge_types: &[LoomEdgeType],
+        node_limit: u32,
+        hub_degree_threshold: u32,
+    ) -> StorageResult<super::LoomGraph> {
+        let cap = node_limit.clamp(1, super::LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT) as i64;
+        let edge_type_filter = (!edge_types.is_empty()).then(|| {
+            edge_types
+                .iter()
+                .map(|e| e.as_str().to_string())
+                .collect::<Vec<_>>()
+        });
+
+        // Degree per node across the (filtered) edge set: count an edge once for
+        // its source and once for its target.
+        let degree_rows = sqlx::query(
+            r#"
+            SELECT block_id, COUNT(*)::BIGINT AS degree
+            FROM (
+                SELECT source_block_id AS block_id FROM loom_edges
+                WHERE workspace_id = $1
+                  AND ($2::TEXT[] IS NULL OR edge_type = ANY($2::TEXT[]))
+                UNION ALL
+                SELECT target_block_id AS block_id FROM loom_edges
+                WHERE workspace_id = $1
+                  AND ($2::TEXT[] IS NULL OR edge_type = ANY($2::TEXT[]))
+            ) deg
+            GROUP BY block_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(edge_type_filter.as_ref())
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut degree_by_id: std::collections::HashMap<String, u32> =
+            std::collections::HashMap::new();
+        for row in &degree_rows {
+            degree_by_id.insert(row.get("block_id"), row.get::<i64, _>("degree") as u32);
+        }
+
+        // Hub suppression: drop nodes whose total degree exceeds the threshold.
+        let mut suppressed: Vec<String> = degree_by_id
+            .iter()
+            .filter(|(_, &d)| hub_degree_threshold > 0 && d > hub_degree_threshold)
+            .map(|(id, _)| id.clone())
+            .collect();
+        suppressed.sort();
+
+        // Candidate node ids: every block in the workspace, minus suppressed
+        // hubs, capped for performance (deterministic order).
+        let block_id_rows = sqlx::query(
+            r#"
+            SELECT block_id
+            FROM loom_blocks
+            WHERE workspace_id = $1
+            ORDER BY updated_at DESC, block_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let suppressed_set: std::collections::HashSet<&String> = suppressed.iter().collect();
+        let all_ids: Vec<String> = block_id_rows
+            .into_iter()
+            .map(|r| r.get::<String, _>("block_id"))
+            .filter(|id| !suppressed_set.contains(id))
+            .collect();
+        let truncated = all_ids.len() as i64 > cap;
+        let node_ids: Vec<String> = all_ids.into_iter().take(cap as usize).collect();
+
+        // depth is 0 for the global graph (no single origin).
+        let depth_by_id: std::collections::HashMap<String, u32> =
+            node_ids.iter().map(|id| (id.clone(), 0u32)).collect();
+
+        self.assemble_loom_graph(
+            workspace_id,
+            &node_ids,
+            &depth_by_id,
+            edge_type_filter.as_ref(),
+            truncated,
+            suppressed,
+        )
+        .await
     }
 
     async fn upsert_calendar_source(

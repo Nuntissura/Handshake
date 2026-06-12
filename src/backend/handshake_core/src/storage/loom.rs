@@ -470,6 +470,68 @@ pub struct LoomUnlinkedMention {
 /// snippet never leaks an entire document.
 pub const LOOM_SNIPPET_CONTEXT_CHARS: usize = 48;
 
+// ---------------------------------------------------------------------------
+// MT-179 LocalGraphApi + MT-180 GlobalGraphApi
+//
+// Master Spec §10.12 §9.4 (recursive CTE) / [LM-GRAPH-001] (local neighborhood
+// with filters/edge-types/depth/stale-markers/source-citations) and §7.1.4.3 /
+// [LM-GRAPH-002] (project global graph with performance limits + hub
+// suppression). Authority = loom_edges + loom_blocks (+ the MT-177 bridge for
+// citations). These are read projections over Postgres; never a parallel store.
+// ---------------------------------------------------------------------------
+
+/// A node in a Loom graph projection.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomGraphNode {
+    pub block: LoomBlock,
+    /// BFS distance from the start block (0 = start). For the global graph this
+    /// is 0 for every node (no single origin).
+    pub depth: u32,
+    /// Total number of edges (in + out) touching this node within the returned
+    /// graph — used by the UI for sizing and by hub suppression.
+    pub degree: u32,
+    /// Stale marker: the node is NOT bridged to the ProjectKnowledgeIndex
+    /// (no loom_block_knowledge_bridge row), i.e. it is not yet an indexed
+    /// authority entity. A no-context reader can see un-indexed nodes at a
+    /// glance (§10.12 stale markers).
+    pub stale: bool,
+    /// Source citation: the ProjectKnowledgeIndex entity id this node resolves
+    /// to (`knowledge_entities.entity_id`), when bridged. `None` => stale.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entity_id: Option<String>,
+}
+
+/// An edge in a Loom graph projection.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomGraphEdge {
+    pub edge: LoomEdge,
+    /// Stale marker: the edge is an unconfirmed AI suggestion
+    /// (`ai_suggested`, DerivedContent per [LM-EDGE-002]) — not user-authored
+    /// authority until promoted.
+    pub stale: bool,
+}
+
+/// A Loom graph projection (local neighborhood or global project graph).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomGraph {
+    pub nodes: Vec<LoomGraphNode>,
+    pub edges: Vec<LoomGraphEdge>,
+    /// True when a performance limit clipped the result (more nodes/edges
+    /// exist than were returned). The UI shows a "graph truncated" affordance.
+    pub truncated: bool,
+    /// Block ids suppressed as hubs (degree above the threshold) in the global
+    /// graph. Empty for the local graph.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suppressed_hub_ids: Vec<String>,
+}
+
+/// Default node cap for the global graph (performance limit, [LM-GRAPH-002]).
+pub const LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT: u32 = 500;
+/// Hard ceiling on the global-graph node cap.
+pub const LOOM_GLOBAL_GRAPH_MAX_NODE_LIMIT: u32 = 5000;
+/// Default degree above which a node is suppressed as a hub in the global graph.
+pub const LOOM_GLOBAL_GRAPH_DEFAULT_HUB_DEGREE: u32 = 50;
+
 /// Build a surrounding-text snippet for a match located by `match_start`
 /// (char index) and `match_len` (char length) within `text`. Returns a window
 /// of up to `LOOM_SNIPPET_CONTEXT_CHARS` characters of context on each side,

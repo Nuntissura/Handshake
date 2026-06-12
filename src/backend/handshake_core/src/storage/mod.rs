@@ -2133,6 +2133,39 @@ pub trait Database: Send + Sync {
         ))
     }
 
+    // -- MT-179 LocalGraphApi --------------------------------------------------
+    /// Local graph neighborhood around a block (§10.12 [LM-GRAPH-001]): an
+    /// UNDIRECTED BFS over loom_edges to `max_depth`, filtered to `edge_types`
+    /// (empty = all), returning nodes (with stale markers + ProjectKnowledge
+    /// citations) and the edges among them. `node_limit` bounds the result and
+    /// sets `truncated` when exceeded.
+    async fn local_graph(
+        &self,
+        _workspace_id: &str,
+        _start_block_id: &str,
+        _max_depth: u32,
+        _edge_types: &[LoomEdgeType],
+        _node_limit: u32,
+    ) -> StorageResult<LoomGraph> {
+        Err(StorageError::NotImplemented("loom local graph backend"))
+    }
+
+    // -- MT-180 GlobalGraphApi -------------------------------------------------
+    /// Project-level global graph (§10.12 [LM-GRAPH-002] / §7.1.4.3): all blocks
+    /// + edges in the workspace, filtered to `edge_types` (empty = all), with a
+    /// performance `node_limit` (sets `truncated`) and hub suppression — nodes
+    /// whose total degree exceeds `hub_degree_threshold` are dropped from the
+    /// returned graph and listed in `suppressed_hub_ids`.
+    async fn global_graph(
+        &self,
+        _workspace_id: &str,
+        _edge_types: &[LoomEdgeType],
+        _node_limit: u32,
+        _hub_degree_threshold: u32,
+    ) -> StorageResult<LoomGraph> {
+        Err(StorageError::NotImplemented("loom global graph backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,
