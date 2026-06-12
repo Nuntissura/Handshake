@@ -93,7 +93,21 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "53b5e903",
     "evidence": [
-      "Built+verified 53b5e903: backend_error.test.ts 6/6 + RichDocumentView conflict test - typed inline backend errors (save/conflict/schema/load/index/projection), never blank; Monaco-mount-failure textarea fallback. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified 53b5e903: backend_error.test.ts 6/6 + RichDocumentView conflict test - typed inline backend errors (save/conflict/schema/load/index/projection), never blank; Monaco-mount-failure textarea fallback. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T08:02:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H5 save/conflict data loss (dirty flag cleared over in-flight keystrokes; conflict hint instructed a destructive Reload; no unload/doc-switch guard)",
+        "fix": "dirty-generation counter (clear only if no edit landed during the save await); conflict path snapshots the local doc into a preserved-edits panel (download via saveTextToFile / restore into editor / explicit discard; Reload never clears it); truthful conflict hint; beforeunload guard while dirty; doc-switch snapshot with restore offered only on the owning document; data-dirty selector",
+        "commit": "9c7a19b3",
+        "tests": [
+          "RichDocumentView.test.tsx: keeps the document dirty when keystrokes land during an in-flight save",
+          "RichDocumentView.test.tsx: clears the dirty flag after a save with no in-flight edits",
+          "RichDocumentView.test.tsx: preserves local edits as a snapshot on save conflict; restore re-applies them; reload never discards",
+          "RichDocumentView.test.tsx: blocks unload while dirty via beforeunload and releases it after save",
+          "RichDocumentView.test.tsx: snapshots un-saved edits when switching documents; restore only offered on the owning doc"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:22:00Z",
@@ -105,7 +119,9 @@
           "severity": "HIGH",
           "title": "Conflict guidance leads the operator into irrecoverable local-edit loss; dirty-flag race silently discards keystrokes typed during an in-flight save",
           "evidence": "Two coupled defects on the save/error surface this MT owns: (1) backend_error.ts:44-48 conflict hint says \"Reload to get the latest version, then re-apply your edit\" but Reload (RichDocumentView.tsx:58-91) discards editorContent with no draft, no export, no confirmation - following the official hint destroys the unsaved work the conflict was protecting. (2) RichDocumentView.tsx:115-141 onSave captures editorContent at click time; keystrokes during the in-flight await mark isDirty=true, then the save resolution unconditionally setIsDirty(false) - the Save button disables with UNSAVED content in the editor and \"Saved at\" showing success. (3) No beforeunload/doc-switch guard: switching documentId or closing with dirty edits silently discards them.",
-          "fix": "On conflict: snapshot the local doc (e.g. localStorage/recovery table) BEFORE reload and offer re-apply; fix the race by capturing a save-generation counter (only clear dirty if no onChange occurred since capture); add an unsaved-changes guard on unmount/doc switch. Regression tests for all three."
+          "fix": "On conflict: snapshot the local doc (e.g. localStorage/recovery table) BEFORE reload and offer re-apply; fix the race by capturing a save-generation counter (only clear dirty if no onChange occurred since capture); add an unsaved-changes guard on unmount/doc switch. Regression tests for all three.",
+          "status": "FIXED",
+          "fixed_commit": "9c7a19b3"
         },
         {
           "severity": "MEDIUM",

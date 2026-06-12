@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-179-LocalGraphApi",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-179.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
@@ -111,7 +111,8 @@
           "local_graph_depth_one_is_immediate_neighborhood - induced edges (2)",
           "local_graph_fails_closed_on_missing_start - NotFound"
         ]
-      }
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): cd944110."
     ],
     "adversarial_code_review": {
       "at_utc": "2026-06-12T06:40:00Z",
@@ -127,7 +128,9 @@
       "fixes": [
         "Cast MIN(depth)::BIGINT in the local-graph CTE."
       ]
-    }
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,

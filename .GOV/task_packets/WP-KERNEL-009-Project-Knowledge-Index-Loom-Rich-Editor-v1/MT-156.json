@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T08:20:00Z",
+        "kind": "hardening_v2",
+        "finding": "History endpoint unbounded; returned full content_json of every version (response-size DoS)",
+        "fix": "GET /history paginated (default 50, cap 200) returning metadata only + total_versions; new GET /history/:doc_version lazy single-body load; storage gains version-meta list (content_json not selected), count, and single-version getters",
+        "commit": "bde6d28f",
+        "tests": "knowledge_documents_api_tests 7 passed incl. mt156_history_is_paginated_and_omits_version_bodies (page [2,3] of 5, no content_json keys, limit clamp 100000->200, lazy body load, 404 missing version)"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,7 +111,9 @@
           "severity": "MEDIUM",
           "title": "History endpoint is unbounded and returns full content_json of every version",
           "evidence": "list_knowledge_rich_document_versions (knowledge.rs:4601) has no LIMIT/pagination; load_history (api:532-559) returns every version row, each carrying full content_json. A large, long-lived document returns its entire revision history (all bodies) in one response - unbounded query + response-size DoS on a hot route.",
-          "fix": "Paginate versions (LIMIT/OFFSET or keyset) and omit content_json from the list (return version metadata + sha; lazy-load a single version body on demand)."
+          "fix": "Paginate versions (LIMIT/OFFSET or keyset) and omit content_json from the list (return version metadata + sha; lazy-load a single version body on demand).",
+          "status": "FIXED",
+          "fixed_commit": "bde6d28f"
         }
       ],
       "claim_mismatches": [],

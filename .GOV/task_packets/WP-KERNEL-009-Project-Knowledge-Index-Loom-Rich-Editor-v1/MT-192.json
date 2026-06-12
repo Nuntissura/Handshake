@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-192-LoomNavigationFixtures",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-192.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,56 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "20b1f968",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T11:25:00Z",
+        "kind": "implementation",
+        "summary": "Consolidated navigation fixture exercising EVERY Loom navigation path over one realistic workspace on real PostgreSQL, proving the MT-177..190 backend surfaces compose over the same authority.",
+        "files_changed": [
+          "src/backend/handshake_core/tests/loom_navigation_fixtures_tests.rs (NEW) - 1 comprehensive real-Postgres fixture test"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T11:25:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_navigation_fixtures_tests -- --test-threads=1",
+        "result": "ok. 1 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "loom_navigation_fixture_exercises_every_path - 10 navigation fixtures in one scenario: (1) exact LoomBlock open; (2) backlinks w/ context snippet; (3) unlinked mentions (excludes formally-linked); (4) tag hub + nested-tag membership; (5) folder tree + color label (#3366ff); (6) breadcrumbs across the spine; (7) local (undirected + tag-only filter) + global graph; (8) pins view w/ order; (9) stale wiki projection that regenerates after a source edit; (10) projection-delete-leaves-block-authority-byte-identical"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T11:25:00Z",
+        "kind": "blocker_note",
+        "summary": "A CONCURRENT session's in-flight, non-compiling WIP (knowledge_retrieval MT-133/134 executed-pipeline: graph_planner.rs references KnowledgeEdge.evidence_span_ids which does not exist, + plan/passage_fallback/mod.rs + untracked executor.rs + editor_commands.ts) was present UNCOMMITTED in the product worktree and blocked test compilation. It is NOT WP-009 work and NOT mine. I did not modify or fix it: I backed it up (Handshake_Artifacts/orphan_backups + a git stash kept as a second backup), git-stashed only those paths to run the MT-192 test green, then restored them exactly (stash pop + executor.rs back). The concurrent session's WIP is left as found. WP-009 Loom code compiled green at every one of my commits."
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 20b1f968."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T11:25:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "20b1f968",
+      "findings": [
+        "COMPOSITION (handled+tested): every navigation path is exercised against ONE workspace built from shared authority, so the fixture proves the surfaces interoperate (e.g. the same Roadmap block is opened, backlinked, tagged, filed, graphed, pinned, and wiki-cited).",
+        "BRIDGE-RESOLVED (handled): every fixture block is bridged to the ProjectKnowledgeIndex so navigation resolves to authority (the entity crumb + citations appear).",
+        "AUTHORITY-BOUNDARY (handled+tested): the fixture ends by deleting the wiki projection and asserting the LoomBlock authority is byte-identical (re-proves MT-187 in the composed scenario).",
+        "ISOLATION (handled): the fixture uses an isolated per-test schema with the full migration chain (knowledge_pg), no shared state, deterministic assertions."
+      ],
+      "fixes": [
+        "No code change required for the fixture. Operator action item (out of WP-009 scope): the concurrent knowledge_retrieval MT-133/134 WIP in the product worktree does not compile (KnowledgeEdge has no evidence_span_ids field; spans live in knowledge_edge_spans) and must be finished or reverted by its owning session before a full-crate build is green."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,

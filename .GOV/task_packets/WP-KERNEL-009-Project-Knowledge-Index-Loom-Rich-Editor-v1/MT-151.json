@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T06:25:00Z",
+        "kind": "hardening_v2",
+        "finding": "import -> load broken: importedRaw nodes (HTML/table imports) had no BlockKind arm, so imported documents 400'd on load/blocks/projection",
+        "fix": "Added ImportedRaw BlockKind (importedRaw node type) with verbatim round-trip; projections render the captured source INERT (markdown fence / escaped pre[data-hsk-imported-raw]); import unit tests now assert loadability",
+        "commit": "22d7ee77",
+        "tests": "knowledge_documents_api_tests 4 passed incl. mt151_imported_html_document_roundtrips_load_save_export + mt151_imported_markdown_table_document_roundtrips_load_save_export (real-PG import->load->blocks->save->export cycles); lib knowledge_document 38 passed incl. imported_raw_nodes_parse_and_roundtrip + imported_raw_blocks_render_inert_in_markdown_and_html"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,7 +111,9 @@
           "severity": "HIGH",
           "title": "import -> load is broken for HTML and markdown-table inputs: importedRaw is not a known BlockKind",
           "evidence": "import.rs:87-93 emits importedRaw nodes for HTML (line 117) and markdown tables (line 230). BlockKind::from_node_type (block_tree.rs:110-131) has NO importedRaw arm, so BlockTree::from_document_json returns UnsupportedBlockType. import_document (api:595) stores the doc without parsing, but load_document/load_blocks/export_projection all call BlockTree::from_document_json -> every read of an imported HTML/table doc 400s. The import tests only round-trip the markdown happy path through BlockTree (import.rs:328-345); the HTML/table tests assert raw JSON only (349-375), never re-parsing.",
-          "fix": "Add ImportedRaw to BlockKind (and as_node_type/from_node_type) so imported docs are loadable/repairable, or have the importer emit a supported placeholder block. Add an import->load->project round-trip test for HTML and table inputs."
+          "fix": "Add ImportedRaw to BlockKind (and as_node_type/from_node_type) so imported docs are loadable/repairable, or have the importer emit a supported placeholder block. Add an import->load->project round-trip test for HTML and table inputs.",
+          "status": "FIXED",
+          "fixed_commit": "22d7ee77"
         }
       ],
       "claim_mismatches": [

@@ -91,7 +91,15 @@
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "1d1f949d",
     "evidence": [
-      "Built+verified 1d1f949d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+      "Built+verified 1d1f949d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "hardening_v2",
+        "finding": "QueryPlan routes hardcoded; the unit-tested catalog->RouteStep bridge (routing_for/route_steps_from_entry) was never called by the planner (spec MUST violation)",
+        "fix": "RetrievalRequest.catalog_entry (+ builder); planner resolves routing_for for graph-traversal and hybrid branches - resolvable contracts DERIVE plan.route (steps cite entry+version), unknown/empty entries fall back to defaults (spec C)",
+        "commit": "06bb2cec",
+        "tests": "knowledge_retrieval_pipeline_tests 10 passed incl. planner_derives_route_from_semantic_catalog_entry (hybrid + graph catalog-derived routes, unknown-entry default fallback)"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:11:18.477Z",
@@ -102,7 +110,9 @@
           "severity": "MEDIUM",
           "title": "QueryPlan routes are not derived from the SemanticCatalog",
           "evidence": "The bridge docstring (semantic_catalog.rs:7-8) cites spec MUST: QueryPlan.route[] derived from the SemanticCatalog when present. But CheapestAuthoritativePathPlanner builds hardcoded routes (planner.rs steps 3 and 5) and never calls routing_for / route_steps_from_entry. The catalog is queryable + listed in the debug API, but no plan derives its route from it.",
-          "fix": "Have the planner resolve routing_for(workspace, target) and use route_steps_from_entry to populate plan.route when a catalog entry exists; fall back to defaults otherwise."
+          "fix": "Have the planner resolve routing_for(workspace, target) and use route_steps_from_entry to populate plan.route when a catalog entry exists; fall back to defaults otherwise.",
+          "status": "FIXED",
+          "fixed_commit": "06bb2cec"
         }
       ],
       "claim_mismatches": [

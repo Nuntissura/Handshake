@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T05:55:00Z",
+        "kind": "hardening_v2",
+        "finding": "HTML projection emitted javascript:/data: hrefs (stored XSS); embeds rendered raw content_json attrs bypassing MT-152 EmbedTarget validation",
+        "fix": "Strict scheme allowlist (http/https/mailto/hsk + scheme-less refs) with obfuscation-resistant scheme parsing (tab/LF/CR + control stripping, case folding); dangerous links neutralize to non-link spans; embed render routes through EmbedTarget::parse_raw with id kinds rejecting scheme-bearing values; markdown projection applies the same law",
+        "commit": "9527758c",
+        "tests": "lib knowledge_document 36 passed incl. html_projection_neutralizes_dangerous_href_schemes (12 obfuscated payloads), entity_encoded_scheme_stays_inert_through_escaping, html_projection_keeps_allowlisted_and_relative_link_targets, html_projection_routes_embeds_through_embed_target_validation (8 invalid shapes), markdown_projection_neutralizes_dangerous_targets_too, id_kinds_reject_scheme_bearing_values, parse_raw_infers_kind_and_applies_the_same_law, url_scheme_detection_defeats_obfuscation"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,13 +111,17 @@
           "severity": "HIGH",
           "title": "HTML projection does not sanitize URL schemes - javascript:/data: href survives into anchor href (stored XSS on click)",
           "evidence": "projection.rs:151-158 typed-link href = escape_html(typed_link_target); 160-163 embed src = escape_html(embed_target); escape_html (226-239) escapes ampersand/angle/quote but NOT the URL scheme. A specLink/wpLink/fileLink/symbolLink block with attrs.target=javascript:alert(...) renders an anchor href verbatim. Precondition: the HTML projection is opened/rendered in a browser context (it is an export/preview surface).",
-          "fix": "Allowlist URL schemes for href/src (http,https,mailto + internal KSRC-/KRD-/spec anchors); reject or neutralize javascript:,data:,vbscript:. Render disallowed targets as inert text."
+          "fix": "Allowlist URL schemes for href/src (http,https,mailto + internal KSRC-/KRD-/spec anchors); reject or neutralize javascript:,data:,vbscript:. Render disallowed targets as inert text.",
+          "status": "FIXED",
+          "fixed_commit": "9527758c"
         },
         {
           "severity": "MEDIUM",
           "title": "Projection reads embed targets from raw content_json attrs, bypassing the MT-152 typed-EmbedTarget validation",
           "evidence": "projection.rs:210-224 embed_target reads attrs.target then attrs.src directly off the raw node; never goes through EmbedTarget::new, so a content_json image block with attrs.src=/etc/passwd or file:/// is emitted into the projection though MT-152 claims absolute paths are impossible.",
-          "fix": "Route embed rendering through the validated EmbedTarget; reject/repair non-typed targets at render time."
+          "fix": "Route embed rendering through the validated EmbedTarget; reject/repair non-typed targets at render time.",
+          "status": "FIXED",
+          "fixed_commit": "9527758c"
         }
       ],
       "claim_mismatches": [

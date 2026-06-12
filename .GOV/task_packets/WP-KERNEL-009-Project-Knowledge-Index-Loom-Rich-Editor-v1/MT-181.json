@@ -86,7 +86,54 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "3a872e4e",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T08:40:00Z",
+        "kind": "implementation",
+        "summary": "Persistent Loom folder hierarchy + color labels + sort modes + project membership in PostgreSQL. Organizational overlay over LoomBlocks; never a second source of block truth. No parallel store.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0294_loom_folders.sql (NEW) - loom_folders (self-referential parent_folder_id, color, sort_mode CHECK vocab, manual sort_order, soft project_ref; sibling-name uniqueness; not-self-parent CHECK) + loom_folder_members (folder<->block overlay, manual sort_order)",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomFolder/NewLoomFolder/LoomFolderUpdate (Option<Option> set/clear) + LoomFolderSortMode",
+          "src/backend/handshake_core/src/storage/mod.rs - Database folder methods (create/get/list/update/delete + member add/remove/list)",
+          "src/backend/handshake_core/src/storage/postgres.rs - impls + map_loom_folder; list tree parent-before-child (recursive CTE); update move guarded by descendant-cycle + self-parent checks; list_loom_folder_blocks ORDER BY chosen by sort_mode (fixed literals)",
+          "src/backend/handshake_core/src/api/loom.rs - /loom/folders CRUD + /loom/folders/:id/blocks(/:block_id)",
+          "src/backend/handshake_core/tests/loom_folder_tests.rs (NEW) - 6 real-Postgres integration tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T08:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_folder_tests -- --test-threads=1",
+        "result": "ok. 6 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "folder_tree_persists_hierarchy_color_and_sort - nested tree, recolor+rename, parent-before-child listing, sort_mode persisted",
+          "folder_membership_and_manual_sort - manual order C,A,B; idempotent re-add (reorder, no dup); remove",
+          "folder_name_sort_mode_orders_by_title - name_asc orders Ant before Zebra",
+          "folder_move_into_own_subtree_is_rejected - descendant-cycle move + self-parent both rejected",
+          "deleting_folder_cascades_subtree_but_not_blocks - delete root cascades child + membership; the LoomBlock survives",
+          "folder_apis_fail_closed_on_missing_targets - missing parent / missing block rejected"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T08:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "3a872e4e",
+      "findings": [
+        "MOVE CYCLE (handled+tested): re-parenting walks up from the proposed parent via a recursive CTE; if it reaches the folder being moved, the move is rejected. Self-parent rejected separately. (DB also has a not-self-parent CHECK.)",
+        "OVERLAY NOT OWNERSHIP (handled+tested): deleting a folder cascades the subtree + membership rows but never the LoomBlocks; a block can be in multiple folders.",
+        "SET/CLEAR SEMANTICS (handled): LoomFolderUpdate uses Option<Option<T>> + CASE WHEN $flag so a field can be left unchanged, set, or explicitly cleared (color, sort_order, parent, project_ref).",
+        "ORDER-BY INJECTION (clear): list_loom_folder_blocks picks a fixed &str ORDER BY by sort_mode enum; folder name/color/project_ref are bound params under CHECK constraints.",
+        "SIBLING-NAME COLLISION (handled by schema): uq_loom_folders_sibling_name (workspace, parent, name) prevents ambiguous duplicate paths; surfaced as a Conflict/Database error.",
+        "FAIL-CLOSED (tested): create under a missing parent, and adding a missing block, both error; project_ref is a documented soft ref (no hard FK) per MT-152 typed-reference discipline.",
+        "DOS (mitigated): list_loom_folder_blocks clamps limit 1..500; the tree CTE is bounded by the workspace folder count."
+      ],
+      "fixes": [
+        "No code change required; findings handled-by-design and tested."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -93,7 +93,19 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "1d0a2e66",
     "evidence": [
-      "Built+verified 1d0a2e66: RichTextEditor.a11y.test.tsx 4/4 - accessibility + readability. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified 1d0a2e66: RichTextEditor.a11y.test.tsx 4/4 - accessibility + readability. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T10:57:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M16 toolbar keyboard pattern + M17 code-block focus-order trap + L20 palette option semantics / unlabeled fallback textarea",
+        "fix": "roving tabindex toolbar (single tab stop, ArrowLeft/Right/Home/End); Escape exit from the code island (Monaco keybinding + degraded textarea, now aria-labelled); palette gains combobox/listbox semantics with live aria-selected + aria-activedescendant",
+        "commit": "ddab11ee",
+        "tests": [
+          "RichTextEditor.a11y.test.tsx: implements the ARIA toolbar pattern: one tab stop + arrow-key roving",
+          "RichTextEditor.a11y.test.tsx: navigates the palette with ArrowDown/Up and runs the active option with Enter",
+          "RichTextEditor.a11y.test.tsx: exits the embedded code block to the prose document with Escape"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:22:00Z",
@@ -105,19 +117,25 @@
           "severity": "MEDIUM",
           "title": "role=toolbar without the ARIA toolbar keyboard pattern",
           "evidence": "RichTextEditor.tsx:283-316 - toolbar exposes role+label (tested) but no roving tabindex / ArrowLeft-ArrowRight navigation; Tab stops on every one of ~12 buttons. WAI-ARIA APG requires arrow-key navigation within a toolbar with a single Tab stop.",
-          "fix": "Implement roving tabindex (active button tabIndex=0, others -1; arrows move focus); extend the a11y test to assert arrow traversal."
+          "fix": "Implement roving tabindex (active button tabIndex=0, others -1; arrows move focus); extend the a11y test to assert arrow traversal.",
+          "status": "FIXED",
+          "fixed_commit": "ddab11ee"
         },
         {
           "severity": "MEDIUM",
           "title": "Keyboard trap inside the embedded code block defeats the focus-order claim (cross-ref MT-165)",
           "evidence": "MT-173 owns focus order/discoverability; the Monaco embed has no keyboard exit (MonacoCodeBlockView.tsx - no boundary/Escape handling), so the documented focus order is broken for keyboard users at the first code block (WCAG 2.1.2).",
-          "fix": "Land the MT-165 boundary-exit pattern and add a keyboard-only traversal test that enters and leaves a code block."
+          "fix": "Land the MT-165 boundary-exit pattern and add a keyboard-only traversal test that enters and leaves a code block.",
+          "status": "FIXED",
+          "fixed_commit": "ddab11ee"
         },
         {
           "severity": "LOW",
           "title": "Palette listbox semantics invalid; fallback textarea unlabeled",
           "evidence": "RichTextEditor.tsx:348-368 li[role=option] always aria-selected=false and wraps a button (interactive child of option is invalid); MonacoCodeBlockView.tsx:176-184 degraded textarea has no aria-label.",
-          "fix": "Fix option semantics together with the MT-170 keyboard-nav work; add aria-label=\"Code (plain editor fallback)\" to the textarea."
+          "fix": "Fix option semantics together with the MT-170 keyboard-nav work; add aria-label=\"Code (plain editor fallback)\" to the textarea.",
+          "status": "FIXED",
+          "fixed_commit": "ddab11ee"
         },
         {
           "severity": "LOW",

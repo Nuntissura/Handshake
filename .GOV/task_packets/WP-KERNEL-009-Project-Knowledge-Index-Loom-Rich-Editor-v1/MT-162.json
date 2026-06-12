@@ -93,7 +93,18 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "5f1b0939",
     "evidence": [
-      "Built+verified 5f1b0939: schema_versioning.test.ts 5/5 - assertEditorSchema pass-through/migrate/refuse-newer/typed-unknown wired into RichDocumentView load. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified 5f1b0939: schema_versioning.test.ts 5/5 - assertEditorSchema pass-through/migrate/refuse-newer/typed-unknown wired into RichDocumentView load. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T07:45:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H2 schema fail-open (newer/unknown-schema docs editable + saveable; one save persists the ProseMirror-stripped doc)",
+        "fix": "RichDocumentView fail-closed: schemaBlocked state -> editor mounted READ-ONLY (data-schema-blocked), Save disabled, onSave refuses with typed schemaSaveBlockedError; schemaMismatchError hint states the read-only/save-blocked contract",
+        "commit": "6e48aa6b",
+        "tests": [
+          "RichDocumentView.test.tsx: fails CLOSED on a newer-schema document: read-only editor, save blocked, typed banner (incl. destructive-save negative: forced edit + Save click never reaches saveRichDocument)",
+          "backend_error.test.ts: builds a typed save-blocked error for schema-blocked documents"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:10:00Z",
@@ -105,7 +116,9 @@
           "severity": "HIGH",
           "title": "Fail-open on schema mismatch: newer/unknown-schema documents stay editable and saveable -> silent data loss",
           "evidence": "RichDocumentView.tsx:74-79 - when assertEditorSchema returns ok:false the view STILL setEditorContent(response.document.content_json) and leaves the editor editable with Save enabled. schema_versioning.ts:54-57 states a non-ok result \"must be surfaced (MT-174) rather than loaded\". ProseMirror (enableContentCheck default false) silently DROPS unknown node types on parse, so one Save persists a stripped document over the newer-schema head (versions table keeps history, head is degraded).",
-          "fix": "On ok:false: keep the typed banner, render read-only (editable:false) or a raw-JSON preview, and hard-disable Save until reload under a compatible editor. Add a regression test: load newer_than_editor doc -> editor readOnly -> save blocked."
+          "fix": "On ok:false: keep the typed banner, render read-only (editable:false) or a raw-JSON preview, and hard-disable Save until reload under a compatible editor. Add a regression test: load newer_than_editor doc -> editor readOnly -> save blocked.",
+          "status": "FIXED",
+          "fixed_commit": "6e48aa6b"
         },
         {
           "severity": "MEDIUM",

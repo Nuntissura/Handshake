@@ -93,7 +93,20 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "a8f9c43c",
     "evidence": [
-      "Built+verified a8f9c43c: selection_state.test.ts 6/6 - selection + cursor state. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified a8f9c43c: selection_state.test.ts 6/6 - selection + cursor state. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T07:25:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H1 echo-loop caret teleport (initialContent echo -> setContent per keystroke)",
+        "fix": "lastEmitted identity guard + structural doc equality in RichTextEditor reload effect; RichDocumentView keeps live content in editorContentRef and passes only loaded docs as initialContent; offline harness echo removed; readOnly changes now applied via setEditable",
+        "commit": "b4e95476",
+        "tests": [
+          "RichTextEditor.typing.test.tsx: keeps the caret in place while typing mid-document through an echoing parent (RED on HEAD: caret 6->13, GREEN after)",
+          "RichTextEditor.typing.test.tsx: applies a genuinely external document update (reload / conflict resolution)",
+          "RichTextEditor.typing.test.tsx: does not reset the caret when a parent re-render passes a structurally identical doc",
+          "doc_equality.test.ts: 5 structural-equality unit tests"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:18:00Z",
@@ -105,7 +118,9 @@
           "severity": "HIGH",
           "title": "Cursor does not survive document echo: external setContent teleports the caret to document end (proven headless)",
           "evidence": "RichTextEditor.tsx:156-162 runs editor.commands.setContent on EVERY initialContent identity change; RichDocumentView.tsx:204-209 (and rich_editor_harness.tsx:100-105) echo onChange JSON straight back into initialContent, so the effect fires per keystroke. Tiptap 3.13 setContent is tr.replaceWith(0, size, doc) with no equality guard and no selection preservation - headless probe on the bundled packages: caret at pos 6 of \"hello world\" -> after setContent(identical JSON) caret lands at pos 12/13 (doc end). Mid-document typing teleports the caret to the end after every keystroke; appended typing (what all current tests do) masks it. Also destroys IME composition state and runs an O(doc) parse per keystroke.",
-          "fix": "Guard the reload effect: only setContent when the incoming doc differs from editor.getJSON() semantically AND the change is genuinely external (e.g. track a lastEmitted ref in RichTextEditor; skip when initialContent === lastEmitted). Parent should pass a stable loaded-document object, not the onChange echo. Add a mid-document typing caret test (real keyboard, jsdom or Playwright)."
+          "fix": "Guard the reload effect: only setContent when the incoming doc differs from editor.getJSON() semantically AND the change is genuinely external (e.g. track a lastEmitted ref in RichTextEditor; skip when initialContent === lastEmitted). Parent should pass a stable loaded-document object, not the onChange echo. Add a mid-document typing caret test (real keyboard, jsdom or Playwright).",
+          "status": "FIXED",
+          "fixed_commit": "b4e95476"
         },
         {
           "severity": "MEDIUM",

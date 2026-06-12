@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-177-LoomBlockKnowledgeBridge",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-177.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-145",
@@ -142,7 +142,8 @@
         "at_utc": "2026-06-12T05:30:00Z",
         "kind": "reuse_confirmation",
         "summary": "No parallel infrastructure. Bridge EXTENDS existing layers: knowledge_entities (entity_kind='loom_block' already a first-class kind, migration 0135) is the ProjectKnowledgeIndex authority; reuses KnowledgeStore::upsert_knowledge_entity (stable identity upsert), Database::append_kernel_event (EventLedger) with the pre-existing KnowledgeLoomBlockIndexed kernel event type; extends storage/loom.rs + api/loom.rs + the loom_blocks/loom_edges (migration 0013) store rather than forking it."
-      }
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 2ee98c28+58b773a5."
     ],
     "adversarial_code_review": {
       "at_utc": "2026-06-12T05:30:00Z",
@@ -158,7 +159,9 @@
       "fixes": [
         "create_loom_block now validates the resolved block_id (reject empty or surrounding-whitespace) BEFORE insert, so an un-bridgeable block can never be created -> closes ORPHAN-BLOCK at the source. Proven by create_rejects_unbridgeable_block_id (asserts 5 bad ids rejected + zero blocks in the All view)."
       ]
-    }
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,

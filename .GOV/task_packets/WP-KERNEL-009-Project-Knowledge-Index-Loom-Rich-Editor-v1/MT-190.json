@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-190-LoomEventLedgerEvents",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-190.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,53 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "89476e5c",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T10:20:00Z",
+        "kind": "implementation",
+        "summary": "Completed FR-EVT-LOOM event coverage for the Loom surface. Pre-existing Loom FR events: LoomBlockCreated/Updated/Deleted, LoomEdgeCreated/Deleted (link+tag), LoomViewQueried (view open), LoomSearchExecuted, LoomDedupHit, LoomPreviewGenerated, LoomAiTag{Suggested,Accepted,Rejected}. MT-177 binds block indexing (KNOWLEDGE_LOOM_BLOCK_INDEXED) to the EventLedger. This MT adds the missing projection-rebuild event.",
+        "files_changed": [
+          "src/backend/handshake_core/src/flight_recorder/mod.rs - new LoomProjectionRebuilt event type + Display (loom_projection_rebuilt) + validate_loom_projection_rebuilt_payload (exact keys: type/workspace_id/projection_id/operation{compile,regenerate}/source_block_count) wired into the validate dispatch; +2 unit tests",
+          "src/backend/handshake_core/src/api/loom.rs - compile + regenerate wiki projection now emit a VALID loom_projection_rebuilt FR event (the compile handler previously emitted a loom_view_queried-typed payload that the recorder validator would have REJECTED - a latent bug fixed here)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T10:20:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --lib flight_recorder::tests::flight_recorder_loom_projection",
+        "result": "ok. 2 passed; 0 failed",
+        "tests": [
+          "flight_recorder_loom_projection_rebuilt_valid - compile + regenerate payloads validate; Display == loom_projection_rebuilt",
+          "flight_recorder_loom_projection_rebuilt_rejects_bad_payload - bad operation value, missing projection_id, and wrong type string all rejected"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 89476e5c."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T10:20:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "89476e5c",
+      "findings": [
+        "LATENT INVALID-EVENT (fixed): the MT-184 compile handler emitted a LoomViewQueried event whose payload (type=loom_wiki_projection_compiled, no view_type) would FAIL the loom_view_queried validator -> the event would silently drop (let _ = record). Replaced with a dedicated, validator-backed LoomProjectionRebuilt event.",
+        "EXHAUSTIVENESS (verified): the new enum variant is handled in Display + the validate dispatch; no category/severity mapping mis-buckets it (build is green, exhaustive matches updated).",
+        "PAYLOAD STRICTNESS (handled+tested): require_exact_keys + require_limited_choice(operation) + require_safe_id_string reject malformed payloads, matching the discipline of the other Loom validators.",
+        "COVERAGE (verified): view open/search/link create+delete/tag/pin(block updated)/dedup/preview already have FR event types; projection rebuild is now covered; 'repair' is a frontend/queue surface with no backend Loom op in this group."
+      ],
+      "fixes": [
+        "Add LoomProjectionRebuilt event type + validator; emit it (valid payload) from compile and regenerate instead of the invalid LoomViewQueried event."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,

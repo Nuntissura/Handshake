@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T07:35:00Z",
+        "kind": "hardening_v2",
+        "finding": "Non-atomic save+index: post-commit error path returned 400/500 for an already-committed save; pre/post-save schema-version parse inconsistency",
+        "fix": "All post-commit steps (receipt, backlink rebuild, embed sync) across save/create/import/repair/rename/move are best-effort and RECORDED (receipt_error/backlinks_error/embeds_error + tracing), never an error for a committed write; one pre-commit tree parse drives validation AND indexing (schema-version inconsistency removed)",
+        "commit": "aa0ce3f6",
+        "tests": "knowledge_documents_api_tests 6 passed incl. mt149_committed_save_never_errors_when_post_commit_steps_fail (drops backlink/embed/ledger tables for real; save commits 200 with all three failures recorded; durable v2 reload proven)"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,13 +111,17 @@
           "severity": "MEDIUM",
           "title": "Non-atomic save+index: post-commit error path returns error for an already-committed save",
           "evidence": "api/knowledge_documents.rs:441-449 save commits (UPDATE + version row + receipt), THEN 466-496 re-parses for backlinks; a parse failure returns 400 (line 473) and a backlink-persist failure returns 500 - both for a save that already persisted. Client retry then hits a stale expected_version -> 409.",
-          "fix": "Either fold backlink rebuild into the same storage transaction as the version bump, or never surface index-step failures as save failures (the code already treats Index permission denial as non-fatal at 493-495; extend that to parse/persist failures)."
+          "fix": "Either fold backlink rebuild into the same storage transaction as the version bump, or never surface index-step failures as save failures (the code already treats Index permission denial as non-fatal at 493-495; extend that to parse/persist failures).",
+          "status": "FIXED",
+          "fixed_commit": "aa0ce3f6"
         },
         {
           "severity": "LOW",
           "title": "Schema-version inconsistency between pre-save validate and post-save re-parse",
           "evidence": "line 436 validates tree with DOCUMENT_SCHEMA_VERSION; line 468 re-parses with saved.schema_version. Divergent docs would validate twice under two versions.",
-          "fix": "Use the stored schema_version consistently."
+          "fix": "Use the stored schema_version consistently.",
+          "status": "FIXED",
+          "fixed_commit": "aa0ce3f6"
         }
       ],
       "claim_mismatches": [],

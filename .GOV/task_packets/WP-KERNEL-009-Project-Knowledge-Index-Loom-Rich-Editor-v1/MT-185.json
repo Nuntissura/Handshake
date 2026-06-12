@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-185-WikiPageEditableOverlay",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-185.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,56 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "043cf8c8",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "implementation",
+        "summary": "Operator annotation overlays on wiki projections WITHOUT making the generated projection canonical. The overlay is its OWN authority row; the projection stays non-authority and regenerable.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0295_loom_wiki_overlays.sql (NEW) - loom_wiki_overlays (annotation = authority; FK->knowledge_wiki_projections ON DELETE CASCADE; no authority FK FROM any record)",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomWikiOverlay type",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::add/list/delete_loom_wiki_overlay",
+          "src/backend/handshake_core/src/storage/postgres.rs - impls + map_loom_wiki_overlay",
+          "src/backend/handshake_core/src/api/loom.rs - GET/POST /loom/wiki/:id/overlays, DELETE /loom/wiki-overlays/:id",
+          "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs (shared MT-184/185/187)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_wiki_boundary_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real PostgreSQL) [shared MT-184/185/187 suite]",
+        "tests": [
+          "overlay_is_own_authority_independent_of_projection - adding an overlay does NOT change the projection rendered_content; overlay survives projection regenerate; deleting the overlay does not touch the projection"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 043cf8c8."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T09:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "043cf8c8",
+      "findings": [
+        "OVERLAY-NOT-AUTHORITY-LEAK (handled+tested): the projection rendered_content is never modified by an overlay; the overlay is a separate loom_wiki_overlays authority row. Proven: projection content unchanged after add; overlay survives regenerate.",
+        "INDEPENDENT LIFECYCLE (handled+tested): deleting an overlay leaves the projection intact; the overlay FK ON DELETE CASCADE means a projection delete also removes its overlays without touching any authority record.",
+        "EMPTY ANNOTATION (handled): add_loom_wiki_overlay rejects a blank annotation (Validation); DB also has a btrim<>'' CHECK.",
+        "WORKSPACE SCOPING + FAIL-CLOSED (handled): the projection must exist in the workspace before an overlay can be added; delete returns NotFound for a missing overlay."
+      ],
+      "fixes": [
+        "No code change required; findings handled-by-design and tested."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,

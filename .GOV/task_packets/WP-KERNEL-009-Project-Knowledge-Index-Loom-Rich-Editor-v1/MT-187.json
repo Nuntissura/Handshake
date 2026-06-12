@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-187-ObsidianImportBoundary",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T06:25:27.785Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-187.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,57 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "043cf8c8",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "implementation",
+        "summary": "Markdown-like import boundary: import creates LoomBlock + RichDocument authority rows in PostgreSQL; the markdown SOURCE / vault layout is NEVER authority. THE anti-Obsidian-clone boundary (Master Spec 10.12 #9.1.1 + MT-187).",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - LoomMarkdownImport type",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::import_markdown_to_loom",
+          "src/backend/handshake_core/src/storage/postgres.rs - impl: import_snippet(markdown) -> create_knowledge_rich_document (authority) -> create_loom_block(note) -> bridge_loom_block_to_knowledge; document_id left NULL (loom_blocks.document_id FKs the legacy documents table, so the RichDocument link is logical via rich_document_id)",
+          "src/backend/handshake_core/src/api/loom.rs - POST /loom/import/markdown",
+          "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs (shared MT-184/185/187)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_wiki_boundary_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real PostgreSQL). Includes the OPERATOR HARD REQUIREMENT negative test.",
+        "tests": [
+          "markdown_import_creates_authority_never_vault - import yields a real authority LoomBlock backed by a real RichDocument (KRD-...), bridged to the ProjectKnowledgeIndex (KEN-...); round-trips from PG; the markdown source is never stored as authority",
+          "deleting_projection_leaves_block_authority_byte_identical (OPERATOR HARD REQ) - compile a wiki projection from a bridged block, delete the projection, prove the LoomBlock authority is BYTE-IDENTICAL (serde fingerprint) AND the ProjectKnowledgeIndex bridge (entity_id + index_event_id) is unchanged"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 043cf8c8."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T09:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "043cf8c8",
+      "findings": [
+        "VAULT-AS-AUTHORITY (handled+tested): the markdown source text is parsed and discarded; only the RichDocument (parsed block tree) + LoomBlock + ProjectKnowledgeIndex bridge are persisted. No markdown/file-path is stored as authority.",
+        "PROJECTION-DELETE-MUTATES-AUTHORITY (handled+tested, OPERATOR HARD REQ): a serde fingerprint of the block before/after a projection delete is byte-identical, and the bridge entity+receipt are unchanged; knowledge_wiki_projections carries no authority FK.",
+        "CROSS-TABLE FK (fixed during impl): loom_blocks.document_id FKs the legacy documents table, not knowledge_rich_documents; setting it to a KRD id violated the FK. Fixed by leaving document_id NULL and carrying the RichDocument link logically in LoomMarkdownImport.rich_document_id.",
+        "IMPORT WARNINGS SURFACED (handled): unsupported markdown features come back as warnings (code:detail) rather than silently dropped.",
+        "FAIL-CLOSED (handled): a blank title is rejected; the created note is bridged (authority-resolved) before success is reported."
+      ],
+      "fixes": [
+        "Leave loom_blocks.document_id NULL on import (RichDocument link is logical) to avoid the legacy-documents FK violation."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
   },
   "handoff": {
     "coder_session": null,
