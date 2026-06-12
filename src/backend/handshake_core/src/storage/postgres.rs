@@ -1744,6 +1744,22 @@ fn map_loom_knowledge_bridge(row: &PgRow) -> super::LoomKnowledgeBridge {
     }
 }
 
+/// MT-181: map a `loom_folders` row.
+fn map_loom_folder(row: &PgRow) -> StorageResult<super::LoomFolder> {
+    Ok(super::LoomFolder {
+        folder_id: row.get("folder_id"),
+        workspace_id: row.get("workspace_id"),
+        parent_folder_id: row.get("parent_folder_id"),
+        name: row.get("name"),
+        color: row.get("color"),
+        sort_mode: row.get::<String, _>("sort_mode").parse()?,
+        sort_order: row.get("sort_order"),
+        project_ref: row.get("project_ref"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
 /// MT-178: the human-readable text of a LoomBlock used for backlink snippets
 /// and unlinked-mention scanning. Combines the title and the derived
 /// full_text_index (the same text `search_loom_blocks` matches), title first so
@@ -5721,6 +5737,315 @@ impl super::Database for PostgresDatabase {
             Some(row) => map_loom_block(row),
             None => Err(StorageError::NotFound("loom_block")),
         }
+    }
+
+    // -- MT-181 FolderTreeAndColorLabels ---------------------------------------
+
+    async fn create_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder: super::NewLoomFolder,
+    ) -> StorageResult<super::LoomFolder> {
+        let name = folder.name.trim();
+        if name.is_empty() {
+            return Err(StorageError::Validation("loom folder name is required"));
+        }
+        // Parent (if given) must exist in this workspace.
+        if let Some(parent_id) = &folder.parent_folder_id {
+            self.get_loom_folder(workspace_id, parent_id).await?;
+        }
+        let id = folder
+            .folder_id
+            .unwrap_or_else(|| format!("LFD-{}", Uuid::now_v7().simple()));
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_folders
+                (folder_id, workspace_id, parent_folder_id, name, color,
+                 sort_mode, sort_order, project_ref)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING folder_id, workspace_id, parent_folder_id, name, color,
+                      sort_mode, sort_order, project_ref, created_at, updated_at
+            "#,
+        )
+        .bind(&id)
+        .bind(workspace_id)
+        .bind(&folder.parent_folder_id)
+        .bind(name)
+        .bind(folder.color.as_deref().map(str::trim))
+        .bind(folder.sort_mode.as_str())
+        .bind(folder.sort_order)
+        .bind(folder.project_ref.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        map_loom_folder(&row)
+    }
+
+    async fn get_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+    ) -> StorageResult<super::LoomFolder> {
+        let row = sqlx::query(
+            r#"
+            SELECT folder_id, workspace_id, parent_folder_id, name, color,
+                   sort_mode, sort_order, project_ref, created_at, updated_at
+            FROM loom_folders
+            WHERE workspace_id = $1 AND folder_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(folder_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        match row {
+            Some(row) => map_loom_folder(&row),
+            None => Err(StorageError::NotFound("loom_folder")),
+        }
+    }
+
+    async fn list_loom_folders(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<super::LoomFolder>> {
+        // Parent-before-child order via a recursive walk from the roots, so a
+        // caller can build the tree in one pass.
+        let rows = sqlx::query(
+            r#"
+            WITH RECURSIVE tree(folder_id, depth) AS (
+                SELECT folder_id, 0
+                FROM loom_folders
+                WHERE workspace_id = $1 AND parent_folder_id IS NULL
+                UNION ALL
+                SELECT f.folder_id, t.depth + 1
+                FROM loom_folders f
+                JOIN tree t ON f.parent_folder_id = t.folder_id
+                WHERE f.workspace_id = $1
+            )
+            SELECT f.folder_id, f.workspace_id, f.parent_folder_id, f.name,
+                   f.color, f.sort_mode, f.sort_order, f.project_ref,
+                   f.created_at, f.updated_at
+            FROM tree t
+            JOIN loom_folders f ON f.folder_id = t.folder_id
+            ORDER BY t.depth ASC,
+                     f.sort_order ASC NULLS LAST,
+                     f.name ASC,
+                     f.folder_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.iter().map(map_loom_folder).collect()
+    }
+
+    async fn update_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        update: super::LoomFolderUpdate,
+    ) -> StorageResult<super::LoomFolder> {
+        // Folder must exist.
+        let _existing = self.get_loom_folder(workspace_id, folder_id).await?;
+
+        // Re-parent cycle guard: the new parent cannot be the folder itself or
+        // any of its descendants (that would create a cycle / detach a subtree).
+        if let Some(new_parent) = &update.parent_folder_id {
+            if let Some(parent_id) = new_parent {
+                if parent_id == folder_id {
+                    return Err(StorageError::Validation(
+                        "loom folder cannot be its own parent",
+                    ));
+                }
+                // Parent must exist in this workspace.
+                self.get_loom_folder(workspace_id, parent_id).await?;
+                // Walk up from the proposed parent; if we reach folder_id, the
+                // move would form a cycle.
+                let is_descendant: bool = sqlx::query_scalar(
+                    r#"
+                    WITH RECURSIVE up(folder_id) AS (
+                        SELECT $2::TEXT
+                        UNION ALL
+                        SELECT f.parent_folder_id
+                        FROM loom_folders f
+                        JOIN up ON f.folder_id = up.folder_id
+                        WHERE f.workspace_id = $1 AND f.parent_folder_id IS NOT NULL
+                    )
+                    SELECT EXISTS (SELECT 1 FROM up WHERE folder_id = $3)
+                    "#,
+                )
+                .bind(workspace_id)
+                .bind(parent_id)
+                .bind(folder_id)
+                .fetch_one(&self.pool)
+                .await?;
+                if is_descendant {
+                    return Err(StorageError::Validation(
+                        "loom folder move would create a cycle",
+                    ));
+                }
+            }
+        }
+
+        // Build the update with COALESCE-style semantics, distinguishing
+        // "leave unchanged" (outer None) from "set/clear" (Some).
+        let new_name = update.name.as_deref().map(str::trim);
+        if let Some(n) = new_name {
+            if n.is_empty() {
+                return Err(StorageError::Validation("loom folder name is required"));
+            }
+        }
+        let row = sqlx::query(
+            r#"
+            UPDATE loom_folders
+            SET
+                name = COALESCE($3, name),
+                color = CASE WHEN $4::BOOL THEN $5 ELSE color END,
+                sort_mode = COALESCE($6, sort_mode),
+                sort_order = CASE WHEN $7::BOOL THEN $8 ELSE sort_order END,
+                parent_folder_id = CASE WHEN $9::BOOL THEN $10 ELSE parent_folder_id END,
+                project_ref = CASE WHEN $11::BOOL THEN $12 ELSE project_ref END,
+                updated_at = NOW()
+            WHERE workspace_id = $1 AND folder_id = $2
+            RETURNING folder_id, workspace_id, parent_folder_id, name, color,
+                      sort_mode, sort_order, project_ref, created_at, updated_at
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(folder_id)
+        .bind(new_name)
+        .bind(update.color.is_some())
+        .bind(update.color.clone().flatten().as_deref().map(str::trim))
+        .bind(update.sort_mode.map(|m| m.as_str()))
+        .bind(update.sort_order.is_some())
+        .bind(update.sort_order.flatten())
+        .bind(update.parent_folder_id.is_some())
+        .bind(update.parent_folder_id.clone().flatten())
+        .bind(update.project_ref.is_some())
+        .bind(update.project_ref.clone().flatten().as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        map_loom_folder(&row)
+    }
+
+    async fn delete_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+    ) -> StorageResult<()> {
+        let res = sqlx::query(
+            "DELETE FROM loom_folders WHERE workspace_id = $1 AND folder_id = $2",
+        )
+        .bind(workspace_id)
+        .bind(folder_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_folder"));
+        }
+        Ok(())
+    }
+
+    async fn add_block_to_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        block_id: &str,
+        sort_order: Option<i32>,
+    ) -> StorageResult<()> {
+        // Folder + block must both exist in the workspace (fail-closed).
+        self.get_loom_folder(workspace_id, folder_id).await?;
+        self.get_loom_block(workspace_id, block_id).await?;
+        sqlx::query(
+            r#"
+            INSERT INTO loom_folder_members (folder_id, block_id, workspace_id, sort_order)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (folder_id, block_id)
+            DO UPDATE SET sort_order = EXCLUDED.sort_order
+            "#,
+        )
+        .bind(folder_id)
+        .bind(block_id)
+        .bind(workspace_id)
+        .bind(sort_order)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn remove_block_from_loom_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()> {
+        sqlx::query(
+            r#"DELETE FROM loom_folder_members
+               WHERE workspace_id = $1 AND folder_id = $2 AND block_id = $3"#,
+        )
+        .bind(workspace_id)
+        .bind(folder_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn list_loom_folder_blocks(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        let folder = self.get_loom_folder(workspace_id, folder_id).await?;
+        let limit_i64 = limit.clamp(1, 500) as i64;
+        let offset_i64 = offset as i64;
+
+        // The ORDER BY is chosen by the folder's sort_mode (fixed literals;
+        // never user input).
+        let order_by = match folder.sort_mode {
+            super::LoomFolderSortMode::NameAsc => {
+                "ORDER BY COALESCE(b.title,'') ASC, b.block_id ASC"
+            }
+            super::LoomFolderSortMode::NameDesc => {
+                "ORDER BY COALESCE(b.title,'') DESC, b.block_id ASC"
+            }
+            super::LoomFolderSortMode::CreatedDesc => {
+                "ORDER BY b.created_at DESC, b.block_id ASC"
+            }
+            super::LoomFolderSortMode::UpdatedDesc => {
+                "ORDER BY b.updated_at DESC, b.block_id ASC"
+            }
+            super::LoomFolderSortMode::Manual => {
+                "ORDER BY m.sort_order ASC NULLS LAST, b.updated_at DESC, b.block_id ASC"
+            }
+        };
+
+        let sql = format!(
+            r#"
+            SELECT
+                b.block_id, b.workspace_id, b.content_type, b.document_id,
+                b.asset_id, b.title, b.original_filename, b.content_hash,
+                b.pinned, b.pin_order, b.journal_date, b.created_at, b.updated_at,
+                b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
+                b.derived_json, b.preview_status, b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_folder_members m
+            JOIN loom_blocks b
+              ON b.workspace_id = m.workspace_id AND b.block_id = m.block_id
+            WHERE m.workspace_id = $1 AND m.folder_id = $2
+            {order_by}
+            LIMIT $3 OFFSET $4
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(folder_id)
+            .bind(limit_i64)
+            .bind(offset_i64)
+            .fetch_all(&self.pool)
+            .await?;
+        rows.into_iter().map(map_loom_block).collect()
     }
 
     async fn upsert_calendar_source(

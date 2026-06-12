@@ -105,6 +105,26 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/unlinked-mentions",
             get(scan_loom_block_unlinked_mentions),
         )
+        // MT-181: folder tree + color labels + sort modes
+        .route(
+            "/workspaces/:workspace_id/loom/folders",
+            get(list_loom_folders).post(create_loom_folder),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/folders/:folder_id",
+            get(get_loom_folder)
+                .patch(update_loom_folder)
+                .delete(delete_loom_folder),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/folders/:folder_id/blocks",
+            get(list_loom_folder_blocks),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/folders/:folder_id/blocks/:block_id",
+            axum::routing::put(add_block_to_loom_folder)
+                .delete(remove_block_from_loom_folder),
+        )
         // MT-182: tag hubs (tags as first-class blocks) + nested tags
         .route("/workspaces/:workspace_id/loom/tags", get(list_loom_tag_hubs))
         .route(
@@ -367,6 +387,161 @@ async fn set_loom_block_pin_order(
     let _ = state.flight_recorder.record_event(event).await;
 
     Ok(Json(block))
+}
+
+// -- MT-181 FolderTreeAndColorLabels handlers ------------------------------
+
+#[derive(Debug, Deserialize)]
+struct CreateLoomFolderRequest {
+    name: String,
+    #[serde(default)]
+    parent_folder_id: Option<String>,
+    #[serde(default)]
+    color: Option<String>,
+    #[serde(default)]
+    sort_mode: Option<crate::storage::LoomFolderSortMode>,
+    #[serde(default)]
+    sort_order: Option<i32>,
+    #[serde(default)]
+    project_ref: Option<String>,
+}
+
+async fn create_loom_folder(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<CreateLoomFolderRequest>,
+) -> ApiResult<Json<crate::storage::LoomFolder>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let folder = state
+        .storage
+        .create_loom_folder(
+            &workspace_id,
+            crate::storage::NewLoomFolder {
+                folder_id: None,
+                workspace_id: workspace_id.clone(),
+                parent_folder_id: payload.parent_folder_id,
+                name: payload.name,
+                color: payload.color,
+                sort_mode: payload
+                    .sort_mode
+                    .unwrap_or(crate::storage::LoomFolderSortMode::UpdatedDesc),
+                sort_order: payload.sort_order,
+                project_ref: payload.project_ref,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(folder))
+}
+
+async fn list_loom_folders(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> ApiResult<Json<Vec<crate::storage::LoomFolder>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let folders = state
+        .storage
+        .list_loom_folders(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(folders))
+}
+
+async fn get_loom_folder(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomFolder>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let folder = state
+        .storage
+        .get_loom_folder(&workspace_id, &folder_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(folder))
+}
+
+async fn update_loom_folder(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id)): Path<(String, String)>,
+    Json(update): Json<crate::storage::LoomFolderUpdate>,
+) -> ApiResult<Json<crate::storage::LoomFolder>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let folder = state
+        .storage
+        .update_loom_folder(&workspace_id, &folder_id, update)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(folder))
+}
+
+async fn delete_loom_folder(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id)): Path<(String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .delete_loom_folder(&workspace_id, &folder_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "status": "deleted" })))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct AddFolderMemberRequest {
+    #[serde(default)]
+    sort_order: Option<i32>,
+}
+
+async fn add_block_to_loom_folder(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id, block_id)): Path<(String, String, String)>,
+    Json(payload): Json<AddFolderMemberRequest>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .add_block_to_loom_folder(&workspace_id, &folder_id, &block_id, payload.sort_order)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "status": "added" })))
+}
+
+async fn remove_block_from_loom_folder(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id, block_id)): Path<(String, String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .remove_block_from_loom_folder(&workspace_id, &folder_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "status": "removed" })))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomFolderBlocksQuery {
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
+    offset: Option<u32>,
+}
+
+async fn list_loom_folder_blocks(
+    State(state): State<AppState>,
+    Path((workspace_id, folder_id)): Path<(String, String)>,
+    Query(query): Query<LoomFolderBlocksQuery>,
+) -> ApiResult<Json<Vec<LoomBlock>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let limit = query.limit.unwrap_or(100).min(500);
+    let offset = query.offset.unwrap_or(0);
+    let blocks = state
+        .storage
+        .list_loom_folder_blocks(&workspace_id, &folder_id, limit, offset)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(blocks))
 }
 
 #[derive(Debug, Deserialize, Default)]

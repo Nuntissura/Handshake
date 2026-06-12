@@ -645,6 +645,110 @@ pub fn loom_find_unlinked_term(text: &str, term: &str) -> Option<(usize, usize)>
     None
 }
 
+// ---------------------------------------------------------------------------
+// MT-181 FolderTreeAndColorLabels
+//
+// Master Spec §7.1.4.3 / MT-181: a persistent Loom folder hierarchy with color
+// labels, sort modes, and project membership ("links are the new folders" but
+// an explicit tree is still offered). Authority = PostgreSQL (loom_folders +
+// loom_folder_members). An organizational overlay over LoomBlocks, never a
+// second source of block truth.
+// ---------------------------------------------------------------------------
+
+/// Sort mode for a folder's contents.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomFolderSortMode {
+    NameAsc,
+    NameDesc,
+    CreatedDesc,
+    UpdatedDesc,
+    Manual,
+}
+
+impl LoomFolderSortMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LoomFolderSortMode::NameAsc => "name_asc",
+            LoomFolderSortMode::NameDesc => "name_desc",
+            LoomFolderSortMode::CreatedDesc => "created_desc",
+            LoomFolderSortMode::UpdatedDesc => "updated_desc",
+            LoomFolderSortMode::Manual => "manual",
+        }
+    }
+}
+
+impl FromStr for LoomFolderSortMode {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "name_asc" => Ok(LoomFolderSortMode::NameAsc),
+            "name_desc" => Ok(LoomFolderSortMode::NameDesc),
+            "created_desc" => Ok(LoomFolderSortMode::CreatedDesc),
+            "updated_desc" => Ok(LoomFolderSortMode::UpdatedDesc),
+            "manual" => Ok(LoomFolderSortMode::Manual),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid loom folder sort_mode",
+            )),
+        }
+    }
+}
+
+/// A Loom folder node (one row of `loom_folders`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomFolder {
+    pub folder_id: String,
+    pub workspace_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_folder_id: Option<String>,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    pub sort_mode: LoomFolderSortMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sort_order: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_ref: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Create payload for a Loom folder.
+#[derive(Clone, Debug)]
+pub struct NewLoomFolder {
+    pub folder_id: Option<String>,
+    pub workspace_id: String,
+    pub parent_folder_id: Option<String>,
+    pub name: String,
+    pub color: Option<String>,
+    pub sort_mode: LoomFolderSortMode,
+    pub sort_order: Option<i32>,
+    pub project_ref: Option<String>,
+}
+
+/// Partial update for a Loom folder. `None` leaves a field unchanged; the
+/// service-layer move/recolor endpoints decide which fields to send.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LoomFolderUpdate {
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Wrap to distinguish "set color" (Some(Some)) from "clear color"
+    /// (Some(None)) from "leave unchanged" (None).
+    #[serde(default)]
+    pub color: Option<Option<String>>,
+    #[serde(default)]
+    pub sort_mode: Option<LoomFolderSortMode>,
+    #[serde(default)]
+    pub sort_order: Option<Option<i32>>,
+    /// Re-parent the folder (move within the tree). `Some(None)` makes it a
+    /// root; `Some(Some(id))` nests it under `id` (cycle-checked).
+    #[serde(default)]
+    pub parent_folder_id: Option<Option<String>>,
+    #[serde(default)]
+    pub project_ref: Option<Option<String>>,
+}
+
 #[cfg(test)]
 mod mt178_helper_tests {
     use super::*;

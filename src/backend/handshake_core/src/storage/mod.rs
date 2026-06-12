@@ -2217,6 +2217,86 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom pin order backend"))
     }
 
+    // -- MT-181 FolderTreeAndColorLabels ---------------------------------------
+    /// Create a Loom folder (optionally nested under a parent). The parent, when
+    /// given, must exist in the workspace; sibling names are unique.
+    async fn create_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder: NewLoomFolder,
+    ) -> StorageResult<LoomFolder> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// Read one folder by id.
+    async fn get_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+    ) -> StorageResult<LoomFolder> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// List every folder in a workspace (the full tree, parent-before-child
+    /// order). The caller builds the nesting from parent_folder_id.
+    async fn list_loom_folders(&self, _workspace_id: &str) -> StorageResult<Vec<LoomFolder>> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// Update a folder: rename, recolor, change sort mode/order, or move it
+    /// (re-parent). Moving into the folder's own subtree fails closed (cycle).
+    async fn update_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+        _update: LoomFolderUpdate,
+    ) -> StorageResult<LoomFolder> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// Delete a folder and its subtree (membership rows cascade; the LoomBlocks
+    /// themselves are untouched — folders are an overlay, not ownership).
+    async fn delete_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// Add a block to a folder (idempotent). Optional manual ordinal.
+    async fn add_block_to_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+        _block_id: &str,
+        _sort_order: Option<i32>,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// Remove a block from a folder (idempotent).
+    async fn remove_block_from_loom_folder(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
+    /// List the blocks in a folder, ordered by the folder's sort_mode
+    /// (name/created/updated/manual). Paginated.
+    async fn list_loom_folder_blocks(
+        &self,
+        _workspace_id: &str,
+        _folder_id: &str,
+        _limit: u32,
+        _offset: u32,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        Err(StorageError::NotImplemented("loom folder backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,
