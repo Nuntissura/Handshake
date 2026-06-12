@@ -135,6 +135,13 @@ fn markdown_block(block: &Block, wiki: bool) -> String {
             .map(|line| format!("- [ ] {}", line.trim()))
             .collect::<Vec<_>>()
             .join("\n"),
+        BlockKind::ImportedRaw => {
+            // MT-151: a repairable imported node renders as a fenced block so
+            // its captured source text stays INERT in markdown renderers
+            // (raw HTML inside markdown would otherwise execute as markup).
+            let lang = imported_raw_source_format(block);
+            format!("```{lang}\n{text}\n```")
+        }
         kind if kind.is_typed_link() => {
             let target = typed_link_target(block).unwrap_or_default();
             if wiki {
@@ -186,6 +193,12 @@ fn html_block(block: &Block) -> String {
             list_html("ul", &block.content.derived.plain_text)
         }
         BlockKind::OrderedList => list_html("ol", &block.content.derived.plain_text),
+        BlockKind::ImportedRaw => {
+            // MT-151: the captured source renders escaped inside a pre/code
+            // block tagged as repairable — visible, inert, never executed.
+            let lang = escape_html(&imported_raw_source_format(block));
+            format!("<pre data-hsk-imported-raw=\"{lang}\"><code>{text}</code></pre>")
+        }
         kind if kind.is_typed_link() => {
             let raw_target = typed_link_target(block).unwrap_or_default();
             // MT-150 (adversarial-v2): only allowlisted schemes may become an
@@ -275,6 +288,21 @@ fn typed_link_target(block: &Block) -> Option<String> {
         .and_then(|a| a.get("target"))
         .and_then(|t| t.as_str())
         .map(ToOwned::to_owned)
+}
+
+/// The `attrs.source_format` of an importedRaw block (MT-151), used to tag the
+/// rendered fence/pre so the original format stays visible for repair.
+fn imported_raw_source_format(block: &Block) -> String {
+    block
+        .content
+        .raw
+        .as_object()
+        .and_then(|o| o.get("attrs"))
+        .and_then(|a| a.as_object())
+        .and_then(|a| a.get("source_format"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn embed_target(block: &Block) -> Option<String> {
@@ -368,6 +396,35 @@ mod tests {
             let rendered = render_projection("Doc", &tree(), format);
             assert!(!rendered.content.is_empty());
         }
+    }
+
+    #[test]
+    fn imported_raw_blocks_render_inert_in_markdown_and_html() {
+        // Adversarial-v2 MT-151: importedRaw blocks must render (the review
+        // found they 400'd) and the captured source must stay inert.
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "importedRaw",
+                  "attrs": { "source_format": "html", "repairable": true },
+                  "content": [{ "type": "text", "text": "<script>alert(1)</script>" }] }
+            ]
+        });
+        let tree = BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc).unwrap();
+        let md = render_projection("T", &tree, ProjectionFormat::Markdown);
+        assert!(
+            md.content.contains("```html\n<script>alert(1)</script>\n```"),
+            "markdown renders the source fenced (inert): {}",
+            md.content
+        );
+        let html = render_projection("T", &tree, ProjectionFormat::Html);
+        assert!(html.content.contains("data-hsk-imported-raw=\"html\""));
+        assert!(
+            html.content.contains("&lt;script&gt;"),
+            "html renders the source escaped: {}",
+            html.content
+        );
+        assert!(!html.content.contains("<script>"));
     }
 
     // -- adversarial-v2 MT-150: stored-XSS scheme allowlist -------------------

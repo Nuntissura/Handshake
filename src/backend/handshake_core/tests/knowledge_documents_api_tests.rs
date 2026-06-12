@@ -358,3 +358,167 @@ async fn mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected() {
     .expect("send");
     assert_eq!(resp.status(), 200);
 }
+
+// ---------------------------------------------------------------------------
+// MT-151 adversarial-v2: import -> load -> save -> export round-trips.
+// ---------------------------------------------------------------------------
+
+/// Drive one full import -> load -> save -> export cycle through the real
+/// routes and return (document_id, loaded body). Before the ImportedRaw
+/// hardening, the LOAD step 400'd for any imported HTML/table document.
+async fn import_roundtrip(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+    label: &str,
+    format: &str,
+    snippet: &str,
+) -> (String, Value) {
+    // IMPORT.
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/import")),
+        label,
+        "operator",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": format!("Imported {label}"),
+        "format": format,
+        "snippet": snippet,
+    }))
+    .send()
+    .await
+    .expect("import send");
+    assert_eq!(resp.status(), 200, "import must succeed");
+    let imported: Value = resp.json().await.expect("import json");
+    let doc_id = imported["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+
+    // LOAD (typed block tree) — the adversarial-v2 finding: this was a 400.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}")),
+        label,
+        "operator",
+    )
+    .send()
+    .await
+    .expect("load send");
+    assert_eq!(
+        resp.status(),
+        200,
+        "imported {format} document must LOAD through the typed API"
+    );
+    let loaded: Value = resp.json().await.expect("load json");
+    assert_eq!(loaded["tree"]["schema_matches"], true);
+
+    // BLOCKS endpoint loads too.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/blocks")),
+        label,
+        "operator",
+    )
+    .send()
+    .await
+    .expect("blocks send");
+    assert_eq!(resp.status(), 200, "blocks endpoint must load");
+
+    // SAVE the loaded content back (v1 -> v2): the round-trip must validate.
+    let content = loaded["document"]["content_json"].clone();
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        label,
+        "operator",
+    )
+    .json(&json!({"expected_version": 1, "content_json": content}))
+    .send()
+    .await
+    .expect("save send");
+    assert_eq!(resp.status(), 200, "imported document must SAVE");
+    let saved: Value = resp.json().await.expect("save json");
+    assert_eq!(saved["document"]["doc_version"], 2);
+    assert_eq!(
+        saved["document"]["content_json"],
+        loaded["document"]["content_json"],
+        "save round-trip is lossless"
+    );
+
+    // EXPORT projections (markdown + html) — render, never 400.
+    for proj in ["markdown", "html"] {
+        let resp = headers_with_kind(
+            http.get(format!(
+                "{base}/knowledge/documents/{doc_id}/projection?format={proj}"
+            )),
+            label,
+            "operator",
+        )
+        .send()
+        .await
+        .expect("projection send");
+        assert_eq!(
+            resp.status(),
+            200,
+            "imported {format} document must EXPORT as {proj}"
+        );
+    }
+    (doc_id, loaded)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt151_imported_html_document_roundtrips_load_save_export() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt151_imported_html...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    let html = "<h1>Doc</h1><table><tr><td>cell</td></tr></table>";
+    let (doc_id, loaded) =
+        import_roundtrip(&base, &http, &workspace_id, "html", "html", html).await;
+
+    // The importedRaw block is present in the typed tree with its source.
+    let blocks = loaded["tree"]["blocks"].as_array().expect("blocks");
+    assert!(
+        blocks.iter().any(|b| b["kind"] == "imported_raw"),
+        "typed tree exposes the imported_raw block: {blocks:?}"
+    );
+
+    // The markdown export carries the captured source INERT (fenced).
+    let resp = headers_with_kind(
+        http.get(format!(
+            "{base}/knowledge/documents/{doc_id}/projection?format=markdown"
+        )),
+        "html-md",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    let content = body["projection"]["content"].as_str().expect("content");
+    assert!(
+        content.contains("```html") && content.contains("<table>"),
+        "markdown export fences the imported source: {content}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt151_imported_markdown_table...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    let md = "# Title\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\ntail paragraph";
+    let (_doc_id, loaded) =
+        import_roundtrip(&base, &http, &workspace_id, "mdtable", "markdown", md).await;
+
+    let blocks = loaded["tree"]["blocks"].as_array().expect("blocks");
+    assert!(blocks.iter().any(|b| b["kind"] == "imported_raw"));
+    assert!(blocks.iter().any(|b| b["kind"] == "heading"));
+    assert!(blocks.iter().any(|b| b["kind"] == "paragraph"));
+}

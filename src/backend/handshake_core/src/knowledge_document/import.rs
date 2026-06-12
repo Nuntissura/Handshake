@@ -358,6 +358,20 @@ mod tests {
             outcome.document_json["content"][0]["attrs"]["repairable"],
             serde_json::json!(true)
         );
+        // Adversarial-v2 MT-151: the imported document must be LOADABLE as a
+        // typed block tree (the review found importedRaw made it 400).
+        let tree = BlockTree::from_document_json(
+            "KRD-x",
+            DOCUMENT_SCHEMA_VERSION,
+            &outcome.document_json,
+        )
+        .expect("imported HTML document parses as a block tree");
+        assert_eq!(tree.blocks[0].kind, BlockKind::ImportedRaw);
+        assert_eq!(
+            tree.to_document_json(),
+            outcome.document_json,
+            "import -> load -> save round-trip is lossless"
+        );
     }
 
     #[test]
@@ -372,6 +386,16 @@ mod tests {
             outcome.document_json["content"][0]["type"],
             serde_json::json!("importedRaw")
         );
+        // Adversarial-v2 MT-151: table imports load + round-trip too.
+        let tree = BlockTree::from_document_json(
+            "KRD-x",
+            DOCUMENT_SCHEMA_VERSION,
+            &outcome.document_json,
+        )
+        .expect("imported markdown-table document parses as a block tree");
+        assert_eq!(tree.blocks[0].kind, BlockKind::ImportedRaw);
+        assert!(tree.blocks[0].content.derived.plain_text.contains("| a | b |"));
+        assert_eq!(tree.to_document_json(), outcome.document_json);
     }
 
     #[test]

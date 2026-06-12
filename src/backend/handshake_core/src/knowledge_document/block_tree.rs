@@ -79,6 +79,13 @@ pub enum BlockKind {
     SpecLink,
     WpLink,
     SymbolLink,
+    /// A repairable imported node carrying source text the importer (MT-151)
+    /// could not faithfully convert (HTML, markdown tables). Adversarial-v2
+    /// hardening: without this kind, any imported HTML/table document was
+    /// unloadable through the typed API (load/blocks/projection 400). The
+    /// node carries `attrs.source_format` + `attrs.repairable` and its
+    /// original text content; nothing is lost and the document round-trips.
+    ImportedRaw,
 }
 
 impl BlockKind {
@@ -103,6 +110,7 @@ impl BlockKind {
             Self::SpecLink => "specLink",
             Self::WpLink => "wpLink",
             Self::SymbolLink => "symbolLink",
+            Self::ImportedRaw => "importedRaw",
         }
     }
 
@@ -127,6 +135,7 @@ impl BlockKind {
             "specLink" => Self::SpecLink,
             "wpLink" => Self::WpLink,
             "symbolLink" => Self::SymbolLink,
+            "importedRaw" => Self::ImportedRaw,
             _ => return None,
         })
     }
@@ -458,6 +467,7 @@ mod tests {
             "specLink",
             "wpLink",
             "symbolLink",
+            "importedRaw",
         ] {
             assert!(
                 BlockKind::from_node_type(node_type).is_some(),
@@ -470,9 +480,39 @@ mod tests {
             BlockKind::Heading,
             BlockKind::Image,
             BlockKind::WpLink,
+            BlockKind::ImportedRaw,
         ] {
             assert_eq!(BlockKind::from_node_type(kind.as_node_type()), Some(kind));
         }
+    }
+
+    #[test]
+    fn imported_raw_nodes_parse_and_roundtrip() {
+        // Adversarial-v2 MT-151: the importer emits importedRaw nodes; the
+        // typed tree must load them (the review found load/blocks/projection
+        // 400'd on any imported HTML/table document) and round-trip them
+        // verbatim, preserving the repairable source text.
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "importedRaw",
+                  "attrs": { "source_format": "html", "repairable": true },
+                  "content": [{ "type": "text", "text": "<table><tr><td>x</td></tr></table>" }] }
+            ]
+        });
+        let tree = BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc)
+            .expect("importedRaw documents must be loadable");
+        assert_eq!(tree.blocks.len(), 1);
+        assert_eq!(tree.blocks[0].kind, BlockKind::ImportedRaw);
+        assert!(!tree.blocks[0].kind.is_typed_link());
+        assert!(!tree.blocks[0].kind.is_embed());
+        // Source text is preserved in raw authority AND extracted plain text.
+        assert!(tree.blocks[0]
+            .content
+            .derived
+            .plain_text
+            .contains("<table>"));
+        assert_eq!(tree.to_document_json(), doc, "verbatim round-trip");
     }
 
     #[test]
