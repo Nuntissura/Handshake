@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-145-RichDocumentIdentityModel",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T01:53:13.415Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-145.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049",
@@ -89,7 +89,13 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+    ]
   },
   "handoff": {
     "coder_session": null,
