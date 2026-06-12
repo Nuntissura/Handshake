@@ -23,7 +23,11 @@
 //! write/promotion leaves a receipt. Every endpoint REQUIRES the identity
 //! headers (400 otherwise) — `x-hsk-actor-id`, `x-hsk-kernel-task-run-id`,
 //! `x-hsk-session-run-id`, plus optional `x-hsk-actor-kind`,
-//! `x-hsk-correlation-id`. The actor-kind drives the MT-158 permission boundary.
+//! `x-hsk-correlation-id`. The actor-kind drives the MT-158 permission
+//! boundary and FAILS CLOSED (adversarial-v2 hardening): a missing
+//! `x-hsk-actor-kind` is the least-privileged read-only actor, an unknown
+//! token is a 400 — privilege must be explicitly asserted and is validated
+//! server-side, never inferred.
 //!
 //! Conventions mirror `api/knowledge_memory.rs`.
 
@@ -180,20 +184,28 @@ fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
     let session_run_id = header_str(headers, HSK_HEADER_SESSION_RUN_ID)
         .ok_or_else(|| bad_request(format!("{HSK_HEADER_SESSION_RUN_ID} header is required")))?
         .to_string();
-    let actor_kind_str = header_str(headers, HSK_HEADER_ACTOR_KIND).unwrap_or("system");
-    let actor_kind = DocumentActorKind::from_wire(actor_kind_str).ok_or_else(|| {
-        bad_request(format!(
-            "unknown {HSK_HEADER_ACTOR_KIND} '{actor_kind_str}'"
-        ))
-    })?;
-    // Map the document actor-kind to the KernelActor used for receipts.
+    // MT-158 hardening (adversarial-v2): the actor kind is a free client
+    // string, so it is validated STRICTLY server-side and privilege is never
+    // inferred. A missing header is the LEAST-privileged kind (read-only),
+    // never `system`; an unknown token is a 400, never a coercion.
+    let actor_kind = match header_str(headers, HSK_HEADER_ACTOR_KIND) {
+        None => DocumentActorKind::least_privileged(),
+        Some(value) => DocumentActorKind::from_wire(value)
+            .ok_or_else(|| bad_request(format!("unknown {HSK_HEADER_ACTOR_KIND} '{value}'")))?,
+    };
+    // Map the document actor-kind to the KernelActor used for receipts. The
+    // binding is SERVER-derived from the validated kind — a caller can never
+    // pick an arbitrary KernelActor.
     let actor = match actor_kind {
         DocumentActorKind::Operator => KernelActor::Operator(actor_id),
         DocumentActorKind::System => KernelActor::System(actor_id),
         DocumentActorKind::Validator => KernelActor::ValidationRunner(actor_id),
-        DocumentActorKind::LocalModel | DocumentActorKind::CloudModel => {
-            KernelActor::ModelAdapter(actor_id)
-        }
+        // Unauthenticated callers attribute as the least-trusted adapter
+        // bucket; they can never reach a receipt-recording path because every
+        // write/index action is denied for them (permission.rs MT-158 matrix).
+        DocumentActorKind::LocalModel
+        | DocumentActorKind::CloudModel
+        | DocumentActorKind::Unauthenticated => KernelActor::ModelAdapter(actor_id),
     };
     Ok(DocContext {
         actor,
