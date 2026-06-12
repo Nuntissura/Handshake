@@ -273,6 +273,45 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
     expect(saveMock.mock.calls.length).toBe(callsBefore);
   });
 
+  it("surfaces code-block hash violations on load as a typed integrity banner (iteration-3 M9)", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.loadRichDocument).mockResolvedValueOnce({
+      document: {
+        ...DOC_V1,
+        content_json: {
+          type: "doc",
+          content: [
+            {
+              type: "monacoCodeBlock",
+              // Stored hash does not match {language, code} — out-of-band edit.
+              attrs: { language: "json", code: '{"a":2}', contentHash: "deadbeef" },
+            },
+          ],
+        },
+      },
+      tree: {
+        schema_version: "rich_document_v1",
+        schema_matches: true,
+        block_ids: [],
+        blocks: [],
+      },
+      code_nodes: [],
+    } as never);
+
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+
+    // Typed integrity banner; the document still loads and stays editable
+    // (backend content_sha256 remains the durable authority; a re-save
+    // re-mints the editor-layer hashes).
+    const err = await screen.findByTestId("rte-backend-error");
+    expect(err.getAttribute("data-error-kind")).toBe("integrity");
+    expect(err.textContent).toContain("1 of 1");
+    expect(screen.getByTestId("tiptap-editor").getAttribute("data-readonly")).toBe("false");
+    expect(screen.getByTestId("rich-document-view").getAttribute("data-schema-blocked")).toBe("false");
+  });
+
   it("keeps the document dirty when keystrokes land during an in-flight save (iteration-3 H5)", async () => {
     const api = await import("../lib/api");
     let resolveSave: (value: unknown) => void = () => {};

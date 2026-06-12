@@ -25,7 +25,7 @@ import {
   HANDSHAKE_CODE_LANGUAGES,
   DEFAULT_CODE_LANGUAGE,
 } from "../lib/monaco/language_registry";
-import { codeBlockHash } from "../lib/editor/code_block_serialization";
+import { makeCodeBlockAttrs } from "../lib/editor/code_block_serialization";
 import { registerCodeBlockFindHandle } from "../lib/editor/code_block_find_registry";
 import {
   dependencyFailures,
@@ -47,6 +47,15 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   const [degraded, setDegraded] = useState(false);
   // Guards re-entrant attr writes when WE set the model value programmatically.
   const applyingRef = useRef(false);
+  // Iteration-3 H4: the Monaco mount effect runs ONCE, so its
+  // onDidChangeContent closure captured the MOUNT-TIME language — after a
+  // language switch every keystroke minted contentHash against the old
+  // language, corrupting the MT-168 round-trip invariant. The ref always
+  // carries the current language for the persistent listener.
+  const languageRef = useRef(language);
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
   const isEditable = editor.isEditable;
 
@@ -103,7 +112,10 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         model.onDidChangeContent(() => {
           if (applyingRef.current) return;
           const next = instance!.getValue();
-          updateAttributes({ code: next, contentHash: codeBlockHash(language, next) });
+          // H4/M10: read the CURRENT language (not the mount-time closure) and
+          // mint attrs through the single minting point so the hash can never
+          // drift from {language, code}.
+          updateAttributes(makeCodeBlockAttrs(languageRef.current, next));
         });
       }
       setMounted(true);
@@ -151,16 +163,15 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
     editorRef.current?.updateOptions({ readOnly: !isEditable });
   }, [isEditable]);
 
+  // M10: every attr write goes through makeCodeBlockAttrs — the single minting
+  // point that normalizes the language and computes the matching hash.
   const onLanguageChange = (nextLanguage: string) => {
-    updateAttributes({
-      language: nextLanguage,
-      contentHash: codeBlockHash(nextLanguage, code),
-    });
+    updateAttributes(makeCodeBlockAttrs(nextLanguage, code));
   };
 
   // Fallback textarea writer (degraded mode keeps code editable + persisted).
   const onFallbackChange = (next: string) => {
-    updateAttributes({ code: next, contentHash: codeBlockHash(language, next) });
+    updateAttributes(makeCodeBlockAttrs(languageRef.current, next));
   };
 
   return (

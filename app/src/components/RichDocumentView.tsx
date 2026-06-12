@@ -28,11 +28,13 @@ import {
 import { RichTextEditor } from "./RichTextEditor";
 import {
   classifySaveError,
+  codeIntegrityError,
   schemaMismatchError,
   schemaSaveBlockedError,
   type EditorBackendError,
 } from "../lib/editor/backend_error";
 import { assertEditorSchema } from "../lib/editor/schema_versioning";
+import { verifyDocCodeBlockIntegrity } from "../lib/editor/code_block_serialization";
 import { saveTextToFile } from "../lib/editor/save_to_file";
 import type { EmbedResolverContext } from "../lib/editor/embed_assets";
 import { logEvent } from "../state/debugEvents";
@@ -129,6 +131,21 @@ export function RichDocumentView({ documentId }: Props) {
         setLoadedContent(assertion.content as JSONContent);
         editorContentRef.current = assertion.content as JSONContent;
         setSchemaBlocked(null);
+        // Iteration-3 M9: verify every embedded code block's round-trip hash on
+        // load (the check existed but had no product caller). A violation is
+        // surfaced as a typed banner; editing stays possible — the backend
+        // content_sha256 is the durable authority and a re-save re-mints the
+        // editor-layer hashes.
+        const integrity = verifyDocCodeBlockIntegrity(assertion.content);
+        if (integrity.violations.length > 0) {
+          setBackendError(codeIntegrityError(integrity.violations.length, integrity.checked));
+          logEvent({
+            type: "doc-load",
+            targetId: documentId,
+            result: "error",
+            message: `code-block integrity: ${integrity.violations.length}/${integrity.checked} hash mismatch(es)`,
+          });
+        }
       } else {
         // H2 fail-closed: render the best-effort view READ-ONLY and block the
         // save path entirely (typed banner explains why). ProseMirror may drop

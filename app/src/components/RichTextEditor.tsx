@@ -734,6 +734,8 @@ function backendErrorTitle(kind: EditorBackendErrorKind): string {
       return "Index error";
     case "projection":
       return "Projection error";
+    case "integrity":
+      return "Code integrity check failed";
   }
 }
 

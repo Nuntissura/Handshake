@@ -16,7 +16,8 @@ export type EditorBackendErrorKind =
   | "conflict"
   | "schema"
   | "index"
-  | "projection";
+  | "projection"
+  | "integrity";
 
 export interface EditorBackendError {
   kind: EditorBackendErrorKind;
@@ -87,6 +88,28 @@ export function schemaMismatchError(reason: string): EditorBackendError {
     hint:
       "The document is opened read-only and saving is disabled so no content " +
       "can be lost. Update Handshake to edit it.",
+  };
+}
+
+/**
+ * Typed error for code-block round-trip hash violations found on load
+ * (iteration-3 M9 — verifyCodeBlockIntegrity wired into the product load
+ * path). Editing stays possible: the backend content_sha256 remains the
+ * durable authority and a re-save re-mints correct editor-layer hashes; the
+ * banner makes the out-of-band alteration VISIBLE instead of silently trusted.
+ */
+export function codeIntegrityError(
+  violations: number,
+  checked: number,
+): EditorBackendError {
+  return {
+    kind: "integrity",
+    message:
+      `${violations} of ${checked} embedded code block(s) failed the round-trip ` +
+      `integrity check (stored hash does not match {language, code}).`,
+    hint:
+      "The content was altered outside the editor or by an older defect. " +
+      "Review the code blocks; saving recomputes the integrity hashes.",
   };
 }
 

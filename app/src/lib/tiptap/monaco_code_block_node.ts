@@ -18,7 +18,6 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { MonacoCodeBlockView } from "../../components/MonacoCodeBlockView";
 import {
   makeCodeBlockAttrs,
-  codeBlockHash,
   type MonacoCodeBlockAttrs,
 } from "../editor/code_block_serialization";
 import { DEFAULT_CODE_LANGUAGE } from "../monaco/language_registry";
@@ -136,10 +135,9 @@ export const MonacoCodeBlockNode = Node.create({
           const { from } = state.selection;
           const nodeAt = state.doc.nodeAt(from);
           const code = nodeAt && nodeAt.type.name === this.name ? String(nodeAt.attrs.code ?? "") : "";
-          return commands.updateAttributes(this.name, {
-            language,
-            contentHash: codeBlockHash(language, code),
-          });
+          // Iteration-3 M10: mint through the single minting point so the
+          // language is normalized and the hash always matches {language, code}.
+          return commands.updateAttributes(this.name, makeCodeBlockAttrs(language, code));
         },
     };
   },
