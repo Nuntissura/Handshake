@@ -31,6 +31,8 @@ export default defineConfig({
       input: {
         "dependency-policy": resolve(appDir, "harness", "dependency-policy.html"),
         "rich-editor": resolve(appDir, "harness", "rich-editor.html"),
+        // MT-244: embeds + save-to-format + find/replace offline proofs.
+        "rich-editor-embeds": resolve(appDir, "harness", "rich-editor-embeds.html"),
       },
     },
   },

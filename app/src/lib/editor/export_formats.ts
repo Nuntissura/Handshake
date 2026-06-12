@@ -284,7 +284,10 @@ async function renderMediaEmbeds(
       }
       const video = doc.createElement("video");
       video.setAttribute("controls", "");
-      video.setAttribute("preload", "metadata");
+      // preload=none: an exported file must open with ZERO automatic network
+      // requests (standalone-open proof); the reference-linked video bytes
+      // are fetched only when the operator presses play.
+      video.setAttribute("preload", "none");
       video.setAttribute("data-hs-asset-id", resolution.asset.asset_id);
       video.setAttribute("src", resolution.contentUrl);
       plan.span.appendChild(video);
