@@ -2575,6 +2575,15 @@ pub trait KnowledgeStore: Send + Sync {
     async fn get_knowledge_source(&self, source_id: &str)
         -> StorageResult<Option<KnowledgeSource>>;
 
+    /// Looks up the knowledge source indexing a RichDocument (adversarial-v2
+    /// MT-154: documents are first-class Project-Knowledge-Index sources; the
+    /// document save path keeps this row fresh / stale-marked).
+    async fn get_knowledge_source_by_document_id(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+    ) -> StorageResult<Option<KnowledgeSource>>;
+
     async fn list_knowledge_sources_for_root(
         &self,
         root_id: &str,
@@ -3374,6 +3383,31 @@ impl KnowledgeStore for PostgresDatabase {
         );
         let row = sqlx::query(&sql)
             .bind(source_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(source_from_pg).transpose()
+    }
+
+    async fn get_knowledge_source_by_document_id(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+    ) -> StorageResult<Option<KnowledgeSource>> {
+        // The rich-document linkage is provenance-keyed: the schema's
+        // `document_id` column FKs the legacy `documents` table, so a
+        // RichDocument (KRD-...) source carries its id in
+        // `provenance.rich_document_id` instead (MT-154).
+        let sql = format!(
+            "SELECT {KNOWLEDGE_SOURCE_COLUMNS} FROM knowledge_sources
+             WHERE workspace_id = $1
+               AND source_kind = 'rich_document'
+               AND provenance->>'rich_document_id' = $2
+             ORDER BY created_at
+             LIMIT 1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(document_id)
             .fetch_optional(self.pool())
             .await?;
         row.as_ref().map(source_from_pg).transpose()

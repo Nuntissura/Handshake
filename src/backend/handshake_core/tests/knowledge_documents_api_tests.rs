@@ -768,6 +768,108 @@ async fn mt156_history_is_paginated_and_omits_version_bodies() {
 }
 
 // ---------------------------------------------------------------------------
+// MT-154 adversarial-v2: documents are indexed into the Project Knowledge
+// Index (source row + title entity + staleness on change).
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt154_save_indexes_document_into_project_knowledge_index() {
+    use handshake_core::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};
+
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt154_save_indexes...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    // CREATE indexes the document: a rich_document SOURCE row + title ENTITY.
+    let created = create_doc(&base, &http, &workspace_id, "Indexed Doc").await;
+    assert_eq!(created["knowledge_indexed"], true, "{created}");
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+    let doc_sha = created["document"]["content_sha256"]
+        .as_str()
+        .expect("sha")
+        .to_string();
+
+    let source = pg
+        .db
+        .get_knowledge_source_by_document_id(&workspace_id, &doc_id)
+        .await
+        .expect("source lookup")
+        .expect("document source row exists in the Project Knowledge Index");
+    assert_eq!(source.content_hash, doc_sha);
+    assert!(!source.stale, "freshly indexed source is not stale");
+    let entity = pg
+        .db
+        .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::RichDocument, &doc_id)
+        .await
+        .expect("entity lookup")
+        .expect("document title entity exists in the Project Knowledge Index");
+    assert_eq!(entity.display_name, "Indexed Doc");
+
+    // SAVE with changed content marks the source STALE (the truthful index
+    // state: the indexed bytes no longer match the document).
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "index-save",
+        "operator",
+    )
+    .json(&json!({
+        "expected_version": 1,
+        "content_json": {"type": "doc", "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "changed body" }] }
+        ]}
+    }))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["knowledge_indexed"], true);
+    let source = pg
+        .db
+        .get_knowledge_source_by_document_id(&workspace_id, &doc_id)
+        .await
+        .expect("source lookup")
+        .expect("source row persists");
+    assert!(
+        source.stale,
+        "a content change marks the document source stale for re-indexing"
+    );
+
+    // RENAME refreshes the indexed title entity.
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/{doc_id}/rename")),
+        "index-rename",
+        "operator",
+    )
+    .json(&json!({"title": "Indexed Doc Renamed"}))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let entity = pg
+        .db
+        .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::RichDocument, &doc_id)
+        .await
+        .expect("entity lookup")
+        .expect("entity persists");
+    assert_eq!(
+        entity.display_name, "Indexed Doc Renamed",
+        "rename refreshes the indexed title"
+    );
+
+    // The indexed document is now a CONFIRMABLE authoritative handle for the
+    // retrieval planner (ties MT-154 into the MT-130 existence checks).
+    assert_eq!(entity.entity_kind, KnowledgeEntityKind::RichDocument);
+    assert_eq!(entity.entity_key, doc_id);
+}
+
+// ---------------------------------------------------------------------------
 // MT-157 adversarial-v2: move absent != null; batch with per-item reporting.
 // ---------------------------------------------------------------------------
 

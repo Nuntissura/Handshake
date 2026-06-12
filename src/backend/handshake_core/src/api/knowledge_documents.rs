@@ -50,8 +50,9 @@ use crate::knowledge_document::permission::{
 };
 use crate::knowledge_document::projection::{render_projection, ProjectionFormat};
 use crate::storage::knowledge::{
-    KnowledgeStore, NewKnowledgeRichDocument, UpsertKnowledgeDocumentBacklink,
-    UpsertKnowledgeDocumentEmbed,
+    KnowledgeEntityKind, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRichDocument,
+    KnowledgeSourceKind, KnowledgeStore, NewKnowledgeEntity, NewKnowledgeRichDocument,
+    NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
@@ -262,6 +263,98 @@ async fn record_receipt_non_fatal(
                 "rich_document_receipt_failed_post_commit"
             );
             (None, Some(detail))
+        }
+    }
+}
+
+/// Index a RichDocument into the Project Knowledge Index (adversarial-v2
+/// MT-154): the document becomes a first-class knowledge SOURCE (kind
+/// `rich_document`, content-hash tracked — a changed document marks its
+/// source STALE for the indexing pipeline, exactly like file sources) and a
+/// first-class ENTITY (kind `rich_document`, key = the document id, display
+/// name = the title) anchored on that source. Links + tags are already
+/// indexed as backlink edges (MT-155) and embeds in the typed side table
+/// (MT-152); this closes the title/blocks half: the title is queryable
+/// through the entity surface and the blocks' bytes are the source's
+/// content-hash-tracked indexing unit.
+async fn index_document_into_knowledge_index(
+    db: &PostgresDatabase,
+    document: &KnowledgeRichDocument,
+) -> Result<(), StorageError> {
+    let source = match db
+        .get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id)
+        .await?
+    {
+        Some(existing) => {
+            if existing.content_hash != document.content_sha256 && !existing.stale {
+                // The document changed since the source was indexed: stale is
+                // the truthful index state until the pipeline re-indexes it.
+                db.mark_knowledge_source_stale(&existing.source_id).await?
+            } else {
+                existing
+            }
+        }
+        None => {
+            db.upsert_knowledge_source(NewKnowledgeSource {
+                workspace_id: document.workspace_id.clone(),
+                root_id: None,
+                source_kind: KnowledgeSourceKind::RichDocument,
+                relative_path: None,
+                asset_id: None,
+                loom_block_id: None,
+                // The schema's document_id column FKs the LEGACY documents
+                // table; the KRD linkage is provenance-keyed (see
+                // get_knowledge_source_by_document_id).
+                document_id: None,
+                content_hash: document.content_sha256.clone(),
+                size_bytes: Some(document.content_json.to_string().len() as i64),
+                provenance: json!({
+                    "discovered_by": "knowledge_documents_api",
+                    "rich_document_id": document.rich_document_id,
+                    "schema_version": document.schema_version,
+                }),
+                permission_scope: KnowledgePermissionScope::Workspace,
+                redaction_state: KnowledgeRedactionState::None,
+                source_modified_at: None,
+            })
+            .await?
+        }
+    };
+
+    db.upsert_knowledge_entity(NewKnowledgeEntity {
+        workspace_id: document.workspace_id.clone(),
+        entity_kind: KnowledgeEntityKind::RichDocument,
+        entity_key: document.rich_document_id.clone(),
+        display_name: document.title.clone(),
+        detection_provenance: json!({
+            "extractor": "knowledge_documents_api",
+            "content_sha256": document.content_sha256,
+            "doc_version": document.doc_version,
+        }),
+        primary_source_id: Some(source.source_id),
+        detected_in_run: None,
+        evidence_span_ids: vec![],
+    })
+    .await?;
+    Ok(())
+}
+
+/// Run the MT-154 index step post-commit and RECORD a failure instead of
+/// erroring a committed write (MT-149 law). Returns (indexed, error).
+async fn index_document_non_fatal(
+    db: &PostgresDatabase,
+    document: &KnowledgeRichDocument,
+) -> (bool, Option<String>) {
+    match index_document_into_knowledge_index(db, document).await {
+        Ok(()) => (true, None),
+        Err(err) => {
+            tracing::error!(
+                target: "handshake_core::knowledge_documents_api",
+                rich_document_id = %document.rich_document_id,
+                error = %err,
+                "rich_document_knowledge_index_failed_post_commit"
+            );
+            (false, Some(err.to_string()))
         }
     }
 }
@@ -567,12 +660,23 @@ async fn create_document(
         }
     }
 
+    // MT-154: index the created document (source + title entity) when the
+    // actor may index; denial just skips (read-only actors cannot create).
+    let mut knowledge_indexed = false;
+    let mut knowledge_index_error: Option<String> = None;
+    if ctx.require(DocumentAction::Index).is_ok() {
+        (knowledge_indexed, knowledge_index_error) =
+            index_document_non_fatal(&db, &created).await;
+    }
+
     Ok(Json(json!({
         "document": created,
         "save_receipt_event_id": receipt,
         "receipt_error": receipt_error,
         "embeds_persisted": embeds_persisted,
         "embeds_error": embeds_error,
+        "knowledge_indexed": knowledge_indexed,
+        "knowledge_index_error": knowledge_index_error,
     })))
 }
 
@@ -676,6 +780,8 @@ async fn save_document(
     let mut backlinks_skipped_reason: Option<String> = None;
     let mut embeds_persisted = 0usize;
     let mut embeds_error: Option<String> = None;
+    let mut knowledge_indexed = false;
+    let mut knowledge_index_error: Option<String> = None;
     match ctx.require(DocumentAction::Index) {
         Ok(()) => {
             let refs = DocumentLinkReferences::extract(&tree);
@@ -724,6 +830,10 @@ async fn save_document(
                     embeds_error = Some(err.to_string());
                 }
             }
+            // MT-154: the document is indexed into the Project Knowledge
+            // Index (source row + title entity; staleness on content change).
+            (knowledge_indexed, knowledge_index_error) =
+                index_document_non_fatal(&db, &saved).await;
         }
         Err(_) => {
             backlinks_skipped_reason = Some(format!("{}_index_denied", ctx.actor_kind.as_str()));
@@ -739,6 +849,8 @@ async fn save_document(
         "backlinks_skipped_reason": backlinks_skipped_reason,
         "embeds_persisted": embeds_persisted,
         "embeds_error": embeds_error,
+        "knowledge_indexed": knowledge_indexed,
+        "knowledge_index_error": knowledge_index_error,
     })))
 }
 
@@ -1095,10 +1207,19 @@ async fn rename_document(
         json!({"event": "renamed", "title": updated.title}),
     )
     .await;
+    // MT-154: a rename refreshes the indexed title entity (non-fatal).
+    let mut knowledge_indexed = false;
+    let mut knowledge_index_error: Option<String> = None;
+    if ctx.require(DocumentAction::Index).is_ok() {
+        (knowledge_indexed, knowledge_index_error) =
+            index_document_non_fatal(&db, &updated).await;
+    }
     Ok(Json(json!({
         "document": updated,
         "save_receipt_event_id": receipt,
         "receipt_error": receipt_error,
+        "knowledge_indexed": knowledge_indexed,
+        "knowledge_index_error": knowledge_index_error,
     })))
 }
 
