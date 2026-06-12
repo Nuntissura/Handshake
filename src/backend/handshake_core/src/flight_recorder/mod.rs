@@ -176,6 +176,8 @@ pub enum FlightRecorderEventType {
     LoomAiTagRejected,
     LoomViewQueried,
     LoomSearchExecuted,
+    /// MT-190: a wiki/topic-page projection was compiled or regenerated.
+    LoomProjectionRebuilt,
     /// FR-EVT-SESS-SCHED-001..004: Session Scheduler events [4.3.9.13]
     SessionSchedulerEnqueue,
     SessionSchedulerDispatch,
@@ -386,6 +388,9 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LoomAiTagRejected => write!(f, "loom_ai_tag_rejected"),
             FlightRecorderEventType::LoomViewQueried => write!(f, "loom_view_queried"),
             FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
+            FlightRecorderEventType::LoomProjectionRebuilt => {
+                write!(f, "loom_projection_rebuilt")
+            }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 write!(f, "session_scheduler.enqueue")
             }
@@ -997,6 +1002,9 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::LoomSearchExecuted => {
                 validate_loom_search_executed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomProjectionRebuilt => {
+                validate_loom_projection_rebuilt_payload(&self.payload)
             }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 validate_session_scheduler_enqueue_payload(&self.payload)
@@ -2651,6 +2659,27 @@ fn validate_loom_search_executed_payload(payload: &Value) -> Result<(), Recorder
     }
     require_number(map, "result_count")?;
     require_number(map, "duration_ms")?;
+    Ok(())
+}
+
+/// MT-190: a wiki/topic-page projection compile or regenerate.
+fn validate_loom_projection_rebuilt_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "workspace_id",
+            "projection_id",
+            "operation",
+            "source_block_count",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_projection_rebuilt")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_safe_id_string(map, "projection_id")?;
+    require_limited_choice(map, "operation", &["compile", "regenerate"])?;
+    require_number(map, "source_block_count")?;
     Ok(())
 }
 
@@ -6953,6 +6982,69 @@ mod tests {
             }),
         );
         assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
+    fn flight_recorder_loom_projection_rebuilt_valid() {
+        // MT-190: compile + regenerate both validate.
+        for op in ["compile", "regenerate"] {
+            let event = distill_event(
+                FlightRecorderEventType::LoomProjectionRebuilt,
+                json!({
+                    "type": "loom_projection_rebuilt",
+                    "workspace_id": "WS-1",
+                    "projection_id": "LWP-abc",
+                    "operation": op,
+                    "source_block_count": 3,
+                }),
+            );
+            assert!(event.validate().is_ok(), "{op}: {:?}", event.validate());
+        }
+        assert_eq!(
+            FlightRecorderEventType::LoomProjectionRebuilt.to_string(),
+            "loom_projection_rebuilt"
+        );
+    }
+
+    #[test]
+    fn flight_recorder_loom_projection_rebuilt_rejects_bad_payload() {
+        // Wrong operation value.
+        let bad_op = distill_event(
+            FlightRecorderEventType::LoomProjectionRebuilt,
+            json!({
+                "type": "loom_projection_rebuilt",
+                "workspace_id": "WS-1",
+                "projection_id": "LWP-abc",
+                "operation": "frobnicate",
+                "source_block_count": 1,
+            }),
+        );
+        assert!(bad_op.validate().is_err(), "bad operation must be rejected");
+
+        // Missing a required key.
+        let missing = distill_event(
+            FlightRecorderEventType::LoomProjectionRebuilt,
+            json!({
+                "type": "loom_projection_rebuilt",
+                "workspace_id": "WS-1",
+                "operation": "compile",
+                "source_block_count": 1,
+            }),
+        );
+        assert!(missing.validate().is_err(), "missing projection_id must be rejected");
+
+        // Wrong fixed type string.
+        let wrong_type = distill_event(
+            FlightRecorderEventType::LoomProjectionRebuilt,
+            json!({
+                "type": "loom_view_queried",
+                "workspace_id": "WS-1",
+                "projection_id": "LWP-abc",
+                "operation": "compile",
+                "source_block_count": 1,
+            }),
+        );
+        assert!(wrong_type.validate().is_err(), "wrong type string must be rejected");
     }
 
     #[test]

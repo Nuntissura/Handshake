@@ -441,13 +441,14 @@ async fn compile_loom_wiki_projection(
         .map_err(map_storage_error)?;
 
     let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomViewQueried,
+        FlightRecorderEventType::LoomProjectionRebuilt,
         FlightRecorderActor::Human,
         Uuid::now_v7(),
         json!({
-            "type": "loom_wiki_projection_compiled",
+            "type": "loom_projection_rebuilt",
             "workspace_id": workspace_id,
             "projection_id": projection.projection_id,
+            "operation": "compile",
             "source_block_count": projection.source_block_ids.len(),
         }),
     )
@@ -493,6 +494,22 @@ async fn regenerate_loom_wiki_projection(
         .regenerate_loom_wiki_projection(&workspace_id, &projection_id)
         .await
         .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomProjectionRebuilt,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_projection_rebuilt",
+            "workspace_id": workspace_id,
+            "projection_id": projection.projection_id,
+            "operation": "regenerate",
+            "source_block_count": projection.source_block_ids.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
     Ok(Json(projection))
 }
 
