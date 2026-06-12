@@ -17,7 +17,7 @@ use handshake_core::swarm_orchestration::state_recovery::{
     ClaimScope, ClaimStatus, IndexLeaseStatus, IndexingLeaseRequest, LocalCloudAttribution,
     ModelProviderKind, NavigationCommandSet, ParallelSwarmStateRecoveryStore,
     RecoveryCheckpointRequest, RecoveryResumePointer, RoleMailboxHandoffRequest,
-    StateRecoveryError, SwarmReceiptStatus, WorkClaimRequest,
+    StateRecoveryError, SwarmEvidenceInspectionRequest, SwarmReceiptStatus, WorkClaimRequest,
 };
 use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
@@ -148,6 +148,82 @@ async fn ledger_event_type_and_status(pool: &sqlx::PgPool, event_id: &str) -> (S
     .fetch_one(pool)
     .await
     .expect("fetch ledger event type and status")
+}
+
+async fn swarm_evidence_counts(
+    pool: &sqlx::PgPool,
+    workspace_id: &str,
+) -> (i64, i64, i64, i64, i64, i64) {
+    let claims: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm claims");
+    let checkpoints: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm checkpoints");
+    let leases: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm indexing leases");
+    let events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE source_component = 'parallel_swarm_state_recovery'
+          AND payload ->> 'workspace_id' = $1
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm evidence events");
+    let recovery_receipts: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_recovery_receipts r
+        INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                ON c.checkpoint_id = r.checkpoint_id
+        WHERE c.workspace_id = $1
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm recovery receipts");
+    let recovery_events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger e
+        INNER JOIN knowledge_agent_recovery_receipts r
+                ON r.event_ledger_event_id = e.event_id
+        INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                ON c.checkpoint_id = r.checkpoint_id
+        WHERE c.workspace_id = $1
+          AND e.aggregate_type = 'parallel_swarm_recovery'
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count swarm recovery events");
+    (
+        claims,
+        checkpoints,
+        leases,
+        events,
+        recovery_receipts,
+        recovery_events,
+    )
 }
 
 async fn install_parallel_swarm_event_delay(pool: &sqlx::PgPool, aggregate_type: &str) {
@@ -973,6 +1049,224 @@ async fn malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts() {
         .await,
         0,
         "malformed editor mutation claims must not emit false EventLedger receipts"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-validator-isolation-{}", Uuid::now_v7());
+    let local = local_lane("validator-isolation-source");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-218".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: local.clone(),
+            session_id: "session-validator-isolation-source-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "seed validator inspection evidence".to_string(),
+        })
+        .await
+        .expect("seed workspace claim");
+    let lease = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-218".to_string(),
+            scope: ClaimScope::IndexRun {
+                workspace_id: workspace_id.clone(),
+                source_root_id: "validator-isolation-root".to_string(),
+            },
+            lane: local.clone(),
+            session_id: "session-validator-isolation-source-lease".to_string(),
+            index_run_id: format!("index-run-validator-isolation-{}", Uuid::now_v7()),
+            priority: 1,
+            ttl_seconds: 600,
+        })
+        .await
+        .expect("seed indexing lease");
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local,
+            session_id: "session-validator-isolation-source-checkpoint".to_string(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-218".to_string(),
+            claim_id: Some(claim.claim_id.clone()),
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::Claim {
+                claim_id: claim.claim_id.clone(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec!["parallel_swarm_state_recovery_tests::validator_lanes".to_string()],
+            hbr_rows: vec!["HBR-SWARM-001".to_string()],
+            next_step_context: "validator can inspect this evidence without mutating".to_string(),
+            payload: json!({"validator_inspection_seed": true}),
+            compaction_reason: "validator_isolation_seed".to_string(),
+            git_head: "validator218".to_string(),
+        })
+        .await
+        .expect("seed checkpoint");
+
+    let before_counts = swarm_evidence_counts(&pool, &workspace_id).await;
+    for lane_kind in [
+        AgentLaneKind::Validator,
+        AgentLaneKind::IntegrationValidator,
+    ] {
+        let lane = lane_with_kind(
+            &format!("validator-isolation-{}", lane_kind.as_str()),
+            lane_kind,
+        );
+        let capabilities = lane.capabilities();
+        assert!(capabilities.contains(&AgentCapability::InspectEvidence));
+        assert!(capabilities.contains(&AgentCapability::NavigateBackend));
+        for forbidden in [
+            AgentCapability::ClaimWorktree,
+            AgentCapability::ClaimWorkspace,
+            AgentCapability::EditRichDocument,
+            AgentCapability::MutateGraph,
+            AgentCapability::WriteLocalIndex,
+            AgentCapability::WriteMailbox,
+            AgentCapability::RecordCheckpoint,
+        ] {
+            assert!(
+                !capabilities.contains(&forbidden),
+                "{lane_kind:?} must not carry mutation capability {forbidden:?}"
+            );
+        }
+
+        let snapshot = store
+            .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+                lane: lane.clone(),
+                workspace_id: workspace_id.clone(),
+                limit: 50,
+            })
+            .await
+            .expect("validator lane inspects swarm evidence");
+        assert_eq!(snapshot.workspace_id, workspace_id);
+        assert!(
+            snapshot
+                .claims
+                .iter()
+                .any(|row| row.claim_id == claim.claim_id),
+            "validator inspection must expose existing claim evidence"
+        );
+        assert!(
+            snapshot
+                .indexing_leases
+                .iter()
+                .any(|row| row.lease_id == lease.lease_id),
+            "validator inspection must expose existing indexing lease evidence"
+        );
+        assert!(
+            snapshot
+                .checkpoints
+                .iter()
+                .any(|row| row.checkpoint_id == checkpoint.checkpoint_id),
+            "validator inspection must expose existing checkpoint evidence"
+        );
+        assert_eq!(
+            swarm_evidence_counts(&pool, &workspace_id).await,
+            before_counts,
+            "validator evidence inspection must be SELECT-only"
+        );
+
+        let claim_result = store
+            .claim_work_surface(WorkClaimRequest {
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: Some("MT-218".to_string()),
+                scope: ClaimScope::Workspace {
+                    workspace_id: format!("validator-mutating-{workspace_id}"),
+                },
+                lane: lane.clone(),
+                session_id: format!("session-{}-claim-deny", lane.lane_id),
+                ttl_seconds: 600,
+                reason: "validator must not mutate claims".to_string(),
+            })
+            .await;
+        assert_invalid_input_contains(claim_result, "ClaimWorkspace");
+
+        let mailbox_thread_id = format!("thread-{}-deny", lane.lane_id);
+        let handoff_result = store
+            .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+                from_lane: lane.clone(),
+                to_role: "WP_VALIDATOR".to_string(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-218".to_string(),
+                claim_id: None,
+                mailbox_thread_id: mailbox_thread_id.clone(),
+                mailbox_message_id: "message-validator-deny".to_string(),
+                status: SwarmReceiptStatus::Blocked,
+                summary: "validator lanes are read-only in product state".to_string(),
+                body_sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                    .to_string(),
+            })
+            .await;
+        assert_invalid_input_contains(handoff_result, "WriteMailbox");
+        assert_eq!(
+            ledger_count_for_payload_value(
+                &pool,
+                "parallel_swarm_handoff",
+                "mailbox_thread_id",
+                &mailbox_thread_id,
+            )
+            .await,
+            0,
+            "denied validator mailbox writes must not emit false receipts"
+        );
+
+        let checkpoint_result = store
+            .record_checkpoint(RecoveryCheckpointRequest {
+                lane,
+                session_id: "session-validator-checkpoint-deny".to_string(),
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: "MT-218".to_string(),
+                claim_id: None,
+                mailbox_handoff_id: None,
+                navigation_command_id: Some("validation_state".to_string()),
+                resume_pointer: RecoveryResumePointer::MicroTask {
+                    mt_id: "MT-218".to_string(),
+                },
+                touched_files: vec![],
+                tests: vec![],
+                hbr_rows: vec!["HBR-SWARM-001".to_string()],
+                next_step_context: "validator checkpoint write should be denied".to_string(),
+                payload: json!({"validator_write_denied": true}),
+                compaction_reason: "validator_denied".to_string(),
+                git_head: "validator218".to_string(),
+            })
+            .await;
+        assert_invalid_input_contains(checkpoint_result, "RecordCheckpoint");
+
+        let recovery_result = store
+            .recover_from_checkpoint(
+                &checkpoint.checkpoint_id,
+                lane_with_kind(
+                    &format!("validator-isolation-recover-{}", lane_kind.as_str()),
+                    lane_kind,
+                ),
+                &format!("session-{}-recover-deny", lane_kind.as_str()),
+            )
+            .await;
+        assert_invalid_input_contains(recovery_result, "RecordCheckpoint");
+    }
+
+    assert_eq!(
+        swarm_evidence_counts(&pool, &workspace_id).await,
+        before_counts,
+        "denied validator mutations must not change inspected state"
     );
 }
 

@@ -53,6 +53,7 @@ pub enum AgentLaneKind {
     Cloud,
     Operator,
     Validator,
+    IntegrationValidator,
     Indexer,
     Editor,
     System,
@@ -65,6 +66,7 @@ impl AgentLaneKind {
             Self::Cloud => "cloud",
             Self::Operator => "operator",
             Self::Validator => "validator",
+            Self::IntegrationValidator => "integration_validator",
             Self::Indexer => "indexer",
             Self::Editor => "editor",
             Self::System => "system",
@@ -77,6 +79,7 @@ impl AgentLaneKind {
             "cloud" => Ok(Self::Cloud),
             "operator" => Ok(Self::Operator),
             "validator" => Ok(Self::Validator),
+            "integration_validator" => Ok(Self::IntegrationValidator),
             "indexer" => Ok(Self::Indexer),
             "editor" => Ok(Self::Editor),
             "system" => Ok(Self::System),
@@ -93,6 +96,7 @@ pub enum AgentCapability {
     ClaimWorktree,
     ClaimWorkspace,
     EditRichDocument,
+    InspectEvidence,
     MutateGraph,
     WriteLocalIndex,
     WriteMailbox,
@@ -222,13 +226,8 @@ impl AgentLaneIdentity {
                 NavigateBackend,
                 RecordCheckpoint,
             ],
-            AgentLaneKind::Validator => {
-                vec![
-                    ClaimWorkspace,
-                    WriteMailbox,
-                    NavigateBackend,
-                    RecordCheckpoint,
-                ]
+            AgentLaneKind::Validator | AgentLaneKind::IntegrationValidator => {
+                vec![InspectEvidence, NavigateBackend]
             }
             AgentLaneKind::Indexer => {
                 vec![
@@ -270,7 +269,9 @@ impl AgentLaneIdentity {
     fn to_kernel_actor(&self) -> KernelActor {
         match self.lane_kind {
             AgentLaneKind::Operator => KernelActor::Operator(self.actor_id.clone()),
-            AgentLaneKind::Validator => KernelActor::ValidationRunner(self.actor_id.clone()),
+            AgentLaneKind::Validator | AgentLaneKind::IntegrationValidator => {
+                KernelActor::ValidationRunner(self.actor_id.clone())
+            }
             AgentLaneKind::System => KernelActor::System(self.actor_id.clone()),
             AgentLaneKind::Cloud
             | AgentLaneKind::Local
@@ -394,6 +395,22 @@ pub struct WorkClaimOutcome {
     pub claim_id: String,
     pub active_holder: Option<AgentLaneIdentity>,
     pub event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SwarmEvidenceInspectionRequest {
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub limit: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmEvidenceInspectionSnapshot {
+    pub workspace_id: String,
+    pub claims: Vec<WorkClaimRecord>,
+    pub checkpoints: Vec<RecoveryCheckpointRecord>,
+    pub recovery_receipts: Vec<RecoveryReceiptRecord>,
+    pub indexing_leases: Vec<IndexingLeaseRecord>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -881,6 +898,87 @@ impl ParallelSwarmStateRecoveryStore {
         rows.into_iter().map(work_claim_from_row).collect()
     }
 
+    pub async fn inspect_swarm_evidence(
+        &self,
+        request: SwarmEvidenceInspectionRequest,
+    ) -> StateRecoveryResult<SwarmEvidenceInspectionSnapshot> {
+        require_capability(&request.lane, AgentCapability::InspectEvidence)?;
+        ensure_safe_token("workspace_id", &request.workspace_id)?;
+        let limit = bounded_inspection_limit(request.limit)?;
+
+        let claim_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_worktree_claims
+            WHERE workspace_id = $1
+            ORDER BY claimed_at_utc DESC, claim_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let checkpoint_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_state_recovery_checkpoints
+            WHERE workspace_id = $1
+            ORDER BY created_at_utc DESC, checkpoint_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let recovery_rows = sqlx::query(
+            r#"
+            SELECT r.*
+            FROM knowledge_agent_recovery_receipts r
+            INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                    ON c.checkpoint_id = r.checkpoint_id
+            WHERE c.workspace_id = $1
+            ORDER BY r.recovered_at_utc DESC, r.receipt_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let lease_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_parallel_indexing_lease_queue
+            WHERE workspace_id = $1
+            ORDER BY enqueued_at_utc DESC, lease_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(SwarmEvidenceInspectionSnapshot {
+            workspace_id: request.workspace_id,
+            claims: claim_rows
+                .into_iter()
+                .map(work_claim_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
+            checkpoints: checkpoint_rows
+                .into_iter()
+                .map(checkpoint_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
+            recovery_receipts: recovery_rows
+                .into_iter()
+                .map(recovery_receipt_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
+            indexing_leases: lease_rows
+                .into_iter()
+                .map(index_lease_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
+        })
+    }
+
     pub async fn release_claim(
         &self,
         claim_id: &str,
@@ -1023,6 +1121,7 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         request: RecoveryCheckpointRequest,
     ) -> StateRecoveryResult<RecoveryCheckpointRecord> {
+        require_capability(&request.lane, AgentCapability::RecordCheckpoint)?;
         let checkpoint_id = format!("PSR-CHKPT-{}", Uuid::now_v7());
         let payload_bytes = serde_json::to_vec(&request.payload)?;
         let payload_sha256 = sha256_hex(&payload_bytes);
@@ -1105,6 +1204,7 @@ impl ParallelSwarmStateRecoveryStore {
         new_lane: AgentLaneIdentity,
         new_session_id: &str,
     ) -> StateRecoveryResult<RecoveredCheckpoint> {
+        require_capability(&new_lane, AgentCapability::RecordCheckpoint)?;
         let row = sqlx::query(
             "SELECT * FROM knowledge_agent_state_recovery_checkpoints WHERE checkpoint_id = $1",
         )
@@ -1912,6 +2012,15 @@ fn validate_ttl(ttl_seconds: i64) -> StateRecoveryResult<()> {
         ));
     }
     Ok(())
+}
+
+fn bounded_inspection_limit(limit: i64) -> StateRecoveryResult<i64> {
+    if !(1..=500).contains(&limit) {
+        return Err(StateRecoveryError::InvalidInput(
+            "inspection limit must be between 1 and 500".to_string(),
+        ));
+    }
+    Ok(limit)
 }
 
 fn require_capability(
