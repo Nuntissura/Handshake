@@ -29,6 +29,7 @@ use handshake_core::knowledge_retrieval::budget::PriorityTier;
 use handshake_core::knowledge_retrieval::compiler::{
     BundleCandidate, BundleTargetKind, ContextBundleCompilerV2,
 };
+use handshake_core::knowledge_retrieval::executor::execute_retrieval;
 use handshake_core::knowledge_retrieval::graph_planner::{
     GraphTraversalPlanner, GraphTraversalPolicy,
 };
@@ -39,7 +40,9 @@ use handshake_core::knowledge_retrieval::planner::{
 use handshake_core::knowledge_retrieval::snippet::assemble_span_snippet;
 use handshake_core::memory::retrieval_mode::{NonHybridReason, QueryRetrievalMode};
 use handshake_core::storage::knowledge::{
-    KnowledgeBundleItemRefKind, KnowledgeEdgeType, KnowledgeStore, NewKnowledgeEdge,
+    KnowledgeBundleItemRefKind, KnowledgeCompactionPolicy, KnowledgeEdgeType,
+    KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore, NewKnowledgeEdge,
+    NewKnowledgeMemoryPassage,
 };
 use handshake_core::storage::knowledge_retrieval::{
     record_retrieval_trace, traces_for_bundle, upsert_semantic_catalog_entry,
@@ -453,6 +456,224 @@ async fn compiler_persists_bounded_bundle_and_drops_over_budget() {
     let manifest = build_evidence_manifest(&bundle, &traces);
     assert!(manifest.reconstructable);
     assert_eq!(manifest.dialect, "ai_ready_evidence_export@1");
+}
+
+/// Adversarial-v2 MT-133 + MT-134: ONE EXECUTED
+/// request -> plan -> schema_filter -> graph -> passage_fallback -> rank ->
+/// snippet -> compile path against real PostgreSQL, driving the PASSAGE
+/// FALLBACK end-to-end: an empty graph falls back to committed passages, the
+/// passages are ranked deterministically, cited, compiled into a persisted
+/// bundle, and the trace records WHY.
+#[tokio::test]
+async fn executed_pipeline_falls_back_to_passages_ranks_and_compiles() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "executed_pipeline_falls_back"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    // Two committed passages with DIFFERENT extraction confidence, both
+    // span-backed (the citation evidence).
+    let mut passage_ids = Vec::new();
+    for (text, confidence) in [
+        ("managed postgres listens on port 5544", 0.9_f64),
+        ("an older note about postgres ports", 0.4_f64),
+    ] {
+        let passage = fx
+            .pg
+            .db
+            .create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
+                workspace_id: fx.workspace_id.clone(),
+                passage_text: text.to_string(),
+                token_count: Some(12),
+                ocr_transcript_metadata: None,
+                extraction_confidence: confidence,
+                ranking_features: serde_json::json!({}),
+                retrieval_mode: KnowledgeRetrievalMode::HybridRag,
+                compaction_policy: KnowledgeCompactionPolicy::Keep,
+                failure_receipt_event_id: None,
+                derived_in_run: None,
+                evidence: vec![KnowledgePassageEvidenceRef::Span {
+                    span_id: fx.span_id.clone(),
+                }],
+            })
+            .await
+            .expect("passage");
+        passage_ids.push(passage.passage_id);
+    }
+
+    // A graph-neighborhood request with NO edges in the workspace: the graph
+    // step yields nothing, so the executed pipeline MUST fall back.
+    let mut request =
+        RetrievalRequest::discovery(&fx.workspace_id, "what port does managed postgres use");
+    request.graph_neighborhood_expected = true;
+    let executed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-exec-fb",
+        "sr-exec-fb",
+        BundleTargetKind::Task,
+        "port-question",
+        &request,
+        &BTreeSet::new(),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute");
+
+    // The fallback FIRED with the recorded reason (MT-133 executed).
+    assert_eq!(executed.graph_edge_count, 0);
+    assert_eq!(
+        executed.fallback_reason.as_deref(),
+        Some("graph_candidates_missing")
+    );
+
+    // Ranking ran over the REAL fallback passages (MT-134 executed): the
+    // higher-confidence passage outranks the lower one deterministically.
+    assert_eq!(executed.ranked.len(), 2);
+    assert_eq!(executed.ranked[0].candidate_id, passage_ids[0]);
+    assert_eq!(executed.ranked[1].candidate_id, passage_ids[1]);
+    assert!(executed.ranked[0].base_score > executed.ranked[1].base_score);
+    assert_eq!(executed.ranked[0].kind, "passage_ref");
+
+    // The bundle + trace are PERSISTED and bound together (MT-136/138).
+    let (bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&executed.compiled.bundle_id)
+        .await
+        .expect("get bundle")
+        .expect("bundle exists");
+    assert_eq!(bundle.bundle_id, executed.compiled.bundle_id);
+    assert_eq!(items.len(), 2);
+    assert!(items.iter().all(|i| i.ref_kind.as_str() == "passage"));
+    assert!(
+        items
+            .iter()
+            .any(|i| i.citation.as_deref().is_some_and(|c| c.contains("memory/graph.rs"))),
+        "passage items carry span-backed citations: {items:?}"
+    );
+
+    let traces = traces_for_bundle(&fx.pg.db, &executed.compiled.bundle_id)
+        .await
+        .expect("traces");
+    assert_eq!(traces.len(), 1);
+    // The durable mode column is hybrid_rag (the MT-129 mode law), the durable
+    // mode_reason carries the fallback rationale, and the decisions JSONB
+    // keeps the precise passage_fallback posture + ranked candidates
+    // replayably.
+    assert_eq!(traces[0].retrieval_mode.as_str(), "hybrid_rag");
+    assert!(
+        traces[0].mode_reason.contains("passage fallback")
+            && traces[0].mode_reason.contains("graph_candidates_missing"),
+        "mode_reason must carry the fallback WHY: {}",
+        traces[0].mode_reason
+    );
+    assert_eq!(
+        traces[0].decisions["retrieval_trace"]["retrieval_mode"],
+        "passage_fallback"
+    );
+    let warnings = traces[0].decisions["retrieval_trace"]["warnings"]
+        .as_array()
+        .expect("warnings")
+        .iter()
+        .map(|w| w.as_str().unwrap_or_default().to_string())
+        .collect::<Vec<_>>();
+    assert!(
+        warnings.iter().any(|w| w.contains("graph_candidates_missing")),
+        "the trace records WHY the fallback fired: {warnings:?}"
+    );
+    let candidates = traces[0].decisions["retrieval_trace"]["candidates"]
+        .as_array()
+        .expect("candidates");
+    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates[0]["candidate_id"], passage_ids[0].as_str());
+}
+
+/// Adversarial-v2 MT-134: the SAME executed path with a REAL graph: the
+/// traversal's edges become ranked entity candidates (graph features, no
+/// fallback) and compile into a persisted bundle.
+#[tokio::test]
+async fn executed_pipeline_graph_path_ranks_and_compiles() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "executed_pipeline_graph_path"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    // A real 2-edge neighborhood around a seed entity.
+    let hub = fx.entity("symbol", "managed_postgres", "ManagedPostgres").await;
+    let port = fx.entity("symbol", "pg_port", "PgPort").await;
+    let config = fx.entity("symbol", "pg_config", "PgConfig").await;
+    for (target, edge_type, confidence) in [
+        (&port, KnowledgeEdgeType::Defines, 0.95_f64),
+        (&config, KnowledgeEdgeType::Mentions, 0.5_f64),
+    ] {
+        fx.pg
+            .db
+            .upsert_knowledge_edge(NewKnowledgeEdge {
+                workspace_id: fx.workspace_id.clone(),
+                edge_type,
+                source_entity_id: hub.clone(),
+                target_entity_id: (*target).clone(),
+                extractor_version: "test_v1".to_string(),
+                confidence,
+                detected_in_run: None,
+                evidence_span_ids: vec![fx.span_id.clone()],
+            })
+            .await
+            .expect("edge");
+    }
+
+    // A neighborhood query anchored on the hub as the traversal seed (the
+    // Loom "what links to X" shape: the anchor is known, the answer is not).
+    let mut request =
+        RetrievalRequest::discovery(&fx.workspace_id, "managed postgres neighborhood");
+    request.graph_neighborhood_expected = true;
+    let executed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-exec-graph",
+        "sr-exec-graph",
+        BundleTargetKind::Symbol,
+        &hub,
+        &request,
+        &BTreeSet::from([hub.clone()]),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute");
+
+    // No fallback: the graph satisfied the task (MT-133 negative half).
+    assert!(executed.fallback_reason.is_none());
+    assert_eq!(executed.graph_edge_count, 2);
+
+    // MT-134 executed: real traversed edges ranked with structure-aware
+    // features — the high-confidence `defines` edge outranks the low
+    // `mentions` edge.
+    assert_eq!(executed.ranked.len(), 2);
+    assert!(executed.ranked[0].base_score > executed.ranked[1].base_score);
+    assert_eq!(executed.ranked[0].kind, "entity_ref");
+    assert!(executed.ranked[0].scores.graph.is_some());
+
+    // Persisted bundle with span-cited items + bound trace.
+    let (bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&executed.compiled.bundle_id)
+        .await
+        .expect("get bundle")
+        .expect("bundle exists");
+    assert_eq!(bundle.bundle_id, executed.compiled.bundle_id);
+    assert_eq!(items.len(), 2);
+    assert!(items
+        .iter()
+        .all(|i| i.citation.as_deref().is_some_and(|c| c.contains("memory/graph.rs"))));
+    let traces = traces_for_bundle(&fx.pg.db, &executed.compiled.bundle_id)
+        .await
+        .expect("traces");
+    assert_eq!(traces.len(), 1);
+    assert_eq!(traces[0].retrieval_mode.as_str(), "graph_traversal");
 }
 
 /// Adversarial-v2 MT-140: when a request names a SemanticCatalog entry, the

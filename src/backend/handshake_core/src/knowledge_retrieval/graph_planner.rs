@@ -80,8 +80,11 @@ pub struct VisitedNode {
 }
 
 /// One followed edge, carrying the stable relationship_id for deterministic
-/// citation (folded RelationshipIds intent).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// citation (folded RelationshipIds intent), plus the extraction confidence
+/// the downstream ranking + passage-fallback steps consume (adversarial-v2
+/// MT-133/134 executed-pipeline wiring). Evidence spans stay in
+/// `knowledge_edge_spans`; the executor loads them per cited edge.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TraversedEdge {
     pub edge_id: String,
     pub relationship_id: String,
@@ -89,10 +92,13 @@ pub struct TraversedEdge {
     pub source_entity_id: String,
     pub target_entity_id: String,
     pub depth: u32,
+    /// The edge's extraction confidence (feeds ranking evidence quality and
+    /// the passage-fallback confidence floor).
+    pub confidence: f64,
 }
 
 /// The bounded result of a graph traversal, with actor-visible rationale.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GraphTraversalResult {
     pub visited: Vec<VisitedNode>,
     pub edges: Vec<TraversedEdge>,
@@ -206,6 +212,7 @@ impl<'a> GraphTraversalPlanner<'a> {
                     source_entity_id: edge.source_entity_id.clone(),
                     target_entity_id: edge.target_entity_id.clone(),
                     depth: depth + 1,
+                    confidence: edge.confidence,
                 });
                 if !visited_ids.contains(&neighbor) {
                     frontier.push_back((neighbor, depth + 1));
@@ -284,6 +291,7 @@ mod tests {
             source_entity_id: "a".to_string(),
             target_entity_id: "b".to_string(),
             depth: 1,
+            confidence: 0.9,
         }
     }
 }

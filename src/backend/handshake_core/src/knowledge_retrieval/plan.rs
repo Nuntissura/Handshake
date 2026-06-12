@@ -316,8 +316,23 @@ impl RetrievalTrace {
     /// The `mode_reason` string persisted in `knowledge_retrieval_traces`
     /// (spec MUST: why broader retrieval was used or skipped). For a non-hybrid
     /// mode it is the `non_hybrid_reason`; for hybrid it is an explicit
-    /// "hybrid required" sentence. Never empty (the DB CHECK rejects empty).
+    /// "hybrid required" sentence; for a passage fallback (persisted as
+    /// `hybrid_rag` in the durable mode column) it carries the fallback
+    /// rationale the executor recorded in the trace warnings, so the WHY
+    /// survives into the durable `mode_reason` column (adversarial-v2
+    /// MT-129/MT-133). Never empty (the DB CHECK rejects empty).
     pub fn mode_reason(&self) -> String {
+        if self.retrieval_mode == QueryRetrievalMode::PassageFallback {
+            let rationale = self
+                .warnings
+                .iter()
+                .find(|w| w.contains("falling back to passage retrieval"))
+                .cloned()
+                .unwrap_or_else(|| {
+                    "graph candidates were missing/stale/contradicted/low-confidence".to_string()
+                });
+            return format!("passage fallback (persisted as hybrid_rag): {rationale}");
+        }
         match self.non_hybrid_reason {
             Some(reason) => format!(
                 "chose {} (skipped hybrid_rag): {}",

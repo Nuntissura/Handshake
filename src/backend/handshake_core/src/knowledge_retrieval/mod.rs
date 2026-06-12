@@ -36,6 +36,7 @@ pub mod ai_ready_export;
 pub mod budget;
 pub mod compiler;
 pub mod context_pack_recorder;
+pub mod executor;
 pub mod fixtures;
 pub mod graph_planner;
 pub mod passage_fallback;

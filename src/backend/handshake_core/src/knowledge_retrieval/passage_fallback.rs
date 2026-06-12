@@ -136,6 +136,7 @@ mod tests {
                     source_entity_id: "a".to_string(),
                     target_entity_id: "b".to_string(),
                     depth: 1,
+                    confidence: 0.9,
                 })
                 .collect(),
             suppressed_hubs: vec![],
