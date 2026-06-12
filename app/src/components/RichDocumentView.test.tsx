@@ -12,19 +12,33 @@ import type { JSONContent } from "@tiptap/core";
 
 vi.mock("../state/debugEvents", () => ({ logEvent: vi.fn() }));
 
-vi.mock("./TiptapEditor", () => ({
-  TiptapEditor: ({
+// The save/load/authority plumbing under test does not need the real Monaco
+// editor; mock RichTextEditor as a textarea so this suite stays fast and
+// deterministic. The integrated editor itself is covered by
+// RichTextEditor.test.tsx; the RichDocumentView<->editor wiring (schema assert,
+// backend-error pass-through) is covered below via the props the mock receives.
+vi.mock("./RichTextEditor", () => ({
+  RichTextEditor: ({
     initialContent,
     onChange,
+    backendError,
   }: {
     initialContent: JSONContent | null;
     onChange: (doc: JSONContent | null) => void;
+    backendError?: { kind: string; message: string } | null;
   }) => (
-    <textarea
-      data-testid="tiptap-editor"
-      defaultValue={JSON.stringify(initialContent)}
-      onChange={() => onChange({ type: "doc", content: [{ type: "paragraph" }] })}
-    />
+    <div>
+      <textarea
+        data-testid="tiptap-editor"
+        defaultValue={JSON.stringify(initialContent)}
+        onChange={() => onChange({ type: "doc", content: [{ type: "paragraph" }] })}
+      />
+      {backendError ? (
+        <div data-testid="rte-backend-error" data-error-kind={backendError.kind}>
+          {backendError.message}
+        </div>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -177,6 +191,30 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
       const [docId, expectedVersion] = saveRichDocument.mock.calls[0];
       expect(docId).toBe("KRD-00000000000000000000000000000001");
       expect(expectedVersion).toBe(1);
+    });
+  });
+
+  it("surfaces a save conflict as a typed inline backend error (MT-174)", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.saveRichDocument).mockRejectedValueOnce(
+      new Error("HSK-409 version conflict: expected_version 1 got 2"),
+    );
+
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+    await act(async () => {
+      fireEvent.change(await screen.findByTestId("tiptap-editor"), { target: { value: "edited" } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-save"));
+    });
+
+    // The classified backend error (conflict) is passed to the editor and
+    // rendered inline (not a blank screen).
+    await waitFor(() => {
+      const err = screen.getByTestId("rte-backend-error");
+      expect(err.getAttribute("data-error-kind")).toBe("conflict");
     });
   });
 });

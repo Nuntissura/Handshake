@@ -25,7 +25,13 @@ import {
   listRichDocumentBacklinks,
   saveRichDocument,
 } from "../lib/api";
-import { TiptapEditor } from "./TiptapEditor";
+import { RichTextEditor } from "./RichTextEditor";
+import {
+  classifySaveError,
+  schemaMismatchError,
+  type EditorBackendError,
+} from "../lib/editor/backend_error";
+import { assertEditorSchema } from "../lib/editor/schema_versioning";
 import { logEvent } from "../state/debugEvents";
 
 type Props = {
@@ -40,6 +46,7 @@ export function RichDocumentView({ documentId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [backendError, setBackendError] = useState<EditorBackendError | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -52,11 +59,24 @@ export function RichDocumentView({ documentId }: Props) {
     setLoading(true);
     setError(null);
     setSaveError(null);
+    setBackendError(null);
     setIsDirty(false);
     try {
       const response = await loadRichDocument(documentId);
       setLoad(response);
-      setEditorContent(response.document.content_json as JSONContent);
+      // MT-162: reconcile the persisted schema version with the running editor
+      // before feeding content into the editor. A newer/unknown schema surfaces
+      // as a typed backend error (MT-174) instead of crashing the load.
+      const assertion = assertEditorSchema(
+        response.document.schema_version,
+        response.document.content_json,
+      );
+      if (assertion.ok) {
+        setEditorContent(assertion.content as JSONContent);
+      } else {
+        setEditorContent(response.document.content_json as JSONContent);
+        setBackendError(schemaMismatchError(assertion.reason));
+      }
       logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load rich document");
@@ -96,6 +116,7 @@ export function RichDocumentView({ documentId }: Props) {
     if (!load || !editorContent) return;
     setIsSaving(true);
     setSaveError(null);
+    setBackendError(null);
     try {
       const result = await saveRichDocument(
         documentId,
@@ -111,6 +132,8 @@ export function RichDocumentView({ documentId }: Props) {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save";
       setSaveError(message);
+      // MT-174: classify into a typed inline backend error (conflict/schema/save).
+      setBackendError(classifySaveError(err));
       logEvent({ type: "doc-save", targetId: documentId, result: "error", message: String(err) });
     } finally {
       setIsSaving(false);
@@ -178,12 +201,13 @@ export function RichDocumentView({ documentId }: Props) {
 
         <div className="document-editor__body">
           <div className="document-editor__main">
-            <TiptapEditor
+            <RichTextEditor
               initialContent={editorContent}
               onChange={(next) => {
                 setEditorContent(next);
                 setIsDirty(true);
               }}
+              backendError={backendError}
             />
             <div className="document-editor__status" data-testid="rich-document-status">
               {lastSavedAt && (
