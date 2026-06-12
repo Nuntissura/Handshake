@@ -129,6 +129,69 @@ describe("RichTextEditor (MT-169..174)", () => {
     expect(screen.getByTestId("rich-text-editor-surface")).toBeTruthy();
   });
 
+  it("opens a REAL overflow menu listing insert + table commands and runs one (iteration-3 L13/M1)", async () => {
+    await act(async () => {
+      renderEditor();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("editor-open-overflow"));
+    });
+    const menu = await screen.findByTestId("rich-text-editor-overflow");
+    expect(menu.getAttribute("role")).toBe("menu");
+    // Insert commands and the table structure family are operator-reachable.
+    expect(screen.getByTestId("overflow-cmd-mention.at")).toBeTruthy();
+    expect(screen.getByTestId("overflow-cmd-table.addRowAfter")).toBeTruthy();
+    // Table edit commands are truthfully disabled outside a table (M11).
+    expect((screen.getByTestId("overflow-cmd-table.addRowAfter") as HTMLButtonElement).disabled).toBe(true);
+
+    // Run the mention command through the menu: the arg prompt opens, and the
+    // confirmed value creates a REAL mention node (M1).
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("overflow-cmd-mention.at"));
+    });
+    await act(async () => {
+      fireEvent.change(await screen.findByTestId("editor-arg-value"), {
+        target: { value: "operator" },
+      });
+      fireEvent.click(screen.getByTestId("editor-arg-confirm"));
+    });
+    await waitFor(() => {
+      const debug = (globalThis as Record<string, unknown>).__HS_EDITOR_DEBUG__ as
+        | { nodeCounts?: Record<string, number> }
+        | undefined;
+      expect(debug?.nodeCounts?.mention ?? 0).toBe(1);
+    });
+  });
+
+  it("disables undo until an edit exists, then undo/redo round-trips from the toolbar (iteration-3 L14)", async () => {
+    await act(async () => {
+      renderEditor();
+    });
+    const undo = (await screen.findByTestId("editor-cmd-history.undo")) as HTMLButtonElement;
+    const redo = screen.getByTestId("editor-cmd-history.redo") as HTMLButtonElement;
+    expect(undo.disabled).toBe(true);
+    expect(redo.disabled).toBe(true);
+
+    // Make an edit through the toolbar (h1), then undo it.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("editor-cmd-block.h1"));
+    });
+    await waitFor(() => expect((screen.getByTestId("editor-cmd-history.undo") as HTMLButtonElement).disabled).toBe(false));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("editor-cmd-history.undo"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-cmd-block.h1").getAttribute("data-active")).toBe("false");
+      expect((screen.getByTestId("editor-cmd-history.redo") as HTMLButtonElement).disabled).toBe(false);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("editor-cmd-history.redo"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-cmd-block.h1").getAttribute("data-active")).toBe("true");
+    });
+  });
+
   it("degrades to a non-blank notice when the extension set fails to build (MT-174)", async () => {
     await act(async () => {
       render(

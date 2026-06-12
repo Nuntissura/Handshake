@@ -7,28 +7,47 @@
 // Editor through a pure `run(editor)` thunk and reports `isActive(editor)` for
 // toolbar highlighting — no hidden chat context, no global mutable state.
 //
-// Categories cover the §7.1.1.8 editor feature surface: formatting, headings,
-// lists, tables, task lists, quotes/callouts, links (typed wikilinks), code
-// (embedded Monaco), media/embeds, backlinks/graph, mentions/tags, and
-// UserManual insertion. Commands whose target is provided interactively (a
-// wikilink target, a media ref) expose `requiresArg` so the palette/toolbar can
-// prompt before running.
+// Categories cover the §7.1.1.8 editor feature surface: history, formatting,
+// headings, lists, tables (+ structural table editing), task lists,
+// quotes/callouts, links (typed wikilinks), code (embedded Monaco),
+// media/embeds, backlinks/graph, mentions/tags, and UserManual insertion.
+// Commands whose target is provided interactively (a wikilink target, a media
+// ref, a mention) expose `requiresArg` so the palette/toolbar can prompt
+// before running.
 
-import type { Editor } from "@tiptap/core";
+import type { Editor, JSONContent } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 import { makeCodeBlockAttrs } from "./code_block_serialization";
 import { classifyWikilink } from "./wikilink";
 
 export type EditorCommandCategory =
+  | "history"
   | "format"
   | "block"
   | "list"
   | "table"
+  | "tableEdit"
   | "link"
   | "code"
   | "embed"
   | "graph"
   | "mention"
   | "manual";
+
+/**
+ * Iteration-3 M11: NodeSelection-safe insertion. insertContent over a
+ * NodeSelection REPLACES the selected node — running "insert code block" while
+ * a code block was selected destroyed it. Inserting AFTER the selected node is
+ * the non-destructive interpretation (VS Code parity: inserting a block while
+ * a block is selected appends next to it).
+ */
+function insertSafely(e: Editor, content: JSONContent | JSONContent[]): boolean {
+  const selection = e.state.selection;
+  if (selection instanceof NodeSelection) {
+    return e.chain().focus().insertContentAt(selection.to, content).run();
+  }
+  return e.chain().focus().insertContent(content).run();
+}
 
 export interface EditorCommandArgSpec {
   /** Stable arg id. */
@@ -67,9 +86,31 @@ export function commandRequiresArg(cmd: EditorCommandDescriptor): boolean {
 /**
  * The full catalog. Pure data + thunks; importing it does not touch the editor
  * or the network. The integrated editor binds these to toolbar buttons and the
- * command palette.
+ * command palette. Iteration-3 M11: `canRun` is now populated so the toolbar
+ * and palette can truthfully disable commands the current state cannot run.
  */
 export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
+  // --- History (iteration-3 L14). Bound natively by StarterKit (Mod-z /
+  // Mod-Shift-z); the hints are display-only so the chord is never dispatched
+  // twice. canRun keeps the buttons truthfully disabled at stack edges.
+  {
+    id: "history.undo",
+    label: "Undo",
+    category: "history",
+    keyboardHint: "Mod-z",
+    keywords: ["undo", "revert", "back"],
+    run: (e) => e.chain().focus().undo().run(),
+    canRun: (e) => e.can().undo(),
+  },
+  {
+    id: "history.redo",
+    label: "Redo",
+    category: "history",
+    keyboardHint: "Mod-Shift-z",
+    keywords: ["redo", "again", "forward"],
+    run: (e) => e.chain().focus().redo().run(),
+    canRun: (e) => e.can().redo(),
+  },
   // --- Inline formatting ---
   {
     id: "format.bold",
@@ -79,6 +120,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["bold", "strong"],
     run: (e) => e.chain().focus().toggleBold().run(),
     isActive: (e) => e.isActive("bold"),
+    canRun: (e) => e.can().chain().toggleBold().run(),
   },
   {
     id: "format.italic",
@@ -88,6 +130,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["italic", "emphasis"],
     run: (e) => e.chain().focus().toggleItalic().run(),
     isActive: (e) => e.isActive("italic"),
+    canRun: (e) => e.can().chain().toggleItalic().run(),
   },
   {
     id: "format.code",
@@ -97,6 +140,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["code", "monospace", "inline"],
     run: (e) => e.chain().focus().toggleCode().run(),
     isActive: (e) => e.isActive("code"),
+    canRun: (e) => e.can().chain().toggleCode().run(),
   },
   // --- Block structure ---
   {
@@ -106,6 +150,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["heading", "h1", "title"],
     run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(),
     isActive: (e) => e.isActive("heading", { level: 1 }),
+    canRun: (e) => e.can().chain().toggleHeading({ level: 1 }).run(),
   },
   {
     id: "block.h2",
@@ -114,6 +159,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["heading", "h2"],
     run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
     isActive: (e) => e.isActive("heading", { level: 2 }),
+    canRun: (e) => e.can().chain().toggleHeading({ level: 2 }).run(),
   },
   {
     id: "block.h3",
@@ -122,6 +168,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["heading", "h3"],
     run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
     isActive: (e) => e.isActive("heading", { level: 3 }),
+    canRun: (e) => e.can().chain().toggleHeading({ level: 3 }).run(),
   },
   {
     id: "block.paragraph",
@@ -130,6 +177,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["paragraph", "text", "body"],
     run: (e) => e.chain().focus().setParagraph().run(),
     isActive: (e) => e.isActive("paragraph"),
+    canRun: (e) => e.can().chain().setParagraph().run(),
   },
   {
     id: "block.quote",
@@ -138,6 +186,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["quote", "blockquote", "callout"],
     run: (e) => e.chain().focus().toggleBlockquote().run(),
     isActive: (e) => e.isActive("blockquote"),
+    canRun: (e) => e.can().chain().toggleBlockquote().run(),
   },
   // --- Lists ---
   {
@@ -147,6 +196,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["bullet", "unordered", "list"],
     run: (e) => e.chain().focus().toggleBulletList().run(),
     isActive: (e) => e.isActive("bulletList"),
+    canRun: (e) => e.can().chain().toggleBulletList().run(),
   },
   {
     id: "list.ordered",
@@ -155,6 +205,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["numbered", "ordered", "list"],
     run: (e) => e.chain().focus().toggleOrderedList().run(),
     isActive: (e) => e.isActive("orderedList"),
+    canRun: (e) => e.can().chain().toggleOrderedList().run(),
   },
   {
     id: "list.task",
@@ -163,6 +214,7 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["task", "todo", "checkbox", "checklist"],
     run: (e) => e.chain().focus().toggleTaskList().run(),
     isActive: (e) => e.isActive("taskList"),
+    canRun: (e) => e.can().chain().toggleTaskList().run(),
   },
   // --- Tables ---
   {
@@ -171,6 +223,58 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     category: "table",
     keywords: ["table", "grid"],
     run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    // M11: insertTable has no position-targeted variant; refuse on a
+    // NodeSelection instead of replacing the selected node.
+    canRun: (e) => !(e.state.selection instanceof NodeSelection),
+  },
+  // --- Table structure editing (iteration-3 L12) — enabled inside a table.
+  {
+    id: "table.addRowAfter",
+    label: "Add row below",
+    category: "tableEdit",
+    keywords: ["table", "row", "insert", "below"],
+    run: (e) => e.chain().focus().addRowAfter().run(),
+    canRun: (e) => e.can().addRowAfter(),
+  },
+  {
+    id: "table.addColumnAfter",
+    label: "Add column right",
+    category: "tableEdit",
+    keywords: ["table", "column", "insert", "right"],
+    run: (e) => e.chain().focus().addColumnAfter().run(),
+    canRun: (e) => e.can().addColumnAfter(),
+  },
+  {
+    id: "table.deleteRow",
+    label: "Delete row",
+    category: "tableEdit",
+    keywords: ["table", "row", "delete", "remove"],
+    run: (e) => e.chain().focus().deleteRow().run(),
+    canRun: (e) => e.can().deleteRow(),
+  },
+  {
+    id: "table.deleteColumn",
+    label: "Delete column",
+    category: "tableEdit",
+    keywords: ["table", "column", "delete", "remove"],
+    run: (e) => e.chain().focus().deleteColumn().run(),
+    canRun: (e) => e.can().deleteColumn(),
+  },
+  {
+    id: "table.toggleHeaderRow",
+    label: "Toggle header row",
+    category: "tableEdit",
+    keywords: ["table", "header", "row", "toggle"],
+    run: (e) => e.chain().focus().toggleHeaderRow().run(),
+    canRun: (e) => e.can().toggleHeaderRow(),
+  },
+  {
+    id: "table.delete",
+    label: "Delete table",
+    category: "tableEdit",
+    keywords: ["table", "delete", "remove"],
+    run: (e) => e.chain().focus().deleteTable().run(),
+    canRun: (e) => e.can().deleteTable(),
   },
   // --- Code (embedded Monaco) ---
   {
@@ -181,14 +285,10 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     keywords: ["code", "monaco", "snippet", "fence"],
     args: [{ id: "language", label: "Language", placeholder: "typescript" }],
     run: (e, args) =>
-      e
-        .chain()
-        .focus()
-        .insertContent({
-          type: "monacoCodeBlock",
-          attrs: makeCodeBlockAttrs(args?.language ?? "plaintext", ""),
-        })
-        .run(),
+      insertSafely(e, {
+        type: "monacoCodeBlock",
+        attrs: makeCodeBlockAttrs(args?.language ?? "plaintext", ""),
+      }),
     isActive: (e) => e.isActive("monacoCodeBlock"),
   },
   // --- Links (typed wikilinks) ---
@@ -205,19 +305,15 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     ],
     run: (e, args) => {
       const parsed = classifyWikilink(args?.kind ?? "", args?.value ?? "", args?.label);
-      return e
-        .chain()
-        .focus()
-        .insertContent({
-          type: "hsLink",
-          attrs: {
-            refKind: parsed.refKind,
-            refValue: parsed.refValue,
-            label: parsed.label,
-            resolved: parsed.resolved,
-          },
-        })
-        .run();
+      return insertSafely(e, {
+        type: "hsLink",
+        attrs: {
+          refKind: parsed.refKind,
+          refValue: parsed.refValue,
+          label: parsed.label,
+          resolved: parsed.resolved,
+        },
+      });
     },
   },
   // --- Embeds (media/album/slideshow) ---
@@ -232,19 +328,15 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     ],
     run: (e, args) => {
       const parsed = classifyWikilink(args?.kind ?? "", args?.value ?? "");
-      return e
-        .chain()
-        .focus()
-        .insertContent({
-          type: "hsLink",
-          attrs: {
-            refKind: parsed.refKind,
-            refValue: parsed.refValue,
-            label: parsed.label,
-            resolved: parsed.resolved,
-          },
-        })
-        .run();
+      return insertSafely(e, {
+        type: "hsLink",
+        attrs: {
+          refKind: parsed.refKind,
+          refValue: parsed.refValue,
+          label: parsed.label,
+          resolved: parsed.resolved,
+        },
+      });
     },
   },
   // --- Graph / backlinks (typed link to another note) ---
@@ -254,30 +346,53 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     category: "graph",
     keywords: ["backlink", "graph", "note", "relate"],
     args: [{ id: "value", label: "Note", placeholder: "Runbook" }],
-    run: (e, args) =>
-      e
-        .chain()
-        .focus()
-        .insertContent({
-          type: "hsLink",
-          attrs: { refKind: "note", refValue: args?.value ?? "", label: args?.value ?? "", resolved: true },
-        })
-        .run(),
+    run: (e, args) => {
+      // Iteration-3 M3: classify through the shared wikilink rules instead of
+      // hardcoding resolved:true, so resolution semantics live in ONE place.
+      const parsed = classifyWikilink("note", args?.value ?? "");
+      return insertSafely(e, {
+        type: "hsLink",
+        attrs: {
+          refKind: parsed.refKind,
+          refValue: parsed.refValue,
+          label: parsed.label,
+          resolved: parsed.resolved,
+        },
+      });
+    },
   },
-  // --- Mentions / tags ---
+  // --- Mentions / tags (iteration-3 M1: create REAL mention/tag nodes — the
+  // previous commands inserted a bare "@"/"#" character, so no mention or tag
+  // node could ever be created from the UI). ---
   {
     id: "mention.at",
     label: "Mention (@)",
     category: "mention",
     keywords: ["mention", "person", "agent", "@"],
-    run: (e) => e.chain().focus().insertContent("@").run(),
+    args: [{ id: "value", label: "Who to mention", placeholder: "operator" }],
+    run: (e, args) => {
+      const value = (args?.value ?? "").trim();
+      if (value.length === 0) return false;
+      return insertSafely(e, [
+        { type: "mention", attrs: { id: value, label: value } },
+        { type: "text", text: " " },
+      ]);
+    },
   },
   {
     id: "mention.tag",
     label: "Tag (#)",
     category: "mention",
     keywords: ["tag", "label", "#", "knowledge"],
-    run: (e) => e.chain().focus().insertContent("#").run(),
+    args: [{ id: "value", label: "Tag name", placeholder: "runbook" }],
+    run: (e, args) => {
+      const value = (args?.value ?? "").trim();
+      if (value.length === 0) return false;
+      return insertSafely(e, [
+        { type: "tagMention", attrs: { id: value, label: value } },
+        { type: "text", text: " " },
+      ]);
+    },
   },
   // --- UserManual insertion (typed link to the spec/manual) ---
   {
@@ -286,15 +401,18 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     category: "manual",
     keywords: ["manual", "usermanual", "help", "spec", "docs"],
     args: [{ id: "value", label: "Manual anchor", placeholder: "7.1.1.8" }],
-    run: (e, args) =>
-      e
-        .chain()
-        .focus()
-        .insertContent({
-          type: "hsLink",
-          attrs: { refKind: "spec", refValue: args?.value ?? "", label: `UserManual ${args?.value ?? ""}`, resolved: true },
-        })
-        .run(),
+    run: (e, args) => {
+      const parsed = classifyWikilink("spec", args?.value ?? "", `UserManual ${args?.value ?? ""}`);
+      return insertSafely(e, {
+        type: "hsLink",
+        attrs: {
+          refKind: parsed.refKind,
+          refValue: parsed.refValue,
+          label: parsed.label,
+          resolved: parsed.resolved,
+        },
+      });
+    },
   },
 ];
 

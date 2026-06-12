@@ -91,23 +91,24 @@ describe("RichTextEditor keyboard accessibility (iteration-3 M12/M13/M16/M6/L16)
       fireEvent.click(screen.getByTestId("editor-open-palette"));
     });
     const input = await screen.findByTestId("editor-command-palette-input");
-    // Valid combobox/listbox semantics.
+    // Valid combobox/listbox semantics. First option = first catalog command
+    // (history.undo since iteration-3 L14).
     expect(input.getAttribute("role")).toBe("combobox");
-    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-format.bold");
+    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-history.undo");
 
     // ArrowDown moves the active option; aria-selected follows.
     await act(async () => {
       fireEvent.keyDown(input, { key: "ArrowDown" });
     });
-    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-format.italic");
-    const italicOpt = document.getElementById("palette-opt-format.italic");
-    expect(italicOpt?.getAttribute("aria-selected")).toBe("true");
+    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-history.redo");
+    const redoOpt = document.getElementById("palette-opt-history.redo");
+    expect(redoOpt?.getAttribute("aria-selected")).toBe("true");
 
     // ArrowUp wraps back; Enter runs the active command and closes the palette.
     await act(async () => {
       fireEvent.keyDown(input, { key: "ArrowUp" });
     });
-    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-format.bold");
+    expect(input.getAttribute("aria-activedescendant")).toBe("palette-opt-history.undo");
     await act(async () => {
       fireEvent.keyDown(input, { key: "Enter" });
     });
@@ -167,31 +168,36 @@ describe("RichTextEditor keyboard accessibility (iteration-3 M12/M13/M16/M6/L16)
       render(<RichTextEditor initialContent={INITIAL} onChange={() => {}} />);
     });
     const toolbar = await screen.findByTestId("rich-text-editor-toolbar");
-    const buttons = Array.from(toolbar.querySelectorAll("button"));
-    expect(buttons.length).toBeGreaterThan(3);
-    // Exactly ONE button is in the tab order.
-    expect(buttons.filter((b) => b.tabIndex === 0)).toHaveLength(1);
-    expect(buttons[0].tabIndex).toBe(0);
+    const allButtons = Array.from(toolbar.querySelectorAll("button"));
+    const enabled = allButtons.filter((b) => !b.disabled);
+    expect(enabled.length).toBeGreaterThan(3);
+    // Exactly ONE button is in the tab order, and it is an ENABLED one (Undo
+    // sits first but is truthfully disabled until the first edit — M11/L14).
+    const tabStops = allButtons.filter((b) => b.tabIndex === 0);
+    expect(tabStops).toHaveLength(1);
+    expect(tabStops[0]).toBe(enabled[0]);
+    expect(tabStops[0].disabled).toBe(false);
 
-    // ArrowRight moves focus (and the roving tab stop) to the next control.
+    // ArrowRight moves focus (and the roving tab stop) to the next ENABLED
+    // control (disabled controls are skipped).
     await act(async () => {
-      buttons[0].focus();
+      enabled[0].focus();
       fireEvent.keyDown(toolbar, { key: "ArrowRight" });
     });
-    expect(document.activeElement).toBe(buttons[1]);
+    expect(document.activeElement).toBe(enabled[1]);
     await waitFor(() => {
-      expect(buttons[1].tabIndex).toBe(0);
-      expect(buttons.filter((b) => b.tabIndex === 0)).toHaveLength(1);
+      expect(enabled[1].tabIndex).toBe(0);
+      expect(allButtons.filter((b) => b.tabIndex === 0)).toHaveLength(1);
     });
-    // End jumps to the last control; ArrowRight wraps to the first.
+    // End jumps to the last enabled control; ArrowRight wraps to the first.
     await act(async () => {
       fireEvent.keyDown(toolbar, { key: "End" });
     });
-    expect(document.activeElement).toBe(buttons[buttons.length - 1]);
+    expect(document.activeElement).toBe(enabled[enabled.length - 1]);
     await act(async () => {
       fireEvent.keyDown(toolbar, { key: "ArrowRight" });
     });
-    expect(document.activeElement).toBe(buttons[0]);
+    expect(document.activeElement).toBe(enabled[0]);
   });
 
   it("fires onSaveRequested for Mod-s from prose AND from inside the code block, always preventDefault (L16)", async () => {

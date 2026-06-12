@@ -284,6 +284,8 @@ function RichTextEditorInner({
   // MT-244: find/replace panel + export menu state.
   const [findPanel, setFindPanel] = useState<"closed" | "find" | "replace">("closed");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // Iteration-3 L13: the overflow (insert/table-edit) menu is a real surface.
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [lastExport, setLastExport] = useState<LastExportInfo | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -537,34 +539,52 @@ function RichTextEditorInner({
     }
   }, [exportMenuOpen]);
 
-  // Iteration-3 M16: ARIA toolbar keyboard pattern — one tab stop, arrows move.
+  // Iteration-3 M16: ARIA toolbar keyboard pattern — one tab stop, arrows move
+  // between ENABLED controls; the roving index is stored in full-list terms so
+  // it stays aligned with the per-button tabIndex assignment.
   const onToolbarKeyDown = useCallback((event: ReactKeyboardEvent) => {
     if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
     const container = toolbarRef.current;
     if (!container) return;
-    const buttons = Array.from(
-      container.querySelectorAll<HTMLButtonElement>("button:not([disabled])"),
-    );
-    if (buttons.length === 0) return;
-    const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const all = Array.from(container.querySelectorAll<HTMLButtonElement>("button"));
+    const enabled = all.filter((b) => !b.disabled);
+    if (enabled.length === 0) return;
+    const current = enabled.indexOf(document.activeElement as HTMLButtonElement);
     let next = current;
-    if (event.key === "ArrowRight") next = (current + 1 + buttons.length) % buttons.length;
-    else if (event.key === "ArrowLeft") next = (current - 1 + buttons.length) % buttons.length;
+    if (event.key === "ArrowRight") next = (current + 1 + enabled.length) % enabled.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + enabled.length) % enabled.length;
     else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = buttons.length - 1;
+    else if (event.key === "End") next = enabled.length - 1;
     event.preventDefault();
-    buttons[next]?.focus();
-    setToolbarFocusIndex(next);
+    const target = enabled[next];
+    target?.focus();
+    if (target) setToolbarFocusIndex(all.indexOf(target));
   }, []);
 
   if (!editor) return null;
 
   const toolbarCommands = EDITOR_COMMANDS.filter((c) =>
-    ["format", "block", "list", "table", "code", "link"].includes(c.category),
+    ["history", "format", "block", "list", "table", "code", "link"].includes(c.category),
   );
+  // Iteration-3 L13/L12: the overflow set (insert + table-structure commands)
+  // is a REAL operator-reachable menu now, not a hidden stub.
   const overflowCommands = EDITOR_COMMANDS.filter((c) =>
-    ["embed", "graph", "mention", "manual"].includes(c.category),
+    ["tableEdit", "embed", "graph", "mention", "manual"].includes(c.category),
   );
+  // Iteration-3 M11: truthful enable/disable from the catalog's canRun.
+  const commandDisabled = (cmd: EditorCommandDescriptor): boolean =>
+    readOnly || (cmd.canRun ? !cmd.canRun(editor) : false);
+  // M16: the roving tab stop must always sit on an ENABLED control (e.g. Undo
+  // is disabled until the first edit) so the toolbar never loses its tab stop.
+  const toolbarDisabledFlags = toolbarCommands.map((cmd) => commandDisabled(cmd));
+  let effectiveToolbarFocus = toolbarFocusIndex;
+  if (
+    effectiveToolbarFocus < toolbarDisabledFlags.length &&
+    toolbarDisabledFlags[effectiveToolbarFocus]
+  ) {
+    const firstEnabled = toolbarDisabledFlags.findIndex((d) => !d);
+    effectiveToolbarFocus = firstEnabled >= 0 ? firstEnabled : toolbarDisabledFlags.length;
+  }
   const paletteResults = filterEditorCommands(paletteQuery);
   const componentResults = filterComponentCommands(
     paletteQuery,
@@ -672,8 +692,8 @@ function RichTextEditorInner({
             aria-pressed={cmd.isActive?.(editor) ? "true" : "false"}
             aria-label={ariaLabelFor(cmd)}
             title={ariaLabelFor(cmd)}
-            disabled={readOnly}
-            tabIndex={index === toolbarFocusIndex ? 0 : -1}
+            disabled={commandDisabled(cmd)}
+            tabIndex={!commandDisabled(cmd) && index === effectiveToolbarFocus ? 0 : -1}
             onFocus={() => setToolbarFocusIndex(index)}
             onClick={() => runCommand(cmd)}
           >
@@ -683,11 +703,26 @@ function RichTextEditorInner({
         <button
           type="button"
           className="tt-button"
+          data-testid="editor-open-overflow"
+          aria-label="Insert and table commands"
+          aria-haspopup="menu"
+          aria-expanded={overflowOpen}
+          title="Insert and table commands"
+          tabIndex={toolbarCommands.length === effectiveToolbarFocus ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(toolbarCommands.length)}
+          onClick={() => setOverflowOpen((open) => !open)}
+          disabled={readOnly}
+        >
+          Insert…
+        </button>
+        <button
+          type="button"
+          className="tt-button"
           data-testid="editor-open-find"
           aria-label="Find in document (Ctrl/Cmd+F)"
           title="Find in document (Ctrl/Cmd+F)"
-          tabIndex={toolbarCommands.length === toolbarFocusIndex ? 0 : -1}
-          onFocus={() => setToolbarFocusIndex(toolbarCommands.length)}
+          tabIndex={toolbarCommands.length + 1 === effectiveToolbarFocus ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 1)}
           onClick={() => setFindPanel((open) => (open === "closed" ? "find" : "closed"))}
         >
           Find
@@ -698,7 +733,7 @@ function RichTextEditorInner({
           data-testid="editor-open-export"
           aria-label="Export document (save to format)"
           title="Export document (save to format)"
-          tabIndex={toolbarCommands.length + 1 === toolbarFocusIndex ? 0 : -1}
+          tabIndex={toolbarCommands.length + 1 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 1)}
           onClick={() => setExportMenuOpen(true)}
         >
@@ -710,7 +745,7 @@ function RichTextEditorInner({
           data-testid="editor-open-palette"
           aria-label="Open command palette (more actions)"
           title="More actions (Ctrl/Cmd+P)"
-          tabIndex={toolbarCommands.length + 2 === toolbarFocusIndex ? 0 : -1}
+          tabIndex={toolbarCommands.length + 2 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 2)}
           onClick={() => setPaletteOpen(true)}
         >
@@ -856,6 +891,7 @@ function RichTextEditorInner({
                   className="rich-text-editor__palette-item"
                   data-testid={`palette-cmd-${cmd.id}`}
                   data-command-id={cmd.id}
+                  disabled={commandDisabled(cmd)}
                   onClick={() => runCommand(cmd)}
                 >
                   <span>{cmd.label}</span>
@@ -943,12 +979,41 @@ function RichTextEditorInner({
         </div>
       )}
 
-      {/* Overflow menu commands also reachable as a static list for discovery. */}
-      <div className="rich-text-editor__overflow" data-testid="rich-text-editor-overflow" hidden>
-        {overflowCommands.map((cmd) => (
-          <span key={cmd.id} data-command-id={cmd.id} />
-        ))}
-      </div>
+      {/* Overflow menu (iteration-3 L13): a REAL operator-reachable menu for
+          insert + table-structure commands — no longer a hidden stub. */}
+      {overflowOpen && (
+        <div
+          className="rich-text-editor__overflow"
+          role="menu"
+          aria-label="More editor commands"
+          data-testid="rich-text-editor-overflow"
+        >
+          {overflowCommands.map((cmd) => (
+            <button
+              key={cmd.id}
+              type="button"
+              role="menuitem"
+              className="rich-text-editor__overflow-item"
+              data-testid={`overflow-cmd-${cmd.id}`}
+              data-command-id={cmd.id}
+              disabled={commandDisabled(cmd)}
+              onClick={() => {
+                setOverflowOpen(false);
+                runCommand(cmd);
+              }}
+            >
+              {cmd.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            data-testid="overflow-close"
+            onClick={() => setOverflowOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }
