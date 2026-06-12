@@ -242,6 +242,8 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
             crdt_document_id: None,
             crdt_snapshot_id: None,
             promotion_receipt_event_id: None,
+            // MT-145 identity fields default.
+            ..Default::default()
         })
         .await
         .expect("create doc");

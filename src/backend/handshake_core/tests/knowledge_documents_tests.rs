@@ -208,6 +208,7 @@ mod mt_059_rich_documents {
             crdt_document_id: None,
             crdt_snapshot_id: None,
             promotion_receipt_event_id: None,
+            ..Default::default()
         }
     }
 

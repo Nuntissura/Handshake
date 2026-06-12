@@ -137,6 +137,9 @@ async fn every_knowledge_api_fails_closed_when_postgres_is_unavailable() {
             crdt_document_id: None,
             crdt_snapshot_id: None,
             promotion_receipt_event_id: None,
+            // MT-145 identity fields default (no project/folder/owner,
+            // 'promoted' label).
+            ..Default::default()
         })
         .await,
     );
