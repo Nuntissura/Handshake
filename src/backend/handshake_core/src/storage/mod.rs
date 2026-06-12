@@ -2297,6 +2297,109 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom folder backend"))
     }
 
+    // -- MT-184 WikiPageProjectionCompiler -------------------------------------
+    /// Compile (or recompile) a Loom wiki/topic page projection from a set of
+    /// LoomBlocks. Renders deterministic wiki markdown with per-block citations,
+    /// stamps a staleness hash over the source blocks' identity+content, and
+    /// stores it as a NEVER-authority projection (§10.12 §9.1.1). Returns the
+    /// compiled projection.
+    async fn compile_loom_wiki_projection(
+        &self,
+        _workspace_id: &str,
+        _title: &str,
+        _block_ids: &[String],
+    ) -> StorageResult<LoomWikiProjection> {
+        Err(StorageError::NotImplemented("loom wiki projection backend"))
+    }
+
+    /// Read a Loom wiki projection by id.
+    async fn get_loom_wiki_projection(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+    ) -> StorageResult<LoomWikiProjection> {
+        Err(StorageError::NotImplemented("loom wiki projection backend"))
+    }
+
+    /// True when the projection's stored staleness hash no longer matches a
+    /// freshly computed hash over its source blocks (authority drifted).
+    async fn loom_wiki_projection_is_stale(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+    ) -> StorageResult<bool> {
+        Err(StorageError::NotImplemented("loom wiki projection backend"))
+    }
+
+    /// Regenerate a projection's content from current authority and clear its
+    /// stale marker. Returns the refreshed projection.
+    async fn regenerate_loom_wiki_projection(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+    ) -> StorageResult<LoomWikiProjection> {
+        Err(StorageError::NotImplemented("loom wiki projection backend"))
+    }
+
+    /// Delete a wiki projection. Projections are regenerable; deleting one MUST
+    /// NOT mutate any authority record (the projection-never-authority law).
+    async fn delete_loom_wiki_projection(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom wiki projection backend"))
+    }
+
+    // -- MT-185 WikiPageEditableOverlay ----------------------------------------
+    /// Add an operator annotation overlay to a wiki projection. The overlay is
+    /// its OWN authority row; the projection it annotates stays non-authority
+    /// and regenerable.
+    async fn add_loom_wiki_overlay(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+        _annotation: &str,
+        _anchor: Option<&str>,
+    ) -> StorageResult<LoomWikiOverlay> {
+        Err(StorageError::NotImplemented("loom wiki overlay backend"))
+    }
+
+    /// List the operator annotation overlays on a projection.
+    async fn list_loom_wiki_overlays(
+        &self,
+        _workspace_id: &str,
+        _projection_id: &str,
+    ) -> StorageResult<Vec<LoomWikiOverlay>> {
+        Err(StorageError::NotImplemented("loom wiki overlay backend"))
+    }
+
+    /// Delete an operator annotation overlay (does not touch the projection).
+    async fn delete_loom_wiki_overlay(
+        &self,
+        _workspace_id: &str,
+        _overlay_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom wiki overlay backend"))
+    }
+
+    // -- MT-187 ObsidianImportBoundary -----------------------------------------
+    /// Import a markdown-like note into Loom authority: parse it to a block
+    /// tree, create a RichDocument (authority) + a LoomBlock (note) bridged to
+    /// the ProjectKnowledgeIndex, and return the new LoomBlock plus any import
+    /// warnings. The markdown SOURCE is NEVER recorded as authority — only the
+    /// parsed authority rows in PostgreSQL (MT-187). A vault/file layout cannot
+    /// become the source of truth.
+    async fn import_markdown_to_loom(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _title: &str,
+        _markdown: &str,
+    ) -> StorageResult<LoomMarkdownImport> {
+        Err(StorageError::NotImplemented("loom markdown import backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

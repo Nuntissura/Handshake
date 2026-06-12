@@ -1744,6 +1744,122 @@ fn map_loom_knowledge_bridge(row: &PgRow) -> super::LoomKnowledgeBridge {
     }
 }
 
+/// MT-184: deterministic wiki markdown for a set of LoomBlocks. Pure function
+/// of (title, blocks) so the same authority renders byte-identically. Each
+/// block becomes a cited section: its title (or a content-type fallback), its
+/// content type, and its block-id citation. NEVER includes absolute paths.
+fn render_loom_wiki_markdown(title: &str, blocks: &[LoomBlock]) -> String {
+    let mut out = String::new();
+    out.push_str("# ");
+    out.push_str(title.trim());
+    out.push('\n');
+    if blocks.is_empty() {
+        out.push_str("\n_No source blocks._\n");
+        return out;
+    }
+    for block in blocks {
+        let label = block
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id));
+        out.push_str("\n## ");
+        out.push_str(&label);
+        out.push('\n');
+        out.push_str("- type: ");
+        out.push_str(block.content_type.as_str());
+        out.push('\n');
+        // Citation: the source LoomBlock id (block-as-unit-of-meaning).
+        out.push_str("- cite: loom_block:");
+        out.push_str(&block.block_id);
+        out.push('\n');
+        if let Some(text) = block
+            .derived
+            .full_text_index
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        {
+            out.push('\n');
+            out.push_str(text);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// MT-184: staleness hash over the source blocks' identity + content + last
+/// update. A change to any source block (or its set) flips the hash, marking
+/// the projection stale. Deterministic and order-sensitive.
+fn loom_wiki_staleness_hash(blocks: &[LoomBlock]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(b"loom_wiki_projection_v1");
+    for block in blocks {
+        hasher.update(b"|id:");
+        hasher.update(block.block_id.as_bytes());
+        hasher.update(b"|t:");
+        hasher.update(block.title.as_deref().unwrap_or("").as_bytes());
+        hasher.update(b"|ct:");
+        hasher.update(block.content_type.as_str().as_bytes());
+        hasher.update(b"|ft:");
+        hasher.update(
+            block
+                .derived
+                .full_text_index
+                .as_deref()
+                .unwrap_or("")
+                .as_bytes(),
+        );
+        hasher.update(b"|u:");
+        hasher.update(block.updated_at.to_rfc3339().as_bytes());
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+/// MT-184: convert a stored KnowledgeWikiProjection into the Loom view type
+/// (lifts the source LoomBlock ids out of the source_records JSON).
+fn loom_wiki_projection_from_knowledge(
+    p: crate::storage::knowledge::KnowledgeWikiProjection,
+) -> super::LoomWikiProjection {
+    let source_block_ids = p
+        .source_records
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.get("record_id").and_then(|r| r.as_str()))
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    super::LoomWikiProjection {
+        projection_id: p.projection_id,
+        workspace_id: p.workspace_id,
+        title: p.title,
+        source_block_ids,
+        rendered_content: p.rendered_content,
+        staleness_hash: p.staleness_hash,
+        rebuild_status: p.rebuild_status.as_str().to_string(),
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+    }
+}
+
+/// MT-185: map a `loom_wiki_overlays` row.
+fn map_loom_wiki_overlay(row: &PgRow) -> super::LoomWikiOverlay {
+    super::LoomWikiOverlay {
+        overlay_id: row.get("overlay_id"),
+        projection_id: row.get("projection_id"),
+        workspace_id: row.get("workspace_id"),
+        annotation: row.get("annotation"),
+        anchor: row.get("anchor"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
 /// MT-181: map a `loom_folders` row.
 fn map_loom_folder(row: &PgRow) -> StorageResult<super::LoomFolder> {
     Ok(super::LoomFolder {
@@ -6046,6 +6162,289 @@ impl super::Database for PostgresDatabase {
             .fetch_all(&self.pool)
             .await?;
         rows.into_iter().map(map_loom_block).collect()
+    }
+
+    // -- MT-184 WikiPageProjectionCompiler -------------------------------------
+
+    async fn compile_loom_wiki_projection(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        block_ids: &[String],
+    ) -> StorageResult<super::LoomWikiProjection> {
+        use crate::storage::knowledge::{
+            KnowledgeProjectionKind, KnowledgeStore, NewKnowledgeWikiProjection,
+        };
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(StorageError::Validation("loom wiki projection title is required"));
+        }
+        // Load the source blocks (in the given order, skipping unknown ids would
+        // hide errors — instead fail closed on a missing block so citations are
+        // always valid).
+        let mut blocks = Vec::with_capacity(block_ids.len());
+        for id in block_ids {
+            blocks.push(self.get_loom_block(workspace_id, id).await?);
+        }
+
+        let rendered_content = render_loom_wiki_markdown(title, &blocks);
+        let staleness_hash = loom_wiki_staleness_hash(&blocks);
+        let source_records = json!(block_ids
+            .iter()
+            .map(|id| json!({"record_family": "LoomBlock", "record_id": id}))
+            .collect::<Vec<_>>());
+
+        let projection = self
+            .upsert_knowledge_wiki_projection(NewKnowledgeWikiProjection {
+                workspace_id: workspace_id.to_string(),
+                projection_kind: KnowledgeProjectionKind::WikiPage,
+                title: title.to_string(),
+                source_records,
+                rendered_content,
+                staleness_hash,
+            })
+            .await?;
+        Ok(loom_wiki_projection_from_knowledge(projection))
+    }
+
+    async fn get_loom_wiki_projection(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+    ) -> StorageResult<super::LoomWikiProjection> {
+        use crate::storage::knowledge::KnowledgeStore;
+        let projection = self
+            .get_knowledge_wiki_projection(projection_id)
+            .await?
+            .filter(|p| p.workspace_id == workspace_id)
+            .ok_or(StorageError::NotFound("loom_wiki_projection"))?;
+        Ok(loom_wiki_projection_from_knowledge(projection))
+    }
+
+    async fn loom_wiki_projection_is_stale(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+    ) -> StorageResult<bool> {
+        let projection = self
+            .get_loom_wiki_projection(workspace_id, projection_id)
+            .await?;
+        // Recompute the hash over the CURRENT source blocks; a mismatch (or a
+        // since-deleted source block) means the projection is stale.
+        let mut blocks = Vec::with_capacity(projection.source_block_ids.len());
+        for id in &projection.source_block_ids {
+            match self.get_loom_block(workspace_id, id).await {
+                Ok(block) => blocks.push(block),
+                Err(StorageError::NotFound(_)) => return Ok(true),
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(loom_wiki_staleness_hash(&blocks) != projection.staleness_hash)
+    }
+
+    async fn regenerate_loom_wiki_projection(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+    ) -> StorageResult<super::LoomWikiProjection> {
+        use crate::storage::knowledge::KnowledgeStore;
+        let current = self
+            .get_loom_wiki_projection(workspace_id, projection_id)
+            .await?;
+        // Re-render from current authority (skip source blocks that vanished).
+        let mut blocks = Vec::new();
+        for id in &current.source_block_ids {
+            match self.get_loom_block(workspace_id, id).await {
+                Ok(block) => blocks.push(block),
+                Err(StorageError::NotFound(_)) => {}
+                Err(err) => return Err(err),
+            }
+        }
+        let rendered_content = render_loom_wiki_markdown(&current.title, &blocks);
+        let staleness_hash = loom_wiki_staleness_hash(&blocks);
+        let refreshed = self
+            .mark_knowledge_projection_rebuilt(
+                projection_id,
+                &staleness_hash,
+                &rendered_content,
+                None,
+            )
+            .await?;
+        Ok(loom_wiki_projection_from_knowledge(refreshed))
+    }
+
+    async fn delete_loom_wiki_projection(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+    ) -> StorageResult<()> {
+        use crate::storage::knowledge::KnowledgeStore;
+        // Confirm it exists in this workspace (clean 404 + workspace scoping).
+        self.get_loom_wiki_projection(workspace_id, projection_id)
+            .await?;
+        // Deleting a projection mutates NO authority record (the
+        // projection-never-authority law); overlays cascade via their FK.
+        self.delete_knowledge_wiki_projection(projection_id).await
+    }
+
+    // -- MT-185 WikiPageEditableOverlay ----------------------------------------
+
+    async fn add_loom_wiki_overlay(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+        annotation: &str,
+        anchor: Option<&str>,
+    ) -> StorageResult<super::LoomWikiOverlay> {
+        let annotation = annotation.trim();
+        if annotation.is_empty() {
+            return Err(StorageError::Validation("loom wiki overlay annotation is required"));
+        }
+        // The projection must exist in this workspace.
+        self.get_loom_wiki_projection(workspace_id, projection_id)
+            .await?;
+        let overlay_id = format!("LWO-{}", Uuid::now_v7().simple());
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_wiki_overlays
+                (overlay_id, projection_id, workspace_id, annotation, anchor)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING overlay_id, projection_id, workspace_id, annotation, anchor,
+                      created_at, updated_at
+            "#,
+        )
+        .bind(&overlay_id)
+        .bind(projection_id)
+        .bind(workspace_id)
+        .bind(annotation)
+        .bind(anchor.map(str::trim).filter(|s| !s.is_empty()))
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(map_loom_wiki_overlay(&row))
+    }
+
+    async fn list_loom_wiki_overlays(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+    ) -> StorageResult<Vec<super::LoomWikiOverlay>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT overlay_id, projection_id, workspace_id, annotation, anchor,
+                   created_at, updated_at
+            FROM loom_wiki_overlays
+            WHERE workspace_id = $1 AND projection_id = $2
+            ORDER BY created_at ASC, overlay_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(projection_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(map_loom_wiki_overlay).collect())
+    }
+
+    async fn delete_loom_wiki_overlay(
+        &self,
+        workspace_id: &str,
+        overlay_id: &str,
+    ) -> StorageResult<()> {
+        let res = sqlx::query(
+            "DELETE FROM loom_wiki_overlays WHERE workspace_id = $1 AND overlay_id = $2",
+        )
+        .bind(workspace_id)
+        .bind(overlay_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_wiki_overlay"));
+        }
+        Ok(())
+    }
+
+    // -- MT-187 ObsidianImportBoundary -----------------------------------------
+
+    async fn import_markdown_to_loom(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        title: &str,
+        markdown: &str,
+    ) -> StorageResult<super::LoomMarkdownImport> {
+        use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
+        use crate::knowledge_document::import::{import_snippet, ImportFormat};
+        use crate::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(StorageError::Validation("loom import title is required"));
+        }
+
+        // Parse the markdown SOURCE into a ProseMirror block tree. The source
+        // text itself is NEVER stored as authority — only the parsed authority
+        // document below (MT-187: a vault/markdown layout cannot be the truth).
+        let outcome = import_snippet(markdown, ImportFormat::Markdown);
+
+        // Create the authority RichDocument from the parsed tree.
+        let document = self
+            .create_knowledge_rich_document(NewKnowledgeRichDocument {
+                workspace_id: workspace_id.to_string(),
+                document_id: None,
+                title: title.to_string(),
+                schema_version: DOCUMENT_SCHEMA_VERSION.to_string(),
+                content_json: outcome.document_json,
+                crdt_document_id: None,
+                crdt_snapshot_id: None,
+                promotion_receipt_event_id: None,
+                project_ref: None,
+                folder_ref: None,
+                authority_label: None,
+                owner_actor_kind: None,
+                owner_actor_id: None,
+            })
+            .await?;
+
+        // Create the LoomBlock (a note) backed by that authority document.
+        // NOTE: loom_blocks.document_id FKs the LEGACY `documents` table, not
+        // knowledge_rich_documents, so the RichDocument link is logical (carried
+        // in the returned LoomMarkdownImport.rich_document_id), not via that
+        // column. Leave document_id NULL to avoid a cross-table FK violation.
+        let block = self
+            .create_loom_block(
+                ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.to_string(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some(title.to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: Some(Utc::now()),
+                    derived: LoomBlockDerived::default(),
+                },
+            )
+            .await?;
+
+        // Bridge the new block to the ProjectKnowledgeIndex + EventLedger (so
+        // the imported note is authority-resolved, never a vault-only row).
+        self.bridge_loom_block_to_knowledge(ctx, workspace_id, &block.block_id)
+            .await?;
+
+        let warnings = outcome
+            .warnings
+            .into_iter()
+            .map(|w| format!("{}: {}", w.code, w.detail))
+            .collect();
+
+        Ok(super::LoomMarkdownImport {
+            block,
+            rich_document_id: document.rich_document_id,
+            warnings,
+        })
     }
 
     async fn upsert_calendar_source(

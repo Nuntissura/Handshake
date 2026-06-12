@@ -749,6 +749,76 @@ pub struct LoomFolderUpdate {
     pub project_ref: Option<Option<String>>,
 }
 
+// ---------------------------------------------------------------------------
+// MT-184 WikiPageProjectionCompiler / MT-185 WikiPageEditableOverlay /
+// MT-187 ObsidianImportBoundary
+//
+// Master Spec §10.12 §9.1.1: a wiki/topic page is a DisplayContent PROJECTION
+// generated from LoomBlock authority, with citations (source block ids) and a
+// staleness hash. It is NEVER authority: deleting a projection mutates no
+// authority record, and a markdown vault / generated page MUST NOT become the
+// source of truth (MT-187). Operator annotations live as their OWN authority
+// rows alongside the regenerable projection (MT-185), so editing the overlay
+// never promotes the projection to canonical.
+//
+// This rides on the existing knowledge_wiki_projections store (NEVER authority;
+// no authority FK targets it) — no parallel projection infrastructure.
+// ---------------------------------------------------------------------------
+
+/// A compiled Loom wiki/topic page projection.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LoomWikiProjection {
+    pub projection_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    /// Citations: the source LoomBlock ids this page was rendered from
+    /// (block-as-unit-of-meaning provenance).
+    pub source_block_ids: Vec<String>,
+    /// The rendered wiki markdown (regenerable; never authority).
+    pub rendered_content: String,
+    /// sha256 over the source blocks' identity+content at render time. A
+    /// mismatch against current authority marks the page stale.
+    pub staleness_hash: String,
+    /// `fresh` | `stale` | `rebuilding` | `failed`.
+    pub rebuild_status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// An operator annotation overlaid on a wiki projection (MT-185). Stored as its
+/// OWN authority row so editing it never makes the projection canonical.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomWikiOverlay {
+    pub overlay_id: String,
+    pub projection_id: String,
+    pub workspace_id: String,
+    /// The operator's annotation text (authority — this IS canonical, unlike
+    /// the projection it annotates).
+    pub annotation: String,
+    /// Optional anchor into the projection (e.g. a source block id the note is
+    /// about); free-form, never an absolute path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// The result of importing a markdown-like note into Loom authority (MT-187):
+/// the created authority LoomBlock + the backing RichDocument id, plus any
+/// import warnings (unsupported features). The markdown source is never stored
+/// as authority — only these PostgreSQL authority rows.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomMarkdownImport {
+    /// The new authority LoomBlock (content_type=note), bridged to the
+    /// ProjectKnowledgeIndex.
+    pub block: LoomBlock,
+    /// The backing RichDocument authority record id (KRD-...).
+    pub rich_document_id: String,
+    /// Import warnings (e.g. unsupported markdown features), human-readable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+}
+
 #[cfg(test)]
 mod mt178_helper_tests {
     use super::*;

@@ -125,6 +125,36 @@ pub fn routes(state: AppState) -> Router {
             axum::routing::put(add_block_to_loom_folder)
                 .delete(remove_block_from_loom_folder),
         )
+        // MT-184/185: wiki projection compiler + editable overlay
+        .route(
+            "/workspaces/:workspace_id/loom/wiki",
+            post(compile_loom_wiki_projection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/:projection_id",
+            get(get_loom_wiki_projection).delete(delete_loom_wiki_projection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/:projection_id/regenerate",
+            post(regenerate_loom_wiki_projection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/:projection_id/stale",
+            get(loom_wiki_projection_stale),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/:projection_id/overlays",
+            get(list_loom_wiki_overlays).post(add_loom_wiki_overlay),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki-overlays/:overlay_id",
+            delete(delete_loom_wiki_overlay),
+        )
+        // MT-187: markdown import boundary (vault never authority)
+        .route(
+            "/workspaces/:workspace_id/loom/import/markdown",
+            post(import_markdown_to_loom),
+        )
         // MT-182: tag hubs (tags as first-class blocks) + nested tags
         .route("/workspaces/:workspace_id/loom/tags", get(list_loom_tag_hubs))
         .route(
@@ -387,6 +417,187 @@ async fn set_loom_block_pin_order(
     let _ = state.flight_recorder.record_event(event).await;
 
     Ok(Json(block))
+}
+
+// -- MT-184/185 wiki projection + overlay handlers -------------------------
+
+#[derive(Debug, Deserialize)]
+struct CompileWikiRequest {
+    title: String,
+    #[serde(default)]
+    block_ids: Vec<String>,
+}
+
+async fn compile_loom_wiki_projection(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<CompileWikiRequest>,
+) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let projection = state
+        .storage
+        .compile_loom_wiki_projection(&workspace_id, &payload.title, &payload.block_ids)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomViewQueried,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_wiki_projection_compiled",
+            "workspace_id": workspace_id,
+            "projection_id": projection.projection_id,
+            "source_block_count": projection.source_block_ids.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(projection))
+}
+
+async fn get_loom_wiki_projection(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let projection = state
+        .storage
+        .get_loom_wiki_projection(&workspace_id, &projection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(projection))
+}
+
+async fn loom_wiki_projection_stale(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let stale = state
+        .storage
+        .loom_wiki_projection_is_stale(&workspace_id, &projection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "projection_id": projection_id, "stale": stale })))
+}
+
+async fn regenerate_loom_wiki_projection(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let projection = state
+        .storage
+        .regenerate_loom_wiki_projection(&workspace_id, &projection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(projection))
+}
+
+async fn delete_loom_wiki_projection(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .delete_loom_wiki_projection(&workspace_id, &projection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "status": "deleted" })))
+}
+
+#[derive(Debug, Deserialize)]
+struct AddWikiOverlayRequest {
+    annotation: String,
+    #[serde(default)]
+    anchor: Option<String>,
+}
+
+async fn add_loom_wiki_overlay(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+    Json(payload): Json<AddWikiOverlayRequest>,
+) -> ApiResult<Json<crate::storage::LoomWikiOverlay>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let overlay = state
+        .storage
+        .add_loom_wiki_overlay(
+            &workspace_id,
+            &projection_id,
+            &payload.annotation,
+            payload.anchor.as_deref(),
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(overlay))
+}
+
+async fn list_loom_wiki_overlays(
+    State(state): State<AppState>,
+    Path((workspace_id, projection_id)): Path<(String, String)>,
+) -> ApiResult<Json<Vec<crate::storage::LoomWikiOverlay>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let overlays = state
+        .storage
+        .list_loom_wiki_overlays(&workspace_id, &projection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(overlays))
+}
+
+async fn delete_loom_wiki_overlay(
+    State(state): State<AppState>,
+    Path((workspace_id, overlay_id)): Path<(String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .delete_loom_wiki_overlay(&workspace_id, &overlay_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(json!({ "status": "deleted" })))
+}
+
+// -- MT-187 markdown import boundary handler -------------------------------
+
+#[derive(Debug, Deserialize)]
+struct ImportMarkdownRequest {
+    title: String,
+    markdown: String,
+}
+
+async fn import_markdown_to_loom(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<ImportMarkdownRequest>,
+) -> ApiResult<Json<crate::storage::LoomMarkdownImport>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+    let imported = state
+        .storage
+        .import_markdown_to_loom(&ctx, &workspace_id, &payload.title, &payload.markdown)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockCreated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_markdown_imported",
+            "workspace_id": workspace_id,
+            "block_id": imported.block.block_id,
+            "rich_document_id": imported.rich_document_id,
+            "warning_count": imported.warnings.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(imported))
 }
 
 // -- MT-181 FolderTreeAndColorLabels handlers ------------------------------
