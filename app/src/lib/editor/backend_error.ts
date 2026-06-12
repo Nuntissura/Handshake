@@ -25,37 +25,54 @@ export interface EditorBackendError {
   hint?: string;
 }
 
-/** Classifies a save failure message into a typed error (conflict vs generic). */
+/** The truthful conflict hint (iteration-3 H5: never instruct a destructive reload). */
+const CONFLICT_HINT =
+  "Your local version is preserved as a snapshot (download or restore it " +
+  "below). Reload fetches the latest server version; nothing is discarded.";
+
+/**
+ * Structural shape of a typed API failure (matches api.ts ApiRequestError
+ * without importing it — keeps this module pure and cycle-free). Iteration-3
+ * M18: the HTTP status is the PRIMARY classification signal; free-text
+ * substring matching is only the fallback for non-API errors.
+ */
+function statusOf(error: unknown): number | null {
+  if (error && typeof error === "object" && "status" in error) {
+    const status = (error as { status: unknown }).status;
+    if (typeof status === "number") return status;
+  }
+  return null;
+}
+
+/** Classifies a save failure into a typed error (status-first; M18). */
 export function classifySaveError(error: unknown): EditorBackendError {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
-  // Schema is checked before conflict: a "schema_version mismatch" contains the
-  // substring "version" but is a schema problem, not an optimistic-concurrency
-  // conflict.
+  // Schema always wins: a schema-mismatch save must classify "schema"
+  // whatever the transport status (the H2 fail-closed path keys on it).
   if (lower.includes("schema")) {
     return { kind: "schema", message, hint: "The document schema changed; reload to migrate." };
   }
+  const status = statusOf(error);
+  if (status === 409) {
+    return { kind: "conflict", message, hint: CONFLICT_HINT };
+  }
+  // Fallback for non-API errors: explicit conflict vocabulary only.
+  // Iteration-3 M18: the bare "version" trigger is GONE — it misrouted any
+  // message mentioning a version ("model version updated") into the conflict
+  // surface.
   if (
     lower.includes("conflict") ||
-    lower.includes("version") ||
     lower.includes("409") ||
     lower.includes("expected_version") ||
     lower.includes("optimistic")
   ) {
-    return {
-      kind: "conflict",
-      message,
-      // Iteration-3 H5: the hint must never instruct a destructive reload —
-      // the editor preserves the local version as a snapshot first.
-      hint:
-        "Your local version is preserved as a snapshot (download or restore it " +
-        "below). Reload fetches the latest server version; nothing is discarded.",
-    };
+    return { kind: "conflict", message, hint: CONFLICT_HINT };
   }
   return { kind: "save", message, hint: "Your edits are kept locally; try saving again." };
 }
 
-/** Classifies a load failure message into a typed error. */
+/** Classifies a load failure into a typed error (status-first; M18). */
 export function classifyLoadError(error: unknown): EditorBackendError {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();

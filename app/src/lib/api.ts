@@ -34,6 +34,23 @@ function writeContextHeaders(ctx?: WriteContext): Record<string, string> | undef
   return headers;
 }
 
+/**
+ * Typed backend request failure (iteration-3 M18): carries the HTTP status and
+ * raw body so consumers (EditorBackendErrorStates and friends) can classify
+ * failures STRUCTURALLY instead of substring-matching free-text messages.
+ * The message keeps the legacy `Request failed: <status> ...` shape.
+ */
+export class ApiRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly body: string,
+  ) {
+    super(`Request failed: ${status} ${statusText} - ${body}`);
+    this.name = "ApiRequestError";
+  }
+}
+
 async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: options.method ?? "GET",
@@ -46,7 +63,7 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Request failed: ${response.status} ${response.statusText} - ${text}`);
+    throw new ApiRequestError(response.status, response.statusText, text);
   }
 
   // Handle empty responses (e.g., 204 No Content or DELETE with no body)

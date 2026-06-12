@@ -57,4 +57,25 @@ describe("backend error classification (MT-174)", () => {
     expect(classifySaveError("plain string conflict").kind).toBe("conflict");
     expect(classifyLoadError(null).kind).toBe("load");
   });
+
+  it("classifies status-first from typed API errors (iteration-3 M18)", () => {
+    class FakeApiError extends Error {
+      constructor(public readonly status: number, body: string) {
+        super(`Request failed: ${status} - ${body}`);
+      }
+    }
+    // 409 -> conflict purely from the status, no vocabulary needed.
+    expect(classifySaveError(new FakeApiError(409, "the document moved on")).kind).toBe("conflict");
+    // schema text wins over the status (H2 fail-closed keys on "schema").
+    expect(classifySaveError(new FakeApiError(409, "schema_version mismatch")).kind).toBe("schema");
+    // A 500 with incidental text stays a generic save failure.
+    expect(classifySaveError(new FakeApiError(500, "backend exploded")).kind).toBe("save");
+  });
+
+  it("no longer misroutes arbitrary 'version' mentions into the conflict surface (M18)", () => {
+    expect(classifySaveError(new Error("model version updated during save")).kind).toBe("save");
+    expect(classifySaveError(new Error("HSK-409 version conflict: expected_version 3 got 4")).kind).toBe(
+      "conflict",
+    );
+  });
 });
