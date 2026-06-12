@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-259-MediaCacheTiers",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-12T04:52:08.439Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-259.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -36,7 +36,7 @@
     "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
   },
   "scope": {
-    "scope": "Close GAP-LM-009 (Heaper signature pattern): cache-tiered media - background thumbnail/preview-pyramid generation job for image/video file blocks (thumb -> preview -> full-res on demand), Postgres-tracked tier state + EventLedger receipts, Loom views render from tiers (grid scroll stays fluid on hundreds of media blocks), video poster frame + on-demand streaming from local file, preview_status surfaced (pending/ready/failed with retry).",
+    "scope": "Close GAP-LM-009 (Heaper signature pattern): cache-tiered media - background thumbnail/preview-pyramid generation job for image/video file blocks (thumb -> preview -> full-res on demand), Postgres-tracked tier state + EventLedger receipts, Loom views render from tiers (grid scroll stays fluid on hundreds of media blocks), video poster frame + on-demand streaming from local file, preview_status surfaced (pending/ready/failed with retry). INHERITED GAPS from MT-244 (must close): (a) album/slideshow collection entity - a real backend list-source enumerating ordered member assets (today the frontend reads an ordered asset-id list in refValue; repoint seam = parseAssetRefList in app/src/lib/tiptap/embed_assets.ts); (b) HTTP Range support on GET /workspaces/:ws/assets/:id/content (api/loom.rs) for long-video seeking.",
     "relevant_files": [
       "src/backend/handshake_core/src/api/",
       "src/backend/handshake_core/src/storage/",

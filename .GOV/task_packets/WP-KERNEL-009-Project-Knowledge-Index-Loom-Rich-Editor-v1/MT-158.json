@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T05:10:00Z",
+        "kind": "hardening_v2",
+        "finding": "Permission boundary fails open to 'system' on missing x-hsk-actor-kind and trusts a free client header",
+        "fix": "Missing header now resolves to least-privileged Unauthenticated kind (read-only, write+index denied); unknown kinds stay strict 400; KernelActor receipt binding is server-derived from the validated kind only",
+        "commit": "5674367c",
+        "tests": "knowledge_documents_api_tests: mt158_missing_actor_kind_is_least_privileged_never_system + mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected (real PG, 2 passed); lib knowledge_document::permission 4 passed incl. least_privileged_default_cannot_write_or_index"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,7 +111,9 @@
           "severity": "HIGH",
           "title": "Permission boundary fails open to the most-privileged actor and trusts a client-supplied kind header",
           "evidence": "api/knowledge_documents.rs:183 actor_kind defaults to system when x-hsk-actor-kind is absent; the matrix (permission.rs:120-126) grants system + operator + local_model full read/write/index. The enforced actor_kind comes solely from the x-hsk-actor-kind header with no server-side binding of actor-id to kind, so the cloud_model-cannot-write rule is bypassed by omitting the header (->system) or asserting operator/system.",
-          "fix": "Derive actor_kind from an authenticated session/principal, not a free header; on absence default to the LEAST-privileged kind; reject requests whose asserted kind != authenticated principal."
+          "fix": "Derive actor_kind from an authenticated session/principal, not a free header; on absence default to the LEAST-privileged kind; reject requests whose asserted kind != authenticated principal.",
+          "status": "FIXED",
+          "fixed_commit": "5674367c"
         }
       ],
       "claim_mismatches": [

@@ -86,7 +86,53 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "e856a5f9",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T07:55:00Z",
+        "kind": "implementation",
+        "summary": "Reorderable Pins grid + Unlinked triage backend for the four Loom views. The All/Unlinked/Sorted/Pins view queries were already built; MT-183 adds user-controlled pin ordering (the reorderable grid, [LM-VIEW-004]) and deterministic ordering.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0293_loom_block_pin_order.sql (NEW) - nullable loom_blocks.pin_order + partial Pins index",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomBlock.pin_order + LoomBlockUpdate.pin_order",
+          "src/backend/handshake_core/src/storage/postgres.rs - map_loom_block reads pin_order tolerantly (try_get) so the ~26 existing block SELECTs are unaffected; Pins view ORDER BY pin_order ASC NULLS LAST, updated_at DESC, block_id ASC; All/Unlinked get block_id tiebreaker; set_loom_block_pin_order (sets OR clears to NULL); update_loom_block patches pin_order; get_loom_block returns it",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::set_loom_block_pin_order",
+          "src/backend/handshake_core/src/storage/tests.rs - LoomBlockUpdate literal +pin_order:None",
+          "src/backend/handshake_core/src/api/loom.rs - PUT /loom/blocks/:id/pin-order; patch tracks pin_order",
+          "src/backend/handshake_core/tests/loom_pins_views_tests.rs (NEW) - 4 real-Postgres integration tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T07:55:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_pins_views_tests  &&  --test storage_conformance  &&  --lib storage::tests:: -- --test-threads=1",
+        "result": "pins/views ok. 4 passed; storage_conformance ok. 3 passed (incl postgres_loom_storage_conformance); storage::tests ok. 25 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "pins_view_respects_user_pin_order - pin_order C=0,A=1,B=2 -> order C,A,B; reorder B=-1 -> B,C,A; pin_order returned on single read",
+          "clearing_pin_order_sends_block_to_the_end - clear B (NULL) -> NULLS LAST trails ordered A",
+          "unlinked_view_excludes_linked_blocks - lonely block unlinked; mention-linked src/tgt excluded",
+          "set_pin_order_fails_closed_on_missing_block - NotFound",
+          "REGRESSION: postgres_loom_storage_conformance (four-views) + 25 loom storage tests still green after the select_blocks ORDER BY change"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T07:55:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "e856a5f9",
+      "findings": [
+        "NULL-CLEAR vs COALESCE (handled+tested): update_loom_block uses COALESCE so it can SET but not CLEAR pin_order; the dedicated set_loom_block_pin_order binds Option<i32> directly so NULL is a real clear. Both paths tested.",
+        "TOLERANT MAP (handled): map_loom_block reads pin_order via try_get().ok().flatten() so the ~26 existing block SELECTs that do not project the new column yield None instead of panicking. Conformance + storage tests confirm no regression.",
+        "ORDER-BY INJECTION (clear): the Pins/All/Unlinked order clauses are fixed &'static str literals threaded through select_blocks; no user input reaches ORDER BY.",
+        "DETERMINISM (handled+tested): Pins order is pin_order ASC NULLS LAST, updated_at DESC, block_id ASC (total order even with equal pin_order/updated_at). All/Unlinked got a block_id tiebreaker.",
+        "MIGRATION SAFETY (handled): 0293 is additive + nullable with a partial index; safe on the existing table, no backfill.",
+        "FAIL-CLOSED (tested): set_loom_block_pin_order returns NotFound for a missing block."
+      ],
+      "fixes": [
+        "No code change required beyond the dedicated clear path; findings handled-by-design and tested."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
