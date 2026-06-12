@@ -33,8 +33,16 @@ vi.mock("./RichTextEditor", () => ({
       <textarea
         data-testid="tiptap-editor"
         data-readonly={readOnly ? "true" : "false"}
+        data-content={JSON.stringify(initialContent)}
         defaultValue={JSON.stringify(initialContent)}
-        onChange={() => onChange({ type: "doc", content: [{ type: "paragraph" }] })}
+        onChange={() =>
+          onChange({
+            type: "doc",
+            content: [
+              { type: "paragraph", content: [{ type: "text", text: "local-edit-marker" }] },
+            ],
+          })
+        }
       />
       {backendError ? (
         <div data-testid="rte-backend-error" data-error-kind={backendError.kind}>
@@ -263,5 +271,171 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
       fireEvent.click(save);
     });
     expect(saveMock.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("keeps the document dirty when keystrokes land during an in-flight save (iteration-3 H5)", async () => {
+    const api = await import("../lib/api");
+    let resolveSave: (value: unknown) => void = () => {};
+    vi.mocked(api.saveRichDocument).mockImplementationOnce(
+      () => new Promise((resolve) => (resolveSave = resolve)) as never,
+    );
+
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+    const editor = await screen.findByTestId("tiptap-editor");
+
+    // Edit -> dirty -> start the save (request stays pending).
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "first edit" } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-save"));
+    });
+    expect(screen.getByTestId("rich-document-save").textContent).toBe("Saving...");
+
+    // A keystroke lands WHILE the save is in flight.
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "second edit during save" } });
+    });
+
+    // The save resolves — the dirty flag must SURVIVE (the in-flight edit is
+    // not yet persisted; clearing it would lose the save affordance).
+    await act(async () => {
+      resolveSave({
+        document: { ...DOC_V1, doc_version: 2 },
+        save_receipt_event_id: "EVT-2",
+        backlinks_persisted: 0,
+        backlinks_skipped_reason: null,
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-document-view").getAttribute("data-dirty")).toBe("true");
+      expect((screen.getByTestId("rich-document-save") as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
+  it("clears the dirty flag after a save with no in-flight edits", async () => {
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+    const editor = await screen.findByTestId("tiptap-editor");
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "edit" } });
+    });
+    expect(screen.getByTestId("rich-document-view").getAttribute("data-dirty")).toBe("true");
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-save"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-document-view").getAttribute("data-dirty")).toBe("false");
+      expect((screen.getByTestId("rich-document-save") as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
+
+  it("preserves local edits as a snapshot on save conflict; restore re-applies them; reload never discards (iteration-3 H5)", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.saveRichDocument).mockRejectedValueOnce(
+      new Error("HSK-409 version conflict: expected_version 1 got 2"),
+    );
+
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+    const editor = await screen.findByTestId("tiptap-editor");
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "local work" } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-save"));
+    });
+
+    // The snapshot panel appears with download/restore/discard.
+    const panel = await screen.findByTestId("rich-document-local-snapshot");
+    expect(panel.getAttribute("data-snapshot-reason")).toBe("conflict");
+    expect(screen.getByTestId("snapshot-download")).toBeTruthy();
+    expect(screen.getByTestId("snapshot-restore")).toBeTruthy();
+    expect(screen.getByTestId("snapshot-discard")).toBeTruthy();
+
+    // Reload (the conflict remediation) must NOT discard the snapshot.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-reload"));
+    });
+    expect(screen.getByTestId("rich-document-local-snapshot")).toBeTruthy();
+
+    // Restore puts the LOCAL version (the onChange marker doc) back into the
+    // editor and marks the document dirty again.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("snapshot-restore"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("tiptap-editor").getAttribute("data-content")).toContain(
+        "local-edit-marker",
+      );
+      expect(screen.getByTestId("rich-document-view").getAttribute("data-dirty")).toBe("true");
+    });
+
+    // Discard is the only way the snapshot disappears — and it is explicit.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("snapshot-discard"));
+    });
+    expect(screen.queryByTestId("rich-document-local-snapshot")).toBeNull();
+  });
+
+  it("blocks unload while dirty via beforeunload and releases it after save (iteration-3 H5)", async () => {
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+    const editor = await screen.findByTestId("tiptap-editor");
+
+    // Clean: unload is not blocked.
+    let event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+
+    // Dirty: unload is blocked.
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "edit" } });
+    });
+    event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+
+    // Saved clean: released again.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("rich-document-save"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-document-view").getAttribute("data-dirty")).toBe("false");
+    });
+    event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("snapshots un-saved edits when switching documents; restore only offered on the owning doc (iteration-3 H5)", async () => {
+    const { rerender } = render(
+      <RichDocumentView documentId="KRD-00000000000000000000000000000001" />,
+    );
+    const editor = await screen.findByTestId("tiptap-editor");
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "un-saved work" } });
+    });
+
+    // Switch to another document while dirty.
+    await act(async () => {
+      rerender(<RichDocumentView documentId="KRD-00000000000000000000000000000002" />);
+    });
+
+    const panel = await screen.findByTestId("rich-document-local-snapshot");
+    expect(panel.getAttribute("data-snapshot-reason")).toBe("doc_switch");
+    expect(panel.getAttribute("data-snapshot-for")).toBe(
+      "KRD-00000000000000000000000000000001",
+    );
+    // The edits belong to doc ...001 — no restore onto doc ...002; download +
+    // discard remain available.
+    expect(screen.queryByTestId("snapshot-restore")).toBeNull();
+    expect(screen.getByTestId("snapshot-download")).toBeTruthy();
+    expect(screen.getByTestId("snapshot-discard")).toBeTruthy();
   });
 });

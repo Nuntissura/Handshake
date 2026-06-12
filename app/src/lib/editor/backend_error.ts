@@ -44,7 +44,11 @@ export function classifySaveError(error: unknown): EditorBackendError {
     return {
       kind: "conflict",
       message,
-      hint: "Reload to get the latest version, then re-apply your edit.",
+      // Iteration-3 H5: the hint must never instruct a destructive reload —
+      // the editor preserves the local version as a snapshot first.
+      hint:
+        "Your local version is preserved as a snapshot (download or restore it " +
+        "below). Reload fetches the latest server version; nothing is discarded.",
     };
   }
   return { kind: "save", message, hint: "Your edits are kept locally; try saving again." };

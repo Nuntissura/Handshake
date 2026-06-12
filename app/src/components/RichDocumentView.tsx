@@ -33,6 +33,7 @@ import {
   type EditorBackendError,
 } from "../lib/editor/backend_error";
 import { assertEditorSchema } from "../lib/editor/schema_versioning";
+import { saveTextToFile } from "../lib/editor/save_to_file";
 import type { EmbedResolverContext } from "../lib/editor/embed_assets";
 import { logEvent } from "../state/debugEvents";
 
@@ -40,6 +41,19 @@ type Props = {
   documentId: string;
   onDeleted?: () => void;
 };
+
+/**
+ * Iteration-3 H5: a preserved copy of the operator's local edits, taken before
+ * any path that could lose them (save conflict, document switch while dirty).
+ * Never discarded silently — only an explicit operator action clears it.
+ */
+interface LocalSnapshot {
+  reason: "conflict" | "doc_switch";
+  takenAtUtc: string;
+  /** The document the edits belong to (restore is offered only on that doc). */
+  forDocumentId: string;
+  content: JSONContent;
+}
 
 // MT-244: one embed context object per workspace id, module-cached so the
 // RichTextEditor extension memo sees a stable reference across renders.
@@ -75,6 +89,18 @@ export function RichDocumentView({ documentId }: Props) {
   // would persist the stripped content. Holds the assertion failure reason.
   const [schemaBlocked, setSchemaBlocked] = useState<string | null>(null);
 
+  // Iteration-3 H5 (save/conflict data loss):
+  //   - dirtyGenRef counts edit generations; a save only clears the dirty flag
+  //     if NO keystroke landed while the save was in flight (the unconditional
+  //     setIsDirty(false) was wiping edits typed during the await).
+  //   - isDirtyRef mirrors isDirty for non-render readers (unload guard,
+  //     doc-switch snapshot).
+  //   - localSnapshot preserves the operator's edits across every lossy path
+  //     (conflict, doc switch); cleared ONLY by explicit operator action.
+  const dirtyGenRef = useRef(0);
+  const isDirtyRef = useRef(false);
+  const [localSnapshot, setLocalSnapshot] = useState<LocalSnapshot | null>(null);
+
   const [versions, setVersions] = useState<RichDocVersion[] | null>(null);
   const [embeds, setEmbeds] = useState<RichDocEmbed[] | null>(null);
   const [brokenEmbeds, setBrokenEmbeds] = useState<RichDocEmbed[] | null>(null);
@@ -86,6 +112,9 @@ export function RichDocumentView({ documentId }: Props) {
     setSaveError(null);
     setBackendError(null);
     setIsDirty(false);
+    isDirtyRef.current = false;
+    // NOTE (H5): localSnapshot is deliberately NOT cleared here — reloading
+    // after a conflict must never silently discard the preserved local edits.
     try {
       const response = await loadRichDocument(documentId);
       setLoad(response);
@@ -119,9 +148,40 @@ export function RichDocumentView({ documentId }: Props) {
     }
   }, [documentId]);
 
+  // Iteration-3 H5 (doc-switch guard): switching documents while dirty must
+  // preserve the un-saved edits BEFORE the new document loads over them.
+  // Declared before the reload effect so the snapshot is taken first.
+  const prevDocIdRef = useRef(documentId);
+  useEffect(() => {
+    if (prevDocIdRef.current !== documentId) {
+      if (isDirtyRef.current && editorContentRef.current) {
+        setLocalSnapshot({
+          reason: "doc_switch",
+          takenAtUtc: new Date().toISOString(),
+          forDocumentId: prevDocIdRef.current,
+          content: editorContentRef.current,
+        });
+      }
+      prevDocIdRef.current = documentId;
+    }
+  }, [documentId]);
+
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Iteration-3 H5 (unload guard): un-saved edits block a silent tab/window
+  // close with the standard beforeunload prompt.
+  useEffect(() => {
+    if (!isDirty) return;
+    const guard = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Chromium requires returnValue to be set for the prompt to show.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [isDirty]);
 
   const refreshSidecars = useCallback(async () => {
     try {
@@ -163,6 +223,10 @@ export function RichDocumentView({ documentId }: Props) {
     setIsSaving(true);
     setSaveError(null);
     setBackendError(null);
+    // H5: remember WHICH edit generation this save captured. Keystrokes typed
+    // while the request is in flight bump the generation; the dirty flag may
+    // only be cleared if nothing landed in between.
+    const generationAtSave = dirtyGenRef.current;
     try {
       const result = await saveRichDocument(
         documentId,
@@ -171,7 +235,10 @@ export function RichDocumentView({ documentId }: Props) {
       );
       setLoad({ ...load, document: result.document, tree: load.tree });
       setLastSavedAt(new Date().toLocaleTimeString());
-      setIsDirty(false);
+      if (dirtyGenRef.current === generationAtSave) {
+        setIsDirty(false);
+        isDirtyRef.current = false;
+      }
       logEvent({ type: "doc-save", targetId: documentId, result: "ok" });
       // Backlinks + history change on save.
       void refreshSidecars();
@@ -179,12 +246,46 @@ export function RichDocumentView({ documentId }: Props) {
       const message = err instanceof Error ? err.message : "Failed to save";
       setSaveError(message);
       // MT-174: classify into a typed inline backend error (conflict/schema/save).
-      setBackendError(classifySaveError(err));
+      const classified = classifySaveError(err);
+      setBackendError(classified);
+      if (classified.kind === "conflict") {
+        // H5: preserve the operator's local version BEFORE any reload can
+        // replace it — the conflict surface must never silently discard edits.
+        // (MT-247 builds the full diff/merge UI; minimum here: both versions
+        // stay reachable — local via snapshot, server via Reload.)
+        setLocalSnapshot({
+          reason: "conflict",
+          takenAtUtc: new Date().toISOString(),
+          forDocumentId: documentId,
+          content: editorContent,
+        });
+      }
       logEvent({ type: "doc-save", targetId: documentId, result: "error", message: String(err) });
     } finally {
       setIsSaving(false);
     }
   }, [load, documentId, refreshSidecars, schemaBlocked]);
+
+  // H5: explicit snapshot actions — restore is offered only on the document
+  // the edits belong to; discard is the ONLY way a snapshot disappears.
+  const restoreSnapshot = useCallback(() => {
+    if (!localSnapshot || localSnapshot.forDocumentId !== documentId) return;
+    setLoadedContent(localSnapshot.content);
+    editorContentRef.current = localSnapshot.content;
+    dirtyGenRef.current += 1;
+    isDirtyRef.current = true;
+    setIsDirty(true);
+  }, [localSnapshot, documentId]);
+
+  const downloadSnapshot = useCallback(() => {
+    if (!localSnapshot) return;
+    const stamp = localSnapshot.takenAtUtc.replace(/[:.]/g, "-");
+    saveTextToFile(
+      `${localSnapshot.forDocumentId}-local-${localSnapshot.reason}-${stamp}.json`,
+      JSON.stringify(localSnapshot.content, null, 2),
+      "application/json",
+    );
+  }, [localSnapshot]);
 
   if (loading && !load) {
     return (
@@ -220,6 +321,7 @@ export function RichDocumentView({ documentId }: Props) {
       data-authority-label={doc.authority_label}
       data-schema-matches={String(load.tree.schema_matches)}
       data-schema-blocked={schemaBlocked !== null ? "true" : "false"}
+      data-dirty={isDirty ? "true" : "false"}
     >
       <h2 data-testid="rich-document-title">{doc.title}</h2>
       <p className="muted">
@@ -260,7 +362,11 @@ export function RichDocumentView({ documentId }: Props) {
               initialContent={loadedContent}
               onChange={(next) => {
                 // H1: track live content WITHOUT echoing it back down.
+                // H5: bump the edit generation so an in-flight save cannot
+                // clear the dirty flag over these keystrokes.
                 editorContentRef.current = next;
+                dirtyGenRef.current += 1;
+                isDirtyRef.current = true;
                 setIsDirty(true);
               }}
               readOnly={schemaBlocked !== null}
@@ -283,6 +389,39 @@ export function RichDocumentView({ documentId }: Props) {
                 </span>
               )}
             </div>
+
+            {/* Iteration-3 H5: preserved local edits (conflict / doc switch).
+                Both versions stay reachable — local via download/restore here,
+                server via Reload. Discard is explicit, never automatic. */}
+            {localSnapshot && (
+              <div
+                className="document-editor__snapshot"
+                role="status"
+                data-testid="rich-document-local-snapshot"
+                data-snapshot-reason={localSnapshot.reason}
+                data-snapshot-for={localSnapshot.forDocumentId}
+              >
+                <strong>Local edits preserved.</strong>{" "}
+                {localSnapshot.reason === "conflict"
+                  ? "Your version was NOT saved because the document changed elsewhere. " +
+                    "Download it, or Reload the latest version and restore your copy to re-apply."
+                  : `Un-saved edits from document ${localSnapshot.forDocumentId} were preserved before switching.`}
+                <span className="muted"> Taken {localSnapshot.takenAtUtc}.</span>
+                <div className="document-editor__snapshot-actions">
+                  <button type="button" data-testid="snapshot-download" onClick={downloadSnapshot}>
+                    Download local copy
+                  </button>
+                  {localSnapshot.forDocumentId === documentId && (
+                    <button type="button" data-testid="snapshot-restore" onClick={restoreSnapshot}>
+                      Restore local version into editor
+                    </button>
+                  )}
+                  <button type="button" data-testid="snapshot-discard" onClick={() => setLocalSnapshot(null)}>
+                    Discard local snapshot
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
