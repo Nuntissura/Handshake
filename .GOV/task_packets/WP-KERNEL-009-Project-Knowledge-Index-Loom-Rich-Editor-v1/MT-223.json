@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-223-StateRecoveryNegativeCases",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T03:37:42.001Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-223.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,71 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "ab3a5053",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "ab3a5053d3d70fdf4045fc21b9d8e37dd9cd7444",
+            "slice": "MT-223 state recovery negative cases"
+          }
+        ],
+        "summary": "MT-223 hardens negative recovery paths across interrupted quiet indexing, post-KIR quiet receipt failure, stale indexing lease queue fairness, interrupted rich-document save recovery, partial validation progress handoff, missing/corrupt checkpoint false receipts, and restart-after-crash Postgres state reconstruction. The quiet indexing start path now writes the indexing lease, KIR start event/run row, and quiet background receipt in one Postgres transaction so failure rolls back all receipt surfaces."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests mt223_ -- --nocapture",
+            "result": "PASS; 9/9 MT-223 tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests quiet_ -- --nocapture",
+            "result": "PASS; 5/5 quiet recovery regression tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests mt112_indexes_mixed_tree_with_symbols_spans_edges -- --nocapture",
+            "result": "PASS; non-quiet code-index caller impact smoke test passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests --no-run",
+            "result": "PASS; full parallel_swarm_state_recovery_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/knowledge_code_index/engine.rs src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only, including foreign dirty visual-debugger files"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "reviewer": "multi_agent:019ebf01-de21-70b0-8f80-3a86463edc75",
+        "result": "PASS",
+        "summary": "Reviewer confirmed Harvey's prior orphan window is closed: KIR start receipt/run row, indexing lease, and quiet receipt now share one transaction in start_quiet_run. They found no blocking issues; residual uncertainty is limited to an availability-only stale-lease expiry race that fails closed without orphaning side effects."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T03:37:42.001Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT223",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
