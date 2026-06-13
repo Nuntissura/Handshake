@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-222-HandoffCompressionTemplate",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T02:33:58.236Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-222.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,81 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "ac347aba",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "ac347aba",
+            "slice": "MT-222 compressed recovery handoff"
+          }
+        ],
+        "summary": "MT-222 adds an in-memory HandoffCompressionTemplate projection over existing PostgreSQL checkpoint authority. The builder re-reads the checkpoint row, verifies payload_sha256 before projection, preserves checkpoint/workspace/wp/mt/source/resume/git/hash/source-ref anchors, emits body_sha256, declares omitted raw inputs, bounds body size, and does not add a new migration, API, UI, table, or sidecar authority surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests compressed_handoff_ -- --nocapture",
+            "result": "PASS; 5/5 MT-222 compressed-handoff tests passed: bounded restartable projection, dynamic-section redaction, raw transcript/full-history omission warning, fail-closed secret-like mandatory metadata, and redacted URL credential validation"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests --no-run",
+            "result": "PASS; full parallel_swarm_state_recovery_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "rg -n \"handoff_compression|HandoffCompression|build_handoff_compression_template\" src/backend/handshake_core app/src app/src-tauri -g \"*.rs\" -g \"*.sql\" -g \"*.ts\" -g \"*.tsx\" -g \"*.json\"",
+            "result": "PASS; HandoffCompression symbols are confined to state_recovery.rs and the integration test; no migration/API/UI authority surface added"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebe9a-ea13-70f0-9290-b61618b9482b",
+        "result": "FAIL_THEN_HARDENED",
+        "summary": "Initial reviewer found unredacted optional handoff sections, validator rejection of safe redacted labels, and raw provider-chat/full-history leakage through next_step_context. Hardened by redacting every emitted optional dynamic value, omitting raw input markers with a structured warning, and changing validation to reject raw secret values while accepting redacted markers."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebeb4-343f-7070-b84e-bc9ba57f432b",
+        "result": "FAIL_THEN_HARDENED",
+        "summary": "Second reviewer found secret-like mandatory checkpoint metadata could be emitted before redaction and redacted URL credentials could still fail validation. Hardened by failing closed on secret-like/raw-marker mandatory metadata before projection and by accepting [REDACTED:URL_CRED] URL placeholders while still rejecting raw credentials."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebecb-0b99-7e40-82e1-785ff038ac61",
+        "result": "PASS",
+        "summary": "Final reviewer found no remaining blocker. They confirmed the template is a bounded projection over existing checkpoint authority, payload bytes are used only for hash verification, optional values are redacted, raw transcript markers are omitted, mandatory metadata fails closed, body_sha256 is recomputed, and no migration/API/UI/persistence authority surface was added."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T02:33:58.236Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT222",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
