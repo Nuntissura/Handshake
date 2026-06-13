@@ -2300,7 +2300,7 @@ fn build_kernel_session_event(
         .map_err(|err| StorageError::Serialization(err.to_string()))
 }
 
-async fn append_kernel_event_with_executor<'e, E>(
+pub(crate) async fn append_kernel_event_with_executor<'e, E>(
     executor: E,
     event: NewKernelEvent,
 ) -> StorageResult<KernelEvent>

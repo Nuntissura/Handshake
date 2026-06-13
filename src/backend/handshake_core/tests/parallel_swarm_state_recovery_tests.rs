@@ -40,8 +40,9 @@ use handshake_core::knowledge_code_index::CodeIndexError;
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
+use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
 use handshake_core::storage::postgres::PostgresDatabase;
-use handshake_core::storage::{Database, NewWorkspace, WriteContext};
+use handshake_core::storage::{Database, NewWorkspace, StorageError, WriteContext};
 use handshake_core::swarm_orchestration::state_recovery::{
     validate_cloud_assistance_receipt, validate_handoff_compression_template,
     validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
@@ -712,6 +713,63 @@ async fn install_recovery_receipt_authority_failure(pool: &sqlx::PgPool) {
     .execute(pool)
     .await
     .expect("install recovery receipt authority failure trigger");
+}
+
+async fn install_knowledge_index_run_start_failure(pool: &sqlx::PgPool) {
+    sqlx::query(
+        r#"
+        CREATE OR REPLACE FUNCTION fail_knowledge_index_run_start()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            RAISE EXCEPTION 'forced knowledge index run start failure';
+        END
+        $$
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("install knowledge index run start failure function");
+    sqlx::query(
+        r#"
+        CREATE TRIGGER fail_knowledge_index_run_start_trigger
+        BEFORE INSERT ON knowledge_index_runs
+        FOR EACH ROW
+        EXECUTE FUNCTION fail_knowledge_index_run_start()
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("install knowledge index run start failure trigger");
+}
+
+async fn install_quiet_indexing_receipt_failure(pool: &sqlx::PgPool) {
+    sqlx::query(
+        r#"
+        CREATE OR REPLACE FUNCTION fail_quiet_indexing_receipt()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF NEW.work_kind = 'indexing' THEN
+                RAISE EXCEPTION 'forced quiet indexing receipt failure';
+            END IF;
+            RETURN NEW;
+        END
+        $$
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("install quiet indexing receipt failure function");
+    sqlx::query(
+        r#"
+        CREATE TRIGGER fail_quiet_indexing_receipt_trigger
+        BEFORE INSERT ON knowledge_agent_quiet_background_work
+        FOR EACH ROW
+        EXECUTE FUNCTION fail_quiet_indexing_receipt()
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("install quiet indexing receipt failure trigger");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -4200,6 +4258,958 @@ async fn compressed_handoff_accepts_redacted_url_credentials() {
             && !template.body.contains("hunter2"),
         "URL credentials should redact without making the projection fail validation"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_missing_checkpoint_recovery_does_not_emit_receipt() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let missing_checkpoint_id = format!("PSR-CHKPT-missing-{}", Uuid::now_v7());
+    let new_session_id = "session-missing-checkpoint-recovery";
+    let result = store
+        .recover_from_checkpoint(
+            &missing_checkpoint_id,
+            local_lane("missing-checkpoint-recovery"),
+            new_session_id,
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(StateRecoveryError::CheckpointNotFound(id)) if id == missing_checkpoint_id),
+        "missing checkpoint recovery must fail with CheckpointNotFound"
+    );
+    let receipt_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_recovery_receipts")
+            .fetch_one(&pool)
+            .await
+            .expect("count recovery receipts after missing checkpoint");
+    assert_eq!(receipt_rows, 0);
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_recovery",
+            "new_session_id",
+            new_session_id,
+        )
+        .await,
+        0,
+        "missing checkpoint recovery must not emit a false EventLedger receipt"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-corrupt-checkpoint-{}", Uuid::now_v7());
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("corrupt-checkpoint-source"),
+            session_id: "session-corrupt-checkpoint-source".to_string(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-223".to_string(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec!["cargo test mt223_".to_string()],
+            hbr_rows: vec!["HBR-SWARM-004".to_string()],
+            next_step_context: "checkpoint payload will be corrupted in isolated test schema"
+                .to_string(),
+            payload: json!({"checkpoint": "before-corruption"}),
+            compaction_reason: "mt223_corrupt_checkpoint_probe".to_string(),
+            git_head: "mt223bad".to_string(),
+        })
+        .await
+        .expect("record checkpoint before corruption");
+
+    sqlx::query(
+        "UPDATE knowledge_agent_state_recovery_checkpoints SET payload_jsonb = $2 WHERE checkpoint_id = $1",
+    )
+    .bind(&checkpoint.checkpoint_id)
+    .bind(json!({"checkpoint": "after-corruption"}))
+    .execute(&pool)
+    .await
+    .expect("corrupt checkpoint payload in isolated schema");
+
+    let new_session_id = "session-corrupt-checkpoint-recovery";
+    let result = store
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("corrupt-checkpoint-recovery"),
+            new_session_id,
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(StateRecoveryError::PayloadHashMismatch { checkpoint_id, .. }) if checkpoint_id == checkpoint.checkpoint_id),
+        "corrupt checkpoint payload must fail hash verification before recovery receipt"
+    );
+    let receipt_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_recovery_receipts WHERE checkpoint_id = $1",
+    )
+    .bind(&checkpoint.checkpoint_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count corrupt-checkpoint recovery receipts");
+    assert_eq!(receipt_rows, 0);
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_recovery",
+            "new_session_id",
+            new_session_id,
+        )
+        .await,
+        0,
+        "hash-mismatch recovery must not emit a false EventLedger receipt"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let workspace = event_db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("interrupted-indexing-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create workspace for interrupted indexing proof");
+    let workspace_id = workspace.id;
+    install_knowledge_index_run_start_failure(&pool).await;
+
+    let index_engine = CodeIndexEngine::new(event_db);
+    let code_context = CodeIndexContext {
+        actor: KernelActor::System("mt223-interrupted-indexing".to_string()),
+        kernel_task_run_id: "KTR-mt223-interrupted-indexing".to_string(),
+        session_run_id: "SR-mt223-interrupted-indexing".to_string(),
+        correlation_id: Some("CORR-mt223-interrupted-indexing".to_string()),
+    };
+    let failed_start = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            local_lane("mt223-interrupted-indexing"),
+            "WP-KERNEL-009",
+            "MT-223",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await;
+    assert!(
+        matches!(failed_start, Err(CodeIndexError::Storage(_))),
+        "forced KIR start failure must surface as storage error, got {failed_start:?}"
+    );
+
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace_id.clone(),
+        source_root_id: workspace_id.clone(),
+    };
+    assert!(
+        store
+            .active_index_writer_for_scope(&scope)
+            .await
+            .expect("active writer after interrupted indexing start")
+            .is_none(),
+        "interrupted indexing start must not leave an acquired swarm lease"
+    );
+    let index_run_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count KIR rows after interrupted indexing start");
+    assert_eq!(index_run_rows, 0);
+    let lease_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count lease rows after interrupted indexing start");
+    assert_eq!(
+        lease_rows, 0,
+        "interrupted KIR start must not leave any swarm lease row"
+    );
+    let quiet_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count quiet rows after interrupted indexing start");
+    assert_eq!(
+        quiet_rows, 0,
+        "interrupted KIR start must not leave a quiet-work receipt"
+    );
+    let code_index_events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE source_component = 'knowledge_code_index'
+          AND aggregate_type = 'knowledge_code_index_run'
+          AND payload ->> 'workspace_id' = $1
+        "#,
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count code-index start events after interrupted indexing start");
+    assert_eq!(
+        code_index_events, 0,
+        "interrupted KIR start must not leave a false code-index start receipt"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_quiet_receipt_failure_rolls_back_index_run_and_lease() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let workspace = event_db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("quiet-receipt-rollback-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create workspace for quiet receipt rollback proof");
+    let workspace_id = workspace.id;
+    install_quiet_indexing_receipt_failure(&pool).await;
+
+    let index_engine = CodeIndexEngine::new(event_db);
+    let code_context = CodeIndexContext {
+        actor: KernelActor::System("mt223-quiet-receipt-rollback".to_string()),
+        kernel_task_run_id: "KTR-mt223-quiet-receipt-rollback".to_string(),
+        session_run_id: "SR-mt223-quiet-receipt-rollback".to_string(),
+        correlation_id: Some("CORR-mt223-quiet-receipt-rollback".to_string()),
+    };
+    let failed_start = index_engine
+        .start_quiet_run(
+            &code_context,
+            &store,
+            local_lane("mt223-quiet-receipt-rollback"),
+            "WP-KERNEL-009",
+            "MT-223",
+            &workspace_id,
+            None,
+            10,
+            600,
+        )
+        .await;
+    assert!(
+        matches!(failed_start, Err(CodeIndexError::Validation(ref message)) if message.contains("quiet indexing receipt failed")),
+        "forced quiet receipt failure must surface as quiet-receipt validation error, got {failed_start:?}"
+    );
+
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace_id.clone(),
+        source_root_id: workspace_id.clone(),
+    };
+    assert!(
+        store
+            .active_index_writer_for_scope(&scope)
+            .await
+            .expect("active writer after quiet receipt failure")
+            .is_none(),
+        "quiet receipt failure must not leave an acquired swarm lease"
+    );
+    let index_run_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count KIR rows after quiet receipt failure");
+    assert_eq!(
+        index_run_rows, 0,
+        "quiet receipt failure must roll back the already-started KIR row"
+    );
+    let lease_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count lease rows after quiet receipt failure");
+    assert_eq!(
+        lease_rows, 0,
+        "quiet receipt failure must roll back the acquired lease row"
+    );
+    let quiet_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count quiet rows after quiet receipt failure");
+    assert_eq!(quiet_rows, 0);
+    let code_index_events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE source_component = 'knowledge_code_index'
+          AND aggregate_type = 'knowledge_code_index_run'
+          AND payload ->> 'workspace_id' = $1
+        "#,
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count code-index events after quiet receipt failure");
+    assert_eq!(
+        code_index_events, 0,
+        "quiet receipt failure must roll back the code-index start receipt"
+    );
+    let swarm_events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE source_component = 'parallel_swarm_state_recovery'
+          AND aggregate_type IN ('parallel_indexing_lease', 'parallel_swarm_quiet_background_work')
+          AND payload ->> 'workspace_id' = $1
+        "#,
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count swarm events after quiet receipt failure");
+    assert_eq!(
+        swarm_events, 0,
+        "quiet receipt failure must roll back swarm lease and quiet-work receipts"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-stale-lease-{}", Uuid::now_v7());
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace_id.clone(),
+        source_root_id: "root-stale-lease".to_string(),
+    };
+    let stale = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("stale-lease-a"),
+            session_id: "session-stale-lease-a".to_string(),
+            index_run_id: format!("index-run-stale-a-{}", Uuid::now_v7()),
+            priority: 10,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("first stale lease acquired");
+    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
+
+    let queued = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("stale-lease-b"),
+            session_id: "session-stale-lease-b".to_string(),
+            index_run_id: format!("index-run-stale-b-{}", Uuid::now_v7()),
+            priority: 20,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("second stale lease queues");
+    assert_eq!(queued.status, IndexLeaseStatus::Queued);
+
+    sqlx::query(
+        "UPDATE knowledge_parallel_indexing_lease_queue SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE lease_id = $1",
+    )
+    .bind(&stale.lease_id)
+    .execute(&pool)
+    .await
+    .expect("force stale acquired lease");
+    let reclaimed = store
+        .reclaim_orphaned_indexing_leases()
+        .await
+        .expect("reclaim stale lease");
+    assert_eq!(reclaimed.len(), 1);
+    assert_eq!(reclaimed[0].lease_id, stale.lease_id);
+    assert_eq!(reclaimed[0].status, IndexLeaseStatus::Reclaimed);
+    assert!(
+        store
+            .active_index_writer_for_scope(&scope)
+            .await
+            .expect("active writer after stale reclaim")
+            .is_none(),
+        "stale acquired writer must be gone before queue promotion"
+    );
+
+    let promoted = store
+        .acquire_next_indexing_lease(&scope)
+        .await
+        .expect("promote queued writer after stale reclaim")
+        .expect("queued writer is promotable after stale reclaim");
+    assert_eq!(promoted.lease_id, queued.lease_id);
+    assert_eq!(promoted.status, IndexLeaseStatus::Acquired);
+    assert_ne!(
+        promoted.event_ledger_event_id, queued.event_ledger_event_id,
+        "stale-reclaim promotion must attach a fresh acquired receipt"
+    );
+    let (event_type, status) =
+        ledger_event_type_and_status(&pool, &promoted.event_ledger_event_id).await;
+    assert_eq!(event_type, "KNOWLEDGE_INDEX_RUN_STARTED");
+    assert_eq!(status, "acquired");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-stale-queue-order-{}", Uuid::now_v7());
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace_id.clone(),
+        source_root_id: "root-stale-queue-order".to_string(),
+    };
+    let stale = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("stale-queue-order-a"),
+            session_id: "session-stale-queue-order-a".to_string(),
+            index_run_id: format!("index-run-stale-queue-a-{}", Uuid::now_v7()),
+            priority: 10,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("first lease acquired");
+    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
+    let queued = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("stale-queue-order-b"),
+            session_id: "session-stale-queue-order-b".to_string(),
+            index_run_id: format!("index-run-stale-queue-b-{}", Uuid::now_v7()),
+            priority: 20,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("second lease queues behind active writer");
+    assert_eq!(queued.status, IndexLeaseStatus::Queued);
+
+    sqlx::query(
+        "UPDATE knowledge_parallel_indexing_lease_queue SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE lease_id = $1",
+    )
+    .bind(&stale.lease_id)
+    .execute(&pool)
+    .await
+    .expect("force stale acquired lease before new enqueue");
+    let newcomer = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: scope.clone(),
+            lane: local_lane("stale-queue-order-c"),
+            session_id: "session-stale-queue-order-c".to_string(),
+            index_run_id: format!("index-run-stale-queue-c-{}", Uuid::now_v7()),
+            priority: 10,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("new enqueue after stale reclaim");
+    assert_eq!(
+        newcomer.status,
+        IndexLeaseStatus::Queued,
+        "new enqueues after stale reclaim must not acquire ahead of queued writers"
+    );
+
+    let promoted = store
+        .acquire_next_indexing_lease(&scope)
+        .await
+        .expect("promote queued writer after newcomer enqueue")
+        .expect("a queued writer should be promotable");
+    assert_eq!(
+        promoted.lease_id, queued.lease_id,
+        "the original queued writer must promote before the newcomer"
+    );
+    let newcomer_status: String = sqlx::query_scalar(
+        "SELECT status FROM knowledge_parallel_indexing_lease_queue WHERE lease_id = $1",
+    )
+    .bind(&newcomer.lease_id)
+    .fetch_one(&pool)
+    .await
+    .expect("fetch newcomer lease status");
+    assert_eq!(newcomer_status, "queued");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let workspace = event_db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("editor-interrupted-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create workspace for interrupted editor save");
+    let workspace_id = workspace.id;
+    let created_doc = event_db
+        .create_knowledge_rich_document(NewKnowledgeRichDocument {
+            workspace_id: workspace_id.clone(),
+            document_id: None,
+            title: "Interrupted editor save".to_string(),
+            schema_version: "hsk_richdoc_v1".to_string(),
+            content_json: json!({"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "draft v1"}]}
+            ]}),
+            crdt_document_id: None,
+            crdt_snapshot_id: None,
+            promotion_receipt_event_id: None,
+            project_ref: None,
+            folder_ref: None,
+            authority_label: Some("draft".to_string()),
+            owner_actor_kind: Some("operator".to_string()),
+            owner_actor_id: Some("mt223-editor".to_string()),
+        })
+        .await
+        .expect("create rich document for interrupted save");
+    let scope = ClaimScope::RichDocument {
+        workspace_id: workspace_id.clone(),
+        document_id: created_doc.rich_document_id.clone(),
+    };
+    let first_editor = lane_with_kind("editor-interrupted-a", AgentLaneKind::Editor);
+    let second_editor = lane_with_kind("editor-interrupted-b", AgentLaneKind::Editor);
+    let first_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-223".to_string()),
+            scope: scope.clone(),
+            lane: first_editor.clone(),
+            session_id: "session-editor-interrupted-a".to_string(),
+            ttl_seconds: 600,
+            reason: "editor save interrupted before release".to_string(),
+        })
+        .await
+        .expect("first editor claim");
+    assert_eq!(first_claim.status, ClaimStatus::Active);
+
+    let held_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-223".to_string()),
+            scope: scope.clone(),
+            lane: second_editor.clone(),
+            session_id: "session-editor-interrupted-b-held".to_string(),
+            ttl_seconds: 600,
+            reason: "second editor waits while interrupted save claim is active".to_string(),
+        })
+        .await
+        .expect("second editor held while claim active");
+    assert_eq!(held_claim.status, ClaimStatus::Held);
+
+    let saved_content = json!({"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "draft v2 committed before interruption"}]}
+    ]});
+    let saved_doc = event_db
+        .save_knowledge_rich_document_version(
+            &created_doc.rich_document_id,
+            1,
+            saved_content.clone(),
+            None,
+        )
+        .await
+        .expect("real rich-document save commits before interruption");
+    assert_eq!(saved_doc.doc_version, 2);
+
+    sqlx::query(
+        "UPDATE knowledge_agent_worktree_claims SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE claim_id = $1",
+    )
+    .bind(&first_claim.claim_id)
+    .execute(&pool)
+    .await
+    .expect("force interrupted editor claim stale");
+    let reclaimed = store
+        .reclaim_expired_work_claims(
+            &local_lane("editor-interrupted-reclaimer"),
+            "session-editor-interrupted-reclaimer",
+            "lost editor lane after interrupted save",
+        )
+        .await
+        .expect("reclaim interrupted editor claim");
+    assert_eq!(reclaimed.len(), 1);
+    assert_eq!(reclaimed[0].claim_id, first_claim.claim_id);
+    assert_eq!(reclaimed[0].status, ClaimStatus::Reclaimed);
+
+    let resumed_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-223".to_string()),
+            scope: scope.clone(),
+            lane: second_editor,
+            session_id: "session-editor-interrupted-b-resume".to_string(),
+            ttl_seconds: 600,
+            reason: "second editor resumes after lost editor reclaim".to_string(),
+        })
+        .await
+        .expect("second editor claims after reclaim");
+    assert_eq!(resumed_claim.status, ClaimStatus::Active);
+
+    let (active_count, reclaimed_count): (i64, i64) = sqlx::query_as(
+        r#"
+        SELECT
+            COUNT(*) FILTER (WHERE status = 'active') AS active_count,
+            COUNT(*) FILTER (WHERE status = 'reclaimed') AS reclaimed_count
+        FROM knowledge_agent_worktree_claims
+        WHERE workspace_id = $1
+          AND scope_kind = 'rich_document'
+          AND scope_id = $2
+        "#,
+    )
+    .bind(&workspace_id)
+    .bind(format!("{workspace_id}/{}", created_doc.rich_document_id))
+    .fetch_one(&pool)
+    .await
+    .expect("count rich-document claim states after reclaim");
+    assert_eq!(active_count, 1);
+    assert_eq!(reclaimed_count, 1);
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_claim_reclaim",
+            "claim_id",
+            &first_claim.claim_id,
+        )
+        .await,
+        1,
+        "interrupted editor reclaim must leave one durable reclaim receipt"
+    );
+
+    let retry = event_db
+        .save_knowledge_rich_document_version(
+            &created_doc.rich_document_id,
+            1,
+            saved_content.clone(),
+            None,
+        )
+        .await;
+    assert!(
+        matches!(retry, Err(StorageError::Conflict(message)) if message.contains("expected_version is stale")),
+        "lost-response retry with stale expected_version must fail closed without duplicating the save"
+    );
+    let loaded = event_db
+        .get_knowledge_rich_document(&created_doc.rich_document_id)
+        .await
+        .expect("load document after interrupted save")
+        .expect("document exists after interrupted save");
+    assert_eq!(loaded.doc_version, 2);
+    assert_eq!(loaded.content_json, saved_content);
+    let versions = event_db
+        .list_knowledge_rich_document_versions(&created_doc.rich_document_id)
+        .await
+        .expect("list document versions after stale retry");
+    assert_eq!(
+        versions.len(),
+        2,
+        "stale retry after interruption must not append a duplicate version"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_partial_validation_progress_handoff_is_not_reported_as_pass() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-partial-validation-{}", Uuid::now_v7());
+    let lane = local_lane("partial-validation");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-223".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: lane.clone(),
+            session_id: "session-partial-validation-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "partial validation should remain progress until complete".to_string(),
+        })
+        .await
+        .expect("claim workspace for partial validation");
+    assert_eq!(claim.status, ClaimStatus::Active);
+
+    let handoff = store
+        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+            from_lane: lane,
+            to_role: "WP_VALIDATOR".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            claim_id: Some(claim.claim_id.clone()),
+            mailbox_thread_id: "thread-partial-validation".to_string(),
+            mailbox_message_id: "message-partial-validation".to_string(),
+            status: SwarmReceiptStatus::Progress,
+            summary: "partial validation: checkpoint checks passed, editor recovery still running"
+                .to_string(),
+            body_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                .to_string(),
+        })
+        .await
+        .expect("record partial validation progress handoff");
+    assert_eq!(handoff.status, SwarmReceiptStatus::Progress);
+
+    let projection = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("partial-validation-dashboard", AgentLaneKind::Validator),
+            workspace_id,
+            wp_id: Some("WP-KERNEL-009".to_string()),
+            mt_id: Some("MT-223".to_string()),
+            limit: 25,
+        })
+        .await
+        .expect("project partial validation dashboard");
+    validate_swarm_dashboard_projection(&projection)
+        .expect("partial validation projection validates");
+    assert_eq!(
+        projection
+            .totals
+            .handoffs_by_status
+            .get("progress")
+            .copied(),
+        Some(1)
+    );
+    assert_eq!(
+        projection
+            .totals
+            .handoffs_by_status
+            .get("pass")
+            .copied()
+            .unwrap_or(0),
+        0,
+        "partial validation progress must not be counted as pass"
+    );
+    assert!(projection
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == handoff.handoff_id && row.status == "progress"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt223_restart_after_crash_reconstructs_swarm_state_from_postgres() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-restart-crash-{}", Uuid::now_v7());
+    let lane = local_lane("restart-crash-source");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-223".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: lane.clone(),
+            session_id: "session-restart-crash-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "seed state before simulated process crash".to_string(),
+        })
+        .await
+        .expect("claim before restart");
+    assert_eq!(claim.status, ClaimStatus::Active);
+    let handoff = store
+        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+            from_lane: lane.clone(),
+            to_role: "WP_VALIDATOR".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            claim_id: Some(claim.claim_id.clone()),
+            mailbox_thread_id: "thread-restart-crash".to_string(),
+            mailbox_message_id: "message-restart-crash".to_string(),
+            status: SwarmReceiptStatus::Progress,
+            summary: "restart crash seed handoff".to_string(),
+            body_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                .to_string(),
+        })
+        .await
+        .expect("handoff before restart");
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: lane.clone(),
+            session_id: "session-restart-crash-checkpoint".to_string(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            claim_id: Some(claim.claim_id.clone()),
+            mailbox_handoff_id: Some(handoff.handoff_id.clone()),
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::Claim {
+                claim_id: claim.claim_id.clone(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec!["cargo test mt223_".to_string()],
+            hbr_rows: vec!["HBR-SWARM-RESTART".to_string()],
+            next_step_context: "fresh store must recover this checkpoint after restart".to_string(),
+            payload: json!({"restart_after_crash": true, "claim_id": claim.claim_id}),
+            compaction_reason: "mt223_restart_after_crash".to_string(),
+            git_head: "restart223".to_string(),
+        })
+        .await
+        .expect("checkpoint before restart");
+    let lease = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            scope: ClaimScope::IndexRun {
+                workspace_id: workspace_id.clone(),
+                source_root_id: "restart-crash-root".to_string(),
+            },
+            lane: lane.clone(),
+            session_id: "session-restart-crash-lease".to_string(),
+            index_run_id: format!("index-run-restart-crash-{}", Uuid::now_v7()),
+            priority: 5,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("lease before restart");
+    let quiet = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane,
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-223".to_string(),
+            work_kind: QuietBackgroundWorkKind::BackendNavigation,
+            subject_id: format!("restart-crash-nav-{}", Uuid::now_v7()),
+            session_id: "session-restart-crash-quiet".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
+            evidence_ref: "backend-nav://validation_state#restart-crash".to_string(),
+        })
+        .await
+        .expect("quiet work before restart");
+
+    drop(store);
+    let restarted_event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let restarted = ParallelSwarmStateRecoveryStore::new(pool.clone(), restarted_event_db);
+    let snapshot = restarted
+        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+            lane: lane_with_kind("restart-crash-inspector", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            limit: 50,
+        })
+        .await
+        .expect("fresh store inspects persisted swarm evidence");
+    assert!(snapshot
+        .claims
+        .iter()
+        .any(|row| row.claim_id == claim.claim_id));
+    assert!(snapshot
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == handoff.handoff_id));
+    assert!(snapshot
+        .checkpoints
+        .iter()
+        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
+    assert!(snapshot
+        .indexing_leases
+        .iter()
+        .any(|row| row.lease_id == lease.lease_id));
+    assert!(snapshot
+        .quiet_background_work
+        .iter()
+        .any(|row| row.receipt_id == quiet.receipt_id));
+
+    let recovered = restarted
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("restart-crash-recover"),
+            "session-restart-crash-recovered",
+        )
+        .await
+        .expect("fresh store recovers persisted checkpoint");
+    assert_eq!(recovered.checkpoint.checkpoint_id, checkpoint.checkpoint_id);
+    let projection = restarted
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("restart-crash-dashboard", AgentLaneKind::Validator),
+            workspace_id,
+            wp_id: Some("WP-KERNEL-009".to_string()),
+            mt_id: Some("MT-223".to_string()),
+            limit: 50,
+        })
+        .await
+        .expect("fresh store projects persisted dashboard");
+    validate_swarm_dashboard_projection(&projection).expect("restart projection validates");
+    assert!(projection
+        .claims
+        .iter()
+        .any(|row| row.claim_id == claim.claim_id));
+    assert!(projection
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == handoff.handoff_id));
+    assert!(projection
+        .recovery_checkpoints
+        .iter()
+        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
+    assert!(projection
+        .recovery_receipts
+        .iter()
+        .any(|row| row.receipt_id == recovered.receipt.receipt_id));
+    assert!(projection
+        .indexing_leases
+        .iter()
+        .any(|row| row.lease_id == lease.lease_id));
+    assert!(projection
+        .quiet_background_work
+        .iter()
+        .any(|row| row.receipt_id == quiet.receipt_id));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

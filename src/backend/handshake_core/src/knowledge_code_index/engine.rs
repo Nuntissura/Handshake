@@ -37,6 +37,7 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
@@ -47,10 +48,10 @@ use crate::storage::knowledge::{
     KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge, NewKnowledgeEntity,
     NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
-    AgentLaneIdentity, ClaimScope, IndexingLeaseRecord, IndexingLeaseRequest,
+    AgentCapability, AgentLaneIdentity, ClaimScope, IndexingLeaseRecord, IndexingLeaseRequest,
     ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy, QuietBackgroundWorkKind,
     QuietBackgroundWorkRecord, QuietBackgroundWorkRequest,
 };
@@ -187,21 +188,43 @@ impl CodeIndexEngine {
         workspace_id: &str,
         root_id: Option<&str>,
     ) -> CodeIndexResult<()> {
-        let start_event_id = self
-            .append_receipt_event(
-                ctx,
-                KernelEventType::KnowledgeIndexRunStarted,
-                "knowledge_code_index_run",
-                workspace_id,
-                json!({
-                    "kind": "code_index_run_started",
-                    "workspace_id": workspace_id,
-                    "root_id": root_id,
-                    "extractor_version": CODE_EXTRACTOR_VERSION,
-                }),
-            )
-            .await?;
-        sqlx::query(
+        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
+        if let Err(error) = self
+            .start_run_with_id_tx(&mut tx, ctx, index_run_id, workspace_id, root_id)
+            .await
+        {
+            let _ = tx.rollback().await;
+            return Err(error);
+        }
+        tx.commit().await.map_err(StorageError::from)?;
+        Ok(())
+    }
+
+    async fn start_run_with_id_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        ctx: &CodeIndexContext,
+        index_run_id: &str,
+        workspace_id: &str,
+        root_id: Option<&str>,
+    ) -> CodeIndexResult<()> {
+        let start_event = self.build_receipt_event(
+            ctx,
+            KernelEventType::KnowledgeIndexRunStarted,
+            "knowledge_code_index_run",
+            workspace_id,
+            json!({
+                "kind": "code_index_run_started",
+                "workspace_id": workspace_id,
+                "root_id": root_id,
+                "extractor_version": CODE_EXTRACTOR_VERSION,
+            }),
+        )?;
+        let start_event_id = match append_kernel_event_with_executor(&mut **tx, start_event).await {
+            Ok(event) => event.event_id,
+            Err(error) => return Err(error.into()),
+        };
+        let inserted = sqlx::query(
             r#"
             INSERT INTO knowledge_index_runs
                 (index_run_id, workspace_id, root_id, scope, actor_kind,
@@ -217,10 +240,37 @@ impl CodeIndexEngine {
         .bind(ctx.actor.actor_id())
         .bind(Option::<String>::None)
         .bind(start_event_id)
-        .execute(self.db.pool())
-        .await
-        .map_err(StorageError::from)?;
+        .execute(&mut **tx)
+        .await;
+        if let Err(error) = inserted {
+            return Err(StorageError::from(error).into());
+        }
         Ok(())
+    }
+
+    fn build_receipt_event(
+        &self,
+        ctx: &CodeIndexContext,
+        event_type: KernelEventType,
+        aggregate_type: &str,
+        aggregate_id: &str,
+        payload: Value,
+    ) -> CodeIndexResult<NewKernelEvent> {
+        let mut builder = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            event_type,
+            ctx.actor.clone(),
+        )
+        .aggregate(aggregate_type, aggregate_id)
+        .source_component("knowledge_code_index")
+        .payload(payload);
+        if let Some(correlation_id) = &ctx.correlation_id {
+            builder = builder.correlation_id(correlation_id.clone());
+        }
+        builder
+            .build()
+            .map_err(|err| CodeIndexError::Kernel(err.to_string()))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -239,49 +289,88 @@ impl CodeIndexEngine {
         ctx.validate()?;
         let index_run_id = new_code_index_run_id();
         let source_root_id = root_id.unwrap_or(workspace_id).to_string();
-        let indexing_lease = swarm_state
-            .try_acquire_indexing_lease(IndexingLeaseRequest {
-                workspace_id: workspace_id.to_string(),
-                wp_id: wp_id.to_string(),
-                mt_id: mt_id.to_string(),
-                scope: ClaimScope::IndexRun {
-                    workspace_id: workspace_id.to_string(),
-                    source_root_id,
-                },
-                lane: lane.clone(),
-                session_id: ctx.session_run_id.clone(),
-                index_run_id: index_run_id.clone(),
-                priority,
-                ttl_seconds,
-                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-            })
+        let scope = ClaimScope::IndexRun {
+            workspace_id: workspace_id.to_string(),
+            source_root_id,
+        };
+        if !lane
+            .capabilities()
+            .contains(&AgentCapability::WriteLocalIndex)
+        {
+            return Err(CodeIndexError::Validation(format!(
+                "quiet indexing lane {} lacks required capability {:?}",
+                lane.lane_id,
+                AgentCapability::WriteLocalIndex
+            )));
+        }
+        swarm_state
+            .reclaim_orphaned_indexing_leases()
             .await
             .map_err(|err| {
-                CodeIndexError::Validation(format!("quiet indexing lease failed: {err}"))
-            })?
-            .ok_or_else(|| {
-                CodeIndexError::Validation(format!(
+                CodeIndexError::Validation(format!("quiet indexing lease preflight failed: {err}"))
+            })?;
+        let lease_request = IndexingLeaseRequest {
+            workspace_id: workspace_id.to_string(),
+            wp_id: wp_id.to_string(),
+            mt_id: mt_id.to_string(),
+            scope,
+            lane: lane.clone(),
+            session_id: ctx.session_run_id.clone(),
+            index_run_id: index_run_id.clone(),
+            priority,
+            ttl_seconds,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        };
+        let quiet_request = QuietBackgroundWorkRequest {
+            lane,
+            workspace_id: workspace_id.to_string(),
+            wp_id: wp_id.to_string(),
+            mt_id: mt_id.to_string(),
+            work_kind: QuietBackgroundWorkKind::Indexing,
+            subject_id: index_run_id.clone(),
+            session_id: ctx.session_run_id.clone(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+            evidence_ref: format!("knowledge-index-run://{index_run_id}"),
+        };
+        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
+        let indexing_lease = match swarm_state
+            .try_acquire_indexing_lease_tx(&mut tx, &lease_request)
+            .await
+        {
+            Ok(Some(record)) => record,
+            Ok(None) => {
+                let _ = tx.rollback().await;
+                return Err(CodeIndexError::Validation(format!(
                     "quiet indexing run {index_run_id} did not acquire index lease"
-                ))
-            })?;
-        let quiet_receipt = swarm_state
-            .record_quiet_background_work(QuietBackgroundWorkRequest {
-                lane,
-                workspace_id: workspace_id.to_string(),
-                wp_id: wp_id.to_string(),
-                mt_id: mt_id.to_string(),
-                work_kind: QuietBackgroundWorkKind::Indexing,
-                subject_id: index_run_id.clone(),
-                session_id: ctx.session_run_id.clone(),
-                policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-                evidence_ref: format!("knowledge-index-run://{index_run_id}"),
-            })
+                )));
+            }
+            Err(error) => {
+                let _ = tx.rollback().await;
+                return Err(CodeIndexError::Validation(format!(
+                    "quiet indexing lease failed: {error}"
+                )));
+            }
+        };
+        if let Err(error) = self
+            .start_run_with_id_tx(&mut tx, ctx, &index_run_id, workspace_id, root_id)
             .await
-            .map_err(|err| {
-                CodeIndexError::Validation(format!("quiet indexing receipt failed: {err}"))
-            })?;
-        self.start_run_with_id(ctx, &index_run_id, workspace_id, root_id)
-            .await?;
+        {
+            let _ = tx.rollback().await;
+            return Err(error);
+        }
+        let quiet_receipt = match swarm_state
+            .record_quiet_background_work_tx(&mut tx, quiet_request)
+            .await
+        {
+            Ok(record) => record,
+            Err(error) => {
+                let _ = tx.rollback().await;
+                return Err(CodeIndexError::Validation(format!(
+                    "quiet indexing receipt failed: {error}"
+                )));
+            }
+        };
+        tx.commit().await.map_err(StorageError::from)?;
         Ok(QuietCodeIndexRun {
             index_run_id,
             indexing_lease,

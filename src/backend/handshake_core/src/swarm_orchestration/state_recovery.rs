@@ -2202,6 +2202,23 @@ impl ParallelSwarmStateRecoveryStore {
         &self,
         request: QuietBackgroundWorkRequest,
     ) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
+        let mut tx = self.pool.begin().await?;
+        let record = match self.record_quiet_background_work_tx(&mut tx, request).await {
+            Ok(record) => record,
+            Err(error) => {
+                let _ = tx.rollback().await;
+                return Err(error);
+            }
+        };
+        tx.commit().await?;
+        Ok(record)
+    }
+
+    pub(crate) async fn record_quiet_background_work_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: QuietBackgroundWorkRequest,
+    ) -> StateRecoveryResult<QuietBackgroundWorkRecord> {
         require_capability(&request.lane, AgentCapability::RunQuietBackgroundWork)?;
         ensure_safe_token("workspace_id", &request.workspace_id)?;
         ensure_safe_token("wp_id", &request.wp_id)?;
@@ -2215,10 +2232,9 @@ impl ParallelSwarmStateRecoveryStore {
         let persistent_lane = request.lane.scrubbed_for_persistence();
         let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
         let policy_json = serde_json::to_value(&request.policy)?;
-        let mut tx = self.pool.begin().await?;
         let event_id = self
             .append_event_tx(
-                &mut tx,
+                tx,
                 KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
                 "parallel_swarm_quiet_background_work",
                 &receipt_id,
@@ -2262,9 +2278,8 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(policy_json)
         .bind(&request.evidence_ref)
         .bind(&event_id)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
-        tx.commit().await?;
         quiet_background_work_from_row(row)
     }
 
@@ -3056,12 +3071,18 @@ impl ParallelSwarmStateRecoveryStore {
         require_capability(&request.lane, AgentCapability::WriteLocalIndex)?;
         self.reclaim_orphaned_indexing_leases().await?;
         let active = self.active_index_writer_for_scope(&request.scope).await?;
-        let status = if active.is_some() {
-            IndexLeaseStatus::Queued
+        let queued_ahead = if active.is_none() {
+            self.queued_index_writer_for_scope(&request.scope).await?
         } else {
-            IndexLeaseStatus::Acquired
+            None
         };
-        let blocked_by = active.map(|record| record.lease_id);
+        let (status, blocked_by) = if let Some(record) = active {
+            (IndexLeaseStatus::Queued, Some(record.lease_id))
+        } else if let Some(record) = queued_ahead {
+            (IndexLeaseStatus::Queued, Some(record.lease_id))
+        } else {
+            (IndexLeaseStatus::Acquired, None)
+        };
         match self
             .insert_indexing_lease_outcome(&request, status, blocked_by)
             .await
@@ -3071,8 +3092,15 @@ impl ParallelSwarmStateRecoveryStore {
                 if db_err.is_unique_violation() && status == IndexLeaseStatus::Acquired =>
             {
                 let active = self.active_index_writer_for_scope(&request.scope).await?;
+                let queued_ahead = if active.is_none() {
+                    self.queued_index_writer_for_scope(&request.scope).await?
+                } else {
+                    None
+                };
                 let (retry_status, retry_blocked_by) = if let Some(active) = active {
                     (IndexLeaseStatus::Queued, Some(active.lease_id))
+                } else if let Some(queued_ahead) = queued_ahead {
+                    (IndexLeaseStatus::Queued, Some(queued_ahead.lease_id))
                 } else {
                     (IndexLeaseStatus::Acquired, None)
                 };
@@ -3098,6 +3126,13 @@ impl ParallelSwarmStateRecoveryStore {
         {
             return Ok(None);
         }
+        if self
+            .queued_index_writer_for_scope(&request.scope)
+            .await?
+            .is_some()
+        {
+            return Ok(None);
+        }
         match self
             .insert_indexing_lease_outcome(&request, IndexLeaseStatus::Acquired, None)
             .await
@@ -3118,10 +3153,55 @@ impl ParallelSwarmStateRecoveryStore {
         status: IndexLeaseStatus,
         blocked_by: Option<String>,
     ) -> StateRecoveryResult<IndexingLeaseRecord> {
+        let mut tx = self.pool.begin().await?;
+        let record = match self
+            .insert_indexing_lease_outcome_tx(&mut tx, request, status, blocked_by)
+            .await
+        {
+            Ok(record) => record,
+            Err(error) => {
+                let _ = tx.rollback().await;
+                return Err(error);
+            }
+        };
+        tx.commit().await?;
+        Ok(record)
+    }
+
+    pub(crate) async fn try_acquire_indexing_lease_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: &IndexingLeaseRequest,
+    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
+        validate_ttl(request.ttl_seconds)?;
+        validate_quiet_background_policy(QuietBackgroundWorkKind::Indexing, &request.quiet_policy)?;
+        require_capability(&request.lane, AgentCapability::WriteLocalIndex)?;
+        if self
+            .active_index_writer_for_scope_tx(tx, &request.scope)
+            .await?
+            .is_some()
+            || self
+                .queued_index_writer_for_scope_tx(tx, &request.scope)
+                .await?
+                .is_some()
+        {
+            return Ok(None);
+        }
+        self.insert_indexing_lease_outcome_tx(tx, request, IndexLeaseStatus::Acquired, None)
+            .await
+            .map(Some)
+    }
+
+    async fn insert_indexing_lease_outcome_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: &IndexingLeaseRequest,
+        status: IndexLeaseStatus,
+        blocked_by: Option<String>,
+    ) -> StateRecoveryResult<IndexingLeaseRecord> {
         let lease_id = format!("PSR-IDXLEASE-{}", Uuid::now_v7());
         let persistent_lane = request.lane.scrubbed_for_persistence();
         let lane_json = serde_json::to_value(&persistent_lane.attribution)?;
-        let mut tx = self.pool.begin().await?;
         let inserted = sqlx::query(
             r#"
             INSERT INTO knowledge_parallel_indexing_lease_queue (
@@ -3154,16 +3234,15 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(serde_json::to_value(&request.quiet_policy)?)
         .bind(status.as_str())
         .bind(blocked_by.as_deref())
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await;
         if let Err(error) = inserted {
-            let _ = tx.rollback().await;
             return Err(error.into());
         }
 
         let event_id = self
             .append_event_tx(
-                &mut tx,
+                tx,
                 match status {
                     IndexLeaseStatus::Acquired => KernelEventType::KnowledgeIndexRunStarted,
                     IndexLeaseStatus::Queued => KernelEventType::SessionQueued,
@@ -3197,9 +3276,8 @@ impl ParallelSwarmStateRecoveryStore {
         )
         .bind(&lease_id)
         .bind(&event_id)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
-        tx.commit().await?;
         index_lease_from_row(row)
     }
 
@@ -3221,6 +3299,72 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(scope.kind_str())
         .bind(scope.scope_id())
         .fetch_optional(&self.pool)
+        .await?;
+        row.map(index_lease_from_row).transpose()
+    }
+
+    async fn active_index_writer_for_scope_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        scope: &ClaimScope,
+    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_parallel_indexing_lease_queue
+            WHERE scope_kind = $1
+              AND scope_id = $2
+              AND status = 'acquired'
+              AND expires_at_utc > NOW()
+            ORDER BY acquired_at_utc ASC
+            LIMIT 1
+            "#,
+        )
+        .bind(scope.kind_str())
+        .bind(scope.scope_id())
+        .fetch_optional(&mut **tx)
+        .await?;
+        row.map(index_lease_from_row).transpose()
+    }
+
+    async fn queued_index_writer_for_scope(
+        &self,
+        scope: &ClaimScope,
+    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_parallel_indexing_lease_queue
+            WHERE scope_kind = $1
+              AND scope_id = $2
+              AND status = 'queued'
+            ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC
+            LIMIT 1
+            "#,
+        )
+        .bind(scope.kind_str())
+        .bind(scope.scope_id())
+        .fetch_optional(&self.pool)
+        .await?;
+        row.map(index_lease_from_row).transpose()
+    }
+
+    async fn queued_index_writer_for_scope_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        scope: &ClaimScope,
+    ) -> StateRecoveryResult<Option<IndexingLeaseRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_parallel_indexing_lease_queue
+            WHERE scope_kind = $1
+              AND scope_id = $2
+              AND status = 'queued'
+            ORDER BY priority DESC, enqueued_at_utc ASC, lease_id ASC
+            LIMIT 1
+            "#,
+        )
+        .bind(scope.kind_str())
+        .bind(scope.scope_id())
+        .fetch_optional(&mut **tx)
         .await?;
         row.map(index_lease_from_row).transpose()
     }
