@@ -25,12 +25,12 @@ use handshake_core::storage::knowledge::{
     KnowledgeRetrievalMode, KnowledgeStore, NewKnowledgeMemoryPassage,
 };
 use handshake_core::storage::knowledge_memory::{
-    add_memory_ontology_alias, create_memory_fact, upsert_memory_ontology_term,
-    MemoryClaimAuthorityLabel, MemoryFactObject, MemoryOntologyAliasSource, MemoryOntologyTermKind,
-    NewMemoryFact, NewMemoryOntologyTerm,
+    add_memory_ontology_alias, create_memory_fact, set_memory_fact_authority_label,
+    upsert_memory_ontology_term, MemoryClaimAuthorityLabel, MemoryFactObject,
+    MemoryOntologyAliasSource, MemoryOntologyTermKind, NewMemoryFact, NewMemoryOntologyTerm,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
-use handshake_core::storage::Database;
+use handshake_core::storage::{Database, StorageError};
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 use serde_json::json;
 use uuid::Uuid;
@@ -360,6 +360,98 @@ async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
             .iter()
             .any(|edge| edge.fact_id == fact_a.fact_id || edge.fact_id == fact_b.fact_id),
         "raw unresolved conflicts must not leak accepted facts into trusted projections"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph() {
+    let Some(fx) = MemoryFixture::setup().await else {
+        eprintln!(
+            "SKIP unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph: no PostgreSQL"
+        );
+        return;
+    };
+    let pool = pool_for(&fx.pg).await;
+    let db = PostgresDatabase::new(pool.clone());
+
+    let subject = fx
+        .entity("symbol", "crate::unsupported::Rumor", "Rumor")
+        .await;
+    let claim = fx
+        .claim("Rumor has a stable owner but the citation is unsupported")
+        .await;
+    accept_claim(&db, &claim.claim_id, "unsupported-stable-claim").await;
+    let fact = create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim.claim_id.clone(),
+            subject_entity_id: subject,
+            predicate_key: "owner".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Literal {
+                value: "unknown".to_string(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Unsupported,
+            extractor_version: "mt233_bad_citation_fixture_v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("create unsupported fact");
+
+    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+        .await
+        .expect("trusted graph before relabel");
+    assert!(
+        !trusted
+            .edges
+            .iter()
+            .any(|edge| edge.fact_id == fact.fact_id),
+        "unsupported facts must start outside trusted stable projections"
+    );
+
+    let api_err = set_memory_fact_authority_label(
+        &pool,
+        &fact.fact_id,
+        MemoryClaimAuthorityLabel::OperatorApproved,
+    )
+    .await
+    .expect_err("unsupported fact must not become operator-approved without re-grounding");
+    assert!(
+        matches!(api_err, StorageError::Conflict(_)),
+        "unexpected API error: {api_err:?}"
+    );
+
+    let mut conn = fx.pg.raw_connection().await;
+    let raw_err = sqlx::query(
+        r#"
+        UPDATE knowledge_memory_facts
+           SET authority_label = 'source', updated_at = NOW()
+         WHERE fact_id = $1
+        "#,
+    )
+    .bind(&fact.fact_id)
+    .execute(&mut conn)
+    .await
+    .expect_err("raw SQL must not relabel unsupported facts into trusted labels");
+    assert!(
+        raw_err
+            .to_string()
+            .contains("unsupported facts cannot become retrieval-trusted"),
+        "unexpected raw SQL error: {raw_err}"
+    );
+
+    let trusted_after = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+        .await
+        .expect("trusted graph after rejected relabel");
+    assert!(
+        !trusted_after
+            .edges
+            .iter()
+            .any(|edge| edge.fact_id == fact.fact_id),
+        "failed relabel attempts must not leak unsupported facts into stable projections"
     );
 }
 

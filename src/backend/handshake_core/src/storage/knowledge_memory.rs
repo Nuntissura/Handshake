@@ -607,9 +607,11 @@ impl MemoryClaimAuthorityLabel {
                 to,
                 OperatorApproved | Deprecated | Superseded | Unsupported | Source | Derived
             ),
-            // An unsupported fact can be re-grounded (evidence returns) or
-            // promoted by an operator.
-            Unsupported => matches!(to, Source | Derived | ModelSuggested | OperatorApproved),
+            // Unsupported is not a probationary label. Once a fact has lost its
+            // evidence basis, a later re-grounding must create a fresh
+            // evidence-backed fact rather than mutating this row into stable
+            // retrieval authority.
+            Unsupported => matches!(to, Deprecated | Superseded),
         }
     }
 }

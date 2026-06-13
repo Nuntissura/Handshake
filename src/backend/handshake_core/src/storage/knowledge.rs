@@ -2215,6 +2215,8 @@ pub struct KnowledgeContextBundleItem {
     pub relevance_score: Option<f64>,
     pub token_count: Option<i32>,
     pub citation: Option<String>,
+    pub supported: bool,
+    pub unsupported_reason: Option<String>,
 }
 
 /// Insert payload for one bundle item (ordinal is assigned by position).
@@ -2226,6 +2228,8 @@ pub struct NewKnowledgeContextBundleItem {
     pub relevance_score: Option<f64>,
     pub token_count: Option<i32>,
     pub citation: Option<String>,
+    pub supported: bool,
+    pub unsupported_reason: Option<String>,
 }
 
 /// Insert payload for a bundle run: the REAL kernel V1 bundle plus the WP-009
@@ -2303,6 +2307,8 @@ fn bundle_item_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeCo
         relevance_score: row.get("relevance_score"),
         token_count: row.get("token_count"),
         citation: row.get("citation"),
+        supported: row.get("supported"),
+        unsupported_reason: row.get("unsupported_reason"),
     })
 }
 
@@ -5380,6 +5386,34 @@ impl KnowledgeStore for PostgresDatabase {
                     "knowledge bundle item ref_id must be non-empty and trimmed",
                 ));
             }
+            let citation_marks_unsupported = item
+                .citation
+                .as_deref()
+                .is_some_and(|citation| citation.ends_with("@UNSUPPORTED"));
+            if item.supported {
+                if item.unsupported_reason.is_some() || citation_marks_unsupported {
+                    return Err(StorageError::Validation(
+                        "supported knowledge bundle items must not carry unsupported markers",
+                    ));
+                }
+            }
+            if !item.supported {
+                let reason = item.unsupported_reason.as_deref().unwrap_or("");
+                if reason.trim() != reason || reason.is_empty() {
+                    return Err(StorageError::Validation(
+                        "unsupported knowledge bundle items must carry a trimmed unsupported_reason",
+                    ));
+                }
+                if item
+                    .citation
+                    .as_deref()
+                    .is_some_and(|citation| !citation.ends_with("@UNSUPPORTED"))
+                {
+                    return Err(StorageError::Validation(
+                        "unsupported knowledge bundle item citations must carry @UNSUPPORTED",
+                    ));
+                }
+            }
         }
         let bundle = &new_bundle.bundle;
 
@@ -5414,8 +5448,9 @@ impl KnowledgeStore for PostgresDatabase {
                 r#"
                 INSERT INTO knowledge_context_bundle_items
                     (bundle_id, item_ordinal, ref_kind, ref_id,
-                     retrieval_decision, relevance_score, token_count, citation)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                     retrieval_decision, relevance_score, token_count, citation,
+                     supported, unsupported_reason)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 "#,
             )
             .bind(&stored.bundle_id)
@@ -5426,6 +5461,8 @@ impl KnowledgeStore for PostgresDatabase {
             .bind(item.relevance_score)
             .bind(item.token_count)
             .bind(&item.citation)
+            .bind(item.supported)
+            .bind(&item.unsupported_reason)
             .execute(&mut *tx)
             .await?;
         }
@@ -5453,7 +5490,8 @@ impl KnowledgeStore for PostgresDatabase {
         let item_rows = sqlx::query(
             r#"
             SELECT bundle_id, item_ordinal, ref_kind, ref_id,
-                   retrieval_decision, relevance_score, token_count, citation
+                   retrieval_decision, relevance_score, token_count, citation,
+                   supported, unsupported_reason
             FROM knowledge_context_bundle_items
             WHERE bundle_id = $1
             ORDER BY item_ordinal

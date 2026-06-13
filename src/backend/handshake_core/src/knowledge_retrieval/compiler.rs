@@ -147,12 +147,18 @@ impl<'a> ContextBundleCompilerV2<'a> {
             .iter()
             .filter(|c| allocation.is_admitted(&c.ref_id))
             .map(|c| {
+                let supported = c.snippet.as_ref().map(|s| s.supported).unwrap_or(true);
+                let unsupported_reason = c
+                    .snippet
+                    .as_ref()
+                    .and_then(|s| s.unsupported_reason.clone());
                 json!({
                     "ref_kind": c.ref_kind.as_str(),
                     "ref_id": c.ref_id,
                     "relevance_score": c.relevance_score,
                     "citation": c.snippet.as_ref().map(|s| s.citation()),
-                    "supported": c.snippet.as_ref().map(|s| s.supported).unwrap_or(true),
+                    "supported": supported,
+                    "unsupported_reason": unsupported_reason,
                 })
             })
             .collect();
@@ -175,6 +181,11 @@ impl<'a> ContextBundleCompilerV2<'a> {
             .iter()
             .map(|c| {
                 let decision = item_decision(&allocation, &c.ref_id);
+                let supported = c.snippet.as_ref().map(|s| s.supported).unwrap_or(true);
+                let unsupported_reason = c
+                    .snippet
+                    .as_ref()
+                    .and_then(|s| s.unsupported_reason.clone());
                 NewKnowledgeContextBundleItem {
                     ref_kind: c.ref_kind,
                     ref_id: c.ref_id.clone(),
@@ -182,6 +193,8 @@ impl<'a> ContextBundleCompilerV2<'a> {
                     relevance_score: Some(c.relevance_score.clamp(0.0, 1.0)),
                     token_count: Some(c.token_count as i32),
                     citation: c.snippet.as_ref().map(|s| s.citation()),
+                    supported,
+                    unsupported_reason,
                 }
             })
             .collect();

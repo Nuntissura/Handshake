@@ -446,6 +446,8 @@ mod mt_060_context_bundles {
                         relevance_score: Some(0.91),
                         token_count: Some(1024),
                         citation: Some("src/storage/knowledge.rs#L1-L40".to_string()),
+                        supported: true,
+                        unsupported_reason: None,
                     },
                     NewKnowledgeContextBundleItem {
                         ref_kind: KnowledgeBundleItemRefKind::Passage,
@@ -454,6 +456,8 @@ mod mt_060_context_bundles {
                         relevance_score: Some(0.4),
                         token_count: Some(4096),
                         citation: None,
+                        supported: true,
+                        unsupported_reason: None,
                     },
                 ],
             })
@@ -552,6 +556,86 @@ mod mt_060_context_bundles {
         assert!(
             err.to_string()
                 .contains("chk_knowledge_context_bundles_id_matches_hash"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bundle_item_support_state_rejects_drift() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP bundle_item_support_state_rejects_drift: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let allowed_context = json!({"items": []});
+
+        let drifting = ContextBundle::new(
+            "KTR-BUNDLE-SUPPORT-DRIFT",
+            "SR-BUNDLE-SUPPORT-DRIFT",
+            allowed_context.clone(),
+        )
+        .expect("kernel V1 context bundle");
+        let err = pg
+            .db
+            .record_knowledge_context_bundle(NewKnowledgeContextBundle {
+                workspace_id: workspace_id.clone(),
+                bundle: drifting,
+                query_text: Some("support drift".to_string()),
+                token_budget: Some(256),
+                tokens_used: Some(8),
+                build_receipt_event_id: None,
+                items: vec![NewKnowledgeContextBundleItem {
+                    ref_kind: KnowledgeBundleItemRefKind::Span,
+                    ref_id: "KSP-drift".to_string(),
+                    retrieval_decision: KnowledgeBundleItemDecision::Included,
+                    relevance_score: Some(0.75),
+                    token_count: Some(8),
+                    citation: Some("#KSP-drift@UNSUPPORTED".to_string()),
+                    supported: true,
+                    unsupported_reason: Some("span not found in index".to_string()),
+                }],
+            })
+            .await
+            .expect_err("storage must reject contradictory supported item metadata");
+        assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+
+        let bundle = ContextBundle::new(
+            "KTR-BUNDLE-RAW-SUPPORT-DRIFT",
+            "SR-BUNDLE-RAW-SUPPORT-DRIFT",
+            allowed_context,
+        )
+        .expect("kernel V1 context bundle");
+        let stored = pg
+            .db
+            .record_knowledge_context_bundle(NewKnowledgeContextBundle {
+                workspace_id,
+                bundle,
+                query_text: Some("raw support drift".to_string()),
+                token_budget: Some(256),
+                tokens_used: Some(0),
+                build_receipt_event_id: None,
+                items: vec![],
+            })
+            .await
+            .expect("record empty bundle for raw drift probe");
+
+        let mut conn = pg.raw_connection().await;
+        let err = sqlx::query(
+            r#"
+            INSERT INTO knowledge_context_bundle_items
+                (bundle_id, item_ordinal, ref_kind, ref_id, retrieval_decision,
+                 relevance_score, token_count, citation, supported, unsupported_reason)
+            VALUES ($1, 0, 'span', 'KSP-raw-drift', 'included',
+                    0.5, 8, '#KSP-raw-drift@UNSUPPORTED', TRUE, NULL)
+            "#,
+        )
+        .bind(&stored.bundle_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("raw SQL must reject @UNSUPPORTED rows marked supported");
+        assert!(
+            err.to_string()
+                .contains("chk_knowledge_context_bundle_items_support_reason"),
             "unexpected: {err}"
         );
     }

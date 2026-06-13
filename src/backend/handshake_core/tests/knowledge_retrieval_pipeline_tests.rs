@@ -1245,7 +1245,7 @@ async fn retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven()
         )
         .await
         .expect("compile bad citation");
-    let (bundle, _items) = fx
+    let (bundle, items) = fx
         .pg
         .db
         .get_knowledge_context_bundle(&compiled.bundle_id)
@@ -1257,6 +1257,21 @@ async fn retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven()
         serde_json::json!(false),
         "the persisted bundle carries the unsupported-citation marker: {}",
         bundle.allowed_context
+    );
+    assert_eq!(items.len(), 1, "bad citation item row persists");
+    let item_citation = items[0].citation.as_deref().expect("item citation");
+    assert!(item_citation.contains("KSP-00000000000000000000000000000000"));
+    assert!(
+        item_citation.ends_with("@UNSUPPORTED"),
+        "unsupported item row citation must carry the marker: {item_citation}"
+    );
+    assert!(
+        !items[0].supported,
+        "unsupported state must be typed on the item row, not only embedded in allowed_context JSON"
+    );
+    assert_eq!(
+        items[0].unsupported_reason.as_deref(),
+        Some("span not found in index")
     );
 
     // (2) The FK law makes a DANGLING citation unconstructable via storage:
