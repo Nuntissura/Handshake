@@ -141,9 +141,16 @@ pub fn seed_corpus() -> SeedCorpus {
 /// Stable hash over the full corpus (version metadata + MT-204 freshness).
 pub fn corpus_hash(corpus: &SeedCorpus) -> String {
     let page_hashes: Vec<String> = corpus.pages.iter().map(|p| p.content_hash()).collect();
-    let tool_hashes: Vec<&str> = corpus.tools.iter().map(|t| t.content_hash.as_str()).collect();
-    let feature_hashes: Vec<&str> =
-        corpus.features.iter().map(|f| f.content_hash.as_str()).collect();
+    let tool_hashes: Vec<&str> = corpus
+        .tools
+        .iter()
+        .map(|t| t.content_hash.as_str())
+        .collect();
+    let feature_hashes: Vec<&str> = corpus
+        .features
+        .iter()
+        .map(|f| f.content_hash.as_str())
+        .collect();
     sha256_hex(
         &serde_json::to_string(&json!({
             "manual_version": USER_MANUAL_VERSION,
@@ -870,7 +877,10 @@ fn page_retrieval_surface() -> NewUserManualPage {
                  sources vanished, re-run ingestion first ([[knowledge-index-surface]]).",
             ),
         ],
-        vec![page_link("knowledge-index-surface"), page_link("quickstart-retrieval")],
+        vec![
+            page_link("knowledge-index-surface"),
+            page_link("quickstart-retrieval"),
+        ],
         vec!["2.3.13.11".into()],
     )
 }
@@ -1139,7 +1149,8 @@ fn page_missing_postgres_behavior() -> NewUserManualPage {
 fn page_state_recovery_guide() -> NewUserManualPage {
     NewUserManualPage {
         slug: "state-recovery-guide".into(),
-        title: "State Recovery — Compaction, Interruptions, Failed Builds, Validation Reentry".into(),
+        title: "State Recovery — Compaction, Interruptions, Failed Builds, Validation Reentry"
+            .into(),
         page_kind: "state_recovery",
         audience: "model",
         spec_anchors: vec!["10.15.8".into(), "2.3.13.11".into()],
@@ -1169,6 +1180,70 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  4. Never re-do a write blindly: check for its receipt first (idempotency keys \
                  make safe re-runs explicit).",
             ),
+            section_with_json(
+                "recovery",
+                "Parallel swarm operation and recovery",
+                "Parallel local/cloud agents recover from the PostgreSQL/EventLedger swarm \
+                 surface, not from chat history or UI state. Use the live runtime symbols as the \
+                 recovery map:\n\n\
+                 - `AgentLaneIdentity` names the lane, actor, provider attribution, and \
+                 capability set.\n\
+                 - `claim_work_surface` acquires or holds worktree/workspace/rich-document \
+                 claims; expired claims are reclaimed before a new owner resumes.\n\
+                 - `record_role_mailbox_handoff` records validator/operator handoff state \
+                 (`progress`, `pass`, `fail`) with mailbox thread/message ids.\n\
+                 - `resolve_backend_navigation_quiet` resolves backend navigation commands \
+                 without foreground windows and records quiet background work.\n\
+                 - `record_checkpoint` writes restartable recovery checkpoints; \
+                 `recover_from_checkpoint` verifies the payload hash before emitting a recovery \
+                 receipt.\n\
+                 - `enqueue_indexing_lease` / `try_acquire_indexing_lease` serialize parallel \
+                 index writers per scope; queued writers promote before newcomers after stale \
+                 lease reclaim.\n\
+                 - `record_quiet_background_work` records no-window/no-focus quiet work receipts.\n\
+                 - `project_swarm_dashboard` projects claims, handoffs, checkpoints, recovery \
+                 receipts, indexing leases, and quiet work into a bounded dashboard view.\n\
+                 - `build_handoff_compression_template` creates a bounded resume template from \
+                 existing checkpoint authority; it is a projection, not a second authority.\n\n\
+                 Negative recovery proofs to cite before marking swarm work ready: \
+                 `mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts`, \
+                 `mt223_quiet_receipt_failure_rolls_back_index_run_and_lease`, \
+                 `mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer`, and \
+                 `mt223_restart_after_crash_reconstructs_swarm_state_from_postgres`. These \
+                 prove false receipts are not emitted, queue order survives stale reclaim, and \
+                 a fresh store can reconstruct state from Postgres alone.",
+                json!({
+                    "runtime_symbols": [
+                        "AgentLaneIdentity",
+                        "claim_work_surface",
+                        "record_role_mailbox_handoff",
+                        "resolve_backend_navigation_quiet",
+                        "record_checkpoint",
+                        "recover_from_checkpoint",
+                        "enqueue_indexing_lease",
+                        "try_acquire_indexing_lease",
+                        "record_quiet_background_work",
+                        "project_swarm_dashboard",
+                        "build_handoff_compression_template"
+                    ],
+                    "negative_case_tests": [
+                        "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
+                        "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
+                        "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
+                        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres"
+                    ],
+                    "authority": [
+                        "PostgreSQL",
+                        "kernel_event_ledger",
+                        "knowledge_agent_worktree_claims",
+                        "knowledge_agent_role_mailbox_handoffs",
+                        "knowledge_agent_state_recovery_checkpoints",
+                        "knowledge_agent_recovery_receipts",
+                        "knowledge_parallel_indexing_lease_queue",
+                        "knowledge_agent_quiet_background_work"
+                    ]
+                }),
+            ),
             section(
                 "recovery",
                 "After a failed build",
@@ -1193,6 +1268,8 @@ fn page_state_recovery_guide() -> NewUserManualPage {
         anchors: vec![
             page_link("repair-queues-and-staleness"),
             page_link("manual-toc"),
+            page_link("backend-navigation-and-identity"),
+            page_link("quickstart-state-recovery"),
             route_anchor("GET", "/usermanual/freshness"),
         ],
     }
@@ -1264,13 +1341,17 @@ fn page_legacy_bridge() -> NewUserManualPage {
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(plan.rows.iter().map(|r| json!({
-                    "row_id": r.row_id,
-                    "legacy_id": r.legacy_id,
-                    "canonical_ref": r.canonical_ref,
-                    "phase": r.phase.as_str(),
-                    "shim_state": r.shim_state.as_str(),
-                })).collect::<Vec<_>>()),
+                json!(plan
+                    .rows
+                    .iter()
+                    .map(|r| json!({
+                        "row_id": r.row_id,
+                        "legacy_id": r.legacy_id,
+                        "canonical_ref": r.canonical_ref,
+                        "phase": r.phase.as_str(),
+                        "shim_state": r.shim_state.as_str(),
+                    }))
+                    .collect::<Vec<_>>()),
             ),
         ],
         anchors: vec![
@@ -1588,9 +1669,21 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             description: command.description.to_string(),
             expected_input: command.expected_input.to_string(),
             expected_output: command.expected_output.to_string(),
-            schema_fields: command.schema_fields.iter().map(|s| s.to_string()).collect(),
-            common_errors: command.common_errors.iter().map(|s| s.to_string()).collect(),
-            recovery_steps: command.recovery_steps.iter().map(|s| s.to_string()).collect(),
+            schema_fields: command
+                .schema_fields
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            common_errors: command
+                .common_errors
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            recovery_steps: command
+                .recovery_steps
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             origin: "legacy_model_manual".into(),
             content_hash,
             manual_version: USER_MANUAL_VERSION.into(),
@@ -1703,7 +1796,9 @@ pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
 
     let mut pages_changed = 0usize;
     for page in &corpus.pages {
-        let (_, changed) = store.upsert_page(page, USER_MANUAL_VERSION, "current").await?;
+        let (_, changed) = store
+            .upsert_page(page, USER_MANUAL_VERSION, "current")
+            .await?;
         if changed {
             pages_changed += 1;
         }
@@ -1860,13 +1955,25 @@ mod tests {
         let corpus = seed_corpus();
         let mut ids = BTreeSet::new();
         for tool in &corpus.tools {
-            assert!(ids.insert(tool.tool_id.clone()), "dup tool id {}", tool.tool_id);
+            assert!(
+                ids.insert(tool.tool_id.clone()),
+                "dup tool id {}",
+                tool.tool_id
+            );
         }
         for s in wp009_surface_registry() {
-            assert!(ids.contains(s.surface_id), "registry surface {} missing from tool catalog", s.surface_id);
+            assert!(
+                ids.contains(s.surface_id),
+                "registry surface {} missing from tool catalog",
+                s.surface_id
+            );
         }
         for command in crate::model_manual::model_manual().command_reference {
-            assert!(ids.contains(command.id), "legacy command {} missing from tool catalog", command.id);
+            assert!(
+                ids.contains(command.id),
+                "legacy command {} missing from tool catalog",
+                command.id
+            );
         }
     }
 

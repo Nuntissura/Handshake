@@ -183,7 +183,10 @@ async fn mt198_documented_failure_modes_match_runtime() {
     // 1) Identity law (code-nav): missing headers -> 400 bad_request.
     let nav = fx
         .http
-        .get(format!("{}/knowledge/code/symbols?workspace_id=x&name=y", fx.base))
+        .get(format!(
+            "{}/knowledge/code/symbols?workspace_id=x&name=y",
+            fx.base
+        ))
         .send()
         .await
         .expect("nav probe");
@@ -214,15 +217,21 @@ async fn mt198_documented_failure_modes_match_runtime() {
         .to_string();
 
     let denied = doc_headers(
-        fx.http
-            .put(format!("{}/knowledge/documents/{document_id}/save", fx.base)),
+        fx.http.put(format!(
+            "{}/knowledge/documents/{document_id}/save",
+            fx.base
+        )),
         "cloud_model",
     )
     .json(&json!({"expected_version": 1, "content_json": {"type": "doc", "content": []}}))
     .send()
     .await
     .expect("cloud_model save");
-    assert_eq!(denied.status(), 403, "cloud_model write must be denied (documented)");
+    assert_eq!(
+        denied.status(),
+        403,
+        "cloud_model write must be denied (documented)"
+    );
     let denied_body: Value = denied.json().await.expect("denied json");
     let denied_code = denied_body["error"].as_str().unwrap();
     assert!(
@@ -236,17 +245,26 @@ async fn mt198_documented_failure_modes_match_runtime() {
 
     // 3) Concurrency law (documents): stale expected_version -> 409 conflict.
     let conflict = doc_headers(
-        fx.http
-            .put(format!("{}/knowledge/documents/{document_id}/save", fx.base)),
+        fx.http.put(format!(
+            "{}/knowledge/documents/{document_id}/save",
+            fx.base
+        )),
         "operator",
     )
     .json(&json!({"expected_version": 999, "content_json": {"type": "doc", "content": []}}))
     .send()
     .await
     .expect("stale save");
-    assert_eq!(conflict.status(), 409, "stale expected_version must 409 (documented)");
+    assert_eq!(
+        conflict.status(),
+        409,
+        "stale expected_version must 409 (documented)"
+    );
     let conflict_body: Value = conflict.json().await.expect("conflict json");
-    assert!(documented("documents", conflict_body["error"].as_str().unwrap()));
+    assert!(documented(
+        "documents",
+        conflict_body["error"].as_str().unwrap()
+    ));
 
     // 4) UserManual surface: unknown slug -> 404 not_found (documented).
     let manual_missing = fx
@@ -257,7 +275,10 @@ async fn mt198_documented_failure_modes_match_runtime() {
         .expect("manual missing");
     assert_eq!(manual_missing.status(), 404);
     let manual_body: Value = manual_missing.json().await.expect("manual 404 json");
-    assert!(documented("usermanual", manual_body["error"].as_str().unwrap()));
+    assert!(documented(
+        "usermanual",
+        manual_body["error"].as_str().unwrap()
+    ));
 }
 
 /// MT-198: the documented embed law and repair-action vocabulary match the
@@ -390,7 +411,10 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         .expect("load bundle")
         .expect("bundle persisted");
     assert_eq!(items.len(), 1);
-    let citation = items[0].citation.as_deref().expect("manual citation persisted");
+    let citation = items[0]
+        .citation
+        .as_deref()
+        .expect("manual citation persisted");
     assert!(
         citation.contains("usermanual:state-recovery-guide@"),
         "citation must carry slug+version: {citation}"
@@ -408,7 +432,10 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         "citation must carry the drift hash prefix: {citation}"
     );
     // The bundle itself is targeted at the manual page.
-    assert!(bundle.allowed_context.to_string().contains("user_manual_page"));
+    assert!(bundle
+        .allowed_context
+        .to_string()
+        .contains("user_manual_page"));
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +477,100 @@ async fn mt206_state_recovery_guide_covers_contract_scenarios() {
     }
     for section in &sections {
         assert_eq!(section.section_kind, "recovery");
+    }
+}
+
+/// MT-224: the state-recovery guide must cover the live parallel-swarm
+/// state-recovery APIs by symbol, not just prose. The source-symbol check
+/// keeps the page tied to runtime code instead of an invented manual.
+#[tokio::test]
+async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "mt224_parallel_swarm_manual"
+    );
+    ensure_seeded(&kpg.db).await.expect("seed");
+    let store = UserManualStore::new(&kpg.db);
+    let (_, sections, anchors) = store
+        .get_page_by_slug("state-recovery-guide")
+        .await
+        .expect("page query")
+        .expect("state-recovery-guide seeded");
+    let section = sections
+        .iter()
+        .find(|s| s.title == "Parallel swarm operation and recovery")
+        .expect("state-recovery-guide must include the MT-224 parallel swarm section");
+
+    let expected_symbols = [
+        "AgentLaneIdentity",
+        "claim_work_surface",
+        "record_role_mailbox_handoff",
+        "resolve_backend_navigation_quiet",
+        "record_checkpoint",
+        "recover_from_checkpoint",
+        "enqueue_indexing_lease",
+        "try_acquire_indexing_lease",
+        "record_quiet_background_work",
+        "project_swarm_dashboard",
+        "build_handoff_compression_template",
+    ];
+    let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let runtime =
+        std::fs::read_to_string(crate_root.join("src/swarm_orchestration/state_recovery.rs"))
+            .expect("read state_recovery.rs");
+    let body_json = section
+        .body_json
+        .as_ref()
+        .expect("parallel swarm section must carry machine-readable runtime symbols");
+    for symbol in expected_symbols {
+        assert!(
+            runtime.contains(symbol),
+            "runtime no longer exposes {symbol}; update MT-224 manual coverage"
+        );
+        assert!(
+            section.body_md.contains(symbol),
+            "manual section does not name live symbol {symbol}"
+        );
+        assert!(
+            body_json["runtime_symbols"]
+                .as_array()
+                .expect("runtime_symbols array")
+                .iter()
+                .any(|value| value.as_str() == Some(symbol)),
+            "manual body_json runtime_symbols missing {symbol}"
+        );
+    }
+
+    let expected_negative_tests = [
+        "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
+        "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
+        "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
+        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres",
+    ];
+    let test_source =
+        std::fs::read_to_string(crate_root.join("tests/parallel_swarm_state_recovery_tests.rs"))
+            .expect("read parallel swarm tests");
+    for test_name in expected_negative_tests {
+        assert!(
+            test_source.contains(test_name),
+            "runtime proof {test_name} missing; update MT-224 manual evidence"
+        );
+        assert!(
+            section.body_md.contains(test_name),
+            "manual section does not cite runtime proof {test_name}"
+        );
+    }
+
+    for target in [
+        "backend-navigation-and-identity",
+        "quickstart-state-recovery",
+    ] {
+        assert!(
+            anchors
+                .iter()
+                .any(|a| a.anchor_kind == "page_link" && a.anchor_value == target),
+            "state-recovery-guide missing page link to {target}"
+        );
     }
 }
 
@@ -499,7 +620,12 @@ async fn mt208_missing_page_fixture_detected_and_healed() {
         "mt208_missing_page"
     );
     ensure_seeded(&kpg.db).await.expect("seed");
-    assert_eq!(delete_page(&kpg.db, "quickstart-editor").await.expect("delete"), 1);
+    assert_eq!(
+        delete_page(&kpg.db, "quickstart-editor")
+            .await
+            .expect("delete"),
+        1
+    );
 
     let report = check_freshness(&kpg.db).await.expect("freshness");
     assert!(!report.fresh);
