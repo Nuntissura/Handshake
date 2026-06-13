@@ -46,9 +46,9 @@ mod commands {
     pub mod swarm_schedule;
     pub mod swarm_schedule_store;
     pub mod terminal;
-    pub mod visual_debugger;
     #[cfg(test)]
     pub mod testing;
+    pub mod visual_debugger;
 }
 
 use quiet_window::QuietWindowBuilder;
@@ -1134,8 +1134,22 @@ pub fn run() {
             let sandbox_registry_for_swarm: Arc<handshake_core::sandbox::SandboxAdapterRegistry> =
                 (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
             let terminal_capture_runtime = terminal_runtime.clone();
-            let (mut swarm_state, board_events, scheduler_state) =
+            let (swarm_state, board_events, scheduler_state) =
                 tauri::async_runtime::block_on(async move {
+                    let cloud_assistance_recorder = match handshake_core::storage::init_control_plane_storage().await {
+                        Ok(control_plane) => Some(Arc::new(
+                            commands::swarm_runtime::PostgresCloudAssistanceReceiptRecorder::from_control_plane(
+                                control_plane,
+                            ),
+                        )
+                            as Arc<dyn commands::swarm_runtime::CloudAssistanceReceiptRecorder>),
+                        Err(error) => {
+                            eprintln!(
+                                "MT-221 cloud assistance receipt recorder unavailable: {error}; cloud escalation output will fail closed"
+                            );
+                            None
+                        }
+                    };
                     let mut swarm_state = match swarm_recorder {
                         Some(recorder) => {
                             commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
@@ -1151,6 +1165,9 @@ pub fn run() {
                             )
                         }
                     };
+                    if let Some(recorder) = cloud_assistance_recorder {
+                        swarm_state = swarm_state.with_cloud_assistance_recorder(recorder);
+                    }
                     // Wire the §10.1 capture seam: each swarm spawn opens a read-only
                     // AiJob capture session bound to its swarm_id swimlane through the
                     // SAME terminal runtime the panel reads. Only when both the terminal

@@ -1,11 +1,9 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-// OperatorChat unit tests (governance glue #3): the chat box accepts ALL spawned
-// sessions (local + cloud BYOK + official CLI), labels each by provider + model
-// + worktree, disables non-live sessions honestly, sends a REAL generate through
-// the provider-agnostic backend path, and surfaces backend errors verbatim. We
-// mock only the chatGenerate IPC CALL; the rest of the component is real.
+// OperatorChat unit tests: the chat picker shows all spawned sessions for
+// attribution, but direct chat is local-only. Cloud output must go through the
+// receipt-gated escalation path.
 
 const chatGenerateMock = vi.fn();
 const chatGenerateWithCloudEscalationMock = vi.fn();
@@ -23,7 +21,10 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
 });
 
 import { OperatorChat, canChat, sessionOptionLabel } from "./OperatorChat";
-import type { SwarmSession } from "../../lib/ipc/swarm_runtime";
+import type {
+  CloudAssistanceReceiptContext,
+  SwarmSession,
+} from "../../lib/ipc/swarm_runtime";
 
 function makeSession(over: Partial<SwarmSession> & { modelId?: string; instance?: number }): SwarmSession {
   const modelId = over.modelId ?? "m";
@@ -63,6 +64,18 @@ const DEAD = makeSession({
   cloudModelName: "gpt-4o",
   state: "CANCELLED",
 });
+const RECEIPT_CONTEXT: CloudAssistanceReceiptContext = {
+  workspaceId: "workspace-chat-test",
+  wpId: "WP-KERNEL-009",
+  mtId: "MT-221",
+  claimId: "PSR-CLAIM-chat-test",
+  cloudLaneId: "cloud-lane-chat-test",
+  cloudActorId: "cloud-actor-chat-test",
+  toRole: "WP_VALIDATOR",
+  mailboxThreadId: "thread-chat-test",
+  mailboxMessageId: "message-chat-test",
+  targetRef: "wp://WP-KERNEL-009/MT-221",
+};
 
 beforeEach(() => {
   chatGenerateMock.mockReset();
@@ -70,9 +83,11 @@ beforeEach(() => {
 });
 
 describe("canChat (pure helper)", () => {
-  test("READY and GENERATING are chattable; everything else is not", () => {
+  test("READY and GENERATING local sessions are chattable; cloud/CLI are not", () => {
     expect(canChat(makeSession({ state: "READY" }))).toBe(true);
     expect(canChat(makeSession({ state: "GENERATING" }))).toBe(true);
+    expect(canChat(CLOUD)).toBe(false);
+    expect(canChat(CLI)).toBe(false);
     expect(canChat(makeSession({ state: "QUEUED" }))).toBe(false);
     expect(canChat(makeSession({ state: "LOADING" }))).toBe(false);
     expect(canChat(makeSession({ state: "CANCELLED" }))).toBe(false);
@@ -113,7 +128,7 @@ describe("OperatorChat picker", () => {
     expect(screen.getByTestId("operator-chat-option-gamma-cli#0")).toHaveAttribute("data-provider", "official_cli");
   });
 
-  test("a non-live (CANCELLED) session renders as a DISABLED option", () => {
+  test("non-local and non-live sessions render as DISABLED options", () => {
     render(
       <OperatorChat
         selectedInstanceId={null}
@@ -122,7 +137,7 @@ describe("OperatorChat picker", () => {
       />,
     );
     expect(screen.getByTestId("operator-chat-option-delta-dead#0")).toBeDisabled();
-    expect(screen.getByTestId("operator-chat-option-beta-cloud#0")).not.toBeDisabled();
+    expect(screen.getByTestId("operator-chat-option-beta-cloud#0")).toBeDisabled();
   });
 });
 
@@ -143,9 +158,8 @@ describe("OperatorChat honest non-chattable state", () => {
   });
 });
 
-describe("OperatorChat cloud generate (provider-agnostic path)", () => {
-  test("selecting a cloud session and sending calls chatGenerate(composite, text) and renders the model turn", async () => {
-    chatGenerateMock.mockResolvedValue({ text: "Hello from the cloud session.", tokenCount: 6, finishReason: "stop" });
+describe("OperatorChat direct local generate and receipt-gated cloud fallback", () => {
+  test("selecting a cloud session disables direct chat and does not call chatGenerate", async () => {
     render(
       <OperatorChat
         selectedInstanceId="beta-cloud#0"
@@ -155,20 +169,18 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
     );
 
     const input = screen.getByTestId("operator-chat-input");
-    expect(input).toBeEnabled();
-    fireEvent.change(input, { target: { value: "Hi cloud" } });
+    expect(input).toBeDisabled();
     fireEvent.click(screen.getByTestId("operator-chat-send"));
 
-    await waitFor(() => expect(chatGenerateMock).toHaveBeenCalledWith("beta-cloud#0", "Hi cloud"));
-    expect(await screen.findByText("Hello from the cloud session.")).toBeInTheDocument();
+    expect(chatGenerateMock).not.toHaveBeenCalled();
   });
 
   test("a rejected chatGenerate surfaces the backend error verbatim (honesty)", async () => {
     chatGenerateMock.mockRejectedValue(new Error("session no longer live"));
     render(
       <OperatorChat
-        selectedInstanceId="beta-cloud#0"
-        sessions={[CLOUD]}
+        selectedInstanceId="alpha-model#0"
+        sessions={[LOCAL]}
         onSelectInstance={() => {}}
       />,
     );
@@ -187,6 +199,16 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
       local: null,
       cloudInstance: { modelId: "cloud-fallback", instance: 0, composite: "cloud-fallback#0" },
       cloud: { text: "Recovered from cloud.", tokenCount: 4, finishReason: "stop" },
+      cloudAssistanceReceipt: {
+        receiptId: "PSR-CLOUD-chat-test",
+        fallbackBasisEventId: "KE-fallback-chat-test",
+        handoffId: "PSR-HANDOFF-chat-test",
+        cloudAssistanceEventId: "KE-cloud-chat-test",
+        outputSha256: "a".repeat(64),
+        reviewState: "pending_review",
+        nonAuthoritative: true,
+        requiresPromotion: true,
+      },
       cloudError: null,
     });
 
@@ -204,6 +226,7 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
             swarmId: "wt-feature-x",
             worktreeId: "wt-feature-x",
           },
+          receiptContext: RECEIPT_CONTEXT,
         }}
       />,
     );
@@ -229,10 +252,13 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
           worktreeId: "wt-feature-x",
         },
         taskClass: "hard_reasoning",
+        cloudAssistanceReceipt: RECEIPT_CONTEXT,
       });
     });
     expect(chatGenerateMock).not.toHaveBeenCalled();
-    expect(await screen.findByText("Escalated to cloud: local runtime overloaded")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Escalated to cloud: local runtime overloaded (receipt PSR-CLOUD-chat-test)"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Recovered from cloud.")).toBeInTheDocument();
   });
 
@@ -244,6 +270,7 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
         onSelectInstance={() => {}}
         cloudEscalation={{
           label: "openai · gpt-4o",
+          receiptContext: RECEIPT_CONTEXT,
           request: {
             provider: "byok_cloud",
             byokCloudProvider: "openai",

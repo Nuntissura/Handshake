@@ -46,6 +46,7 @@ const chatGenerateWithCloudEscalationMock = vi.fn(async (_request: Record<string
   local: null,
   cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
   cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
+  cloudAssistanceReceipt: null,
   cloudError: null,
 }));
 const listWorktreesMock = vi.fn(async () => [
@@ -483,7 +484,7 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect(screen.getByTestId("swarm-spawn-notice")).toHaveTextContent(/Escalated to cloud/i);
   });
 
-  test("operator chat exposes explicit cloud fallback using the spawn form cloud lane", async () => {
+  test("operator chat disables cloud fallback until receipt context is available", async () => {
     listActiveSessionsMock.mockResolvedValue([
       {
         instanceId: { modelId: "local-m", instance: 0, composite: "local-m#0" },
@@ -516,25 +517,14 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     });
 
     expect(screen.getByTestId("operator-chat-escalation")).toBeInTheDocument();
-    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeEnabled();
+    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeDisabled();
     expect(screen.getByTestId("operator-chat-escalation")).toHaveTextContent(
       /openai · gpt-4o/i,
     );
-    fireEvent.click(screen.getByTestId("operator-chat-escalation-enabled"));
-    fireEvent.change(screen.getByTestId("operator-chat-input"), {
-      target: { value: "fallback please" },
-    });
-    fireEvent.click(screen.getByTestId("operator-chat-send"));
-
-    await waitFor(() => expect(chatGenerateWithCloudEscalationMock).toHaveBeenCalled());
-    const request = chatGenerateWithCloudEscalationMock.mock.calls[
-      chatGenerateWithCloudEscalationMock.mock.calls.length - 1
-    ]?.[0] as {
-      cloud: Record<string, unknown>;
-    };
-    expect(request.cloud.worktreeId).toBe("wt-selected-session");
-    expect(request.cloud.workingDir).toBe("D:/work/selected-session");
-    expect(request.cloud.swarmId).toBe("wt-selected-session");
+    expect(screen.getByTestId("operator-chat-escalation-note")).toHaveTextContent(
+      /receipt context/i,
+    );
+    expect(chatGenerateWithCloudEscalationMock).not.toHaveBeenCalled();
   });
 
   test("the sessions table renders a Worktree column showing the assigned id or — when unassigned", async () => {

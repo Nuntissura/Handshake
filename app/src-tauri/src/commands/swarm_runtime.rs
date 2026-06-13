@@ -81,7 +81,13 @@ use handshake_core::process_ledger::{
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
 use handshake_core::sandbox::SandboxAdapterRegistry;
+use handshake_core::storage::ControlPlaneStorage;
 use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
+use handshake_core::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, AgentLaneKind, AttributionMode, CloudAssistanceOutputKind,
+    CloudAssistanceRequest, CloudFallbackBasisRequest, CloudFallbackReason, LocalCloudAttribution,
+    ModelProviderKind, ParallelSwarmStateRecoveryStore,
+};
 use handshake_core::swarm_orchestration::{
     BroadcastSwarmSink, ByokCloudProvider, CloudLaneFactoryConfig, DurableSwarmFrBridge,
     FanoutSwarmSink, FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory,
@@ -89,6 +95,8 @@ use handshake_core::swarm_orchestration::{
     SwarmCoordinator, SwarmError, SwarmEvent, SwarmEventSink, SwarmResult,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use sha2::{Digest, Sha256};
 use tauri::State;
 use uuid::Uuid;
 
@@ -301,6 +309,10 @@ pub struct SwarmRuntimeState {
     /// coordinator. `None` preserves legacy callers; `Some` makes every spawn
     /// fail closed unless it carries a committed-memory estimate.
     committed_memory_ceiling_bytes: Option<u64>,
+    /// MT-221: successful cloud fallback output must be receipt-recorded before
+    /// it is returned to a caller. `None` means the receipt path is not wired, so
+    /// cloud escalation fails closed rather than returning unreviewed output.
+    cloud_assistance_recorder: Option<Arc<dyn CloudAssistanceReceiptRecorder>>,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -618,6 +630,7 @@ impl SwarmRuntimeState {
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
             spawn_template_store,
             committed_memory_ceiling_bytes,
+            cloud_assistance_recorder: None,
         }
     }
 
@@ -746,6 +759,14 @@ impl SwarmRuntimeState {
         self
     }
 
+    pub fn with_cloud_assistance_recorder(
+        mut self,
+        recorder: Arc<dyn CloudAssistanceReceiptRecorder>,
+    ) -> Self {
+        self.cloud_assistance_recorder = Some(recorder);
+        self
+    }
+
     /// rank-4: the live board broadcast source. The Tauri board forwarder
     /// subscribes here (`board_events().subscribe()`) and re-emits typed deltas.
     pub fn board_events(&self) -> Arc<BroadcastSwarmSink> {
@@ -779,7 +800,10 @@ impl SwarmRuntimeState {
     /// Resolve the live runtime + model id for a tracked instance, reconciling
     /// the side-table first. Returns `None` if the session is gone (so the chat
     /// command can surface a typed "session no longer live" error).
-    fn resolve_runtime(&self, iid: ModelInstanceId) -> Option<(Arc<dyn ModelRuntime>, ModelId)> {
+    fn resolve_runtime(
+        &self,
+        iid: ModelInstanceId,
+    ) -> Option<(Arc<dyn ModelRuntime>, ModelId, ProviderKind)> {
         // Reconcile first so a stale entry does not hand back a freed runtime.
         let live = match self.coordinator.session_state(iid) {
             Some(state) if !state.is_terminal() => true,
@@ -790,7 +814,9 @@ impl SwarmRuntimeState {
             table.remove(&iid);
             return None;
         }
-        table.get(&iid).map(|t| (t.runtime.clone(), t.model_id))
+        table
+            .get(&iid)
+            .map(|t| (t.runtime.clone(), t.model_id, t.provider))
     }
 
     fn tracked_warm_vm_restore_manifest(
@@ -1414,6 +1440,144 @@ pub struct SwarmChatGenerateWithCloudEscalationRequestIpc {
     pub min_local_confidence_basis_points: Option<u16>,
     #[serde(default)]
     pub validation_labels: Vec<String>,
+    #[serde(default)]
+    pub cloud_assistance_receipt: Option<CloudAssistanceReceiptContextIpc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudAssistanceReceiptContextIpc {
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: String,
+    pub cloud_lane_id: String,
+    pub cloud_actor_id: String,
+    #[serde(default)]
+    pub fallback_basis_event_id: Option<String>,
+    pub to_role: String,
+    pub mailbox_thread_id: String,
+    pub mailbox_message_id: String,
+    pub target_ref: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudFallbackBasisRefIpc {
+    pub basis_id: String,
+    pub fallback_basis_event_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudAssistanceReceiptRefIpc {
+    pub receipt_id: String,
+    pub fallback_basis_event_id: String,
+    pub handoff_id: String,
+    pub cloud_assistance_event_id: String,
+    pub output_sha256: String,
+    pub review_state: String,
+    pub non_authoritative: bool,
+    pub requires_promotion: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct CloudFallbackBasisRuntimeRequest {
+    pub context: CloudAssistanceReceiptContextIpc,
+    pub parent_session_id: String,
+    pub prompt_sha256: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub local_attempt_ref: String,
+    pub evidence_sha256: String,
+    pub summary: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CloudAssistanceRuntimeReceiptRequest {
+    pub context: CloudAssistanceReceiptContextIpc,
+    pub cloud_instance: SwarmInstanceIdIpc,
+    pub cloud_provider: SwarmProviderIpc,
+    pub byok_cloud_provider: Option<ByokCloudProviderIpc>,
+    pub cloud_model_name: Option<String>,
+    pub parent_session_id: String,
+    pub fallback_basis_event_id: String,
+    pub prompt_sha256: String,
+    pub output_sha256: String,
+    pub output_body_sha256: String,
+    pub output_body_jsonb: serde_json::Value,
+    pub output_text: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub escalation_reason: String,
+}
+
+#[async_trait]
+pub trait CloudAssistanceReceiptRecorder: Send + Sync {
+    async fn record_cloud_fallback_basis(
+        &self,
+        request: CloudFallbackBasisRuntimeRequest,
+    ) -> Result<CloudFallbackBasisRefIpc, String>;
+
+    async fn record_cloud_assistance(
+        &self,
+        request: CloudAssistanceRuntimeReceiptRequest,
+    ) -> Result<CloudAssistanceReceiptRefIpc, String>;
+}
+
+pub struct PostgresCloudAssistanceReceiptRecorder {
+    store: ParallelSwarmStateRecoveryStore,
+}
+
+impl PostgresCloudAssistanceReceiptRecorder {
+    pub fn from_control_plane(control_plane: ControlPlaneStorage) -> Self {
+        Self {
+            store: ParallelSwarmStateRecoveryStore::new(
+                control_plane.postgres_pool,
+                control_plane.database,
+            ),
+        }
+    }
+}
+
+#[async_trait]
+impl CloudAssistanceReceiptRecorder for PostgresCloudAssistanceReceiptRecorder {
+    async fn record_cloud_fallback_basis(
+        &self,
+        request: CloudFallbackBasisRuntimeRequest,
+    ) -> Result<CloudFallbackBasisRefIpc, String> {
+        let core_request = cloud_fallback_basis_request_from_runtime(request)?;
+        let receipt = self
+            .store
+            .record_cloud_fallback_basis(core_request)
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(CloudFallbackBasisRefIpc {
+            basis_id: receipt.basis_id,
+            fallback_basis_event_id: receipt.fallback_basis_event_id,
+        })
+    }
+
+    async fn record_cloud_assistance(
+        &self,
+        request: CloudAssistanceRuntimeReceiptRequest,
+    ) -> Result<CloudAssistanceReceiptRefIpc, String> {
+        let cloud_assistance_request = cloud_assistance_request_from_runtime(request)?;
+        let receipt = self
+            .store
+            .record_cloud_assistance_output(cloud_assistance_request)
+            .await
+            .map_err(|error| error.to_string())?;
+
+        Ok(CloudAssistanceReceiptRefIpc {
+            receipt_id: receipt.receipt_id,
+            fallback_basis_event_id: receipt.fallback_basis_event_id,
+            handoff_id: receipt.handoff_id,
+            cloud_assistance_event_id: receipt.cloud_assistance_event_id,
+            output_sha256: receipt.output_sha256,
+            review_state: receipt.review_state,
+            non_authoritative: receipt.non_authoritative,
+            requires_promotion: receipt.requires_promotion,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1426,6 +1590,7 @@ pub struct SwarmChatGenerateWithCloudEscalationResponseIpc {
     pub local: Option<SwarmChatResponseIpc>,
     pub cloud_instance: Option<SwarmInstanceIdIpc>,
     pub cloud: Option<SwarmChatResponseIpc>,
+    pub cloud_assistance_receipt: Option<CloudAssistanceReceiptRefIpc>,
     pub cloud_error: Option<String>,
     pub distillation_trace: Option<DistillationSwarmTraceQueueEntry>,
 }
@@ -2154,7 +2319,13 @@ async fn chat_generate_inner(
     state: &SwarmRuntimeState,
 ) -> Result<SwarmChatResponseIpc, String> {
     let trimmed = validate_chat_prompt(prompt)?;
-    let (iid, runtime, model_id) = resolve_chat_target(instance_id, state)?;
+    let (iid, runtime, model_id, provider) = resolve_chat_target(instance_id, state)?;
+    if provider != ProviderKind::Local {
+        return Err(
+            "direct chat is local-only; cloud output requires receipt-gated cloud escalation"
+                .to_string(),
+        );
+    }
     chat_generate_resolved_inner(iid, runtime, model_id, trimmed, state).await
 }
 
@@ -2170,12 +2341,20 @@ fn validate_chat_prompt(prompt: &str) -> Result<&str, String> {
 fn resolve_chat_target(
     instance_id: &str,
     state: &SwarmRuntimeState,
-) -> Result<(ModelInstanceId, Arc<dyn ModelRuntime>, ModelId), String> {
+) -> Result<
+    (
+        ModelInstanceId,
+        Arc<dyn ModelRuntime>,
+        ModelId,
+        ProviderKind,
+    ),
+    String,
+> {
     let iid = parse_instance_id(instance_id)?;
-    let (runtime, model_id) = state
+    let (runtime, model_id, provider) = state
         .resolve_runtime(iid)
         .ok_or_else(|| format!("swarm session {iid} is no longer live (cancelled or reaped)"))?;
-    Ok((iid, runtime, model_id))
+    Ok((iid, runtime, model_id, provider))
 }
 
 async fn chat_generate_resolved_inner(
@@ -2184,6 +2363,17 @@ async fn chat_generate_resolved_inner(
     model_id: ModelId,
     trimmed: &str,
     state: &SwarmRuntimeState,
+) -> Result<SwarmChatResponseIpc, String> {
+    chat_generate_resolved_inner_with_capture(iid, runtime, model_id, trimmed, state, true).await
+}
+
+async fn chat_generate_resolved_inner_with_capture(
+    iid: ModelInstanceId,
+    runtime: Arc<dyn ModelRuntime>,
+    model_id: ModelId,
+    trimmed: &str,
+    state: &SwarmRuntimeState,
+    capture_live: bool,
 ) -> Result<SwarmChatResponseIpc, String> {
     let coordinator = state.coordinator();
     // Drive the lifecycle: READY -> GENERATING for the turn, then back to READY.
@@ -2211,7 +2401,11 @@ async fn chat_generate_resolved_inner(
     // as tokens are produced, so the "inspect all background work" panel shows
     // the live output of this background model run (redacted by the sink). This
     // is the actual model output, not a synthetic marker.
-    let capture_sink = state.capture_sink_for(&iid.to_string());
+    let capture_sink = if capture_live {
+        state.capture_sink_for(&iid.to_string())
+    } else {
+        None
+    };
     if let Some(sink) = &capture_sink {
         // Echo the prompt turn so the captured transcript is self-describing.
         sink.feed(format!("\r\n$ generate: {trimmed}\r\n").as_bytes())
@@ -2290,7 +2484,7 @@ async fn chat_generate_with_cloud_escalation_inner(
         request.task_class,
         Some(SwarmEscalationTaskClassIpc::ForceLocal)
     ) {
-        let (local_iid, local_runtime, local_model_id) =
+        let (local_iid, local_runtime, local_model_id, _) =
             match resolve_chat_target(&request.local_instance_id, state) {
                 Ok(target) => target,
                 Err(local_error) => {
@@ -2302,6 +2496,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                         local: None,
                         cloud_instance: None,
                         cloud: None,
+                        cloud_assistance_receipt: None,
                         cloud_error: Some("force_local blocks cloud escalation".to_string()),
                         distillation_trace: None,
                     });
@@ -2324,6 +2519,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 local: Some(local),
                 cloud_instance: None,
                 cloud: None,
+                cloud_assistance_receipt: None,
                 cloud_error: None,
                 distillation_trace: None,
             }),
@@ -2335,6 +2531,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 local: None,
                 cloud_instance: None,
                 cloud: None,
+                cloud_assistance_receipt: None,
                 cloud_error: Some("force_local blocks cloud escalation".to_string()),
                 distillation_trace: None,
             }),
@@ -2351,13 +2548,15 @@ async fn chat_generate_with_cloud_escalation_inner(
             &request.local_instance_id,
             &prompt,
             "force_cloud requested; skipped local generate".to_string(),
+            CloudFallbackReason::ForceCloud,
             None,
+            request.cloud_assistance_receipt,
             state,
         )
         .await;
     }
 
-    let (local_iid, local_runtime, local_model_id) =
+    let (local_iid, local_runtime, local_model_id, _) =
         match resolve_chat_target(&request.local_instance_id, state) {
             Ok(target) => target,
             Err(local_error) => {
@@ -2369,6 +2568,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                     local: None,
                     cloud_instance: None,
                     cloud: None,
+                    cloud_assistance_receipt: None,
                     cloud_error: Some(
                         "cloud escalation requires a live local session attempt".to_string(),
                     ),
@@ -2391,6 +2591,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                         local: Some(local),
                         cloud_instance: None,
                         cloud: None,
+                        cloud_assistance_receipt: None,
                         cloud_error: Some(
                             "cloud escalation request must target a cloud provider".to_string(),
                         ),
@@ -2413,7 +2614,9 @@ async fn chat_generate_with_cloud_escalation_inner(
                     &request.local_instance_id,
                     &prompt,
                     escalation_reason,
+                    CloudFallbackReason::LocalLowConfidence,
                     Some(local_trace),
+                    request.cloud_assistance_receipt,
                     state,
                 )
                 .await;
@@ -2427,6 +2630,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 local: Some(local),
                 cloud_instance: None,
                 cloud: None,
+                cloud_assistance_receipt: None,
                 cloud_error: None,
                 distillation_trace: None,
             })
@@ -2441,6 +2645,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                     local: None,
                     cloud_instance: None,
                     cloud: None,
+                    cloud_assistance_receipt: None,
                     cloud_error: Some(
                         "cloud escalation request must target a cloud provider".to_string(),
                     ),
@@ -2448,12 +2653,15 @@ async fn chat_generate_with_cloud_escalation_inner(
                 });
             }
 
+            let fallback_reason = cloud_fallback_reason_from_local_error(&local_error);
             spawn_generate_cloud_escalation(
                 request.cloud,
                 &request.local_instance_id,
                 &prompt,
                 local_error,
+                fallback_reason,
                 None,
+                request.cloud_assistance_receipt,
                 state,
             )
             .await
@@ -2466,7 +2674,9 @@ async fn spawn_generate_cloud_escalation(
     parent_session_id: &str,
     prompt: &str,
     escalation_reason: String,
+    fallback_reason: CloudFallbackReason,
     local_trace: Option<LocalEscalationTraceInput>,
+    receipt_context: Option<CloudAssistanceReceiptContextIpc>,
     state: &SwarmRuntimeState,
 ) -> Result<SwarmChatGenerateWithCloudEscalationResponseIpc, String> {
     if cloud_request.provider == SwarmProviderIpc::Local {
@@ -2478,14 +2688,82 @@ async fn spawn_generate_cloud_escalation(
             local: None,
             cloud_instance: None,
             cloud: None,
+            cloud_assistance_receipt: None,
             cloud_error: Some("cloud escalation request must target a cloud provider".to_string()),
             distillation_trace: None,
         });
     }
 
+    let Some(recorder) = state.cloud_assistance_recorder.as_ref() else {
+        return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: None,
+            escalated: true,
+            escalation_reason: Some(escalation_reason),
+            local_error: None,
+            local: local_trace.as_ref().map(|trace| trace.response.clone()),
+            cloud_instance: None,
+            cloud: None,
+            cloud_assistance_receipt: None,
+            cloud_error: Some("cloud assistance receipt recorder is not configured".to_string()),
+            distillation_trace: None,
+        });
+    };
+    let Some(context) = receipt_context else {
+        return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: None,
+            escalated: true,
+            escalation_reason: Some(escalation_reason),
+            local_error: None,
+            local: local_trace.as_ref().map(|trace| trace.response.clone()),
+            cloud_instance: None,
+            cloud: None,
+            cloud_assistance_receipt: None,
+            cloud_error: Some(
+                "cloud assistance receipt context is required for cloud output".to_string(),
+            ),
+            distillation_trace: None,
+        });
+    };
+    let prompt_sha256 = sha256_hex(prompt.as_bytes());
+    let fallback_basis = recorder
+        .record_cloud_fallback_basis(CloudFallbackBasisRuntimeRequest {
+            context: context.clone(),
+            parent_session_id: parent_session_id.to_string(),
+            prompt_sha256: prompt_sha256.clone(),
+            fallback_reason,
+            local_attempt_ref: cloud_fallback_local_attempt_ref(
+                parent_session_id,
+                local_trace.as_ref(),
+                fallback_reason,
+            ),
+            evidence_sha256: sha256_hex(escalation_reason.as_bytes()),
+            summary: cloud_fallback_basis_summary(fallback_reason, &escalation_reason),
+        })
+        .await;
+    let fallback_basis = match fallback_basis {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: None,
+                escalated: true,
+                escalation_reason: Some(escalation_reason),
+                local_error: None,
+                local: local_trace.as_ref().map(|trace| trace.response.clone()),
+                cloud_instance: None,
+                cloud: None,
+                cloud_assistance_receipt: None,
+                cloud_error: Some(format!("cloud fallback basis recording failed: {error}")),
+                distillation_trace: None,
+            });
+        }
+    };
+
     if trimmed_opt(&cloud_request.parent_session_id).is_none() {
         cloud_request.parent_session_id = Some(parent_session_id.to_string());
     }
+    let cloud_provider = cloud_request.provider;
+    let byok_cloud_provider = cloud_request.byok_cloud_provider;
+    let cloud_model_name = cloud_request.cloud_model_name.clone();
     let cloud_instance = match spawn_session_inner(cloud_request, state).await {
         Ok(instance) => instance,
         Err(error) => {
@@ -2497,12 +2775,26 @@ async fn spawn_generate_cloud_escalation(
                 local: None,
                 cloud_instance: None,
                 cloud: None,
+                cloud_assistance_receipt: None,
                 cloud_error: Some(error.to_string()),
                 distillation_trace: None,
             });
         }
     };
-    match chat_generate_inner(&cloud_instance.composite, prompt, state).await {
+    let cloud_iid = parse_instance_id(&cloud_instance.composite)?;
+    let (cloud_runtime, cloud_model_id, _) = state
+        .resolve_runtime(cloud_iid)
+        .ok_or_else(|| format!("swarm session {cloud_iid} is no longer live after spawn"))?;
+    match chat_generate_resolved_inner_with_capture(
+        cloud_iid,
+        cloud_runtime,
+        cloud_model_id,
+        prompt,
+        state,
+        false,
+    )
+    .await
+    {
         Ok(cloud) => {
             let distillation_trace = build_distillation_trace_queue_entry(
                 parent_session_id,
@@ -2512,6 +2804,63 @@ async fn spawn_generate_cloud_escalation(
                 &cloud_instance,
                 &cloud,
             );
+            let output_body_jsonb =
+                serde_json::to_value(&cloud).map_err(|error| error.to_string())?;
+            let cloud_receipt = recorder
+                .record_cloud_assistance(CloudAssistanceRuntimeReceiptRequest {
+                    context,
+                    cloud_instance: cloud_instance.clone(),
+                    cloud_provider,
+                    byok_cloud_provider,
+                    cloud_model_name,
+                    parent_session_id: parent_session_id.to_string(),
+                    fallback_basis_event_id: fallback_basis.fallback_basis_event_id.clone(),
+                    prompt_sha256,
+                    output_sha256: sha256_hex(cloud.text.as_bytes()),
+                    output_body_sha256: sha256_hex(
+                        serde_json::to_string(&cloud)
+                            .map_err(|error| error.to_string())?
+                            .as_bytes(),
+                    ),
+                    output_body_jsonb,
+                    output_text: cloud.text.clone(),
+                    fallback_reason,
+                    escalation_reason: escalation_reason.clone(),
+                })
+                .await;
+            let cloud_assistance_receipt = match cloud_receipt {
+                Ok(receipt) => receipt,
+                Err(error) => {
+                    cancel_cloud_escalation_instance(
+                        state,
+                        &cloud_instance,
+                        "cloud assistance receipt recording failed",
+                    )
+                    .await;
+                    return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                        selected: None,
+                        escalated: true,
+                        escalation_reason: Some(escalation_reason),
+                        local_error: None,
+                        local: local_trace.as_ref().map(|trace| trace.response.clone()),
+                        cloud_instance: None,
+                        cloud: None,
+                        cloud_assistance_receipt: None,
+                        cloud_error: Some(format!(
+                            "cloud assistance receipt recording failed: {error}"
+                        )),
+                        distillation_trace: None,
+                    });
+                }
+            };
+            feed_deferred_cloud_capture(
+                state,
+                &cloud_instance.composite,
+                prompt,
+                &cloud.text,
+                &cloud_assistance_receipt.receipt_id,
+            )
+            .await;
             Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
                 selected: Some("cloud".to_string()),
                 escalated: true,
@@ -2520,22 +2869,286 @@ async fn spawn_generate_cloud_escalation(
                 local: local_trace.as_ref().map(|trace| trace.response.clone()),
                 cloud_instance: Some(cloud_instance),
                 cloud: Some(cloud),
+                cloud_assistance_receipt: Some(cloud_assistance_receipt),
                 cloud_error: None,
                 distillation_trace,
             })
         }
-        Err(error) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
-            selected: None,
-            escalated: true,
-            escalation_reason: Some(escalation_reason),
-            local_error: None,
-            local: local_trace.as_ref().map(|trace| trace.response.clone()),
-            cloud_instance: Some(cloud_instance),
-            cloud: None,
-            cloud_error: Some(error),
-            distillation_trace: None,
-        }),
+        Err(error) => {
+            cancel_cloud_escalation_instance(state, &cloud_instance, "cloud generate failed").await;
+            Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: None,
+                escalated: true,
+                escalation_reason: Some(escalation_reason),
+                local_error: None,
+                local: local_trace.as_ref().map(|trace| trace.response.clone()),
+                cloud_instance: None,
+                cloud: None,
+                cloud_assistance_receipt: None,
+                cloud_error: Some(error),
+                distillation_trace: None,
+            })
+        }
     }
+}
+
+fn cloud_fallback_local_attempt_ref(
+    parent_session_id: &str,
+    local_trace: Option<&LocalEscalationTraceInput>,
+    fallback_reason: CloudFallbackReason,
+) -> String {
+    local_trace
+        .map(|trace| trace.instance_id.clone())
+        .unwrap_or_else(|| {
+            format!(
+                "{}:{}",
+                cloud_fallback_reason_label(fallback_reason),
+                parent_session_id
+            )
+        })
+}
+
+fn cloud_fallback_basis_summary(
+    fallback_reason: CloudFallbackReason,
+    escalation_reason: &str,
+) -> String {
+    let mut summary = format!(
+        "cloud fallback basis recorded before cloud spawn; fallback_reason={}; escalation_reason={}",
+        cloud_fallback_reason_label(fallback_reason),
+        escalation_reason.trim()
+    );
+    truncate_to_char_boundary(&mut summary, 512);
+    summary
+}
+
+async fn cancel_cloud_escalation_instance(
+    state: &SwarmRuntimeState,
+    cloud_instance: &SwarmInstanceIdIpc,
+    reason: &str,
+) {
+    if let Ok(iid) = parse_instance_id(&cloud_instance.composite) {
+        let _ = state.coordinator().cancel_session(iid, reason).await;
+        state.close_capture_sink(&iid.to_string(), 1).await;
+    }
+}
+
+async fn feed_deferred_cloud_capture(
+    state: &SwarmRuntimeState,
+    instance_id: &str,
+    prompt: &str,
+    output_text: &str,
+    receipt_id: &str,
+) {
+    if let Some(sink) = state.capture_sink_for(instance_id) {
+        sink.feed(
+            format!("\r\n$ generate [cloud_assistance_receipt={receipt_id}]: {prompt}\r\n")
+                .as_bytes(),
+        )
+        .await;
+        if !output_text.is_empty() {
+            sink.feed(output_text.as_bytes()).await;
+        }
+        sink.feed(b"\r\n").await;
+    }
+}
+
+fn cloud_assistance_request_from_runtime(
+    request: CloudAssistanceRuntimeReceiptRequest,
+) -> Result<CloudAssistanceRequest, String> {
+    let provider =
+        model_provider_kind_from_runtime(request.cloud_provider, request.byok_cloud_provider)?;
+    let model_label = trimmed_opt(&request.cloud_model_name)
+        .ok_or_else(|| "cloud assistance receipt requires cloud_model_name".to_string())?;
+    let provider_metadata = json!({
+        "cloud_provider": swarm_provider_label(request.cloud_provider),
+        "byok_cloud_provider": request
+            .byok_cloud_provider
+            .map(byok_cloud_provider_label),
+        "cloud_instance": &request.cloud_instance,
+        "parent_session_id": &request.parent_session_id,
+        "prompt_sha256": &request.prompt_sha256,
+        "output_body_sha256": &request.output_body_sha256,
+        "fallback_reason": cloud_fallback_reason_label(request.fallback_reason),
+    });
+    let from_lane = AgentLaneIdentity::new(
+        request.context.cloud_lane_id.clone(),
+        request.context.cloud_actor_id.clone(),
+        AgentLaneKind::Cloud,
+        LocalCloudAttribution::cloud(
+            provider,
+            model_label,
+            cloud_credential_ref(provider),
+            provider_metadata,
+        ),
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(CloudAssistanceRequest {
+        from_lane,
+        workspace_id: request.context.workspace_id,
+        wp_id: request.context.wp_id,
+        mt_id: request.context.mt_id,
+        claim_id: request.context.claim_id,
+        session_id: request.cloud_instance.composite,
+        to_role: request.context.to_role,
+        mailbox_thread_id: request.context.mailbox_thread_id,
+        mailbox_message_id: request.context.mailbox_message_id,
+        fallback_basis_event_id: request.fallback_basis_event_id,
+        parent_session_id: request.parent_session_id,
+        prompt_sha256: request.prompt_sha256,
+        fallback_reason: request.fallback_reason,
+        output_kind: CloudAssistanceOutputKind::Analysis,
+        output_sha256: request.output_sha256,
+        body_sha256: request.output_body_sha256,
+        output_text: request.output_text.clone(),
+        output_body_jsonb: request.output_body_jsonb,
+        summary: cloud_assistance_summary(
+            request.fallback_reason,
+            &request.escalation_reason,
+            &request.output_text,
+        ),
+        target_ref: request.context.target_ref,
+    })
+}
+
+fn cloud_fallback_basis_request_from_runtime(
+    request: CloudFallbackBasisRuntimeRequest,
+) -> Result<CloudFallbackBasisRequest, String> {
+    let lane = cloud_fallback_system_lane(&request.context)?;
+    Ok(CloudFallbackBasisRequest {
+        lane,
+        workspace_id: request.context.workspace_id,
+        wp_id: request.context.wp_id,
+        mt_id: request.context.mt_id,
+        claim_id: request.context.claim_id,
+        parent_session_id: request.parent_session_id,
+        prompt_sha256: request.prompt_sha256,
+        session_id: "swarm-runtime-cloud-fallback-basis".to_string(),
+        fallback_reason: request.fallback_reason,
+        local_attempt_ref: request.local_attempt_ref,
+        evidence_sha256: request.evidence_sha256,
+        summary: request.summary,
+    })
+}
+
+fn cloud_fallback_system_lane(
+    context: &CloudAssistanceReceiptContextIpc,
+) -> Result<AgentLaneIdentity, String> {
+    AgentLaneIdentity::new(
+        "lane-system-cloud-fallback",
+        "system-cloud-fallback",
+        AgentLaneKind::System,
+        LocalCloudAttribution {
+            mode: AttributionMode::System,
+            provider: None,
+            runtime: Some("swarm_runtime".to_string()),
+            model_label: "system".to_string(),
+            credential_ref: None,
+            provider_metadata: json!({
+                "cloud_lane_id": context.cloud_lane_id,
+                "cloud_actor_id": context.cloud_actor_id,
+            }),
+        },
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn model_provider_kind_from_runtime(
+    cloud_provider: SwarmProviderIpc,
+    byok_cloud_provider: Option<ByokCloudProviderIpc>,
+) -> Result<ModelProviderKind, String> {
+    match cloud_provider {
+        SwarmProviderIpc::OfficialCli => Ok(ModelProviderKind::OfficialCli),
+        SwarmProviderIpc::ByokCloud => match byok_cloud_provider {
+            Some(ByokCloudProviderIpc::Anthropic) => Ok(ModelProviderKind::Anthropic),
+            Some(ByokCloudProviderIpc::OpenAi) => Ok(ModelProviderKind::OpenAi),
+            None => Err(
+                "cloud assistance receipt requires byok_cloud_provider for BYOK attribution"
+                    .to_string(),
+            ),
+        },
+        SwarmProviderIpc::Local => {
+            Err("cloud assistance receipt cannot be recorded for local provider".to_string())
+        }
+    }
+}
+
+fn cloud_credential_ref(provider: ModelProviderKind) -> &'static str {
+    match provider {
+        ModelProviderKind::OpenAi => "vault://swarm/byok/openai",
+        ModelProviderKind::Anthropic => "vault://swarm/byok/anthropic",
+        ModelProviderKind::OfficialCli => "config://swarm/official-cli",
+        ModelProviderKind::Other => "config://swarm/cloud/other",
+        ModelProviderKind::LocalRuntime => "local://runtime",
+    }
+}
+
+fn cloud_assistance_summary(
+    fallback_reason: CloudFallbackReason,
+    escalation_reason: &str,
+    output_text: &str,
+) -> String {
+    let mut summary = format!(
+        "cloud fallback output recorded for review; fallback_reason={}; escalation_reason={}; output_chars={}",
+        cloud_fallback_reason_label(fallback_reason),
+        escalation_reason.trim(),
+        output_text.chars().count()
+    );
+    truncate_to_char_boundary(&mut summary, 512);
+    summary
+}
+
+fn truncate_to_char_boundary(value: &mut String, max_len: usize) {
+    if value.len() <= max_len {
+        return;
+    }
+    let mut end = max_len;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    value.truncate(end);
+}
+
+fn cloud_fallback_reason_from_local_error(local_error: &str) -> CloudFallbackReason {
+    let error = local_error.to_ascii_lowercase();
+    if error.contains("overload") || error.contains("capacity") || error.contains("memory") {
+        CloudFallbackReason::LocalOverloaded
+    } else {
+        CloudFallbackReason::LocalFailed
+    }
+}
+
+fn cloud_fallback_reason_label(reason: CloudFallbackReason) -> &'static str {
+    match reason {
+        CloudFallbackReason::LocalFailed => "local_failed",
+        CloudFallbackReason::LocalLowConfidence => "local_low_confidence",
+        CloudFallbackReason::LocalOverloaded => "local_overloaded",
+        CloudFallbackReason::LocalSuppressed => "local_suppressed",
+        CloudFallbackReason::HardReasoning => "hard_reasoning",
+        CloudFallbackReason::ForceCloud => "force_cloud",
+        CloudFallbackReason::NoLocalModel => "no_local_model",
+    }
+}
+
+fn swarm_provider_label(provider: SwarmProviderIpc) -> &'static str {
+    match provider {
+        SwarmProviderIpc::Local => "local",
+        SwarmProviderIpc::ByokCloud => "byok_cloud",
+        SwarmProviderIpc::OfficialCli => "official_cli",
+    }
+}
+
+fn byok_cloud_provider_label(provider: ByokCloudProviderIpc) -> &'static str {
+    match provider {
+        ByokCloudProviderIpc::Anthropic => "anthropic",
+        ByokCloudProviderIpc::OpenAi => "open_ai",
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
 }
 
 fn low_confidence_escalation_reason(
@@ -2829,7 +3442,174 @@ fn is_provider_not_configured(error: &SwarmError) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use handshake_core::capabilities::CapabilityRegistry;
+    use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use handshake_core::swarm_orchestration::state_recovery::AttributionMode;
+    use handshake_core::terminal::TerminalRuntime;
     use std::collections::VecDeque;
+
+    #[derive(Default)]
+    struct RecordingCloudAssistanceRecorder {
+        fallback_requests: Arc<Mutex<Vec<CloudFallbackBasisRuntimeRequest>>>,
+        requests: Arc<Mutex<Vec<CloudAssistanceRuntimeReceiptRequest>>>,
+    }
+
+    impl RecordingCloudAssistanceRecorder {
+        fn fallback_requests(&self) -> Vec<CloudFallbackBasisRuntimeRequest> {
+            self.fallback_requests
+                .lock()
+                .expect("fallback recorder lock")
+                .clone()
+        }
+
+        fn recorded(&self) -> Vec<CloudAssistanceRuntimeReceiptRequest> {
+            self.requests.lock().expect("receipt recorder lock").clone()
+        }
+    }
+
+    #[async_trait]
+    impl CloudAssistanceReceiptRecorder for RecordingCloudAssistanceRecorder {
+        async fn record_cloud_fallback_basis(
+            &self,
+            request: CloudFallbackBasisRuntimeRequest,
+        ) -> Result<CloudFallbackBasisRefIpc, String> {
+            let suffix = request.context.target_ref.replace('/', "-");
+            self.fallback_requests
+                .lock()
+                .expect("fallback recorder lock")
+                .push(request);
+            Ok(CloudFallbackBasisRefIpc {
+                basis_id: format!("PSR-FALLBACK-test-{suffix}"),
+                fallback_basis_event_id: format!("KE-fallback-basis-test-{suffix}"),
+            })
+        }
+
+        async fn record_cloud_assistance(
+            &self,
+            request: CloudAssistanceRuntimeReceiptRequest,
+        ) -> Result<CloudAssistanceReceiptRefIpc, String> {
+            let fallback_basis_event_id = request.fallback_basis_event_id.clone();
+            let output_sha256 = request.output_sha256.clone();
+            self.requests
+                .lock()
+                .expect("receipt recorder lock")
+                .push(request);
+            Ok(CloudAssistanceReceiptRefIpc {
+                receipt_id: "PSR-CLOUD-test-runtime-receipt".to_string(),
+                fallback_basis_event_id,
+                handoff_id: "PSR-HANDOFF-test-runtime-receipt".to_string(),
+                cloud_assistance_event_id: "KE-test-runtime-cloud-assistance".to_string(),
+                output_sha256,
+                review_state: "pending_review".to_string(),
+                non_authoritative: true,
+                requires_promotion: true,
+            })
+        }
+    }
+
+    fn cloud_receipt_context(suffix: &str) -> CloudAssistanceReceiptContextIpc {
+        CloudAssistanceReceiptContextIpc {
+            workspace_id: format!("workspace-{suffix}"),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-221".to_string(),
+            claim_id: format!("PSR-CLAIM-{suffix}"),
+            cloud_lane_id: format!("lane-cloud-{suffix}"),
+            cloud_actor_id: format!("cloud-{suffix}"),
+            fallback_basis_event_id: None,
+            to_role: "WP_VALIDATOR".to_string(),
+            mailbox_thread_id: format!("thread-{suffix}"),
+            mailbox_message_id: format!("message-{suffix}"),
+            target_ref: format!("swarm://cloud-assistance/{suffix}"),
+        }
+    }
+
+    #[test]
+    fn cloud_assistance_runtime_request_maps_exact_cloud_lane_identity() {
+        let request = CloudAssistanceRuntimeReceiptRequest {
+            context: cloud_receipt_context("map-anthropic"),
+            cloud_instance: SwarmInstanceIdIpc {
+                model_id: Uuid::now_v7().to_string(),
+                instance: 0,
+                composite: "cloud-session#0".to_string(),
+            },
+            cloud_provider: SwarmProviderIpc::ByokCloud,
+            byok_cloud_provider: Some(ByokCloudProviderIpc::Anthropic),
+            cloud_model_name: Some("claude-sonnet-4".to_string()),
+            parent_session_id: "local-session#0".to_string(),
+            fallback_basis_event_id: "KE-fallback-basis-map-anthropic".to_string(),
+            prompt_sha256: "a".repeat(64),
+            output_sha256: "b".repeat(64),
+            output_body_sha256: "c".repeat(64),
+            output_body_jsonb: serde_json::json!({
+                "text": "cloud analysis kept pending review",
+                "tokenCount": 5,
+                "finishReason": "stop"
+            }),
+            output_text: "cloud analysis kept pending review".to_string(),
+            fallback_reason: CloudFallbackReason::LocalLowConfidence,
+            escalation_reason: "local confidence 4200 below required 8000".to_string(),
+        };
+
+        let mapped = cloud_assistance_request_from_runtime(request)
+            .expect("runtime receipt request maps to state-recovery write");
+
+        assert_eq!(mapped.from_lane.lane_id, "lane-cloud-map-anthropic");
+        assert_eq!(mapped.from_lane.actor_id, "cloud-map-anthropic");
+        assert_eq!(mapped.from_lane.lane_kind, AgentLaneKind::Cloud);
+        assert_eq!(mapped.from_lane.attribution.mode, AttributionMode::Cloud);
+        assert_eq!(
+            mapped.from_lane.attribution.provider,
+            Some(ModelProviderKind::Anthropic)
+        );
+        assert_eq!(mapped.from_lane.attribution.model_label, "claude-sonnet-4");
+        assert_eq!(mapped.session_id, "cloud-session#0");
+        assert_eq!(
+            mapped.fallback_basis_event_id,
+            "KE-fallback-basis-map-anthropic"
+        );
+        assert_eq!(mapped.parent_session_id, "local-session#0");
+        assert_eq!(mapped.prompt_sha256, "a".repeat(64));
+        assert_eq!(mapped.output_kind, CloudAssistanceOutputKind::Analysis);
+        assert_eq!(mapped.output_sha256, "b".repeat(64));
+        assert_eq!(mapped.body_sha256, "c".repeat(64));
+        assert_eq!(mapped.output_text, "cloud analysis kept pending review");
+        assert_eq!(
+            mapped.fallback_reason,
+            CloudFallbackReason::LocalLowConfidence
+        );
+    }
+
+    #[test]
+    fn cloud_assistance_runtime_request_rejects_ambiguous_byok_provider() {
+        let request = CloudAssistanceRuntimeReceiptRequest {
+            context: cloud_receipt_context("map-ambiguous"),
+            cloud_instance: SwarmInstanceIdIpc {
+                model_id: Uuid::now_v7().to_string(),
+                instance: 0,
+                composite: "cloud-session#0".to_string(),
+            },
+            cloud_provider: SwarmProviderIpc::ByokCloud,
+            byok_cloud_provider: None,
+            cloud_model_name: Some("gpt-4o".to_string()),
+            parent_session_id: "local-session#0".to_string(),
+            fallback_basis_event_id: "KE-fallback-basis-map-ambiguous".to_string(),
+            prompt_sha256: "a".repeat(64),
+            output_sha256: "b".repeat(64),
+            output_body_sha256: "c".repeat(64),
+            output_body_jsonb: serde_json::json!({
+                "text": "ambiguous cloud analysis",
+                "tokenCount": 4,
+                "finishReason": "stop"
+            }),
+            output_text: "ambiguous cloud analysis".to_string(),
+            fallback_reason: CloudFallbackReason::LocalFailed,
+            escalation_reason: "local failed".to_string(),
+        };
+
+        let error = cloud_assistance_request_from_runtime(request)
+            .expect_err("BYOK receipt attribution requires exact provider flavor");
+        assert!(error.contains("byok_cloud_provider"), "{error}");
+    }
 
     #[tokio::test]
     async fn swarm_runtime_state_constructs_and_exposes_a_live_coordinator() {
@@ -3479,12 +4259,40 @@ mod tests {
         builder: Arc<StaticCloudBuilder>,
         app_data_root: &std::path::Path,
     ) -> SwarmRuntimeState {
+        state_with_static_openai_cloud_and_recorder(builder, app_data_root).0
+    }
+
+    fn state_with_static_openai_cloud_and_recorder(
+        builder: Arc<StaticCloudBuilder>,
+        app_data_root: &std::path::Path,
+    ) -> (SwarmRuntimeState, Arc<RecordingCloudAssistanceRecorder>) {
+        let recorder = Arc::new(RecordingCloudAssistanceRecorder::default());
+        let state = SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(builder),
+            official_cli: None,
+        })
+        .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
+        .with_cloud_assistance_recorder(recorder.clone());
+        (state, recorder)
+    }
+
+    fn state_with_static_openai_cloud_without_recorder(
+        builder: Arc<StaticCloudBuilder>,
+        app_data_root: &std::path::Path,
+    ) -> SwarmRuntimeState {
         SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig {
             anthropic: None,
             openai: Some(builder),
             official_cli: None,
         })
         .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
+    }
+
+    fn test_terminal_runtime() -> TerminalRuntime {
+        let recorder =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(1).expect("in-memory flight recorder"));
+        TerminalRuntime::new(Arc::new(CapabilityRegistry::new()), recorder)
     }
 
     /// With a vault holding an anthropic key under the configured lane, a cloud
@@ -3550,22 +4358,11 @@ mod tests {
         assert!(worktrees.is_empty(), "worktrees: {worktrees:?}");
     }
 
-    /// A credentialed CLOUD (non-local) session is chat-eligible: `resolve_runtime`
-    /// — the SINGLE gate `kernel_swarm_chat_generate` consults before driving the
-    /// runtime's real `generate` — hands back the live `Arc<dyn ModelRuntime>` the
-    /// coordinator registered, with NO provider/local-only guard. This locks in the
-    /// provider-agnostic chat contract (governance glue #3): a future local-only
-    /// guard (e.g. one that refused a `ByokCloud`/`OfficialCli` session, or required
-    /// `cloud_model_name` to be `None`) would fail this test. It also proves the
-    /// honest teardown gate: after `cancel_session` the same resolve returns `None`
-    /// so the chat command surfaces "no longer live" rather than a freed runtime.
-    ///
-    /// We assert chat-eligibility at the resolve/eligibility boundary — the exact
-    /// local-vs-all decision point the command uses — rather than issuing a real
-    /// `runtime.generate`, which for the anthropic BYOK runtime would require a live
-    /// HTTP/SSE call the rest of this module deliberately avoids.
+    /// A credentialed CLOUD session may stay live in the coordinator, but generic
+    /// direct chat must reject it before `runtime.generate`. Cloud output is only
+    /// allowed through the receipt-gated escalation command.
     #[tokio::test]
-    async fn cloud_session_is_chat_eligible_no_local_only_guard() {
+    async fn direct_chat_rejects_cloud_session_without_receipt_gate() {
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
             .put("anthropic", "sk-ant-test-key-do-not-log".to_string())
@@ -3584,26 +4381,26 @@ mod tests {
             .await
             .expect("configured cloud spawn builds a live session");
 
-        // The chat path's ONLY gate is `resolve_runtime` (see
-        // `kernel_swarm_chat_generate`): it must succeed for a non-local session.
         let resolved = state.resolve_runtime(iid);
         assert!(
             resolved.is_some(),
-            "cloud session must be chat-eligible (no local-only guard)"
+            "cloud session remains live for cancellation and receipt-gated escalation"
         );
-        let (_runtime, model_id) = resolved.expect("resolved");
-        // The chat command builds `GenerateRequest.id` from this resolved
-        // `model_id` — the id the runtime's real `load` MINTED, which
-        // `TrackingFactory::create` stores as `live.model_id`. It is intentionally
-        // distinct from the spawn request's `iid.model_id` (the placeholder the
-        // UI lists), so we assert it is a real minted id, not the request id —
-        // i.e. the chat path drives the runtime under its own loaded identity.
+        let (_runtime, model_id, provider) = resolved.expect("resolved");
+        assert_eq!(provider, ProviderKind::ByokCloud);
         assert_ne!(
             model_id, iid.model_id,
             "resolved model id is the runtime's minted load id, not the request id"
         );
-        // The row still resolves to this exact instance via the composite key the
-        // UI passes back to chat/cancel — the stable join key across surfaces.
+
+        let err = chat_generate_inner(&iid.to_string(), "hello cloud", &state)
+            .await
+            .expect_err("generic chat must reject direct cloud output");
+        assert!(
+            err.contains("direct chat is local-only"),
+            "unexpected direct-chat error: {err}"
+        );
+
         let row = list_active_sessions_inner(&state)
             .into_iter()
             .find(|s| s.instance_id.composite == iid.to_string())
@@ -3615,8 +4412,6 @@ mod tests {
             .cancel_session(iid, "test_cancel")
             .await
             .expect("cancel");
-        // After cancel the same gate honestly refuses (no longer live) — the chat
-        // command then returns a typed "no longer live" error, not a freed runtime.
         assert!(state.resolve_runtime(iid).is_none());
     }
 
@@ -3780,6 +4575,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
             },
             &state,
         )
@@ -3825,6 +4621,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
             },
             &state,
         )
@@ -3870,6 +4667,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
             },
             &state,
         )
@@ -3908,6 +4706,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
             },
             &state,
         )
@@ -3937,6 +4736,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
             },
             &state,
         )
@@ -3955,7 +4755,8 @@ mod tests {
             StaticGenerateResponse::Error("local runtime overloaded".to_string()),
             StaticGenerateResponse::Text("cloud-ok".to_string()),
         ]));
-        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let (state, receipt_recorder) =
+            state_with_static_openai_cloud_and_recorder(builder.clone(), tmp.path());
         let mut local_candidate = cloud_request("gpt-4o");
         local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
         let local_instance = spawn_session_inner(local_candidate, &state)
@@ -3977,6 +4778,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: Some(cloud_receipt_context("local-failure")),
             },
             &state,
         )
@@ -3998,6 +4800,32 @@ mod tests {
         assert_eq!(cloud.text, "cloud-ok");
         assert_eq!(cloud.token_count, 1);
         assert_eq!(cloud.finish_reason.as_deref(), Some("stop"));
+        let receipt = response
+            .cloud_assistance_receipt
+            .as_ref()
+            .expect("cloud output carries durable receipt ref");
+        assert_eq!(receipt.review_state, "pending_review");
+        assert!(receipt.non_authoritative);
+        assert!(receipt.requires_promotion);
+        assert_eq!(receipt.output_sha256, sha256_hex(b"cloud-ok"));
+        let recorded = receipt_recorder.recorded();
+        assert_eq!(recorded.len(), 1);
+        let fallback_requests = receipt_recorder.fallback_requests();
+        assert_eq!(fallback_requests.len(), 1);
+        assert_eq!(
+            fallback_requests[0].fallback_reason,
+            CloudFallbackReason::LocalOverloaded
+        );
+        assert_eq!(
+            recorded[0].fallback_basis_event_id,
+            "KE-fallback-basis-test-swarm:--cloud-assistance-local-failure"
+        );
+        assert_eq!(
+            recorded[0].fallback_reason,
+            CloudFallbackReason::LocalOverloaded
+        );
+        assert_eq!(recorded[0].context.mt_id, "MT-221");
+        assert_eq!(recorded[0].output_sha256, sha256_hex(b"cloud-ok"));
         assert_eq!(builder.build_count(), 2);
         assert_eq!(state.coordinator().live_session_count(), 2);
         let worktrees = list_worktrees_inner(&state);
@@ -4037,7 +4865,8 @@ mod tests {
                 "cloud teacher answer kept stronger comparison".to_string(),
             ),
         ]));
-        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let (state, receipt_recorder) =
+            state_with_static_openai_cloud_and_recorder(builder.clone(), tmp.path());
         let mut local_candidate = cloud_request("gpt-4o");
         local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
         let local_instance = spawn_session_inner(local_candidate, &state)
@@ -4059,6 +4888,7 @@ mod tests {
                 local_confidence_basis_points: Some(4_200),
                 min_local_confidence_basis_points: Some(8_000),
                 validation_labels: vec!["low-confidence".to_string(), "teacher-win".to_string()],
+                cloud_assistance_receipt: Some(cloud_receipt_context("low-confidence")),
             },
             &state,
         )
@@ -4074,6 +4904,21 @@ mod tests {
         assert_eq!(
             response.cloud.as_ref().expect("teacher generated").text,
             "cloud teacher answer kept stronger comparison"
+        );
+        let receipt = response
+            .cloud_assistance_receipt
+            .as_ref()
+            .expect("teacher output carries durable receipt ref");
+        assert_eq!(
+            receipt.output_sha256,
+            sha256_hex(b"cloud teacher answer kept stronger comparison")
+        );
+        let recorded = receipt_recorder.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(receipt_recorder.fallback_requests().len(), 1);
+        assert_eq!(
+            recorded[0].fallback_reason,
+            CloudFallbackReason::LocalLowConfidence
         );
         let trace = response
             .distillation_trace
@@ -4139,10 +4984,194 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn chat_generate_cloud_output_fails_closed_without_receipt_context() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai_sequence(vec![
+            StaticGenerateResponse::Error("local runtime failed".to_string()),
+            StaticGenerateResponse::Text("cloud-output-without-context".to_string()),
+        ]));
+        let (state, receipt_recorder) =
+            state_with_static_openai_cloud_and_recorder(builder.clone(), tmp.path());
+        let mut local_candidate = cloud_request("gpt-4o");
+        local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let local_instance = spawn_session_inner(local_candidate, &state)
+            .await
+            .expect("live local-candidate runtime");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_instance.composite.clone(),
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(response.escalated);
+        assert!(response.cloud.is_none());
+        assert!(response.cloud_assistance_receipt.is_none());
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|error| error.contains("receipt context is required")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert!(receipt_recorder.recorded().is_empty());
+        assert!(receipt_recorder.fallback_requests().is_empty());
+        assert_eq!(builder.build_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn cloud_escalation_without_receipt_context_does_not_spawn_or_capture_cloud_output() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let terminal = test_terminal_runtime();
+        let builder = Arc::new(StaticCloudBuilder::openai_sequence(vec![
+            StaticGenerateResponse::Error("local runtime failed".to_string()),
+            StaticGenerateResponse::Text("cloud-output-without-context".to_string()),
+        ]));
+        let (state, receipt_recorder) =
+            state_with_static_openai_cloud_and_recorder(builder.clone(), tmp.path());
+        let state = state.with_terminal_capture(terminal.clone());
+        let mut local_candidate = cloud_request("gpt-4o");
+        local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let local_instance = spawn_session_inner(local_candidate, &state)
+            .await
+            .expect("live local-candidate runtime");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_instance.composite.clone(),
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(response.cloud.is_none());
+        assert!(response.cloud_instance.is_none());
+        assert!(response.cloud_assistance_receipt.is_none());
+        assert!(receipt_recorder.recorded().is_empty());
+        assert!(receipt_recorder.fallback_requests().is_empty());
+        assert_eq!(
+            builder.build_count(),
+            1,
+            "missing receipt context must fail before spawning the cloud lane"
+        );
+        let captured = terminal
+            .list_sessions()
+            .into_iter()
+            .filter_map(|info| terminal.scrollback(&info.session_id).ok())
+            .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !captured.contains("cloud-output-without-context"),
+            "unreceipted cloud output leaked into capture scrollback: {captured:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn chat_generate_cloud_output_fails_closed_without_receipt_recorder() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai_sequence(vec![
+            StaticGenerateResponse::Error("local runtime failed".to_string()),
+            StaticGenerateResponse::Text("cloud-output-without-recorder".to_string()),
+        ]));
+        let state = state_with_static_openai_cloud_without_recorder(builder.clone(), tmp.path());
+        let mut local_candidate = cloud_request("gpt-4o");
+        local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let local_instance = spawn_session_inner(local_candidate, &state)
+            .await
+            .expect("live local-candidate runtime");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_instance.composite.clone(),
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
+                cloud_assistance_receipt: Some(cloud_receipt_context("missing-recorder")),
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(response.escalated);
+        assert!(response.cloud.is_none());
+        assert!(response.cloud_assistance_receipt.is_none());
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|error| error.contains("receipt recorder is not configured")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert!(response.cloud_instance.is_none());
+        assert_eq!(builder.build_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn generic_chat_rejects_cloud_sessions_without_receipt_gate() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("direct-cloud-output"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let cloud_instance = spawn_session_inner(cloud, &state)
+            .await
+            .expect("cloud session live");
+
+        let error = chat_generate_inner(&cloud_instance.composite, "direct cloud chat", &state)
+            .await
+            .expect_err("generic chat must not bypass MT-221 cloud receipt gate");
+
+        assert!(
+            error.contains("receipt-gated cloud escalation"),
+            "error: {error}"
+        );
+        assert_eq!(
+            builder.build_count(),
+            1,
+            "rejected generic chat must not generate cloud output"
+        );
+    }
+
+    #[tokio::test]
     async fn chat_generate_force_cloud_skips_a_live_local_candidate() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
-        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let (state, receipt_recorder) =
+            state_with_static_openai_cloud_and_recorder(builder.clone(), tmp.path());
         let mut existing = cloud_request("gpt-4o");
         existing.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
         let existing_instance = spawn_session_inner(existing, &state)
@@ -4161,6 +5190,7 @@ mod tests {
                 local_confidence_basis_points: None,
                 min_local_confidence_basis_points: None,
                 validation_labels: Vec::new(),
+                cloud_assistance_receipt: Some(cloud_receipt_context("force-cloud")),
             },
             &state,
         )
@@ -4182,6 +5212,11 @@ mod tests {
             response.escalation_reason
         );
         assert_eq!(builder.build_count(), 2);
+        assert!(response.cloud_assistance_receipt.is_some());
+        let recorded = receipt_recorder.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(receipt_recorder.fallback_requests().len(), 1);
+        assert_eq!(recorded[0].fallback_reason, CloudFallbackReason::ForceCloud);
         let cloud_instance = response.cloud_instance.as_ref().expect("cloud instance");
         assert_ne!(
             cloud_instance.composite, existing_instance.composite,

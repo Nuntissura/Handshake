@@ -687,6 +687,145 @@ pub struct SwarmDashboardWarningV1 {
     pub detail: String,
 }
 
+pub const PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID: &str = "hsk.parallel_swarm.cloud_assistance@1";
+pub const PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID: &str =
+    "hsk.parallel_swarm.cloud_fallback_basis@1";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudFallbackReason {
+    LocalFailed,
+    LocalLowConfidence,
+    LocalOverloaded,
+    LocalSuppressed,
+    HardReasoning,
+    ForceCloud,
+    NoLocalModel,
+}
+
+impl CloudFallbackReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalFailed => "local_failed",
+            Self::LocalLowConfidence => "local_low_confidence",
+            Self::LocalOverloaded => "local_overloaded",
+            Self::LocalSuppressed => "local_suppressed",
+            Self::HardReasoning => "hard_reasoning",
+            Self::ForceCloud => "force_cloud",
+            Self::NoLocalModel => "no_local_model",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudAssistanceOutputKind {
+    Analysis,
+    PatchSuggestion,
+    ValidationSummary,
+    HandoffSummary,
+}
+
+impl CloudAssistanceOutputKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Analysis => "analysis",
+            Self::PatchSuggestion => "patch_suggestion",
+            Self::ValidationSummary => "validation_summary",
+            Self::HandoffSummary => "handoff_summary",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CloudAssistanceRequest {
+    pub from_lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: String,
+    pub session_id: String,
+    pub to_role: String,
+    pub mailbox_thread_id: String,
+    pub mailbox_message_id: String,
+    pub fallback_basis_event_id: String,
+    pub parent_session_id: String,
+    pub prompt_sha256: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub output_kind: CloudAssistanceOutputKind,
+    pub output_sha256: String,
+    pub body_sha256: String,
+    pub output_text: String,
+    pub output_body_jsonb: serde_json::Value,
+    pub summary: String,
+    pub target_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CloudAssistanceReceiptV1 {
+    pub schema_id: String,
+    pub receipt_id: String,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: String,
+    pub handoff_id: String,
+    pub handoff_event_ledger_event_id: String,
+    pub cloud_assistance_event_id: String,
+    pub fallback_basis_event_id: String,
+    pub parent_session_id: String,
+    pub prompt_sha256: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub provider: Option<ModelProviderKind>,
+    pub model_label: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub output_kind: CloudAssistanceOutputKind,
+    pub output_sha256: String,
+    pub body_sha256: String,
+    pub output_text: String,
+    pub target_ref: String,
+    pub review_state: String,
+    pub non_authoritative: bool,
+    pub requires_promotion: bool,
+    pub authority_mutation_allowed: bool,
+    pub promotion_event_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CloudFallbackBasisRequest {
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: String,
+    pub parent_session_id: String,
+    pub prompt_sha256: String,
+    pub session_id: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub local_attempt_ref: String,
+    pub evidence_sha256: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CloudFallbackBasisReceiptV1 {
+    pub schema_id: String,
+    pub basis_id: String,
+    pub fallback_basis_event_id: String,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: String,
+    pub parent_session_id: String,
+    pub prompt_sha256: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub fallback_reason: CloudFallbackReason,
+    pub local_attempt_ref: String,
+    pub evidence_sha256: String,
+}
+
 #[derive(Debug, Clone, Default)]
 struct SwarmDashboardAuthorityTotals {
     claims: i64,
@@ -2268,6 +2407,390 @@ impl ParallelSwarmStateRecoveryStore {
         mailbox_handoff_from_row(row)
     }
 
+    pub async fn record_cloud_fallback_basis(
+        &self,
+        request: CloudFallbackBasisRequest,
+    ) -> StateRecoveryResult<CloudFallbackBasisReceiptV1> {
+        require_capability(&request.lane, AgentCapability::NavigateBackend)?;
+        if request.lane.lane_kind == AgentLaneKind::Cloud {
+            return Err(StateRecoveryError::InvalidInput(
+                "cloud fallback basis must be recorded by a non-cloud lane".to_string(),
+            ));
+        }
+        if !matches!(
+            request.lane.lane_kind,
+            AgentLaneKind::Local | AgentLaneKind::System
+        ) {
+            return Err(StateRecoveryError::InvalidInput(
+                "cloud fallback basis must be recorded by a local/system lane".to_string(),
+            ));
+        }
+        ensure_safe_token("workspace_id", &request.workspace_id)?;
+        ensure_safe_token("wp_id", &request.wp_id)?;
+        ensure_safe_token("mt_id", &request.mt_id)?;
+        ensure_safe_token("claim_id", &request.claim_id)?;
+        ensure_safe_token("parent_session_id", &request.parent_session_id)?;
+        ensure_safe_token("session_id", &request.session_id)?;
+        ensure_sha256(&request.prompt_sha256)?;
+        ensure_sha256(&request.evidence_sha256)?;
+        ensure_bounded_text("local_attempt_ref", &request.local_attempt_ref, 512)?;
+        ensure_bounded_text("summary", &request.summary, 512)?;
+
+        let basis_id = format!("PSR-FALLBACK-{}", Uuid::now_v7());
+        let lane = request.lane.scrubbed_for_persistence();
+        let mut tx = self.pool.begin().await?;
+        let fallback_basis_event_id = self
+            .append_event_tx(
+                &mut tx,
+                KernelEventType::HbrHandoffGate,
+                "parallel_swarm_cloud_fallback_basis",
+                &basis_id,
+                &lane,
+                &request.session_id,
+                json!({
+                    "schema_id": PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID,
+                    "basis_id": &basis_id,
+                    "workspace_id": &request.workspace_id,
+                    "wp_id": &request.wp_id,
+                    "mt_id": &request.mt_id,
+                    "claim_id": &request.claim_id,
+                    "parent_session_id": &request.parent_session_id,
+                    "prompt_sha256": &request.prompt_sha256,
+                    "lane": &lane,
+                    "fallback_reason": request.fallback_reason,
+                    "local_attempt_ref": &request.local_attempt_ref,
+                    "evidence_sha256": &request.evidence_sha256,
+                    "summary": &request.summary,
+                }),
+            )
+            .await?;
+        tx.commit().await?;
+
+        Ok(CloudFallbackBasisReceiptV1 {
+            schema_id: PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID.to_string(),
+            basis_id,
+            fallback_basis_event_id,
+            workspace_id: request.workspace_id,
+            wp_id: request.wp_id,
+            mt_id: request.mt_id,
+            claim_id: request.claim_id,
+            parent_session_id: request.parent_session_id,
+            prompt_sha256: request.prompt_sha256,
+            lane_id: lane.lane_id,
+            actor_id: lane.actor_id,
+            fallback_reason: request.fallback_reason,
+            local_attempt_ref: request.local_attempt_ref,
+            evidence_sha256: request.evidence_sha256,
+        })
+    }
+
+    pub async fn record_cloud_assistance_output(
+        &self,
+        request: CloudAssistanceRequest,
+    ) -> StateRecoveryResult<CloudAssistanceReceiptV1> {
+        require_capability(&request.from_lane, AgentCapability::WriteMailbox)?;
+        ensure_cloud_assistance_lane(&request.from_lane)?;
+        ensure_safe_token("workspace_id", &request.workspace_id)?;
+        ensure_safe_token("wp_id", &request.wp_id)?;
+        ensure_safe_token("mt_id", &request.mt_id)?;
+        ensure_safe_token("claim_id", &request.claim_id)?;
+        ensure_safe_token("session_id", &request.session_id)?;
+        ensure_safe_token("to_role", &request.to_role)?;
+        ensure_safe_token("mailbox_thread_id", &request.mailbox_thread_id)?;
+        ensure_safe_token("mailbox_message_id", &request.mailbox_message_id)?;
+        ensure_event_id("fallback_basis_event_id", &request.fallback_basis_event_id)?;
+        ensure_safe_token("parent_session_id", &request.parent_session_id)?;
+        ensure_sha256(&request.prompt_sha256)?;
+        ensure_sha256(&request.output_sha256)?;
+        ensure_sha256(&request.body_sha256)?;
+        ensure_bounded_text("output_text", &request.output_text, 65_536)?;
+        ensure_bounded_text("summary", &request.summary, 512)?;
+        ensure_bounded_text("target_ref", &request.target_ref, 512)?;
+
+        let receipt_id = format!("PSR-CLOUD-{}", Uuid::now_v7());
+        let handoff_id = format!("PSR-HANDOFF-{}", Uuid::now_v7());
+        let from_lane = request.from_lane.scrubbed_for_persistence();
+        let lane_json = serde_json::to_value(&from_lane.attribution)?;
+        let mut tx = self.pool.begin().await?;
+        let claim = self
+            .active_cloud_assistance_claim_tx(&mut tx, &request)
+            .await?
+            .ok_or_else(|| {
+                StateRecoveryError::InvalidInput(
+                    "cloud assistance requires an active cloud-owned workspace claim".to_string(),
+                )
+            })?;
+        self.ensure_cloud_fallback_basis_event_tx(&mut tx, &request)
+            .await?;
+
+        let handoff_event_id = self
+            .append_event_tx(
+                &mut tx,
+                KernelEventType::HbrHandoffGate,
+                "parallel_swarm_handoff",
+                &handoff_id,
+                &from_lane,
+                &format!("handoff-{handoff_id}"),
+                json!({
+                    "schema_id": "hsk.parallel_swarm.mailbox_handoff@1",
+                    "handoff_id": &handoff_id,
+                    "wp_id": &request.wp_id,
+                    "mt_id": &request.mt_id,
+                    "claim_id": &request.claim_id,
+                    "to_role": &request.to_role,
+                    "mailbox_thread_id": &request.mailbox_thread_id,
+                    "mailbox_message_id": &request.mailbox_message_id,
+                    "status": SwarmReceiptStatus::Progress,
+                    "summary": &request.summary,
+                    "body_sha256": &request.body_sha256,
+                    "cloud_assistance_receipt_id": &receipt_id,
+                }),
+            )
+            .await?;
+        let handoff_row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_agent_role_mailbox_handoffs (
+                handoff_id, wp_id, mt_id, claim_id, from_lane_id, from_actor_id,
+                from_lane_kind, from_attribution_jsonb, to_role,
+                mailbox_thread_id, mailbox_message_id, status, summary,
+                body_sha256, event_ledger_event_id
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            RETURNING *
+            "#,
+        )
+        .bind(&handoff_id)
+        .bind(&request.wp_id)
+        .bind(&request.mt_id)
+        .bind(&request.claim_id)
+        .bind(&from_lane.lane_id)
+        .bind(&from_lane.actor_id)
+        .bind(from_lane.lane_kind.as_str())
+        .bind(lane_json)
+        .bind(&request.to_role)
+        .bind(&request.mailbox_thread_id)
+        .bind(&request.mailbox_message_id)
+        .bind(SwarmReceiptStatus::Progress.as_str())
+        .bind(&request.summary)
+        .bind(&request.body_sha256)
+        .bind(&handoff_event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let cloud_assistance_event_id = self
+            .append_event_tx(
+                &mut tx,
+                KernelEventType::HbrHandoffGate,
+                "parallel_swarm_cloud_assistance",
+                &receipt_id,
+                &from_lane,
+                &request.session_id,
+                json!({
+                    "schema_id": PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID,
+                    "receipt_id": &receipt_id,
+                    "workspace_id": &request.workspace_id,
+                    "wp_id": &request.wp_id,
+                    "mt_id": &request.mt_id,
+                    "claim_id": &request.claim_id,
+                    "handoff_id": &handoff_id,
+                    "handoff_event_ledger_event_id": &handoff_event_id,
+                    "fallback_basis_event_id": &request.fallback_basis_event_id,
+                    "parent_session_id": &request.parent_session_id,
+                    "prompt_sha256": &request.prompt_sha256,
+                    "session_id": &request.session_id,
+                    "lane": &from_lane,
+                    "fallback_reason": request.fallback_reason,
+                    "output_kind": request.output_kind,
+                    "output_sha256": &request.output_sha256,
+                    "body_sha256": &request.body_sha256,
+                    "output_text": &request.output_text,
+                    "output_body": &request.output_body_jsonb,
+                    "target_ref": &request.target_ref,
+                    "review_state": "pending_review",
+                    "non_authoritative": true,
+                    "requires_promotion": true,
+                    "authority_mutation_allowed": false,
+                    "promotion_event_id": Option::<String>::None,
+                }),
+            )
+            .await?;
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_agent_cloud_assistance_receipts (
+                receipt_id, workspace_id, wp_id, mt_id, claim_id,
+                handoff_id, handoff_event_ledger_event_id, cloud_assistance_event_id,
+                fallback_basis_event_id, parent_session_id, prompt_sha256,
+                lane_id, actor_id, lane_kind,
+                provider, model_label, attribution_jsonb, session_id,
+                fallback_reason, output_kind, output_sha256, body_sha256,
+                output_text, output_body_jsonb, target_ref,
+                review_state, non_authoritative, requires_promotion,
+                authority_mutation_allowed, promotion_event_id
+            )
+            VALUES (
+                $1,$2,$3,$4,$5,
+                $6,$7,$8,
+                $9,$10,$11,
+                $12,$13,$14,
+                $15,$16,$17,$18,
+                $19,$20,$21,$22,
+                $23,$24,$25,
+                'pending_review', TRUE, TRUE, FALSE, NULL
+            )
+            "#,
+        )
+        .bind(&receipt_id)
+        .bind(&request.workspace_id)
+        .bind(&request.wp_id)
+        .bind(&request.mt_id)
+        .bind(&request.claim_id)
+        .bind(&handoff_id)
+        .bind(&handoff_event_id)
+        .bind(&cloud_assistance_event_id)
+        .bind(&request.fallback_basis_event_id)
+        .bind(&request.parent_session_id)
+        .bind(&request.prompt_sha256)
+        .bind(&from_lane.lane_id)
+        .bind(&from_lane.actor_id)
+        .bind(from_lane.lane_kind.as_str())
+        .bind(model_provider_kind_as_str(
+            from_lane.attribution.provider.ok_or_else(|| {
+                StateRecoveryError::InvalidInput(
+                    "cloud assistance provider must be present".to_string(),
+                )
+            })?,
+        ))
+        .bind(&from_lane.attribution.model_label)
+        .bind(serde_json::to_value(&from_lane.attribution)?)
+        .bind(&request.session_id)
+        .bind(request.fallback_reason.as_str())
+        .bind(request.output_kind.as_str())
+        .bind(&request.output_sha256)
+        .bind(&request.body_sha256)
+        .bind(&request.output_text)
+        .bind(&request.output_body_jsonb)
+        .bind(&request.target_ref)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let handoff = mailbox_handoff_from_row(handoff_row)?;
+        let receipt = CloudAssistanceReceiptV1 {
+            schema_id: PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID.to_string(),
+            receipt_id,
+            workspace_id: claim.workspace_id,
+            wp_id: handoff.wp_id,
+            mt_id: handoff.mt_id,
+            claim_id: handoff.claim_id.clone().unwrap_or_default(),
+            handoff_id: handoff.handoff_id,
+            handoff_event_ledger_event_id: handoff.event_ledger_event_id,
+            cloud_assistance_event_id,
+            fallback_basis_event_id: request.fallback_basis_event_id,
+            parent_session_id: request.parent_session_id,
+            prompt_sha256: request.prompt_sha256,
+            lane_id: handoff.from_lane.lane_id,
+            actor_id: handoff.from_lane.actor_id,
+            provider: request.from_lane.attribution.provider,
+            model_label: request.from_lane.attribution.model_label,
+            fallback_reason: request.fallback_reason,
+            output_kind: request.output_kind,
+            output_sha256: request.output_sha256,
+            body_sha256: request.body_sha256,
+            output_text: request.output_text,
+            target_ref: request.target_ref,
+            review_state: "pending_review".to_string(),
+            non_authoritative: true,
+            requires_promotion: true,
+            authority_mutation_allowed: false,
+            promotion_event_id: None,
+        };
+        validate_cloud_assistance_receipt(&receipt).map_err(|errors| {
+            StateRecoveryError::InvalidInput(format!(
+                "cloud assistance receipt failed validation: {errors:?}"
+            ))
+        })?;
+        Ok(receipt)
+    }
+
+    async fn active_cloud_assistance_claim_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: &CloudAssistanceRequest,
+    ) -> StateRecoveryResult<Option<WorkClaimRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT *
+            FROM knowledge_agent_worktree_claims
+            WHERE claim_id = $1
+              AND workspace_id = $2
+              AND wp_id = $3
+              AND mt_id = $4
+              AND scope_kind = 'workspace'
+              AND scope_id = $2
+              AND lane_id = $5
+              AND actor_id = $6
+              AND lane_kind = 'cloud'
+              AND status = 'active'
+              AND released_at_utc IS NULL
+              AND expires_at_utc > NOW()
+            FOR UPDATE
+            "#,
+        )
+        .bind(&request.claim_id)
+        .bind(&request.workspace_id)
+        .bind(&request.wp_id)
+        .bind(&request.mt_id)
+        .bind(&request.from_lane.lane_id)
+        .bind(&request.from_lane.actor_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+        row.map(work_claim_from_row).transpose()
+    }
+
+    async fn ensure_cloud_fallback_basis_event_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: &CloudAssistanceRequest,
+    ) -> StateRecoveryResult<()> {
+        let found: Option<i64> = sqlx::query_scalar(
+            r#"
+            SELECT 1::BIGINT
+            FROM kernel_event_ledger
+            WHERE event_id = $1
+              AND aggregate_type = 'parallel_swarm_cloud_fallback_basis'
+              AND source_component = $2
+              AND payload ->> 'schema_id' = $3
+              AND payload ->> 'workspace_id' = $4
+              AND payload ->> 'wp_id' = $5
+              AND payload ->> 'mt_id' = $6
+              AND payload ->> 'claim_id' = $7
+              AND payload ->> 'parent_session_id' = $8
+              AND payload ->> 'prompt_sha256' = $9
+              AND payload ->> 'fallback_reason' = $10
+              AND COALESCE(payload -> 'lane' ->> 'lane_kind', '') <> 'cloud'
+              AND COALESCE(payload -> 'lane' ->> 'lane_kind', '') IN ('local', 'system')
+            "#,
+        )
+        .bind(&request.fallback_basis_event_id)
+        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
+        .bind(PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID)
+        .bind(&request.workspace_id)
+        .bind(&request.wp_id)
+        .bind(&request.mt_id)
+        .bind(&request.claim_id)
+        .bind(&request.parent_session_id)
+        .bind(&request.prompt_sha256)
+        .bind(request.fallback_reason.as_str())
+        .fetch_optional(&mut **tx)
+        .await?;
+        if found.is_some() {
+            Ok(())
+        } else {
+            Err(StateRecoveryError::InvalidInput(
+                "cloud assistance requires a matching fallback-basis EventLedger proof".to_string(),
+            ))
+        }
+    }
+
     pub async fn record_checkpoint(
         &self,
         request: RecoveryCheckpointRequest,
@@ -3098,6 +3621,87 @@ pub fn validate_swarm_dashboard_projection(
             .iter()
             .map(|row| (row.receipt_id.as_str(), row.source_refs.as_slice())),
     );
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn validate_cloud_assistance_receipt(
+    receipt: &CloudAssistanceReceiptV1,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    if receipt.schema_id != PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID {
+        errors.push("schema_id must be hsk.parallel_swarm.cloud_assistance@1".to_string());
+    }
+    if receipt.receipt_id.trim().is_empty() || !receipt.receipt_id.starts_with("PSR-CLOUD-") {
+        errors.push("receipt_id must be a PSR-CLOUD receipt id".to_string());
+    }
+    if receipt.handoff_id.trim().is_empty() || !receipt.handoff_id.starts_with("PSR-HANDOFF-") {
+        errors.push("handoff_id must be a PSR-HANDOFF id".to_string());
+    }
+    if !receipt.handoff_event_ledger_event_id.starts_with("KE-") {
+        errors.push("handoff_event_ledger_event_id must be an EventLedger id".to_string());
+    }
+    if !receipt.cloud_assistance_event_id.starts_with("KE-") {
+        errors.push("cloud_assistance_event_id must be an EventLedger id".to_string());
+    }
+    if !receipt.fallback_basis_event_id.starts_with("KE-") {
+        errors.push("fallback_basis_event_id must be an EventLedger id".to_string());
+    }
+    if receipt.parent_session_id.trim().is_empty() {
+        errors.push("parent_session_id must be present for cloud assistance".to_string());
+    }
+    if receipt.prompt_sha256.len() != 64
+        || !receipt
+            .prompt_sha256
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
+    {
+        errors.push("prompt_sha256 must be lowercase sha256 hex".to_string());
+    }
+    if receipt.provider == Some(ModelProviderKind::LocalRuntime) {
+        errors.push("cloud assistance provider must not be local_runtime".to_string());
+    }
+    if receipt.model_label.trim().is_empty() {
+        errors.push("model_label must be present for cloud assistance".to_string());
+    }
+    if receipt.output_sha256.len() != 64
+        || !receipt
+            .output_sha256
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
+    {
+        errors.push("output_sha256 must be lowercase sha256 hex".to_string());
+    }
+    if receipt.body_sha256.len() != 64
+        || !receipt
+            .body_sha256
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
+    {
+        errors.push("body_sha256 must be lowercase sha256 hex".to_string());
+    }
+    if receipt.output_text.trim().is_empty() {
+        errors.push("output_text must be present for review".to_string());
+    }
+    if receipt.review_state != "pending_review" {
+        errors.push("cloud assistance review_state must be pending_review".to_string());
+    }
+    if !receipt.non_authoritative {
+        errors.push("cloud assistance receipt must be non_authoritative=true".to_string());
+    }
+    if !receipt.requires_promotion {
+        errors.push("cloud assistance receipt must require promotion".to_string());
+    }
+    if receipt.authority_mutation_allowed {
+        errors.push("cloud assistance must not allow authority mutation".to_string());
+    }
+    if receipt.promotion_event_id.is_some() {
+        errors.push("cloud assistance receipt must not carry a promotion_event_id".to_string());
+    }
 
     if errors.is_empty() {
         Ok(())
@@ -3987,6 +4591,25 @@ fn require_capability(
     }
 }
 
+fn ensure_cloud_assistance_lane(lane: &AgentLaneIdentity) -> StateRecoveryResult<()> {
+    if lane.lane_kind != AgentLaneKind::Cloud || lane.attribution.mode != AttributionMode::Cloud {
+        return Err(StateRecoveryError::InvalidInput(
+            "cloud assistance requires a cloud lane with cloud attribution".to_string(),
+        ));
+    }
+    if lane.attribution.provider == Some(ModelProviderKind::LocalRuntime) {
+        return Err(StateRecoveryError::InvalidInput(
+            "cloud assistance provider must not be local_runtime".to_string(),
+        ));
+    }
+    if lane.attribution.model_label.trim().is_empty() {
+        return Err(StateRecoveryError::InvalidInput(
+            "cloud assistance requires a model label".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 fn required_claim_capability(scope: &ClaimScope) -> AgentCapability {
     match scope {
         ClaimScope::Worktree { .. } => AgentCapability::ClaimWorktree,
@@ -4028,6 +4651,22 @@ fn ensure_safe_token(field: &str, value: &str) -> StateRecoveryResult<()> {
     Ok(())
 }
 
+fn ensure_event_id(field: &str, value: &str) -> StateRecoveryResult<()> {
+    let trimmed = value.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > 160
+        || !trimmed.starts_with("KE-")
+        || !trimmed
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+    {
+        return Err(StateRecoveryError::InvalidInput(format!(
+            "{field} must be a safe EventLedger id"
+        )));
+    }
+    Ok(())
+}
+
 fn ensure_sha256(value: &str) -> StateRecoveryResult<()> {
     if value.len() == 64
         && value
@@ -4039,6 +4678,16 @@ fn ensure_sha256(value: &str) -> StateRecoveryResult<()> {
         Err(StateRecoveryError::InvalidInput(
             "body_sha256 must be lowercase sha256 hex".to_string(),
         ))
+    }
+}
+
+fn model_provider_kind_as_str(provider: ModelProviderKind) -> &'static str {
+    match provider {
+        ModelProviderKind::OpenAi => "open_ai",
+        ModelProviderKind::Anthropic => "anthropic",
+        ModelProviderKind::LocalRuntime => "local_runtime",
+        ModelProviderKind::OfficialCli => "official_cli",
+        ModelProviderKind::Other => "other",
     }
 }
 

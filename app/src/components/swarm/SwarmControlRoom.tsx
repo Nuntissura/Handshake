@@ -524,6 +524,10 @@ export function operatorChatCloudEscalation(room: SwarmRoom): OperatorChatCloudE
   return {
     request,
     label: `${lane} · ${cloudModelName || "cloud model not set"}`,
+    // This control room owns spawn/session state, not the state-recovery cloud
+    // workspace claim. Do not synthesize claim ids here; OperatorChat keeps
+    // fallback disabled until a caller supplies a real receipt context.
+    receiptContext: null,
   };
 }
 

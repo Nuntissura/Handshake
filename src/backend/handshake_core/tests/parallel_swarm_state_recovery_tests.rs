@@ -43,9 +43,11 @@ use handshake_core::llm::{
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 use handshake_core::swarm_orchestration::state_recovery::{
-    validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
-    AttributionMode, BackendNavigationCommand, ClaimScope, ClaimStatus, IndexLeaseStatus,
-    IndexingLeaseRequest, LocalCloudAttribution, ModelProviderKind, NavigationCommandSet,
+    validate_cloud_assistance_receipt, validate_swarm_dashboard_projection, AgentCapability,
+    AgentLaneIdentity, AgentLaneKind, AttributionMode, BackendNavigationCommand, ClaimScope,
+    ClaimStatus, CloudAssistanceOutputKind, CloudAssistanceReceiptV1, CloudAssistanceRequest,
+    CloudFallbackBasisRequest, CloudFallbackReason, IndexLeaseStatus, IndexingLeaseRequest,
+    LocalCloudAttribution, ModelProviderKind, NavigationCommandSet,
     ParallelSwarmDashboardProjectionV1, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
     QuietBackgroundWorkKind, QuietBackgroundWorkRequest, RecoveryCheckpointRequest,
     RecoveryResumePointer, RoleMailboxHandoffRequest, StateRecoveryError,
@@ -1036,6 +1038,532 @@ async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
     .await
     .expect("count denied lease events");
     assert_eq!(lease_events, 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cloud_assistance_output_is_reviewable_attributed_and_non_authoritative() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-cloud-assist-{}", Uuid::now_v7());
+    let cloud = cloud_lane("assist-review");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-221".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: cloud.clone(),
+            session_id: "session-cloud-assist-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "cloud fallback may assist only as reviewable output".to_string(),
+        })
+        .await
+        .expect("claim cloud assistance workspace");
+    assert_eq!(claim.status, ClaimStatus::Active);
+
+    let before_handoffs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
+            .fetch_one(&pool)
+            .await
+            .expect("count handoffs before cloud assistance");
+    let before_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count events before cloud assistance");
+    let before_docs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count rich docs before cloud assistance");
+    let before_promoted_facts: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count promoted facts before cloud assistance");
+    let fallback_basis = store
+        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
+            lane: local_lane("assist-review-local-basis"),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-221".to_string(),
+            claim_id: claim.claim_id.clone(),
+            parent_session_id: "session-cloud-assist-parent".to_string(),
+            prompt_sha256: "a".repeat(64),
+            session_id: "session-cloud-assist-local-basis".to_string(),
+            fallback_reason: CloudFallbackReason::LocalLowConfidence,
+            local_attempt_ref: "local://assist-review/attempt/low-confidence".to_string(),
+            evidence_sha256: "b".repeat(64),
+            summary: "local model confidence below cloud fallback threshold".to_string(),
+        })
+        .await
+        .expect("record local fallback basis");
+
+    let receipt = store
+        .record_cloud_assistance_output(CloudAssistanceRequest {
+            from_lane: cloud.clone(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-221".to_string(),
+            claim_id: claim.claim_id.clone(),
+            session_id: "session-cloud-assist-output".to_string(),
+            to_role: "WP_VALIDATOR".to_string(),
+            mailbox_thread_id: "thread-cloud-assist-review".to_string(),
+            mailbox_message_id: "message-cloud-assist-review".to_string(),
+            fallback_basis_event_id: fallback_basis.fallback_basis_event_id.clone(),
+            parent_session_id: "session-cloud-assist-parent".to_string(),
+            prompt_sha256: "a".repeat(64),
+            fallback_reason: CloudFallbackReason::LocalLowConfidence,
+            output_kind: CloudAssistanceOutputKind::PatchSuggestion,
+            output_sha256: "c".repeat(64),
+            body_sha256: "d".repeat(64),
+            output_text: "cloud patch suggestion body for validator review".to_string(),
+            output_body_jsonb: serde_json::json!({
+                "text": "cloud patch suggestion body for validator review",
+                "token_count": 7,
+                "finish_reason": "stop"
+            }),
+            summary: "cloud fallback produced a patch suggestion for validator review".to_string(),
+            target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
+        })
+        .await
+        .expect("record cloud assistance output");
+    validate_cloud_assistance_receipt(&receipt).expect("cloud assistance receipt validates");
+    assert_eq!(receipt.workspace_id, workspace_id);
+    assert_eq!(receipt.claim_id, claim.claim_id);
+    assert_eq!(
+        receipt.fallback_basis_event_id,
+        fallback_basis.fallback_basis_event_id
+    );
+    assert_eq!(receipt.parent_session_id, "session-cloud-assist-parent");
+    assert_eq!(receipt.prompt_sha256, "a".repeat(64));
+    assert_eq!(receipt.provider, Some(ModelProviderKind::OpenAi));
+    assert_eq!(
+        receipt.output_text,
+        "cloud patch suggestion body for validator review"
+    );
+    assert_eq!(receipt.review_state, "pending_review");
+    assert!(receipt.non_authoritative);
+    assert!(receipt.requires_promotion);
+    assert!(!receipt.authority_mutation_allowed);
+    assert!(receipt.promotion_event_id.is_none());
+
+    let handoff: (String, String, String, String) = sqlx::query_as(
+        r#"
+        SELECT claim_id, from_lane_kind, status, event_ledger_event_id
+        FROM knowledge_agent_role_mailbox_handoffs
+        WHERE handoff_id = $1
+        "#,
+    )
+    .bind(&receipt.handoff_id)
+    .fetch_one(&pool)
+    .await
+    .expect("fetch cloud assistance handoff");
+    assert_eq!(handoff.0, claim.claim_id);
+    assert_eq!(handoff.1, "cloud");
+    assert_eq!(handoff.2, "progress");
+    assert_eq!(handoff.3, receipt.handoff_event_ledger_event_id);
+
+    let payload: serde_json::Value = sqlx::query_scalar(
+        r#"
+        SELECT payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+          AND aggregate_type = 'parallel_swarm_cloud_assistance'
+          AND aggregate_id = $2
+          AND source_component = 'parallel_swarm_state_recovery'
+        "#,
+    )
+    .bind(&receipt.cloud_assistance_event_id)
+    .bind(&receipt.receipt_id)
+    .fetch_one(&pool)
+    .await
+    .expect("fetch cloud assistance EventLedger payload");
+    assert_eq!(
+        payload["schema_id"],
+        "hsk.parallel_swarm.cloud_assistance@1"
+    );
+    assert_eq!(payload["workspace_id"], workspace_id);
+    assert_eq!(payload["claim_id"], claim.claim_id);
+    assert_eq!(payload["handoff_id"], receipt.handoff_id);
+    assert_eq!(
+        payload["fallback_basis_event_id"],
+        fallback_basis.fallback_basis_event_id
+    );
+    assert_eq!(payload["parent_session_id"], "session-cloud-assist-parent");
+    assert_eq!(payload["prompt_sha256"], "a".repeat(64));
+    assert_eq!(payload["fallback_reason"], "local_low_confidence");
+    assert_eq!(payload["output_kind"], "patch_suggestion");
+    assert_eq!(payload["output_sha256"], "c".repeat(64));
+    assert_eq!(
+        payload["output_text"],
+        "cloud patch suggestion body for validator review"
+    );
+    assert_eq!(payload["review_state"], "pending_review");
+    assert_eq!(payload["non_authoritative"], true);
+    assert_eq!(payload["requires_promotion"], true);
+    assert_eq!(payload["authority_mutation_allowed"], false);
+    assert!(payload["promotion_event_id"].is_null());
+
+    let lifecycle_row: (
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        bool,
+        bool,
+        bool,
+        Option<String>,
+    ) = sqlx::query_as(
+        r#"
+        SELECT claim_id, fallback_basis_event_id, parent_session_id, prompt_sha256,
+               output_text, review_state,
+               non_authoritative, requires_promotion, authority_mutation_allowed,
+               promotion_event_id
+        FROM knowledge_agent_cloud_assistance_receipts
+        WHERE receipt_id = $1
+        "#,
+    )
+    .bind(&receipt.receipt_id)
+    .fetch_one(&pool)
+    .await
+    .expect("fetch cloud assistance lifecycle row");
+    assert_eq!(lifecycle_row.0, claim.claim_id);
+    assert_eq!(
+        lifecycle_row.1, fallback_basis.fallback_basis_event_id,
+        "cloud assistance must cite the fallback-basis EventLedger proof"
+    );
+    assert_eq!(lifecycle_row.2, "session-cloud-assist-parent");
+    assert_eq!(lifecycle_row.3, "a".repeat(64));
+    assert_eq!(
+        lifecycle_row.4,
+        "cloud patch suggestion body for validator review"
+    );
+    assert_eq!(lifecycle_row.5, "pending_review");
+    assert!(lifecycle_row.6);
+    assert!(lifecycle_row.7);
+    assert!(!lifecycle_row.8);
+    assert!(lifecycle_row.9.is_none());
+    let authoritative_update = sqlx::query(
+        r#"
+        UPDATE knowledge_agent_cloud_assistance_receipts
+           SET authority_mutation_allowed = TRUE
+         WHERE receipt_id = $1
+        "#,
+    )
+    .bind(&receipt.receipt_id)
+    .execute(&pool)
+    .await;
+    assert!(
+        authoritative_update.is_err(),
+        "database constraints must reject authoritative cloud assistance rows"
+    );
+
+    let after_handoffs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
+            .fetch_one(&pool)
+            .await
+            .expect("count handoffs after cloud assistance");
+    let after_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count events after cloud assistance");
+    assert_eq!(
+        after_handoffs,
+        before_handoffs + 1,
+        "cloud assistance creates exactly one review handoff"
+    );
+    assert_eq!(
+        after_events,
+        before_events + 3,
+        "cloud assistance creates fallback-basis + handoff + cloud-assistance EventLedger receipts"
+    );
+    let after_docs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1")
+            .bind(&workspace_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count rich docs after cloud assistance");
+    let after_promoted_facts: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count promoted facts after cloud assistance");
+    assert_eq!(
+        after_docs, before_docs,
+        "cloud assistance must not write document authority"
+    );
+    assert_eq!(
+        after_promoted_facts, before_promoted_facts,
+        "cloud assistance must not promote graph/claim authority"
+    );
+
+    let mut forged: CloudAssistanceReceiptV1 = receipt;
+    forged.authority_mutation_allowed = true;
+    forged.non_authoritative = false;
+    let errors = validate_cloud_assistance_receipt(&forged)
+        .expect_err("forged authoritative cloud assistance receipt must fail");
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("non_authoritative=true")));
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("must not allow authority mutation")));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_hash() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-cloud-assist-deny-{}", Uuid::now_v7());
+    let cloud = cloud_lane("assist-deny");
+    let local = local_lane("assist-deny-local");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-221".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: cloud.clone(),
+            session_id: "session-cloud-assist-deny-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "cloud fallback review claim".to_string(),
+        })
+        .await
+        .expect("claim cloud assistance workspace");
+    let before_handoffs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
+            .fetch_one(&pool)
+            .await
+            .expect("count handoffs before denied cloud assistance");
+    let before_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count events before denied cloud assistance");
+
+    let base_request = CloudAssistanceRequest {
+        from_lane: cloud.clone(),
+        workspace_id: workspace_id.clone(),
+        wp_id: "WP-KERNEL-009".to_string(),
+        mt_id: "MT-221".to_string(),
+        claim_id: claim.claim_id.clone(),
+        session_id: "session-cloud-assist-deny-output".to_string(),
+        to_role: "WP_VALIDATOR".to_string(),
+        mailbox_thread_id: "thread-cloud-assist-deny".to_string(),
+        mailbox_message_id: "message-cloud-assist-deny".to_string(),
+        parent_session_id: "session-cloud-assist-deny-parent".to_string(),
+        prompt_sha256: "a".repeat(64),
+        fallback_reason: CloudFallbackReason::LocalFailed,
+        output_kind: CloudAssistanceOutputKind::Analysis,
+        output_sha256: "e".repeat(64),
+        body_sha256: "f".repeat(64),
+        output_text: "cloud analysis stays pending review".to_string(),
+        output_body_jsonb: serde_json::json!({
+            "text": "cloud analysis stays pending review",
+            "token_count": 5,
+            "finish_reason": "stop"
+        }),
+        summary: "cloud output must remain pending review".to_string(),
+        target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
+        fallback_basis_event_id: "KE-missing-fallback-basis".to_string(),
+    };
+
+    let mut local_request = base_request.clone();
+    local_request.from_lane = local;
+    let result = store.record_cloud_assistance_output(local_request).await;
+    assert_invalid_input_contains(result, "cloud lane with cloud attribution");
+
+    let mut bad_hash_request = base_request.clone();
+    bad_hash_request.output_sha256 = "not-a-sha".to_string();
+    let result = store.record_cloud_assistance_output(bad_hash_request).await;
+    assert_invalid_input_contains(result, "sha256");
+
+    let mut wrong_claim_request = base_request.clone();
+    wrong_claim_request.claim_id = "PSR-CLAIM-not-owned".to_string();
+    let result = store
+        .record_cloud_assistance_output(wrong_claim_request)
+        .await;
+    assert_invalid_input_contains(result, "active cloud-owned workspace claim");
+
+    let mut blank_model_request = base_request.clone();
+    blank_model_request
+        .from_lane
+        .attribution
+        .model_label
+        .clear();
+    let result = store
+        .record_cloud_assistance_output(blank_model_request)
+        .await;
+    assert_invalid_input_contains(result, "model label");
+
+    let mut local_provider_request = base_request.clone();
+    local_provider_request.from_lane.attribution.provider = Some(ModelProviderKind::LocalRuntime);
+    let result = store
+        .record_cloud_assistance_output(local_provider_request)
+        .await;
+    assert_invalid_input_contains(result, "local_runtime");
+
+    let mut missing_basis_request = base_request;
+    missing_basis_request.fallback_basis_event_id = "KE-not-a-real-basis-event".to_string();
+    let result = store
+        .record_cloud_assistance_output(missing_basis_request)
+        .await;
+    assert_invalid_input_contains(result, "fallback-basis EventLedger");
+
+    let after_handoffs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
+            .fetch_one(&pool)
+            .await
+            .expect("count handoffs after denied cloud assistance");
+    let after_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count events after denied cloud assistance");
+    assert_eq!(
+        after_handoffs, before_handoffs,
+        "denied cloud assistance must not create review handoffs"
+    );
+    assert_eq!(
+        after_events, before_events,
+        "denied cloud assistance must not create false EventLedger receipts"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cloud_assistance_rejects_loose_or_replayed_fallback_basis() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-cloud-basis-tight-{}", Uuid::now_v7());
+    let cloud = cloud_lane("basis-tight");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-221".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: cloud.clone(),
+            session_id: "session-cloud-basis-tight-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "cloud fallback basis tight binding claim".to_string(),
+        })
+        .await
+        .expect("claim cloud assistance workspace");
+
+    let validator_basis = store
+        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
+            lane: lane_with_kind("basis-tight-validator", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-221".to_string(),
+            claim_id: claim.claim_id.clone(),
+            parent_session_id: "session-cloud-basis-parent".to_string(),
+            prompt_sha256: "a".repeat(64),
+            session_id: "session-cloud-basis-validator".to_string(),
+            fallback_reason: CloudFallbackReason::LocalFailed,
+            local_attempt_ref: "local://basis-tight/attempt".to_string(),
+            evidence_sha256: "b".repeat(64),
+            summary: "validator lanes cannot manufacture fallback basis".to_string(),
+        })
+        .await;
+    assert_invalid_input_contains(validator_basis, "local/system lane");
+
+    let basis = store
+        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
+            lane: local_lane("basis-tight-local"),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-221".to_string(),
+            claim_id: claim.claim_id.clone(),
+            parent_session_id: "session-cloud-basis-parent".to_string(),
+            prompt_sha256: "a".repeat(64),
+            session_id: "session-cloud-basis-local".to_string(),
+            fallback_reason: CloudFallbackReason::LocalFailed,
+            local_attempt_ref: "local://basis-tight/attempt".to_string(),
+            evidence_sha256: "b".repeat(64),
+            summary: "local failure basis for one cloud output".to_string(),
+        })
+        .await
+        .expect("record tight fallback basis");
+
+    let mut request = CloudAssistanceRequest {
+        from_lane: cloud,
+        workspace_id: workspace_id.clone(),
+        wp_id: "WP-KERNEL-009".to_string(),
+        mt_id: "MT-221".to_string(),
+        claim_id: claim.claim_id.clone(),
+        session_id: "session-cloud-basis-output".to_string(),
+        to_role: "WP_VALIDATOR".to_string(),
+        mailbox_thread_id: "thread-cloud-basis-tight".to_string(),
+        mailbox_message_id: "message-cloud-basis-tight-1".to_string(),
+        fallback_basis_event_id: basis.fallback_basis_event_id.clone(),
+        parent_session_id: "session-cloud-basis-parent".to_string(),
+        prompt_sha256: "a".repeat(64),
+        fallback_reason: CloudFallbackReason::LocalFailed,
+        output_kind: CloudAssistanceOutputKind::Analysis,
+        output_sha256: "c".repeat(64),
+        body_sha256: "d".repeat(64),
+        output_text: "cloud output tied to one fallback basis".to_string(),
+        output_body_jsonb: serde_json::json!({
+            "text": "cloud output tied to one fallback basis",
+            "token_count": 7,
+            "finish_reason": "stop"
+        }),
+        summary: "cloud output is pending review".to_string(),
+        target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
+    };
+
+    let mut mismatched_prompt = request.clone();
+    mismatched_prompt.prompt_sha256 = "0".repeat(64);
+    let result = store
+        .record_cloud_assistance_output(mismatched_prompt)
+        .await;
+    assert_invalid_input_contains(result, "fallback-basis EventLedger");
+
+    store
+        .record_cloud_assistance_output(request.clone())
+        .await
+        .expect("first use of fallback basis is accepted");
+
+    request.mailbox_message_id = "message-cloud-basis-tight-2".to_string();
+    request.output_sha256 = "e".repeat(64);
+    request.body_sha256 = "f".repeat(64);
+    request.output_text = "second cloud output trying to replay one basis".to_string();
+    request.output_body_jsonb = serde_json::json!({
+        "text": "second cloud output trying to replay one basis",
+        "token_count": 8,
+        "finish_reason": "stop"
+    });
+    let replay = store.record_cloud_assistance_output(request).await;
+    assert!(
+        replay.is_err(),
+        "fallback_basis_event_id must be one-use and cannot authorize a second cloud output"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

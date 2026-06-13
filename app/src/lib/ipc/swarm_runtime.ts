@@ -175,6 +175,35 @@ export type SwarmEscalationTaskClass =
   | "force_cloud"
   | "force_local";
 
+export interface CloudAssistanceReceiptContext {
+  workspaceId: string;
+  wpId: string;
+  mtId: string;
+  claimId: string;
+  cloudLaneId: string;
+  cloudActorId: string;
+  /**
+   * Legacy caller-supplied basis ids are ignored by the backend. The runtime
+   * records its own bound fallback-basis ledger event before cloud generation.
+   */
+  fallbackBasisEventId?: string | null;
+  toRole: string;
+  mailboxThreadId: string;
+  mailboxMessageId: string;
+  targetRef: string;
+}
+
+export interface CloudAssistanceReceiptRef {
+  receiptId: string;
+  fallbackBasisEventId: string;
+  handoffId: string;
+  cloudAssistanceEventId: string;
+  outputSha256: string;
+  reviewState: string;
+  nonAuthoritative: boolean;
+  requiresPromotion: boolean;
+}
+
 export interface SwarmChatGenerateWithCloudEscalationRequest {
   localInstanceId: string;
   prompt: string;
@@ -183,6 +212,7 @@ export interface SwarmChatGenerateWithCloudEscalationRequest {
   localConfidenceBasisPoints?: number;
   minLocalConfidenceBasisPoints?: number;
   validationLabels?: string[];
+  cloudAssistanceReceipt?: CloudAssistanceReceiptContext | null;
 }
 
 export type SwarmTraceOutputSource = "local" | "cloud";
@@ -242,6 +272,7 @@ export interface SwarmChatGenerateWithCloudEscalationResponse {
   local: SwarmChatResponse | null;
   cloudInstance: SwarmInstanceId | null;
   cloud: SwarmChatResponse | null;
+  cloudAssistanceReceipt: CloudAssistanceReceiptRef | null;
   cloudError: string | null;
   distillationTrace: DistillationSwarmTraceQueueEntry | null;
 }

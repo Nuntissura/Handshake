@@ -46,6 +46,7 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
       local: null,
       cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
       cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
+      cloudAssistanceReceipt: null,
       cloudError: null,
     })),
     // ROI #3: the edit-then-resume path reads the stored template; default to a
@@ -130,11 +131,10 @@ describe("SwarmOperatorSurface", () => {
     expect(await screen.findByTestId("swarm-board")).toBeInTheDocument();
   });
 
-  test("the Session workbench chat picker lists local + cloud + CLI sessions (local-only filter is gone)", async () => {
-    // Governance glue #3: the chat picker must offer ALL providers, not just
-    // local. Seed one local, one byok_cloud, one official_cli session (all
-    // READY), open the Session disclosure, and assert each provider's option is
-    // present and tagged via data-provider.
+  test("the Session workbench lists all providers but direct chat is local-only", async () => {
+    // Seed one local, one byok_cloud, one official_cli session (all READY),
+    // open the Session disclosure, and assert each provider's option is present
+    // while non-local direct-chat options are disabled.
     vi.mocked(listActiveSessions).mockResolvedValue([
       {
         instanceId: { modelId: "alpha-model", instance: 0, composite: "alpha-model#0" },
@@ -174,17 +174,16 @@ describe("SwarmOperatorSurface", () => {
 
     const optLocal = await screen.findByTestId("operator-chat-option-alpha-model#0");
     expect(optLocal).toHaveAttribute("data-provider", "local");
-    expect(screen.getByTestId("operator-chat-option-beta-cloud#0")).toHaveAttribute(
-      "data-provider",
-      "byok_cloud",
-    );
-    expect(screen.getByTestId("operator-chat-option-gamma-cli#0")).toHaveAttribute(
-      "data-provider",
-      "official_cli",
-    );
+    expect(optLocal).not.toBeDisabled();
+    const optCloud = screen.getByTestId("operator-chat-option-beta-cloud#0");
+    expect(optCloud).toHaveAttribute("data-provider", "byok_cloud");
+    expect(optCloud).toBeDisabled();
+    const optCli = screen.getByTestId("operator-chat-option-gamma-cli#0");
+    expect(optCli).toHaveAttribute("data-provider", "official_cli");
+    expect(optCli).toBeDisabled();
   });
 
-  test("app-mounted Session workbench exposes VM-local to cloud fallback", async () => {
+  test("app-mounted Session workbench disables fallback without receipt context", async () => {
     vi.mocked(chatGenerateWithCloudEscalation).mockClear();
     vi.mocked(listActiveSessions).mockResolvedValue([
       {
@@ -215,19 +214,11 @@ describe("SwarmOperatorSurface", () => {
       target: { value: "alpha-model#0" },
     });
 
-    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeEnabled();
-    fireEvent.click(screen.getByTestId("operator-chat-escalation-enabled"));
-    fireEvent.change(screen.getByTestId("operator-chat-input"), {
-      target: { value: "fallback please" },
-    });
-    fireEvent.click(screen.getByTestId("operator-chat-send"));
-
-    await vi.waitFor(() => expect(chatGenerateWithCloudEscalation).toHaveBeenCalled());
-    const calls = vi.mocked(chatGenerateWithCloudEscalation).mock.calls;
-    const request = calls[calls.length - 1]?.[0];
-    expect(request?.cloud.cloudModelName).toBe("gpt-4o");
-    expect(request?.cloud.worktreeId).toBe("wt-surface-session");
-    expect(request?.cloud.workingDir).toBe("D:/work/wt-surface-session");
+    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeDisabled();
+    expect(screen.getByTestId("operator-chat-escalation-note")).toHaveTextContent(
+      /receipt context/i,
+    );
+    expect(chatGenerateWithCloudEscalation).not.toHaveBeenCalled();
   });
 
   test("the off-main-window Terminal drawer is mounted (reachable) and collapsed by default", () => {
