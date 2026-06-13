@@ -128,7 +128,11 @@ pub async fn execute_retrieval(
         }
     }
 
-    // 3. Bounded graph traversal (MT-132) over the committed edge graph.
+    // 3. Bounded graph traversal (MT-132) over the committed edge graph. If
+    // the query resolved to schema terms with concrete edge-type mappings,
+    // schema narrows traversal too; caller policy may narrow that set further
+    // but cannot widen it back to unrelated bridge edges.
+    let graph_policy = schema_scoped_graph_policy(graph_policy, &schema.edge_type_allowlist);
     let graph = GraphTraversalPlanner::new(db, pool, graph_policy)
         .traverse(&seeds)
         .await?;
@@ -190,11 +194,7 @@ pub async fn execute_retrieval(
                     KnowledgePassageEvidenceRef::Span { span_id } => Some(span_id),
                     _ => None,
                 });
-            snippet_span_by_candidate.push((
-                passage.passage_id.clone(),
-                span,
-                passage.token_count,
-            ));
+            snippet_span_by_candidate.push((passage.passage_id.clone(), span, passage.token_count));
         }
     } else {
         for edge in &graph.edges {
@@ -297,6 +297,34 @@ pub async fn execute_retrieval(
         compiled,
         planned,
     })
+}
+
+fn schema_scoped_graph_policy(
+    mut graph_policy: GraphTraversalPolicy,
+    schema_edge_types: &BTreeSet<String>,
+) -> GraphTraversalPolicy {
+    if schema_edge_types.is_empty() {
+        return graph_policy;
+    }
+    if graph_policy.deny_all_edges {
+        return graph_policy;
+    }
+    if graph_policy.edge_type_allowlist.is_empty() {
+        graph_policy.edge_type_allowlist = schema_edge_types.clone();
+    } else {
+        let intersection: BTreeSet<String> = graph_policy
+            .edge_type_allowlist
+            .intersection(schema_edge_types)
+            .cloned()
+            .collect();
+        if intersection.is_empty() {
+            graph_policy.edge_type_allowlist.clear();
+            graph_policy.deny_all_edges = true;
+        } else {
+            graph_policy.edge_type_allowlist = intersection;
+        }
+    }
+    graph_policy
 }
 
 /// Map a ranked candidate kind to the bundle-item ref vocabulary.

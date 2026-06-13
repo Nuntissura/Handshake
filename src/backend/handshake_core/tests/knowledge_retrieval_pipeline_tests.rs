@@ -24,6 +24,7 @@
 #[path = "knowledge_memory_fixtures.rs"]
 mod knowledge_memory_fixtures;
 
+use handshake_core::knowledge_memory::bridge::generate_bridge_edges;
 use handshake_core::knowledge_retrieval::ai_ready_export::build_evidence_manifest;
 use handshake_core::knowledge_retrieval::budget::PriorityTier;
 use handshake_core::knowledge_retrieval::compiler::{
@@ -40,9 +41,14 @@ use handshake_core::knowledge_retrieval::planner::{
 use handshake_core::knowledge_retrieval::snippet::assemble_span_snippet;
 use handshake_core::memory::retrieval_mode::{NonHybridReason, QueryRetrievalMode};
 use handshake_core::storage::knowledge::{
-    KnowledgeBundleItemRefKind, KnowledgeCompactionPolicy, KnowledgeEdgeType,
-    KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore, NewKnowledgeEdge,
-    NewKnowledgeMemoryPassage,
+    KnowledgeBundleItemRefKind, KnowledgeCompactionPolicy, KnowledgeEdgeLifecycle,
+    KnowledgeEdgeType, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore,
+    NewKnowledgeEdge, NewKnowledgeMemoryPassage,
+};
+use handshake_core::storage::knowledge_memory::{
+    add_memory_ontology_alias, create_memory_fact, upsert_memory_ontology_term,
+    MemoryClaimAuthorityLabel, MemoryFactObject, MemoryOntologyAliasSource, MemoryOntologyTermKind,
+    NewMemoryFact, NewMemoryOntologyTerm,
 };
 use handshake_core::storage::knowledge_retrieval::{
     record_retrieval_trace, traces_for_bundle, upsert_semantic_catalog_entry,
@@ -153,7 +159,9 @@ async fn dangling_wp_mt_relationship_handles_degrade_and_record() {
 
     let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
     let request = RetrievalRequest::discovery(&fx.workspace_id, "load ghosts")
-        .with_handle(AuthoritativeHandle::WorkPacketId("WP-GHOST-001".to_string()))
+        .with_handle(AuthoritativeHandle::WorkPacketId(
+            "WP-GHOST-001".to_string(),
+        ))
         .with_handle(AuthoritativeHandle::MicroTaskId("MT-999".to_string()))
         .with_handle(AuthoritativeHandle::RelationshipId(
             "KREL-0000000000000000000000000000000000000000000000000000000000000000".to_string(),
@@ -170,7 +178,9 @@ async fn dangling_wp_mt_relationship_handles_degrade_and_record() {
         .map(|d| d.kind.as_str())
         .collect();
     assert_eq!(kinds, vec!["work_packet", "micro_task", "relationship"]);
-    assert!(planned.dangling_handles[0].reason().contains("WP-GHOST-001"));
+    assert!(planned.dangling_handles[0]
+        .reason()
+        .contains("WP-GHOST-001"));
 }
 
 /// Adversarial-v2 MT-130: an INDEXED work-packet / micro-task / relationship
@@ -185,7 +195,8 @@ async fn indexed_wp_mt_relationship_handles_confirm() {
 
     // Index the WP + MT as ProjectKnowledgeIndex entities (the packet store)
     // and a real edge whose relationship_id is the exact graph handle.
-    fx.entity("work_packet", "WP-KERNEL-009", "WP-KERNEL-009").await;
+    fx.entity("work_packet", "WP-KERNEL-009", "WP-KERNEL-009")
+        .await;
     fx.entity("micro_task", "MT-130", "MT-130").await;
     let a = fx.entity("symbol", "edge_a", "EdgeA").await;
     let b = fx.entity("symbol", "edge_b", "EdgeB").await;
@@ -258,7 +269,9 @@ async fn indexed_wp_mt_relationship_handles_confirm() {
     let planned = planner
         .plan(
             &RetrievalRequest::discovery(&fx.workspace_id, "load mixed")
-                .with_handle(AuthoritativeHandle::WorkPacketId("WP-GHOST-XYZ".to_string()))
+                .with_handle(AuthoritativeHandle::WorkPacketId(
+                    "WP-GHOST-XYZ".to_string(),
+                ))
                 .with_handle(AuthoritativeHandle::EntityId(entity_id.clone())),
         )
         .await
@@ -466,10 +479,7 @@ async fn compiler_persists_bounded_bundle_and_drops_over_budget() {
 /// bundle, and the trace records WHY.
 #[tokio::test]
 async fn executed_pipeline_falls_back_to_passages_ranks_and_compiles() {
-    let fx = skip_if_no_pg!(
-        MemoryFixture::setup().await,
-        "executed_pipeline_falls_back"
-    );
+    let fx = skip_if_no_pg!(MemoryFixture::setup().await, "executed_pipeline_falls_back");
     let pool = pool_for(&fx.pg).await;
 
     // Two committed passages with DIFFERENT extraction confidence, both
@@ -548,9 +558,10 @@ async fn executed_pipeline_falls_back_to_passages_ranks_and_compiles() {
     assert_eq!(items.len(), 2);
     assert!(items.iter().all(|i| i.ref_kind.as_str() == "passage"));
     assert!(
-        items
-            .iter()
-            .any(|i| i.citation.as_deref().is_some_and(|c| c.contains("memory/graph.rs"))),
+        items.iter().any(|i| i
+            .citation
+            .as_deref()
+            .is_some_and(|c| c.contains("memory/graph.rs"))),
         "passage items carry span-backed citations: {items:?}"
     );
 
@@ -580,7 +591,9 @@ async fn executed_pipeline_falls_back_to_passages_ranks_and_compiles() {
         .map(|w| w.as_str().unwrap_or_default().to_string())
         .collect::<Vec<_>>();
     assert!(
-        warnings.iter().any(|w| w.contains("graph_candidates_missing")),
+        warnings
+            .iter()
+            .any(|w| w.contains("graph_candidates_missing")),
         "the trace records WHY the fallback fired: {warnings:?}"
     );
     let candidates = traces[0].decisions["retrieval_trace"]["candidates"]
@@ -595,14 +608,13 @@ async fn executed_pipeline_falls_back_to_passages_ranks_and_compiles() {
 /// fallback) and compile into a persisted bundle.
 #[tokio::test]
 async fn executed_pipeline_graph_path_ranks_and_compiles() {
-    let fx = skip_if_no_pg!(
-        MemoryFixture::setup().await,
-        "executed_pipeline_graph_path"
-    );
+    let fx = skip_if_no_pg!(MemoryFixture::setup().await, "executed_pipeline_graph_path");
     let pool = pool_for(&fx.pg).await;
 
     // A real 2-edge neighborhood around a seed entity.
-    let hub = fx.entity("symbol", "managed_postgres", "ManagedPostgres").await;
+    let hub = fx
+        .entity("symbol", "managed_postgres", "ManagedPostgres")
+        .await;
     let port = fx.entity("symbol", "pg_port", "PgPort").await;
     let config = fx.entity("symbol", "pg_config", "PgConfig").await;
     for (target, edge_type, confidence) in [
@@ -666,14 +678,331 @@ async fn executed_pipeline_graph_path_ranks_and_compiles() {
         .expect("bundle exists");
     assert_eq!(bundle.bundle_id, executed.compiled.bundle_id);
     assert_eq!(items.len(), 2);
-    assert!(items
-        .iter()
-        .all(|i| i.citation.as_deref().is_some_and(|c| c.contains("memory/graph.rs"))));
+    assert!(items.iter().all(|i| i
+        .citation
+        .as_deref()
+        .is_some_and(|c| c.contains("memory/graph.rs"))));
     let traces = traces_for_bundle(&fx.pg.db, &executed.compiled.bundle_id)
         .await
         .expect("traces");
     assert_eq!(traces.len(), 1);
     assert_eq!(traces[0].retrieval_mode.as_str(), "graph_traversal");
+}
+
+/// MT-232: fragmented graph fixtures must not let an in-scope schema seed drag
+/// unrelated bridge edges into retrieval. A dependency query may traverse the
+/// `depends_on` neighborhood, but not sibling `mentions` edges that only share
+/// the same subject entity.
+#[tokio::test]
+async fn fragmented_graph_schema_scope_blocks_off_topic_bridge_edges() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "fragmented_graph_schema_scope_blocks_off_topic_bridge_edges"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    let dependency_term = upsert_memory_ontology_term(
+        &pool,
+        NewMemoryOntologyTerm {
+            workspace_id: fx.workspace_id.clone(),
+            term_kind: MemoryOntologyTermKind::RelationClass,
+            term_key: "depends_on".to_string(),
+            normalized_label: "depends on".to_string(),
+            maps_to_edge_type: Some("depends_on".to_string()),
+            maps_to_entity_kind: None,
+            promotion_threshold: 1,
+            operator_approved: true,
+            detection_provenance: serde_json::json!({"by": "mt232"}),
+            seen_in_run: None,
+        },
+    )
+    .await
+    .expect("dependency ontology term");
+    add_memory_ontology_alias(
+        &pool,
+        &dependency_term.term_id,
+        &fx.workspace_id,
+        "dependency",
+        "dependency",
+        MemoryOntologyAliasSource::Operator,
+    )
+    .await
+    .expect("dependency alias");
+
+    let service = fx
+        .entity("symbol", "checkout_service", "CheckoutService")
+        .await;
+    let database = fx.entity("symbol", "orders_db", "OrdersDb").await;
+    let runbook = fx
+        .entity("symbol", "incident_runbook", "IncidentRunbook")
+        .await;
+
+    let claim = fx.claim("checkout service depends on orders db").await;
+    create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim.claim_id.clone(),
+            subject_entity_id: service.clone(),
+            predicate_key: "depends_on".to_string(),
+            predicate_term_id: Some(dependency_term.term_id.clone()),
+            object: MemoryFactObject::Entity {
+                entity_id: database.clone(),
+            },
+            qualifiers: serde_json::json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Derived,
+            extractor_version: "test_v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("dependency fact");
+
+    let dependency_edge = fx
+        .pg
+        .db
+        .upsert_knowledge_edge(NewKnowledgeEdge {
+            workspace_id: fx.workspace_id.clone(),
+            edge_type: KnowledgeEdgeType::DependsOn,
+            source_entity_id: service.clone(),
+            target_entity_id: database.clone(),
+            extractor_version: "test_v1".to_string(),
+            confidence: 0.74,
+            detected_in_run: None,
+            evidence_span_ids: vec![fx.span_id.clone()],
+        })
+        .await
+        .expect("dependency edge");
+    let off_topic_edge = fx
+        .pg
+        .db
+        .upsert_knowledge_edge(NewKnowledgeEdge {
+            workspace_id: fx.workspace_id.clone(),
+            edge_type: KnowledgeEdgeType::Mentions,
+            source_entity_id: service.clone(),
+            target_entity_id: runbook.clone(),
+            extractor_version: "test_v1".to_string(),
+            confidence: 0.99,
+            detected_in_run: None,
+            evidence_span_ids: vec![fx.span_id.clone()],
+        })
+        .await
+        .expect("off-topic bridge edge");
+
+    let mut request =
+        RetrievalRequest::discovery(&fx.workspace_id, "show the dependency neighborhood");
+    request.graph_neighborhood_expected = true;
+    let executed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-mt232-fragmented-graph",
+        "sr-mt232-fragmented-graph",
+        BundleTargetKind::Symbol,
+        &service,
+        &request,
+        &BTreeSet::new(),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute retrieval");
+
+    assert!(
+        executed.fallback_reason.is_none(),
+        "the in-scope dependency edge should satisfy graph retrieval without fallback"
+    );
+    assert_eq!(
+        executed.graph_edge_count, 1,
+        "schema-scoped traversal must not include off-topic bridge edges"
+    );
+    let ranked_ids = executed
+        .ranked
+        .iter()
+        .map(|candidate| candidate.candidate_id.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        ranked_ids.contains(&dependency_edge.relationship_id.as_str()),
+        "dependency edge must remain ranked: {ranked_ids:?}"
+    );
+    assert!(
+        !ranked_ids.contains(&off_topic_edge.relationship_id.as_str()),
+        "off-topic bridge edge must not be ranked: {ranked_ids:?}"
+    );
+
+    let (_bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&executed.compiled.bundle_id)
+        .await
+        .expect("get bundle")
+        .expect("bundle exists");
+    let item_refs = items
+        .iter()
+        .map(|item| item.ref_id.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        item_refs.contains(&dependency_edge.relationship_id.as_str()),
+        "compiled bundle must retain the in-scope edge: {item_refs:?}"
+    );
+    assert!(
+        !item_refs.contains(&off_topic_edge.relationship_id.as_str()),
+        "compiled bundle must not persist the off-topic bridge edge: {item_refs:?}"
+    );
+
+    let disjoint = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-mt232-disjoint-policy",
+        "sr-mt232-disjoint-policy",
+        BundleTargetKind::Symbol,
+        &service,
+        &request,
+        &BTreeSet::new(),
+        GraphTraversalPolicy::default().with_edge_types([KnowledgeEdgeType::Mentions]),
+    )
+    .await
+    .expect("execute disjoint policy retrieval");
+    assert_eq!(
+        disjoint.graph_edge_count, 0,
+        "schema/caller disjoint edge policies must deny traversal, not widen to all active edges"
+    );
+    assert!(
+        disjoint
+            .ranked
+            .iter()
+            .all(
+                |candidate| candidate.candidate_id != dependency_edge.relationship_id
+                    && candidate.candidate_id != off_topic_edge.relationship_id
+            ),
+        "disjoint policy must not rank graph edges: {:?}",
+        disjoint
+            .ranked
+            .iter()
+            .map(|candidate| candidate.candidate_id.as_str())
+            .collect::<Vec<_>>()
+    );
+    let (_bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&disjoint.compiled.bundle_id)
+        .await
+        .expect("get disjoint bundle")
+        .expect("disjoint bundle exists");
+    assert!(
+        items
+            .iter()
+            .all(|item| item.ref_id != dependency_edge.relationship_id
+                && item.ref_id != off_topic_edge.relationship_id),
+        "disjoint policy must not persist graph edges as bundle items: {items:?}"
+    );
+}
+
+/// MT-232: bridge edges born from fragmented/co-occurrence analysis are only
+/// suggestions until promoted. Proposed or retired bridge rows must not become
+/// graph retrieval evidence, ranked candidates, or bundle items.
+#[tokio::test]
+async fn fragmented_graph_retrieval_ignores_proposed_and_retired_bridges() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "fragmented_graph_retrieval_ignores_proposed_and_retired_bridges"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    let alpha = fx.entity("symbol", "fragment_alpha", "FragmentAlpha").await;
+    let beta = fx.entity("symbol", "fragment_beta", "FragmentBeta").await;
+    let bridge = generate_bridge_edges(&fx.pg.db, &pool, &fx.workspace_id, 5, 0.4, "bridge_v1", 50)
+        .await
+        .expect("generate bridge");
+    assert_eq!(bridge.bridged_edge_ids.len(), 1, "one bridge proposal");
+    let proposed_edge = fx
+        .pg
+        .db
+        .get_knowledge_edge(&bridge.bridged_edge_ids[0])
+        .await
+        .expect("get proposed edge")
+        .expect("proposed edge exists");
+    assert_eq!(
+        proposed_edge.lifecycle_state,
+        KnowledgeEdgeLifecycle::Proposed
+    );
+
+    let mut request = RetrievalRequest::discovery(&fx.workspace_id, "fragment bridge retrieval");
+    request.graph_neighborhood_expected = true;
+    let proposed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-mt232-proposed-bridge",
+        "sr-mt232-proposed-bridge",
+        BundleTargetKind::Symbol,
+        &alpha,
+        &request,
+        &BTreeSet::from([alpha.clone()]),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute proposed bridge retrieval");
+    assert_eq!(
+        proposed.graph_edge_count, 0,
+        "proposed bridge suggestions are not authoritative retrieval graph edges"
+    );
+    assert!(
+        proposed
+            .ranked
+            .iter()
+            .all(|candidate| candidate.candidate_id != proposed_edge.relationship_id),
+        "proposed bridge must not be ranked"
+    );
+
+    let retired_edge = fx
+        .pg
+        .db
+        .set_knowledge_edge_lifecycle(
+            &proposed_edge.edge_id,
+            KnowledgeEdgeLifecycle::Retired,
+            None,
+        )
+        .await
+        .expect("retire bridge");
+    assert_eq!(
+        retired_edge.lifecycle_state,
+        KnowledgeEdgeLifecycle::Retired
+    );
+    let retired = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-mt232-retired-bridge",
+        "sr-mt232-retired-bridge",
+        BundleTargetKind::Symbol,
+        &beta,
+        &request,
+        &BTreeSet::from([beta.clone()]),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute retired bridge retrieval");
+    assert_eq!(
+        retired.graph_edge_count, 0,
+        "retired bridge rows are not authoritative retrieval graph edges"
+    );
+    assert!(
+        retired
+            .ranked
+            .iter()
+            .all(|candidate| candidate.candidate_id != retired_edge.relationship_id),
+        "retired bridge must not be ranked"
+    );
+    let (_bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&retired.compiled.bundle_id)
+        .await
+        .expect("get retired bundle")
+        .expect("retired bundle exists");
+    assert!(
+        items
+            .iter()
+            .all(|item| item.ref_id != retired_edge.relationship_id),
+        "retired bridge must not persist as a bundle item"
+    );
 }
 
 /// Adversarial-v2 MT-140: when a request names a SemanticCatalog entry, the
@@ -719,7 +1048,11 @@ async fn planner_derives_route_from_semantic_catalog_entry() {
         .await
         .expect("plan hybrid");
     assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::HybridRag);
-    assert_eq!(planned.plan.route.len(), 2, "route derived from the catalog");
+    assert_eq!(
+        planned.plan.route.len(),
+        2,
+        "route derived from the catalog"
+    );
     assert!(
         planned.plan.route[0]
             .purpose
@@ -883,9 +1216,8 @@ async fn retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven()
     let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
     let planned = planner
         .plan(
-            &RetrievalRequest::discovery(&fx.workspace_id, "bad citation scenario").with_handle(
-                AuthoritativeHandle::EntityId(a.clone()),
-            ),
+            &RetrievalRequest::discovery(&fx.workspace_id, "bad citation scenario")
+                .with_handle(AuthoritativeHandle::EntityId(a.clone())),
         )
         .await
         .expect("plan");

@@ -8,8 +8,9 @@
 //! cite relationship_id deterministically").
 //!
 //! This plans and executes a BOUNDED breadth-first graph traversal over the
-//! committed KnowledgeEdge graph (`KnowledgeStore::list_knowledge_edges_for_entity`,
-//! `entity_edge_degree`). Bounding controls, all actor-visible in the result:
+//! committed active KnowledgeEdge graph
+//! (`KnowledgeStore::list_knowledge_edges_for_entity`). Bounding controls, all
+//! actor-visible in the result:
 //!   * `edge_type_allowlist` — only these edge types are followed,
 //!   * `max_depth` — hop cap from the seed set,
 //!   * `max_nodes` — total visited-node cap,
@@ -22,8 +23,7 @@
 
 use std::collections::{BTreeSet, VecDeque};
 
-use crate::storage::knowledge::{KnowledgeEdgeType, KnowledgeStore};
-use crate::storage::knowledge_memory::entity_edge_degree;
+use crate::storage::knowledge::{KnowledgeEdgeLifecycle, KnowledgeEdgeType, KnowledgeStore};
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::StorageResult;
 use sqlx::PgPool;
@@ -39,6 +39,9 @@ use sqlx::PgPool;
 pub struct GraphTraversalPolicy {
     /// Only these edge types are followed. Empty = follow any type.
     pub edge_type_allowlist: BTreeSet<String>,
+    /// Explicitly deny all edge traversal. This is distinct from an empty
+    /// allowlist, which means unrestricted traversal for legacy callers.
+    pub deny_all_edges: bool,
     pub max_depth: u32,
     pub max_nodes: usize,
     /// An entity with degree strictly greater than this is treated as a hub and
@@ -50,6 +53,7 @@ impl Default for GraphTraversalPolicy {
     fn default() -> Self {
         Self {
             edge_type_allowlist: BTreeSet::new(),
+            deny_all_edges: false,
             max_depth: 2,
             max_nodes: 64,
             hub_degree_suppression: 50,
@@ -61,10 +65,14 @@ impl GraphTraversalPolicy {
     /// Restrict to a set of edge types (builder).
     pub fn with_edge_types(mut self, types: impl IntoIterator<Item = KnowledgeEdgeType>) -> Self {
         self.edge_type_allowlist = types.into_iter().map(|t| t.as_str().to_string()).collect();
+        self.deny_all_edges = false;
         self
     }
 
     fn allows(&self, edge_type: KnowledgeEdgeType) -> bool {
+        if self.deny_all_edges {
+            return false;
+        }
         self.edge_type_allowlist.is_empty() || self.edge_type_allowlist.contains(edge_type.as_str())
     }
 }
@@ -133,13 +141,12 @@ impl GraphTraversalResult {
 /// The bounded graph-traversal planner/executor.
 pub struct GraphTraversalPlanner<'a> {
     db: &'a PostgresDatabase,
-    pool: &'a PgPool,
     policy: GraphTraversalPolicy,
 }
 
 impl<'a> GraphTraversalPlanner<'a> {
-    pub fn new(db: &'a PostgresDatabase, pool: &'a PgPool, policy: GraphTraversalPolicy) -> Self {
-        Self { db, pool, policy }
+    pub fn new(db: &'a PostgresDatabase, _pool: &'a PgPool, policy: GraphTraversalPolicy) -> Self {
+        Self { db, policy }
     }
 
     /// Run a bounded BFS from `seed_entity_ids`. Deterministic: the frontier is
@@ -171,7 +178,9 @@ impl<'a> GraphTraversalPlanner<'a> {
                 break;
             }
 
-            let degree = entity_edge_degree(self.pool, &entity_id).await?;
+            let mut neighbor_edges = self.db.list_knowledge_edges_for_entity(&entity_id).await?;
+            neighbor_edges.retain(|edge| edge.lifecycle_state == KnowledgeEdgeLifecycle::Active);
+            let degree = neighbor_edges.len() as i64;
             let is_hub = degree > self.policy.hub_degree_suppression;
             visited_ids.insert(entity_id.clone());
             visited.push(VisitedNode {
@@ -192,8 +201,7 @@ impl<'a> GraphTraversalPlanner<'a> {
                 continue;
             }
 
-            // Expand: follow allowlisted edges to new neighbors.
-            let mut neighbor_edges = self.db.list_knowledge_edges_for_entity(&entity_id).await?;
+            // Expand: follow active, allowlisted edges to new neighbors.
             // Deterministic order.
             neighbor_edges.sort_by(|a, b| a.relationship_id.cmp(&b.relationship_id));
             for edge in neighbor_edges {

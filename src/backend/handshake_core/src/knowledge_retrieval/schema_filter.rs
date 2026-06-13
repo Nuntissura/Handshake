@@ -22,8 +22,8 @@ use std::collections::BTreeSet;
 use sqlx::PgPool;
 
 use crate::storage::knowledge_memory::{
-    list_memory_facts, list_memory_facts_in_schema_scope, resolve_memory_ontology_alias,
-    MemoryFact,
+    get_memory_ontology_term, list_memory_facts, list_memory_facts_in_schema_scope,
+    resolve_memory_ontology_alias, MemoryFact,
 };
 use crate::storage::StorageResult;
 
@@ -34,6 +34,9 @@ use crate::storage::StorageResult;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SchemaFilterResult {
     pub matched_term_ids: BTreeSet<String>,
+    /// Graph edge types mapped by the matched ontology terms. Empty means the
+    /// schema scope can seed traversal but cannot safely narrow edge types.
+    pub edge_type_allowlist: BTreeSet<String>,
     pub candidate_facts: Vec<MemoryFact>,
     /// Facts dropped because their schema did not match any in-scope term.
     pub off_topic_dropped: usize,
@@ -101,6 +104,24 @@ pub async fn resolve_query_schema(
     Ok(term_ids)
 }
 
+/// Resolve the edge-type mappings for matched schema terms. These are carried
+/// into graph traversal so a query that names one relation class cannot widen
+/// into unrelated bridge edges from the same seed entity.
+pub async fn resolve_schema_edge_type_allowlist(
+    pool: &PgPool,
+    term_ids: &BTreeSet<String>,
+) -> StorageResult<BTreeSet<String>> {
+    let mut edge_types = BTreeSet::new();
+    for term_id in term_ids {
+        if let Some(term) = get_memory_ontology_term(pool, term_id).await? {
+            if let Some(edge_type) = term.maps_to_edge_type {
+                edge_types.insert(edge_type);
+            }
+        }
+    }
+    Ok(edge_types)
+}
+
 /// Keep only the facts whose predicate term or entity object is in schema scope.
 /// A fact is in scope when its `predicate_term_id` is an in-scope term OR its
 /// `object_entity_id` is an entity the in-scope set references. This is the
@@ -155,15 +176,18 @@ pub async fn schema_first_filter(
         let facts = list_memory_facts(pool, workspace_id, fact_limit).await?;
         return Ok(SchemaFilterResult {
             matched_term_ids,
+            edge_type_allowlist: BTreeSet::new(),
             candidate_facts: facts,
             off_topic_dropped: 0,
         });
     }
+    let edge_type_allowlist = resolve_schema_edge_type_allowlist(pool, &matched_term_ids).await?;
     let scope: Vec<String> = matched_term_ids.iter().cloned().collect();
     let candidate_facts =
         list_memory_facts_in_schema_scope(pool, workspace_id, &scope, fact_limit).await?;
     Ok(SchemaFilterResult {
         matched_term_ids,
+        edge_type_allowlist,
         candidate_facts,
         // The pushdown excludes off-topic rows at the SQL layer; the dropped
         // count is no longer observable (and no longer load-bears recall).
@@ -224,6 +248,7 @@ mod tests {
     fn seed_entity_ids_collects_subjects_and_objects() {
         let result = SchemaFilterResult {
             matched_term_ids: BTreeSet::from(["t".to_string()]),
+            edge_type_allowlist: BTreeSet::new(),
             candidate_facts: vec![sample_fact("f1", Some("t"), Some("obj-1"))],
             off_topic_dropped: 0,
         };
