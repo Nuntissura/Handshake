@@ -20,7 +20,10 @@ use sqlx::{postgres::PgRow, PgPool, Postgres, Row, Transaction};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
+use crate::kernel::{
+    sandbox::{EnvRedactionV1, Redactor},
+    KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
+};
 use crate::storage::{Database, StorageError};
 
 #[derive(Debug, Error)]
@@ -1216,6 +1219,45 @@ pub struct RecoveredCheckpoint {
     pub checkpoint: RecoveryCheckpointRecord,
     pub receipt: RecoveryReceiptRecord,
     pub resume_pointer: RecoveryResumePointer,
+}
+
+pub const PARALLEL_SWARM_HANDOFF_COMPRESSION_SCHEMA_ID: &str =
+    "hsk.parallel_swarm.handoff_compression@1";
+
+#[derive(Debug, Clone)]
+pub struct HandoffCompressionRequest {
+    pub requested_by_lane: AgentLaneIdentity,
+    pub checkpoint_id: String,
+    pub max_chars: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HandoffCompressionSourceRefV1 {
+    pub source_kind: String,
+    pub source_id: String,
+    pub event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HandoffCompressionTemplateV1 {
+    pub schema_id: String,
+    pub checkpoint_id: String,
+    pub workspace_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub source_session_id: String,
+    pub source_lane_id: String,
+    pub source_actor_id: String,
+    pub source_lane_kind: String,
+    pub resume_pointer: RecoveryResumePointer,
+    pub git_head: String,
+    pub payload_sha256: String,
+    pub body_sha256: String,
+    pub body: String,
+    pub omitted_inputs: Vec<String>,
+    pub source_refs: Vec<HandoffCompressionSourceRefV1>,
+    pub warnings: Vec<String>,
+    pub generated_at_utc: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -2949,6 +2991,62 @@ impl ParallelSwarmStateRecoveryStore {
         })
     }
 
+    pub async fn build_handoff_compression_template(
+        &self,
+        request: HandoffCompressionRequest,
+    ) -> StateRecoveryResult<HandoffCompressionTemplateV1> {
+        require_capability(&request.requested_by_lane, AgentCapability::NavigateBackend)?;
+        ensure_safe_token("checkpoint_id", &request.checkpoint_id)?;
+        let max_chars = bounded_handoff_body_chars(request.max_chars)?;
+        let row = sqlx::query(
+            "SELECT * FROM knowledge_agent_state_recovery_checkpoints WHERE checkpoint_id = $1",
+        )
+        .bind(&request.checkpoint_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| StateRecoveryError::CheckpointNotFound(request.checkpoint_id.clone()))?;
+        let checkpoint = checkpoint_from_row(row)?;
+        let found = sha256_hex(&serde_json::to_vec(&checkpoint.payload)?);
+        if found != checkpoint.payload_sha256 {
+            return Err(StateRecoveryError::PayloadHashMismatch {
+                checkpoint_id: checkpoint.checkpoint_id.clone(),
+                expected: checkpoint.payload_sha256.clone(),
+                found,
+            });
+        }
+        ensure_handoff_checkpoint_metadata_safe(&checkpoint)?;
+
+        let mut warnings = Vec::new();
+        let body = compressed_handoff_body(&checkpoint, max_chars as usize, &mut warnings)?;
+        let body_sha256 = sha256_hex(body.as_bytes());
+        let template = HandoffCompressionTemplateV1 {
+            schema_id: PARALLEL_SWARM_HANDOFF_COMPRESSION_SCHEMA_ID.to_string(),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            workspace_id: checkpoint.workspace_id.clone(),
+            wp_id: checkpoint.wp_id.clone(),
+            mt_id: checkpoint.mt_id.clone(),
+            source_session_id: checkpoint.session_id.clone(),
+            source_lane_id: checkpoint.lane.lane_id.clone(),
+            source_actor_id: checkpoint.lane.actor_id.clone(),
+            source_lane_kind: checkpoint.lane.lane_kind.as_str().to_string(),
+            resume_pointer: checkpoint.resume_pointer.clone(),
+            git_head: checkpoint.git_head.clone(),
+            payload_sha256: checkpoint.payload_sha256.clone(),
+            body_sha256,
+            body,
+            omitted_inputs: handoff_omitted_inputs(),
+            source_refs: handoff_source_refs(&checkpoint),
+            warnings,
+            generated_at_utc: Utc::now(),
+        };
+        validate_handoff_compression_template(&template).map_err(|errors| {
+            StateRecoveryError::InvalidInput(format!(
+                "handoff compression template failed validation: {errors:?}"
+            ))
+        })?;
+        Ok(template)
+    }
+
     pub async fn enqueue_indexing_lease(
         &self,
         request: IndexingLeaseRequest,
@@ -3701,6 +3799,83 @@ pub fn validate_cloud_assistance_receipt(
     }
     if receipt.promotion_event_id.is_some() {
         errors.push("cloud assistance receipt must not carry a promotion_event_id".to_string());
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn validate_handoff_compression_template(
+    template: &HandoffCompressionTemplateV1,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    if template.schema_id != PARALLEL_SWARM_HANDOFF_COMPRESSION_SCHEMA_ID {
+        errors.push("schema_id must be hsk.parallel_swarm.handoff_compression@1".to_string());
+    }
+    if !template.checkpoint_id.starts_with("PSR-CHKPT-") {
+        errors.push("checkpoint_id must be a PSR-CHKPT id".to_string());
+    }
+    for (field, value) in [
+        ("workspace_id", template.workspace_id.as_str()),
+        ("wp_id", template.wp_id.as_str()),
+        ("mt_id", template.mt_id.as_str()),
+        ("source_session_id", template.source_session_id.as_str()),
+        ("source_lane_id", template.source_lane_id.as_str()),
+        ("source_actor_id", template.source_actor_id.as_str()),
+        ("source_lane_kind", template.source_lane_kind.as_str()),
+        ("git_head", template.git_head.as_str()),
+    ] {
+        if value.trim().is_empty() {
+            errors.push(format!("{field} must be present"));
+        }
+    }
+    if !is_lower_sha256(&template.payload_sha256) {
+        errors.push("payload_sha256 must be lowercase sha256 hex".to_string());
+    }
+    if !is_lower_sha256(&template.body_sha256) {
+        errors.push("body_sha256 must be lowercase sha256 hex".to_string());
+    }
+    if template.body_sha256 != sha256_hex(template.body.as_bytes()) {
+        errors.push("body_sha256 must match body bytes".to_string());
+    }
+    if template.body.trim().is_empty() || template.body.len() > 20_000 {
+        errors.push("body must be non-empty and bounded to 20000 bytes".to_string());
+    }
+    if !template.body.contains(&template.checkpoint_id)
+        || !template.body.contains(&template.mt_id)
+        || !template.body.contains("payload_sha256")
+    {
+        errors
+            .push("body must include checkpoint, MT, and payload hash restart anchors".to_string());
+    }
+    for required in [
+        "raw_checkpoint_payload",
+        "provider_chat_transcript",
+        "full_conversation_history",
+    ] {
+        if !template
+            .omitted_inputs
+            .iter()
+            .any(|input| input == required)
+        {
+            errors.push(format!("omitted_inputs must declare {required}"));
+        }
+    }
+    if !template.source_refs.iter().any(|source| {
+        source.source_kind == "checkpoint"
+            && source.source_id == template.checkpoint_id
+            && source
+                .event_ledger_event_id
+                .as_deref()
+                .is_some_and(|event_id| event_id.starts_with("KE-"))
+    }) {
+        errors.push("source_refs must include checkpoint table/EventLedger authority".to_string());
+    }
+    if contains_obvious_secret_token(&template.body) {
+        errors.push("body must not contain obvious raw secret tokens".to_string());
     }
 
     if errors.is_empty() {
@@ -4528,6 +4703,225 @@ fn bounded_inspection_limit(limit: i64) -> StateRecoveryResult<i64> {
     Ok(limit)
 }
 
+fn bounded_handoff_body_chars(max_chars: i64) -> StateRecoveryResult<i64> {
+    if !(512..=20_000).contains(&max_chars) {
+        return Err(StateRecoveryError::InvalidInput(
+            "handoff compression max_chars must be between 512 and 20000".to_string(),
+        ));
+    }
+    Ok(max_chars)
+}
+
+fn compressed_handoff_body(
+    checkpoint: &RecoveryCheckpointRecord,
+    max_chars: usize,
+    warnings: &mut Vec<String>,
+) -> StateRecoveryResult<String> {
+    let redactor = Redactor::from_policy(&EnvRedactionV1::default());
+    let resume_pointer = serde_json::to_string(&checkpoint.resume_pointer)?;
+    let mut body = String::new();
+
+    let mandatory_lines = [
+        format!("schema_id={PARALLEL_SWARM_HANDOFF_COMPRESSION_SCHEMA_ID}"),
+        format!("checkpoint_id={}", checkpoint.checkpoint_id),
+        format!("workspace_id={}", checkpoint.workspace_id),
+        format!("wp_id={}", checkpoint.wp_id),
+        format!("mt_id={}", checkpoint.mt_id),
+        format!("source_session_id={}", checkpoint.session_id),
+        format!(
+            "source_lane={} actor={} kind={}",
+            checkpoint.lane.lane_id,
+            checkpoint.lane.actor_id,
+            checkpoint.lane.lane_kind.as_str()
+        ),
+        format!("resume_pointer={resume_pointer}"),
+        format!("git_head={}", checkpoint.git_head),
+        format!("payload_sha256={}", checkpoint.payload_sha256),
+        format!("checkpoint_event_id={}", checkpoint.event_ledger_event_id),
+        "authority=PostgreSQL checkpoint row plus EventLedger receipt; this compressed handoff is a projection only".to_string(),
+        "resume_action=recover_from_checkpoint(checkpoint_id) and continue from resume_pointer".to_string(),
+        format!(
+            "omitted_inputs={}",
+            handoff_omitted_inputs().join(",")
+        ),
+    ];
+
+    for line in mandatory_lines {
+        push_required_handoff_line(&mut body, &line, max_chars)?;
+    }
+
+    push_handoff_section(
+        &mut body,
+        "touched_files",
+        &checkpoint.touched_files,
+        max_chars,
+        warnings,
+        &redactor,
+    );
+    push_handoff_section(
+        &mut body,
+        "tests",
+        &checkpoint.tests,
+        max_chars,
+        warnings,
+        &redactor,
+    );
+    push_handoff_section(
+        &mut body,
+        "hbr_rows",
+        &checkpoint.hbr_rows,
+        max_chars,
+        warnings,
+        &redactor,
+    );
+
+    if contains_raw_handoff_input_marker(&checkpoint.next_step_context) {
+        warnings.push("next_step_context_omitted_raw_input_marker".to_string());
+    } else {
+        let context = redactor.redact_text(&checkpoint.next_step_context);
+        push_optional_handoff_line(
+            &mut body,
+            &format!("next_step_context={context}"),
+            max_chars,
+            warnings,
+            "next_step_context_truncated",
+        );
+    }
+
+    Ok(body)
+}
+
+fn ensure_handoff_checkpoint_metadata_safe(
+    checkpoint: &RecoveryCheckpointRecord,
+) -> StateRecoveryResult<()> {
+    let redactor = Redactor::from_policy(&EnvRedactionV1::default());
+    for (field, value) in [
+        ("workspace_id", checkpoint.workspace_id.as_str()),
+        ("wp_id", checkpoint.wp_id.as_str()),
+        ("mt_id", checkpoint.mt_id.as_str()),
+        ("source_session_id", checkpoint.session_id.as_str()),
+        ("source_lane_id", checkpoint.lane.lane_id.as_str()),
+        ("source_actor_id", checkpoint.lane.actor_id.as_str()),
+        ("git_head", checkpoint.git_head.as_str()),
+    ] {
+        if redactor.redact_text(value) != value || contains_raw_handoff_input_marker(value) {
+            return Err(StateRecoveryError::InvalidInput(format!(
+                "mandatory checkpoint metadata {field} must not contain secret-looking values or raw handoff input markers"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn push_required_handoff_line(
+    body: &mut String,
+    line: &str,
+    max_chars: usize,
+) -> StateRecoveryResult<()> {
+    let needed = line.len() + 1;
+    if body.len() + needed > max_chars {
+        return Err(StateRecoveryError::InvalidInput(
+            "handoff compression max_chars is too small for mandatory restart anchors".to_string(),
+        ));
+    }
+    body.push_str(line);
+    body.push('\n');
+    Ok(())
+}
+
+fn push_optional_handoff_line(
+    body: &mut String,
+    line: &str,
+    max_chars: usize,
+    warnings: &mut Vec<String>,
+    warning: &str,
+) {
+    if body.len() + line.len() + 1 <= max_chars {
+        body.push_str(line);
+        body.push('\n');
+    } else if !warnings.iter().any(|item| item == warning) {
+        warnings.push(warning.to_string());
+    }
+}
+
+fn push_handoff_section(
+    body: &mut String,
+    label: &str,
+    values: &[String],
+    max_chars: usize,
+    warnings: &mut Vec<String>,
+    redactor: &Redactor,
+) {
+    if values.is_empty() {
+        push_optional_handoff_line(
+            body,
+            &format!("{label}=NONE"),
+            max_chars,
+            warnings,
+            &format!("{label}_truncated"),
+        );
+        return;
+    }
+    for (index, value) in values.iter().enumerate() {
+        let redacted_value = redactor.redact_text(value);
+        push_optional_handoff_line(
+            body,
+            &format!("{label}[{index}]={redacted_value}"),
+            max_chars,
+            warnings,
+            &format!("{label}_truncated"),
+        );
+    }
+}
+
+fn contains_raw_handoff_input_marker(value: &str) -> bool {
+    let lowered = value.to_ascii_lowercase();
+    [
+        "raw_checkpoint_payload",
+        "raw checkpoint payload",
+        "provider_chat_transcript",
+        "provider chat transcript",
+        "provider chat",
+        "full_conversation_history",
+        "full conversation history",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn handoff_omitted_inputs() -> Vec<String> {
+    vec![
+        "raw_checkpoint_payload".to_string(),
+        "provider_chat_transcript".to_string(),
+        "full_conversation_history".to_string(),
+    ]
+}
+
+fn handoff_source_refs(
+    checkpoint: &RecoveryCheckpointRecord,
+) -> Vec<HandoffCompressionSourceRefV1> {
+    let mut refs = vec![HandoffCompressionSourceRefV1 {
+        source_kind: "checkpoint".to_string(),
+        source_id: checkpoint.checkpoint_id.clone(),
+        event_ledger_event_id: Some(checkpoint.event_ledger_event_id.clone()),
+    }];
+    if let Some(claim_id) = checkpoint.claim_id.as_ref() {
+        refs.push(HandoffCompressionSourceRefV1 {
+            source_kind: "claim".to_string(),
+            source_id: claim_id.clone(),
+            event_ledger_event_id: None,
+        });
+    }
+    if let Some(handoff_id) = checkpoint.mailbox_handoff_id.as_ref() {
+        refs.push(HandoffCompressionSourceRefV1 {
+            source_kind: "mailbox_handoff".to_string(),
+            source_id: handoff_id.clone(),
+            event_ledger_event_id: None,
+        });
+    }
+    refs
+}
+
 fn validate_quiet_background_policy(
     expected_kind: QuietBackgroundWorkKind,
     policy: &QuietBackgroundPolicy,
@@ -4667,12 +5061,15 @@ fn ensure_event_id(field: &str, value: &str) -> StateRecoveryResult<()> {
     Ok(())
 }
 
-fn ensure_sha256(value: &str) -> StateRecoveryResult<()> {
-    if value.len() == 64
+fn is_lower_sha256(value: &str) -> bool {
+    value.len() == 64
         && value
             .chars()
             .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
-    {
+}
+
+fn ensure_sha256(value: &str) -> StateRecoveryResult<()> {
+    if is_lower_sha256(value) {
         Ok(())
     } else {
         Err(StateRecoveryError::InvalidInput(
@@ -4713,6 +5110,96 @@ fn scrub_secret_metadata(value: Value) -> Value {
         Value::Array(items) => Value::Array(items.into_iter().map(scrub_secret_metadata).collect()),
         other => other,
     }
+}
+
+fn contains_obvious_secret_token(value: &str) -> bool {
+    value.lines().any(|line| {
+        let dynamic_value = handoff_dynamic_line_value(line);
+        if dynamic_value.is_some_and(contains_high_entropy_secret_token) {
+            return true;
+        }
+        let lowered = dynamic_value.unwrap_or(line).to_ascii_lowercase();
+        lowered.contains("sk-")
+            || lowered.contains("-----begin ")
+            || contains_aws_access_key(&lowered)
+            || contains_url_credential(&lowered)
+            || contains_unredacted_assignment(&lowered, "bearer ")
+            || contains_unredacted_assignment(&lowered, "password=")
+            || contains_unredacted_assignment(&lowered, "password:")
+            || contains_unredacted_assignment(&lowered, "secret_token=")
+            || contains_unredacted_assignment(&lowered, "api_key=")
+            || contains_unredacted_assignment(&lowered, "api-key=")
+    })
+}
+
+fn handoff_dynamic_line_value(line: &str) -> Option<&str> {
+    if line.starts_with("touched_files[")
+        || line.starts_with("tests[")
+        || line.starts_with("hbr_rows[")
+        || line.starts_with("next_step_context=")
+    {
+        line.split_once('=').map(|(_, value)| value)
+    } else {
+        None
+    }
+}
+
+fn contains_unredacted_assignment(lowered: &str, needle: &str) -> bool {
+    let mut offset = 0;
+    while let Some(relative) = lowered[offset..].find(needle) {
+        let value_start = offset + relative + needle.len();
+        let value = lowered[value_start..].trim_start();
+        if !value.starts_with("[redacted:") {
+            return true;
+        }
+        offset = value_start;
+    }
+    false
+}
+
+fn contains_aws_access_key(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.windows(20).any(|window| {
+        matches!(&window[..4], b"akia" | b"asia")
+            && window[4..]
+                .iter()
+                .all(|byte| byte.is_ascii_digit() || byte.is_ascii_lowercase())
+    })
+}
+
+fn contains_url_credential(value: &str) -> bool {
+    value.split_whitespace().any(|part| {
+        part.find("://")
+            .and_then(|scheme| {
+                let after_scheme = &part[scheme + 3..];
+                after_scheme.find('@').map(|at| {
+                    let credential = &after_scheme[..at];
+                    !credential.contains("[redacted:url_cred]") && credential.contains(':')
+                })
+            })
+            .unwrap_or(false)
+    })
+}
+
+fn contains_high_entropy_secret_token(value: &str) -> bool {
+    let mut buf = String::new();
+    for c in value.chars() {
+        if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '/' | '=') {
+            buf.push(c);
+        } else if flush_high_entropy_probe(&mut buf) {
+            return true;
+        }
+    }
+    flush_high_entropy_probe(&mut buf)
+}
+
+fn flush_high_entropy_probe(buf: &mut String) -> bool {
+    let found = buf.len() >= 32
+        && buf.chars().any(|c| c.is_ascii_lowercase())
+        && buf.chars().any(|c| c.is_ascii_uppercase())
+        && buf.chars().any(|c| c.is_ascii_digit());
+    buf.clear();
+    found
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

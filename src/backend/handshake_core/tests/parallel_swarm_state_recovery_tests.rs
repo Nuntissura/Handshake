@@ -43,10 +43,11 @@ use handshake_core::llm::{
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 use handshake_core::swarm_orchestration::state_recovery::{
-    validate_cloud_assistance_receipt, validate_swarm_dashboard_projection, AgentCapability,
-    AgentLaneIdentity, AgentLaneKind, AttributionMode, BackendNavigationCommand, ClaimScope,
-    ClaimStatus, CloudAssistanceOutputKind, CloudAssistanceReceiptV1, CloudAssistanceRequest,
-    CloudFallbackBasisRequest, CloudFallbackReason, IndexLeaseStatus, IndexingLeaseRequest,
+    validate_cloud_assistance_receipt, validate_handoff_compression_template,
+    validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
+    AttributionMode, BackendNavigationCommand, ClaimScope, ClaimStatus, CloudAssistanceOutputKind,
+    CloudAssistanceReceiptV1, CloudAssistanceRequest, CloudFallbackBasisRequest,
+    CloudFallbackReason, HandoffCompressionRequest, IndexLeaseStatus, IndexingLeaseRequest,
     LocalCloudAttribution, ModelProviderKind, NavigationCommandSet,
     ParallelSwarmDashboardProjectionV1, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
     QuietBackgroundWorkKind, QuietBackgroundWorkRequest, RecoveryCheckpointRequest,
@@ -3892,6 +3893,313 @@ async fn mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgre
     .await
     .expect("count recovery receipts");
     assert_eq!(receipt_count, 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn compressed_handoff_template_is_bounded_restartable_and_secret_safe() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("compressed-handoff-source"),
+            session_id: "session-compressed-handoff-source".to_string(),
+            workspace_id: "workspace-compressed-handoff".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-222".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-222".to_string(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+                "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs"
+                    .to_string(),
+            ],
+            tests: vec![
+                "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests compressed_handoff -- --nocapture".to_string(),
+            ],
+            hbr_rows: vec![
+                "HBR-SWARM-001".to_string(),
+                "HBR-SWARM-002".to_string(),
+                "HBR-SWARM-004".to_string(),
+            ],
+            next_step_context:
+                "resume MT-222; never copy provider chat or secret_token=sk-test-secret-1234567890 into the handoff"
+                    .to_string(),
+            payload: json!({
+                "operator_goal": "small local model continuation",
+                "provider_chat_transcript": "cloud said secret_token=sk-test-secret-1234567890",
+                "large_context": "x".repeat(4096)
+            }),
+            compaction_reason: "session_limit_recovery".to_string(),
+            git_head: "abc222".to_string(),
+        })
+        .await
+        .expect("record checkpoint for compressed handoff");
+
+    let template = store
+        .build_handoff_compression_template(HandoffCompressionRequest {
+            requested_by_lane: local_lane("compressed-handoff-reader"),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            max_chars: 1200,
+        })
+        .await
+        .expect("build compressed handoff template");
+
+    validate_handoff_compression_template(&template).expect("template validates");
+    assert_eq!(template.checkpoint_id, checkpoint.checkpoint_id);
+    assert_eq!(
+        template.resume_pointer,
+        RecoveryResumePointer::MicroTask {
+            mt_id: "MT-222".to_string()
+        }
+    );
+    assert_eq!(template.payload_sha256, checkpoint.payload_sha256);
+    assert!(
+        template.body.len() <= 1200,
+        "compressed handoff body must respect the requested character budget"
+    );
+    assert!(
+        template.body.contains("MT-222")
+            && template.body.contains("PSR-CHKPT-")
+            && template.body.contains("payload_sha256"),
+        "compressed handoff must carry enough restart anchors for a no-context model"
+    );
+    assert!(
+        template
+            .omitted_inputs
+            .contains(&"provider_chat_transcript".to_string())
+            && template
+                .omitted_inputs
+                .contains(&"raw_checkpoint_payload".to_string()),
+        "template must declare omitted non-authority/raw inputs"
+    );
+    let serialized = serde_json::to_string(&template).expect("serialize template");
+    assert!(
+        !serialized.contains("sk-test-secret") && !serialized.contains(&"x".repeat(256)),
+        "compressed handoff must not leak secrets or raw large payload"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_validate() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let entropy_token = "aBcD1234EfGh5678IjKl9012MnOp3456";
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("compressed-handoff-redaction-source"),
+            session_id: "session-compressed-handoff-redaction".to_string(),
+            workspace_id: "workspace-compressed-handoff-redaction".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-222".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-222".to_string(),
+            },
+            touched_files: vec![format!("src/fixtures/{entropy_token}.md")],
+            tests: vec![format!("run-fixture --token {entropy_token}")],
+            hbr_rows: vec!["HBR-SWARM-004 api_key=sk-secret-not-real".to_string()],
+            next_step_context:
+                "resume MT-222 after secret_token=sk-context-secret-222 was redacted".to_string(),
+            payload: json!({
+                "operator_goal": "prove dynamic handoff redaction",
+                "raw_checkpoint_payload": "must never be projected"
+            }),
+            compaction_reason: "session_limit_recovery".to_string(),
+            git_head: "def222".to_string(),
+        })
+        .await
+        .expect("record checkpoint for dynamic redaction handoff");
+
+    let template = store
+        .build_handoff_compression_template(HandoffCompressionRequest {
+            requested_by_lane: local_lane("compressed-handoff-redaction-reader"),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            max_chars: 20_000,
+        })
+        .await
+        .expect("build redacted compressed handoff");
+
+    validate_handoff_compression_template(&template).expect("redacted template validates");
+    let serialized = serde_json::to_string(&template).expect("serialize template");
+    assert!(
+        !serialized.contains(entropy_token)
+            && !serialized.contains("sk-secret-not-real")
+            && !serialized.contains("sk-context-secret-222"),
+        "compressed handoff must redact secret-looking values from every emitted dynamic section"
+    );
+    assert!(
+        serialized.contains("[REDACTED:"),
+        "redaction markers should remain visible without making validation fail"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn compressed_handoff_omits_raw_transcript_markers_from_next_step_context() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("compressed-handoff-transcript-source"),
+            session_id: "session-compressed-handoff-transcript".to_string(),
+            workspace_id: "workspace-compressed-handoff-transcript".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-222".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-222".to_string(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec!["cargo test compressed_handoff".to_string()],
+            hbr_rows: vec!["HBR-SWARM-004".to_string()],
+            next_step_context:
+                "provider_chat_transcript: cloud model said to copy this raw paragraph; full_conversation_history: operator turn follows"
+                    .to_string(),
+            payload: json!({
+                "operator_goal": "prove raw transcript markers are omitted from compressed handoff"
+            }),
+            compaction_reason: "session_limit_recovery".to_string(),
+            git_head: "fed222".to_string(),
+        })
+        .await
+        .expect("record checkpoint with transcript-marked context");
+
+    let template = store
+        .build_handoff_compression_template(HandoffCompressionRequest {
+            requested_by_lane: local_lane("compressed-handoff-transcript-reader"),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            max_chars: 20_000,
+        })
+        .await
+        .expect("build compressed handoff with transcript-marked context");
+
+    assert!(
+        !template.body.contains("cloud model said")
+            && !template.body.contains("provider_chat_transcript:")
+            && !template.body.contains("full_conversation_history:"),
+        "raw provider chat/full-history context must be omitted from compressed handoff projections"
+    );
+    assert!(
+        template
+            .warnings
+            .contains(&"next_step_context_omitted_raw_input_marker".to_string()),
+        "omitted context should leave a structured warning for the receiving model"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn compressed_handoff_rejects_secret_like_mandatory_metadata() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let entropy_token = "zYxW9876VuTs5432RqPo1098NmLk7654";
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("mandatory-redaction-source"),
+            session_id: format!("session-{entropy_token}"),
+            workspace_id: format!("workspace-{entropy_token}"),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-222".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-222".to_string(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec!["cargo test compressed_handoff".to_string()],
+            hbr_rows: vec!["HBR-SWARM-004".to_string()],
+            next_step_context: "resume MT-222 from redacted mandatory metadata".to_string(),
+            payload: json!({"operator_goal": "prove mandatory metadata redaction"}),
+            compaction_reason: "session_limit_recovery".to_string(),
+            git_head: format!("git-{entropy_token}"),
+        })
+        .await
+        .expect("record checkpoint with secret-like mandatory metadata");
+
+    let result = store
+        .build_handoff_compression_template(HandoffCompressionRequest {
+            requested_by_lane: local_lane("mandatory-redaction-reader"),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            max_chars: 20_000,
+        })
+        .await;
+
+    assert!(
+        matches!(result, Err(StateRecoveryError::InvalidInput(message)) if message.contains("mandatory checkpoint metadata")),
+        "secret-like mandatory checkpoint metadata must fail closed instead of leaking or rewriting authority fields"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn compressed_handoff_accepts_redacted_url_credentials() {
+    let Some((_pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local_lane("url-redaction-source"),
+            session_id: "session-url-redaction".to_string(),
+            workspace_id: "workspace-url-redaction".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-222".to_string(),
+            claim_id: None,
+            mailbox_handoff_id: None,
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::MicroTask {
+                mt_id: "MT-222".to_string(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec![
+                "git clone https://user:hunter2@example.invalid/repo.git before retry".to_string(),
+            ],
+            hbr_rows: vec!["HBR-SWARM-004".to_string()],
+            next_step_context: "resume MT-222 after URL credential redaction".to_string(),
+            payload: json!({"operator_goal": "prove URL credential redaction validates"}),
+            compaction_reason: "session_limit_recovery".to_string(),
+            git_head: "url222".to_string(),
+        })
+        .await
+        .expect("record checkpoint with URL credential test command");
+
+    let template = store
+        .build_handoff_compression_template(HandoffCompressionRequest {
+            requested_by_lane: local_lane("url-redaction-reader"),
+            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            max_chars: 20_000,
+        })
+        .await
+        .expect("build compressed handoff with redacted URL credential");
+
+    validate_handoff_compression_template(&template).expect("redacted URL credential validates");
+    assert!(
+        template
+            .body
+            .contains("https://[REDACTED:URL_CRED]@example.invalid")
+            && !template.body.contains("hunter2"),
+        "URL credentials should redact without making the projection fail validation"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
