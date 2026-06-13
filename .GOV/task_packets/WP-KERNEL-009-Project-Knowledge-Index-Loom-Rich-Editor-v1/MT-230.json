@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-230-PartialPdfExtractionFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T04:34:01.875Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-230.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,87 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "183300fe",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "183300fe",
+            "slice": "MT-230 weak PDF extraction receipts"
+          }
+        ],
+        "summary": "MT-230 distinguishes visible sub-minimum PDF text layers from missing text operators during partial extraction and proves the weak-page failure reason propagates through real PostgreSQL receipt rows, repair queue rows, and EventLedger receipt events. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real negative fixture/runtime proof; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable -- --nocapture",
+            "result": "PASS; MT-230 real-Postgres weak PDF fixture produced partial NO_TEXT_LAYER receipt, durable repair queue row, durable receipt row, and EventLedger row with aggregate/source/payload identity assertions"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt087_mixed_pdf_extracts_partially_with_explicit_page_failures -- --nocapture",
+            "result": "PASS; existing mixed PDF partial extraction regression still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt086_image_only_pdf_yields_typed_no_text_layer_and_repair_entry -- --nocapture",
+            "result": "PASS; image-only missing text-layer repair path still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt086_mt087_pdf_text_layer_extracts_page_spans -- --nocapture",
+            "result": "PASS; successful PDF page-span extraction still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib tiny_text_below_minimum_is_not_a_text_layer -- --nocapture",
+            "result": "PASS; weak/tiny text-layer classifier unit test still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib mixed_pdf_extracts_partially_with_explicit_page_failures -- --nocapture",
+            "result": "PASS; lower-level mixed PDF extraction producer still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests --no-run",
+            "result": "PASS; full knowledge_ingestion_pipeline_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/knowledge_ingestion/pdf.rs src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_ingestion/pdf.rs src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "post-commit hook cargo check on handshake_core manifest",
+            "result": "PASS; mechanical review request helper did not send because it could not locate the official packet for WP-KERNEL-009"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "reviewer": "multi_agent:019ebf39-ffd9-7dc1-9135-bf83ae7142b2",
+        "result": "PASS",
+        "summary": "Reviewer assigned HIGH risk and attacked weak-vs-missing classification, PDF extraction to ingestion boundary, durable receipt rows, durable repair queue rows, EventLedger identity/payload binding, no SQLite/mock/Docker/external-runtime escape, and image-only/mixed/successful PDF regressions. Their non-blocking EventLedger assertion hardening was added and re-reviewed PASS."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T04:34:01.875Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT230",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
