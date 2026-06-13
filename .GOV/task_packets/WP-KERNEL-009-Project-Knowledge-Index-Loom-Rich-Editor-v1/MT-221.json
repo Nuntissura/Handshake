@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-221-CloudFallbackRules",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T01:09:49.866Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-221.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,93 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "0e729a0b",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T01:09:49.866Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "0e729a0b",
+            "slice": "MT-221 receipt-gated cloud fallback rules"
+          }
+        ],
+        "summary": "MT-221 makes direct swarm chat local-only and routes cloud fallback through a receipt gate: the backend records a bound local/system fallback-basis EventLedger event before cloud spawn, refuses loose/replayed fallback basis rows, generates cloud output without live capture, persists a non-authoritative pending-review cloud-assistance receipt in PostgreSQL, and only then returns/captures cloud output. The UI requires real receipt context before enabling cloud fallback; control-room/app chat deliberately pass null rather than synthesizing claim IDs."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T01:09:49.866Z",
+        "commands": [
+          {
+            "command": "cargo check --manifest-path app/src-tauri/Cargo.toml --lib",
+            "result": "PASS; app lib and handshake_core compiled with existing unrelated warnings"
+          },
+          {
+            "command": "pnpm exec tsc --noEmit",
+            "result": "PASS"
+          },
+          {
+            "command": "pnpm exec vitest run src/components/swarm/OperatorChat.test.tsx src/components/swarm/SwarmOperatorSurface.test.tsx src/components/swarm/SwarmControlRoom.test.tsx",
+            "result": "PASS; 3 files / 40 tests passed; existing React act warnings remain in SwarmOperatorSurface tests"
+          },
+          {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml chat_generate_ -- --nocapture",
+            "result": "PASS; 10/10 chat-generate cloud fallback/local-only receipt-gate tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests cloud_assistance -- --nocapture",
+            "result": "PASS; 3/3 PostgreSQL/EventLedger cloud-assistance tests passed, including loose/replayed fallback-basis rejection"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true app/src-tauri/src/commands/swarm_runtime.rs app/src-tauri/src/lib.rs src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- scoped MT-221 files",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "rg -n 'PSR-CLAIM-|KE-fallback|KE-cloud|receiptContext: \\{|fallbackBasisEventId:' app/src --glob '!**/*.test.ts' --glob '!**/*.test.tsx'",
+            "result": "PASS; no production fake receipt/claim IDs found; only the typed IPC fallbackBasisEventId field matched"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T01:09:49.866Z",
+        "reviewer": "multi_agent:019ebe6c-4dba-7aa3-9cf0-caab07fbc8a4",
+        "result": "PASS_AFTER_HARDENING",
+        "summary": "Frontend boundary reviewer found that OperatorChat required receipt context but app/control-room producers were not carrying it and tests were stale. Hardened by making receiptContext required in the cloud-escalation contract, passing explicit null from producers that do not own state-recovery claim context, keeping cloud fallback disabled without real context, and updating tests to prove no fake request is sent."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T01:09:49.866Z",
+        "reviewer": "multi_agent:019ebe6c-2072-7b32-b124-db503809da8a",
+        "result": "PASS",
+        "summary": "Rust/backend reviewer found no scoped backend or migration blocker after hardening. Focused tests proved generic chat rejects cloud sessions without the receipt gate, cloud escalation without receipt context does not spawn or capture cloud output, and cloud assistance rejects loose/replayed fallback basis."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T01:09:49.866Z",
+        "reviewer": "multi_agent:019ebe78-2c63-7bf3-9f75-cc57bf49609f",
+        "result": "PASS",
+        "summary": "Frontend re-review confirmed receiptContext is required, SwarmControlRoom explicitly returns null instead of fake claim IDs, successful lower-level cloud fallback requires a real context object, TypeScript IPC fields match Rust camelCase serde, and no production fake fallback/receipt IDs remain under app/src."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T01:09:49.866Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT221",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
