@@ -330,6 +330,153 @@ async fn mt087_mixed_pdf_extracts_partially_with_explicit_page_failures() {
     assert!(outcome.repair.is_some());
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable() {
+    let Some(env) = ingestion_pg().await else {
+        eprintln!("SKIP mt230_weak_pdf_text_layer: no PostgreSQL");
+        return;
+    };
+    let workspace_id = env.pg.create_workspace().await;
+    let ctx = test_ctx("mt230-weak-pdf");
+    let root = register_root(
+        &env,
+        &ctx,
+        &workspace_id,
+        "docs",
+        KnowledgeRootKind::ProjectRepo,
+    )
+    .await;
+
+    let bytes = pdf_fixtures::build_pdf(&[
+        pdf_fixtures::FixturePage::Text("Readable anchor page for MT-230".to_string()),
+        pdf_fixtures::FixturePage::Text("a".to_string()),
+    ]);
+    let outcome = ingest(&env, &ctx, &root, "weak-layer.pdf", &bytes).await;
+
+    assert_eq!(outcome.receipt.status, ExtractionStatus::Partial);
+    assert_eq!(
+        outcome.receipt.error_class,
+        Some(IngestionErrorClass::NoTextLayer)
+    );
+    assert_eq!(outcome.spans.len(), 1);
+    assert_eq!(outcome.receipt.spans_failed, 1);
+
+    let detail = outcome
+        .receipt
+        .error_detail
+        .as_ref()
+        .expect("partial PDF receipt detail");
+    assert_eq!(detail["failed_pages"][0]["page"], 2);
+    let weak_reason = detail["failed_pages"][0]["reason"]
+        .as_str()
+        .expect("failed page reason");
+    assert!(
+        weak_reason.contains("weak_text_layer_below_minimum"),
+        "weak text layer must not be reported as missing operators: {weak_reason}"
+    );
+    assert_eq!(detail["report"]["verdict"], "partial_text_layer");
+    assert_eq!(detail["report"]["pages"][1]["has_text_operators"], true);
+    assert_eq!(detail["report"]["pages"][1]["extracted_chars"], 1);
+
+    let repair = outcome
+        .repair
+        .as_ref()
+        .expect("partial weak PDF must enqueue repair");
+    assert_eq!(repair.state.as_str(), "queued");
+    assert_eq!(repair.reason_class.as_str(), "NO_TEXT_LAYER");
+    assert_eq!(
+        repair.receipt_id.as_deref(),
+        Some(outcome.receipt.receipt_id.as_str())
+    );
+
+    let mut conn = env.pg.raw_connection().await;
+    let row = sqlx::query(
+        "SELECT receipt_id, reason_class, reason_detail, state \
+         FROM knowledge_ingestion_repair_queue \
+         WHERE source_id = $1",
+    )
+    .bind(&outcome.source.source_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("durable repair queue row");
+    assert_eq!(
+        row.get::<Option<String>, _>("receipt_id").as_deref(),
+        Some(outcome.receipt.receipt_id.as_str())
+    );
+    assert_eq!(row.get::<String, _>("reason_class"), "NO_TEXT_LAYER");
+    assert_eq!(row.get::<String, _>("state"), "queued");
+    let reason_detail: serde_json::Value = row.get("reason_detail");
+    assert_eq!(
+        reason_detail["failed_pages"][0]["reason"],
+        detail["failed_pages"][0]["reason"]
+    );
+
+    let receipt_row = sqlx::query(
+        "SELECT status, error_class, error_detail, spans_produced, spans_failed, receipt_event_id \
+         FROM knowledge_ingestion_receipts \
+         WHERE receipt_id = $1",
+    )
+    .bind(&outcome.receipt.receipt_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("durable extraction receipt row");
+    assert_eq!(receipt_row.get::<String, _>("status"), "partial");
+    assert_eq!(
+        receipt_row
+            .get::<Option<String>, _>("error_class")
+            .as_deref(),
+        Some("NO_TEXT_LAYER")
+    );
+    assert_eq!(receipt_row.get::<i32, _>("spans_produced"), 1);
+    assert_eq!(receipt_row.get::<i32, _>("spans_failed"), 1);
+    let persisted_detail: serde_json::Value = receipt_row.get("error_detail");
+    assert_eq!(
+        persisted_detail["failed_pages"][0]["reason"],
+        detail["failed_pages"][0]["reason"]
+    );
+
+    let event_id = receipt_row
+        .get::<Option<String>, _>("receipt_event_id")
+        .expect("receipt row must point at EventLedger");
+    let event = sqlx::query(
+        "SELECT actor_id, session_run_id, correlation_id, aggregate_type, aggregate_id, source_component, payload \
+         FROM kernel_event_ledger \
+         WHERE event_id = $1",
+    )
+    .bind(&event_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("receipt EventLedger row");
+    assert_eq!(event.get::<String, _>("actor_id"), ctx.actor.actor_id());
+    assert_eq!(event.get::<String, _>("session_run_id"), ctx.session_run_id);
+    assert_eq!(
+        event.get::<Option<String>, _>("correlation_id"),
+        ctx.correlation_id
+    );
+    assert_eq!(
+        event.get::<Option<String>, _>("aggregate_type").as_deref(),
+        Some("knowledge_ingestion_receipt")
+    );
+    assert_eq!(
+        event.get::<Option<String>, _>("aggregate_id").as_deref(),
+        Some(outcome.source.source_id.as_str())
+    );
+    assert_eq!(
+        event
+            .get::<Option<String>, _>("source_component")
+            .as_deref(),
+        Some("knowledge_ingestion")
+    );
+    let payload: serde_json::Value = event.get("payload");
+    assert_eq!(payload["kind"], "extraction_receipt");
+    assert_eq!(payload["workspace_id"], workspace_id);
+    assert_eq!(payload["source_id"], outcome.source.source_id);
+    assert_eq!(payload["content_hash"], outcome.source.content_hash);
+    assert_eq!(payload["error_class"], "NO_TEXT_LAYER");
+    assert_eq!(payload["status"], "partial");
+    assert_eq!(payload["spans_failed"], 1);
+}
+
 // ---------------------------------------------------------------------------
 // MT-088 MediaTranscriptIngestion
 // ---------------------------------------------------------------------------

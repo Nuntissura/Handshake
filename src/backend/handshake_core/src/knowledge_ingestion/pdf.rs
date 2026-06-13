@@ -253,10 +253,8 @@ fn analyze_text_layer_inner(bytes: &[u8]) -> Result<PdfTextLayerReport, PdfAnaly
                     for op in &content.operations {
                         match op.operator.as_str() {
                             "Tr" => {
-                                if let Some(mode) = op
-                                    .operands
-                                    .first()
-                                    .and_then(|o| object_as_i64(o))
+                                if let Some(mode) =
+                                    op.operands.first().and_then(|o| object_as_i64(o))
                                 {
                                     render_mode = mode;
                                 }
@@ -392,6 +390,12 @@ fn extract_pdf_text_inner(bytes: &[u8]) -> Result<PdfExtraction, PdfAnalysisErro
                 format!("page failed analysis: {error}")
             } else if analysis.has_images {
                 "image_only_no_text_layer (OCR_NEEDED)".to_string()
+            } else if analysis.has_text_operators && analysis.extracted_chars < MIN_TEXT_LAYER_CHARS
+            {
+                format!(
+                    "weak_text_layer_below_minimum (extracted_chars={}, minimum_required={})",
+                    analysis.extracted_chars, MIN_TEXT_LAYER_CHARS
+                )
             } else {
                 "page has no text operators".to_string()
             };
