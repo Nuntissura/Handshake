@@ -193,13 +193,13 @@ async fn scratch_schema_apply_rollback_reapply() {
         .expect("connect into scratch schema");
 
     // APPLY: the full base chain through 0142 (this group's core last
-    // migration) PLUS the WP-KERNEL-009 hardening band 0200-0209 (additive
-    // trigger guards that depend on the 0130-0142 tables), in version order,
-    // executing the exact committed migration files. The hardening band sorts
-    // last, so version order already applies it after its 0137 dependency.
+    // migration) PLUS WP-KERNEL-009 hardening migrations (additive trigger
+    // guards that depend on the 0130-0142 tables), in version order, executing
+    // the exact committed migration files. The hardening migrations sort last,
+    // so version order already applies them after their 0137 dependency.
     let chain: Vec<(u32, PathBuf)> = versioned_migrations()
         .into_iter()
-        .filter(|(version, _)| *version <= 142 || (200..=209).contains(version))
+        .filter(|(version, _)| *version <= 142 || (200..=209).contains(version) || *version == 320)
         .collect();
     assert!(
         chain.iter().any(|(version, _)| *version == 142),
@@ -242,11 +242,23 @@ async fn scratch_schema_apply_rollback_reapply() {
             .any(|r| r == "knowledge_claim_transition_guard"),
         "expected the MT-056 transition-guard function after apply, found {routines_before:?}"
     );
+    assert!(
+        routines_before
+            .iter()
+            .any(|r| r == "knowledge_claim_conflict_resolution_receipt_guard"),
+        "expected the MT-231 conflict receipt-guard function after apply, found {routines_before:?}"
+    );
+    assert!(
+        routines_before
+            .iter()
+            .any(|r| r == "knowledge_claim_conflict_unresolved_state_guard"),
+        "expected the MT-231 conflict state-guard function after apply, found {routines_before:?}"
+    );
 
-    // Two-band rollback. The hardening band (0200-0209) rolls back FIRST so its
-    // trigger + function drop while knowledge_claims still exists, then the base
-    // band 0142 -> 0130. Both bands' down files must leave ZERO knowledge_*
-    // tables AND ZERO knowledge_* routines.
+    // Two-band rollback. The hardening migrations roll back FIRST so their
+    // triggers + functions drop while knowledge_claims still exists, then the
+    // base band 0142 -> 0130. Both bands' down files must leave ZERO
+    // knowledge_* tables AND ZERO knowledge_* routines.
     let knowledge_chain: Vec<(u32, PathBuf)> = chain
         .iter()
         .filter(|(version, _)| (130..=142).contains(version))
@@ -259,12 +271,12 @@ async fn scratch_schema_apply_rollback_reapply() {
     );
     let hardening_chain: Vec<(u32, PathBuf)> = chain
         .iter()
-        .filter(|(version, _)| (200..=209).contains(version))
+        .filter(|(version, _)| (200..=209).contains(version) || *version == 320)
         .cloned()
         .collect();
     assert!(
-        !hardening_chain.is_empty(),
-        "expected at least the MT-056 hardening migration (0200) in the chain"
+        hardening_chain.iter().any(|(version, _)| *version == 320),
+        "expected the MT-231 hardening migration (0320) in the chain"
     );
     // Reverse-order rollback across BOTH bands: hardening first, then base.
     let rollback_order: Vec<(u32, PathBuf)> = hardening_chain

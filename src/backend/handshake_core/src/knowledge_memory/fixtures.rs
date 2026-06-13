@@ -21,7 +21,8 @@ use sqlx::PgPool;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
-    KnowledgeClaimKind, KnowledgeClaimState, KnowledgeStore, NewKnowledgeClaim,
+    KnowledgeClaimKind, KnowledgeClaimRetirement, KnowledgeClaimRetirementReason,
+    KnowledgeClaimState, KnowledgeStore, NewKnowledgeClaim,
 };
 use crate::storage::knowledge_memory::{
     create_memory_fact, promote_memory_ontology_term, record_conflict_resolution_job,
@@ -304,7 +305,8 @@ pub async fn resolve_contradiction(
     kept_claim_id: &str,
     discarded_claim_id: &str,
 ) -> StorageResult<String> {
-    let receipt = seed_receipt(db, ctx, "resolve").await?;
+    let receipt =
+        seed_receipt_for_aggregate(db, "resolve", "knowledge_claim_conflict", conflict_id).await?;
     // Receipt-back the committed conflict resolution and the job record.
     db.resolve_knowledge_claim_conflict(conflict_id, &receipt)
         .await?;
@@ -317,6 +319,23 @@ pub async fn resolve_contradiction(
         Some(discarded_claim_id),
         serde_json::json!({"fixture": "resolve_contradiction"}),
         &receipt,
+    )
+    .await?;
+    db.transition_knowledge_claim(
+        kept_claim_id,
+        KnowledgeClaimState::Accepted,
+        None,
+        Some(&receipt),
+    )
+    .await?;
+    db.transition_knowledge_claim(
+        discarded_claim_id,
+        KnowledgeClaimState::Retired,
+        Some(KnowledgeClaimRetirement {
+            reason: KnowledgeClaimRetirementReason::Rejected,
+            superseded_by_claim_id: None,
+        }),
+        Some(&receipt),
     )
     .await?;
     Ok(job.job_id)
@@ -358,6 +377,15 @@ async fn seed_receipt(
     ctx: &FixtureContext,
     kind: &str,
 ) -> StorageResult<String> {
+    seed_receipt_for_aggregate(db, kind, "knowledge_memory_fixture", &ctx.seed).await
+}
+
+async fn seed_receipt_for_aggregate(
+    db: &PostgresDatabase,
+    kind: &str,
+    aggregate_type: &str,
+    aggregate_id: &str,
+) -> StorageResult<String> {
     let suffix = uuid::Uuid::now_v7();
     let event = NewKernelEvent::builder(
         format!("KTR-FIX-{kind}-{suffix}"),
@@ -365,7 +393,7 @@ async fn seed_receipt(
         KernelEventType::ValidationRecorded,
         KernelActor::ValidationRunner(format!("fixture-{kind}")),
     )
-    .aggregate("knowledge_memory_fixture", ctx.seed.clone())
+    .aggregate(aggregate_type.to_string(), aggregate_id.to_string())
     .idempotency_key(format!("idem-fix-{kind}-{suffix}"))
     .payload(serde_json::json!({"fixture": kind}))
     .build()

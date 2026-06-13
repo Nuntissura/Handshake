@@ -98,6 +98,40 @@ mod mt_056_claims {
         }
     }
 
+    async fn append_receipt_for_aggregate(
+        pg: &KnowledgePg,
+        label: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+    ) -> String {
+        let suffix = Uuid::now_v7();
+        pg.db
+            .append_kernel_event(
+                NewKernelEvent::builder(
+                    format!("KTR-{label}-{suffix}"),
+                    format!("SR-{label}-{suffix}"),
+                    KernelEventType::ValidationRecorded,
+                    KernelActor::ValidationRunner(label.to_string()),
+                )
+                .aggregate(aggregate_type.to_string(), aggregate_id.to_string())
+                .idempotency_key(format!("idem-{label}-{suffix}"))
+                .payload(json!({"resolution": label}))
+                .build()
+                .expect("event"),
+            )
+            .await
+            .expect("append conflict resolution receipt")
+            .event_id
+    }
+
+    async fn append_conflict_resolution_receipt(
+        pg: &KnowledgePg,
+        conflict_id: &str,
+        label: &str,
+    ) -> String {
+        append_receipt_for_aggregate(pg, label, "knowledge_claim_conflict", conflict_id).await
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn claim_lifecycle_proposed_accepted_retired_with_receipts() {
         let Some(pg) = knowledge_pg().await else {
@@ -539,6 +573,411 @@ mod mt_056_claims {
             .await
             .expect("list conflicts");
         assert_eq!(conflicts.len(), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt231_contradictory_claims_stay_conflicted_until_resolution_receipt() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!(
+                "SKIP mt231_contradictory_claims_stay_conflicted_until_resolution_receipt: no PostgreSQL"
+            );
+            return;
+        };
+        let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
+
+        let api_claim_a = pg
+            .db
+            .create_knowledge_claim(claim(&workspace_id, "port is 5544", vec![span_id.clone()]))
+            .await
+            .expect("api claim a");
+        let api_claim_b = pg
+            .db
+            .create_knowledge_claim(claim(&workspace_id, "port is 5432", vec![span_id.clone()]))
+            .await
+            .expect("api claim b");
+        let api_conflict = pg
+            .db
+            .record_knowledge_claim_conflict(
+                &api_claim_a.claim_id,
+                &api_claim_b.claim_id,
+                "MT-231 contradictory runtime memory claim fixture",
+                None,
+            )
+            .await
+            .expect("record api conflict");
+        let reverse_err = pg
+            .db
+            .record_knowledge_claim_conflict(
+                &api_claim_b.claim_id,
+                &api_claim_a.claim_id,
+                "MT-231 reverse duplicate conflict",
+                None,
+            )
+            .await
+            .expect_err("reverse duplicate conflicts must fail closed");
+        assert!(
+            matches!(reverse_err, StorageError::Conflict(_)),
+            "expected reverse duplicate conflict, got {reverse_err:?}"
+        );
+        let wrong_receipt = append_receipt_for_aggregate(
+            &pg,
+            "mt231-wrong",
+            "knowledge_claim_conflict",
+            "KCC-00000000000000000000000000000000",
+        )
+        .await;
+        let err = pg
+            .db
+            .resolve_knowledge_claim_conflict(&api_conflict.conflict_id, &wrong_receipt)
+            .await
+            .expect_err("resolution receipt must target this conflict aggregate");
+        assert!(
+            matches!(err, StorageError::Conflict(_)),
+            "expected aggregate mismatch conflict, got {err:?}"
+        );
+        assert!(
+            err.to_string().contains("aggregate"),
+            "unexpected receipt mismatch error: {err}"
+        );
+        let api_receipt =
+            append_conflict_resolution_receipt(&pg, &api_conflict.conflict_id, "mt231-api").await;
+
+        let err = pg
+            .db
+            .transition_knowledge_claim(
+                &api_claim_a.claim_id,
+                KnowledgeClaimState::Accepted,
+                None,
+                Some(&api_receipt),
+            )
+            .await
+            .expect_err("unresolved conflicted claims must not become accepted via API");
+        assert!(
+            matches!(err, StorageError::Conflict(_)),
+            "expected typed conflict, got {err:?}"
+        );
+        assert!(
+            err.to_string().contains("unresolved"),
+            "unexpected API error: {err}"
+        );
+        let err = pg
+            .db
+            .transition_knowledge_claim(
+                &api_claim_b.claim_id,
+                KnowledgeClaimState::Retired,
+                Some(KnowledgeClaimRetirement {
+                    reason: KnowledgeClaimRetirementReason::Rejected,
+                    superseded_by_claim_id: None,
+                }),
+                None,
+            )
+            .await
+            .expect_err("unresolved conflicted claims must not retire via API");
+        assert!(
+            matches!(err, StorageError::Conflict(_)),
+            "expected unresolved-retirement conflict, got {err:?}"
+        );
+        assert!(
+            err.to_string().contains("unresolved"),
+            "unexpected unresolved-retirement API error: {err}"
+        );
+        assert_eq!(
+            pg.db
+                .get_knowledge_claim(&api_claim_a.claim_id)
+                .await
+                .expect("get api claim")
+                .expect("api claim exists")
+                .lifecycle_state,
+            KnowledgeClaimState::Conflicted
+        );
+
+        let resolved_api_conflict = pg
+            .db
+            .resolve_knowledge_claim_conflict(&api_conflict.conflict_id, &api_receipt)
+            .await
+            .expect("resolve api conflict");
+        assert!(resolved_api_conflict.resolved_at.is_some());
+        let stale_api_receipt =
+            append_conflict_resolution_receipt(&pg, &api_conflict.conflict_id, "mt231-api-stale")
+                .await;
+        let err = pg
+            .db
+            .transition_knowledge_claim(
+                &api_claim_a.claim_id,
+                KnowledgeClaimState::Accepted,
+                None,
+                Some(&stale_api_receipt),
+            )
+            .await
+            .expect_err("acceptance receipt must be the recorded conflict resolution receipt");
+        assert!(
+            err.to_string().contains("match a resolved conflict"),
+            "unexpected stale receipt API error: {err}"
+        );
+        let accepted = pg
+            .db
+            .transition_knowledge_claim(
+                &api_claim_a.claim_id,
+                KnowledgeClaimState::Accepted,
+                None,
+                Some(&api_receipt),
+            )
+            .await
+            .expect("resolved conflicted claim may become accepted");
+        assert_eq!(accepted.lifecycle_state, KnowledgeClaimState::Accepted);
+
+        let sql_claim_a = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "manual notes say port is 5544",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("sql claim a");
+        let sql_claim_b = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "manual notes say port is 5432",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("sql claim b");
+        let sql_conflict = pg
+            .db
+            .record_knowledge_claim_conflict(
+                &sql_claim_a.claim_id,
+                &sql_claim_b.claim_id,
+                "MT-231 contradictory raw SQL memory claim fixture",
+                None,
+            )
+            .await
+            .expect("record sql conflict");
+        let sql_receipt =
+            append_conflict_resolution_receipt(&pg, &sql_conflict.conflict_id, "mt231-sql").await;
+
+        let mut conn = pg.raw_connection().await;
+        let raw_reverse_err = sqlx::query(
+            "INSERT INTO knowledge_claim_conflicts
+                 (conflict_id, claim_id, conflicting_claim_id, conflict_reason)
+             VALUES ($1, $2, $3, 'MT-231 raw reverse duplicate conflict')",
+        )
+        .bind(format!("KCC-{}", Uuid::now_v7().simple()))
+        .bind(&sql_claim_b.claim_id)
+        .bind(&sql_claim_a.claim_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB must reject reverse duplicate conflict rows");
+        assert!(
+            raw_reverse_err
+                .to_string()
+                .contains("uq_knowledge_claim_conflicts_unordered_pair"),
+            "unexpected raw reverse duplicate error: {raw_reverse_err}"
+        );
+
+        let wrong_sql_receipt = append_receipt_for_aggregate(
+            &pg,
+            "mt231-sql-wrong",
+            "knowledge_claim_conflict",
+            &api_conflict.conflict_id,
+        )
+        .await;
+        let wrong_resolution_err = sqlx::query(
+            "UPDATE knowledge_claim_conflicts
+             SET resolution_receipt_event_id = $2, resolved_at = NOW()
+             WHERE conflict_id = $1",
+        )
+        .bind(&sql_conflict.conflict_id)
+        .bind(&wrong_sql_receipt)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB trigger must reject wrong conflict receipt aggregate");
+        assert!(
+            wrong_resolution_err.to_string().contains("aggregate"),
+            "unexpected wrong-receipt SQL error: {wrong_resolution_err}"
+        );
+
+        let legacy_claim_a = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "legacy row says mode is local",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("legacy claim a");
+        let legacy_claim_b = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "legacy row says mode is cloud",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("legacy claim b");
+        let legacy_conflict = pg
+            .db
+            .record_knowledge_claim_conflict(
+                &legacy_claim_a.claim_id,
+                &legacy_claim_b.claim_id,
+                "MT-231 legacy wrong aggregate resolved conflict fixture",
+                None,
+            )
+            .await
+            .expect("record legacy conflict");
+        let legacy_wrong_receipt = append_receipt_for_aggregate(
+            &pg,
+            "mt231-legacy-wrong",
+            "knowledge_memory_fixture",
+            "legacy-conflict-resolution",
+        )
+        .await;
+        sqlx::query(
+            "ALTER TABLE knowledge_claim_conflicts
+             DISABLE TRIGGER trg_knowledge_claim_conflict_resolution_receipt_guard",
+        )
+        .execute(&mut conn)
+        .await
+        .expect("temporarily disable receipt guard");
+        sqlx::query(
+            "UPDATE knowledge_claim_conflicts
+             SET resolution_receipt_event_id = $2, resolved_at = NOW()
+             WHERE conflict_id = $1",
+        )
+        .bind(&legacy_conflict.conflict_id)
+        .bind(&legacy_wrong_receipt)
+        .execute(&mut conn)
+        .await
+        .expect("simulate pre-MT-231 wrong-aggregate resolved conflict row");
+        sqlx::query(
+            "ALTER TABLE knowledge_claim_conflicts
+             ENABLE TRIGGER trg_knowledge_claim_conflict_resolution_receipt_guard",
+        )
+        .execute(&mut conn)
+        .await
+        .expect("re-enable receipt guard");
+        let err = pg
+            .db
+            .transition_knowledge_claim(
+                &legacy_claim_a.claim_id,
+                KnowledgeClaimState::Accepted,
+                None,
+                Some(&legacy_wrong_receipt),
+            )
+            .await
+            .expect_err(
+                "legacy wrong-aggregate conflict receipt must not authorize API acceptance",
+            );
+        assert!(
+            err.to_string().contains("aggregate"),
+            "unexpected legacy wrong aggregate API error: {err}"
+        );
+        let legacy_sql_err = sqlx::query(
+            "UPDATE knowledge_claims
+             SET lifecycle_state = 'accepted',
+                 resolution_receipt_event_id = $2,
+                 updated_at = NOW()
+             WHERE claim_id = $1",
+        )
+        .bind(&legacy_claim_a.claim_id)
+        .bind(&legacy_wrong_receipt)
+        .execute(&mut conn)
+        .await
+        .expect_err("legacy wrong-aggregate conflict receipt must not authorize SQL acceptance");
+        assert!(
+            legacy_sql_err.to_string().contains("aggregate"),
+            "unexpected legacy wrong aggregate SQL error: {legacy_sql_err}"
+        );
+
+        let retire_err = sqlx::query(
+            "UPDATE knowledge_claims
+             SET lifecycle_state = 'retired',
+                 retirement_reason = 'rejected',
+                 updated_at = NOW()
+             WHERE claim_id = $1",
+        )
+        .bind(&sql_claim_b.claim_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB trigger must reject unresolved conflicted -> retired");
+        assert!(
+            retire_err.to_string().contains("unresolved"),
+            "unexpected unresolved-retirement SQL error: {retire_err}"
+        );
+
+        let err = sqlx::query(
+            "UPDATE knowledge_claims
+             SET lifecycle_state = 'accepted',
+                 resolution_receipt_event_id = $2,
+                 updated_at = NOW()
+             WHERE claim_id = $1",
+        )
+        .bind(&sql_claim_a.claim_id)
+        .bind(&sql_receipt)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB trigger must reject unresolved conflicted -> accepted");
+        assert!(
+            err.to_string().contains("unresolved"),
+            "unexpected DB error: {err}"
+        );
+        assert_eq!(
+            pg.db
+                .get_knowledge_claim(&sql_claim_a.claim_id)
+                .await
+                .expect("get sql claim")
+                .expect("sql claim exists")
+                .lifecycle_state,
+            KnowledgeClaimState::Conflicted
+        );
+
+        pg.db
+            .resolve_knowledge_claim_conflict(&sql_conflict.conflict_id, &sql_receipt)
+            .await
+            .expect("resolve sql conflict");
+        let stale_sql_receipt =
+            append_conflict_resolution_receipt(&pg, &sql_conflict.conflict_id, "mt231-sql-stale")
+                .await;
+        let stale_sql_err = sqlx::query(
+            "UPDATE knowledge_claims
+             SET lifecycle_state = 'accepted',
+                 resolution_receipt_event_id = $2,
+                 updated_at = NOW()
+             WHERE claim_id = $1",
+        )
+        .bind(&sql_claim_a.claim_id)
+        .bind(&stale_sql_receipt)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB trigger must reject non-recorded conflict receipt");
+        assert!(
+            stale_sql_err
+                .to_string()
+                .contains("match a resolved conflict"),
+            "unexpected stale receipt SQL error: {stale_sql_err}"
+        );
+        sqlx::query(
+            "UPDATE knowledge_claims
+             SET lifecycle_state = 'accepted',
+                 resolution_receipt_event_id = $2,
+                 updated_at = NOW()
+             WHERE claim_id = $1",
+        )
+        .bind(&sql_claim_a.claim_id)
+        .bind(&sql_receipt)
+        .execute(&mut conn)
+        .await
+        .expect("resolved raw SQL conflicted -> accepted is allowed");
+        assert_eq!(
+            pg.db
+                .get_knowledge_claim(&sql_claim_a.claim_id)
+                .await
+                .expect("get accepted sql claim")
+                .expect("accepted sql claim exists")
+                .lifecycle_state,
+            KnowledgeClaimState::Accepted
+        );
     }
 }
 

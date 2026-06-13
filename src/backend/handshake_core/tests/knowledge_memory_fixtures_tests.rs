@@ -77,6 +77,24 @@ async fn contradiction_and_resolution_fixtures() {
         conflicts[0].resolved_at.is_some(),
         "the conflict is now resolved"
     );
+    assert_eq!(
+        db.get_knowledge_claim(&fixture.fact_a.claim_id)
+            .await
+            .expect("get kept")
+            .expect("kept claim")
+            .lifecycle_state,
+        KnowledgeClaimState::Accepted,
+        "the kept contradiction claim is promoted after receipt-backed resolution"
+    );
+    assert_eq!(
+        db.get_knowledge_claim(&fixture.fact_b.claim_id)
+            .await
+            .expect("get discarded")
+            .expect("discarded claim")
+            .lifecycle_state,
+        KnowledgeClaimState::Retired,
+        "the discarded contradiction claim is retired after receipt-backed resolution"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

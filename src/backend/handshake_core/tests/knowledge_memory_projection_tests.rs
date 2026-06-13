@@ -10,6 +10,7 @@
 
 mod knowledge_memory_fixtures;
 
+use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::knowledge_memory::passage::{
     list_passages_citing_claim, load_passage_with_evidence,
 };
@@ -20,8 +21,8 @@ use handshake_core::knowledge_memory::visual_debug::{
     build_memory_graph_visual_debug, MEMORY_GRAPH_VISUAL_DEBUG_SCHEMA_ID,
 };
 use handshake_core::storage::knowledge::{
-    KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore,
-    NewKnowledgeMemoryPassage,
+    KnowledgeClaimState, KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef,
+    KnowledgeRetrievalMode, KnowledgeStore, NewKnowledgeMemoryPassage,
 };
 use handshake_core::storage::knowledge_memory::{
     add_memory_ontology_alias, create_memory_fact, upsert_memory_ontology_term,
@@ -29,8 +30,39 @@ use handshake_core::storage::knowledge_memory::{
     NewMemoryFact, NewMemoryOntologyTerm,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::Database;
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 use serde_json::json;
+use uuid::Uuid;
+
+async fn accept_claim(db: &PostgresDatabase, claim_id: &str, label: &str) -> String {
+    let suffix = Uuid::now_v7();
+    let receipt = db
+        .append_kernel_event(
+            NewKernelEvent::builder(
+                format!("KTR-{label}-{suffix}"),
+                format!("SR-{label}-{suffix}"),
+                KernelEventType::ValidationRecorded,
+                KernelActor::ValidationRunner(label.to_string()),
+            )
+            .aggregate("knowledge_claim", claim_id.to_string())
+            .idempotency_key(format!("idem-{label}-{suffix}"))
+            .payload(json!({"accepted_claim": claim_id}))
+            .build()
+            .expect("event"),
+        )
+        .await
+        .expect("append claim acceptance receipt");
+    db.transition_knowledge_claim(
+        claim_id,
+        KnowledgeClaimState::Accepted,
+        None,
+        Some(&receipt.event_id),
+    )
+    .await
+    .expect("accept claim");
+    receipt.event_id
+}
 
 // ---------------------------------------------------------------------------
 // MT-116 OntologyGraphProjection
@@ -107,6 +139,7 @@ async fn fact_graph_projection_trusted_only_filter() {
 
     // A SOURCE-labelled (trusted) relationship fact.
     let claim_trusted = fx.claim("Foo depends on Bar (source)").await;
+    accept_claim(&db, &claim_trusted.claim_id, "fact-trusted").await;
     create_memory_fact(
         &pool,
         NewMemoryFact {
@@ -149,19 +182,78 @@ async fn fact_graph_projection_trusted_only_filter() {
     .await
     .expect("untrusted fact");
 
-    // trusted_only=false: both facts present (2 edges).
+    // SOURCE labels are not enough for trusted retrieval: conflicting backing
+    // claims must stay out of trusted projections until resolved and accepted.
+    let claim_conflicted_a = fx.claim("Foo default port 5544 (source)").await;
+    let conflicted_fact_a = create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim_conflicted_a.claim_id.clone(),
+            subject_entity_id: subject.clone(),
+            predicate_key: "default_port".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Literal {
+                value: "5544".to_string(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Source,
+            extractor_version: "v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("conflicted fact a");
+    let claim_conflicted_b = fx.claim("Foo default port 5432 (source)").await;
+    let conflicted_fact_b = create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim_conflicted_b.claim_id.clone(),
+            subject_entity_id: subject.clone(),
+            predicate_key: "default_port".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Literal {
+                value: "5432".to_string(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Source,
+            extractor_version: "v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("conflicted fact b");
+    db.record_knowledge_claim_conflict(
+        &claim_conflicted_a.claim_id,
+        &claim_conflicted_b.claim_id,
+        "MT-231 trusted projection contradiction fixture",
+        None,
+    )
+    .await
+    .expect("record source-labelled conflict");
+
+    // trusted_only=false: all facts present (4 edges).
     let all = build_fact_graph(&db, &pool, &fx.workspace_id, false, 50)
         .await
         .expect("all fact graph");
-    assert_eq!(all.edges.len(), 2);
+    assert_eq!(all.edges.len(), 4);
     assert_eq!(all.authority_class, "projection");
 
-    // trusted_only=true: only the SOURCE fact survives (1 edge).
+    // trusted_only=true: only the accepted SOURCE fact survives (1 edge).
     let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
         .await
         .expect("trusted fact graph");
     assert_eq!(trusted.edges.len(), 1);
     assert_eq!(trusted.edges[0].authority_label, "source");
+    assert!(
+        !trusted
+            .edges
+            .iter()
+            .any(|edge| edge.fact_id == conflicted_fact_a.fact_id
+                || edge.fact_id == conflicted_fact_b.fact_id),
+        "conflicted facts must not leak into trusted projections"
+    );
     // The trusted edge is the relationship fact; its endpoints are both nodes.
     assert_eq!(trusted.edges[0].subject_entity_id, subject);
     assert_eq!(
@@ -170,6 +262,105 @@ async fn fact_graph_projection_trusted_only_filter() {
     );
     assert!(trusted.nodes.iter().any(|n| n.entity_id == subject));
     assert!(trusted.nodes.iter().any(|n| n.entity_id == object));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
+    let Some(fx) = MemoryFixture::setup().await else {
+        eprintln!(
+            "SKIP fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts: no PostgreSQL"
+        );
+        return;
+    };
+    let pool = pool_for(&fx.pg).await;
+    let db = PostgresDatabase::new(pool.clone());
+
+    let subject = fx.entity("symbol", "crate::raw::Server", "Server").await;
+
+    let claim_a = fx.claim("Server default port is 5544 (source)").await;
+    accept_claim(&db, &claim_a.claim_id, "raw-conflict-a").await;
+    let fact_a = create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim_a.claim_id.clone(),
+            subject_entity_id: subject.clone(),
+            predicate_key: "default_port".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Literal {
+                value: "5544".to_string(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Source,
+            extractor_version: "v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("raw conflict fact a");
+
+    let claim_b = fx.claim("Server default port is 5432 (source)").await;
+    accept_claim(&db, &claim_b.claim_id, "raw-conflict-b").await;
+    let fact_b = create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim_b.claim_id.clone(),
+            subject_entity_id: subject.clone(),
+            predicate_key: "default_port".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Literal {
+                value: "5432".to_string(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Source,
+            extractor_version: "v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("raw conflict fact b");
+
+    let conflict_id = format!("KCC-{}", Uuid::now_v7().simple());
+    let mut conn = fx.pg.raw_connection().await;
+    sqlx::query(
+        r#"
+        INSERT INTO knowledge_claim_conflicts
+            (conflict_id, claim_id, conflicting_claim_id, conflict_reason)
+        VALUES ($1, $2, $3, $4)
+        "#,
+    )
+    .bind(&conflict_id)
+    .bind(&claim_a.claim_id)
+    .bind(&claim_b.claim_id)
+    .bind("raw SQL MT-231 unresolved contradiction")
+    .execute(&mut conn)
+    .await
+    .expect("raw conflict insert");
+
+    for claim_id in [&claim_a.claim_id, &claim_b.claim_id] {
+        let claim = db
+            .get_knowledge_claim(claim_id)
+            .await
+            .expect("claim lookup")
+            .expect("claim exists");
+        assert_eq!(
+            claim.lifecycle_state,
+            KnowledgeClaimState::Conflicted,
+            "raw conflict insertion must move accepted claims back to conflicted"
+        );
+    }
+
+    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+        .await
+        .expect("trusted fact graph");
+    assert!(
+        !trusted
+            .edges
+            .iter()
+            .any(|edge| edge.fact_id == fact_a.fact_id || edge.fact_id == fact_b.fact_id),
+        "raw unresolved conflicts must not leak accepted facts into trusted projections"
+    );
 }
 
 // ---------------------------------------------------------------------------

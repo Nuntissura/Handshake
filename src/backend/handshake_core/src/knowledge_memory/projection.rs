@@ -17,7 +17,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-use crate::storage::knowledge::{KnowledgeMemoryPassage, KnowledgeStore};
+use crate::storage::knowledge::{KnowledgeClaimState, KnowledgeMemoryPassage, KnowledgeStore};
 use crate::storage::knowledge_memory::{
     list_memory_facts, list_memory_ontology_aliases, list_memory_ontology_terms, MemoryFact,
     MemoryOntologyAlias, MemoryOntologyLifecycle, MemoryOntologyTerm,
@@ -153,11 +153,10 @@ pub struct FactGraphProjection {
 }
 
 /// Build the fact graph projection from stable facts and the entities they
-/// connect. Only facts whose authority label is retrieval-trusted (source /
-/// derived / operator_approved) are included when `trusted_only` is set —
-/// deprecated, superseded, unsupported, and bare model-suggested facts are
-/// excluded from the stable fact graph (the translated-spec rule that
-/// probationary material is not stable retrieval fact).
+/// connect. When `trusted_only` is set, a fact must have both a
+/// retrieval-trusted authority label and an accepted backing claim. Deprecated,
+/// superseded, unsupported, bare model-suggested, proposed, and conflicted
+/// facts are excluded from the stable fact graph.
 pub async fn build_fact_graph(
     db: &PostgresDatabase,
     pool: &PgPool,
@@ -172,8 +171,19 @@ pub async fn build_fact_graph(
     let mut edges = Vec::new();
 
     for fact in &facts {
-        if trusted_only && !super::claim_labels::is_retrieval_trusted(fact.authority_label) {
-            continue;
+        if trusted_only {
+            if !super::claim_labels::is_retrieval_trusted(fact.authority_label) {
+                continue;
+            }
+            let Some(claim) = db.get_knowledge_claim(&fact.claim_id).await? else {
+                continue;
+            };
+            if claim.lifecycle_state != KnowledgeClaimState::Accepted {
+                continue;
+            }
+            if claim_has_unresolved_conflict(pool, &fact.claim_id).await? {
+                continue;
+            }
         }
         push_entity_node(db, fact, &mut nodes, &mut seen_entities).await?;
         edges.push(fact_edge(fact));
@@ -222,6 +232,23 @@ fn fact_edge(fact: &MemoryFact) -> FactGraphEdge {
         object_literal: fact.object_literal.clone(),
         authority_label: fact.authority_label.as_str().to_string(),
     }
+}
+
+async fn claim_has_unresolved_conflict(pool: &PgPool, claim_id: &str) -> StorageResult<bool> {
+    let unresolved: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM knowledge_claim_conflicts
+            WHERE resolved_at IS NULL
+              AND (claim_id = $1 OR conflicting_claim_id = $1)
+        )
+        "#,
+    )
+    .bind(claim_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(unresolved)
 }
 
 // ---------------------------------------------------------------------------

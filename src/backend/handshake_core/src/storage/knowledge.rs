@@ -2606,7 +2606,7 @@ pub trait KnowledgeStore: Send + Sync {
     ) -> StorageResult<KnowledgeSource>;
 
     async fn get_knowledge_source(&self, source_id: &str)
-    -> StorageResult<Option<KnowledgeSource>>;
+        -> StorageResult<Option<KnowledgeSource>>;
 
     /// Looks up the knowledge source indexing a RichDocument (adversarial-v2
     /// MT-154: documents are first-class Project-Knowledge-Index sources; the
@@ -2688,7 +2688,7 @@ pub trait KnowledgeStore: Send + Sync {
     ) -> StorageResult<KnowledgeEntity>;
 
     async fn get_knowledge_entity(&self, entity_id: &str)
-    -> StorageResult<Option<KnowledgeEntity>>;
+        -> StorageResult<Option<KnowledgeEntity>>;
 
     async fn get_knowledge_entity_by_identity(
         &self,
@@ -4139,6 +4139,76 @@ impl KnowledgeStore for PostgresDatabase {
                 "knowledge claim lifecycle violation: transition not allowed",
             ));
         }
+        if matches!(
+            (current.lifecycle_state, to_state),
+            (
+                KnowledgeClaimState::Conflicted,
+                KnowledgeClaimState::Accepted
+            ) | (
+                KnowledgeClaimState::Conflicted,
+                KnowledgeClaimState::Retired
+            )
+        ) {
+            let unresolved_conflicts: i64 = sqlx::query_scalar(
+                r#"
+                SELECT COUNT(*) FROM knowledge_claim_conflicts
+                WHERE resolved_at IS NULL
+                  AND (claim_id = $1 OR conflicting_claim_id = $1)
+                "#,
+            )
+            .bind(claim_id)
+            .fetch_one(self.pool())
+            .await?;
+            if unresolved_conflicts > 0 {
+                return Err(StorageError::Conflict(
+                    "knowledge claim lifecycle violation: unresolved conflicts must be receipt-resolved before exiting conflicted",
+                ));
+            }
+            let Some(resolution_receipt_event_id) = resolution_receipt_event_id else {
+                return Err(StorageError::Conflict(
+                    "knowledge claim lifecycle violation: exiting conflicted requires a conflict-resolution receipt",
+                ));
+            };
+            let matching_resolved_conflicts: i64 = sqlx::query_scalar(
+                r#"
+                SELECT COUNT(*) FROM knowledge_claim_conflicts
+                WHERE resolved_at IS NOT NULL
+                  AND resolution_receipt_event_id = $2
+                  AND (claim_id = $1 OR conflicting_claim_id = $1)
+                "#,
+            )
+            .bind(claim_id)
+            .bind(resolution_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+            if matching_resolved_conflicts == 0 {
+                return Err(StorageError::Conflict(
+                    "knowledge claim lifecycle violation: exiting conflicted receipt must match a resolved conflict for the claim",
+                ));
+            }
+            let matching_authority_receipts: i64 = sqlx::query_scalar(
+                r#"
+                SELECT COUNT(*)
+                FROM knowledge_claim_conflicts kcc
+                JOIN kernel_event_ledger kel
+                  ON kel.event_id = kcc.resolution_receipt_event_id
+                WHERE kcc.resolved_at IS NOT NULL
+                  AND kcc.resolution_receipt_event_id = $2
+                  AND (kcc.claim_id = $1 OR kcc.conflicting_claim_id = $1)
+                  AND kel.aggregate_type = 'knowledge_claim_conflict'
+                  AND kel.aggregate_id = kcc.conflict_id
+                "#,
+            )
+            .bind(claim_id)
+            .bind(resolution_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+            if matching_authority_receipts == 0 {
+                return Err(StorageError::Conflict(
+                    "knowledge claim lifecycle violation: conflict resolution receipt aggregate mismatch",
+                ));
+            }
+        }
         let (retirement_reason, superseded_by) = match (to_state, retirement) {
             (KnowledgeClaimState::Retired, Some(retirement)) => {
                 if matches!(
@@ -4225,6 +4295,23 @@ impl KnowledgeStore for PostgresDatabase {
         }
         let conflict_id = new_knowledge_id("KCC");
         let mut tx = self.pool().begin().await?;
+        let reverse_exists: bool = sqlx::query_scalar(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM knowledge_claim_conflicts
+                WHERE claim_id = $2 AND conflicting_claim_id = $1
+            )
+            "#,
+        )
+        .bind(claim_id)
+        .bind(conflicting_claim_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if reverse_exists {
+            return Err(StorageError::Conflict(
+                "knowledge claim conflict pair already exists in reverse order",
+            ));
+        }
         let row = sqlx::query(
             r#"
             INSERT INTO knowledge_claim_conflicts
@@ -4265,6 +4352,24 @@ impl KnowledgeStore for PostgresDatabase {
         conflict_id: &str,
         resolution_receipt_event_id: &str,
     ) -> StorageResult<KnowledgeClaimConflict> {
+        let receipt_aggregate = sqlx::query_as::<_, (String, String)>(
+            r#"
+            SELECT aggregate_type, aggregate_id
+            FROM kernel_event_ledger
+            WHERE event_id = $1
+            "#,
+        )
+        .bind(resolution_receipt_event_id)
+        .fetch_optional(self.pool())
+        .await?;
+        if let Some((aggregate_type, aggregate_id)) = receipt_aggregate {
+            if aggregate_type != "knowledge_claim_conflict" || aggregate_id != conflict_id {
+                return Err(StorageError::Conflict(
+                    "knowledge claim conflict resolution receipt aggregate mismatch",
+                ));
+            }
+        }
+
         let row = sqlx::query(
             r#"
             UPDATE knowledge_claim_conflicts
