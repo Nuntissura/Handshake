@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-231-ContradictoryMemoryFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T05:45:40.492Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-231.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,87 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "bd468f5a",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "bd468f5a",
+            "slice": "MT-231 contradictory memory conflict hardening"
+          }
+        ],
+        "summary": "MT-231 now enforces contradictory KnowledgeClaim handling through PostgreSQL/EventLedger authority. Unresolved claim conflicts keep claims conflicted at the Rust API layer and direct-SQL layer; exiting conflicted to accepted or retired requires all conflicts resolved plus a matching knowledge_claim_conflict EventLedger receipt. Trusted fact projection excludes unresolved-conflict claims even if lifecycle state is stale. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real PostgreSQL negative fixtures and raw-SQL boundary tests; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts -- --nocapture",
+            "result": "RED before trigger/backstop; raw SQL conflict insert left accepted claims trusted. GREEN after 0320 unresolved-state trigger plus trusted projection unresolved-conflict backstop."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests -- --nocapture",
+            "result": "PASS; 5/5 including raw-SQL unresolved conflict fixture, trusted-only filter, graph projection, passage evidence, and visual debug payload composition"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_claims_tests -- --nocapture",
+            "result": "PASS; 7/7 including MT-231 conflict exit guards, raw SQL wrong-receipt aggregate rejection, unresolved conflicted->accepted rejection, and unresolved conflicted->retired rejection"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_conflict_tests -- --nocapture",
+            "result": "PASS; 3/3 conflict detection/resolution job regressions"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_fixtures_tests contradiction_and_resolution_fixtures -- --nocapture",
+            "result": "PASS; contradiction fixture resolves with real knowledge_claim_conflict EventLedger receipt, kept claim accepted, discarded claim retired"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture",
+            "result": "PASS; 0320 up/down migration applies, rolls back to zero knowledge_* routines, and reapplies exact routine set including MT-231 receipt and unresolved-state guards"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_claims_tests --test knowledge_memory_projection_tests --test knowledge_memory_fixtures_tests --test knowledge_migration_tests --no-run",
+            "result": "PASS; scoped test targets compile"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/knowledge_memory/projection.rs src/backend/handshake_core/src/knowledge_memory/fixtures.rs src/backend/handshake_core/tests/knowledge_claims_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_memory_fixtures_tests.rs src/backend/handshake_core/tests/knowledge_migration_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/knowledge_memory/projection.rs src/backend/handshake_core/src/knowledge_memory/fixtures.rs src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.sql src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.down.sql src/backend/handshake_core/tests/knowledge_claims_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_memory_fixtures_tests.rs src/backend/handshake_core/tests/knowledge_migration_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "post-commit hook",
+            "result": "Product commit succeeded; hook did not auto-send review request because commit subject was not an MT auto-relay subject. Explicit adversarial review was run in-session and returned PASS."
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "reviewer": "multi_agent:019ebf63-e220-7460-ad58-5d348fcce5ab",
+        "result": "PASS",
+        "summary": "Reviewer initially found blockers around legacy wrong EventLedger aggregate receipts, unresolved conflicted->retired exits, and raw-SQL conflict insertion leaving accepted claims trusted. Each blocker was hardened with tests and code. Final re-review found no blocking issues; non-blocking note was to ensure the new 0320 up/down migrations were included in the product commit, which bd468f5a includes."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T05:45:40.492Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT231",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
