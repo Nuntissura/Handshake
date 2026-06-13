@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-224-ParallelSwarmUserManualPatch",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-13T04:06:02.251Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-224.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,79 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260613",
+    "implementation_commit": "93bb6c5e",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "93bb6c5ed3a8434528f1cfe5eb0b6b270eb5a256",
+            "slice": "MT-224 parallel swarm UserManual patch"
+          }
+        ],
+        "summary": "MT-224 adds a DB-seeded UserManual section to state-recovery-guide for parallel swarm operation and recovery. The section names live state_recovery.rs symbols for lane identity, claims, handoffs, quiet backend navigation, checkpoints, recovery receipts, indexing leases, dashboard projection, and handoff compression. It stores machine-readable runtime_symbols/negative_case_tests JSON, links existing backend-navigation-and-identity and quickstart-state-recovery pages, and cites live MT-223 negative recovery proofs instead of doc-only or mock authority."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols -- --nocapture",
+            "result": "PASS; MT-224 real-Postgres seeded manual test passed after RED/GREEN hardening for try_acquire_indexing_lease runtime_symbols coverage"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests mt206_state_recovery_guide_covers_contract_scenarios -- --nocapture",
+            "result": "PASS; existing state-recovery guide contract still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests mt194_seed_is_idempotent_and_receipted -- --nocapture",
+            "result": "PASS; seed idempotence and receipts still pass"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests mt195_every_registry_surface_has_db_coverage -- --nocapture",
+            "result": "PASS; registry surface DB coverage still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests --no-run",
+            "result": "PASS; full user_manual_content_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/tests/user_manual_content_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only, including foreign dirty visual-debugger files"
+          },
+          {
+            "command": "post-commit hook cargo check on handshake_core manifest",
+            "result": "PASS; mechanical review request helper did not send because it could not locate the official packet for WP-KERNEL-009"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "reviewer": "multi_agent:019ebf1a-7cf4-7f20-ab16-504f78cdc876",
+        "result": "PASS",
+        "summary": "Reviewer assigned MEDIUM risk, ran independent page-link and MT-223 rollback proofs, verified no invented anchors or stale checked symbols, and confirmed the manual reads from real seeded DB content. Their non-blocking gap that try_acquire_indexing_lease was prose-only was hardened with RED/GREEN coverage and re-reviewed PASS."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T04:06:02.251Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT224",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
