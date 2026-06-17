@@ -47,9 +47,17 @@ export const SNAPSHOT_EXCLUDE_DIRS = [
   ".next",
   ".turbo",
   "dist",
+  "dist-harness",
   "build",
   "target",
+  ".cargo",
   ".pnpm-store",
+  ".vite",
+  "coverage",
+  "test-results",
+  "playwright-report",
+  "Handshake_Artifacts",
+  "handshake-cargo-target",
 ];
 export const SNAPSHOT_EXCLUDE_FILES = [".git"];
 

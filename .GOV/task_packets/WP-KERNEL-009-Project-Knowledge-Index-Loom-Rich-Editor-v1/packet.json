@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-17T20:30:00.000Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -284,6 +284,12 @@
         "at_utc": "2026-06-12T04:32:33.318Z",
         "decision": "Full original-app parity, runtime-proven, no shortcuts",
         "detail": "Operator order 2026-06-12 (verbatim core): 'make sure no scaffolding, templates, mock ups or vibecoding takes place, i want a full featured vs code and obsidian merged into one in handshake and running and tested in runtime on all features the original apps have and provide. no shortcuts!'. Effects: (1) the earlier OUT_OF_SCOPE descopes of integrated terminal / debugger / source control are REVERSED (MT-252/253/254). (2) Every audit ABSENT/unowned row now has an owning MT: MT-245..262 created from the adversarial parity artifacts (evidence-derived, not invented). (3) MT-263 FullParityRuntimeProofSuite is the enforcement gate: every capability needs an executed runtime proof or an operator-cited descope; status text proves nothing. (4) HONEST STRUCTURAL LIMITS stated, not hidden: third-party extension MARKETPLACE is a network ecosystem and cannot be cloned native - Handshake-native command/registry surfaces are the equivalence path, flagged for operator awareness; REMOTE development/Live-Share-class is substituted by Handshake's native CRDT collaboration; Copilot-class assistance is Handshake's own model runtime (native by design); DEBUGGER ships protocol-core + Node inspector adapter first, more adapters iteratively - only runtime-working adapters appear in UI. (5) No-scaffolding rule restated into every new MT contract as a hard constraint."
+      },
+      {
+        "id": "DEC-008",
+        "at_utc": "2026-06-17T20:30:00.000Z",
+        "decision": "Expanded scope: Loom Search v2 (Postgres-native, graph-blended) -> MT-264; Elasticsearch rejected",
+        "detail": "Operator order 2026-06-17: add ES-class search over Loom as additional WP-009 scope and create the owning MT. ENGINE DECISION (operator-confirmed after assistant pushback): NOT Elasticsearch / no external search daemon - it would add a SECOND source of truth that drifts from the PostgreSQL+EventLedger authority, violate the Handshake-native/no-external-daemon stance, and hurt portability/self-host; and the 'blend with Loom' goal is actually EASIER in-DB (text relevance JOINed against loom_edges/type/tags in one query, transactionally consistent). WHAT IT IS - Loom Search v2: Postgres-native graph-blended search across all Loom content = full-text (tsvector/GIN + ts_rank + ts_headline highlighting) + fuzzy/typo/substring (pg_trgm) + semantic (pgvector HNSW over real embeddings via the MT-260 model-runtime), hybrid keyword+vector ranking, loom_edges-aware ranking/expansion + content_type/tag facets, results rendered as a saved Loom view (reusing MT-262). The index is a DERIVED projection inside the same Postgres, reindexed transactionally + EventLedger-receipted on block write/delete (references-not-copies, no drift, no second authority). Supersedes/extends the MT-258/250 workspace search. Owning MT-264 (UnifiedWorkSurface group); runtime-proven per DEC-007 (real-PG FTS/trigram/pgvector tests + offline Playwright per capability). NOTE: MT-264 is NOT covered by the already-run MT-263 parity suite, so it self-proves; a future parity-suite extension may add its rows."
       }
     ]
   },
@@ -301,7 +307,8 @@
       "PRODUCT-AC-007: UserManual replaces legacy ModelManual naming in product code except for declared deprecated compatibility shims with tests.",
       "PRODUCT-AC-008: Local/cloud swarm lanes can navigate backend state, claim workspaces, coordinate leases, recover after compaction, and attribute actions.",
       "PRODUCT-AC-009: Visual-debug evidence proves editor, Loom, UserManual, retrieval-debug, graph, and error states are readable, navigable, and non-overlapping.",
-      "PRODUCT-AC-010: Negative fixtures block false PASS for secrets, stale indexes, partial PDF extraction, bad citations, contradictory memory, parallel write conflicts, missing PostgreSQL, SQLite regressions, and external dependency regressions."
+      "PRODUCT-AC-010: Negative fixtures block false PASS for secrets, stale indexes, partial PDF extraction, bad citations, contradictory memory, parallel write conflicts, missing PostgreSQL, SQLite regressions, and external dependency regressions.",
+      "PRODUCT-AC-011: Loom Search v2 (MT-264, DEC-008) provides Postgres-native graph-blended search - full-text (tsvector/ts_rank/ts_headline) + fuzzy (pg_trgm) + semantic (pgvector hybrid) over canonical Loom content, faceted by type/tags and ranked via loom_edges, reindexed transactionally with no stale/deleted-block drift, results-as-Loom-view; NO Elasticsearch/external search engine."
     ],
     "allowed_paths": [
       "src/backend/handshake_core",
@@ -314,7 +321,8 @@
       "Docker/outside-app runtime or proof dependency for core behavior",
       "CDN-loaded editor workers or UI assets",
       "External graph/RAG/memory services or sync servers as core proof",
-      "Markdown vault or generated wiki as authority"
+      "Markdown vault or generated wiki as authority",
+      "External search engine (Elasticsearch/OpenSearch/Solr/Meilisearch/Typesense) as search authority or core dependency - Postgres-native index only (DEC-008)"
     ],
     "spec_anchors": [
       ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11 Project Knowledge Index and Rich Document Authority [ADD v02.192]",
@@ -620,7 +628,8 @@
       "MT-260",
       "MT-261",
       "MT-262",
-      "MT-263"
+      "MT-263",
+      "MT-264"
     ],
     "active_id": null,
     "group_index": {

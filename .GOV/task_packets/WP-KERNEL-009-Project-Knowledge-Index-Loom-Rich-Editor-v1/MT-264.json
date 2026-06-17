@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-264",
+  "title": "UnifiedWorkSurface-264-LoomSearchV2",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-17T20:30:00.000Z",
+  "updated_at_utc": "2026-06-17T20:30:00.000Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-264.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Loom Search v2 (DEC-008): ES-class search over the whole Loom corpus (LoomBlocks, notes, rich documents, indexed files/sources), built Postgres-NATIVE and blended with the Loom graph - explicitly NOT Elasticsearch or any external search service. Three modalities over the canonical content: (1) full-text via a Postgres tsvector generated column + GIN index with ts_rank relevance and ts_headline highlighting; (2) fuzzy/typo-tolerant + substring via pg_trgm GIN; (3) semantic via pgvector (HNSW kNN) over real embeddings produced by the operator's configured local/cloud model through the existing model-runtime + AI-Loom surfaces (MT-260). A hybrid ranker fuses keyword + vector scores. The search is graph-blended: results are filterable/rankable by loom_edges (e.g. boost or expand along links) and faceted by block content_type and tags, all in a single SQL query joining the search hit against the canonical Loom tables. Results render as a saved Loom search view (reusing the MT-262 block-collection view surface) and open the real block in place. The search index is a DERIVED PROJECTION inside the same PostgreSQL, reindexed transactionally and EventLedger-receipted on block write/delete - never a second source of truth, never a content copy. Supersedes/extends the MT-258/250 workspace search.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/",
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "tests/dependency_policy/",
+      "tests/visual/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "NO EXTERNAL SEARCH ENGINE (DEC-008): Elasticsearch / OpenSearch / Solr / Meilisearch / Typesense or any external/sidecar search daemon is forbidden as authority OR as a core dependency. The search index is a derived projection INSIDE the canonical PostgreSQL only.",
+      "The index must stay consistent with the EventLedger/PostgreSQL authority: reindex transactionally on block create/update/delete (same transaction or a receipted reindex job), backfill existing blocks, and NEVER return a stale or deleted block (negative test). The index is a projection, never a second source of truth.",
+      "Semantic search uses REAL embeddings from the operator's configured model via the existing model-runtime surface (reuse MT-260). If no model is configured, degrade to keyword+trigram with a typed notice - NEVER fabricate or stub semantic results.",
+      "pg_trgm and pgvector extensions must be ensured-present in the Handshake-managed PostgreSQL via CREATE EXTENSION IF NOT EXISTS inside the migration; if an extension cannot be enabled, fail loudly with a typed error - no silent disable of a search modality.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Search results are REFERENCES into LoomBlocks (open-in-place), never content copies.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done."
+    ],
+    "expected_behavior": "Operator types a query in the Loom search surface and gets ranked, highlighted, typo-tolerant, semantically-relevant results across all Loom content; filters by block type and tags; the results can be opened in place or pinned as a saved Loom search view; editing or deleting a block is immediately reflected in subsequent searches.",
+    "acceptance_criteria": [
+      "Full-text: ts_rank-ordered, ts_headline-highlighted results over real LoomBlock/note/rich-doc content - real-PG proven.",
+      "Fuzzy/substring: a misspelled or partial query returns the correct near-match results via pg_trgm - proven.",
+      "Semantic: pgvector HNSW kNN over REAL embeddings returns semantically-relevant results; hybrid keyword+vector ranking proven; no-model-configured -> typed keyword/trigram fallback with NO fabricated semantic results - proven.",
+      "Graph-blended: results are faceted by content_type/tags and ranked/expanded via loom_edges in a single query against canonical tables - proven.",
+      "Reindex consistency: editing a block updates its search hit and deleting a block removes it from results (no drift, no stale/deleted hit) - real-PG proven negative + positive.",
+      "Results-as-view: a search renders as a saved Loom view (reusing MT-262) and opening a result navigates to the REAL block (reference, not copy) - proven.",
+      "Extension safety: migration ensures pg_trgm + pgvector; a missing-extension condition fails loudly typed (no silent modality disable) - proven.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped to the new --test target + specific test names, -- --test-threads=1) green with real-PG tests for FTS, trigram, pgvector, hybrid ranking, graph-blend, and reindex consistency.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean over changed files.",
+      "Offline Playwright runtime proof for each named search capability (zero external network requests); search-results-as-Loom-view proven in a real browser."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence (reindex receipts, index DDL) and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., embedding model availability, ANN recall tradeoffs)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "microtask_plan_draft": [
+    "1. Migration (next-free number determined at turn by listing migrations/, paired replay-safe .down): CREATE EXTENSION IF NOT EXISTS pg_trgm, vector; add a tsvector generated column + GIN, a pg_trgm GIN, and a pgvector embedding column + HNSW index on the canonical Loom content table(s); register in the knowledge_schema_registry with the correct knowledge_-prefix if applicable.",
+    "2. Reindex pipeline: populate/refresh FTS + trigram + embedding columns on block create/update/delete within the authority write path (transactional, EventLedger-receipted); backfill existing blocks; prove no stale/deleted hit.",
+    "3. Embedding integration: reuse the MT-260 model-runtime to embed block text + the query via the operator's configured model; typed decline/fallback when no model is configured.",
+    "4. Search API: hybrid query fusing FTS (ts_rank) + trigram similarity + pgvector kNN, with ts_headline highlighting, content_type/tag facets, and loom_edges-aware ranking/expansion, in canonical SQL.",
+    "5. Frontend: Loom search surface (query box, ranked highlighted results, facets, open-in-place) + render results as a saved Loom view reusing MT-262; replace/extend the MT-258/250 search entrypoint.",
+    "6. Proof: real-PG cargo tests per modality (serial, --test-threads=1), vitest, tsc/eslint, offline Playwright per capability.",
+    "7. Adversarial self-review; fix findings; write evidence."
+  ],
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-182",
+      "MT-258",
+      "MT-260",
+      "MT-262"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior.",
+      "No external search engine (Elasticsearch/OpenSearch/Solr/etc.) as authority or core dependency - Postgres-native index only (DEC-008).",
+      "No second source of truth: the search index is a derived projection reindexed transactionally; prove no stale/deleted-block drift (negative test).",
+      "No fabricated semantic results: real embeddings only; typed keyword/trigram fallback when no model is configured.",
+      "Results are references into LoomBlocks, never content copies."
+    ]
+  }
+}
