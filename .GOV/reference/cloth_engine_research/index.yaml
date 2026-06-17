@@ -19,7 +19,7 @@ research_paper:
     cloth/garment authoring + simulation system built native in Handshake (Rust, no side apps).
     Inventories the wtc-kernel-009 codebase, maps Marvelous Designer's full feature set, studies
     open-source cloth/garment projects + their code, and translates to a Handshake-native Rust design.
-  status: "draft — landscape+architecture foundation complete and codebase-verified; 3 named moat topics + a canonical-contracts reconciliation pending before this can gate an implementation WP (see known_issues / planned_topics)."
+  status: "draft — landscape+architecture foundation complete and codebase-verified; all four moat topics authored (T-TRIM-RIGID/13 MOAT-5, T-UV-TEXTURE/14 MOAT-6, T-ANIMATION/15 MOAT-4); T-CONTRACTS/16 canonical-contracts reconciliation authored and codebase-verified, resolving the schema/event/table/migration drift and the determinism-vs-promotion gap. The package is now contract-coherent and ready to seed an implementation WP. Solver-crate R&D (roadmap slices 1-2) has no kernel dependency and can proceed in parallel."
   updated_at: "2026-06-17"
   repo: Handshake
   worktree_inspected: "wtc-kernel-009 (feat/WP-KERNEL-009)"
@@ -129,38 +129,50 @@ topics:
     depends_on: [T-CLOTH-SOLVER, T-COLLISION, T-KERNEL-INTEGRATION]
     summary: "Six-slice kernel-gated build plan: slice 1 GPU substrate (sphere drape), slice 2 the production go/no-go (cloth+jiggle on exaggerated-proportion capsules, full collision, model-first API), then garment authoring, fabric, kernel-authority integration, and export."
     subtopics: [overview, slice1, slice2, slice3, slice4, slice5, slice6, dependencies, risks, timeline, sources]
-
-planned_topics:   # named in 00-overview's feature-scope map but NOT yet authored (coherence gap)
   - id: T-TRIM-RIGID
     title: "Trims, Accessories, and Cloth-Rigid Coupling"
-    status: planned
-    reason: "MD 2026.0 headline + MOAT-5 (mixed cloth-rigid sim graph, zippers/buttons/tacks, pattern-to-rigid-body). No file yet; only flagged in 02. Largest single feature-coverage hole."
-  - id: T-UV-TEXTURE
-    title: "UV-from-Pattern, Texturing, and PBR Maps"
-    status: planned
-    reason: "MOAT-6. Currently scattered + contradictory fragments across 03/07/12 (LSCM/ABF++ vs ARAP unreconciled). Needs one consolidated topic + texture/material authority schema."
+    file: "13-trim-rigid.md"
+    status: draft
+    depends_on: [T-MD-FEATURES, T-CLOTH-SOLVER, T-COLLISION]
+    summary: "Mixed cloth-rigid XPBD constraint graph for trims, zippers, buttons, tacks, eyelets, and pattern-to-rigid-body conversion: solver design, WGSL coupling pass, Postgres tailor_* schema, kernel binding, and model-first API. Closes MD MOAT-5."
+    subtopics: [overview, md-moat-5, rigid-body-xpbd, mixed-constraint-graph, wgsl-coupling-pass, trim-contact-pass, trim-physics-params, keyframeable-tack, tack-data-model, trim-asset-model, zippers, pattern-to-rigid, postgres-schema, kernel-binding, model-first-api, oss-references, risks, sources]
   - id: T-ANIMATION
     title: "Animation, Keyframe Timeline, and Dynamics"
-    status: planned
-    reason: "MOAT-4. No home topic; keyframe authority model (EventLedger vs JSONB), wind/pose/avatar-motion keyframing, MTN/FBX import, animation-range export, CRDT-of-timeline undefined."
+    file: "15-animation.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER, T-FABRIC-MODELS, T-RENDER-VIEWPORT, T-KERNEL-INTEGRATION]
+    summary: "Keyframe timeline authority model (JSONB on tailor_garments), keyframeable fabric properties (MOAT-4: pressure/solidify/shrinkage/tack), wind and avatar-pose keyframing, MTN/FBX/glTF animation import, animation-range export, CRDT of a timeline, and model-first animation API."
+    subtopics: [overview, keyframe-data-model, draft-authority, crdt-timeline, simulation-loop, import, export, model-first-api, kernel-binding, risks, sources]
+  - id: T-UV-TEXTURE
+    title: "UV-from-Pattern, Texturing, and PBR Maps"
+    file: "14-uv-texture.md"
+    status: draft
+    depends_on: [T-GARMENT-AUTHORING, T-FABRIC-MODELS, T-AUTOFIT, T-RENDER-VIEWPORT]
+    summary: "UV islands as exact flattened 2D panel boundaries (MOAT-6); ARAP as the sole flatten algorithm resolving the 03/07 LSCM/ABF++ vs ARAP contradiction; UV packing via rectangle-pack; graphic layer data model; PBR map generation; grain-direction-to-UV authority binding; tailor_* Postgres texture schema; kernel event types; model-first API."
+    subtopics: [md-feature-map, uv-from-pattern-mechanics, flatten-algorithm-decision, uv-packing, graphic-layer-model, pbr-material, postgres-schema, kernel-binding, model-first-api, risks, sources]
   - id: T-CONTRACTS
-    title: "Canonical Cloth Authority Contracts (reconciliation)"
-    status: planned
-    reason: "Single source of truth resolving the drift: ONE GarmentSpec schema (units/gather/fabric), ONE KernelEventType additions list, ONE body-proxy/avatar schema incl. the missing tailor_avatars table, ONE dated migration-naming convention (0334 already taken), ONE consolidated ValidationDescriptor check catalog. Also applies the canonical 'Tailor' feature naming (module tailor, crate tailor-solver, event prefix Tailor*, tables tailor_*) across 00-12."
+    title: "Canonical Tailor Authority Contracts"
+    file: "16-contracts.md"
+    status: draft
+    depends_on: [T-GARMENT-AUTHORING, T-CLOTH-SOLVER, T-COLLISION, T-FABRIC-MODELS, T-AUTOFIT, T-MODEL-FIRST-API, T-KERNEL-INTEGRATION, T-TRIM-RIGID, T-UV-TEXTURE, T-ANIMATION, T-CODEBASE]
+    summary: "The single source of truth resolving every schema/event/table/migration drift the coherence review found: ONE GarmentSpec (cm units, gather_ratio float, normalized [0,1] fabric LLM-surface vs raw compliance, typed EdgeShape panels), ONE KernelEventType additions list (Tailor* / TAILOR_* wire), ONE body-proxy/avatar schema INCLUDING the previously-undefined tailor_avatars table, ONE dated migration convention (2026_MM_DD_*; 0334 collides with loom), ONE consolidated ValidationDescriptor catalog (Blocking/Advisory), the determinism-vs-promotion resolution (MeshComparator tolerance, NOT content-hash), and the full canonical tailor_* table set (TEXT PK). Authority all other topics defer to for contract surfaces. Codebase-verified against wtc-kernel-009 (67 KernelEventType variants, dated-migration + TEXT-PK conventions)."
+    subtopics: [method, naming, garment-spec, body-proxy, event-types, schema-ids, migration-naming, tables, validation, determinism, simulation-receipt, deferral, open-questions, sources]
+
+planned_topics: []   # all planned topics authored: T-TRIM-RIGID (13), T-UV-TEXTURE (14), T-ANIMATION (15), T-CONTRACTS (16)
 
 known_issues:   # from the workflow coherence/adversarial review; load-bearing claims verified against the codebase
   - id: KI-MISSING-TOPICS
-    severity: high
-    detail: "T-TRIM-RIGID, T-UV-TEXTURE, T-ANIMATION (all MD moat features named in 00) are not authored. See planned_topics."
+    severity: low
+    detail: "RESOLVED. T-TRIM-RIGID (13, MOAT-5), T-UV-TEXTURE (14, MOAT-6), T-ANIMATION (15, MOAT-4), and T-CONTRACTS (16, reconciliation) all authored. planned_topics is now empty."
   - id: KI-CONTRACTS-DRIFT
-    severity: high
-    detail: "GarmentSpec defined 4x (cm vs mm; gather_ratio float vs M:N ints; fabric normalized [0,1] vs raw compliance) across 03/09/10/12; KernelEventType additions named inconsistently (Garment* vs Cloth* prefixes); body-proxy/avatar triple-defined with FKs to an undefined tailor_avatars table. Fix in T-CONTRACTS."
+    severity: low
+    detail: "RESOLVED in 16-contracts.md (T-CONTRACTS). ONE GarmentSpec (cm units everywhere; gather_ratio: f32; normalized [0,1] FabricProperties as the LLM surface with raw compliance only in presets/solver; typed EdgeShape panels) at [T-CONTRACTS.garment-spec]. ONE KernelEventType additions list (Tailor* PascalCase / TAILOR_* wire) at [T-CONTRACTS.event-types] with an explicit superseded-names list. tailor_avatars authored + split from tailor_body_proxies at [T-CONTRACTS.body-proxy]. Contract surfaces in 03/09/10/13/15 now defer to T-CONTRACTS."
   - id: KI-MIGRATION-COLLISION
-    severity: high
-    detail: "Proposed 0334_tailor_garments.sql COLLIDES — 0334_loom_canvas_boards.sql already exists (verified). Four naming schemes used across files. Standardize on the codebase's dated convention (e.g. 2026_05_18_*)."
+    severity: low
+    detail: "RESOLVED in 16-contracts.md ([T-CONTRACTS.migration-naming]). 0334_loom_canvas_boards.sql collision re-confirmed against live wtc-kernel-009 (numbered migrations now run to 0335). Canonical convention: dated 2026_MM_DD_tailor_<topic>.sql + required .down.sql pair (the 2026_05_18_fems_pinned precedent); numbered 0NNN_* forbidden for Tailor. Date is assigned at migration authoring time, not hard-coded in the research package. Supersedes the 0334-0336 (01) and 0151 (03) examples."
   - id: KI-DETERMINISM-VS-PROMOTION
-    severity: high
-    detail: "Solver determinism is scoped per-backend (04) but the promotion ValidationRunner (10) compares EXACT content hashes — spurious failures across GPU backends/drivers/sandbox containers. Resolve with tolerance-based mesh comparison, not exact hash."
+    severity: low
+    detail: "RESOLVED in 16-contracts.md ([T-CONTRACTS.determinism]). content_hash (SHA-256) is re-scoped to same-machine idempotency + receipt fingerprint ONLY; the PromotionGate ValidatorRunner MUST NOT gate on hash equality. Promotion equivalence uses a tolerance-based MeshComparator: max per-vertex deviation <= epsilon_mm (default 0.1) with exact topology invariants (vertex/triangle/seam-pair/panel counts). Animated runs add a bbox shape-envelope basis (turbulence is aesthetic). MeshComparator lives in tailor-solver/src/compare.rs; epsilon_mm is an operator-tunable SimRunParams/policy field."
   - id: KI-MISSING-OSS-REFS
     severity: medium
     detail: "NVIDIA Warp and XRTailor are load-bearing in the roadmap (07/12) but absent from the OSS inventory (11). Add them. Loro/yrs not evaluated vs the kernel's existing yjs_bridge for the geometry-merge risk."
@@ -169,12 +181,12 @@ known_issues:   # from the workflow coherence/adversarial review; load-bearing c
     detail: "No topic bridges the operator's real avatar pipeline (Avatar1 / ComfyUI 2D avatar / SMPL-X) to a 3D body proxy the solver can drape on — the missing first-mile input."
   - id: KI-STALE-COUNT
     severity: low
-    detail: "01 says KernelEventType has 54 variants; actual is 66 (verified). Refresh."
+    detail: "01 says KernelEventType has 54 variants. RE-VERIFIED against live wtc-kernel-009 (src/kernel/mod.rs enum enumeration): actual is 67 (the earlier '66' correction was itself off by one). T-CONTRACTS [T-CONTRACTS.method] FACT-1 records 67 as the canonical baseline the Tailor additions count up from. 01's body text/sources still say 54; refresh 01 when next edited."
   - id: KI-NAMING
-    severity: medium
-    detail: "Feature named 'Tailor' (operator, 2026-06-17) — see research_paper.naming. Tailor rename APPLIED across 00-12 (module/crate/tables/events/feature-prose -> Tailor; physics 'cloth', Garment* domain types, external project names, and T-* IDs preserved). Remaining for T-CONTRACTS: canonicalize event-variant + schema NAMES cross-file (each file is internally consistent but files still differ from each other); decide whether stable file_ids (e.g. cloth-engine-overview) get refreshed."
+    severity: low
+    detail: "Feature named 'Tailor' (operator, 2026-06-17) — see research_paper.naming. Tailor rename APPLIED across 00-15 (module/crate/tables/events/feature-prose -> Tailor; physics 'cloth', Garment* domain types, external project names, and T-* IDs preserved). Schema-NAME half RESOLVED in T-CONTRACTS: canonical event variants ([T-CONTRACTS.event-types]), schema-id namespace hsk.tailor.* ([T-CONTRACTS.schema-ids], with the one allowed hsk.cloth.* solver-internal exception), and table/type names are now canonical cross-file with a superseded-names list. Remaining (cosmetic, non-blocking): stable file_ids still read cloth-engine-* (e.g. cloth-engine-overview); leave as-is unless the operator wants them refreshed to tailor-*."
 
 review:
-  verdict: "Strong, publish-worthy landscape+architecture foundation; load-bearing claims verified accurate to wtc-kernel-009. Four structural fixes (3 missing moat topics + a canonical-contracts reconciliation) plus the determinism note are needed before it can gate an implementation WP. Solver-crate R&D (roadmap slices 1-2) has no kernel dependency and can proceed in parallel now."
-  reviewer: "workflow coherence agent (phase 3), codebase-verified"
+  verdict: "Strong, publish-worthy landscape+architecture foundation; load-bearing claims verified accurate to wtc-kernel-009. All four moat topics authored (T-TRIM-RIGID/13, T-UV-TEXTURE/14, T-ANIMATION/15) and T-CONTRACTS/16 reconciliation authored + codebase-verified. The prior blockers are resolved: KI-CONTRACTS-DRIFT, KI-MIGRATION-COLLISION, KI-DETERMINISM-VS-PROMOTION, and the schema half of KI-NAMING are all closed by T-CONTRACTS; KI-STALE-COUNT re-verified (67). The package is contract-coherent; an implementation WP can copy its contracts from T-CONTRACTS. Solver-crate R&D (roadmap slices 1-2) has no kernel dependency and can proceed in parallel now. Remaining is non-blocking polish: refresh 01's 54->67 count in body text; optional file_id cosmetic rename cloth-engine-* -> tailor-*; KI-PRODUCTION-BRIDGE (Avatar1->3D body proxy first-mile) is partially seeded by tailor_avatars.source_kind='avatar1_2d_derived' but still warrants its own topic."
+  reviewer: "workflow coherence agent (phase 3), codebase-verified; updated by T-UV-TEXTURE agent 2026-06-17; T-CONTRACTS reconciliation by T-CONTRACTS agent 2026-06-17 (codebase re-verified)"
   updated_at: "2026-06-17"
