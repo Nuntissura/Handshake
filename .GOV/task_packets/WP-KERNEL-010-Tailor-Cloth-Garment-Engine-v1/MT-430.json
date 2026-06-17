@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-430",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-430.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-430.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-430.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-430.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-429"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement glTF 2.0 and VRM 1.0 avatar import: parse the skeletal hierarchy and bind-pose joint transforms from a .glb or .vrm file, run joint mapping to the canonical Tailor joint name set, generate ClothBodyProxy, and persist AVT- + BPX- rows",
+    "allowed_paths": [
+      "tailor-solver/src/body/gltf_avatar.rs",
+      "tailor-solver/src/body/joint_mapper.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /api/tailor/avatars/import accepts a multipart .glb or .vrm file",
+      "The glTF skin/joints array is traversed; bind-pose transforms are extracted and joint positions computed in world space",
+      "JointMapper resolves VRM standard naming (J_Bip_*) and glTF Mixamo naming automatically",
+      "A valid ClothBodyProxy capsule chain is produced and persisted as a BPX- row",
+      "source_kind on the AVT- row is 'gltf' or 'vrm' as appropriate",
+      "TailorAvatarCreated + TailorBodyProxyCreated events are emitted",
+      "cargo test gltf_avatar::test_vrm_joint_extraction and test_gltf_mixamo_extraction both pass with fixture files"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::gltf_avatar::test_vrm_joint_extraction",
+      "cargo test -p tailor-solver body::gltf_avatar::test_gltf_mixamo_map",
+      "cargo test -p handshake_core tailor::avatar::test_vrm_import_creates_avt"
+    ],
+    "risk_if_missed": "VRM is the standard format for VTuber and virtual-character avatars. glTF is the universal runtime 3D format. Both are increasingly the first export format from character pipelines. Absence of these importers forces OBJ or FBX fallback, losing rig fidelity and requiring extra conversion steps."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

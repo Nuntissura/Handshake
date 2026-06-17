@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-367",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-367.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-367.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-367.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-367.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-366"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Author tack.wgsl (ball-joint cloth-rigid XPBD coupling per TR-4) and trim_contact.wgsl (one-sided trim-mesh-vs-cloth inequality constraint per TR-5) WGSL compute shaders, wire their bind groups and dispatch into the 8-pass substep sequence at the positions mandated by TR-3.1, and add WGSL/Rust binding validation per the pattern in MT-033",
+    "allowed_paths": [
+      "tailor-solver/src/shaders/tack.wgsl",
+      "tailor-solver/src/shaders/trim_contact.wgsl",
+      "tailor-solver/src/trim/gpu_passes.rs",
+      "tailor-solver/src/trim/bvh.rs",
+      "tailor-solver/src/solver/dispatch.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "tack.wgsl implements the Muller-Macklin XPBD rigid body coupling formulation (SCA 2020 CGF 39(8)): effective inverse mass includes both translational and rotational contributions per TR-4.1",
+      "tack.wgsl is color-partitioned such that no particle index and no trim body index appear in more than one color per dispatch per TR-4.4",
+      "tack_lambdas are reset to zero at substep start per TR-4.5",
+      "trim_contact.wgsl applies a one-sided inequality constraint (max(0,-C)) pushing cloth particles out of trim triangles within collision_thickness_mm per TR-5.1",
+      "For trim meshes with >= 200 triangles, an AABB/BVH pre-filter is used before per-triangle query per TR-5.3",
+      "BVH rebuild is forced when body displacement between substeps exceeds 0.5 * collision_thickness_mm per TR-5.4",
+      "trim_contact.wgsl writes corrections only to cloth particles, not to GpuTrimBody entries, per TR-5.5",
+      "Both shaders appear at the exact substep positions specified in TR-3.1 (tack after bend, trim_contact after tack)",
+      "wgsl_to_wgpu or equivalent compile-time binding validation fails the build on struct/layout drift per MT-033 pattern"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver trim::gpu_passes::test_tack_shader_compiles_and_bind_group_validates",
+      "cargo test -p tailor-solver trim::gpu_passes::test_trim_contact_shader_compiles_and_bind_group_validates",
+      "cargo test -p tailor-solver trim::test_tack_coupling_pulls_cloth_particle_toward_body_attachment",
+      "cargo test -p tailor-solver trim::test_trim_contact_prevents_cloth_penetration_into_button_mesh"
+    ],
+    "risk_if_missed": "MOAT-5 (mixed cloth-rigid simulation) is spec-mandated and is the primary architectural differentiator for rigid trim physics; without tack.wgsl and trim_contact.wgsl the trim rigid bodies are decoupled from the WGSL substep loop and the XPBD substep order (TR-3.1) is violated; MT-190 integration test (zip jacket + fasten buttons) cannot pass"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

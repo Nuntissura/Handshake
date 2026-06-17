@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-438",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-438.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-438.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-438.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-438.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-437"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement FBX static mesh import (rigged or unrigged avatar/prop) into tailor_avatars and tailor_body_proxies, gated behind the tailor-fbx-import Cargo feature, distinct from the FBX animation import path (MT-284)",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /tailor/avatars/import with format=fbx and a feature-flagged build accepts a rigged FBX and stores the rest-pose mesh in tailor_avatars with source_kind='custom_obj' (FBX normalized to OBJ representation at ingest)",
+      "Bone hierarchy from the FBX is stored as a JSON skeleton map in tailor_body_proxies mesh_json so subsequent animation import (MT-284) can reference named bones",
+      "Without the tailor-fbx-import feature the endpoint returns HTTP 422 with error code UNSUPPORTED_FORMAT rather than panicking",
+      "guard_authority_write enforced on all inserts",
+      "FBX import does NOT write to tailor_garments; it only populates avatar/body-proxy rows"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --features tailor-fbx-import tailor::avatar::tests::fbx_static_import",
+      "cargo test -p handshake_core tailor::avatar::tests::fbx_import_without_feature_returns_422"
+    ],
+    "risk_if_missed": "FBX is the dominant interchange format from Character Creator, Daz Studio, and game-engine pipelines. Without static FBX mesh import, operators are forced into an OBJ-only path, breaking the most common character-delivery pipeline from external DCC tools."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

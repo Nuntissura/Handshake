@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-388",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-388.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-388.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-388.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-388.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-387"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement generate_fabric_texture MCP tool: accepts a text prompt and optional reference image artifact_id, routes to a diffusion-capable LlmClient or image-generation backend, returns a texture artifact_id that can be assigned to a garment panel's albedo slot via assign_material or tailor_graphic_layer_add",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "app/src/components/tailor/TextureGenerator.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "generate_fabric_texture MCP tool accepts prompt: String, optional reference_image_artifact_id: Option<String>, optional tile_size_px: Option<u32> (default 512), optional seamless: bool (default true)",
+      "Tool routes through the kernel ImageGenerationClient trait (not a direct HTTP call to a fixed provider); the implementation is provider-agnostic so both local diffusion models and cloud APIs satisfy the trait",
+      "Generated image is stored as an ArtifactStore entry with content_type='image/png' and a tailor-specific tag ('fabric_texture')",
+      "The returned artifact_id can be assigned to a panel via tailor_graphic_layer_add or tailor_pbr_material_create (base_color_texture_ref field), using existing UV texture group tools",
+      "When seamless=true the tool enforces seamless tiling (offset-and-blend or frequency-domain seam removal) before storing the artifact",
+      "The tool is gated behind a feature flag (ai-texture-generation) and returns a typed error when disabled, directing the operator to use procedural fabric generation (MT-228) instead",
+      "ModelManual entry for generate_fabric_texture describes when to prefer it over procedural weave (MT-228) and documents the provider-agnostic backend requirement"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::mcp_tools::generate_fabric_texture_schema (inputSchema includes prompt, reference_image_artifact_id, tile_size_px, seamless)",
+      "cargo test -p handshake_core tailor::mcp_tools::generate_fabric_texture_stores_artifact (mock ImageGenerationClient returns PNG bytes; artifact stored with correct tag)",
+      "cargo test -p handshake_core tailor::mcp_tools::generate_fabric_texture_feature_off (returns typed error with procedural fallback hint when ai-texture-generation disabled)"
+    ],
+    "risk_if_missed": "Tailor can only apply procedural weave textures (MT-228) or static bitmap uploads to garments. Operators cannot generate bespoke fabric prints, realistic material photographs, or artistic surface treatments from text prompts. This is the most visible operator-facing AI feature in MD 2025+ and its absence makes Tailor visually inferior for fashion design and presentation workflows where material appearance drives client decisions."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-435",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-435.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-435.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-435.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-435.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-434"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement named ExportPreset records (EPR-{uuid_v7}) that bundle export format, option flags, and pipeline configuration so operators and models can save and reload repeatable export configurations",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/export_preset.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_export_presets.sql",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_export_presets.down.sql",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "tailor_export_presets migration creates table with PK EPR-{uuid_v7}, workspace_id, name, format TEXT CHECK ('gltf'|'usd'|'obj_sequence'|'alembic'|'blender'|'ue'), options_json JSONB, and event_ledger_event_id FK",
+      "POST /tailor/export-presets creates a named preset; GET /tailor/export-presets lists workspace presets; DELETE /tailor/export-presets/:id removes one",
+      "POST /tailor/garments/:id/export accepts an optional export_preset_id; when provided, options are read from the preset row and merged with any inline overrides",
+      "tailor_export_preset_save and tailor_export_preset_apply MCP tools are registered and documented in ModelManual",
+      "TailorExportPresetRecorded KernelEventType variant is emitted on preset creation and is replayable from EventLedger",
+      "A model can save the current export options as a named preset, retrieve it by name, and apply it to a subsequent export call without specifying format or options again",
+      "System export presets for the Blender and UE handoff configurations (matching MT-253 and MT-254 defaults) are seeded at migration time"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::export_preset::tests::create_list_apply",
+      "cargo test -p handshake_core tailor::export_preset::tests::system_presets_seeded",
+      "HBR-INT: EventLedger replay reconstructs export preset from durable state"
+    ],
+    "risk_if_missed": "Without named export presets, every production export run requires the model or operator to manually specify format and option flags; in high-volume batch export scenarios (MT-329) this introduces config drift and makes pipelines non-reproducible across sessions."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

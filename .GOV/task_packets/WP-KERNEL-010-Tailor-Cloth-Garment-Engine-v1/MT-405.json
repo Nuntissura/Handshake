@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-405",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-405.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-405.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-405.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-405.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-404"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement partial-pattern completion path in author_garment: when the submitted GarmentSpec contains incomplete panels (panels with vertices_cm empty or fewer than 3 vertices) alongside a completion_hint, route to a diffusion-decoder backend that fills in the missing panel shapes and seams",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "tailor-solver/src/spec.rs",
+      "src/backend/handshake_core/src/tailor/fast_validate.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AuthorGarmentInput gains an optional completion_hint: Option<String> field that signals partial-pattern completion mode",
+      "When completion_hint is non-null and one or more panels in spec.panels have empty vertices_cm, TailorModelAdapter enters partial-completion mode: it constructs a CompletionRequest containing the partial GarmentSpec JSON and the completion hint, and prompts the LLM to fill in missing vertices_cm and seams",
+      "Fast validation is deferred for incomplete panels until after the completion pass; PANEL_CLOSURE is only checked on the completed result",
+      "The completion pass uses the same Tier-1 GarmentCodeRcDecoder factory infrastructure as the full-spec path (reuses the decoder from the ChatGarment Tier-1 MT)",
+      "The completed GarmentSpec is stored as a draft and the completion_hint is carried in GarmentSpec.natural_description",
+      "A completion_confidence: f32 field is added to SimulationReceipt so the model knows how much the completion diverged from the hint",
+      "ModelManual entry for author_garment documents the partial-completion mode, its preconditions, and when to prefer it over full-spec authoring"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::model_adapter::partial_completion_front_panel (GarmentSpec with one panel missing vertices + completion_hint produces a complete GarmentSpec passing fast validation)",
+      "cargo test -p handshake_core tailor::model_adapter::partial_completion_no_hint_rejected (partial panels without completion_hint return typed error InvalidSpec)",
+      "cargo test -p handshake_core tailor::mcp_tools::author_garment_partial_emits_draft_proposed (partial completion produces TailorGarmentDraftProposed event after completion)"
+    ],
+    "risk_if_missed": "Operators and models must always supply a complete GarmentSpec with explicit panel vertices before simulation. This blocks the rapid-exploration workflow where a model is given a rough garment outline (e.g., front panel only or a garment type name with no vertex data) and completes the pattern automatically. Without partial-completion, the authoring loop requires significantly more model effort per iteration and cannot leverage diffusion-style completion models that are 100x faster than full-spec generation."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

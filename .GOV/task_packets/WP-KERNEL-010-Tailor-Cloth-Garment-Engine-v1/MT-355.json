@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-355",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-355.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-355.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-355.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-355.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-354"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement an auto_sew authoring operation that analyzes placed panel edges in 3D (after initial arrangement MT-119) for proximity and matching arc length, proposes SeamSpec candidates, and presents them as a model-reviewable proposal batch via TailorPanelAiEditProposalRecorded before committing",
+    "allowed_paths": [
+      "tailor-solver/src/mesh.rs",
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/rest_api.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The auto_sew MCP tool accepts (garment_id, tolerance_mm: f32, kinds: Vec<SeamKind>) and runs a proximity-and-length-match heuristic over the placed panels: edge pairs within tolerance_mm of each other and with length ratio within 20x (GATHER_RATIO_RANGE limit) are proposed",
+      "Proposals are emitted as TailorPanelAiEditProposalRecorded events (not direct authority writes) per GAR-CRDT-003, surfaced to the operator via TailorPanelAiEditProposalDecided before promotion",
+      "Dart edges (DartSpec opening_edges) are included as Fold-kind seam candidates (auto-detect fold seams from dart geometry)",
+      "The auto_sew result includes a confidence score per proposed seam pair and a suggested gather_ratio derived from the edge length ratio",
+      "At least the 5 starter garment templates (MT-137: tee, skirt, dress, trousers, bodice) can be fully auto-sewn from their panel placements with zero manual seam specification and produce passing SEAM_LENGTH_MATCH results"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::model_adapter::auto_sew_tee_template",
+      "cargo test -p handshake_core -- tailor::model_adapter::auto_sew_proposal_lifecycle"
+    ],
+    "risk_if_missed": "Auto Sewing is the primary productivity feature for model-first garment authoring: a model that emits panel geometry from a parametric template should not need to enumerate every seam manually. Without auto_sew the model must output hundreds of explicit SeamSpec entries for a multi-panel garment, increasing token cost, hallucination risk, and round-trip latency. This directly undermines the ChatGarment-style interactive authoring advantage (MOAT-8)."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

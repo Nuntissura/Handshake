@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-398",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-398.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-398.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-398.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-398.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-397"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement FabricMaterialHint derivation from GarmentSpec.natural_description and inject it into the Tailor ContextBundle so models receive a pre-resolved archetype hint without reasoning about raw compliance values",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/material.rs",
+      "tailor-solver/src/spec.rs",
+      "src/backend/handshake_core/src/tailor/context_bundle.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A FabricMaterialHint struct MUST be defined carrying: suggested_archetype: Option<FabricPreset>, confidence: f32 [0,1], reasoning: String (max 120 chars for model legibility), and per-field nudges: Vec<(String, f32)> for specific FabricProperties adjustments",
+      "The hint derivation MUST be implemented as a deterministic keyword-matching pass over GarmentSpec.natural_description (not an LLM call) in handshake_core::tailor::material::derive_fabric_hint(), so it runs without model inference cost at every ContextBundle assembly",
+      "The keyword matcher MUST recognize at minimum: leather/suede->leather, silk/satin/charmeuse->silk, denim/jeans->denim, jersey/knit/stretch->jersey/spandex, chiffon/voile->chiffon, canvas/duck->canvas, wool/tweed->wool",
+      "ContextBundle for task='author_garment' MUST include the FabricMaterialHint in its allowed_context field alongside the workspace preset list and current panel FabricProperties",
+      "When natural_description is None or the keyword matcher finds no match, FabricMaterialHint.suggested_archetype MUST be None and confidence MUST be 0.0; the model MUST NOT receive a spurious archetype suggestion",
+      "The ModelManual entry for the author_garment context MUST document that FabricMaterialHint is present in allowed_context and explain that it is a keyword-derived suggestion, not a validated solver output",
+      "An integration test MUST assert that 'black leather corset with boning' -> FabricMaterialHint(suggested_archetype=Some(Leather), confidence >= 0.8) and 'flowing chiffon evening gown' -> FabricMaterialHint(suggested_archetype=Some(Chiffon), confidence >= 0.8)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::material::derive_fabric_hint_leather_corset",
+      "cargo test -p handshake_core -- tailor::material::derive_fabric_hint_chiffon_gown",
+      "cargo test -p handshake_core -- tailor::model_adapter::context_bundle_includes_fabric_hint"
+    ],
+    "risk_if_missed": "Without FabricMaterialHint, models authoring garments with clear material descriptions must independently reason about which FabricPreset to use from the flat preset list. This increases token usage and introduces preset-selection errors (e.g., a model choosing 'cotton' for a 'silk blouse' because the hint is absent). The spec explicitly requires this hint in the ContextBundle (§<N>.<i>.7.3); MT-276 builds the general ContextBundle shell but does not implement this material-specific injection. The omission degrades model-first garment authoring quality for every garment with a material description."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

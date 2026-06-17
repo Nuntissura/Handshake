@@ -1,0 +1,87 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-445",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-445.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-445.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-445.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-445.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-444"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the MetaHuman garment export package that bundles the promoted garment mesh with MetaHuman-specific skeletal binding data so MetaHuman Creator can re-size the garment automatically when body sliders are adjusted",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/export/",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /tailor/garments/:id/export with format=metahuman produces a directory containing: (1) a USD or FBX mesh with MetaHuman-compatible skinning weights, (2) a MetaHuman import JSON manifest listing the garment slot, body region, and LOD paths, and (3) a seam-allowance-stripped OBJ of each 2D panel for MetaHuman Creator's pattern-resize algorithm",
+      "The export is deferred to post-v1 and returns HTTP 501 NOT_IMPLEMENTED with a documented roadmap note until the full implementation is available — the MT is the placeholder that notes the deferred requirement in T-PIPELINE-INTEROP",
+      "The ModelManual entry describes the deferred status and the recommended workaround (export USD + use the batch refit MT-313 across a size run approximating the MetaHuman body slider range)",
+      "MOAT-7 note is recorded in the T-PIPELINE-INTEROP spec section referencing this MT as the deferred implementation anchor"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::export::tests::metahuman_export_returns_not_implemented_with_roadmap"
+    ],
+    "risk_if_missed": "Without this export path, garments authored in Tailor cannot round-trip to MetaHuman Creator for body-slider-driven resizing, requiring manual re-fit for each body variation. This is a critical gap for UE5 game and cinematic productions using MetaHuman as their character standard."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

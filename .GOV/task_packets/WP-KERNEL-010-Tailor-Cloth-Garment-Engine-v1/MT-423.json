@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-423",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-423.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-423.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-423.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-423.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-422"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a parameterized built-in avatar library with seeded body-type archetypes (female/male, petite/standard/tall, straight/hourglass/athletic) driven by anthropometric measurement sliders that write to tailor_avatars + tailor_body_proxies authority rows",
+    "allowed_paths": [
+      "tailor-solver/src/body/avatar_library.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_avatar_library_seed.sql",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "At least 6 seeded named body-type archetypes exist as authority rows in tailor_avatars at migration time (female_petite, female_standard, female_tall, male_standard, male_athletic, non_binary_androgynous)",
+      "Each archetype row carries a 25-field measurements_mm_json map and a linked BPX- capsule proxy row",
+      "A slider-style update API accepts normalized [0,1] per-measurement delta and re-emits TailorAvatarMeasurementsExtracted with the adjusted map",
+      "The updated measurements_mm_json and linked capsule chain (recomputed via compute_capsule_chain) are stored without manual BPX- authoring",
+      "TailorAvatarCreated and TailorBodyProxyCreated are emitted for seeded rows during migration; TailorAvatarMeasurementsExtracted is emitted on slider update",
+      "Cargo test tailor_avatar_library::test_slider_bust_update passes: bust_circ_mm changes propagate to capsule radius within 5 mm"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::avatar::test_avatar_library_seed_count",
+      "cargo test -p handshake_core tailor::avatar::test_measurement_slider_update"
+    ],
+    "risk_if_missed": "No default body exists for first-time operators or model sessions. Every garment author must supply a custom avatar before the first simulation run, creating high friction and breaking the model-first onboarding path."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

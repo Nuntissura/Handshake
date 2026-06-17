@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-347",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-347.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-347.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-347.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-347.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-346"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement per-panel snapshot/archive API (archive_panel_state, restore_panel_state) backed by tailor_garment_versions so individual pattern pieces can be snapshotted and restored independently of a full garment promotion",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_panel_snapshots.sql",
+      "app/src/components/tailor/PatternArchive.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "archive_panel_state(panel_id, label: String) snapshots the current spec_json of a single panel into a tailor_panel_snapshots row with a human-readable label and timestamp",
+      "restore_panel_state(snapshot_id) replaces the current panel spec_json with the snapshot and emits TailorPanelCrdtUpdateRecorded with the restore diff",
+      "Snapshots are linked to the parent garment version chain (tailor_garment_versions FK) so garment promotion preserves them",
+      "list_panel_snapshots(panel_id) returns snapshot ids, labels, and timestamps via the REST API",
+      "Model-accessible via edit_panel MCP tool with operation=archive and operation=restore",
+      "PANEL_CLOSED re-validates after restore; a restored snapshot that was already valid does not re-block promotion"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::authoring::test_panel_snapshot_roundtrip",
+      "cargo test -p handshake_core tailor::authoring::test_panel_restore_crdt_emit",
+      "cargo test -p handshake_core tailor::authoring::test_snapshot_garment_version_link"
+    ],
+    "risk_if_missed": "MT-077 versions full garments (promoted snapshots) and MT-139 versions GarmentSpec schemas. Neither provides the per-panel non-destructive iteration workflow MD Pattern Archive enables: quickly trying a neckline shape, reverting to the previous one, and trying again without re-running a full garment promotion. Without this, every authoring experiment requires a full garment version commit, making iterative panel design expensive and discouraging exploration."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

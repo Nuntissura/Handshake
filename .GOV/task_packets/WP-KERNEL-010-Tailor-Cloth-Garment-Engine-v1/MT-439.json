@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-439",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-439.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-439.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-439.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-439.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-438"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement glTF 2.0 and VRM avatar static mesh import into tailor_avatars / tailor_body_proxies, reusing the gltf crate already present for animation import but targeting rest-pose geometry rather than animation tracks",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /tailor/avatars/import with format=gltf accepts a GLB or glTF+bin bundle and stores the default scene mesh in tailor_avatars with source_kind='gltf'",
+      "POST /tailor/avatars/import with format=vrm accepts a VRM file (GLB container with VRM extension) and stores with source_kind='vrm'; VRM human-bone map is extracted and stored in tailor_body_proxies for downstream capsule decomposition",
+      "Bone names extracted from glTF skin joints map to the standard skeleton schema used by the animation import path (R-ANIM-029 / MT-284) so a glTF avatar and its glTF animation load as a coherent pair",
+      "Emits TailorAvatarCreated on success; guard_authority_write enforced",
+      "Round-trip: imported glTF avatar feeds body proxy creation (MT-089) without additional format conversion"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::avatar::tests::gltf_avatar_import",
+      "cargo test -p handshake_core tailor::avatar::tests::vrm_avatar_import_bone_map"
+    ],
+    "risk_if_missed": "glTF is the standard for VTuber and web-3D character delivery and VRM is the dominant VTuber avatar format. Without these import paths, Tailor is blind to the entire VTuber / virtual-character production market, blocking a growing segment of garment-design customers."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

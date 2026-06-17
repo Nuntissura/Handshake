@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-346",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-346.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-346.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-346.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-346.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-345"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement fold seam line constraint generation from InternalLine records with role=FoldLine: derive a dihedral-angle constraint (target fold angle, fold direction normal) fed into the XPBD solver, distinct from seam join constraints",
+    "allowed_paths": [
+      "tailor-solver/src/constraints/fold.rs",
+      "tailor-solver/src/authoring/internal_lines.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "FoldConstraint type carries: edge particle pair, target_angle_deg, fold_normal (winding), stiffness (inheriting bending compliance from panel fabric)",
+      "Fold constraints are generated from InternalLine(role=FoldLine) records during GarmentSpec -> solver mesh ingest (MT-004/MT-127)",
+      "XPBD substep loop applies FoldConstraint as a dihedral-angle constraint distinct from the Bend dihedral constraint on outer edges",
+      "Fold direction (inside vs outside) is controlled by fold_normal, settable per line",
+      "Simulated garment folds along the marked line at the authored angle; a pleat line at 0-degree target produces a sharp crease",
+      "Fold constraints appear in the visual-debug overlay (MT-245) as colored edge markers"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver constraints::fold::test_fold_constraint_dihedral_angle",
+      "cargo test -p tailor-solver constraints::fold::test_fold_crease_vs_pleat_angle",
+      "cargo test -p handshake_core tailor::authoring::test_fold_line_solver_integration"
+    ],
+    "risk_if_missed": "Without explicit fold seam line constraints, darts and pleats can only be approximated via geometry (removing/adding triangles) rather than driven by authoring intent. MD's Fold Seam Line is the mechanism by which seam allowances fold under, waistband folds over, and structured creases form. Missing this means all fold behavior is emergent from drape only, producing inconsistent results across seeds."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

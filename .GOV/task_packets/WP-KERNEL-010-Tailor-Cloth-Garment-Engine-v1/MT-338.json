@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-338",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-338.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-338.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-338.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-338.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-337"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement primitive panel shape constructors (Rectangle, Circle/Ellipse, Polygon) that emit a closed EdgeShape outline into GarmentSpec as a new Panel",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/primitives.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "app/src/components/tailor/PatternPanel.tsx",
+      "app/src/components/tailor/ShapeToolbar.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "author_panel_rect(width_cm, height_cm, corner_radius_cm) produces a Panel with 4 Line EdgeShapes (or Bezier corners when radius>0) meeting at right-angles, closed outline verified by PANEL_CLOSED descriptor",
+      "author_panel_circle(radius_cm) produces a Panel with a single Bezier-approximate closed ellipse EdgeShape",
+      "author_panel_polygon(vertices: Vec<[f32;2]>) produces a Panel with N Line EdgeShape segments and a closed outline",
+      "All three primitives emit TailorPanelCrdtUpdateRecorded; GarmentSpec spec_json updated in tailor_panels row",
+      "PANEL_CLOSED ValidationDescriptor passes for every constructed primitive",
+      "Model-accessible via the edit_panel MCP tool with a shape_preset field (rect/circle/polygon) and dimension params"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::primitives::test_rect_closed",
+      "cargo test -p tailor-solver authoring::primitives::test_circle_closed",
+      "cargo test -p tailor-solver authoring::primitives::test_polygon_closed",
+      "cargo test -p handshake_core tailor::authoring::test_primitive_crdt_emit"
+    ],
+    "risk_if_missed": "Models and operators have no way to start a garment from scratch; every GarmentSpec must be authored as raw JSON with no tooling aid. The starter template library (MT-137) partially compensates but only for the 5 seeded archetypes. Any novel shape requires hand-writing coordinate arrays, which is error-prone and blocks the model-first authoring path for non-template garments."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

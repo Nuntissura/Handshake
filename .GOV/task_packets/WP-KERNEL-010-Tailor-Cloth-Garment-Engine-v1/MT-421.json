@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-421",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-421.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-420"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the FBX joint-animation export bake pass (R-ANIM-039) that writes explicit keyframes at every frame in the export range to prevent interpolation drift when consuming FBX in third-party DCC tools",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/export/",
+      "src/backend/handshake_core/src/tailor/animation/",
+      "src/backend/handshake_core/src/tailor/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "src/tailor/export/fbx_key_baker.rs exists and exports a bake_joint_animation_fbx function that writes a FBX 7.x ASCII or binary file with one keyframe per frame in the export range for every animated joint",
+      "The bake pass is gated behind the tailor-fbx-import feature flag (reusing the FBX dependency already required for import)",
+      "Every empty frame in the range receives an explicit keyframe interpolated from the surrounding keys before writing (no gaps that a DCC importer might fill with its own interpolation logic)",
+      "The spec note in R-ANIM-039 that this is a post-MVP deliverable is preserved: the MT implements the bake pass but the MVP FBX export MAY omit baked keys with a documented limitation in the ModelManual",
+      "Export emits TailorGarmentExportCompleted with export_format='fbx_joint_animation'"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --features tailor-fbx-import tailor::export::tests::fbx_key_bake_no_empty_frames",
+      "cargo test -p handshake_core tailor::export::tests::fbx_export_without_feature_returns_422"
+    ],
+    "risk_if_missed": "Without baked keyframes, FBX animation imported into Maya, 3ds Max, or older versions of Blender will be re-interpolated with the host application's own curves, causing visible drift from the Tailor simulation. This is specifically why MD added the auto-key feature in 2026.0."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

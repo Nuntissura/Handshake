@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-412",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-412.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-412.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-412.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-412.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-411"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement TackStrength as a keyframeable Track<f32> property animating the force scalar of each named tack constraint over the timeline, enabling progressive stitching/unstitching of trim-to-garment attachments.",
+    "allowed_paths": [
+      "tailor-solver/src/constraints/tack.rs",
+      "tailor-solver/src/animation/property_registry.rs",
+      "tailor-solver/src/animation/tracks.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Each TackConstraint carries a named tack_id so individual tacks are addressable as animation targets.",
+      "Track<TackStrength> is a valid keyframeable target in the property registry, distinct from the closure-t track on MT-288.",
+      "The solver reads the interpolated tack strength scalar each substep and scales the tack constraint correction by that value (0.0 = fully unstitched, 1.0 = full tack force).",
+      "A timeline authoring an unstitching sequence (TackStrength 1.0 -> 0.0 over N frames) causes the trim to detach from the panel after the keyframe transition.",
+      "cargo test animation::tack_animation::progressive_unstitch passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver animation::tack_animation::progressive_unstitch",
+      "cargo test -p tailor-solver animation::tack_animation::full_strength_retains_attachment"
+    ],
+    "risk_if_missed": "MD-parity for animated tack is undelivered. Trim reveal, armor disassembly, and costume-reveal use cases require per-tack strength animation. Without named tack targets the only closure animation is zipper-slider t, leaving the general trim-to-garment detach case unimplemented."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

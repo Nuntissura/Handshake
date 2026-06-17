@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-379",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-379.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-379.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-379.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-379.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-378"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Add a UV coverage completeness check asserting all panels including back, side, sleeve, and lining panels receive a UV island in the packed atlas, and surface a blocking validation failure when any panel has no UV island",
+    "allowed_paths": [
+      "tailor-solver/src/uv/packing.rs",
+      "tailor-solver/src/uv/assign.rs",
+      "src/backend/handshake_core/src/tailor/validation.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "pack_uv_islands processes every PanelSpec in the GarmentSpec regardless of panel_id naming convention or panel orientation (front, back, side, sleeve, lining)",
+      "UV_COVERAGE ValidationDescriptor returns Blocking failure when any panel_id present in tailor_garments.spec_json is absent from tailor_uv_islands for the same (garment_id, simulation_run_id) pair",
+      "The TailorUvIslandsPacked event payload includes a panel_coverage_ratio field (islands_packed / total_panels) so models can detect partial coverage without querying the database",
+      "An integration test drapes a 6-panel garment (front, back, left-side, right-side, left-sleeve, right-sleeve) and asserts all 6 panels have UV island rows in tailor_uv_islands"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor_solver uv::packing::all_panels_receive_island",
+      "cargo test -p handshake_core tailor::validation::uv_coverage_blocking_on_missing_panel",
+      "HBR-INT: UV_COVERAGE check runs in validation catalog and blocks promotion when a back panel UV island is absent (MT-153 cross-check)"
+    ],
+    "risk_if_missed": "Garments with back or side panels missing UV islands export with holes in the texture atlas. Downstream DCC tools show black or default-material panels on the garment back. The issue may not surface until Blender import review, causing rework."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

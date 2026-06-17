@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-341",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-341.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-341.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-341.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-341.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-340"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement reverse_seam_direction operation on Seam edges (flip the winding direction of a seam edge in the GarmentSpec, controlling which face is inside/outside after sewing)",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/seam_ops.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/SeamEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "reverse_seam_direction(seam_id) flips the edge winding stored in tailor_seams and emits TailorPanelCrdtUpdateRecorded",
+      "After reversal, the solver treats the opposite face as the outside face; cloth normals flip accordingly in the simulated mesh",
+      "SEAM_LENGTH_MATCH passes before and after reversal (direction change does not alter arc-length)",
+      "The gather_ratio sense (from_length / to_length) is preserved after direction flip",
+      "Model-accessible via edit_panel MCP tool with operation=reverse_seam"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::seam_ops::test_reverse_seam_direction",
+      "cargo test -p handshake_core tailor::authoring::test_reverse_seam_normal_flip"
+    ],
+    "risk_if_missed": "Without seam direction control, garment panels can only be sewn with a single face orientation. Seams that need to turn under (collared necklines, set-in sleeves, waistbands) cannot be authored correctly. The garment will simulate with inverted normals on reversible panels, producing visual artifacts and incorrect collision response on those faces."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

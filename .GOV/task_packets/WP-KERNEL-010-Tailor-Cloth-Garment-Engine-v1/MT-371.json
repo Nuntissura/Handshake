@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-371",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-371.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-371.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-371.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-371.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-370"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Define ElasticInsert and BindingTape as specialized edge-bound trim types in GarmentSpec: ElasticInsert applies a stiffness-and-gather override to a seam edge (compliance + gather_ratio from a material preset); BindingTape adds a thin rigid strip mesh along a panel edge with its own mass and stiffness; author the corresponding tailor_edge_trims migration and wire both into the XPBD substep as tack+stiffness overrides on the edge particle range",
+    "allowed_paths": [
+      "tailor-solver/src/trim/edge_trim.rs",
+      "src/backend/handshake_core/src/tailor/trim_authoring.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "ElasticInsert is a GarmentSpec trim_placement variant that targets a seam edge range, overriding that edge's gather_ratio and seam constraint compliance independently of the panel's base fabric preset",
+      "BindingTape generates a strip of GpuTrimBody geometry along the panel edge with configurable mass_per_mm and stiffness, participating in tack constraints at regular intervals along the edge",
+      "Both variants are stored in tailor_trim_placements with trim_category='elastic_insert' and 'binding_tape' respectively, extending the CHECK domain (migration required)",
+      "A waistband with ElasticInsert produces measurably tighter gather in simulation than the same seam with gather_ratio only (no elastic), verified in the integration test",
+      "BindingTape on a jacket hem prevents the hem from curling (stiffness effect) compared to an unsupported hem in the same drape"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver trim::edge_trim::test_elastic_insert_tightens_waistband_vs_plain_gather",
+      "cargo test -p tailor-solver trim::edge_trim::test_binding_tape_prevents_hem_curl",
+      "cargo test -p handshake_core tailor::trim_authoring::test_elastic_insert_stored_in_tailor_trim_placements"
+    ],
+    "risk_if_missed": "Garments with elasticated waistbands, cuffs, and bound edges (a dominant construction technique in commercial ready-to-wear) cannot be simulated with correct material behavior; the operator's explicit inclusion of 'elastic, binding/tape' in the area scope is unaddressed; production garment simulations will show incorrect hang and gather at all elasticated or bound edges"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-375",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-375.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-374"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Author tailor_material_assignments migration and implement per-panel material override: add PanelSpec.material_preset_id field, the tailor_material_assignments authority table, and the assignment-write path with guard_authority_write and TailorGarmentMaterialAssigned event",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/",
+      "tailor-solver/src/spec.rs",
+      "src/backend/handshake_core/src/tailor/material.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A dated migration YYYY_MM_DD_tailor_material_assignments.sql MUST create the tailor_material_assignments table with assignment_id TEXT PK ('ASGN-{uuid_v7}'), garment_id FK tailor_garments, panel_id TEXT, preset_id FK tailor_material_presets, event_ledger_event_id FK, created_at, with a UNIQUE(garment_id, panel_id) constraint",
+      "PanelSpec in tailor-solver/src/spec.rs MUST include an optional material_preset_id: Option<String> field; when present it references a tailor_material_presets.preset_id and overrides GarmentSpec.fabric for that panel at SolverMesh build time",
+      "build_solver_mesh MUST apply per-panel material_preset_id override AFTER the garment-level FabricProperties decode, not before; the override wins per-field",
+      "Every INSERT to tailor_material_assignments MUST call guard_authority_write(AuthorityMode::Postgres) and emit TailorGarmentMaterialAssigned with aggregate 'tailor_material_assignment' and the assignment_id",
+      "The tailor_garment_panel_assign_material MCP tool (spec §<N>.<i>.7.2) MUST write to tailor_material_assignments, not to GarmentSpec directly, so the assignment is independently auditable via the EventLedger",
+      "The FABRIC_PRESET_VALID ValidationDescriptor MUST verify that every material_preset_id referenced in a PanelSpec resolves to an existing tailor_material_presets row in the same workspace",
+      "An integration test MUST assert: assign leather preset to one panel of a multi-panel garment, assign chiffon to another, run simulation, verify the two panels have measurably different per-particle compliance values in the solver output"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::material::per_panel_preset_override_applies_correct_compliance",
+      "cargo test -p handshake_core -- tailor::material::assignment_event_and_guard_authority_write",
+      "cargo test -p handshake_core -- tailor::validation::fabric_preset_valid_rejects_missing_panel_preset"
+    ],
+    "risk_if_missed": "MD's per-panel material override is a core garment design feature — a jacket with a leather body panel and a silk lining requires independent panel materials. Without the tailor_material_assignments table and per-panel override path, every panel in a GarmentSpec inherits the same garment-level fabric, making multi-material garments impossible. The spec explicitly requires this table (§<N>.<i>.4.4, §<N>.<i>.7.2) and the tailor_garment_panel_assign_material MCP tool calls it; MT-051 is too coarse to substitute because it does not name this table or the PanelSpec field."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

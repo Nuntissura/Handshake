@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-380",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-380.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-380.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-380.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-380.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-379"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement UV-space texture bake that renders the 3D draped garment surface (albedo, normal, AO) into UV atlas texture space via an offscreen wgpu UV-space render pass and stores baked maps as artifact refs",
+    "allowed_paths": [
+      "tailor-solver/src/viewport.rs",
+      "tailor-solver/src/uv/bake.rs",
+      "app/src-tauri/src/commands/tailor_texture.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A tailor_bake_textures Tauri command accepts garment_id, simulation_run_id, and a BakeOptions struct (resolution: u32, channels: Vec<BakeChannel>) and returns artifact refs for each baked map",
+      "BakeChannel enum covers Albedo, Normal, AmbientOcclusion, and Displacement",
+      "The bake renders from the 3D draped mesh into UV atlas space using an offscreen wgpu render pass (not a CPU raycast)",
+      "Baked map artifact refs are stored in tailor_pbr_materials columns (normal_map_ref, roughness_map_ref) when the operator assigns baked maps to the garment",
+      "The tailor_bake_textures command emits a TailorPbrMapsGenerated EventLedger event with gen_mode = 'bake_uv_space' in the payload",
+      "The command is async and MUST NOT block the Tailor panel UI"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::bake::uv_space_bake_produces_artifact_refs",
+      "HBR-VIS: baked normal map loaded into TailorPbrMaterial shows surface wrinkle detail from a draped silk panel in the solid viewport render"
+    ],
+    "risk_if_missed": "Without UV-space baking, Tailor cannot produce high-fidelity game-ready textures capturing simulation wrinkle detail. Every exported garment requires additional manual texture work in Blender or Substance Painter, negating the production pipeline efficiency."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

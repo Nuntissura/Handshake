@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-431",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-431.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-431.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-431.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-431.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-430"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Add a Preserve Topology refit option (RefitMode::RedrapeOnly with topology_lock=true) that explicitly prohibits panel subdivision or edge count change during the re-drape pass, matching MD 2025.1 Preserve Topology option, and expose this flag in the refit_garment MCP tool",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/refit.rs",
+      "tailor-solver/src/refit/drape_init.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "RefitMode::RedrapeOnly gains an optional topology_lock: bool field (default false)",
+      "When topology_lock=true, the tessellation step is skipped; the solver must use the original panel mesh vertex count unchanged",
+      "The refit MCP tool's JSON schema reflects the topology_lock field via schemars::JsonSchema auto-generation",
+      "Validation adds a MESH_TOPOLOGY_PRESERVED check (Blocking): vertex count of output == vertex count of input when topology_lock=true",
+      "cargo test refit::test_topology_lock_preserves_vertex_count passes"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::refit::test_topology_lock_preserves_vertex_count",
+      "cargo test -p handshake_core tailor::refit::test_redrape_default_allows_retessellation"
+    ],
+    "risk_if_missed": "Without topology lock, downstream tools that rely on stable vertex-count (skinning weight baking, morph target pipelines, blend shape applications) break when the refit changes mesh density. This is the most-requested refit option in MD 2025.1 and the primary adoption ask from game-engine pipelines."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

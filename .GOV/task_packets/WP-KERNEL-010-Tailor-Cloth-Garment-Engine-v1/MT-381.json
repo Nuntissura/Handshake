@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-381",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-381.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-381.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-381.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-381.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-380"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a 2D graphic layer placement editor in the Tailor pattern panel showing the pattern piece outline with positioned graphic overlays and handles for translate/scale/rotate, writing changes via the CRDT ai_edit_proposal path",
+    "allowed_paths": [
+      "app/src/components/tailor/GraphicLayerEditor.tsx",
+      "app/src/components/tailor/PatternPanel.tsx",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The pattern panel view shows an overlay of all active TailorGraphicLayer rows for the selected panel, positioned at their panel_bbox_cm coordinates scaled to screen space",
+      "Operator can drag a graphic layer overlay to reposition it; rotation handle available; changes write to tailor_graphic_layers.panel_bbox_cm and rotation_deg via the existing CRDT path (TailorGraphicLayerUpdated)",
+      "The tailor_graphic_layer_add MCP tool accepts a panel_bbox_cm placement in cm and the UI confirms the placement by rendering a preview before the operator accepts the proposal",
+      "Graphic layer previews in the 2D pattern editor project correctly onto the 3D viewport solid render (UV pipeline coordinate consistency check)",
+      "The graphic layer editor is accessible from the pattern panel view without switching to a separate mode"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::graphic_layer::placement_roundtrip_panel_to_3d",
+      "HBR-VIS: place a logo graphic at panel_bbox_cm [5,5,15,15] on a 30cm x 30cm front panel; capture solid viewport; assert logo appears in the upper-left quadrant of the front panel"
+    ],
+    "risk_if_missed": "Without a 2D graphic layer editor, operators must specify placement coordinates numerically via MCP tool calls only. Logo, print, and embroidery placement becomes a blind authoring task with multiple iterations needed to achieve correct positioning."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

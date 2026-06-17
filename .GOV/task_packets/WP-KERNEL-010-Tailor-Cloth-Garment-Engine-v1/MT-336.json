@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-336",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-336.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-336.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-336.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-336.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-335"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a `PinConstraint` (per-particle positional lock, inv_mass = 0) and a `FreezeRegion` operator/model command that pins a named set of particles for the duration of a simulation run or until explicitly unpinned, mirroring MD's Pin and Freeze interactive tools",
+    "allowed_paths": [
+      "tailor-solver/src/types.rs",
+      "tailor-solver/shaders/integrate.wgsl",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/tailor/solver_binding.rs",
+      "app/src/components/tailor/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "`GarmentSpec` gains `pin_regions: Vec<PinRegionSpec>` where `PinRegionSpec` carries `panel_id: String`, `vertex_selector: PinSelector` (enum: `BoundaryAll`, `VertexIds(Vec<u32>)`, `UvRegion { u_min, u_max, v_min, v_max }`), and `unpin_at_frame: Option<u32>`",
+      "At `SolverMesh` build time, pinned vertices receive `GpuParticle.inv_mass = 0.0`; the WGSL `integrate.wgsl` shader skips force integration for particles with `inv_mass == 0.0` (already defined in the spec struct comment at line 1474)",
+      "When `unpin_at_frame` is set, the animation loop (MT-289) uploads an updated particle buffer at that frame restoring the original `inv_mass` from the fabric density; the event `TailorPinRegionReleased` is emitted to the EventLedger",
+      "An MCP tool `pin_region` is exposed (parallel to `place_trim`) accepting `garment_id`, `panel_id`, and `vertex_selector`; models can pin a garment shoulder panel, run simulation, and observe the rest of the garment draping while the pinned region is held",
+      "Integration test: pin the waistband of a skirt, run a drape sim, assert pinned vertices have displacement < 0.1 mm and the rest of the skirt drapes normally (NO_INTERPENETRATION passes)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- pin_constraint_inv_mass_zero",
+      "cargo test -p tailor-solver -- pin_region_drape_waistband",
+      "cargo test -p handshake_core -- tailor_pin_region_mcp_tool",
+      "cargo test -p handshake_core -- tailor_unpin_at_frame_animation"
+    ],
+    "risk_if_missed": "Operators and models cannot hold garment regions in place during interactive draping or animation; MD-style fitting workflows (hold collar while draping bodice, freeze pinned hem while re-simming below) are impossible. The refit pipeline (MT-299-MT-316) also lacks a pin-assist for stable garment transfer."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-410",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-410.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-410.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-410.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-410.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-409"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement automatic motion conversion from imported FBX animation tracks to Tailor's canonical AnimationDraft (AvatarBonePoseTrack entries), including frame-rate normalization, joint-name re-mapping via JointMapper, and emission of a TailorAnimationImported event linking the resulting tailor_animations row",
+    "allowed_paths": [
+      "tailor-solver/src/body/motion_import.rs",
+      "tailor-solver/src/body/joint_mapper.rs",
+      "src/backend/handshake_core/src/tailor/animation.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /api/tailor/animations/import accepts a multipart FBX file and an avt_id query parameter",
+      "Joint animation tracks are extracted, joint names are re-mapped via JointMapper using the AVT-'s detected naming convention, and an AnimationDraft is constructed with AvatarBonePoseTrack entries",
+      "Frame-rate normalization converts the imported FPS to the canonical Timeline.fps (default 24)",
+      "A tailor_animations row is written and TailorAnimationImported (new KernelEventType variant) is emitted with event_family='tailor.animation'",
+      "Un-mappable joints emit a JointMappingWarning advisory finding in the import result; they are excluded from the AnimationDraft but do not fail the import",
+      "cargo test motion_import::test_fbx_24fps_roundtrip and motion_import::test_joint_remap_on_import both pass"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::motion_import::test_fbx_joint_extraction",
+      "cargo test -p handshake_core tailor::animation::test_fbx_import_emits_event"
+    ],
+    "risk_if_missed": "MT-284 (skeletal pose import BVH/glTF) covers the data types but not the FBX-specific parsing and joint re-mapping pipeline. FBX is the dominant animation export from Maya and 3ds Max and the primary source for character animation in game-adjacent pipelines. Without auto-conversion, operators must pre-process every animation externally."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-393",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-393.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-393.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-393.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-393.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-392"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement MatCap material mode in ClothViewport as a dedicated fragment shader path that samples a MatCap texture using view-space normal UV coordinates, selectable via RenderMode::MatCap with a matcap_texture_ref in ViewportConfig",
+    "allowed_paths": [
+      "tailor-solver/src/viewport.rs",
+      "tailor-solver/src/shaders/matcap_cloth.wgsl",
+      "app/src-tauri/src/commands/tailor.rs",
+      "app/src/components/tailor/ViewportControls.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A matcap_cloth.wgsl fragment shader samples a bound texture at UV coordinates derived from the view-space normal: uv = (view_normal.xy * 0.5 + 0.5)",
+      "ViewportConfig gains a matcap_texture_ref: Option<String> field referencing a 256x256 PNG artifact",
+      "RenderMode enum gains a MatCap variant; tailor_viewport_config accepts render_mode: 'matcap'",
+      "A default clay MatCap texture (neutral gray sphere with soft shading) is seeded as a system artifact on first launch",
+      "tailor_capture_frame with render_mode: 'matcap' returns a TailorVisualCapture showing MatCap shading",
+      "MatCap mode compiles and runs when the toon-shader feature is disabled (MatCap is independent of the Toon pipeline)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor_solver viewport::matcap_mode_produces_view_space_normal_uv",
+      "cargo test -p tailor_solver viewport::matcap_mode_compiles_without_toon_feature",
+      "HBR-VIS: capture a draped dress in MatCap mode using the clay texture; assert output shows smooth shading variation without PBR specular highlights"
+    ],
+    "risk_if_missed": "Without MatCap, clay-look QA passes (used to evaluate silhouette and drape shape without texture distraction) require a custom single-color PBR material with zero roughness and no normal map. This is a manual workaround with inferior results. MatCap is a standard tool-quality QA render mode."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

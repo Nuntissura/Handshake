@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-416",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-416.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-416.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-416.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-416.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-415"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Explicitly wire the rigid trim simulation step (MT-169, parry3d rigid body step) into the sim-over-timeline loop (MT-289) so each animated frame advances both the cloth XPBD pass and the trim rigid-body pass, with two-way coupling preserved across frames.",
+    "allowed_paths": [
+      "tailor-solver/src/solver/timeline_loop.rs",
+      "tailor-solver/src/solver/rigid_step.rs",
+      "tailor-solver/src/animation/frame_cache.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The sim-over-timeline frame advance function calls both the cloth XPBD substep loop and the rigid trim step for each animated frame, in the correct order (cloth predict -> rigid step -> coupling -> cloth project -> finalize).",
+      "Per-frame mesh cache (MT-290) stores rigid trim world positions alongside cloth particle positions for each cached frame.",
+      "The TRIM_ATTACHED ValidationDescriptor (MT-189) is applied across a multi-frame animation run, not only at static fit end.",
+      "An integration test simulates a jacket with buttons through a 30-frame walk cycle and asserts TRIM_ATTACHED holds at every frame.",
+      "cargo test animation::trim_in_animation::buttons_stay_attached_walk_cycle passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver animation::trim_in_animation::buttons_stay_attached_walk_cycle",
+      "cargo test -p tailor-solver animation::trim_in_animation::zipper_slider_moves_with_body"
+    ],
+    "risk_if_missed": "Animated garments with hardware regress silently: trims either freeze at their fitted position or detach because the rigid step is omitted from the timeline loop. The per-frame cache is incomplete (trim positions missing), breaking downstream DCC reconstruction of animated hardware."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-372",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-372.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-372.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-372.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-372.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-371"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement topstitch-as-mesh-geometry generation: for each internal guide line marked as topstitch (MT-132), extrude a row of stitch loop geometry along the draped panel surface, apply polygon optimization (merge coplanar quads per MD pattern), smooth corner junctions at direction changes, and include the resulting stitch mesh in the promoted garment export package",
+    "allowed_paths": [
+      "tailor-solver/src/uv/topstitch_mesh.rs",
+      "src/backend/handshake_core/src/tailor/uv_texture.rs",
+      "src/backend/handshake_core/src/tailor/export.rs",
+      "app/src/components/tailor/TailorViewport.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "For each InternalLine with line_type=Topstitch in the GarmentSpec panel, a ribbon/extrusion mesh is generated following the draped surface geometry (not the flat 2D panel)",
+      "Stitch loop geometry is parameterized: stitch_length_mm, stitch_width_mm, stitch_gap_mm, and offset_from_edge_mm",
+      "Corner junctions where two topstitch lines meet are smooth-mitered (beveled) rather than sharply intersected, matching MD's Smooth Corner for Topstitch behavior",
+      "Coplanar adjacent stitch quads are merged into longer quads (polygon optimization) to reduce triangle count without visual degradation",
+      "Topstitch geometry is included in glTF and OBJ exports as a separate mesh layer within the same file, with its own material slot (thread color)",
+      "Topstitch mesh is visible in the Tailor viewport and in headless capture_view renders",
+      "MT-226 texture-layer topstitch and this geometry-layer topstitch can coexist: texture topstitch remains for non-highlighted paths; geometry topstitch is generated only for lines explicitly flagged as geometry_topstitch=true"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver uv::topstitch_mesh::test_topstitch_extrusion_follows_draped_surface",
+      "cargo test -p tailor-solver uv::topstitch_mesh::test_corner_smooth_mitering",
+      "cargo test -p tailor-solver uv::topstitch_mesh::test_polygon_optimization_reduces_quad_count",
+      "cargo test -p handshake_core tailor::export::test_gltf_export_includes_topstitch_mesh_layer"
+    ],
+    "risk_if_missed": "Production garment exports lack topstitch geometry that is standard in commercial fashion visualization; downstream DCC tools (Blender, Unreal Engine) receive a flat garment with no stitching detail, requiring manual stitch geometry addition per garment; the operator's explicit inclusion of 'topstitch' in the area scope means this is an expected production deliverable"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

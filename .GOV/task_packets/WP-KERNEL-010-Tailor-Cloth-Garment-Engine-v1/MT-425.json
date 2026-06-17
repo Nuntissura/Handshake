@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-425",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-425.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-425.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-425.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-425.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-424"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement automatic joint-mapping from imported FBX/glTF skeleton hierarchies (Daz 3D, Mixamo, MetaHuman, Character Creator naming conventions) to the canonical Tailor joint name set used by CollisionCapsule.joint_name, writing a normalized ClothBodyProxy from the imported rig",
+    "allowed_paths": [
+      "tailor-solver/src/body/joint_mapper.rs",
+      "tailor-solver/src/body/ik_pose.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A JointMapper type accepts a flat joint-name list from an imported skeleton and outputs a BTreeMap<TailorJointName, ImportedJointName> using heuristic name matching plus a configurable override map",
+      "At least four naming conventions are auto-resolved without override: Mixamo (mixamorig:Hips, mixamorig:LeftArm...), Daz Genesis (hip, lThighBend...), UE5 Mannequin (pelvis, thigh_l...), and standard VRM (J_Bip_C_Hips...)",
+      "Un-mappable joints emit a JointMappingWarning event (not an error) and are excluded from capsule generation",
+      "The resulting capsule chain covers all mapped joint pairs and produces a valid ClothBodyProxy (no interpenetrating capsules, all radii > 0)",
+      "TailorAvatarCreated + TailorBodyProxyCreated are emitted on successful import with a source_kind tag of the detected convention",
+      "cargo test joint_mapper::test_mixamo_auto_map passes with >= 22 of 25 joints correctly resolved"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::joint_mapper::test_mixamo_auto_map",
+      "cargo test -p tailor-solver body::joint_mapper::test_ue5_mannequin_map",
+      "cargo test -p handshake_core tailor::avatar::test_import_fbx_emits_events"
+    ],
+    "risk_if_missed": "Every non-default avatar import requires manual capsule authoring. Artists using Daz, Mixamo, or MetaHuman cannot onboard characters in a self-service workflow, making custom avatar support practically unusable for the majority of digital-character pipelines."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

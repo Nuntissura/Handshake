@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-417",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-417.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-417.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-417.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-417.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-416"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a reset_to_rest() API call on the ClothSolver trait that rewinds all particle positions and velocities to the initial panel arrangement (as computed by MT-119) without clearing the loaded garment, seams, or material params, enabling parameter-adjust-then-re-sim cycles without full reload.",
+    "allowed_paths": [
+      "tailor-solver/src/solver/mod.rs",
+      "tailor-solver/src/solver/state.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "ClothSolver trait gains fn reset_to_rest(&mut self) -> Result<(), SolverError> that restores particle positions to the initial arrangement snapshot taken after MT-119 placement.",
+      "Calling reset_to_rest() followed by simulate() produces the same result as a fresh load + simulate() within MeshComparator eps_mm tolerance.",
+      "The animation API (MT-294) exposes a reset_simulation endpoint for model and operator use.",
+      "reset_to_rest() emits TailorSimRunStarted with a reset=true flag in metadata so the EventLedger trail is unambiguous.",
+      "cargo test solver::reset::reset_then_resim_deterministic passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver solver::reset::reset_then_resim_deterministic",
+      "cargo test -p handshake_core tailor::api::reset_simulation_endpoint_emits_event"
+    ],
+    "risk_if_missed": "Every parameter adjustment requires a full garment reload through the GarmentSpec -> tessellate -> ingest pipeline (MT-004, MT-127), making iterative sim tuning expensive. The typical MD creative loop of adjust-fabric -> reset -> resim is not available as a lightweight call, significantly slowing model-driven parameter search."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

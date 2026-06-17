@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-349",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-349.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-349.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-349.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-349.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-348"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement fine-grained vertex and edge-segment translate operations on Panel EdgeShape outlines as CRDT-safe atomic edits (move_vertex, move_edge_segment) beyond the coarse replace-spec-json edit, enabling precise point-level authoring by models and operators",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/vertex_ops.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/PatternEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "move_vertex(panel_id, edge_index, vertex_role: Start|End, new_pos_cm: [f32;2]) moves the specified vertex; shared vertices between adjacent edges move together",
+      "move_edge_segment(panel_id, edge_index, offset_cm: [f32;2]) translates a whole edge segment, dragging both endpoint vertices",
+      "Both operations emit TailorPanelCrdtUpdateRecorded with a vertex-level diff (not a full spec_json replace) for efficient CRDT merge",
+      "PANEL_CLOSED and SEAM_LENGTH_MATCH re-evaluate after each operation",
+      "Model-accessible via edit_panel MCP tool with operation=move_vertex and operation=move_edge",
+      "Concurrent model agents moving different vertices on the same panel merge without conflict (different edge indices are disjoint CRDT keys)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::vertex_ops::test_move_vertex_closed",
+      "cargo test -p tailor-solver authoring::vertex_ops::test_move_edge_drags_endpoints",
+      "cargo test -p handshake_core tailor::authoring::test_vertex_crdt_concurrent_merge"
+    ],
+    "risk_if_missed": "MT-059 and MT-259 provide CRDT-gated edit_panel that accepts a full panel spec diff, but without sub-edit granularity a model must rewrite the entire panel outline to move one point. This is fragile: a LLM that generates coordinate arrays for 12-vertex panels will introduce subtle errors when told to move vertex 3. Fine-grained vertex operations with validation feedback after each step match how ChatGarment-style self-correction actually works in practice."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-333",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-333.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-333.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-333.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-333.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-332"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement SeamKind::Fold solver behavior: when a seam edge is marked Fold, emit a dihedral-angle constraint targeting fold_angle_deg instead of a zero-rest-length distance constraint, and wire fold_angle_deg from PanelSpec to the solver constraint buffer",
+    "allowed_paths": [
+      "tailor-solver/src/solver.rs",
+      "tailor-solver/src/mesh.rs",
+      "tailor-solver/src/shaders/seam.wgsl",
+      "tailor-solver/src/spec.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "SeamKind::Fold in SeamSpec routes to a dihedral constraint (not a distance constraint) in the SolverMesh constraint list, with rest_angle_rad derived from fold_angle_deg",
+      "The WGSL seam shader or a dedicated fold shader applies the dihedral angle constraint to the two triangles sharing the fold edge each substep",
+      "A test panel with fold_angle_deg=90 produces a simulated fold within ±5 degrees of 90 degrees at convergence",
+      "Fold seam lines appear as distinct topology in the UV/texture layer (MT-132 internal guide lines) and are not mistakenly treated as join seams by the mesh generator",
+      "The SEAMS_CLOSED check is not applied to Fold seams (fold edges remain open; only Join seams must close)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- seam::fold_seam_dihedral",
+      "cargo test -p tailor-solver -- seam::fold_vs_join_constraint_routing"
+    ],
+    "risk_if_missed": "Hem lines, collar stands, lapels, cuffs, waistband folds, and shirt plackets are all authored as fold seam lines in MD. Without fold constraint behavior the solver treats these edges as join seams (collapsing them to zero length) or ignores them entirely, producing wildly wrong geometry on any garment with a visible fold structure."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

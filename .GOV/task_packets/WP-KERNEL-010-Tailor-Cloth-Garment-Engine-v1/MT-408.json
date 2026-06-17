@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-408",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-408.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-408.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-408.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-408.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-407"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement keyframeable Tack Strength (tack_strength and tack_compliance tracks) in MaterialAnimationTracks and expose tailor_keyframe_tack_strength MCP tool to match MD 2025.2 animatable tack constraints",
+    "allowed_paths": [
+      "tailor-solver/src/params.rs",
+      "tailor-solver/src/constraints/tack.rs",
+      "src/backend/handshake_core/src/tailor/animation.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/migrations/",
+      "app/src/components/tailor/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "MaterialFrameParams in tailor-solver/src/params.rs MUST include tack_strength: f32 (0.0 = detached, 1.0 = full strength) alongside tack_compliance: f32, matching spec TR-7.3 exactly",
+      "MaterialAnimationTracks MUST promote tack_compliance from post-MVP stub to a fully implemented HashMap<String, KeyframeTrack<f32>> keyed by tack_id, plus a global tack_strength: KeyframeTrack<f32> for uniform override",
+      "The animation sim-over-timeline loop MUST compute tack_strength per frame from the keyframe track and perform a partial GPU buffer write (GpuTackConstraint.strength_scale fields only, not a full buffer re-upload) per spec TR-7.3",
+      "A tailor_keyframe_tack_strength MCP tool MUST be registered accepting garment_id, tack_id, frame, strength [0,1]; it MUST write to tailor_animations.animation_json via CRDT update and emit TailorAnimationDraftUpdated",
+      "Setting tack_strength=0.0 at a keyframe MUST cause the trim to detach from the cloth at that frame; TRIM_ATTACHED ValidationDescriptor MUST be advisory (not blocking) for frames where strength=0.0 is explicit in the track",
+      "TailorSimRunCompleted payload MUST include the full tack track data in its MaterialFrameParams array for reproducibility",
+      "A trim-animation integration test MUST assert that animating tack_strength from 1.0 to 0.0 at frame 15 causes the trim to be unattached at frame 16 and correctly re-attached when strength returns to 1.0 at frame 25"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- tack_strength_keyframe_partial_upload",
+      "cargo test -p handshake_core -- tailor::animation::tack_detach_reattach_cycle",
+      "cargo test -p handshake_core -- tailor::mcp::tailor_keyframe_tack_strength_tool_registered"
+    ],
+    "risk_if_missed": "MD 2025.2 Tack constraint animation is the primary mechanism for stitch-and-unstitch effects (e.g., a jacket collar lifting off, a button-down shirt coming undone over time). The spec (TR-7.3, spec line ~5107) explicitly requires tailor_keyframe_tack_strength as a named MCP tool and tack_strength in MaterialFrameParams. MT-019 provides static tack only; MT-287 wires MaterialKeyframe but the struct does not include tack_strength; MaterialAnimationTracks stubs tack_compliance as post-MVP. This leaves a named spec requirement unimplemented and breaks the Trim group animation contract."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}
