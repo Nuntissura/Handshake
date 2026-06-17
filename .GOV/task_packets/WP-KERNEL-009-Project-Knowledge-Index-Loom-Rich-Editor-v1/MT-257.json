@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-257-DailyNotesJournal",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-16T17:39:58Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-257.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,16 +79,141 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T17:39:58Z",
+        "by": "KERNEL_BUILDER",
+        "status": "READY_FOR_VALIDATION",
+        "summary": "Implemented MT-257 daily journal flow. A PUT journal route creates or returns one LoomBlock journal per workspace/date, enforces canonical YYYY-MM-DD dates, bridges journal blocks into the existing knowledge graph path, uses journal_date for All/Sorted date filtering, and exposes a Journal tab with Today/Previous/Next navigation.",
+        "product_files_touched": [
+          "src/backend/handshake_core/migrations/0329_loom_daily_journal_unique.sql",
+          "src/backend/handshake_core/migrations/0329_loom_daily_journal_unique.down.sql",
+          "src/backend/handshake_core/src/storage/mod.rs",
+          "src/backend/handshake_core/src/storage/postgres.rs",
+          "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/tests/loom_daily_journal_tests.rs",
+          "app/src/lib/api.ts",
+          "app/src/lib/api.test.ts",
+          "app/src/components/LoomDailyJournalPanel.tsx",
+          "app/src/components/LoomDailyJournalPanel.test.tsx",
+          "app/src/App.tsx",
+          "app/src/App.test.tsx",
+          "app/src/App.css"
+        ],
+        "verification": [
+          {
+            "command": "rustfmt --edition 2021 src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/tests/loom_daily_journal_tests.rs",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir \"D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target\" --test loom_daily_journal_tests -- --nocapture",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "4 real-PG route tests passed: daily_journal_open_is_idempotent_and_bridged, journal_date_filters_all_and_sorted_views, journal_mentions_surface_as_backlinks, daily_journal_rejects_non_canonical_dates."
+          },
+          {
+            "command": "pnpm exec vitest run src/lib/api.test.ts src/components/LoomDailyJournalPanel.test.tsx src/App.test.tsx",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "3 files passed, 96 tests. Existing jsdom canvas getContext and React act warnings remain."
+          },
+          {
+            "command": "pnpm exec tsc --noEmit",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS"
+          },
+          {
+            "command": "pnpm run lint",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS"
+          },
+          {
+            "command": "Playwright smoke via local Vite http://127.0.0.1:5174 with route-mocked loopback backend",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "Clicked Journal tab, verified Daily Note 2026-06-16, Previous to 2026-06-15, Next back to 2026-06-16, Today back to 2026-06-16, and blocked non-local external requests. Screenshot: D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt257-daily-journal-smoke.png."
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wt-gov-kernel",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          }
+        ],
+        "eventledger_postgres_evidence": [
+          "Migration 0329 adds partial unique index ux_loom_daily_journal_workspace_date on loom_blocks(workspace_id, journal_date) for journal rows with non-null journal_date.",
+          "PUT /workspaces/:workspace_id/loom/journals/:journal_date stores journals as LoomBlocks with content_type=journal and journal_date; no parallel journal store was introduced.",
+          "Daily journal creation uses PostgreSQL ON CONFLICT DO NOTHING plus existing-row fallback so repeated opens return the same block.",
+          "The route calls bridge_loom_block_to_knowledge for the daily journal block; the real-PG idempotency test asserts the bridge exists after repeated opens.",
+          "All/Sorted view date filters now use journal_date for journal rows and retain updated_at filtering for non-journal rows.",
+          "Journal mention backlinks are proven through the existing Loom edge/backlink route path."
+        ],
+        "adversarial_review": {
+          "RISK_TIER": "HIGH",
+          "DIFF_ATTACK_SURFACES": [
+            "Concurrent or repeated daily opens could create duplicate journal rows.",
+            "Date filters could keep using updated_at and hide/show journal rows on the wrong day.",
+            "Journal creation could bypass the existing knowledge bridge and break backlinks.",
+            "Invalid date strings could create non-canonical journal_date values.",
+            "Calendar navigation could show a stale block title while a new date is loading.",
+            "The frontend API mock could mask the real LoomBlock response contract.",
+            "React hook lint could reject synchronous effect state updates in the new panel."
+          ],
+          "INDEPENDENT_CHECKS_RUN": [
+            "Real-PG backend route tests assert idempotent create, bridge existence, date-filter behavior, backlinks, and invalid date rejection.",
+            "Frontend API/unit/App tests assert the PUT helper, panel navigation, and Journal tab auto-open behavior.",
+            "Offline Playwright smoke proves the rendered Journal tab and Previous/Next/Today flow with no external network requests.",
+            "TypeScript and ESLint validate the frontend boundary after the hook-state refactor."
+          ],
+          "COUNTERFACTUAL_CHECKS": [
+            "If the unique index or ON CONFLICT path is removed, the idempotency test can create or expose duplicate daily rows.",
+            "If journal_date filtering is reverted to updated_at, the All/Sorted date-filter test fails.",
+            "If bridge_loom_block_to_knowledge is omitted, the bridge assertion in daily_journal_open_is_idempotent_and_bridged fails.",
+            "If openDailyJournal is not wired through App, the Journal tab integration test and Playwright smoke fail.",
+            "If the panel reuses stale block state across dates, the panel test and Playwright Previous/Next title/date assertions fail."
+          ],
+          "BOUNDARY_PROBES": [
+            "API boundary: PUT /workspaces/:workspace_id/loom/journals/:journal_date rejects non-canonical dates with 400.",
+            "Storage boundary: PostgreSQL creates or returns a single journal block keyed by workspace_id+journal_date.",
+            "Graph boundary: journal block mentions are converted into backlinks via existing Loom edge routes.",
+            "Frontend boundary: app/src/lib/api.ts exposes a typed openDailyJournal helper returning LoomBlock.",
+            "UI boundary: the Journal pane renders stable test IDs for tab, date, title, and navigation controls."
+          ],
+          "NEGATIVE_PATH_CHECKS": [
+            "daily_journal_rejects_non_canonical_dates rejects 2026-6-1, 2026-02-30, and not-a-date.",
+            "The Playwright smoke blocked non-local requests and failed earlier on invalid route-mock shapes, then passed only with a correctly shaped LoomBlock contract.",
+            "ESLint initially failed on synchronous effect state; the panel now derives loading/stale-block visibility from workspace/date request state."
+          ],
+          "FINDINGS_FIXED": [
+            "Added partial unique index plus ON CONFLICT fallback to prevent duplicate daily journals.",
+            "Changed All/Sorted view filtering so journal rows use journal_date instead of updated_at.",
+            "Refactored LoomDailyJournalPanel request state to satisfy react-hooks/set-state-in-effect while still hiding stale blocks during date navigation.",
+            "Corrected the Playwright proof to mock the full LoomBlock response shape rather than an ad hoc journal object."
+          ],
+          "RESIDUAL_UNCERTAINTY": [
+            "Playwright browser proof uses a route-mocked loopback backend; real PostgreSQL/EventLedger behavior is covered by the backend route tests.",
+            "The Browser plugin's required Node REPL tool was not exposed in this session, so direct Playwright was used as the local browser verification fallback.",
+            "Full packaged Tauri runtime was not launched for this MT."
+          ]
+        }
+      }
+    ]
   },
   "handoff": {
     "coder_session": null,

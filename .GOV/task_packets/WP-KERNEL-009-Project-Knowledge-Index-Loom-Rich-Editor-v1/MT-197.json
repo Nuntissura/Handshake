@@ -80,14 +80,49 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Machine-readable tool/primitive catalog in user_manual_tool_entries: 99 wp009_surface rows generated FROM the registry (method, route, summary, expected input/output, per-group common_errors + recovery_steps - catalog cannot drift from the declared inventory) PLUS the full legacy static MODEL_MANUAL command_reference imported deterministically (100+ rows, origin legacy_model_manual, content preserved exactly incl. ipc_channel/tauri_command/cli_flag/schema_fields/common_errors/recovery_steps - the spec 10.15.8 deterministic mapping). Feature entries: one per WP-009 surface group + every legacy feature group. Surface-guide pages seeded per group (knowledge-index incl. code-nav, notes-loom, rich-documents, retrieval, memory, crdt, usermanual) each with route tables (markdown + machine-readable body_json), inputs/outputs, failure modes, recovery, and visual-debug hooks (GET /knowledge/memory/visual-debug + the manual HTML projection selectors). THIS CLOSES THE MT-112 DEFERRAL: all 6 /knowledge/code/* nav routes are manual-registered (anchors + tool entries) - see MT-112.json lifecycle.manual_registration_closure. Tests GREEN on real PG: lib tool_catalog_covers_registry_and_legacy_without_id_collisions, user_manual_api_tests::mt201_tools_list_and_read_resolve (per-route entries readable incl. every /knowledge/code/* row with errors+recovery; legacy origin filter returns the imported manifest), mtdoc_every_registry_surface_exists_on_the_real_router (each cataloged route probed on the live router), user_manual_storage_tests::mt195_every_registry_surface_has_db_coverage (tool entry per surface in DB).",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "Catalog-drift risk (hand-written per-route docs rot): tool entries derive from the registry constant at seed time, and the registry is triply gated (compile/DB/runtime) - a route description cannot exist without its surface and vice versa.",
+        "Legacy/new id collision space checked: lib test asserts zero tool_id collisions between dotted registry ids and snake_case legacy ids."
+      ],
+      "residual_risks": [
+        "Per-group (not per-route) error/recovery vocabularies trade granularity for accuracy - each listed code was live-triggered or grep-verified against the module's error constructors; per-route refinement is cheap later because rows are hash-resynced."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    }
   },
   "handoff": {
     "coder_session": null,

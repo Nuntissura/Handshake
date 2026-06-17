@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-237-ParallelWriteConflictFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-15T03:57:26.429Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-237.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,43 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260615-031300",
+    "completed_by": null,
+    "implementation_commit": "working-tree",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: /knowledge/crdt/updates/push now routes through durable save semantics; same-process same-document CRDT pushes serialize before head read; MT-237 fixture drives concurrent operator/model/validator HTTP pushes against managed PostgreSQL/EventLedger, proves one accepted head, two durable stale-base denials, conflict UI, HTTP repair writes, absent denied bytes, and EventLedger receipt linkage.",
+    "ready_by": "KERNEL_BUILDER-20260615-031300",
+    "ready_for_validation_at_utc": "2026-06-15T03:57:26.429Z",
+    "ready_for_validation_reason": "HTTP parallel write conflict fixture passes against Handshake-managed PostgreSQL/EventLedger and adversarial re-review approved RFV handoff. Existing bridge API round-trip check was attempted but stopped at repo-owned ENVIRONMENT_BLOCKED because POSTGRES_TEST_URL is not set.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-237@2026-06-15T03:57:26.429Z",
+    "adversarial_review": {
+      "at_utc": "2026-06-15T03:57:26.429Z",
+      "reviewer": "Harvey / 019ec945-25b0-7901-b771-ce21dc63d2e2",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "No blocking correctness findings for MT-237. Prior bypassed-route and weak-fixture issues are closed: HTTP push goes through save_rich_document_draft, same-process same-document pushes serialize before head read, and the fixture asserts durable receipts, conflict UI, repair writes, denied-byte absence, and EventLedger linkage.",
+      "residual_risks": [
+        "The mutex is in-process only. Cross-process backend writers could still race between EventLedger append and CRDT row insert; if multi-process backend writers enter scope, add a DB-level advisory lock or atomic transaction around event+row creation."
+      ],
+      "evidence": [
+        "rustfmt --edition 2021 --check src/backend/handshake_core/src/api/knowledge_crdt.rs src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs src/backend/handshake_core/tests/knowledge_parallel_write_conflict_fixture_tests.rs: PASS",
+        "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test knowledge_parallel_write_conflict_fixture_tests -- --nocapture: PASS, 1 passed",
+        "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test knowledge_crdt_bridge_api_tests http_push_pull_round_trip_with_navigation_receipts -- --nocapture: ENVIRONMENT_BLOCKED, POSTGRES_TEST_URL not set"
+      ]
+    },
+    "evidence": [
+      "Product files touched: src/backend/handshake_core/src/api/knowledge_crdt.rs, src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs, src/backend/handshake_core/tests/knowledge_parallel_write_conflict_fixture_tests.rs, src/backend/handshake_core/Cargo.toml.",
+      "The MT-237 fixture uses the real axum CRDT route over loopback and the managed PostgreSQL/EventLedger fixture; no SQLite, Docker-default, external daemon, or mock-only proof is used.",
+      "Denied initial writes are asserted absent from both pull replay bytes and persisted PostgreSQL CRDT update bytes; conflict receipts are asserted against EventLedger event type, aggregate, actor, correlation, and payload."
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260615-031300",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-248-SettingsKeybindingsThemesUI",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-15T23:32:27.8947134Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-248.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,16 +76,71 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "KERNEL_BUILDER",
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "recorded_at_utc": "2026-06-15T23:32:27.8947134Z",
+        "recorded_by": "KERNEL_BUILDER",
+        "status": "READY_FOR_VALIDATION",
+        "summary": "Implemented workspace-scoped settings, theme, and app keybinding state for MT-248 with Postgres/EventLedger persistence, frontend settings controls, app shortcut propagation, Monaco light/dark theme propagation, and reset/conflict handling.",
+        "commands": [
+          {
+            "command": "pnpm --dir app exec vitest run src/components/SettingsMenu.test.tsx src/lib/api.test.ts src/App.test.tsx src/components/MonacoCodeBlockView.language.test.tsx --reporter=dot",
+            "result": "PASS: 4 test files, 105 tests"
+          },
+          {
+            "command": "pnpm --dir app exec tsc --noEmit",
+            "result": "PASS"
+          },
+          {
+            "command": "pnpm --dir app exec eslint src/App.tsx src/App.test.tsx src/components/SettingsMenu.tsx src/components/SettingsMenu.test.tsx src/components/MonacoCodeBlockView.tsx src/components/MonacoCodeBlockView.language.test.tsx src/lib/api.ts src/lib/api.test.ts src/lib/workspaceSettings.ts src/lib/monaco/setup.ts",
+            "result": "PASS"
+          },
+          {
+            "command": "rustfmt --edition 2024 --check src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/kernel/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/api/workspaces.rs src/backend/handshake_core/tests/workspace_settings_state_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test workspace_settings_state_tests -- --nocapture",
+            "result": "PASS: 4 tests"
+          },
+          {
+            "command": "Playwright headless proof against http://127.0.0.1:5178/",
+            "result": "PASS: theme changed light to dark, old Ctrl+P did not open Quick Switcher, new Alt+Q opened Quick Switcher"
+          }
+        ],
+        "artifacts": [
+          "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt-248-devserver/mt-248-playwright-settings-proof.png",
+          "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt-248-devserver/vite-5178.cmd.log"
+        ],
+        "known_warnings": [
+          "Frontend focused vitest run still emits existing jsdom canvas getContext and React act warnings while passing.",
+          "Backend focused cargo test still emits existing repository warnings while passing."
+        ],
+        "adversarial_review": {
+          "risk_tier": "HIGH",
+          "attack_surfaces_checked": [
+            "Frontend/backend/migration schema-id agreement for hsk.workspace_settings_state@1.",
+            "API producer/consumer agreement for GET/PUT /workspaces/:workspace_id/settings and settings_state request/response shape.",
+            "Storage validation ordering before EventLedger append for malformed settings and duplicate keybinding chords.",
+            "Runtime GUI behavior for theme switch and app keybinding rebinding."
+          ],
+          "independent_checks_run": [
+            "rg schema and event-type alignment across app/src, backend storage/API, migration, and tests.",
+            "Headless Playwright runtime proof against a local Vite server."
+          ],
+          "findings": []
+        }
+      }
+    ]
   },
   "handoff": {
     "coder_session": null,

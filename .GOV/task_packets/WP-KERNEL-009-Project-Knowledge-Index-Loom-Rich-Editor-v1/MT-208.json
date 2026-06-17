@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-208-UserManualFixtures",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T18:37:30Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-208.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,61 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
+    "ready_for_validation_reason": "UserManual negative-path fixtures are implemented and exercised for stale, missing, alias, search, context citation, and orphan navigation cases; proof and adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "implementation",
+        "summary": "UserManual fixture helpers and tests cover stale hash tampering, missing page deletion and reseed healing, unknown legacy alias, literal bounded search, context-bundle citation, and orphan page navigation detection.",
+        "files_changed": [
+          "src/backend/handshake_core/src/user_manual/fixtures.rs",
+          "src/backend/handshake_core/src/user_manual/mod.rs",
+          "src/backend/handshake_core/tests/user_manual_api_tests.rs",
+          "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+          "src/backend/handshake_core/tests/user_manual_storage_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "test_proof",
+        "summary": "MT-208 targeted content tests passed against real PostgreSQL; broader API/storage suites cover stale hash and literal bounded search fixtures.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt208-fixtures-proof.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-storage-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:36:56.000Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-208"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Heisenberg read-only adversarial review returned PASS for MT-208. Non-blocking hardening gap: same-count child-row tampering is not covered by current freshness fixtures.",
+        "evidence_refs": [
+          "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

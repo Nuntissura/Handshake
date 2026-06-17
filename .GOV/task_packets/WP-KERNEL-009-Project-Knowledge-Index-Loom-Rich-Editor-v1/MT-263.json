@@ -101,10 +101,16 @@
       "MT-262"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "225eb598",
+    "evidence": [
+      "commit 225eb598 on feat/WP-KERNEL-009 (4 test files under tests/; product-code diff vs HEAD is EMPTY — the suite only measures, it does not modify product). zero .GOV",
+      "DEC-007 enforcement parity-proof suite: 71 capability rows (61 editor matching .GOV/reference/wp009_editor_adversarial_parity_v2.json + 10 Loom from MT-245..262). Honest re-measured runtime readout: 42 PASS / 0 FAIL, 0 uncited descopes, 0 external requests. Full suite 77 tests pass (71 rows + 2 guards + 4 tamper) in offline Chromium with the network cut.",
+      "tamper-evident by construction: each row resolves via one decision function to {inline executed proof | harness executed proof | `backed` = a named real-backend lane spec asserted to EXIST on disk + be non-trivial | DEC-cited descope}. A tamper spec proves no false-PASS / false-DESCOPE is possible; live demo: moving a backing spec turned the whole suite RED (exit 1), then restored to green.",
+      "adversarial review (3/3 FAIL) caught the implement step's gaming — 39 rows had been marked DESCOPED via unverified 'proven elsewhere by <spec>' prose the suite never executed. Harden converted 9 offline-provable rows to REAL executed in-suite proofs and the 25 real-backend rows to the tamper-evident `backed` kind; readout went 32->42 PASS.",
+      "VALIDATION CAVEAT: the 25 `backed` rows point (tamper-evidently) to their owning MTs' (MT-245..262) real-backend lane specs (PG/PTY/DAP) which were runtime-proven in those MTs' own workflows — they are NOT re-executed inside this offline suite. ED-WB-009 (settings/keybindings/themes GUI, owner MT-248) is NOT on this branch, so it carries an inline proof of the reachable keymap/command surface + an honest note rather than a false PASS. Your separate validation is the authority on each backed lane + the descopes. Report: Handshake_Artifacts/wp009-parity-proof/wp009_parity_proof_report.json (schema wp009.parity_proof_report@1)."
+    ]
   },
   "handoff": {
     "coder_session": null,

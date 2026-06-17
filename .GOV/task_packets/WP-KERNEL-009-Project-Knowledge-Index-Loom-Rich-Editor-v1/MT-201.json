@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-201-UserManualBackendApi",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T18:37:30Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-201.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,56 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
+    "ready_for_validation_reason": "UserManual backend API is implemented and proven with real Axum/PostgreSQL route tests; adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "implementation",
+        "summary": "Backend UserManual routes cover page list/read/search/tools/links/freshness/resync/quickstarts/legacy bridge with typed errors and EventLedger receipts where required.",
+        "files_changed": [
+          "src/backend/handshake_core/src/api/user_manual.rs",
+          "src/backend/handshake_core/tests/user_manual_api_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "test_proof",
+        "summary": "MT-201 targeted API tests passed against real PostgreSQL: pages list/read with persisted bootstrap receipt, search, tools, page links, and resync permission fail-closed gates.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt201-api-backend-proof.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:36:25.000Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-201"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Heisenberg read-only adversarial review returned PASS for MT-201. Noted non-blocking hardening gap: resync no-op success returns no explicit receipt even though API module comments say resyncs are attributable.",
+        "evidence_refs": [
+          "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

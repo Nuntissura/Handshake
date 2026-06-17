@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-247-DiffAndMergeEditor",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-15T21:18:04.075Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-247.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,20 +76,179 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244",
       "MT-156"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260615-MT247",
+    "completed_by": "KERNEL_BUILDER-20260615-MT247",
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "kind": "research_basis",
+        "at_utc": "2026-06-15T20:34:04.159Z",
+        "by": "KERNEL_BUILDER-20260615-MT247",
+        "sources_checked": [
+          "https://microsoft.github.io/monaco-editor/docs.html",
+          "https://github.com/prosemirror/prosemirror-changeset",
+          "https://code.visualstudio.com/docs/sourcecontrol/merge-conflicts"
+        ],
+        "patterns_found": [
+          "Monaco provides a built-in diff editor API for side-by-side code diffs.",
+          "ProseMirror changesets model inserted/deleted ranges for presentation, but current MT-247 can stay Handshake-native by computing block-level semantic diffs over existing rich document JSON instead of introducing an outside authority.",
+          "VS Code merge UX separates current, incoming, and result views, and requires explicit accept-current/accept-incoming/combination choices before completing a merge."
+        ],
+        "selected_approach": "Implement the first MT-247 slice with TDD: a Handshake-native rich-document diff/merge model that produces prose block diffs, code-block diff inputs for Monaco, and explicit per-block merge choices that preserve local edits unless the operator chooses otherwise.",
+        "rejected_options": [
+          "No external diff/merge service or sidecar authority.",
+          "No blind text-level replace across the whole rich document because it risks losing structured block semantics and code-block metadata.",
+          "No silent conflict reload/discard path."
+        ],
+        "validation_plan": [
+          "RED/GREEN unit tests for prose block diff, code-block diff pair extraction, and no-silent-discard merge choices.",
+          "Then wire UI/runtime proof only after the model contract is green."
+        ]
+      },
+      {
+        "kind": "implementation_verification",
+        "at_utc": "2026-06-15T21:16:36.239Z",
+        "by": "KERNEL_BUILDER-20260615-MT247",
+        "status_after_work": "READY_FOR_VALIDATION",
+        "files_changed_for_mt247": [
+          "app/src/lib/editor/document_diff_merge.ts",
+          "app/src/lib/editor/document_diff_merge.test.ts",
+          "app/src/components/RichDocumentView.tsx",
+          "app/src/components/RichDocumentView.test.tsx",
+          "app/src/lib/api.ts",
+          "app/src/lib/monaco/setup.ts",
+          "app/src/harness/rich_document_diff_harness.tsx",
+          "app/harness/rich-document-diff.html",
+          "app/vite.harness.config.ts",
+          "tests/dependency_policy/global_setup.ts",
+          "tests/dependency_policy/rich_document_diff.spec.ts",
+          "app/src/App.css"
+        ],
+        "dependency_unblock_touched": [
+          "src/backend/handshake_core/src/storage/postgres.rs"
+        ],
+        "behavior_delivered": [
+          "History pair selectors lazily load selected version bodies through loadRichDocumentVersion and render a prose block diff plus Monaco-ready code diff rows.",
+          "Rich document diff/merge model computes prose and monacoCodeBlock changes over structured rich document JSON.",
+          "Conflict snapshot merge UI requires explicit per-block operator choices and applies the selected mine/theirs/merged result without silently discarding local edits.",
+          "A real Monaco diff editor is mounted in an offline Playwright harness with zero external network requests."
+        ],
+        "verification_runs": [
+          {
+            "command": "pnpm --dir app exec vitest run src/components/RichDocumentView.test.tsx -t \"explicit merge choice\" --reporter=verbose",
+            "result": "PASS: selected conflict merge test passed after waiting for enabled apply control."
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/document_diff_merge.test.ts src/components/RichDocumentView.test.tsx --reporter=dot",
+            "result": "PASS: 2 files, 27 tests."
+          },
+          {
+            "command": "pnpm --dir app exec eslint src/lib/editor/document_diff_merge.ts src/lib/editor/document_diff_merge.test.ts src/components/RichDocumentView.tsx src/components/RichDocumentView.test.tsx src/lib/api.ts src/lib/monaco/setup.ts src/harness/rich_document_diff_harness.tsx",
+            "result": "PASS: exit 0."
+          },
+          {
+            "command": "pnpm --dir app exec tsc --noEmit",
+            "result": "PASS: exit 0."
+          },
+          {
+            "command": "pnpm --dir app run lint",
+            "result": "PASS: exit 0."
+          },
+          {
+            "command": "pnpm --dir app exec vitest run --reporter=dot",
+            "result": "PASS: 70 files, 670 tests. Output includes pre-existing unrelated jsdom canvas, React act, and TextSelection warnings."
+          },
+          {
+            "command": "$env:HARNESS_FORCE_BUILD='1'; pnpm --dir app exec playwright test ../tests/dependency_policy/rich_document_diff.spec.ts --config playwright.dependency.config.ts",
+            "result": "PASS: 1 Playwright test; real .monaco-diff-editor visible; zero external requests; Vite emitted chunk-size warnings only."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests mt156_history_is_paginated_and_omits_version_bodies -- --nocapture",
+            "result": "PASS: 1 backend API test; proves paginated history omits bodies, lazy history/:doc_version returns selected content_json, missing version returns 404. Rust compile emitted existing warnings."
+          }
+        ],
+        "runtime_artifacts": [
+          "../Handshake_Artifacts/dependency-policy-results/rich_document_diff-WP-KERN-3df4c-al-Monaco-code-diff-offline-chromium-offline-dependency-proof/mt247-rich-document-diff.png"
+        ],
+        "acceptance_mapping": [
+          {
+            "criterion": "Prose block diff + Monaco code diff runtime-proven.",
+            "evidence": "document_diff_merge unit coverage, RichDocumentView history pair test, and offline Playwright harness mounting real Monaco diff editor."
+          },
+          {
+            "criterion": "Conflict merge flow preserves local edits and prevents silent discard.",
+            "evidence": "RichDocumentView conflict merge test and merge-plan model require explicit choices for conflicting blocks."
+          },
+          {
+            "criterion": "History-pair selection works against real backend history.",
+            "evidence": "Frontend loadRichDocumentVersion binding plus backend knowledge_documents_api_tests::mt156_history_is_paginated_and_omits_version_bodies passing against PostgreSQL-backed test path."
+          },
+          {
+            "criterion": "Adversarial self-review recorded.",
+            "evidence": "adversarial_self_review evidence record appended in this lifecycle update."
+          }
+        ],
+        "deviations_and_notes": [
+          "No EventLedger write evidence was produced by MT-247 because the diff selector reads existing append-only history; PostgreSQL-backed backend history proof was executed.",
+          "The backend proof required a minimal compile unblock: making sqlx::QueryBuilder import unconditional in postgres.rs because unconditional code used QueryBuilder while the import was cfg-gated.",
+          "The product and governance worktrees contain unrelated dirty changes; this evidence is scoped to MT-247 files and the listed compile unblock."
+        ]
+      },
+      {
+        "kind": "adversarial_self_review",
+        "at_utc": "2026-06-15T21:16:36.239Z",
+        "by": "KERNEL_BUILDER-20260615-MT247",
+        "verdict": "PASS_READY_FOR_VALIDATION",
+        "findings": [],
+        "review_checks": [
+          "Verified frontend loadRichDocumentVersion calls the existing /knowledge/documents/:document_id/history/:doc_version route and RichDocumentView calls it for both selected versions.",
+          "Verified same-version diff is blocked by canLoadHistoryDiff and the load button disabled state; loader also returns when versions are equal or missing.",
+          "Verified runtime Monaco proof asserts a visible .monaco-diff-editor rather than only static <pre> code markup.",
+          "Verified Playwright harness blocks non-loopback network and records zero external requests.",
+          "Verified conflict merge uses explicit choices before applying and has a regression test for explicit merge choice behavior.",
+          "Verified the real backend history endpoint test passes after the QueryBuilder import unblock."
+        ],
+        "counterfactuals_considered": [
+          "If the lazy backend history route were removed or changed, the frontend selector would fail to load version bodies and the backend API test would fail.",
+          "If the Monaco proof regressed to static markup, the Playwright .monaco-diff-editor visibility assertion would fail.",
+          "If unresolved conflicts could be applied silently, the conflict merge unit coverage would fail and local edits would be at risk.",
+          "If same-version comparisons were allowed, the disabled-state/source inspection would expose the regression and a validator should add a direct negative UI test."
+        ],
+        "risks_and_mitigations": [
+          {
+            "risk": "Full frontend Vitest run is green but stderr contains unrelated pre-existing warnings.",
+            "mitigation": "Do not treat warning-clean output as proven for MT-247; validator should track warning cleanup separately if needed."
+          },
+          {
+            "risk": "Rust backend test compiles with many pre-existing warnings.",
+            "mitigation": "The MT-247 dependency unblock fixed the blocking compile error only; warning cleanup is outside this closure unit."
+          },
+          {
+            "risk": "The Playwright proof is an offline harness rather than a full live app navigation through a running backend.",
+            "mitigation": "Frontend unit tests prove the component behavior, backend PostgreSQL test proves the real history endpoint, and offline Playwright proves real Monaco rendering with network isolation; validator can add a full live-app smoke if desired."
+          },
+          {
+            "risk": "Narrow rustfmt check on postgres.rs reports pre-existing file-wide formatting/import-order drift.",
+            "mitigation": "Do not auto-rustfmt the large dirty file as part of MT-247; the backend API test compiles and passes after the QueryBuilder import unblock. Validator can schedule a separate Rust formatting cleanup."
+          }
+        ],
+        "validation_needed_next": [
+          "Validator should rerun the listed focused frontend, Playwright, and backend commands from a clean session.",
+          "Validator should inspect the saved Playwright screenshot and confirm the prose row plus Monaco code diff are visible/readable.",
+          "Validator should keep lifecycle status out of PASS until independent validation completes."
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260615-MT247",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

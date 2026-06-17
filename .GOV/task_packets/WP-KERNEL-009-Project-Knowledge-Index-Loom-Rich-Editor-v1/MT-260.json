@@ -84,17 +84,22 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177",
       "MT-182"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "bdb688eb",
+    "evidence": [
+      "commit bdb688eb on feat/WP-KERNEL-009 (17 files, +3505, migration 0333_loom_ai_suggestions), zero .GOV",
+      "runtime proof: 8 real-PG tests PASS (344s) — auto-tag/auto-caption/link-suggest jobs land ALL suggestions as PENDING kernel-event-backed proposals; accept promotes to a real loom_edge/derived field + receipt; reject discards leaving authority untouched; no-model declines typed (no fabrication); vitest 5; tsc/eslint clean; offline Playwright 4 PASS (pending->accept promotes; reject removes pending authority untouched)",
+      "confirm-to-promote enforced end-to-end (operator/validator gate; accept-all runs per-item authority, no bulk bypass)",
+      "adversarial review caught 7 blockers incl. a migration-0333 schema-registry prefix-constraint violation that was failing ALL real-PG tests at setup; harden fixed every one; remaining_gaps: none"
+    ]
   },
   "handoff": {
     "coder_session": null,

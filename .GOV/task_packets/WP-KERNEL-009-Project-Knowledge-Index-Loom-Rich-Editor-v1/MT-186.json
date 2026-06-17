@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-186-GraphSearchAndFilters",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T21:33:11.562Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-186.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,17 +79,95 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-200747",
+    "completed_by": null,
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T21:33:11.562Z",
+        "kind": "implementation",
+        "summary": "Implemented MT-186 backend graph search over Loom blocks, ProjectKnowledgeIndex entities, and UserManual pages while preserving the legacy block-only /workspaces/:workspace_id/loom/search API. The heterogeneous surface is explicit at /workspaces/:workspace_id/loom/graph-search and storage.search_loom_graph.",
+        "files_changed": [
+          "src/backend/handshake_core/Cargo.toml - registered loom_graph_search_filters_tests target",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomSearchSourceKind, source_kinds filter, LoomSearchResultKind, LoomGraphSearchResult",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::search_loom_graph",
+          "src/backend/handshake_core/src/storage/postgres.rs - real PostgreSQL graph search across loom_blocks, knowledge_entities, user_manual_pages, and user_manual_sections; literal LIKE escaping; offset-aware source prefetch; block-scoped filter handling",
+          "src/backend/handshake_core/src/api/loom.rs - legacy /loom/search restored to block-only; new /loom/graph-search route added for heterogeneous graph search; existing LoomSearchExecuted telemetry preserved",
+          "src/backend/handshake_core/tests/loom_graph_search_filters_tests.rs - fail-closed real-PostgreSQL MT-186 proof for heterogeneous hits, source_kind filtering, literal wildcard behavior, offset pagination, and block-filter leakage prevention"
+        ],
+        "compatibility_shim": "Existing block-only storage search and /loom/search response shape remain intact. Heterogeneous non-block hits are only returned by search_loom_graph or /loom/graph-search."
+      },
+      {
+        "at_utc": "2026-06-14T21:33:11.562Z",
+        "kind": "test_proof",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_graph_search_filters_tests -- --nocapture && cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils,duckdb-flight-recorder --lib loom_search_backend_tier -- --nocapture && cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils,duckdb-flight-recorder --lib view_and_search_emit_events -- --nocapture && cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_pins_views_tests favorite_flag_survives_search_results -- --nocapture && rustfmt --edition 2021 --check --config skip_children=true <MT-186 Rust files>",
+        "result": "PASS: loom_graph_search_filters_tests 3 passed, 0 failed, 0 ignored, 0 skipped; API loom_search_backend_tier passed; API view_and_search_emit_events passed and asserts legacy /loom/search remains block-only; favorite_flag_survives_search_results passed; targeted rustfmt check passed.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/final-review-fix-mt186-graph-search-filters.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/review-fix-api-loom_search_backend_tier-duckdb-rerun.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/review-fix-api-view_and_search_emit_events-duckdb-rerun.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/final-regression-loom-block-search-favorite-flag.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/final-rustfmt-check-mt186-files.log"
+        ],
+        "postgre_sql_evidence": "The MT-186 integration target uses knowledge_pg_support against real Handshake-managed PostgreSQL and now panics if PostgreSQL is unavailable, so a skip cannot count as proof."
+      },
+      {
+        "at_utc": "2026-06-14T21:33:11.562Z",
+        "kind": "adversarial_review",
+        "summary": "Raman initial review returned FAIL for three blocking gaps: legacy /loom/search response compatibility, merged pagination, and block-scoped filter leakage into non-block graph hits. All findings were fixed with code changes and final proof commands passed.",
+        "reviewer": "Raman",
+        "review_agent_id": "019ec7ec-fa48-71b1-bdac-b691f8efe346",
+        "findings_closed": [
+          "/loom/search restored to Vec<LoomBlockSearchResult>; /loom/graph-search added for heterogeneous graph results.",
+          "search_loom_graph now fetches offset+limit rows per eligible source before merged pagination.",
+          "Block-scoped filters such as tag_ids, mention_ids, content_type, mime, and backlink_depth no longer return knowledge/UserManual hits that cannot satisfy those filters.",
+          "MT-186 real-PostgreSQL test now fails closed instead of silently passing without PostgreSQL."
+        ],
+        "state_recovery_recommendation": "Move MT-186 to READY_FOR_VALIDATION."
+      },
+      {
+        "at_utc": "2026-06-14T21:33:11.562Z",
+        "kind": "visual_debug_scope",
+        "summary": "No frontend GUI surface was changed for MT-186. The current closure is backend/storage/API graph search; validator-readable evidence is the real-PostgreSQL integration target plus API telemetry tests. Future UI consumption can bind to /loom/graph-search without changing the legacy /loom/search contract."
+      },
+      {
+        "at_utc": "2026-06-14T21:31:34.792Z",
+        "kind": "KB_READY_CHECKLIST_RECEIPT",
+        "summary": "KB ready checklist PASS emitted before READY_FOR_VALIDATION handoff.",
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "receipt_verdict": "PASS",
+        "blockers": []
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-14T21:33:11.562Z",
+      "reviewer": "Raman",
+      "review_agent_id": "019ec7ec-fa48-71b1-bdac-b691f8efe346",
+      "findings": [
+        "Initial FAIL: /loom/search returned heterogeneous graph results by default and could break block-only clients.",
+        "Initial FAIL: search_loom_graph applied offset after fetching only limit rows per source.",
+        "Initial FAIL: block-scoped filters did not constrain knowledge/UserManual graph hits.",
+        "Initial MEDIUM: MT-186 PostgreSQL proof could silently pass when PostgreSQL was unavailable."
+      ],
+      "fixes": [
+        "Restored legacy /loom/search to block-only and added explicit /loom/graph-search for heterogeneous results.",
+        "Prefetch offset+limit rows per source before merged pagination.",
+        "Treat block-scoped filters as block-only until other source kinds can satisfy them.",
+        "Changed MT-186 integration tests to panic when real PostgreSQL is unavailable."
+      ],
+      "verdict": "PASS_AFTER_FIXES",
+      "state_recovery_recommendation": "Move MT-186 to READY_FOR_VALIDATION."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-200747",
+    "ready_for_validation_at_utc": "2026-06-14T21:33:11.562Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-200747",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

@@ -785,5 +785,95 @@
       "title": "Workbench shell backlog (iteration 4 candidates): outline panel, status bar, split/tabs, diff view, settings/keybindings/themes UI, draft recovery surface"
     }
   ],
-  "zero_product_edits_confirmation": "Reviewer made NO edits, commits, or new files in the product worktree (wtc-kernel-009). Writes were limited to .GOV MT JSONs (lifecycle.adversarial_review_v2) and this reference artifact in the governance worktree."
+  "zero_product_edits_confirmation": "Reviewer made NO edits, commits, or new files in the product worktree (wtc-kernel-009). Writes were limited to .GOV MT JSONs (lifecycle.adversarial_review_v2) and this reference artifact in the governance worktree.",
+  "iteration3_closure": {
+    "at_utc": "2026-06-12T15:40:00Z",
+    "executor": "KERNEL_BUILDER editor iteration-3 hardening delegate",
+    "branch": "feat/WP-KERNEL-009 (wtc-kernel-009)",
+    "suites_after": {
+      "vitest": "68 files / 570 tests PASS, ZERO unhandled errors (baseline at start of iteration-3: 65/513 green + 2 uncaught jsdom errors reproducible in directory-scoped runs)",
+      "playwright_dependency_lane": "13/13 PASS offline (was 6): +rich_editor_typing.spec.ts (6 real-typing cases incl. per-keystroke caret asserts, Monaco typing+language-switch hash with independent in-spec FNV, chord containment, real-ClipboardEvent paste, CDP IME composition, Escape exit) +schema re-hydration asserts in rich_editor_roundtrip"
+    },
+    "highs": {
+      "H1": {
+        "status": "FIXED",
+        "commit": "b4e95476",
+        "proof": "RED on HEAD (caret 6->13) then GREEN; browser per-keystroke caret test"
+      },
+      "H2": {
+        "status": "FIXED",
+        "commit": "6e48aa6b",
+        "proof": "read-only + save-block + destructive-save negative test"
+      },
+      "H3": {
+        "status": "FIXED",
+        "commit": "b4e95476",
+        "proof": "PM-level containment plugin + DOM guards; jsdom + real-Monaco browser tests"
+      },
+      "H4": {
+        "status": "FIXED",
+        "commit": "92c484be",
+        "proof": "RED via stash-run (ts-hash for json content) then GREEN; browser language-switch hash verified by independent FNV"
+      },
+      "H5": {
+        "status": "FIXED",
+        "commit": "9c7a19b3",
+        "proof": "dirty-generation + snapshot panel + beforeunload/doc-switch tests"
+      },
+      "H6": {
+        "status": "FIXED",
+        "commit": "3ae8ecdd",
+        "proof": "PM handlePaste plugin driven via view.someProp + real-ClipboardEvent browser paste; mixed prose preserved"
+      },
+      "H7": {
+        "status": "FIXED",
+        "commit": "7f8c9f34",
+        "proof": "getSchema->nodeFromJSON->check() re-hydration; immediately caught the harness's invalid inline-hsLink-under-doc content the tautology masked"
+      },
+      "H8": {
+        "status": "FIXED",
+        "commit": "7f8c9f34",
+        "proof": "rich_editor_typing.spec.ts; IME residue documented in-spec (multi-segment candidate windows not emulatable over CDP)"
+      }
+    },
+    "mediums": {
+      "M1": "FIXED 2949bc87",
+      "M2": "DEFERRED (auto-persist of migrated content is an unrequested write; ladder still empty; H2 fail-closed guards meanwhile)",
+      "M3": "PARTIALLY_FIXED 2949bc87+5ca8355d (commands classify via shared rules; unknown kinds can never claim resolved; backend verification pass -> MT-249)",
+      "M4": "FIXED 3ae8ecdd",
+      "M5": "FIXED 5c34e798",
+      "M6": "FIXED ddab11ee",
+      "M7": "FIXED 5c34e798 (ownership contract)",
+      "M8": "DEFERRED per orders (fixlist 14 skipped; MT-249 scope)",
+      "M9": "FIXED 92c484be",
+      "M10": "FIXED 92c484be",
+      "M11": "FIXED 2949bc87",
+      "M12": "FIXED ddab11ee",
+      "M13": "FIXED ddab11ee",
+      "M14": "MITIGATED 701904be (computes only for subscribers - none in product; coalesced; incremental offsets -> collab transport lane)",
+      "M15": "FIXED 701904be",
+      "M16": "FIXED ddab11ee",
+      "M17": "FIXED ddab11ee",
+      "M18": "FIXED ce5eb4d6",
+      "M19": "FIXED 7f8c9f34"
+    },
+    "lows_addressed": {
+      "L3": "FIXED 5ca8355d",
+      "L6": "DEFERRED with design rationale (attr writes are the persistence bridge)",
+      "L7": "FIXED 679c8d4a",
+      "L11": "FIXED 7f8c9f34 (root cause: the hash separator was a LITERAL NUL byte in source that every reader rendered as a space - now the explicit escape, hashes unchanged)",
+      "L12": "FIXED 2949bc87",
+      "L13": "FIXED 2949bc87",
+      "L14": "FIXED 2949bc87",
+      "L15": "FIXED b4e95476",
+      "L16": "FIXED ddab11ee",
+      "L25": "FIXED 296b8591 (jsdom Range rect polyfills; both uncaught errors gone)"
+    },
+    "extras_landed": "EXT-SAVE-001 Mod-s (global from code blocks) + palette save; EXT-NAV-LINK-001 hs:link-navigate intent contract; EXT-UNDO browser smoke; latent fixes found en route: Mod-b/i/e double-dispatch, StarterKit Mod-Alt-c chord conflict, invalid harness doc, NUL-separator landmine",
+    "skipped_per_orders": [
+      "fixlist 14 code-intel bridge (MT-249)",
+      "fixlist 17 workbench shell backlog (MT-245/246/248)"
+    ],
+    "lane_compliance": "14 commits, app/** + tests/dependency_policy/** only; zero cargo; zero src/backend edits"
+  }
 }

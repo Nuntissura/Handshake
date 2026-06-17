@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-110-CodeContextBundleBridge",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-14T08:16:29.280Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-110.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -88,7 +88,7 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
     "adversarial_code_review": {
       "verdict": "HARDEN_RECOMMENDED",
       "reviewed_at_utc": "2026-06-11T18:31:00Z",
@@ -112,12 +112,31 @@
         "delegate tests: token estimate determinism + cited-neighbor json (logic-only, no large-fanout test)"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T20:45:29.357Z",
-      "severity": "MEDIUM_DEFERRED",
-      "reason": "context-bundle fetches all references edges before budget (unbounded WORK).",
-      "disposition": "Deferred by CodeIndexing-hardening agent (budget); queued for a consolidated backend-cleanup pass. Not blocking - none are HIGH/correctness; core code-index works."
-    }
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "reviewer": "Bacon / 019ec472-525b-75e3-a385-abc74d9dd3b5",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "EventLedger JSONB-normalization idempotency blocker fixed; prior medium concerns classified as non-blocking follow-up for readiness.",
+      "evidence": [
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests -- --test-threads=1: PASS, 22 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils knowledge_code_index:: --lib: PASS, 82 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests -- --test-threads=1: PASS, 2 passed",
+        "MT-109 exact prior blocker stress: PASS 25/25 consecutive runs"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-14T08:16:29.280Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "commit": "working-tree",
+      "note": "Closed for READY_FOR_VALIDATION. Prior HARDEN_RECOMMENDED concerns remain recorded in adversarial_code_review and are non-blocking follow-up."
+    },
+    "evidence": [
+      "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
+      "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
+      "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
+    ]
   },
   "handoff": {
     "coder_session": null,

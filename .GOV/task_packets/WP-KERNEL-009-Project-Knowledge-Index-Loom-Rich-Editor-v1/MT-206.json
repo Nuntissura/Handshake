@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-206-UserManualStateRecoveryGuide",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T18:37:30Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-206.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,56 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
+    "ready_for_validation_reason": "State recovery guide is seeded and verified for compaction, interrupted MTs, failed builds, and validation reentry; proof and adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "implementation",
+        "summary": "Seeded state-recovery-guide page covers session compaction, interrupted microtasks, failed builds, validation reentry, receipt/DB state, and restartable no-context model use.",
+        "files_changed": [
+          "src/backend/handshake_core/src/user_manual/seed.rs",
+          "src/backend/handshake_core/tests/user_manual_content_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "test_proof",
+        "summary": "MT-206 targeted content test passed against real PostgreSQL: seeded state-recovery-guide covers session compaction, interrupted MTs, failed builds, and validation reentry.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt206-state-recovery-proof.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:36:48.000Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-206"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Heisenberg read-only adversarial review returned PASS for MT-206; review noted this is content coverage, not semantic proof of every recovery instruction.",
+        "evidence_refs": [
+          "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

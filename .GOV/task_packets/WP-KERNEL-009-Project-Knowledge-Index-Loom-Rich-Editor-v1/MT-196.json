@@ -80,14 +80,49 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Purpose/workflow corpus seeded as PostgreSQL authority rows (src/user_manual/seed.rs): handshake-product-purpose (product + authority model + unified-work-surface law 7.1.1.9), core-workflows (index / code-nav / rich-doc author / Notes / retrieval / manual operation - each step a real route), startup-and-run-commands (verified run command 'cargo run -p handshake_core --bin handshake_core --features app-runtime', bind 127.0.0.1:37501, / + /api mounts, /health probe, managed PG 5544 + Handshake_Artifacts/managed_pgdata, scoped test commands), backend-navigation-and-identity (x-hsk-* header contract incl. which groups REQUIRE headers vs anonymous bootstrap surfaces, route namespace map, machine-readable header JSON), permissions-and-safety, manual-toc (the navigation root), kernel-write-governance (kernel002 manual imported deterministically per UMMIG-002). Tests GREEN on real PG: user_manual_content_tests::mt196_kernel002_manual_topics_are_seeded_as_pages (every kernel002 topic + every instruction line verbatim in the seeded page), mt196_documented_startup_constants_match_product_source (documented 37501/5544/managed_pgdata/'/api' nest pinned against src/main.rs + src/managed_postgres.rs - changing the product forces the manual update), lib seed tests (toc_links_every_page_and_every_page_is_reachable: BFS proves every page reachable from manual-toc; no dangling page_link).",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "Startup-claim verifiability: a test cannot bind main's hardcoded production listener, so runtime introspection of 37501 is impossible from the suite -> consistency test pins the documented constants against the product SOURCE files instead and the declaration is recorded in the test doc-comment (honest scope: source-pinned, not socket-proven; the /health probe path is documented for live verification).",
+        "Identity-stance accuracy: documents API defaults absent actor-kind to least-privileged unauthenticated while code-nav defaults to system - the navigation page documents the contract per surface group instead of one false generalization."
+      ],
+      "residual_risks": [
+        "Workflow prose could drift semantically even when routes still exist; mitigations: every named route is anchor-joined (freshness) + runtime-probed (mtdoc), and MT-204 stale_content verdicts fire on any seed change without resync."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    }
   },
   "handoff": {
     "coder_session": null,

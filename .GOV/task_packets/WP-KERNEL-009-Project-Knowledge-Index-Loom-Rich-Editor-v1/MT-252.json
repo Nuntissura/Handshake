@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-252-IntegratedTerminal",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-16T15:02:46Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-252.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -84,16 +84,104 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T06:59:04Z",
+        "type": "implementation_progress",
+        "summary": "MT-252 product work advanced in wtc-kernel-009: added terminal EventLedger mirror diagnostics, one-shot command success/timeout proofs, concurrent PTY isolation proof, and a real-xterm Chromium visual harness proving scrollback render plus typed/pasted stdin forwarding only when interactive. Not READY_FOR_VALIDATION yet because the contract's real-PostgreSQL EventLedger acceptance proof could not run with POSTGRES_TEST_URL unset.",
+        "validation": [
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --lib terminal::runtime::tests:: => 14 passed",
+          "cargo test --manifest-path app/src-tauri/Cargo.toml commands::terminal::tests:: => 4 passed",
+          "pnpm exec vitest run src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.test.tsx => 32 passed",
+          "pnpm exec playwright test ../tests/visual/terminal-panel.spec.ts ../tests/visual/terminal-view.spec.ts => 12 passed",
+          "rustfmt scoped checks and git diff --check completed; only Git LF-to-CRLF warnings remained"
+        ],
+        "blocked": [
+          "POSTGRES_TEST_URL unset, so src/backend/handshake_core/tests/terminal_event_ledger_tests.rs real-PG EventLedger receipt proof remains unexecuted"
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T07:31:43Z",
+        "type": "environment_blocked",
+        "summary": "Rechecked MT-252 real-PostgreSQL proof path before moving to MT-250. POSTGRES_TEST_URL remained unset, Docker CLI was installed but Docker Desktop Linux engine was unreachable, and 127.0.0.1:65432 was closed. MT-252 remains IN_PROGRESS but is no longer the active local closure unit until a reachable PostgreSQL test URL is available.",
+        "validation": [
+          "docker ps --format ... failed because npipe:////./pipe/dockerDesktopLinuxEngine was unavailable",
+          "TcpClient probe 127.0.0.1:65432 => Connected=false",
+          "src/backend/handshake_core/src/storage/tests.rs confirms postgres_backend_from_env requires POSTGRES_TEST_URL"
+        ],
+        "blocked": [
+          "Real-PG EventLedger receipt proof remains unexecuted until POSTGRES_TEST_URL points to a reachable PostgreSQL database"
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T11:03:05Z",
+        "type": "implementation_progress",
+        "summary": "Adversarial review found two MT-252 gaps after the initial implementation: real pre-authorization AiJob INTERACTIVE payloads collapsed interactiveAllowed to false, making Take-control unreachable, and exited HumanDev sessions still rendered as writable. Fixed in wtc-kernel-009 by separating request-capable interactive PTYs from interactiveAuthorized, emitting explicit Tauri interactiveAllowed, normalizing TS sessions from kind/exited state, forcing exited sessions read-only in TerminalPanel, and rejecting authorizeInteractive for capture sessions.",
+        "adversarial_review": [
+          "019ed005-fb03-75c0-a83c-39432f23edd6 reported producer/consumer shape drift between SessionInfoIpc.interactiveAuthorized and TerminalPanel.interactiveAllowed gating.",
+          "019ed005-fb03-75c0-a83c-39432f23edd6 reported exited HumanDev sessions still rendered with interactive badge/readOnly=false."
+        ],
+        "validation": [
+          "pnpm exec vitest run src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.test.tsx --testNamePattern \"Take-control reachable|exited HumanDev|AiJob tab READ-ONLY|authorization fails\" => 4 passed",
+          "pnpm exec vitest run src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.test.tsx => 36 passed",
+          "pnpm exec eslint src/lib/ipc/terminal.ts src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.tsx src/components/terminal/TerminalPanel.test.tsx src/components/terminal/terminal_panel_visual_harness.tsx src/components/swarm/swarm_board_visual_harness.tsx => passed",
+          "pnpm exec tsc --noEmit => passed",
+          "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --lib --message-format short => passed with existing warnings",
+          "cargo check --manifest-path app/src-tauri/Cargo.toml --message-format short => passed with existing warnings",
+          "pnpm exec playwright test ../tests/visual/terminal-panel.spec.ts ../tests/visual/terminal-view.spec.ts => 12 passed",
+          "git diff --check -- scoped MT-252 terminal files => passed; Git LF-to-CRLF warnings only"
+        ],
+        "blocked": [
+          "cargo test --manifest-path app/src-tauri/Cargo.toml session_info_ipc_keeps_interactive_ai_take_control_reachable_before_authorization -- --exact --nocapture timed out after 240s; no Rust unit-test verdict claimed",
+          "POSTGRES_TEST_URL remains unavailable, so the real-PostgreSQL EventLedger receipt proof remains unexecuted"
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T14:53:49Z",
+        "type": "implementation_progress_validation",
+        "summary": "Closed stale no-verdict MT-252 non-PG terminal IPC proof: reran the Tauri session_info test and it passed; reran terminal frontend/unit/visual proof; EventLedger PG proof was attempted and failed only because POSTGRES_TEST_URL is unset. MT-252 remains IN_PROGRESS, not READY_FOR_VALIDATION or PASS.",
+        "validation": [
+          "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --lib commands::terminal::tests::session_info_ipc_keeps_interactive_ai_take_control_reachable_before_authorization -- --exact --nocapture => 1 passed, 262 filtered out, existing warnings",
+          "pnpm exec vitest run src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.test.tsx => 36 passed, existing jsdom canvas getContext warning",
+          "pnpm exec playwright test ../tests/visual/terminal-panel.spec.ts ../tests/visual/terminal-view.spec.ts => 12 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test terminal_event_ledger_tests terminal_capture_session_receipts_land_in_postgres_event_ledger -- --ignored --exact --nocapture => FAILED: ENVIRONMENT_BLOCKED because POSTGRES_TEST_URL is unset"
+        ],
+        "blocked": [
+          "Real-PG EventLedger receipt proof remains unexecuted until POSTGRES_TEST_URL points to a reachable PostgreSQL database; do not move MT-252 to READY_FOR_VALIDATION/PASS without that exact proof."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T15:02:46Z",
+        "type": "ready_for_validation",
+        "summary": "Promoted MT-252 to READY_FOR_VALIDATION after closing the remaining real-PostgreSQL EventLedger proof gap with an isolated local PostgreSQL cluster. Terminal runtime, Tauri IPC, frontend/unit, visual, and TypeScript checks have fresh passing evidence; status is not PASS and still requires validator review.",
+        "validation": [
+          "Started isolated PostgreSQL 16 cluster under D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-009-pgdata-terminal-20260616-165650, created handshake_test, set POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:54336/handshake_test only inside the test process, and stopped the cluster after the run.",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test terminal_event_ledger_tests terminal_capture_session_receipts_land_in_postgres_event_ledger -- --ignored --exact --nocapture => 1 passed; terminal_session EventLedger open/command/close receipts replayed from PostgreSQL; existing warnings only",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --lib terminal:: -- --nocapture => 33 passed, 1843 filtered out; covers PTY echo/stdin round-trip, concurrent isolated scrollback, lifecycle receipts, capture read-only behavior, and close/reap behavior; existing warnings only",
+          "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --lib commands::terminal::tests:: -- --nocapture => 7 passed, 256 filtered out; covers one-shot command success/timeout session reclaim, diagnostics, exit state, interactive authorization shape, and capture non-interactivity; existing warnings only",
+          "pnpm exec vitest run src/lib/ipc/terminal.test.ts src/components/terminal/TerminalPanel.test.tsx => 36 passed, existing jsdom canvas getContext warning",
+          "pnpm exec playwright test ../tests/visual/terminal-panel.spec.ts ../tests/visual/terminal-view.spec.ts => 12 passed",
+          "pnpm exec tsc --noEmit => passed"
+        ],
+        "adversarial_review": [
+          "Prior MT-252 adversarial findings on interactiveAllowed producer/consumer drift and writable exited sessions were fixed before this promotion and revalidated in the Tauri IPC plus frontend tests."
+        ],
+        "risks": [
+          "The PostgreSQL cluster was an isolated local validation cluster, not a long-lived operator service. Validator should rerun the same ignored EventLedger test with their own reachable POSTGRES_TEST_URL before marking PASS."
+        ],
+        "blocked": []
+      }
+    ]
   },
   "handoff": {
     "coder_session": null,

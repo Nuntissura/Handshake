@@ -80,14 +80,49 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Build-update rule implemented as a three-layer enforcement substrate over src/user_manual/registry.rs (99 typed SurfaceDescriptor rows = the declared WP-009 surface inventory: ingestion 6, code-nav 6, documents 16, retrieval 5, memory 5, crdt 3, Notes/Loom 43 incl. the POST /workspaces prerequisite, usermanual 16): (1) COMPILE-TIME gate - lib test user_manual::seed::tests::every_registry_surface_is_anchor_covered_in_the_corpus fails the build when a registry surface lacks an http_route anchor in the seed corpus (spec 10.15.8: coverage in the same implementation unit); (2) DB gate - user_manual_storage_tests::mt195_every_registry_surface_has_db_coverage proves every surface has anchor + tool-entry rows in seeded PostgreSQL; (3) RUNTIME gate - user_manual_api_tests::mtdoc_every_registry_surface_exists_on_the_real_router probes all 99 documented (method,route) pairs against the REAL full api::routes router (405 or bare router-404 fails). Negative proof the gate can fire: mt195_uncovered_surface_detection_fires (delete a route anchor -> freshness uncovered_surface verdict -> reseed heals). RED-then-GREEN evidence: the compile-time gate FAILED on first run (code-nav anchors missing from knowledge-index-surface) and was fixed by adding the anchors - the rule provably blocks uncovered surfaces. New-surface law documented in registry.rs module docs: a later group lands its SurfaceDescriptor + seed coverage in the same unit or the suite is RED.",
+    "adversarial_code_review": {
+      "verdict": "PASS_AFTER_FIXES",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "Gate fired RED on first run: /knowledge/code/* anchors missing from the knowledge-index page (sections documented them but anchors were not emitted) -> group_route_anchors(CodeNavigation) added; this is also the MT-112 closure path.",
+        "Direction-coverage gap: registry->anchor only catches uncovered surfaces; an anchor documenting a REMOVED surface needed the inverse check -> dangling_anchor verdict in freshness + the runtime router probe close it (caught the undeclared POST /workspaces anchor; fixed by declaring the prerequisite surface)."
+      ],
+      "residual_risks": [
+        "Axum routers cannot be introspected, so a route mounted but ABSENT from the registry is not auto-detected; mitigation: the registry is the declared build-rule surface (spec 10.15.8 makes the declaring MT responsible), and the parity gate (DEC-006) audits inventory externally."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    }
   },
   "handoff": {
     "coder_session": null,

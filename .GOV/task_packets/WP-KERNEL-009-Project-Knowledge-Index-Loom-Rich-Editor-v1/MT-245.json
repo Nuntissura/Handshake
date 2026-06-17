@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-245-EditorWorkbenchChrome",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-13T19:54:21.902Z",
+  "updated_at_utc": "2026-06-14T03:09:36.399Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-245.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -75,16 +75,22 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
-    "claimed_by": "KERNEL_BUILDER-20260613-MT245",
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "ec95bac9",
+    "implementation_worktree": "wtc-kernel-009",
+    "evidence": [
+      "RE-IMPLEMENTED on feat/WP-KERNEL-009 (commit ec95bac9, 16 files app/+tests, zero .GOV). NOTE: the prior wtc-kernel-009-mt245 attempt was orphaned/uncommitted and NEVER integrated or runtime-proven (its self-set completed_by + rich_editor_roundtrip evidence were false); its cherry-pick fold conflicted with the 7 editor MTs, so the chrome was rebuilt fresh on the current tree, integrated with transclusion/Monaco-debug-gutter/source-control.",
+      "runtime proof: offline Playwright tests/dependency_policy/editor_workbench_chrome.spec.ts PASS (1 test, real browser, network cut, PNG captured + verified 1280x868) proving all 5 parity rows function: ED-NAV-004 outline (live heading tree + click-to-scroll moving the real selection); ED-WB-007 status bar (live word count, focused Monaco code-block language, authority dirty->saved); ED-NAV-006 go-to-line (out-of-range -> typed visible error); EXT-SAVE-001 Mod-s -> onSaveRequested (save count + state flip); EXT-NAV-LINK-001 (resolvable wp link -> kind:wp no error; unresolvable -> typed visible error)",
+      "EXT-NAV-LINK-001 resolution extracted into a pure exported resolveHsLinkTarget() (link_navigation.ts) called by BOTH App.tsx and the harness, so the browser proof exercises the real code (not a copy); link_navigation.test.ts (4) + editor_chrome.test.ts (4) cover it; vitest 13 PASS total; tsc clean; eslint clean over the 16 MT-245 files; check:portable-artifacts PASS 6/6 (no two-'..' artifact-root overreach reintroduced)",
+      "VALIDATION CAVEAT: the offline EXT-NAV-LINK-001 proof asserts typed-target resolution + the typed-error path, not the full in-app pane-focus (needs the live backend; App.tsx uses the same resolveHsLinkTarget, covered by the App vitest suite). Pre-existing act() warnings + unrelated pre-existing eslint errors elsewhere in app/ are out of MT-245 scope."
+    ]
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-MT245",

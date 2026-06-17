@@ -83,17 +83,23 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177",
       "MT-183"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "1baf2a77",
+    "evidence": [
+      "commit 1baf2a77 on feat/WP-KERNEL-009 (migration 0332_media_asset_tiers), zero .GOV",
+      "runtime proof: 6 real-PG tests PASS (254.82s) incl. mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers (drives the REAL run_loom_preview_generate_job via create_job + start_workflow_for_job against live PG -> thumb+preview+full tier rows; thumb/preview point at DERIVED assets, full at original; LoomPreviewGenerated receipt carries per-tier array) and mt259_http_retry_endpoint_requeues_failed_tier; vitest 32 PASS (tier URLs + collection list-source routing); tsc + eslint clean; offline Playwright 3 PASS (album grid tier=thumb from backend collection -> full on click; video Range-capable src + poster slot)",
+      "GAP-LM-244a closed: album/slideshow is now a real backend collection list-source (collection: ref -> backend ordered members), not a frontend refValue comma-split; GAP-LM-009b closed: Range-capable asset content endpoint (206/Content-Range/416)",
+      "adversarial review (5+5 blockers) forced the job-exec proof + retry test; harden added them",
+      "VALIDATION CAVEAT (intentional, documented deviation): video POSTER-frame generation is an honest `failed` tier routed to the visible retry queue (no video decoder bundled) — NOT a fake poster; full video serves byte-exact via the Range endpoint; a real poster needs a lockfile-pinned native decoder in a follow-up MT"
+    ]
   },
   "handoff": {
     "coder_session": null,

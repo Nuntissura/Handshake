@@ -80,17 +80,23 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-183",
       "MT-182"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "045929c5",
+    "evidence": [
+      "commit 045929c5 on feat/WP-KERNEL-009 (migration 0335_loom_block_collection_views), zero .GOV; adversarial review 3/3 PASS, no blockers",
+      "runtime proof: 5 real-PG tests PASS — view_def block round-trips (content_type='view_def' + bridge row + EventLedger receipt); table sort correct across a PAGE BOUNDARY (proves SQL-side, not client-side over a partial page); Kanban drag performs a REAL field/tag mutation persisted to PG with LoomEdgeCreated/Deleted/LoomBlockUpdated receipts + fresh backend read; calendar buckets by real journal_date with date filter applied in SQL",
+      "vitest 3 (header-click sort persists via updateBlockView + re-queries the backend /results, not client state); offline Playwright 3 projects PASS (1280-light/390-dark/1024-nl) against a real PG-backed fixture; tsc + eslint clean",
+      "saved view IS a typed LoomBlock(content_type='view_def') with a dedicated view_definition_json column (migration 0335 + paired replay-safe .down + CHECK tying the column to view_def blocks); all reads from the real Loom query backend; mutations route through normal block update paths",
+      "remaining_gaps: none"
+    ]
   },
   "handoff": {
     "coder_session": null,

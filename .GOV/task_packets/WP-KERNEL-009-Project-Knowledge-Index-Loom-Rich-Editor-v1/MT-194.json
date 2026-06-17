@@ -80,14 +80,50 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Migration 0310_user_manual.sql (+down): user_manual_pages (slug-keyed UserManualRecord rows, sha256 content_hash CHECK, page_kind/audience/status CHECKs, ledger_event_id FK kernel_event_ledger), user_manual_sections (typed ordered sections, UNIQUE(page_id,position)), user_manual_anchors (http_route/tauri_command/ipc_channel/cli_command/spec_anchor/test/event_type/primitive/page_link joins to real surfaces), user_manual_tool_entries, user_manual_feature_entries, user_manual_versions (seed hash + counts + receipt), user_manual_legacy_aliases. Store (src/user_manual/store.rs): race-safe ON CONFLICT(slug) page upsert with content-hash + child-count short-circuit, transactional section/anchor replace, bounded reads (LIST_CAP 500), LIKE-escaped search, KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED receipts via append_kernel_event. Tests GREEN on real PG (isolated schema, full migration chain): user_manual_storage_tests 9 passed - mt194_migration_0310_creates_user_manual_tables (information_schema proof of all 7 tables), mt194_seed_is_idempotent_and_receipted (first seed = 25 page receipts + 1 corpus receipt in kernel_event_ledger; re-seed = 0 pages changed, 0 new receipts), mt194_seed_records_version_metadata (version row hash==corpus_hash, receipt id resolves in ledger), mt194_sections_ordered_and_tampered_children_heal, mt194_search_is_bounded_and_literal, plus lib store tests (content_hash deterministic+sensitive, excerpt bounded). Migration number 0310 within the assigned 0310-0319 window (wiki agent owns 0300-0309; no collision).",
+    "adversarial_code_review": {
+      "verdict": "PASS_AFTER_FIXES",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "Tampered-children gap: hash-only short-circuit would never heal a page whose sections/anchors were deleted while the page row hash stayed intact -> upsert_page now also verifies stored child counts vs seed (deduped anchor expectation) before short-circuiting; proven by mt194_sections_ordered_and_tampered_children_heal (gut sections -> reseed restores).",
+        "Seeder race: two concurrent seeders (startup + tests / parallel lanes) could race a plain INSERT on slug -> rewritten as a single ON CONFLICT (slug) DO UPDATE ... RETURNING page_id (stable page ids, no unique-violation window).",
+        "LIKE-wildcard injection in search: % and _ in queries acted as patterns -> escaped; proven by mt194_search_is_bounded_and_literal ('%' returns fewer hits than the page count, literal semantics)."
+      ],
+      "residual_risks": [
+        "section_id values are regenerated on content change (replace-not-diff); cross-references use slugs + (kind,position) anchors, never section_ids, so churn is contained by design."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    }
   },
   "handoff": {
     "coder_session": null,

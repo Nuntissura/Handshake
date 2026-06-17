@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-258-NotesAuthoringConveniences",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-16T17:48:02Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-258.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -88,10 +88,17 @@
       "MT-183"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "f867ee59",
+    "evidence": [
+      "commit f867ee59 on feat/WP-KERNEL-009 (32 files, +2952/-51, zero .GOV files); worktree clean",
+      "real-PG runtime proof: loom_transclusion_tests 2/2 PASS (read-through resolves SOURCE, edit routes to source + version advances, HOST persists only the loomTransclusion atom node with no copied body); loom_pins_views_tests 7/7 PASS regression; block_tree 9/9 PASS (BlockKind::Transclusion no regression)",
+      "frontend proof: vitest 16 tests PASS (node NO-COPY roundtrip, NodeView read-through/edit-routes/unresolved/error, LoomBlockPanel tags); tsc --noEmit clean; eslint clean; offline Playwright loom-transclusion + loom-search-operators + loom-note-template 3 PASS (zero external network asserted)",
+      "harden pass closed the deferred search-bookmark deviation with REAL PG durability: migration 0330_workspace_search_bookmark_state.sql(+.down), PG-backed saved-search store (api/workspaces.rs, storage/mod.rs, storage/postgres.rs), WorkspaceSearchPanel migrated off localStorage; properties tag-edit via tag loom_edges in patch_loom_block",
+      "VALIDATION CAVEAT: transclusion resolution requires loom_blocks.document_id to share the legacy `documents` anchor with knowledge_rich_documents; import_markdown_to_loom currently leaves document_id NULL, so existing imported notes resolve as typed-unresolved (not blank) until a follow-up MT sets that anchor on note-block creation",
+      "consumed migration number 0330 (next free for downstream MTs is 0331+)"
+    ]
   },
   "handoff": {
     "coder_session": null,

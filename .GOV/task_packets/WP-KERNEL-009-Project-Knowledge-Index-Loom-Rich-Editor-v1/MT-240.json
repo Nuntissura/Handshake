@@ -81,14 +81,21 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": null,
+    "implementation_commit": "022657f6",
+    "evidence": [
+      "commit 022657f6 on feat/WP-KERNEL-009 (+457, one new test file wp009_integration_validator_evidence_pack_tests.rs), zero .GOV",
+      "runtime proof: real-PG test PASS (36.22s, genuinely executed — not the SKIP path) — assembles a typed JSON evidence index (fail-closed if any claimed proof-file is missing) and PROVES at runtime: fail-closed authority resolver rejects missing/SQLite (HBR-STOP-001/CX-503R); no-SQLite source tripwire + machine-local-path rejection of C:/, D:\\, /home, /tmp (HBR-STOP-002); live Loom visual-debug PG projection authority_backend=postgres_event_ledger (HBR-VIS-005); KNOWLEDGE_VALIDATION_RECORDED EventLedger receipt appended + re-read from PostgreSQL with matching payload_hash; all four hbr_focus rows durable across the round-trip",
+      "adversarial review (3 lenses; 2 initially FAILed on missing CAPTURED proof + a stray root test-results/) — harden re-ran and captured the real-PG PASS and removed the stray dir",
+      "VALIDATION CAVEAT: frontend pixel-level visual-debug screenshot lane (app/tests/visual Playwright) was NOT run (app/tests/visual is empty); this MT proves the BACKEND visual-debug projection from live PG and records the GUI-pixel half as a durable residual-risk note rather than overclaiming"
+    ]
   },
   "handoff": {
     "coder_session": null,

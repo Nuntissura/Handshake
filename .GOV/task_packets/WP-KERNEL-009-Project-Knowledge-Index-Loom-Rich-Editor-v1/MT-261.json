@@ -81,17 +81,22 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177",
       "MT-183"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "ff9295fe",
+    "evidence": [
+      "commit ff9295fe on feat/WP-KERNEL-009 (16 files, migration 0334_loom_canvas_board), zero .GOV",
+      "runtime proof: 7 real-PG tests PASS (227s); vitest 6 (live-preview reference-not-copy, remove-placement keeps source block, free-text-card IS a real note block, semantic edge appears in loom graph vs visual-only edge does NOT); tsc/eslint clean; offline Playwright 1 PASS (2.1m, real backend fixture mt261_loom_canvas_fixture on isolated PG schema)",
+      "canvas IS a typed LoomBlock(content_type=canvas); placements are FK block-id references (never content copies — proven by remove-placement + edit-source-reflects); semantic edges are real loom_edges (graph authority); visual-only edges are board-local decoration explicitly NOT graph authority; board viewport JSONB carries an EventLedger receipt; not conflated with the legacy Excalidraw sketch canvas",
+      "remaining_gaps: none"
+    ]
   },
   "handoff": {
     "coder_session": null,

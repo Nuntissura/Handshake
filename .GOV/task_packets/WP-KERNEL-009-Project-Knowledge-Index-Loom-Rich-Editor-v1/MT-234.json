@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-234-EditorVisualRegressionFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-15T01:21:41.625Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-234.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,65 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260615-002617",
+    "ready_for_validation_at_utc": "2026-06-15T01:21:41.625Z",
+    "completed_by": null,
+    "implementation_worktree": "wtc-kernel-009",
+    "evidence": [
+      {
+        "at_utc": "2026-06-15T01:21:41.625Z",
+        "kind": "implementation",
+        "summary": "MT-234 adds a production-built editor visual regression harness and Playwright visual fixture for the real RichTextEditor. The fixture covers editor text, toolbar/control overlays, resolved inline links, embed image/slideshow NodeViews, graph/backlink sidecar, UserManual link, narrow/desktop layout branching, loopback asset serving, same-origin HTTP failure detection, and screenshot quality gating.",
+        "files_changed": [
+          "app/vite.harness.config.ts",
+          "app/harness/editor-visual-regression.html",
+          "app/src/harness/editor_visual_regression_harness.tsx",
+          "tests/visual/editor_visual_regression.spec.ts"
+        ]
+      },
+      {
+        "at_utc": "2026-06-15T01:21:41.625Z",
+        "kind": "test_proof",
+        "summary": "RED first failed on the missing production-built harness artifact. GREEN proof passed after implementation and final hardening, including rebuilt dist-harness visual matrix, focused editor unit tests, dependency-policy regressions, lint, diff check, and ASCII check for new files.",
+        "commands": [
+          "RED: pnpm exec playwright test --config playwright.config.ts --project visual-normal-1280-light-en-US --grep \"MT-234\" -> failed missing dist-harness/harness/editor-visual-regression.html",
+          "pnpm run build:harness -> exit 0",
+          "pnpm exec playwright test --config playwright.config.ts --grep \"MT-234\" -> 3 passed",
+          "pnpm exec eslint src/harness/editor_visual_regression_harness.tsx -> exit 0",
+          "pnpm run test -- src/lib/editor/visual_debug.test.ts src/lib/editor/editor_commands.test.ts -> 17 passed",
+          "pnpm run test:dependency-policy -- rich_editor_roundtrip.spec.ts editor_embeds_export_find.spec.ts -> 5 passed",
+          "git diff --check MT-234 touched files -> exit 0",
+          "Select-String ASCII check on new MT-234 files -> no matches"
+        ]
+      },
+      {
+        "at_utc": "2026-06-15T01:21:41.625Z",
+        "kind": "adversarial_review",
+        "summary": "Initial adversarial review found narrow sidecar clipping, weak screenshot assertion, incomplete named-surface overlap coverage, and same-origin 404 gaps; all were hardened. Second review found raw-prefix origin filtering, first-link-only geometry coverage, and stale Monaco fixture CSS; all were fixed. Final read-only adversarial review PASS found no blocking false-pass path for origin isolation, editor links, embeds, sidecar panels, UserManual link, stale Monaco scope, or same-origin network failures.",
+        "evidence_refs": [
+          "adversarial-review:Kierkegaard:019ec8c1-0088-7500-a5f6-3a93df3ea70e:FAIL-closed-by-hardening",
+          "adversarial-review:Dewey:019ec8d1-9613-76d2-b0db-fedb3debee13:FAIL-closed-by-hardening",
+          "adversarial-review:Cicero:019ec8db-4150-73f3-996c-31d519b176f6:PASS"
+        ]
+      },
+      {
+        "at_utc": "2026-06-15T01:21:41.625Z",
+        "kind": "ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-234"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260615-002617",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-129",
@@ -88,7 +88,42 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Canonical user_manual module (src/user_manual/mod.rs) + machine-readable naming migration plan (src/user_manual/migration_plan.rs): 16 typed PlanRows (UMMIG-001..016) covering EVERY *model_manual* file in the crate (modules, kernel002 struct, atelier merge, Tauri commands, IPC channels, projections, generator binary, tests, MANUAL_VERSION constant) with phase (P1 canonical authority / P2 app rename / P3 file retirement), shim_state, owner lane, pinning test, and named blocker; 7 LegacyAlias rows mapping every legacy callable to its canonical /usermanual surface. Plan is runtime-discoverable (GET /usermanual/migration-plan) and seeded as user_manual_legacy_aliases authority rows. Tests GREEN on real PG: lib user_manual::migration_plan (3: plan_row_ids_are_unique_and_fields_populated, aliases_are_unique_and_carry_deprecation_notes, legacy_tauri_and_ipc_surfaces_each_have_an_alias) + user_manual_storage_tests::mt193_every_legacy_model_manual_file_is_plan_covered (recursive src/+tests/ file scan vs plan rows) + mt193_every_legacy_alias_resolves_to_canonical (every DB alias resolves to a registered route/stored page). Constraint honored: model_manual module untouched (app #[path]-include safety); legacy remains a declared deprecated shim with deterministic mapping per spec 10.15.8. HBR-MAN-001/002/003: naming + mapping + receipts law proven for the bridge; build-rule enforcement is MT-195.",
+    "adversarial_code_review": {
+      "verdict": "PASS_AFTER_FIXES",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "File-scan gate (RED first run) caught 3 legacy files the hand-written plan missed: src/kernel/dcc_kb003_model_manual_hints.rs, tests/atelier_model_manual_merge_tests.rs, tests/kernel_model_manual_tests.rs -> UMMIG-014/015/016 added; gate re-run GREEN. The gate provably fails on uncovered legacy surfaces.",
+        "Did NOT use #[deprecated] attributes on model_manual items: live consumers (kernel acceptance run, atelier merge, app include) would warn/deny-break; declared-deprecation lives in the typed plan + DB alias rows + bridge receipts instead, which spec 10.15.8 accepts (deterministic mapping + compatibility receipt)."
+      ],
+      "residual_risks": [
+        "P2 (Tauri command rename) and P3 (file retirement) are tracked plan rows owned by frontend/later-WP lanes; blockers are named per row, not silent."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    }
   },
   "handoff": {
     "coder_session": null,

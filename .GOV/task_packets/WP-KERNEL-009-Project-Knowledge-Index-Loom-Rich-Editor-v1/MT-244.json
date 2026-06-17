@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-244-EditorEmbedViewsSaveToFormatAndFindReplace",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-12T04:52:08.439Z",
+  "updated_at_utc": "2026-06-15T20:29:43.899Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-163",
@@ -90,7 +90,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
     "implementation_commit": "cbfc0c3b",
     "evidence": [
       {
@@ -333,6 +333,94 @@
             "[data-hs-asset-id]"
           ]
         }
+      },
+      {
+        "kind": "validation_recheck",
+        "at_utc": "2026-06-15T20:29:43.899Z",
+        "by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
+        "status": "PASS",
+        "product_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009",
+        "summary": "MT-244 revalidated after export/import hardening and full app lint unblock. Self-contained guarded media now fails closed without backend content URLs; album/slideshow export caps sequence fan-out before asset resolution; hsLink and Monaco imports consume data-hs-* fallback semantics; dependency-policy no_sqlite scanner drift is closed through shared scanner helpers.",
+        "files_changed_for_revalidation": [
+          "app/src/lib/editor/export_formats.ts",
+          "app/src/lib/editor/export_formats.test.ts",
+          "app/src/lib/tiptap/hs_link_node.ts",
+          "app/src/lib/tiptap/monaco_code_block_node.ts",
+          "app/scripts/check-dependency-policy.mjs",
+          "app/scripts/lib/dependency_policy_scans.mjs",
+          "app/scripts/lib/dependency_policy_scans.d.mts",
+          "app/src/lib/dependency_policy/no_sqlite_regression.test.ts",
+          "app/src/components/AtelierPanel.tsx",
+          "app/src/components/DependencyFailureBanner.tsx",
+          "app/src/components/TiptapEditor.tsx",
+          "app/src/components/inference_lab/ABCompare.tsx",
+          "app/src/components/inference_lab/CaaWizard.tsx",
+          "app/src/components/inference_lab/LoraStackComposer.test.tsx",
+          "app/src/components/inference_lab/SteeringVectorEditor.tsx",
+          "app/src/components/swarm/SwarmBoard.tsx",
+          "app/src/components/swarm/SwarmControlRoom.test.tsx",
+          "app/src/components/swarm/SwarmOperatorSurface.tsx",
+          "app/src/components/swarm/swarm_board_visual_harness.tsx",
+          "app/src/lib/dependency_policy/dependency_failure.ts",
+          "app/src/lib/dependency_policy/third_party_notices.test.ts"
+        ],
+        "commands": [
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/export_formats.test.ts --reporter=dot",
+            "result": "PASS: 1 file, 21 tests"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/embed_assets.test.ts src/components/HsLinkView.test.tsx src/lib/editor/export_formats.test.ts src/lib/editor/find_replace.test.ts src/components/FindReplacePanel.test.tsx src/lib/editor/editor_keymap.test.ts src/components/RichTextEditor.test.tsx --reporter=dot",
+            "result": "PASS: 7 files, 99 tests"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/dependency_policy/no_sqlite_regression.test.ts --reporter=dot",
+            "result": "PASS: 1 file, 5 tests"
+          },
+          {
+            "command": "node --check app/scripts/lib/dependency_policy_scans.mjs; node --check app/scripts/check-dependency-policy.mjs",
+            "result": "PASS: exit 0"
+          },
+          {
+            "command": "pnpm --dir app run lint",
+            "result": "PASS: full app ESLint clean"
+          },
+          {
+            "command": "pnpm --dir app exec tsc --noEmit",
+            "result": "PASS: exit 0"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run --reporter=dot",
+            "result": "PASS: 69 files, 665 tests"
+          },
+          {
+            "command": "HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts PLAYWRIGHT_BROWSERS_PATH=../Handshake_Artifacts/playwright-browsers pnpm --dir app exec playwright test ../tests/dependency_policy/editor_embeds_export_find.spec.ts --config playwright.dependency.config.ts",
+            "result": "PASS: 4 tests"
+          },
+          {
+            "command": "git diff --check -- <MT-244 revalidation touched files>",
+            "result": "PASS: whitespace clean; Git reported LF-to-CRLF warnings only"
+          }
+        ],
+        "adversarial_reviews": [
+          {
+            "reviewer": "multi_agent:Hilbert the 2nd:019eccda-dfe3-7272-a3be-24922b89a413",
+            "result": "PASS",
+            "summary": "No blocking MT-244 findings. Verified sequence cap before resolution, self-contained image/video fail-closed behavior, data-hs-* import fallbacks, and dependency-policy scanner refactor."
+          }
+        ],
+        "residual_risks": [
+          "Self-contained video exports now fail closed with a visible guard instead of emitting backend content URLs; this avoids URL leakage but means videos are not playable in standalone exports.",
+          "Full app ESLint was made clean by touching behavior-adjacent files outside the MT-244 surface; those edits were only to satisfy MT-244's full eslint acceptance gate."
+        ]
+      },
+      {
+        "kind": "lifecycle_decision",
+        "at_utc": "2026-06-15T20:29:43.899Z",
+        "by": "KERNEL_BUILDER-20260615",
+        "status_before": "READY_FOR_VALIDATION",
+        "status_after": "COMPLETED",
+        "decision": "MT-244 dependency is no longer blocking downstream MTs after fresh full-suite proof and independent adversarial PASS."
       }
     ],
     "adversarial_code_review": {
@@ -396,13 +484,15 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T04:52:08.439Z"
+    "ready_for_validation_at_utc": "2026-06-12T04:52:08.439Z",
+    "validated_by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
+    "validated_at_utc": "2026-06-15T20:29:43.899Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER frontend delegate session 2026-06-12 (MT-244)",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "multi_agent:Hilbert the 2nd:019eccda-dfe3-7272-a3be-24922b89a413"
   },
   "red_team": {
     "required": true,

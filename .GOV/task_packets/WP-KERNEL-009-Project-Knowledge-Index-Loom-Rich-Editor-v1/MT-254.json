@@ -84,16 +84,22 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-252"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "03f76dcf",
+    "evidence": [
+      "commit 03f76dcf on feat/WP-KERNEL-009 (live Node DAP debug session + GUI), zero .GOV",
+      "runtime proof: real node child under --inspect-brk breakpoint test PASS (15.12s, breakpoint verified by CDP, real Stopped/variables/step); durable per-doc breakpoints round-trip on real PG with KE- EventLedger receipts PASS (23.74s, migration 0331); live-session HTTP surface driven via curl (GET /debug/adapters -> node only [honesty gate], POST /debug/sessions -> paused, set breakpoint); offline Playwright PASS (1.2m) with REAL browser + REAL Monaco breakpoint gutter + REAL node debuggee + REAL PG; vitest 8 PASS; tsc + eslint clean",
+      "adversarial review caught a FICTIONAL claim (implement asserted 'driven through IPC kernel_dap_*' but those commands did not exist); harden then built the real IPC layer + DebugSidePanel + live session and proved it end-to-end",
+      "VALIDATION CAVEAT: breakpoint gutter ships in DebugSidePanel's own Monaco editor (operator-usable, runtime-proven); NOT yet wired into in-document MonacoCodeBlockView code blocks inside RichTextEditor (follow-up: thread breakpoint/session state through the Tiptap NodeView)",
+      "registry honesty gate proven: only Node adapter listable; no disabled/python/lldb stub entries"
+    ]
   },
   "handoff": {
     "coder_session": null,

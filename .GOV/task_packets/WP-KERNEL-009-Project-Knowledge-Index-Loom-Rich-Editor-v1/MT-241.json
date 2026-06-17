@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-241-ProjectWikiBootstrapCompiler",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-14T19:14:37.123Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-241.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-177",
@@ -90,13 +90,79 @@
     "blocks": [
       "MT-242"
     ],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "9cee7f0a",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T12:55:00Z",
+        "kind": "implementation",
+        "summary": "ProjectWikiBootstrapCompiler: bootstrap-compiles a navigable, typed (module/concept/entity/decision + index), CITED project wiki from existing authority (knowledge_code_files + symbol/concept entities + spans, knowledge entities/edges, rich documents) into the EXISTING knowledge_wiki_projections store (LM-PWIKI-005, no parallel store). Deterministic directory clustering with token-aware budget packing (file-granular parts; lone over-budget files flagged LOUDLY in the compile receipt, never silently truncated); citations are entity/span/source ids + sha256 content hashes (LM-PWIKI-003, never file-path strings); EventLedger started/completed compile receipt pair (LM-PWIKI-012); page-cap DoS guard (MAX_BOOTSTRAP_PAGES, loud typed error); title-collision guard. SHIP-TOGETHER GUARD (LM-PWIKI-009): migration 0300 CHECK chk_knowledge_wiki_projections_stamp_guard makes a typed page without its MT-242 compile stamp structurally impossible, upsert_knowledge_wiki_page takes the stamp as a REQUIRED (non-Option) argument, and the MT-184 loom compile/regenerate paths stamp too - no unstamped compile output exists anywhere.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0300_knowledge_wiki_page_compile.sql (+.down.sql) - page_type/compile_stamp/compile_recipe/page_links columns + stamp ship-together CHECK + stamp shape CHECK + GIN cited-sources index (migration window 0300-0309 respected)",
+          "src/backend/handshake_core/src/knowledge_wiki/mod.rs - WikiPageType/CitedSource/WikiCompileStamp/WikiStalenessVerdict types + deterministic content-hash derivations + budget constants",
+          "src/backend/handshake_core/src/knowledge_wiki/compiler.rs - ProjectWikiCompiler bootstrap/cluster/render/stamp/receipts + index catalog page + link resolution",
+          "src/backend/handshake_core/src/knowledge_wiki/drift.rs + fanout.rs - the MT-242/243 layer code (one delivery unit per LM-PWIKI-009; proven in their own MT commits)",
+          "src/backend/handshake_core/src/storage/knowledge.rs - KnowledgeWikiProjection +4 columns; inherent PG impl: upsert_knowledge_wiki_page (stamp REQUIRED), list_knowledge_wiki_pages, list_knowledge_wiki_pages_citing (GIN @> probe), update_knowledge_wiki_page_links, current_event_ledger_version, list_wiki_code_file_inputs(+by_sources), list_wiki_source_entities_with_spans, list_wiki_cross_source_code_edges, drift hash resolvers",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomWikiProjection + page_type/compile_stamp/page_links",
+          "src/backend/handshake_core/src/storage/postgres.rs - MT-184 compile/regenerate now stamp (loom_block cited set + ledger version); typed pages fail closed on legacy block-hash stale/regenerate paths; source_block_ids lift filters record_family=LoomBlock",
+          "src/backend/handshake_core/src/api/loom.rs - GET /workspaces/:ws/loom/wiki (list+verdicts), POST .../wiki/bootstrap, POST .../wiki/drift-check, POST .../wiki/fanout; ServedWikiPage wrapper makes serving without a verdict unrepresentable",
+          "src/backend/handshake_core/src/lib.rs - pub mod knowledge_wiki (runtime-full)",
+          "src/backend/handshake_core/tests/project_wiki_bootstrap_tests.rs + Cargo.toml [[test]] entry"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T12:55:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test project_wiki_bootstrap_tests",
+        "result": "ok. 4 passed; 0 failed (real Handshake-managed PostgreSQL, isolated schema, full migration chain)",
+        "tests": [
+          "mt241_bootstrap_over_handshake_core_produces_cited_typed_pages - bootstrap over REAL handshake_core sources (read from this crate's src/ at test time: knowledge_code_index/{mod,staleness}.rs + knowledge_wiki/{mod,drift}.rs) emits module pages for both dirs + concept + entity (rich doc) + decision (WP entity) + index; module page stamp cites the evaluate_staleness symbol entity that knowledge_code_nav lookup_code_symbols resolves (acceptance spot-check); every cited entity resolves in authority, cited spans exist, cited source hashes match knowledge_sources.content_hash; index page lists every page with resolved projection-id links; started/completed compile receipts present in kernel_event_ledger; every page row references the compile receipt",
+          "mt241_delete_all_generated_pages_leaves_authority_byte_identical - md5 fingerprint over 10 authority tables (workspaces, sources, entities, spans, entity_spans, edges, code_files, rich_documents, loom_blocks, kernel_event_ledger) identical before/after deleting EVERY generated page (proven negative test)",
+          "mt241_recompile_is_idempotent - second bootstrap: same page count, stable projection ids, byte-identical rendered content, zero stale, zero unstamped",
+          "mt241_token_budget_splits_clusters_loudly - page_token_budget=300 forces splits/oversize flags; '(part N)' pages cross-link siblings; completed receipt records the split facts"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "state_recovery",
+        "summary": "Crash recovery to READY_FOR_VALIDATION after independent adversarial review PASS and fresh current-tree real-PostgreSQL proof for the project wiki bootstrap compiler. This is Kernel Builder handoff readiness only; validator review remains pending.",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test project_wiki_bootstrap_tests -- --test-threads=1 --nocapture",
+        "result": "ok. 4 passed; 0 failed against POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt241-project-wiki-bootstrap-tests.log",
+          "adversarial-review:Popper:019ec770-19d5-7373-95cf-42ae59ae90d4:PASS"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-241"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T12:55:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "9cee7f0a (fixes landed in 97c680a3)",
+      "findings": [
+        "RENDER INJECTION (handled): hostile display names/paths could forge citation lines or page structure; inline() strips newlines/pipes/brackets + caps 160 chars on every interpolated fragment; citation lines carry server-resolved ids only.",
+        "TITLE COLLISION -> SILENT OVERWRITE (FIXED in 97c680a3): a directory literally named like a sibling's '(part N)' title (or same-named entities) would hit the (workspace,kind,title) upsert identity and silently replace a page; bootstrap now pre-checks all planned titles and fails LOUDLY.",
+        "UNBOUNDED COMPILE / DoS (handled): MAX_BOOTSTRAP_PAGES cap enforced BEFORE any write (typed PageCapExceeded error); budget clamped to [256, 200k]; cross-edge query LIMIT; list caps; per-file queries scoped by source.",
+        "CITATION FORGERY (handled): citations are built exclusively from authority rows the compiler itself resolves - no API input flows into stamps; stamp shape double-checked (Rust Validation + 0300 CHECK).",
+        "PROSEMIRROR RECURSION (FIXED in 97c680a3): excerpt walker now depth-capped (64) so a hostile deeply-nested rich document cannot overflow the stack.",
+        "CRASH MID-COMPILE (handled by design): per-page atomic upserts; a started receipt without its completed pair marks a crashed run machine-detectably; re-running bootstrap is idempotent and converges.",
+        "CROSS-WORKSPACE LEAKAGE (accepted, low): drift hash resolvers for entities/sources do not re-filter workspace because stamp content is server-written only (no API writes stamps); loom-block resolver does filter workspace."
+      ],
+      "fixes": [
+        "Title-collision guard + ProseMirror depth cap committed in 97c680a3 (with MT-242); re-tested green (4/4 bootstrap suite)."
+      ]
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

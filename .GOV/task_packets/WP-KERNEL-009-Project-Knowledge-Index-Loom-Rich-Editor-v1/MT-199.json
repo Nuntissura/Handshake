@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-199-UserManualModelQuickstartBundles",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T18:22:30Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-199.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,59 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-14T18:22:30Z",
+    "ready_for_validation_reason": "Quickstart bundle route fails closed on missing linked pages; RED/GREEN proof and full UserManual API/content/storage suites pass against real PostgreSQL; adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "implementation",
+        "summary": "GET /usermanual/quickstarts/:slug now returns typed not_found when a page_link target is missing instead of silently omitting the linked page from the bundle.",
+        "files_changed": [
+          "src/backend/handshake_core/src/api/user_manual.rs",
+          "src/backend/handshake_core/tests/user_manual_api_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "test_proof",
+        "summary": "RED proved the old route returned 200 for a missing linked page; GREEN proves 404/not_found with missing anchor detail, followed by full UserManual content/API/storage suites and cargo check.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/red-mt199-quickstart-missing-link.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt199-quickstart-missing-link.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-storage-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:21:35.319Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-199@2026-06-14T18:21:35.319Z"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Hubble adversarial review returned PASS; no blocking findings, with one non-blocking future hardening idea to count read receipts on the missing-link path.",
+        "evidence_refs": [
+          "subagent:019ec752-383a-7bc3-aee6-26749c59fef6"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

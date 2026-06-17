@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-250-FindInFilesWorkspaceSearch",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-16T15:44:43Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-250.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,17 +76,157 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244",
       "MT-186"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T07:31:43Z",
+        "type": "implementation_progress",
+        "summary": "Implemented the first MT-250 workspace find-in-files slice in wtc-kernel-009: WorkspaceSearchPanel uses the existing MT-186 searchLoomGraph backend surface, supports kind/tag/path query filtering, case/word/regex client filtering, click-open routing, and safe replace-in-files preview/apply for editable rich documents through loadRichDocument/saveRichDocument receipts. App bottom strip now exposes Find in Files. Not READY_FOR_VALIDATION yet because this slice does not close full MT-250 across every replace/canonical-set edge and no real-PostgreSQL end-to-end search ledger proof was available in this environment.",
+        "validation": [
+          "pnpm exec vitest run src/lib/api.test.ts src/components/WorkspaceSearchPanel.test.tsx => 30 passed",
+          "pnpm exec vitest run src/App.test.tsx --testNamePattern \"workspace find-in-files\" => 1 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/WorkspaceSearchPanel.test.tsx src/components/workspace_search_visual_harness.tsx src/lib/api.ts => passed",
+          "pnpm exec eslint src/App.tsx src/App.test.tsx => passed",
+          "pnpm exec eslint src/components/terminal/terminal_view_visual_harness.tsx => passed after fixing the harness unused parameter",
+          "pnpm exec playwright test ../tests/visual/workspace-search.spec.ts => 3 passed",
+          "pnpm exec playwright test ../tests/visual/terminal-view.spec.ts => 6 passed"
+        ],
+        "blocked": [
+          "POSTGRES_TEST_URL unset and local PostgreSQL unavailable, so real-PG search/receipt proof is still not executed for MT-250"
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T07:39:30Z",
+        "type": "regression_fix_validation",
+        "summary": "Adversarial review found invalid regex search input was validated during client filtering/replace preview but not before the backend search call. Added a component preflight guard so regex-mode invalid input clears pending preview/results, surfaces the invalid-regex error, and does not call searchLoomGraph.",
+        "validation": [
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"blocks invalid regex search\" => RED first: searchLoomGraph called once for invalid regex, then GREEN after fix: 1 passed",
+          "pnpm exec vitest run src/lib/api.test.ts src/components/WorkspaceSearchPanel.test.tsx => 31 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/WorkspaceSearchPanel.test.tsx src/components/workspace_search_visual_harness.tsx src/lib/api.ts => passed",
+          "pnpm exec vitest run src/App.test.tsx --testNamePattern \"workspace find-in-files\" => 1 passed",
+          "pnpm exec playwright test ../tests/visual/workspace-search.spec.ts => 3 passed",
+          "git diff --check => passed with only existing LF-to-CRLF warnings"
+        ],
+        "blocked": [
+          "MT-250 remains IN_PROGRESS, not READY_FOR_VALIDATION, because real PostgreSQL/EventLedger search and multi-real-doc canonical-set proof still cannot run in this environment."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T08:12:18Z",
+        "type": "implementation_progress_validation",
+        "summary": "Closed the local click-open landing gap for the MT-250 workspace search slice: document result clicks now emit query/options, App targets the active pane/document with a monotonic EditorFindRequest, and RichTextEditor opens the existing FindReplacePanel with the query loaded and the first match selected through the existing find selection/decorations path. The visual workspace-search harness now proves the document open action carries the find request payload.",
+        "validation": [
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"opens document search hits\" => RED first: callback sent only document id; GREEN after fix: 1 passed",
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx --testNamePattern \"external find request\" => RED first: no find-panel opened; GREEN after fix: 1 passed",
+          "pnpm exec vitest run src/App.test.tsx --testNamePattern \"workspace find-in-files\" => 1 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec vitest run src/lib/api.test.ts src/components/WorkspaceSearchPanel.test.tsx src/components/RichTextEditor.test.tsx => 48 passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/WorkspaceSearchPanel.test.tsx src/components/workspace_search_visual_harness.tsx src/lib/editor/editor_find_request.ts => passed",
+          "pnpm exec eslint src/components/RichTextEditor.tsx src/components/RichTextEditor.test.tsx src/components/FindReplacePanel.tsx src/components/DocumentView.tsx src/components/RichDocumentView.tsx => RED first on setState-in-effect; GREEN after keyed mount/refactor: passed",
+          "pnpm exec eslint src/App.tsx src/App.test.tsx ../tests/visual/workspace-search.spec.ts => passed for app files; visual spec path reported ignored because it is outside the app ESLint base path",
+          "pnpm exec playwright test ../tests/visual/workspace-search.spec.ts => 3 passed",
+          "git diff --check => passed with only existing LF-to-CRLF warnings"
+        ],
+        "blocked": [
+          "MT-250 remains IN_PROGRESS, not READY_FOR_VALIDATION, because real PostgreSQL/EventLedger multi-document search/receipt proof and unloaded-canonical-set proof still cannot run without an available PostgreSQL test endpoint."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T08:14:53Z",
+        "type": "canonical_set_negative_test",
+        "summary": "Added a focused negative unit test proving replace preview uses the backend result set, not only visible client-filtered rows: a second document hit hidden by a case-sensitive client filter is still loaded and previewed from the canonical search results before any save.",
+        "validation": [
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"backend result set\" => 1 passed",
+          "pnpm exec vitest run src/lib/api.test.ts src/components/WorkspaceSearchPanel.test.tsx src/components/RichTextEditor.test.tsx => 49 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/WorkspaceSearchPanel.test.tsx src/components/workspace_search_visual_harness.tsx src/lib/editor/editor_find_request.ts => passed"
+        ],
+        "blocked": [
+          "This is local negative proof over intercepted/unit data; MT-250 still needs real PostgreSQL/EventLedger multi-document proof when a PostgreSQL test endpoint is available."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T09:40:54Z",
+        "type": "adversarial_review_remediation_validation",
+        "summary": "Addressed the MT-250 adversarial review findings for the workspace search slice: API/backend search now receives and applies case-sensitive, whole-word, regex, and path filters before source limits; the frontend pages canonical backend results instead of trusting visible rows; path filtering is no longer encoded into q; click-open routing uses a shared target helper for advertised result kinds; replace preview/apply is blocked when search results or preview plans are stale; partial save failure reports receipts and clears replayable preview state. MT-250 remains IN_PROGRESS and is not READY_FOR_VALIDATION/PASS because real PostgreSQL/EventLedger multi-document proof is still unavailable.",
+        "validation": [
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"search controls changed|successful receipts\" => RED first on stale replace-plan coverage, then GREEN: 2 passed",
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx src/lib/api.test.ts => 38 passed",
+          "pnpm exec vitest run src/App.test.tsx --testNamePattern \"workspace find-in-files\" => 1 passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/QuickSwitcher.tsx src/lib/api.ts src/lib/loom_search_open_target.ts src/components/WorkspaceSearchPanel.test.tsx src/lib/api.test.ts => passed",
+          "cargo check (src/backend/handshake_core) => passed with existing warnings",
+          "pnpm run build:harness => passed with existing large-chunk warnings",
+          "pnpm exec playwright test ../tests/visual/workspace-search.spec.ts => 3 passed"
+        ],
+        "blocked": [
+          "POSTGRES_TEST_URL/local PostgreSQL remains unavailable in this environment, so real PostgreSQL/EventLedger search receipts and unloaded-canonical-set proof are still not executed."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T14:33:43Z",
+        "type": "implementation_progress_validation",
+        "summary": "Hardened the MT-250 replace-in-files preview after adversarial review: preview plans now expose stable per-match rows with local before/after context snippets derived from the exact regex match used for replacement, while apply still writes only through saveRichDocument and cancel still saves nothing. The offline browser proof now asserts the per-match preview row and context before any save. MT-250 remains IN_PROGRESS, not READY_FOR_VALIDATION/PASS, because a single end-to-end UI-to-PostgreSQL/EventLedger replace-in-files proof is still not present.",
+        "validation": [
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"shows one confirmed preview row\" => RED first on missing match rows; GREEN after per-match rows: 1 passed",
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx --testNamePattern \"shows one confirmed preview row\" => RED first on token-only match previews lacking context; GREEN after contextual snippets: 1 passed",
+          "pnpm exec vitest run src/components/WorkspaceSearchPanel.test.tsx src/lib/api.test.ts => 39 passed",
+          "pnpm exec vitest run src/App.test.tsx --testNamePattern \"workspace find-in-files\" => 1 passed, with existing jsdom canvas getContext warning",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec eslint src/components/WorkspaceSearchPanel.tsx src/components/WorkspaceSearchPanel.test.tsx => passed",
+          "pnpm exec playwright test ../tests/visual/workspace-search.spec.ts => 3 passed; visual proof now asserts match row and before/after context before save",
+          "pnpm run build:harness => passed with existing large-chunk warnings",
+          "git diff --check -- app/src/components/WorkspaceSearchPanel.tsx app/src/components/WorkspaceSearchPanel.test.tsx app/src/App.css tests/visual/workspace-search.spec.ts => passed with existing App.css LF-to-CRLF warning",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test loom_graph_search_filters_tests -- --nocapture => 10 passed, existing warnings",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test knowledge_documents_api_tests -- --nocapture => 10 passed, existing warnings"
+        ],
+        "blocked": [
+          "Backend managed-PostgreSQL graph-search and rich-document save-path tests passed, and offline Playwright covers UI behavior, but MT-250 still lacks one full UI-to-PostgreSQL/EventLedger replace-in-files proof tying search, preview, cancel, apply receipts, and canonical unloaded-document replacement together."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T15:44:43Z",
+        "type": "ready_for_validation",
+        "summary": "Promoted MT-250 to READY_FOR_VALIDATION after closing the prior missing single UI-to-PostgreSQL/EventLedger proof. Added a real-backend Playwright fixture and spec that search two real PostgreSQL rich documents, preview replacement diffs, prove cancel leaves doc_version/event_count unchanged, then apply through the normal save path and assert EventLedger save receipts for both the clicked/opened document and an unopened canonical document. Status is not PASS and requires validator review.",
+        "validation": [
+          "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --bin mt250_workspace_search_fixture => passed; existing handshake_core library warnings only",
+          "pnpm exec playwright test ../tests/visual/mt250-workspace-search-real-backend.spec.ts => 3 passed across visual-normal-1280-light-en-US, visual-constrained-390-dark-en-US, and visual-edge-empty-1024-light-nl-NL",
+          "Direct fixture probe via cargo run --bin mt250_workspace_search_fixture => health ok, seededDocuments=2, missing proof document returned 404 with the expected missing-document message",
+          "git diff --check -- src/backend/handshake_core/Cargo.toml src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs tests/visual/mt250-workspace-search-real-backend.spec.ts => passed; Git reported only the existing Cargo.toml LF-to-CRLF warning",
+          "Get-CimInstance process check for mt250_workspace_search_fixture / mt250-workspace-search-real-backend cargo/node processes => no leftover matching processes",
+          "Playwright screenshots produced under D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\playwright-results\\tests-visual-mt250-workspa-44c86-SQL-documents-with-receipts-*\\mt250-workspace-search-real-backend.png"
+        ],
+        "adversarial_review": [
+          "DIFF_ATTACK_SURFACES: fixture seed/isolation could accidentally bypass real api::routes; Playwright route rewrite could hide workspace/source-kind contract drift; proof endpoint could rely on UI state instead of canonical PostgreSQL/EventLedger state; replace apply could cover only the opened document and miss the unopened canonical document; fixture process handling could leave background cargo/node processes.",
+          "INDEPENDENT_CHECKS_RUN: direct fixture probe exercised /health and a negative /mt250-fixture/proof?doc_ids=missing-doc lookup outside the visual spec, proving the fixture is reachable and missing canonical documents fail closed with 404.",
+          "INDEPENDENT_CHECKS_RUN: process cleanup probe found no leftover mt250_workspace_search_fixture or mt250-workspace-search-real-backend cargo/node processes after the full matrix.",
+          "COUNTERFACTUAL_CHECKS: If tests/visual/mt250-workspace-search-real-backend.spec.ts stopped rewriting /workspaces/w1/loom/graph-search to the seeded workspace id, the result assertions would fail because the UI would search the wrong workspace.",
+          "COUNTERFACTUAL_CHECKS: If src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs fixture_proof stopped reading knowledge_rich_documents and list_kernel_events_for_aggregate, the apply proof would no longer detect missing PostgreSQL writes or missing EventLedger receipts.",
+          "BOUNDARY_PROBES: UI-to-API boundary is covered by route-captured source_kinds=document graph-search requests and real api::routes, not mocked search responses.",
+          "BOUNDARY_PROBES: writer-to-reader boundary is covered by cancel/apply proof reads from PostgreSQL after UI actions; cancel requires unchanged doc_version/event_count and apply requires doc_version=2 plus KNOWLEDGE_RICH_DOCUMENT_SAVED receipt payloads.",
+          "NEGATIVE_PATH_CHECKS: cancel path preserves the exact pre-cancel proof object and writes no EventLedger events.",
+          "NEGATIVE_PATH_CHECKS: direct missing proof document lookup returns 404 instead of manufacturing proof for absent canonical state.",
+          "INDEPENDENT_FINDINGS: no blocking MT-250 findings remain after the real-backend fixture proof; scoped Cargo.toml diff includes unrelated existing WP-KERNEL-009 additions, so this evidence claims only the mt250_workspace_search_fixture registration and the new MT-250 fixture/spec files.",
+          "RESIDUAL_UNCERTAINTY: validator should rerun the same Playwright spec against their chosen reachable PostgreSQL environment before PASS; the current status is READY_FOR_VALIDATION only."
+        ],
+        "risks": [
+          "Cargo.toml has unrelated existing uncommitted WP-KERNEL-009 additions in this dirty worktree; MT-250 evidence is scoped to the mt250_workspace_search_fixture bin registration plus src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs and tests/visual/mt250-workspace-search-real-backend.spec.ts.",
+          "The fixture is validation-only and uses the existing managed/env PostgreSQL path; validator should rerun before marking PASS."
+        ],
+        "blocked": []
+      }
+    ]
   },
   "handoff": {
     "coder_session": null,

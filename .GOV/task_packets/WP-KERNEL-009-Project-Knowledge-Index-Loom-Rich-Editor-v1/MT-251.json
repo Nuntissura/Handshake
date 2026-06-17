@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-251-AdvancedEditingParity",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-16T13:36:49Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-251.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,16 +76,314 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "KERNEL_BUILDER",
     "implementation_commit": null,
-    "evidence": []
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T08:20:12Z",
+        "type": "claim_started",
+        "summary": "Claimed MT-251 for a first direct product slice: ED-WB-008 zen/focus mode in the rich editor, using existing MT-244 editor surfaces and offline frontend runtime proof. MT-251 remains IN_PROGRESS; multi-cursor, snippets, Monaco column select, and full table-editing completion are not yet claimed as complete."
+      },
+      {
+        "at_utc": "2026-06-16T09:40:54Z",
+        "type": "implementation_progress_validation",
+        "summary": "Implemented and hardened the ED-WB-008 focus-mode slice of MT-251: RichTextEditor now has a toolbar focus toggle, hides ordinary toolbar controls while leaving an exit control, closes overflow/palette/export/find surfaces when entering focus mode, clears pending argument prompts, suppresses shortcut-opened and external-request transient panels while focused, and applies responsive focus-surface styling with browser screenshot proof. MT-251 remains IN_PROGRESS; prose multi-selection, snippets/tab-stops, Monaco column-select proof, and full table operation completion remain open.",
+        "validation": [
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx --testNamePattern \"command prompts\" => RED first: editor-arg-prompt remained mounted after entering focus mode",
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx --testNamePattern \"command prompts|focus mode\" => GREEN after fix: 2 passed",
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx => 19 passed",
+          "pnpm exec eslint src/components/RichTextEditor.tsx src/components/RichTextEditor.test.tsx src/harness/editor_visual_regression_harness.tsx => passed",
+          "pnpm run build:harness => passed with existing large-chunk warnings",
+          "pnpm exec playwright test ../tests/visual/editor_visual_regression.spec.ts => RED first on constrained-mobile focus-surface overflow, then GREEN after responsive override: 3 passed",
+          "pnpm exec tsc --noEmit => passed"
+        ],
+        "blocked": [
+          "This evidence validates only ED-WB-008 focus mode. MT-251 is intentionally not READY_FOR_VALIDATION/PASS until the remaining advanced editing parity capabilities are implemented and runtime-proven."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T11:53:45Z",
+        "type": "implementation_progress_validation",
+        "summary": "Implemented and hardened the ED-CORE-002 table-editing slice of MT-251: the editor command catalog now exposes add row above, add column left, toggle header column, toggle header cell, merge cells, and split cell alongside the existing row/column/table operations; command tests prove invalid disabled states, real document mutations, exact undo restoration, and merge/split selection behavior; the built editor visual harness proves operator-reachable toolbar/overflow table operations on real rendered editor documents with zero external requests. MT-251 remains IN_PROGRESS because prose multi-selection, snippets/tab-stops, and Monaco multi-cursor/column-select proof are still open.",
+        "files_changed": [
+          "app/src/lib/editor/editor_commands.ts",
+          "app/src/lib/editor/editor_commands.test.ts",
+          "tests/visual/editor_visual_regression.spec.ts"
+        ],
+        "validation": [
+          "pnpm exec vitest run src/lib/editor/editor_commands.test.ts --testNamePattern \"MT-251|table structure\" => RED first: required MT-251 table command registrations were missing before implementation",
+          "pnpm exec vitest run src/lib/editor/editor_commands.test.ts --testNamePattern \"MT-251|table structure\" => GREEN after implementation/hardening: 6 passed, 11 skipped",
+          "pnpm exec vitest run src/lib/editor/editor_commands.test.ts => 17 passed",
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx --testNamePattern \"overflow|table\" => 1 passed, 18 skipped",
+          "pnpm exec vitest run src/components/RichTextEditor.test.tsx => 19 passed; existing jsdom HTMLCanvasElement.getContext warning observed",
+          "pnpm exec eslint src/lib/editor/editor_commands.ts src/lib/editor/editor_commands.test.ts src/components/RichTextEditor.tsx src/components/RichTextEditor.test.tsx => passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm run build:harness => passed with existing Vite large-chunk warnings",
+          "pnpm exec playwright test tests/visual/editor_visual_regression.spec.ts --project visual-normal-1280-light-en-US --grep \"MT-251\" => 1 passed",
+          "pnpm exec playwright test tests/visual/editor_visual_regression.spec.ts --grep \"MT-251\" => 3 passed across visual-normal-1280-light-en-US, visual-constrained-390-dark-en-US, and visual-edge-empty-1024-light-nl-NL",
+          "pnpm exec playwright test tests/visual/editor_visual_regression.spec.ts => 6 passed across the full editor visual spec"
+        ],
+        "adversarial_review": {
+          "risk_tier": "MEDIUM",
+          "diff_attack_surfaces": [
+            "Command catalog producer to overflow-menu consumer parity for tableEdit commands.",
+            "Tiptap canRun/run parity outside tables, inside single-cell selections, and inside multi-cell selections.",
+            "History grouping and exact undo restoration for table structure/header/merge/split mutations.",
+            "Built harness runtime proof using real rendered editor controls rather than catalog-only unit tests."
+          ],
+          "findings": [
+            "Initial adversarial review failed the slice because undo coverage was incomplete, invalid-state coverage was missing for new table commands, and the proof depended on table mutation counts only.",
+            "Findings were fixed before this evidence write by adding exact editor.getJSON undo restoration, invalid canRun coverage, and a Playwright real-harness table operation proof."
+          ],
+          "independent_checks_run": [
+            "rg -n \"table\\.addRowBefore|table\\.mergeCells|table\\.splitCell|table\\.toggleHeaderColumn\" app/dist-harness/assets -S --glob \"*.js\" => built RichTextEditor harness asset contains the new MT-251 command ids",
+            "rg -n \"tableEdit|overflowCommands|overflow-cmd\" app/src/components/RichTextEditor.tsx app/src/lib/editor/editor_commands.ts tests/visual/editor_visual_regression.spec.ts -S => tableEdit commands feed the overflow UI and MT-251 Playwright selectors",
+            "pnpm exec vitest run src/lib/editor/editor_commands.test.ts --testNamePattern \"invalid table and selection\" => 1 passed, 16 skipped"
+          ],
+          "counterfactual_checks": [
+            "If app/src/lib/editor/editor_commands.ts removed table.addRowBefore or table.addColumnBefore, the MT-251 command-surface test and built-harness grep would fail and operators could not add rows above or columns left through the overflow menu.",
+            "If app/src/lib/editor/editor_commands.test.ts removed exact JSON undo restoration, row/column/header/merge/split table commands could regress to count-only proof while failing MT-251's undo acceptance.",
+            "If tests/visual/editor_visual_regression.spec.ts removed the MT-251 rendered-harness flow, the table slice would be catalog-proven only and would no longer satisfy the Playwright runtime-proof requirement."
+          ],
+          "boundary_probes": [
+            "Producer/consumer boundary checked: all table operation descriptors use category tableEdit and RichTextEditor overflowCommands includes tableEdit.",
+            "Build/runtime boundary checked: the rebuilt dist-harness RichTextEditor asset contains the new table command ids and the Playwright harness exercises them through real buttons."
+          ],
+          "negative_path_checks": [
+            "Command tests prove table operation canRun is false outside tables.",
+            "Command tests prove mergeCells is false without a multi-cell selection and splitCell is false before a merged cell exists.",
+            "Playwright proof confirms add row/add column/merge commands are disabled before a table is inserted."
+          ],
+          "verdict": "PASS_FOR_TABLE_EDITING_SLICE_ONLY",
+          "residual_uncertainty": "This review does not cover the remaining MT-251 capabilities: prose multi-selection, snippets/tab-stops, or Monaco multi-cursor/column-select runtime proof."
+        },
+        "blocked": [
+          "MT-251 remains IN_PROGRESS; this evidence validates only the table-editing slice plus prior focus-mode slice.",
+          "Remaining MT-251 work: EXT-MC-001 prose multi-selection/simultaneous edit application or documented deviation, EXT-SNIP-001 snippet insertion and tab-stop traversal, and ED-CODE-INT-008 Monaco multi-cursor/column-select proof."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T12:13:46Z",
+        "type": "implementation_progress_validation",
+        "summary": "Implemented and verified the ED-CODE-INT-008 Monaco multi-cursor/column-selection slice of MT-251: the shared Monaco createConfiguredEditor factory now explicitly enables columnSelection, alt-based multi-cursor creation, spread multi-cursor paste, and overlapping-cursor merge behavior; a setup unit test pins these construction defaults; the real rich-editor dependency-policy Playwright harness proves same-column column-selection typing inside the embedded Monaco code block persists as simultaneous edits across three lines. MT-251 remains IN_PROGRESS because prose multi-selection and snippets/tab-stops are still open.",
+        "files_changed": [
+          "app/src/lib/monaco/setup.ts",
+          "app/src/lib/monaco/setup.test.ts",
+          "tests/dependency_policy/rich_editor_typing.spec.ts"
+        ],
+        "validation": [
+          "pnpm exec vitest run src/lib/monaco/setup.test.ts => RED after test-double correction: expected missing columnSelection/multiCursor options before implementation",
+          "pnpm exec vitest run src/lib/monaco/setup.test.ts => GREEN: 1 passed",
+          "pnpm run build:harness => passed with existing Vite large-chunk warnings",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts --grep \"MT-251\" => first failed on Windows CRLF line-ending comparison before the column-selection assertion; fixed with test-side line-ending normalization",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts --grep \"MT-251\" => GREEN: 1 passed",
+          "pnpm exec vitest run src/lib/monaco/setup.test.ts src/components/MonacoCodeBlockView.language.test.tsx => 7 passed across 2 files",
+          "pnpm exec eslint src/lib/monaco/setup.ts src/lib/monaco/setup.test.ts src/components/MonacoCodeBlockView.tsx src/components/MonacoCodeBlockView.language.test.tsx => passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts => 8 passed"
+        ],
+        "adversarial_review": {
+          "risk_tier": "MEDIUM",
+          "diff_attack_surfaces": [
+            "Shared Monaco setup defaults affect every createConfiguredEditor consumer, including embedded code blocks and standalone harnesses.",
+            "Column-selection proof can be falsely satisfied by option presence alone unless runtime typing proves simultaneous same-column edits.",
+            "Windows CRLF keyboard input can make text assertions fail for platform reasons unrelated to Monaco behavior.",
+            "Caller override order can accidentally disable the intended defaults if options are merged incorrectly."
+          ],
+          "findings": [
+            "No remaining blocker found for the Monaco slice after validation.",
+            "Initial Playwright failure was a platform line-ending assertion defect; fixed by normalizing line endings while preserving strict content expectations.",
+            "The createConfiguredEditor option defaults are set before caller overrides, so specialized future callers can still intentionally override them; current embedded code-block callers inherit the MT-251 behavior."
+          ],
+          "independent_checks_run": [
+            "Select-String -Path app/dist-harness/assets/setup-*.js -Pattern columnSelection -SimpleMatch => rebuilt setup asset contains columnSelection",
+            "Select-String -Path app/dist-harness/assets/setup-*.js -Pattern multiCursorPaste -SimpleMatch => rebuilt setup asset contains multiCursorPaste",
+            "pnpm exec vitest run src/lib/monaco/setup.test.ts --testNamePattern \"multi-cursor\" => 1 passed"
+          ],
+          "counterfactual_checks": [
+            "If app/src/lib/monaco/setup.ts removed columnSelection: true, the setup unit test would fail and the embedded Monaco column-selection keyboard path would no longer be contract-pinned.",
+            "If tests/dependency_policy/rich_editor_typing.spec.ts removed the MT-251 browser test, ED-CODE-INT-008 would only be option-proven and not runtime-proven in the real embedded editor.",
+            "If app/src/lib/monaco/setup.test.ts stopped asserting multiCursorPaste: spread, a future setup regression could keep column selection but break multi-cursor paste semantics without local unit coverage."
+          ],
+          "boundary_probes": [
+            "Factory-to-consumer boundary checked: MonacoCodeBlockView creates embedded editors through createConfiguredEditor, so it receives the shared defaults.",
+            "Build/runtime boundary checked: rebuilt dist-harness setup asset contains the MT-251 option names and the dependency-policy Playwright harness exercised a real embedded Monaco editor."
+          ],
+          "negative_path_checks": [
+            "TDD RED proved the option test fails before setup defines the MT-251 defaults.",
+            "The Playwright test normalizes CRLF only at assertion time; it still fails if the same-column multi-cursor edit does not produce the expected three-line content."
+          ],
+          "verdict": "PASS_FOR_MONACO_MULTI_CURSOR_COLUMN_SELECTION_SLICE_ONLY",
+          "residual_uncertainty": "This review does not cover the remaining MT-251 capabilities: prose multi-selection/simultaneous edit application or snippet/tab-stop traversal."
+        },
+        "blocked": [
+          "MT-251 remains IN_PROGRESS; this evidence validates only ED-CODE-INT-008 plus the earlier focus-mode and table-editing slices.",
+          "Remaining MT-251 work: EXT-MC-001 prose multi-selection/simultaneous edit application or documented deviation, and EXT-SNIP-001 snippet insertion with tab-stop traversal."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T13:13:03Z",
+        "type": "implementation_progress_validation",
+        "summary": "Implemented and verified the EXT-SNIP-001 snippet slice of MT-251: editor snippet definitions now drive operator-reachable prose and code snippets; prose insertion expands placeholders into real document text and tracks remapped tab-stop ranges across placeholder edits; the RichTextEditor Tab handler advances active prose snippet stops without stealing Tab from Monaco; embedded Monaco code blocks expose a Function snippet button that uses Monaco's native SnippetController2 insertion so code tab-stops are handled by Monaco rather than plain text insertion. MT-251 remains IN_PROGRESS because EXT-MC-001 prose multi-selection/simultaneous edit application or documented deviation remains open.",
+        "files_changed": [
+          "app/src/lib/editor/editor_snippets.ts",
+          "app/src/lib/editor/editor_snippets.test.ts",
+          "app/src/lib/editor/editor_commands.ts",
+          "app/src/components/RichTextEditor.tsx",
+          "app/src/components/MonacoCodeBlockView.tsx",
+          "app/src/components/MonacoCodeBlockView.language.test.tsx",
+          "app/src/vite-env.d.ts",
+          "tests/dependency_policy/rich_editor_typing.spec.ts"
+        ],
+        "validation": [
+          "pnpm exec vitest run src/lib/editor/editor_snippets.test.ts => RED before implementation: ./editor_snippets module missing",
+          "pnpm exec vitest run src/components/MonacoCodeBlockView.language.test.tsx --testNamePattern \"native snippet controller\" => RED before implementation: monaco-code-snippet-code.function button missing",
+          "pnpm exec vitest run src/lib/editor/editor_snippets.test.ts => GREEN after implementation and final negative-path addition: 4 passed",
+          "pnpm exec vitest run src/lib/editor/editor_snippets.test.ts src/lib/editor/editor_commands.test.ts src/components/RichTextEditor.test.tsx src/components/MonacoCodeBlockView.language.test.tsx => 4 files passed, 47 tests passed; existing jsdom HTMLCanvasElement.getContext warning observed",
+          "pnpm exec eslint src/lib/editor/editor_snippets.ts src/lib/editor/editor_snippets.test.ts src/lib/editor/editor_commands.ts src/components/RichTextEditor.tsx src/components/MonacoCodeBlockView.tsx src/components/MonacoCodeBlockView.language.test.tsx => passed",
+          "pnpm exec tsc --noEmit => passed",
+          "pnpm run build:harness => passed with existing Vite large-chunk warnings",
+          "Fresh built-asset probe over app/dist-harness/assets/*.js found snippet.prose.meeting, snippet.code.function, data-snippet-active, and monaco-code-snippet- in RichTextEditor-DoZbAst2.js",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts => first full rerun had 9 passed and 1 failed in pre-existing H1 boot wait for data-monaco-mounted=true; all three MT-251 browser tests passed in that run",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts --grep \"mid-document typing\" => exact failed H1 case rerun passed: 1 passed",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts => full suite rerun passed: 10 passed",
+          "pnpm exec playwright test ../tests/visual/editor_visual_regression.spec.ts => 6 passed across visual-normal-1280-light-en-US, visual-constrained-390-dark-en-US, and visual-edge-empty-1024-light-nl-NL"
+        ],
+        "adversarial_review": {
+          "risk_tier": "MEDIUM",
+          "diff_attack_surfaces": [
+            "Snippet-template parsing to ProseMirror absolute text ranges can drift if inserted text start is computed from the pre-insert selection rather than the post-insert document.",
+            "Prose placeholder edits can invalidate later tab stops unless transaction mapping remaps active ranges after document changes.",
+            "RichTextEditor Tab interception can regress editor ergonomics if it fires without an active prose snippet session or inside embedded Monaco.",
+            "Code snippets can falsely look implemented if inserted as plain text instead of using Monaco SnippetController2, because Tab traversal would then leave Monaco snippet semantics unproven.",
+            "Command catalog and overflow UI producer/consumer wiring can omit the new snippet category even when the helper functions pass unit tests."
+          ],
+          "findings": [
+            "No remaining blocker found for the EXT-SNIP-001 slice after validation.",
+            "An earlier off-by-one prose selection defect selected \" Topi\" instead of \"Topic\"; fixed by deriving inserted text start from the post-insert document.",
+            "The first full rich_editor_typing rerun exposed a non-reproduced H1 boot wait failure outside the snippet tests; the exact H1 rerun passed and the full suite rerun passed, so this is recorded as residual harness timing risk rather than a snippet blocker.",
+            "The code snippet browser assertion expects Monaco's real adjusted whitespace output (four spaces) rather than a literal tab, matching the runtime document state."
+          ],
+          "independent_checks_run": [
+            "Built-asset probe after fresh pnpm run build:harness found snippet.prose.meeting, snippet.code.function, data-snippet-active, and monaco-code-snippet- in the emitted RichTextEditor asset.",
+            "rg over app/src and tests/dependency_policy/rich_editor_typing.spec.ts confirmed producer/consumer wiring for insertProseSnippet, moveToNextProseSnippetTabStop, SnippetController2, data-snippet-active, snippet.prose.meeting, and snippet.code.function.",
+            "The invalid-snippet negative-path unit case proves code.function and missing.snippet are declined by the prose insertion path without mutating the document."
+          ],
+          "counterfactual_checks": [
+            "If app/src/lib/editor/editor_snippets.ts stopped remapping active tab-stop ranges through transaction.mapping, the prose snippet unit and browser tests would fail after replacing Topic with Roadmap before moving to Owner.",
+            "If app/src/components/RichTextEditor.tsx stopped including the snippet category in overflowCommands or stopped handling active prose snippet Tab, the browser prose snippet test would fail before selecting Owner.",
+            "If app/src/components/MonacoCodeBlockView.tsx replaced SnippetController2.get(instance)?.insert with plain text insertion, the code snippet browser test would fail because Tab would not move through name, args, and body placeholders.",
+            "If app/src/vite-env.d.ts removed the Monaco snippet-controller declaration, tsc --noEmit would fail on the internal SnippetController2 import."
+          ],
+          "boundary_probes": [
+            "Definition-to-command boundary checked: EDITOR_SNIPPETS backs editor_commands snippet entries and filterEditorCommands(\"snippet\") exposes the prose command.",
+            "Command-to-rendered-UI boundary checked: RichTextEditor overflow includes category snippet and the browser test clicks overflow-cmd-snippet.prose.meeting on the built harness.",
+            "Monaco bridge boundary checked: MonacoCodeBlockView unit test mocks SnippetController2 and asserts the exact native snippet template passed to insert.",
+            "Build/runtime boundary checked: rebuilt dist-harness asset contains the snippet identifiers and Playwright exercises the offline runtime with external network blocked."
+          ],
+          "negative_path_checks": [
+            "insertProseSnippet(editor, \"code.function\") returns false and leaves the document unchanged.",
+            "insertProseSnippet(editor, \"missing.snippet\") returns false and leaves the document unchanged.",
+            "moveToNextProseSnippetTabStop returns false when no prose snippet session is active.",
+            "monacoSnippetTemplateForId(\"prose.meeting\") returns null so prose snippets cannot be routed through the Monaco snippet path."
+          ],
+          "verdict": "PASS_FOR_SNIPPET_SLICE_ONLY",
+          "residual_uncertainty": "This review does not cover EXT-MC-001 prose multi-selection/simultaneous edit application. The code snippet implementation imports Monaco's internal SnippetController2 path; local unit, type, build, and browser proof pin current behavior, but Monaco upgrades could require revalidation. The first full rich_editor_typing rerun had one non-reproduced pre-existing H1 boot wait failure before the exact and full reruns passed."
+        },
+        "blocked": [
+          "MT-251 remains IN_PROGRESS; this evidence validates EXT-SNIP-001 plus the earlier focus-mode, table-editing, and Monaco multi-cursor/column-selection slices.",
+          "Remaining MT-251 work: EXT-MC-001 prose multi-selection/simultaneous edit application or an honestly documented deviation."
+        ]
+      },
+      {
+        "at_utc": "2026-06-16T13:36:49Z",
+        "type": "ready_for_validation",
+        "summary": "Closed the remaining EXT-MC-001 scope and advanced MT-251 to READY_FOR_VALIDATION, not PASS. The implementation does not fake native discontiguous ProseMirror carets; it delivers the contract's allowed fallback: operator-stored prose multi-range selections rendered as decorations, plus one simultaneous transaction that applies typed text to every stored range and keeps the range state observable through the editor debug attributes. With this final slice, MT-251 has runtime proof for focus mode, table editing, Monaco column selection, prose/code snippets with tab-stops, and prose multi-range simultaneous edit application.",
+        "files_changed": [
+          "app/src/lib/tiptap/prose_multi_range_selection.ts",
+          "app/src/lib/editor/prose_multi_range_selection.test.ts",
+          "app/src/lib/editor/build_editor_extensions.ts",
+          "app/src/lib/editor/editor_commands.ts",
+          "app/src/lib/editor/editor_commands.test.ts",
+          "app/src/components/RichTextEditor.tsx",
+          "app/src/App.css",
+          "tests/dependency_policy/rich_editor_typing.spec.ts"
+        ],
+        "validation": [
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts => RED before implementation: ../tiptap/prose_multi_range_selection missing",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts --grep \"prose multi-range\" => RED before implementation: overflow-cmd-selection.addRange missing",
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts => first GREEN attempt failed because text nodes were incorrectly treated as blocked atoms; fixed the prose-only guard",
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts => GREEN after fix: 2 passed",
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts src/lib/editor/editor_commands.test.ts src/components/RichTextEditor.test.tsx => 3 files passed, 38 tests passed; existing jsdom HTMLCanvasElement.getContext warning observed",
+          "pnpm exec tsc --noEmit => first failed on internal Plugin spec typing for mapRanges; fixed by using @tiptap/pm/transform Mapping",
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts && pnpm exec tsc --noEmit && scoped eslint => focused unit 2 passed, typecheck passed, TypeScript lint passed",
+          "pnpm run build:harness => passed with existing Vite large-chunk warnings",
+          "Built-asset probe over app/dist-harness/assets/*.js found selection.addRange, selection.clearRanges, data-multi-range-count, hs-multi-range-selection, and hsProseMultiRangeSelection in emitted harness assets",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts --grep \"prose multi-range\" => 1 passed",
+          "pnpm exec vitest run src/lib/editor/prose_multi_range_selection.test.ts src/lib/editor/editor_snippets.test.ts src/lib/editor/editor_commands.test.ts src/components/RichTextEditor.test.tsx src/components/MonacoCodeBlockView.language.test.tsx => 5 files passed, 49 tests passed; existing jsdom HTMLCanvasElement.getContext warning observed",
+          "pnpm exec eslint src/lib/tiptap/prose_multi_range_selection.ts src/lib/editor/prose_multi_range_selection.test.ts src/lib/editor/editor_snippets.ts src/lib/editor/editor_snippets.test.ts src/lib/editor/build_editor_extensions.ts src/lib/editor/editor_commands.ts src/lib/editor/editor_commands.test.ts src/components/RichTextEditor.tsx src/components/MonacoCodeBlockView.tsx src/components/MonacoCodeBlockView.language.test.tsx => passed",
+          "pnpm exec playwright test ../tests/dependency_policy/rich_editor_typing.spec.ts --config playwright.dependency.config.ts => 11 passed, including Monaco column selection, prose snippets, code snippets, and prose multi-range simultaneous typing",
+          "pnpm exec playwright test ../tests/visual/editor_visual_regression.spec.ts => 6 passed across visual-normal-1280-light-en-US, visual-constrained-390-dark-en-US, and visual-edge-empty-1024-light-nl-NL",
+          "pnpm exec tsc --noEmit => final rerun passed"
+        ],
+        "adversarial_review": {
+          "risk_tier": "MEDIUM",
+          "diff_attack_surfaces": [
+            "ProseMirror supports one native selection; claiming true multi-caret behavior without custom state/decorations would be false parity.",
+            "Stored ranges can become stale or overlap after edits unless normalized, rejected, or mapped through transaction mappings.",
+            "Simultaneous edits can corrupt positions unless replacements are applied in descending document order and collapsed follow-up positions are computed from original ordered ranges.",
+            "Command producer/consumer wiring can pass helper tests while failing operator reachability if the selection category is not exposed through the overflow surface.",
+            "The text-input handler can steal ordinary typing if it does not short-circuit when no multi-range state exists."
+          ],
+          "findings": [
+            "No blocker remains for MT-251 after the EXT-MC-001 slice.",
+            "The first implementation attempt over-blocked text nodes because ProseMirror text nodes are leaf/atom-like; fixed by excluding node.isText from the atom guard.",
+            "The first typecheck used brittle internal Plugin spec type extraction; fixed with the explicit Mapping type from @tiptap/pm/transform.",
+            "The delivered behavior is intentionally documented as multi-range selection plus simultaneous edit application, not fake native discontiguous caret rendering."
+          ],
+          "independent_checks_run": [
+            "Built-asset probe after fresh harness build found selection.addRange, selection.clearRanges, data-multi-range-count, hs-multi-range-selection, and hsProseMultiRangeSelection in emitted assets.",
+            "Full offline browser typing spec proved the new prose multi-range flow alongside the earlier MT-251 Monaco column-selection and snippet flows: 11 passed.",
+            "Visual regression suite passed after adding the multi-range decoration style: 6 passed."
+          ],
+          "counterfactual_checks": [
+            "If app/src/lib/tiptap/prose_multi_range_selection.ts removed handleTextInput, the browser multi-range test would store two ranges but typing X would not replace both Intro and typed.",
+            "If replacements were applied in ascending order instead of descending order, later stored ranges would be edited at stale positions after earlier replacements changed document length.",
+            "If app/src/components/RichTextEditor.tsx omitted selection from overflowCommands, the browser test would fail at overflow-cmd-selection.addRange even though the helper unit tests passed.",
+            "If build_editor_extensions.ts omitted ProseMultiRangeSelection, the command state and data-multi-range-count surface would remain inert in the integrated editor."
+          ],
+          "boundary_probes": [
+            "Helper-to-plugin boundary checked by unit tests: addProseMultiRange stores noncontiguous ranges, applyProseMultiRangeText edits both in one undoable transaction, and invalid/overlapping ranges are declined.",
+            "Command-to-UI boundary checked by browser proof: selected prose ranges are added through the rendered overflow command surface.",
+            "Runtime-to-artifact boundary checked by dist-harness asset probe and offline Playwright, with external network blocked by the dependency-policy config."
+          ],
+          "negative_path_checks": [
+            "applyProseMultiRangeText returns false when no stored ranges exist.",
+            "Collapsed ranges are rejected when added by the operator path.",
+            "Overlapping ranges are rejected without mutating the document.",
+            "Ranges that include atom/code-block nodes are rejected by the prose-only guard."
+          ],
+          "verdict": "READY_FOR_VALIDATION_NOT_PASS",
+          "residual_uncertainty": "The fallback intentionally does not render true native multi-carets; collapsed follow-up ranges remain observable by data-multi-range-count but are not visible as caret widgets. Backspace/delete/paste across stored prose ranges are not claimed in MT-251; the proven simultaneous edit path is typed text input plus direct helper application."
+        },
+        "deviations": [
+          "True ProseMirror discontiguous caret rendering was not implemented. The accepted fallback is multi-range selection plus simultaneous edit application, with decorations for non-collapsed ranges and machine-readable range count state."
+        ],
+        "ready_for_validation": {
+          "status_after_work": "READY_FOR_VALIDATION",
+          "not_pass": true,
+          "ready_by": "KERNEL_BUILDER",
+          "external_validator_required": true
+        }
+      }
+    ]
   },
   "handoff": {
     "coder_session": null,

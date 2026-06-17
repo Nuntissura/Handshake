@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-235-MonacoWorkerOfflineFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-15T00:17:30.321Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-235.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -38,6 +38,13 @@
   "scope": {
     "scope": "Verify embedded Monaco workers load from Handshake packaging without CDN/external server. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
     "relevant_files": [
+      "app/scripts/check-worker-bundling.mjs",
+      "app/scripts/lib/worker_bundling_scan.mjs",
+      "app/scripts/lib/worker_bundling_scan.d.mts",
+      "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+      "app/src/lib/monaco/setup.ts",
+      "app/src/harness/dependency_policy_harness.tsx",
+      "tests/dependency_policy/offline_editor_load.spec.ts",
       "src/backend/handshake_core/tests/",
       "tests/visual/",
       "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
@@ -81,17 +88,90 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-235740",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-15T00:17:30.321Z",
+    "ready_for_validation_reason": "MT-235 Monaco worker offline fixture hardening implemented: missing-worker false-PASS fixture fails closed; real offline browser proof now proves editor, ts, json, css, and html Monaco worker chunks are loopback-served from built Handshake assets with no external requests; worker-bundling build scan and dependency-policy gate pass; adversarial product review found no blocking product-code issues.",
+    "evidence": [
+      {
+        "kind": "implementation_files_changed",
+        "files": [
+          "app/scripts/check-worker-bundling.mjs",
+          "app/scripts/lib/worker_bundling_scan.mjs",
+          "app/scripts/lib/worker_bundling_scan.d.mts",
+          "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+          "app/src/lib/monaco/setup.ts",
+          "app/src/harness/dependency_policy_harness.tsx",
+          "tests/dependency_policy/offline_editor_load.spec.ts"
+        ],
+        "summary": "Shared worker-bundling scanner helper with declaration file, missing-worker negative fixture, all-worker Monaco runtime proof helper, harness proof map, and Playwright request-ledger assertions for all five bundled worker chunks."
+      },
+      {
+        "kind": "test_proof",
+        "commands": [
+          {
+            "command": "pnpm run test -- src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+            "status": "RED",
+            "result": "exit 1 before implementation; failed resolving missing worker_bundling_scan.mjs helper, proving the new scanner seam was not implemented."
+          },
+          {
+            "command": "pnpm run test:dependency-policy -- offline_editor_load.spec.ts",
+            "status": "RED",
+            "result": "exit 1 before runtime proof implementation; monacoWorkerProofs was undefined while legacy ts-worker proof still passed."
+          },
+          {
+            "command": "pnpm run test -- src/lib/dependency_policy/frontend_worker_bundling.test.ts src/lib/monaco/worker_map.test.ts src/components/DependencyFailureBanner.test.tsx",
+            "status": "PASS",
+            "result": "exit 0; 3 files passed, 23 tests passed."
+          },
+          {
+            "command": "pnpm run test:dependency-policy -- offline_editor_load.spec.ts rich_editor_roundtrip.spec.ts",
+            "status": "PASS",
+            "result": "exit 0; 2 Playwright offline dependency-policy tests passed."
+          },
+          {
+            "command": "pnpm run check:worker-bundling",
+            "status": "PASS",
+            "result": "exit 0; tsc + vite build + build:harness succeeded; app/dist and app/dist-harness each had editor/ts/json/css/html worker chunks, no missing Monaco workers, no external worker refs, no CDN hits, and no stray writes."
+          },
+          {
+            "command": "pnpm run check:dependency-policy -- --skip-build",
+            "status": "PASS",
+            "result": "exit 0; dependency-policy summary passed, including worker-bundling over existing built artifacts."
+          },
+          {
+            "command": "pnpm exec eslint src/lib/monaco/setup.ts src/lib/dependency_policy/frontend_worker_bundling.test.ts src/harness/dependency_policy_harness.tsx",
+            "status": "PASS",
+            "result": "exit 0."
+          },
+          {
+            "command": "git diff --check -- app/scripts/check-worker-bundling.mjs app/scripts/lib/worker_bundling_scan.mjs app/scripts/lib/worker_bundling_scan.d.mts app/src/lib/dependency_policy/frontend_worker_bundling.test.ts app/src/lib/monaco/setup.ts app/src/harness/dependency_policy_harness.tsx tests/dependency_policy/offline_editor_load.spec.ts",
+            "status": "PASS",
+            "result": "exit 0; CRLF conversion notices only."
+          }
+        ]
+      },
+      {
+        "kind": "kb_ready_checklist",
+        "status": "PASS",
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+      },
+      {
+        "kind": "adversarial_code_review",
+        "reviewer": "multi_agent:019ec89c-91d1-7571-bdba-a7f58e97c5bd",
+        "product_verdict": "PASS",
+        "governance_note": "Reviewer product findings found no blocking product-code issues. Reviewer flagged governance closeout because MT-235 was still CLAIMED and exact files/evidence were not yet recorded; this READY_FOR_VALIDATION update addresses that state/evidence gap without setting completed_by."
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-235740",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

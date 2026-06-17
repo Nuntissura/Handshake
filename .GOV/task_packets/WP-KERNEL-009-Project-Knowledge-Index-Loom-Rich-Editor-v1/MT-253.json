@@ -82,16 +82,22 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-247"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "1a4a93c4",
+    "evidence": [
+      "commit 1a4a93c4 on feat/WP-KERNEL-009 (12 files, +1127/-7, zero .GOV)",
+      "runtime proof: real-PG source-control receipt test PASS (113.84s) against a real temp git repo + real PG-backed KernelSourceControlEventRecorder (stage+commit append SOURCE_CONTROL_OPERATION_RECORDED EventLedger events); offline Playwright source-control fixture PASS (4.1m, real temp git repo); unified_patch parser vitest 3 PASS; tsc + eslint clean",
+      "Monaco diff reuse closed: createConfiguredDiffEditor wired into SourceControlPanel via new unit-tested app/src/lib/source_control/unified_patch.ts (reconstructs original/modified sides from the unified patch)",
+      "adversarial review (4 blockers) forced executed-and-captured runtime proof; harden executed + captured the full real-PG/real-git/Playwright set",
+      "VALIDATION NOTE: the receipt PG test reads POSTGRES_TEST_URL (exported alongside DATABASE_URL); consistent with existing crate PG tests"
+    ]
   },
   "handoff": {
     "coder_session": null,

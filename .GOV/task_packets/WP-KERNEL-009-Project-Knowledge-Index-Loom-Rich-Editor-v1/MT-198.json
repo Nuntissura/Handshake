@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-198-UserManualFailureRecoveryPages",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-14T18:22:30Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-198.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,17 +80,58 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-06-14T18:22:30Z",
+    "ready_for_validation_reason": "UserManual failure recovery pages refreshed for non-page freshness drift; targeted and full UserManual proof suites pass against real PostgreSQL; adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "implementation",
+        "summary": "Seeded UserManual recovery wording now documents freshness resync for changed pages, tool entries, feature entries, and legacy aliases; stale 'only changed pages' wording removed from the seeded recovery surface.",
+        "files_changed": [
+          "src/backend/handshake_core/src/user_manual/seed.rs",
+          "src/backend/handshake_core/tests/user_manual_content_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "test_proof",
+        "summary": "Targeted freshness-doc regression plus full UserManual content/API/storage suites passed against real PostgreSQL; cargo check passed with preexisting warnings only.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt204-freshness-docs-verdicts.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-storage-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:21:27.611Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-198@2026-06-14T18:21:27.611Z"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Hubble adversarial review returned PASS; no blocking findings, with one non-blocking future hardening idea to count read receipts on the missing-link path.",
+        "evidence_refs": [
+          "subagent:019ec752-383a-7bc3-aee6-26749c59fef6"
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null

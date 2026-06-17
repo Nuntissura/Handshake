@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-236-TiptapRoundtripFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-15T21:35:09.729Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-236.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,148 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260615-013033",
+    "completed_by": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",
+    "implementation_commit": null,
+    "evidence": [
+      {
+        "kind": "implementation_verification",
+        "at_utc": "2026-06-15T21:35:09.729Z",
+        "by": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",
+        "status_after_work": "READY_FOR_VALIDATION",
+        "files_changed_for_mt236": [
+          "src/backend/handshake_core/tests/knowledge_tiptap_roundtrip_fixture_tests.rs",
+          "app/src/lib/tiptap/hs_link_node.ts",
+          "app/src/lib/tiptap/monaco_code_block_node.ts",
+          "app/src/lib/editor/export_formats.ts",
+          "app/src/lib/editor/export_formats.test.ts",
+          "app/src/components/RichTextEditor.tsx",
+          "app/src/components/RichTextEditor.test.tsx",
+          "tests/dependency_policy/rich_editor_roundtrip.spec.ts"
+        ],
+        "behavior_delivered": [
+          "Backend fixture proves custom Tiptap/ProseMirror nodes survive PostgreSQL create/save/load/history.",
+          "Backend fixture proves CRDT update/snapshot promotion metadata, snapshot IDs, and promotion receipt event IDs survive save/load/history.",
+          "Backend fixture proves block-tree parsing, stable JSON roundtrip, inline hsLink/tagMention retention, typed backlink extraction, and persisted backlink rows.",
+          "Frontend export/import coverage proves data-hs-* semantic attributes are consumed when legacy render attributes are absent.",
+          "Frontend export coverage fails closed for missing or oversized media instead of emitting backend content URLs into self-contained exports.",
+          "MT-236 fixture now fails closed when managed PostgreSQL binaries are unavailable instead of returning a green skipped test."
+        ],
+        "verification_runs": [
+          {
+            "phase": "RED false-pass reproduction",
+            "command": "$env:HANDSHAKE_MANAGED_PG_BIN='definitely-not-a-real-pg-bin-dir-xyz'; Remove-Item Env:POSTGRES_TEST_URL -ErrorAction SilentlyContinue; Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_tiptap_roundtrip_fixture_tests -- --nocapture",
+            "result_before_fix": "FAILED REQUIREMENT: command exited 0 and reported 1 passed while printing SKIP markers for missing PostgreSQL."
+          },
+          {
+            "phase": "GREEN missing-Postgres negative path",
+            "command": "$env:HANDSHAKE_MANAGED_PG_BIN='definitely-not-a-real-pg-bin-dir-xyz'; Remove-Item Env:POSTGRES_TEST_URL -ErrorAction SilentlyContinue; Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_tiptap_roundtrip_fixture_tests -- --nocapture",
+            "result_after_fix": "PASS-AS-NEGATIVE: command exited 1; test panicked with MT-236 requires PostgreSQL proof; missing PostgreSQL must fail closed."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_tiptap_roundtrip_fixture_tests -- --nocapture",
+            "result": "PASS: 1 test; custom nodes survive save/load/history and CRDT promotion. Rust compile emitted existing warnings."
+          },
+          {
+            "command": "$env:HARNESS_FORCE_BUILD='1'; pnpm --dir app exec playwright test ../tests/dependency_policy/rich_editor_roundtrip.spec.ts --config playwright.dependency.config.ts",
+            "result": "PASS: 1 Playwright test; RichTextEditor, Monaco code block, typed wikilinks, schema rehydrate roundtrip, worker chunk fetch, and zero external requests. Vite chunk-size warnings only."
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/export_formats.test.ts src/components/RichTextEditor.test.tsx --reporter=dot",
+            "result": "PASS: 2 files, 36 tests. jsdom HTMLCanvasElement.getContext warning only."
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/tiptap/hs_link_node.test.ts src/lib/tiptap/monaco_code_block_node.test.ts src/lib/editor/embed_assets.test.ts --reporter=dot",
+            "result": "PASS: 3 files, 35 tests."
+          }
+        ],
+        "runtime_artifacts": [
+          "../Handshake_Artifacts/dependency-policy-results/rich_editor_roundtrip-WP-K-84dca-with-zero-external-requests-chromium-offline-dependency-proof/rich-editor-offline-roundtrip.png"
+        ],
+        "acceptance_mapping": [
+          {
+            "criterion": "Tiptap/ProseMirror JSON roundtrips every custom node through backend save/load and CRDT promotion.",
+            "evidence": "knowledge_tiptap_roundtrip_fixture_tests passes against PostgreSQL/EventLedger-backed rich document and CRDT paths."
+          },
+          {
+            "criterion": "Negative fixtures prevent false PASS and missing PostgreSQL proof.",
+            "evidence": "Missing managed-PG binary probe now exits nonzero instead of returning green SKIP."
+          },
+          {
+            "criterion": "Visual/editor runtime proof exists.",
+            "evidence": "Offline Playwright rich_editor_roundtrip proof passed and saved screenshot artifact."
+          },
+          {
+            "criterion": "No mock-only, sidecar, SQLite, Docker-default, or external-app proof satisfies MT-236.",
+            "evidence": "Backend fixture uses PostgreSQL helper and now fails hard if PostgreSQL is unavailable; Playwright network gate blocks non-loopback requests."
+          }
+        ],
+        "notes": [
+          "No lifecycle PASS status was written; MT-236 remains READY_FOR_VALIDATION for independent validator action.",
+          "The broader product worktree remains dirty with unrelated WP-KERNEL-009 work; this evidence is scoped to MT-236 and the fail-closed fixture repair."
+        ]
+      },
+      {
+        "kind": "adversarial_self_review",
+        "at_utc": "2026-06-15T21:35:09.729Z",
+        "by": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",
+        "verdict": "PASS_READY_FOR_VALIDATION_AFTER_FIX",
+        "findings": [
+          {
+            "severity": "HIGH",
+            "status": "FIXED",
+            "finding": "MT-236 fixture previously returned success when managed PostgreSQL binaries were missing.",
+            "fix": "Changed the fixture to require knowledge_pg().await and panic on None, making missing PostgreSQL a failing proof path."
+          },
+          {
+            "severity": "MEDIUM",
+            "status": "FIXED_IN_GOVERNANCE_STATE",
+            "finding": "MT-236 lifecycle was READY_FOR_VALIDATION with null completed_by and no lifecycle.evidence array.",
+            "fix": "Added lifecycle evidence and completed_by while preserving READY_FOR_VALIDATION status."
+          }
+        ],
+        "diff_attack_surfaces": [
+          "Serialization/persistence of every custom rich-editor node through backend save/load/history.",
+          "CRDT snapshot/update metadata and promotion receipt event IDs.",
+          "HTML data-hs-* producer/consumer compatibility.",
+          "Fail-closed behavior for media/embed export errors.",
+          "Missing-PostgreSQL false green proof path."
+        ],
+        "independent_checks_run": [
+          "Adversarial reviewer ran independent hs_link_node, monaco_code_block_node, and embed_assets vitests: 3 files / 35 tests passed.",
+          "Adversarial reviewer probed invalid POSTGRES_TEST_URL and observed nonzero exit.",
+          "Adversarial reviewer probed missing managed-PG binaries and found a false-pass before the fix.",
+          "Main agent reran the missing managed-PG binary probe after the fix and observed nonzero exit."
+        ],
+        "counterfactual_checks": [
+          "If loaded.content_json equality or BlockTree::from_document_json were removed, custom node stripping could pass unnoticed.",
+          "If hs_link_node.ts stopped reading data-hs-ref-* attributes, primary HTML export/import would lose typed link semantics.",
+          "If the MT-236 fixture returned on knowledge_pg() == None, missing PostgreSQL infrastructure would again report a green skipped proof."
+        ],
+        "boundary_probes": [
+          "Producer/consumer: export_formats.ts stamps data-hs-* attributes; hs_link_node.ts and monaco_code_block_node.ts parse those attributes.",
+          "Backend writer/reader: create/save/load/list version history all assert content_json plus CRDT snapshot and receipt metadata."
+        ],
+        "negative_path_checks": [
+          "Missing managed PostgreSQL binaries now fail the fixture command.",
+          "Invalid explicit PostgreSQL URL exits nonzero per adversarial probe.",
+          "Frontend export tests cover invalid refs, missing assets, oversized images/videos, and oversized slideshow sequences."
+        ],
+        "residual_uncertainty": [
+          "Rust compile still emits unrelated pre-existing warnings.",
+          "Playwright proof is an offline built-harness proof for UI/runtime behavior; backend authority proof is covered by the separate PostgreSQL fixture."
+        ]
+      }
+    ]
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
