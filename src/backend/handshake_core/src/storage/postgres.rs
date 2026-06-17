@@ -7,8 +7,10 @@ use super::{
     DebugBreakpointInput, DefaultStorageGuard,
     Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
-    LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
+    LoomBlockUpdate, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers, LoomEdge,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
     LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSourceAnchor,
+    MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert,
     LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState,
     LoomVisualDebugBacklinkSummary, LoomVisualDebugCounts, LoomVisualDebugFolderSummary,
     LoomVisualDebugGraphEdgeSummary, LoomVisualDebugGraphNodeSummary, LoomVisualDebugGraphState,
@@ -1741,6 +1743,34 @@ fn map_asset(row: PgRow) -> Asset {
         exportable: exportable_int != 0,
         is_proxy_of: row.get("is_proxy_of"),
         proxy_asset_id: row.get("proxy_asset_id"),
+    }
+}
+
+fn map_media_tier(row: PgRow) -> StorageResult<MediaAssetTier> {
+    let tier = MediaTier::from_str(row.get::<String, _>("tier").as_str())?;
+    let status = MediaTierStatus::from_str(row.get::<String, _>("status").as_str())?;
+    Ok(MediaAssetTier {
+        tier_row_id: row.get("tier_row_id"),
+        workspace_id: row.get("workspace_id"),
+        asset_id: row.get("asset_id"),
+        tier,
+        status,
+        tier_asset_id: row.get("tier_asset_id"),
+        content_hash: row.get("content_hash"),
+        failure_reason: row.get("failure_reason"),
+        attempt_count: row.get("attempt_count"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
+    })
+}
+
+fn map_loom_collection(row: PgRow) -> LoomCollection {
+    LoomCollection {
+        collection_id: row.get("collection_id"),
+        workspace_id: row.get("workspace_id"),
+        title: row.get("title"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     }
 }
 
@@ -4872,6 +4902,318 @@ impl super::Database for PostgresDatabase {
         .await?;
 
         Ok(row.map(map_asset))
+    }
+
+    // ===== MT-259 MediaCacheTiers =====================================
+
+    async fn upsert_media_tier(
+        &self,
+        ctx: &WriteContext,
+        upsert: MediaTierUpsert,
+    ) -> StorageResult<MediaAssetTier> {
+        // validate_write enforces actor metadata; tiers are derived artifacts
+        // so we key the guard on the asset_id being derived from.
+        self.guard.validate_write(ctx, &upsert.asset_id).await?;
+        let now = Utc::now();
+        let id = Uuid::now_v7().to_string();
+        let row = sqlx::query(
+            r#"
+            INSERT INTO media_asset_tiers (
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $9)
+            ON CONFLICT (asset_id, tier) DO UPDATE SET
+                status = EXCLUDED.status,
+                tier_asset_id = EXCLUDED.tier_asset_id,
+                content_hash = EXCLUDED.content_hash,
+                failure_reason = EXCLUDED.failure_reason,
+                updated_at = EXCLUDED.updated_at
+            RETURNING
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            "#,
+        )
+        .bind(&id)
+        .bind(&upsert.workspace_id)
+        .bind(&upsert.asset_id)
+        .bind(upsert.tier.as_str())
+        .bind(upsert.status.as_str())
+        .bind(&upsert.tier_asset_id)
+        .bind(&upsert.content_hash)
+        .bind(&upsert.failure_reason)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+        map_media_tier(row)
+    }
+
+    async fn set_media_tier_status(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        asset_id: &str,
+        tier: MediaTier,
+        status: MediaTierStatus,
+        failure_reason: Option<String>,
+    ) -> StorageResult<MediaAssetTier> {
+        self.guard.validate_write(ctx, asset_id).await?;
+        let now = Utc::now();
+        // A transition INTO `pending` from a non-pending state is a retry: bump
+        // attempt_count so the retry queue accounting is real and visible.
+        let row = sqlx::query(
+            r#"
+            UPDATE media_asset_tiers
+            SET
+                status = $1,
+                failure_reason = $2,
+                attempt_count = attempt_count + CASE
+                    WHEN $1 = 'pending' AND status <> 'pending' THEN 1 ELSE 0 END,
+                updated_at = $3
+            WHERE workspace_id = $4 AND asset_id = $5 AND tier = $6
+            RETURNING
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            "#,
+        )
+        .bind(status.as_str())
+        .bind(&failure_reason)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(asset_id)
+        .bind(tier.as_str())
+        .fetch_optional(&self.pool)
+        .await?;
+        match row {
+            Some(row) => map_media_tier(row),
+            None => Err(StorageError::NotFound("media_asset_tier")),
+        }
+    }
+
+    async fn get_media_tier(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+        tier: MediaTier,
+    ) -> StorageResult<Option<MediaAssetTier>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            FROM media_asset_tiers
+            WHERE workspace_id = $1 AND asset_id = $2 AND tier = $3
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(asset_id)
+        .bind(tier.as_str())
+        .fetch_optional(&self.pool)
+        .await?;
+        match row {
+            Some(row) => Ok(Some(map_media_tier(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn list_media_tiers(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<Vec<MediaAssetTier>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            FROM media_asset_tiers
+            WHERE workspace_id = $1 AND asset_id = $2
+            ORDER BY tier
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(asset_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(map_media_tier).collect()
+    }
+
+    async fn list_failed_media_tiers(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<MediaAssetTier>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                tier_row_id, workspace_id, asset_id, tier, status,
+                tier_asset_id, content_hash, failure_reason,
+                attempt_count, created_at, updated_at
+            FROM media_asset_tiers
+            WHERE workspace_id = $1 AND status = 'failed'
+            ORDER BY updated_at DESC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(map_media_tier).collect()
+    }
+
+    async fn delete_media_tiers(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<u64> {
+        // Deleting derived tier rows NEVER touches the `assets` row or the
+        // original blob on disk: this statement only deletes from
+        // media_asset_tiers. The original asset is authority.
+        self.guard.validate_write(ctx, asset_id).await?;
+        let res = sqlx::query(
+            r#"
+            DELETE FROM media_asset_tiers
+            WHERE workspace_id = $1 AND asset_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(asset_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    // ===== MT-259 LoomCollections (GAP-LM-244a) =======================
+
+    async fn create_loom_collection(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        title: Option<String>,
+    ) -> StorageResult<LoomCollection> {
+        let id = Uuid::now_v7().to_string();
+        self.guard.validate_write(ctx, &id).await?;
+        let now = Utc::now();
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_collections (
+                collection_id, workspace_id, title, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $4)
+            RETURNING collection_id, workspace_id, title, created_at, updated_at
+            "#,
+        )
+        .bind(&id)
+        .bind(workspace_id)
+        .bind(&title)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(map_loom_collection(row))
+    }
+
+    async fn get_loom_collection(
+        &self,
+        workspace_id: &str,
+        collection_id: &str,
+    ) -> StorageResult<LoomCollectionWithMembers> {
+        let row = sqlx::query(
+            r#"
+            SELECT collection_id, workspace_id, title, created_at, updated_at
+            FROM loom_collections
+            WHERE workspace_id = $1 AND collection_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(collection_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let collection = match row {
+            Some(row) => map_loom_collection(row),
+            None => return Err(StorageError::NotFound("loom_collection")),
+        };
+        let member_rows = sqlx::query(
+            r#"
+            SELECT asset_id, position
+            FROM loom_collection_members
+            WHERE collection_id = $1
+            ORDER BY position
+            "#,
+        )
+        .bind(collection_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let members = member_rows
+            .into_iter()
+            .map(|r| LoomCollectionMember {
+                asset_id: r.get("asset_id"),
+                position: r.get("position"),
+            })
+            .collect();
+        Ok(LoomCollectionWithMembers {
+            collection,
+            members,
+        })
+    }
+
+    async fn set_loom_collection_order(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        collection_id: &str,
+        asset_ids: &[String],
+    ) -> StorageResult<LoomCollectionWithMembers> {
+        self.guard.validate_write(ctx, collection_id).await?;
+        let now = Utc::now();
+        let mut tx = self.pool.begin().await?;
+
+        // Confirm collection ownership inside the transaction.
+        let exists: Option<(String,)> = sqlx::query_as(
+            r#"
+            SELECT collection_id FROM loom_collections
+            WHERE workspace_id = $1 AND collection_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(collection_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if exists.is_none() {
+            return Err(StorageError::NotFound("loom_collection"));
+        }
+
+        // Replace the ordered member set: clear then re-insert dense 0..n.
+        // The UNIQUE(collection_id, position) is DEFERRABLE so reorder within a
+        // transaction never trips on transient duplicate positions.
+        sqlx::query("DELETE FROM loom_collection_members WHERE collection_id = $1")
+            .bind(collection_id)
+            .execute(&mut *tx)
+            .await?;
+        for (idx, asset_id) in asset_ids.iter().enumerate() {
+            sqlx::query(
+                r#"
+                INSERT INTO loom_collection_members (collection_id, asset_id, position)
+                VALUES ($1, $2, $3)
+                "#,
+            )
+            .bind(collection_id)
+            .bind(asset_id)
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await?;
+        }
+        sqlx::query("UPDATE loom_collections SET updated_at = $1 WHERE collection_id = $2")
+            .bind(now)
+            .bind(collection_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+
+        self.get_loom_collection(workspace_id, collection_id).await
     }
 
     async fn create_loom_block(

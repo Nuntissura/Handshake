@@ -111,6 +111,128 @@ impl FromStr for PreviewStatus {
     }
 }
 
+/// MT-259 GAP-LM-009: cache tier of a media asset's preview pyramid.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaTier {
+    Thumb,
+    Preview,
+    Poster,
+    Full,
+}
+
+impl MediaTier {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MediaTier::Thumb => "thumb",
+            MediaTier::Preview => "preview",
+            MediaTier::Poster => "poster",
+            MediaTier::Full => "full",
+        }
+    }
+}
+
+impl FromStr for MediaTier {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "thumb" => Ok(MediaTier::Thumb),
+            "preview" => Ok(MediaTier::Preview),
+            "poster" => Ok(MediaTier::Poster),
+            "full" => Ok(MediaTier::Full),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid media tier",
+            )),
+        }
+    }
+}
+
+/// MT-259: status of one cache tier. `pending` = queued/regenerable, `ready` =
+/// servable, `failed` = visible in the retry queue (never silent).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaTierStatus {
+    Pending,
+    Ready,
+    Failed,
+}
+
+impl MediaTierStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MediaTierStatus::Pending => "pending",
+            MediaTierStatus::Ready => "ready",
+            MediaTierStatus::Failed => "failed",
+        }
+    }
+}
+
+impl FromStr for MediaTierStatus {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "pending" => Ok(MediaTierStatus::Pending),
+            "ready" => Ok(MediaTierStatus::Ready),
+            "failed" => Ok(MediaTierStatus::Failed),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid media tier status",
+            )),
+        }
+    }
+}
+
+/// MT-259: a single cache-tier row for an asset's preview pyramid.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MediaAssetTier {
+    pub tier_row_id: String,
+    pub workspace_id: String,
+    pub asset_id: String,
+    pub tier: MediaTier,
+    pub status: MediaTierStatus,
+    pub tier_asset_id: Option<String>,
+    pub content_hash: Option<String>,
+    pub failure_reason: Option<String>,
+    pub attempt_count: i32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// MT-259: upsert payload for a media tier (idempotent on (asset_id, tier)).
+#[derive(Clone, Debug)]
+pub struct MediaTierUpsert {
+    pub workspace_id: String,
+    pub asset_id: String,
+    pub tier: MediaTier,
+    pub status: MediaTierStatus,
+    pub tier_asset_id: Option<String>,
+    pub content_hash: Option<String>,
+    pub failure_reason: Option<String>,
+}
+
+/// MT-259 GAP-LM-244a: a backend album/slideshow list-source.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomCollection {
+    pub collection_id: String,
+    pub workspace_id: String,
+    pub title: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomCollectionMember {
+    pub asset_id: String,
+    pub position: i32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomCollectionWithMembers {
+    pub collection: LoomCollection,
+    pub members: Vec<LoomCollectionMember>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LoomBlockDerivedGeneratedBy {
     pub model: String,

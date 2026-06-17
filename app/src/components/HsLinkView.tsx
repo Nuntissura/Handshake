@@ -27,8 +27,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import {
   isMediaEmbedKind,
+  resolveAssetTiers,
   resolveEmbedAsset,
   resolveEmbedSequence,
+  retryAssetTier,
+  type EmbedAssetTier,
   type EmbedErrorKind,
   type EmbedResolution,
   type EmbedResolverContext,
@@ -262,7 +265,13 @@ function LoomLinkPreview({ workspaceId, blockId }: { workspaceId: string; blockI
   );
 }
 
-function MediaEmbed({
+/**
+ * The media-embed renderer for the typed hsLink media kinds. Exported so the
+ * MT-259 offline Playwright harness can mount the REAL component (thumb-first
+ * grid, video poster + Range src, preview_status retry surface) against a real
+ * browser without standing up the full Tiptap editor.
+ */
+export function MediaEmbed({
   kind,
   refValue,
   label,
@@ -324,52 +333,177 @@ function MediaEmbed({
   }
 
   if (state.phase === "resolved-single") {
-    const { asset, contentUrl } = state.resolution;
+    const { resolution } = state;
     if (kind === "video") {
       return (
         <span className="hs-embed__media" data-embed-kind="video">
           <video
             data-testid="hs-embed-video"
-            data-asset-id={asset.asset_id}
-            data-asset-mime={asset.mime}
+            data-asset-id={resolution.asset.asset_id}
+            data-asset-mime={resolution.asset.mime}
             className="hs-embed__video"
-            src={contentUrl}
+            // MT-259: full-res src is the Range-capable content endpoint so the
+            // browser seeks by issuing HTTP Range; poster loads the cheap poster
+            // tier (falls back to nothing until the pyramid job marks it ready).
+            src={resolution.contentUrl}
+            poster={resolution.posterUrl}
             controls
             preload="metadata"
             onError={() =>
               setState({
                 phase: "failed",
                 errorKind: "media_load_failed",
-                detail: `the browser could not load/play asset '${asset.asset_id}' (${asset.mime})`,
+                detail: `the browser could not load/play asset '${resolution.asset.asset_id}' (${resolution.asset.mime})`,
               })
             }
           />
-          <span className="hs-embed__caption muted">{asset.original_filename ?? label}</span>
+          <span className="hs-embed__caption muted">
+            {resolution.asset.original_filename ?? label}
+          </span>
+          <TierStatus assetId={resolution.asset.asset_id} context={context} />
         </span>
       );
     }
     return (
       <span className="hs-embed__media" data-embed-kind="images">
-        <img
-          data-testid="hs-embed-image"
-          data-asset-id={asset.asset_id}
-          data-asset-mime={asset.mime}
-          className="hs-embed__image"
-          src={contentUrl}
-          alt={asset.original_filename ?? label}
-          onError={() =>
-            setState({
-              phase: "failed",
-              errorKind: "media_load_failed",
-              detail: `the browser could not decode asset '${asset.asset_id}' (${asset.mime})`,
-            })
-          }
-        />
+        <EmbedImage resolution={resolution} label={label} grid={false} />
+        <TierStatus assetId={resolution.asset.asset_id} context={context} />
       </span>
     );
   }
 
-  return <SequenceViewer kind={kind} items={state.items} />;
+  return <SequenceViewer kind={kind} items={state.items} context={context} />;
+}
+
+/**
+ * MT-259 GAP-LM-009: a single image that loads the cheap THUMB tier first (so a
+ * grid of hundreds scrolls fluidly), then loads the full-res original ONLY when
+ * the viewer clicks/zooms. If the thumb tier is not yet generated the backend
+ * returns 404 `tier_not_ready`; we degrade to the full-res original rather than
+ * blanking (`onError` upgrades the src). `data-tier` records which tier is live
+ * so a runtime proof can assert the grid renders the tier, not the original.
+ */
+function EmbedImage({
+  resolution,
+  label,
+  grid,
+}: {
+  resolution: Extract<EmbedResolution, { ok: true }>;
+  label: string;
+  grid: boolean;
+}) {
+  const { asset, thumbUrl, contentUrl } = resolution;
+  // The grid starts at thumb; a non-grid single embed starts at thumb too and
+  // upgrades on click. Failure to load a tier degrades to the next-larger tier.
+  const [src, setSrc] = useState(thumbUrl);
+  const [tier, setTier] = useState<"thumb" | "full">("thumb");
+
+  const upgradeToFull = () => {
+    if (tier !== "full") {
+      setSrc(contentUrl);
+      setTier("full");
+    }
+  };
+
+  return (
+    <img
+      data-testid={grid ? "hs-embed-grid-image" : "hs-embed-image"}
+      data-asset-id={asset.asset_id}
+      data-asset-mime={asset.mime}
+      data-tier={tier}
+      className="hs-embed__image"
+      src={src}
+      alt={asset.original_filename ?? label}
+      loading="lazy"
+      onClick={upgradeToFull}
+      onError={() => {
+        // Tier not generated yet (404 tier_not_ready) -> degrade to full-res
+        // original so the viewer NEVER sees a blank; record the live tier.
+        if (tier === "thumb") {
+          setSrc(contentUrl);
+          setTier("full");
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * MT-259 GAP-LM-009: the preview_status surface. Reads the per-asset tier rows
+ * (list_asset_tiers) and shows pending/ready, and for a FAILED tier a visible
+ * retry control that POSTs the retry endpoint (failed -> pending, attempt++,
+ * requeues the real generation job). Never silent: a failed tier is always
+ * shown with its reason and a retry button.
+ */
+function TierStatus({
+  assetId,
+  context,
+}: {
+  assetId: string;
+  context: EmbedResolverContext | null;
+}) {
+  const [tiers, setTiers] = useState<EmbedAssetTier[] | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  const reload = useRef<() => void>(() => {});
+  useEffect(() => {
+    let cancelled = false;
+    const ctx = context ?? { workspaceId: "" };
+    const run = () => {
+      void resolveAssetTiers(assetId, ctx).then((rows) => {
+        if (!cancelled) setTiers(rows);
+      });
+    };
+    reload.current = run;
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [assetId, context]);
+
+  if (!tiers || tiers.length === 0) return null;
+  const failed = tiers.filter((t) => t.status === "failed");
+  const ready = tiers.filter((t) => t.status === "ready").length;
+  const pending = tiers.filter((t) => t.status === "pending").length;
+
+  return (
+    <span
+      className="hs-embed__tier-status"
+      data-testid="hs-embed-tier-status"
+      data-tier-ready={String(ready)}
+      data-tier-pending={String(pending)}
+      data-tier-failed={String(failed.length)}
+      contentEditable={false}
+    >
+      {failed.map((t) => (
+        <span
+          key={t.tier}
+          className="hs-embed__tier-failed"
+          role="alert"
+          data-testid={`hs-embed-tier-failed-${t.tier}`}
+          data-failure-reason={t.failure_reason ?? ""}
+          data-attempt-count={String(t.attempt_count)}
+        >
+          {t.tier} generation failed ({t.failure_reason ?? "unknown"})
+          <button
+            type="button"
+            data-testid={`hs-embed-tier-retry-${t.tier}`}
+            disabled={retrying === t.tier}
+            onClick={() => {
+              const ctx = context ?? { workspaceId: "" };
+              setRetrying(t.tier);
+              void retryAssetTier(assetId, t.tier, ctx).then((ok) => {
+                setRetrying(null);
+                if (ok) reload.current();
+              });
+            }}
+          >
+            Retry
+          </button>
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /**
@@ -377,7 +511,15 @@ function MediaEmbed({
  * prev/next + position. A broken member renders its typed per-item error in
  * place while the rest of the sequence stays navigable.
  */
-function SequenceViewer({ kind, items }: { kind: MediaEmbedRefKind; items: EmbedSequenceItem[] }) {
+function SequenceViewer({
+  kind,
+  items,
+  context,
+}: {
+  kind: MediaEmbedRefKind;
+  items: EmbedSequenceItem[];
+  context: EmbedResolverContext | null;
+}) {
   const [index, setIndex] = useState(0);
   const clamped = Math.min(index, items.length - 1);
   const current = items[clamped];
@@ -410,12 +552,10 @@ function SequenceViewer({ kind, items }: { kind: MediaEmbedRefKind; items: Embed
     >
       <span className="hs-embed__sequence-frame">
         {current.resolution.ok ? (
-          <img
-            data-testid="hs-embed-sequence-image"
-            data-asset-id={current.resolution.asset.asset_id}
-            className="hs-embed__image"
-            src={current.resolution.contentUrl}
-            alt={current.resolution.asset.original_filename ?? current.refValue}
+          <EmbedImage
+            resolution={current.resolution}
+            label={current.refValue}
+            grid={false}
           />
         ) : (
           <EmbedError
@@ -426,6 +566,32 @@ function SequenceViewer({ kind, items }: { kind: MediaEmbedRefKind; items: Embed
           />
         )}
       </span>
+      {/* MT-259 GAP-LM-009: the thumbnail grid loads the cheap THUMB tier for
+          EVERY member so scrolling hundreds of media never pulls full-res
+          bytes; clicking a thumb jumps the frame to it. data-tier="thumb" on
+          each grid image is the runtime assertion that the grid renders the
+          tier, not the original. */}
+      <span className="hs-embed__sequence-grid" data-testid="hs-embed-sequence-grid">
+        {items.map((item, i) =>
+          item.resolution.ok ? (
+            <img
+              key={item.refValue}
+              data-testid="hs-embed-grid-image"
+              data-asset-id={item.resolution.asset.asset_id}
+              data-grid-index={String(i)}
+              data-tier="thumb"
+              className="hs-embed__grid-thumb"
+              src={item.resolution.thumbUrl}
+              alt={item.resolution.asset.original_filename ?? item.refValue}
+              loading="lazy"
+              onClick={() => setIndex(i)}
+            />
+          ) : null,
+        )}
+      </span>
+      {current.resolution.ok ? (
+        <TierStatus assetId={current.resolution.asset.asset_id} context={context} />
+      ) : null}
       <span className="hs-embed__sequence-controls" contentEditable={false}>
         <button
           type="button"

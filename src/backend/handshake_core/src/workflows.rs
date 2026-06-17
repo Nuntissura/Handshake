@@ -20781,6 +20781,39 @@ async fn run_loom_preview_generate_job(
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
     if !asset.mime.starts_with("image/") {
+        // MT-259 HONEST DEVIATION: no video decoder is bundled (Cargo.toml ships
+        // the `image` crate for PNG/JPEG only; adding ffmpeg would require a
+        // lockfile-pinned native decoder, deferred). For video we record an
+        // honest `failed` poster tier (NOT a synthetic/faked poster) with a real
+        // failure_reason, so the tier lands in the visible retry queue
+        // (list_failed_media_tiers) and POST .../tiers/poster/retry can requeue
+        // it (status -> pending, attempt_count++). The full video itself is
+        // still served byte-exact via the Range endpoint. When a decoder is
+        // bundled in a later MT, this branch produces a real poster frame.
+        let is_video = asset.mime.starts_with("video/");
+        let reason = if is_video {
+            "no_video_decoder_bundled"
+        } else {
+            "unsupported_mime"
+        };
+        if is_video {
+            state
+                .storage
+                .upsert_media_tier(
+                    &ctx,
+                    crate::storage::MediaTierUpsert {
+                        workspace_id: workspace_id.to_string(),
+                        asset_id: asset_id.to_string(),
+                        tier: crate::storage::MediaTier::Poster,
+                        status: crate::storage::MediaTierStatus::Failed,
+                        tier_asset_id: None,
+                        content_hash: None,
+                        failure_reason: Some(reason.to_string()),
+                    },
+                )
+                .await?;
+        }
+
         state
             .storage
             .set_loom_block_preview(
@@ -20798,7 +20831,7 @@ async fn run_loom_preview_generate_job(
             "block_id": block_id,
             "asset_id": asset_id,
             "preview_status": "failed",
-            "reason": "unsupported_mime",
+            "reason": reason,
         });
         state
             .storage
@@ -20807,7 +20840,7 @@ async fn run_loom_preview_generate_job(
 
         return Ok(RunJobOutcome {
             state: JobState::CompletedWithIssues,
-            status_reason: "unsupported_mime".to_string(),
+            status_reason: reason.to_string(),
             output: Some(payload),
             error_message: None,
         });
@@ -20880,6 +20913,125 @@ async fn run_loom_preview_generate_job(
     }
 
     let thumbnail_asset_id = thumbnail_asset.asset_id.clone();
+
+    // MT-259 MediaCacheTiers: in addition to the legacy block-keyed thumbnail
+    // slot, record per-asset, per-tier rows so the view renders from tiers and
+    // the pyramid (thumb -> preview -> full) is real and regenerable.
+    //
+    // thumb tier: the 256px PNG we just generated.
+    state
+        .storage
+        .upsert_media_tier(
+            &ctx,
+            crate::storage::MediaTierUpsert {
+                workspace_id: workspace_id.to_string(),
+                asset_id: asset_id.to_string(),
+                tier: crate::storage::MediaTier::Thumb,
+                status: crate::storage::MediaTierStatus::Ready,
+                tier_asset_id: Some(thumbnail_asset_id.clone()),
+                content_hash: Some(thumbnail_hash.clone()),
+                failure_reason: None,
+            },
+        )
+        .await?;
+
+    // preview tier: a mid-resolution (<=1024px) PNG for the in-editor preview
+    // step between thumb-grid and full-res.
+    let preview_img = image::load_from_memory(&original_bytes)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        .thumbnail(1024, 1024);
+    let mut preview_out = Vec::new();
+    {
+        let mut cursor = std::io::Cursor::new(&mut preview_out);
+        preview_img
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+    let preview_hash = {
+        let mut h = Sha256::new();
+        h.update(&preview_out);
+        hex::encode(h.finalize())
+    };
+    let preview_asset = match state
+        .storage
+        .find_asset_by_content_hash(workspace_id, &preview_hash)
+        .await?
+    {
+        Some(existing) => existing,
+        None => {
+            state
+                .storage
+                .create_asset(
+                    &ctx,
+                    crate::storage::NewAsset {
+                        workspace_id: workspace_id.to_string(),
+                        kind: "preview".to_string(),
+                        mime: "image/png".to_string(),
+                        original_filename: None,
+                        content_hash: preview_hash.clone(),
+                        size_bytes: preview_out.len() as i64,
+                        width: Some(preview_img.width() as i64),
+                        height: Some(preview_img.height() as i64),
+                        classification: "low".to_string(),
+                        exportable: true,
+                        is_proxy_of: Some(asset.asset_id.clone()),
+                        proxy_asset_id: None,
+                    },
+                )
+                .await?
+        }
+    };
+    let preview_path = crate::loom_fs::loom_asset_blob_path(
+        &handshake_root,
+        workspace_id,
+        "preview",
+        preview_hash.as_str(),
+    );
+    match crate::storage::artifacts::write_file_atomic(
+        &handshake_root,
+        &preview_path,
+        &preview_out,
+        false,
+    ) {
+        Ok(()) => {}
+        Err(crate::storage::artifacts::ArtifactError::Io(io_err))
+            if io_err.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(err) => return Err(WorkflowError::Terminal(err.to_string())),
+    }
+    state
+        .storage
+        .upsert_media_tier(
+            &ctx,
+            crate::storage::MediaTierUpsert {
+                workspace_id: workspace_id.to_string(),
+                asset_id: asset_id.to_string(),
+                tier: crate::storage::MediaTier::Preview,
+                status: crate::storage::MediaTierStatus::Ready,
+                tier_asset_id: Some(preview_asset.asset_id.clone()),
+                content_hash: Some(preview_hash.clone()),
+                failure_reason: None,
+            },
+        )
+        .await?;
+
+    // full tier: points back at the ORIGINAL asset (no derived blob); always
+    // ready once the source exists. Tiers are derived; the original is authority.
+    state
+        .storage
+        .upsert_media_tier(
+            &ctx,
+            crate::storage::MediaTierUpsert {
+                workspace_id: workspace_id.to_string(),
+                asset_id: asset_id.to_string(),
+                tier: crate::storage::MediaTier::Full,
+                status: crate::storage::MediaTierStatus::Ready,
+                tier_asset_id: Some(asset.asset_id.clone()),
+                content_hash: Some(asset.content_hash.clone()),
+                failure_reason: None,
+            },
+        )
+        .await?;
+
     state
         .storage
         .set_loom_block_preview(
@@ -20902,10 +21054,37 @@ async fn run_loom_preview_generate_job(
             json!({
                 "type": "loom_preview_generated",
                 "block_id": block_id,
-                "asset_id": thumbnail_asset_id,
+                // The ORIGINAL asset the pyramid derives from.
+                "asset_id": asset_id,
+                // Legacy single-slot thumbnail asset (kept for back-compat).
+                "thumbnail_asset_id": thumbnail_asset_id,
                 "preview_tier": 1,
                 "format": "png",
                 "duration_ms": duration_ms,
+                // MT-259: the receipt now carries the full per-tier pyramid it
+                // produced (thumb -> preview -> full), each with the derived
+                // asset id, so the receipt records the tier dimension rather
+                // than a single hardcoded slot.
+                "tiers": [
+                    {
+                        "tier": "thumb",
+                        "status": "ready",
+                        "tier_asset_id": thumbnail_asset_id,
+                        "content_hash": thumbnail_hash,
+                    },
+                    {
+                        "tier": "preview",
+                        "status": "ready",
+                        "tier_asset_id": preview_asset.asset_id,
+                        "content_hash": preview_hash,
+                    },
+                    {
+                        "tier": "full",
+                        "status": "ready",
+                        "tier_asset_id": asset.asset_id,
+                        "content_hash": asset.content_hash,
+                    },
+                ],
             }),
         )
         .with_job_id(job.job_id.to_string())

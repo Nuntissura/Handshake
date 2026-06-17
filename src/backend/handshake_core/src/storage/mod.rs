@@ -2027,6 +2027,66 @@ pub trait Database: Send + Sync {
         content_hash: &str,
     ) -> StorageResult<Option<Asset>>;
 
+    // MT-259 MediaCacheTiers (GAP-LM-009): per-asset, per-tier cache state.
+    async fn upsert_media_tier(
+        &self,
+        ctx: &WriteContext,
+        upsert: MediaTierUpsert,
+    ) -> StorageResult<MediaAssetTier>;
+    /// Set a tier's status; on `failed` -> `pending` (retry) bump attempt_count.
+    async fn set_media_tier_status(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        asset_id: &str,
+        tier: MediaTier,
+        status: MediaTierStatus,
+        failure_reason: Option<String>,
+    ) -> StorageResult<MediaAssetTier>;
+    async fn get_media_tier(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+        tier: MediaTier,
+    ) -> StorageResult<Option<MediaAssetTier>>;
+    async fn list_media_tiers(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<Vec<MediaAssetTier>>;
+    async fn list_failed_media_tiers(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<MediaAssetTier>>;
+    /// Delete derived tier rows for an asset. MUST NOT touch the original blob.
+    async fn delete_media_tiers(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<u64>;
+
+    // MT-259 GAP-LM-244a: backend album/slideshow list-source.
+    async fn create_loom_collection(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        title: Option<String>,
+    ) -> StorageResult<LoomCollection>;
+    async fn get_loom_collection(
+        &self,
+        workspace_id: &str,
+        collection_id: &str,
+    ) -> StorageResult<LoomCollectionWithMembers>;
+    /// Replace the ordered member list (re-densifies positions 0..n).
+    async fn set_loom_collection_order(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        collection_id: &str,
+        asset_ids: &[String],
+    ) -> StorageResult<LoomCollectionWithMembers>;
+
     async fn create_loom_block(
         &self,
         ctx: &WriteContext,

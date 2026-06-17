@@ -12,11 +12,20 @@ import { describe, it, expect, vi } from "vitest";
 import {
   assetContentUrl,
   assetMetadataUrl,
+  assetTierContentUrl,
+  assetTierRetryUrl,
+  assetTiersUrl,
+  collectionRefId,
+  collectionUrl,
   isMediaEmbedKind,
   mimeMatchesEmbedKind,
   parseAssetRefList,
+  resolveAssetTiers,
+  resolveCollectionMembers,
+  resolveCollectionSequence,
   resolveEmbedAsset,
   resolveEmbedSequence,
+  retryAssetTier,
   validateAssetRef,
   MAX_SEQUENCE_ITEMS,
   type EmbedAssetMetadata,
@@ -215,5 +224,214 @@ describe("album/slideshow sequences (closest real surface: asset-id list)", () =
     });
     expect(result).toMatchObject({ ok: false, errorKind: "invalid_ref" });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("MT-259 tier content URLs", () => {
+  it("appends ?tier= for non-full tiers and omits it for full", () => {
+    const base = "http://127.0.0.1:9";
+    expect(assetTierContentUrl(base, WS, "a-1", "thumb")).toBe(
+      `${assetContentUrl(base, WS, "a-1")}?tier=thumb`,
+    );
+    expect(assetTierContentUrl(base, WS, "a-1", "preview")).toBe(
+      `${assetContentUrl(base, WS, "a-1")}?tier=preview`,
+    );
+    // full tier serves the original (no tier query) so video can Range-seek it.
+    expect(assetTierContentUrl(base, WS, "a-1", "full")).toBe(
+      assetContentUrl(base, WS, "a-1"),
+    );
+  });
+
+  it("builds the per-asset tiers endpoint URL", () => {
+    const base = "http://127.0.0.1:9";
+    expect(assetTiersUrl(base, WS, "a-1")).toBe(
+      `${assetMetadataUrl(base, WS, "a-1")}/tiers`,
+    );
+  });
+});
+
+describe("MT-259 backend collection list-source (GAP-LM-244a)", () => {
+  it("builds the collection URL", () => {
+    const base = "http://127.0.0.1:9";
+    expect(collectionUrl(base, WS, "col-1")).toBe(
+      `${base}/workspaces/${WS}/loom/collections/col-1`,
+    );
+  });
+
+  it("resolves ordered members from the backend collection (not comma-split)", async () => {
+    const ordered = ["asset-c", "asset-a", "asset-b"];
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ collection_id: "col-1", title: "Album", members: ordered }),
+    );
+    const result = await resolveCollectionMembers("col-1", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.collection.members).toEqual(ordered);
+    expect(fetchImpl).toHaveBeenCalledWith(collectionUrl("http://127.0.0.1:9", WS, "col-1"));
+  });
+
+  it("resolveCollectionSequence enumerates members from backend order then resolves each", async () => {
+    const ordered = ["asset-2", "asset-1"];
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("/loom/collections/")) {
+        return jsonResponse({ collection_id: "col-9", title: null, members: ordered });
+      }
+      // each member metadata resolves as an image
+      const id = url.split("/assets/")[1];
+      return jsonResponse(metadata({ asset_id: id }));
+    });
+    const result = await resolveCollectionSequence("album", "col-9", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.items.map((i) => i.refValue)).toEqual(ordered);
+      expect(result.items.every((i) => i.resolution.ok)).toBe(true);
+    }
+  });
+
+  it("fails closed (typed not_found) when the collection is missing", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, 404));
+    const result = await resolveCollectionMembers("col-x", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(result).toMatchObject({ ok: false, errorKind: "not_found" });
+  });
+
+  it("rejects a collection ref with path traversal before any request", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}));
+    const result = await resolveCollectionMembers("../etc/passwd", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(result).toMatchObject({ ok: false, errorKind: "traversal_rejected" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("MT-259 live-path wiring (the repoint that makes the helpers non-dead)", () => {
+  it("resolveEmbedAsset returns tier URLs the view loads before the original", async () => {
+    const { context } = contextWith(jsonResponse(metadata({ asset_id: "a-7" })));
+    const result = await resolveEmbedAsset("images", "a-7", context);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // The grid loads thumbUrl; click upgrades to contentUrl (full original).
+      expect(result.thumbUrl).toBe(assetTierContentUrl("http://127.0.0.1:9", WS, "a-7", "thumb"));
+      expect(result.previewUrl).toBe(
+        assetTierContentUrl("http://127.0.0.1:9", WS, "a-7", "preview"),
+      );
+      expect(result.posterUrl).toBe(
+        assetTierContentUrl("http://127.0.0.1:9", WS, "a-7", "poster"),
+      );
+      expect(result.contentUrl).toBe(assetContentUrl("http://127.0.0.1:9", WS, "a-7"));
+      // The thumb URL is NOT the original — proves the grid renders the tier.
+      expect(result.thumbUrl).not.toBe(result.contentUrl);
+    }
+  });
+
+  it("collectionRefId detects the collection: ref and ignores comma lists", () => {
+    expect(collectionRefId("collection:col-1")).toBe("col-1");
+    expect(collectionRefId("  collection:col-2 ")).toBe("col-2");
+    expect(collectionRefId("a-1,a-2,a-3")).toBeNull();
+    expect(collectionRefId("collection:")).toBeNull();
+  });
+
+  it("resolveEmbedSequence routes a collection: ref to the BACKEND (not comma-split)", async () => {
+    const ordered = ["asset-2", "asset-1"];
+    const seen: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      seen.push(url);
+      if (url.includes("/loom/collections/")) {
+        return jsonResponse({ collection_id: "col-9", title: null, members: ordered });
+      }
+      const id = url.split("/assets/")[1];
+      return jsonResponse(metadata({ asset_id: id }));
+    });
+    const result = await resolveEmbedSequence("album", "collection:col-9", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect("items" in result).toBe(true);
+    if ("items" in result) {
+      // Order is server-owned; membership came from the backend collection.
+      expect(result.items.map((i) => i.refValue)).toEqual(ordered);
+    }
+    // It actually hit the collection endpoint (the repoint), not just metadata.
+    expect(seen.some((u) => u.includes("/loom/collections/col-9"))).toBe(true);
+  });
+
+  it("resolveEmbedSequence still comma-splits a legacy asset-id list", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      const id = url.split("/assets/")[1];
+      return jsonResponse(metadata({ asset_id: id }));
+    });
+    const result = await resolveEmbedSequence("album", "a-1,a-2", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect("items" in result).toBe(true);
+    if ("items" in result) expect(result.items.map((i) => i.refValue)).toEqual(["a-1", "a-2"]);
+    // No collection request for a legacy list.
+    expect(fetchImpl.mock.calls.every(([u]) => !String(u).includes("/loom/collections/"))).toBe(
+      true,
+    );
+  });
+
+  it("resolveAssetTiers reads the preview_status surface (pending/ready/failed)", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        tiers: [
+          { tier: "thumb", status: "ready", tier_asset_id: "t-1", content_hash: "h", failure_reason: null, attempt_count: 0 },
+          { tier: "poster", status: "failed", tier_asset_id: null, content_hash: null, failure_reason: "no_video_decoder_bundled", attempt_count: 2 },
+        ],
+      }),
+    );
+    const tiers = await resolveAssetTiers("a-1", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(tiers.map((t) => t.tier)).toEqual(["thumb", "poster"]);
+    expect(tiers.find((t) => t.tier === "poster")?.status).toBe("failed");
+    expect(fetchImpl).toHaveBeenCalledWith(assetTiersUrl("http://127.0.0.1:9", WS, "a-1"));
+  });
+
+  it("resolveAssetTiers fails closed (empty list) on transport failure", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("backend unreachable");
+    });
+    const tiers = await resolveAssetTiers("a-1", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(tiers).toEqual([]);
+  });
+
+  it("retryAssetTier POSTs the retry endpoint and returns ok", async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: { method?: string }) => {
+      expect(init?.method).toBe("POST");
+      return jsonResponse({ tier: "poster", status: "pending", attempt_count: 1, requeued: true });
+    });
+    const ok = await retryAssetTier("a-1", "poster", {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      assetTierRetryUrl("http://127.0.0.1:9", WS, "a-1", "poster"),
+      { method: "POST" },
+    );
   });
 });

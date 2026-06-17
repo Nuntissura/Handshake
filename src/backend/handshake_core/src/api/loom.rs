@@ -21,6 +21,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::str::FromStr;
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -224,6 +225,28 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/assets/:asset_id/thumbnail",
             get(get_asset_thumbnail),
+        )
+        // MT-259 MediaCacheTiers: tier state + visible retry queue
+        .route(
+            "/workspaces/:workspace_id/assets/:asset_id/tiers",
+            get(list_asset_tiers),
+        )
+        .route(
+            "/workspaces/:workspace_id/assets/:asset_id/tiers/:tier/retry",
+            post(retry_asset_tier),
+        )
+        // MT-259 GAP-LM-244a: backend album/slideshow list-source
+        .route(
+            "/workspaces/:workspace_id/loom/collections",
+            post(create_loom_collection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/collections/:collection_id",
+            get(get_loom_collection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/collections/:collection_id/order",
+            put(set_loom_collection_order),
         )
         // Views + search
         .route(
@@ -1924,35 +1947,177 @@ async fn get_asset_metadata(
     Ok(Json(asset))
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct AssetContentQuery {
+    /// MT-259: serve a derived cache tier (thumb|preview|poster|full) instead of
+    /// the original. Absent / `full` -> original blob.
+    #[serde(default)]
+    tier: Option<String>,
+}
+
+/// MT-259 GAP-LM-009b: parse a single-range `bytes=START-END` header against a
+/// known total length. Returns `Ok(Some((start, end_inclusive)))` for a valid
+/// satisfiable range, `Ok(None)` when there is no Range header, and
+/// `Err(())` when the range is syntactically present but unsatisfiable (416).
+fn parse_byte_range(headers: &axum::http::HeaderMap, total: u64) -> Result<Option<(u64, u64)>, ()> {
+    let Some(value) = headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
+        return Ok(None);
+    };
+    let spec = match value.strip_prefix("bytes=") {
+        Some(s) => s.trim(),
+        None => return Err(()),
+    };
+    // Only the first range of a (possibly multi) spec is honored.
+    let first = spec.split(',').next().unwrap_or("").trim();
+    let (start_s, end_s) = match first.split_once('-') {
+        Some(parts) => parts,
+        None => return Err(()),
+    };
+    if total == 0 {
+        return Err(());
+    }
+    let last = total - 1;
+    let (start, end) = if start_s.is_empty() {
+        // suffix range: bytes=-N  -> last N bytes
+        let n: u64 = end_s.parse().map_err(|_| ())?;
+        if n == 0 {
+            return Err(());
+        }
+        let n = n.min(total);
+        (total - n, last)
+    } else {
+        let start: u64 = start_s.parse().map_err(|_| ())?;
+        let end = if end_s.is_empty() {
+            last
+        } else {
+            end_s.parse::<u64>().map_err(|_| ())?.min(last)
+        };
+        (start, end)
+    };
+    if start > last || start > end {
+        return Err(());
+    }
+    Ok(Some((start, end)))
+}
+
 async fn get_asset_content(
     State(state): State<AppState>,
     Path((workspace_id, asset_id)): Path<(String, String)>,
+    Query(query): Query<AssetContentQuery>,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Response> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
-    let asset = state
+    let original = state
         .storage
         .get_asset(&workspace_id, &asset_id)
         .await
         .map_err(map_storage_error)?;
+
+    // MT-259: tier selection. `full`/absent serves the original; a derived tier
+    // serves the tier's blob (only when that tier row is `ready`).
+    let serve_asset = match query
+        .tier
+        .as_deref()
+        .filter(|t| !t.is_empty() && *t != "full")
+    {
+        None => original.clone(),
+        Some(tier_str) => {
+            let tier = crate::storage::MediaTier::from_str(tier_str)
+                .map_err(|_| bad_request("invalid_tier"))?;
+            let row = state
+                .storage
+                .get_media_tier(&workspace_id, &asset_id, tier)
+                .await
+                .map_err(map_storage_error)?
+                .ok_or_else(|| not_found("tier_not_available"))?;
+            if row.status != crate::storage::MediaTierStatus::Ready {
+                return Err(not_found("tier_not_ready"));
+            }
+            let tier_asset_id = row
+                .tier_asset_id
+                .ok_or_else(|| not_found("tier_not_available"))?;
+            state
+                .storage
+                .get_asset(&workspace_id, &tier_asset_id)
+                .await
+                .map_err(map_storage_error)?
+        }
+    };
+
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
     let path = loom_asset_blob_path(
         &handshake_root,
         &workspace_id,
-        &asset.kind,
-        &asset.content_hash,
+        &serve_asset.kind,
+        &serve_asset.content_hash,
     );
 
-    let bytes = std::fs::read(&path).map_err(internal_error)?;
+    let metadata = tokio::fs::metadata(&path).await.map_err(internal_error)?;
+    let total = metadata.len();
 
-    let mut response = Response::new(axum::body::Body::from(bytes));
-    *response.status_mut() = StatusCode::OK;
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(asset.mime.as_str())
-            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
-    );
-    Ok(response)
+    let content_type = HeaderValue::from_str(serve_asset.mime.as_str())
+        .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"));
+
+    // GAP-LM-009b: honor HTTP Range so long-video seeking streams a slice.
+    match parse_byte_range(&headers, total) {
+        Err(()) => {
+            // Syntactically present but unsatisfiable -> 416 + Content-Range *.
+            let mut response = Response::new(axum::body::Body::empty());
+            *response.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
+            response.headers_mut().insert(
+                header::CONTENT_RANGE,
+                HeaderValue::from_str(&format!("bytes */{total}"))
+                    .unwrap_or_else(|_| HeaderValue::from_static("bytes */0")),
+            );
+            response
+                .headers_mut()
+                .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+            Ok(response)
+        }
+        Ok(Some((start, end))) => {
+            use tokio::io::{AsyncReadExt, AsyncSeekExt};
+            let len = end - start + 1;
+            let mut file = tokio::fs::File::open(&path).await.map_err(internal_error)?;
+            file.seek(std::io::SeekFrom::Start(start))
+                .await
+                .map_err(internal_error)?;
+            let mut buf = vec![0u8; len as usize];
+            file.read_exact(&mut buf).await.map_err(internal_error)?;
+
+            let mut response = Response::new(axum::body::Body::from(buf));
+            *response.status_mut() = StatusCode::PARTIAL_CONTENT;
+            let h = response.headers_mut();
+            h.insert(header::CONTENT_TYPE, content_type);
+            h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+            h.insert(
+                header::CONTENT_RANGE,
+                HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
+                    .unwrap_or_else(|_| HeaderValue::from_static("bytes 0-0/0")),
+            );
+            h.insert(
+                header::CONTENT_LENGTH,
+                HeaderValue::from_str(&len.to_string())
+                    .unwrap_or_else(|_| HeaderValue::from_static("0")),
+            );
+            Ok(response)
+        }
+        Ok(None) => {
+            let bytes = tokio::fs::read(&path).await.map_err(internal_error)?;
+            let mut response = Response::new(axum::body::Body::from(bytes));
+            *response.status_mut() = StatusCode::OK;
+            let h = response.headers_mut();
+            h.insert(header::CONTENT_TYPE, content_type);
+            // Advertise range support so clients (video) can seek.
+            h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+            h.insert(
+                header::CONTENT_LENGTH,
+                HeaderValue::from_str(&total.to_string())
+                    .unwrap_or_else(|_| HeaderValue::from_static("0")),
+            );
+            Ok(response)
+        }
+    }
 }
 
 async fn get_asset_thumbnail(
@@ -1997,6 +2162,222 @@ async fn get_asset_thumbnail(
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
     Ok(response)
+}
+
+// ===== MT-259 MediaCacheTiers API ====================================
+
+#[derive(Debug, Serialize)]
+struct MediaTierView {
+    tier: String,
+    status: String,
+    tier_asset_id: Option<String>,
+    content_hash: Option<String>,
+    failure_reason: Option<String>,
+    attempt_count: i32,
+}
+
+impl From<crate::storage::MediaAssetTier> for MediaTierView {
+    fn from(t: crate::storage::MediaAssetTier) -> Self {
+        MediaTierView {
+            tier: t.tier.as_str().to_string(),
+            status: t.status.as_str().to_string(),
+            tier_asset_id: t.tier_asset_id,
+            content_hash: t.content_hash,
+            failure_reason: t.failure_reason,
+            attempt_count: t.attempt_count,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ListTiersResponse {
+    tiers: Vec<MediaTierView>,
+}
+
+async fn list_asset_tiers(
+    State(state): State<AppState>,
+    Path((workspace_id, asset_id)): Path<(String, String)>,
+) -> ApiResult<Json<ListTiersResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    // Confirm the asset exists (404 otherwise).
+    state
+        .storage
+        .get_asset(&workspace_id, &asset_id)
+        .await
+        .map_err(map_storage_error)?;
+    let tiers = state
+        .storage
+        .list_media_tiers(&workspace_id, &asset_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(ListTiersResponse {
+        tiers: tiers.into_iter().map(MediaTierView::from).collect(),
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct RetryTierResponse {
+    tier: String,
+    status: String,
+    attempt_count: i32,
+    requeued: bool,
+}
+
+async fn retry_asset_tier(
+    State(state): State<AppState>,
+    Path((workspace_id, asset_id, tier_str)): Path<(String, String, String)>,
+) -> ApiResult<Json<RetryTierResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let tier =
+        crate::storage::MediaTier::from_str(&tier_str).map_err(|_| bad_request("invalid_tier"))?;
+
+    let block = state
+        .storage
+        .find_loom_block_by_asset_id(&workspace_id, &asset_id)
+        .await
+        .map_err(map_storage_error)?
+        .ok_or_else(|| not_found("loom_block_not_found"))?;
+
+    // Flip status -> pending; storage bumps attempt_count on the failed->pending
+    // transition so the retry is recorded and never silent.
+    let ctx = crate::storage::WriteContext::human(None);
+    let updated = state
+        .storage
+        .set_media_tier_status(
+            &ctx,
+            &workspace_id,
+            &asset_id,
+            tier,
+            crate::storage::MediaTierStatus::Pending,
+            None,
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    // Requeue the real background generation job (same protocol as import).
+    let capability_profile_id = state
+        .capability_registry
+        .profile_for_job_request(
+            crate::storage::JobKind::LoomPreviewGenerate.as_str(),
+            "hsk.loom.preview_generate@v1",
+        )
+        .map_err(internal_error)?;
+    let job = crate::jobs::create_job(
+        &state,
+        crate::storage::JobKind::LoomPreviewGenerate,
+        "hsk.loom.preview_generate@v1",
+        capability_profile_id.id.as_str(),
+        Some(json!({
+            "workspace_id": workspace_id.clone(),
+            "block_id": block.block_id.clone(),
+            "asset_id": asset_id.clone(),
+            "requested_tier": 1,
+            "retry": true,
+        })),
+        Vec::new(),
+    )
+    .await
+    .map_err(internal_error)?;
+    let _ = crate::workflows::start_workflow_for_job(&state, job).await;
+
+    Ok(Json(RetryTierResponse {
+        tier: updated.tier.as_str().to_string(),
+        status: updated.status.as_str().to_string(),
+        attempt_count: updated.attempt_count,
+        requeued: true,
+    }))
+}
+
+// ===== MT-259 LoomCollections API (GAP-LM-244a) ======================
+
+#[derive(Debug, Deserialize)]
+struct CreateCollectionRequest {
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    asset_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CollectionView {
+    collection_id: String,
+    title: Option<String>,
+    members: Vec<String>,
+}
+
+impl From<crate::storage::LoomCollectionWithMembers> for CollectionView {
+    fn from(c: crate::storage::LoomCollectionWithMembers) -> Self {
+        CollectionView {
+            collection_id: c.collection.collection_id,
+            title: c.collection.title,
+            members: c.members.into_iter().map(|m| m.asset_id).collect(),
+        }
+    }
+}
+
+async fn create_loom_collection(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(req): Json<CreateCollectionRequest>,
+) -> ApiResult<Json<CollectionView>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = crate::storage::WriteContext::human(None);
+    let collection = state
+        .storage
+        .create_loom_collection(&ctx, &workspace_id, req.title)
+        .await
+        .map_err(map_storage_error)?;
+    let result = if req.asset_ids.is_empty() {
+        crate::storage::LoomCollectionWithMembers {
+            collection,
+            members: Vec::new(),
+        }
+    } else {
+        state
+            .storage
+            .set_loom_collection_order(
+                &ctx,
+                &workspace_id,
+                &collection.collection_id,
+                &req.asset_ids,
+            )
+            .await
+            .map_err(map_storage_error)?
+    };
+    Ok(Json(result.into()))
+}
+
+async fn get_loom_collection(
+    State(state): State<AppState>,
+    Path((workspace_id, collection_id)): Path<(String, String)>,
+) -> ApiResult<Json<CollectionView>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let result = state
+        .storage
+        .get_loom_collection(&workspace_id, &collection_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(result.into()))
+}
+
+#[derive(Debug, Deserialize)]
+struct SetCollectionOrderRequest {
+    asset_ids: Vec<String>,
+}
+
+async fn set_loom_collection_order(
+    State(state): State<AppState>,
+    Path((workspace_id, collection_id)): Path<(String, String)>,
+    Json(req): Json<SetCollectionOrderRequest>,
+) -> ApiResult<Json<CollectionView>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = crate::storage::WriteContext::human(None);
+    let result = state
+        .storage
+        .set_loom_collection_order(&ctx, &workspace_id, &collection_id, &req.asset_ids)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(result.into()))
 }
 
 #[derive(Debug, Deserialize, Default)]
