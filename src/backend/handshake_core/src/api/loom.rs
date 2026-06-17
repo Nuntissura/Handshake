@@ -288,6 +288,28 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/quick-switcher/recents",
             get(list_quick_switcher_recents).post(record_quick_switcher_recent),
         )
+        // MT-260: AI Loom jobs (auto-tag / auto-caption / link-suggest). Every
+        // suggestion is a PENDING proposal requiring confirm-to-promote.
+        .route(
+            "/workspaces/:workspace_id/loom/ai-jobs",
+            post(run_loom_ai_job),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/ai-jobs/:job_id/accept-all",
+            post(accept_all_loom_ai_suggestions),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/ai-suggestions",
+            get(list_loom_ai_suggestions),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/ai-suggestions/:suggestion_id/accept",
+            post(accept_loom_ai_suggestion),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/ai-suggestions/:suggestion_id/reject",
+            post(reject_loom_ai_suggestion),
+        )
         .with_state(state)
 }
 
@@ -2378,6 +2400,324 @@ async fn set_loom_collection_order(
         .await
         .map_err(map_storage_error)?;
     Ok(Json(result.into()))
+}
+
+// =============================================================================
+// MT-260: AI Loom jobs (GAP-LM-011)
+// =============================================================================
+
+use crate::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
+use crate::loom_ai::promotion::{
+    accept_all_loom_ai_suggestions as accept_all_suggestions_flow,
+    accept_loom_ai_suggestion as accept_suggestion_flow,
+    reject_loom_ai_suggestion as reject_suggestion_flow, LoomAiAcceptOutcome, LoomAiRejectOutcome,
+    LoomAiReviewError,
+};
+use crate::loom_ai::{run_loom_ai_job as run_loom_ai_job_flow, LoomAiJobError, LoomAiJobRequest};
+use crate::storage::loom_ai::{
+    list_loom_ai_suggestions as list_suggestion_rows, LoomAiJobKind, LoomAiSuggestionRow,
+};
+
+fn hdr_value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+/// The MODEL actor that runs a job (`x-hsk-actor-*`). AI Loom jobs are proposed
+/// by a model actor; absent headers fall back to an attributable local-model
+/// identity so receipts are always written. Validation-failed headers => 400.
+fn job_model_actor(headers: &axum::http::HeaderMap) -> ApiResult<KnowledgeActorIdV1> {
+    let kind = match hdr_value(headers, "x-hsk-actor-kind") {
+        Some("cloud_model") => KnowledgeActorKind::CloudModel,
+        // Default to local model (the no-Docker, self-hosted lane).
+        _ => KnowledgeActorKind::LocalModel,
+    };
+    let ident = hdr_value(headers, "x-hsk-actor-id").unwrap_or("loom-ai-job");
+    KnowledgeActorIdV1::new(kind, ident).map_err(|_| bad_request("HSK-400-LOOM-AI-ACTOR"))
+}
+
+/// The REVIEWER actor for accept/reject (operator/validator only). A model
+/// actor here is allowed through to the flow, which writes the durable denial
+/// receipt (per-item authority is enforced in the flow, not just the route).
+fn reviewer_actor(headers: &axum::http::HeaderMap) -> ApiResult<KnowledgeActorIdV1> {
+    let kind = match hdr_value(headers, "x-hsk-actor-kind") {
+        Some("validator") => KnowledgeActorKind::Validator,
+        Some("local_model") => KnowledgeActorKind::LocalModel,
+        Some("cloud_model") => KnowledgeActorKind::CloudModel,
+        Some("system") => KnowledgeActorKind::System,
+        // Default to operator (the human confirm path).
+        _ => KnowledgeActorKind::Operator,
+    };
+    let ident = hdr_value(headers, "x-hsk-actor-id").unwrap_or("operator");
+    KnowledgeActorIdV1::new(kind, ident).map_err(|_| bad_request("HSK-400-LOOM-AI-ACTOR"))
+}
+
+fn loom_ai_session(headers: &axum::http::HeaderMap) -> String {
+    hdr_value(headers, "x-hsk-session-run-id")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| format!("SR-loom-ai-{}", Uuid::now_v7().simple()))
+}
+
+fn loom_ai_correlation(headers: &axum::http::HeaderMap) -> String {
+    hdr_value(headers, "x-hsk-correlation-id")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| format!("corr-loom-ai-{}", Uuid::now_v7().simple()))
+}
+
+#[derive(Debug, Deserialize)]
+struct RunLoomAiJobRequest {
+    kind: LoomAiJobKind,
+    /// The blocks to run the job over.
+    block_ids: Vec<String>,
+    /// Optional candidate tags for auto_tag.
+    #[serde(default)]
+    tag_candidates: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LoomAiJobResponse {
+    job_id: String,
+    kind: String,
+    suggestions: Vec<LoomAiSuggestionRow>,
+}
+
+fn map_review_error(err: LoomAiReviewError) -> ApiError {
+    match err {
+        LoomAiReviewError::Storage(inner) => map_storage_error(inner),
+        LoomAiReviewError::Internal(_) => internal_error(err),
+    }
+}
+
+async fn run_loom_ai_job(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<RunLoomAiJobRequest>,
+) -> ApiResult<Json<LoomAiJobResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    if payload.block_ids.is_empty() {
+        return Err(bad_request("HSK-400-LOOM-AI-NO-BLOCKS"));
+    }
+    let actor = job_model_actor(&headers)?;
+
+    // Resolve every block (a missing block fails the whole job — no silent skip).
+    let mut blocks = Vec::with_capacity(payload.block_ids.len());
+    for block_id in &payload.block_ids {
+        let block = state
+            .storage
+            .get_loom_block(&workspace_id, block_id)
+            .await
+            .map_err(map_storage_error)?;
+        blocks.push(block);
+    }
+
+    let req = LoomAiJobRequest {
+        workspace_id: workspace_id.clone(),
+        kind: payload.kind,
+        blocks,
+        tag_candidates: payload.tag_candidates,
+        session_id: loom_ai_session(&headers),
+        correlation_id: loom_ai_correlation(&headers),
+        actor,
+    };
+    let result = run_loom_ai_job_flow(
+        state.storage.as_ref(),
+        &state.postgres_pool,
+        state.llm_client.as_ref(),
+        req,
+    )
+    .await
+    .map_err(|err| match err {
+        // No model configured / provider declined -> typed 409, zero rows.
+        LoomAiJobError::NoModel { .. } => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "HSK-409-LOOM-AI-NO-MODEL",
+            }),
+        ),
+        LoomAiJobError::Storage(inner) => map_storage_error(inner),
+        LoomAiJobError::Internal(_) => internal_error(err),
+    })?;
+
+    Ok(Json(LoomAiJobResponse {
+        job_id: result.job_id,
+        kind: result.kind,
+        suggestions: result.suggestions,
+    }))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ListLoomAiSuggestionsQuery {
+    #[serde(default)]
+    job_id: Option<String>,
+    #[serde(default)]
+    state: Option<String>,
+}
+
+async fn list_loom_ai_suggestions(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<ListLoomAiSuggestionsQuery>,
+) -> ApiResult<Json<Vec<LoomAiSuggestionRow>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let rows = list_suggestion_rows(
+        &state.postgres_pool,
+        &workspace_id,
+        query.job_id.as_deref(),
+        query.state.as_deref(),
+    )
+    .await
+    .map_err(map_storage_error)?;
+    Ok(Json(rows))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ReviewLoomAiSuggestionRequest {
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+async fn accept_loom_ai_suggestion(
+    State(state): State<AppState>,
+    Path((workspace_id, suggestion_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+    body: Option<Json<ReviewLoomAiSuggestionRequest>>,
+) -> ApiResult<Json<LoomAiSuggestionRow>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let reviewer = reviewer_actor(&headers)?;
+    let reason = body
+        .and_then(|b| b.0.reason)
+        .unwrap_or_else(|| "operator confirmed AI Loom suggestion".to_string());
+
+    let outcome = accept_suggestion_flow(
+        state.storage.as_ref(),
+        &state.postgres_pool,
+        &suggestion_id,
+        &reviewer,
+        &loom_ai_session(&headers),
+        &loom_ai_correlation(&headers),
+        &reason,
+    )
+    .await
+    .map_err(map_review_error)?;
+
+    match outcome {
+        LoomAiAcceptOutcome::Promoted { suggestion, .. } => Ok(Json(*suggestion)),
+        LoomAiAcceptOutcome::AlreadyPromoted(suggestion) => Ok(Json(*suggestion)),
+        LoomAiAcceptOutcome::UnknownSuggestion { .. } => Err(not_found("loom_ai_suggestion_not_found")),
+        LoomAiAcceptOutcome::Denied(_) => Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
+            }),
+        )),
+        LoomAiAcceptOutcome::NotPending { .. } => Err((
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "HSK-409-LOOM-AI-NOT-PENDING",
+            }),
+        )),
+    }
+}
+
+async fn reject_loom_ai_suggestion(
+    State(state): State<AppState>,
+    Path((workspace_id, suggestion_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+    body: Option<Json<ReviewLoomAiSuggestionRequest>>,
+) -> ApiResult<Json<LoomAiSuggestionRow>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let reviewer = reviewer_actor(&headers)?;
+    let reason = body
+        .and_then(|b| b.0.reason)
+        .unwrap_or_else(|| "operator rejected AI Loom suggestion".to_string());
+
+    let outcome = reject_suggestion_flow(
+        state.storage.as_ref(),
+        &state.postgres_pool,
+        &suggestion_id,
+        &reviewer,
+        &loom_ai_session(&headers),
+        &loom_ai_correlation(&headers),
+        &reason,
+    )
+    .await
+    .map_err(map_review_error)?;
+
+    match outcome {
+        LoomAiRejectOutcome::Rejected(suggestion) => Ok(Json(*suggestion)),
+        LoomAiRejectOutcome::UnknownSuggestion { .. } => Err(not_found("loom_ai_suggestion_not_found")),
+        LoomAiRejectOutcome::Denied(_) => Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-LOOM-AI-PROMOTION-DENIED",
+            }),
+        )),
+        LoomAiRejectOutcome::NotPending { .. } => Err((
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "HSK-409-LOOM-AI-NOT-PENDING",
+            }),
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct AcceptAllLoomAiRequest {
+    /// Only accept suggestions of this kind (accept-all-of-kind).
+    #[serde(default)]
+    kind: Option<LoomAiJobKind>,
+}
+
+#[derive(Debug, Serialize)]
+struct AcceptAllLoomAiResponse {
+    promoted: Vec<String>,
+    denied: Vec<String>,
+    skipped: Vec<String>,
+}
+
+/// Accept-all-of-kind. Per-item authority: each suggestion goes through the
+/// SAME accept flow (NOT a bulk SQL UPDATE), so a non-operator promotes NOTHING
+/// (every item lands in `denied`), and each promotion is individually
+/// kernel-event-backed.
+async fn accept_all_loom_ai_suggestions(
+    State(state): State<AppState>,
+    Path((workspace_id, job_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+    body: Option<Json<AcceptAllLoomAiRequest>>,
+) -> ApiResult<Json<AcceptAllLoomAiResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let reviewer = reviewer_actor(&headers)?;
+    let kind_filter = body.and_then(|b| b.0.kind);
+
+    let session = loom_ai_session(&headers);
+    let correlation = loom_ai_correlation(&headers);
+
+    // Delegate to the canonical accept-all sweep (lists the PENDING authority
+    // set from PostgreSQL and runs the SAME per-item flow on each), so per-item
+    // authority is enforced identically for the HTTP and direct callers.
+    let outcome = accept_all_suggestions_flow(
+        state.storage.as_ref(),
+        &state.postgres_pool,
+        &workspace_id,
+        &job_id,
+        kind_filter,
+        &reviewer,
+        &session,
+        &correlation,
+        "accept-all-of-kind",
+    )
+    .await
+    .map_err(map_review_error)?;
+
+    Ok(Json(AcceptAllLoomAiResponse {
+        promoted: outcome.promoted,
+        denied: outcome.denied,
+        skipped: outcome.skipped,
+    }))
 }
 
 #[derive(Debug, Deserialize, Default)]

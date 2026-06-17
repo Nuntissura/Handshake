@@ -1301,6 +1301,136 @@ export async function recordQuickSwitcherRecent(
   });
 }
 
+// ===========================================================================
+// MT-260: AI Loom jobs (auto-tag / auto-caption / link-suggest). Suggestions
+// are PENDING proposals requiring confirm-to-promote.
+// ===========================================================================
+
+export type LoomAiJobKind = "auto_tag" | "auto_caption" | "link_suggest";
+
+export type LoomAiReviewState = "pending" | "accepted" | "rejected" | "promoted";
+
+export type LoomAiSuggestion = {
+  suggestion_id: string;
+  job_id: string;
+  workspace_id: string;
+  kind: LoomAiJobKind;
+  block_id: string;
+  target_block_id: string | null;
+  suggested_value: Record<string, unknown>;
+  model_attribution: Record<string, unknown>;
+  prompt_sha256: string;
+  output_sha256: string;
+  review_state: LoomAiReviewState;
+  decided_by: string | null;
+  decision_reason: string | null;
+  recorded_event_id: string;
+  decided_event_id: string | null;
+  promotion_requested_event_id: string | null;
+  promotion_accepted_event_id: string | null;
+  promoted_artifact_ref: string | null;
+  value_hash: string;
+  created_at_utc: string;
+};
+
+export type LoomAiJobResponse = {
+  job_id: string;
+  kind: string;
+  suggestions: LoomAiSuggestion[];
+};
+
+export type LoomAiAcceptAllResponse = {
+  promoted: string[];
+  denied: string[];
+  skipped: string[];
+};
+
+export type RunLoomAiJobRequest = {
+  kind: LoomAiJobKind;
+  block_ids: string[];
+  tag_candidates?: string[];
+};
+
+/**
+ * The reviewer identity for accept/reject. Defaults to operator. A model actor
+ * here causes the backend to write a durable promotion-denial receipt and the
+ * request 403s (per-item authority is enforced server-side, not just in UI).
+ */
+export type LoomAiReviewerContext = {
+  actorKind?: "operator" | "validator" | "local_model" | "cloud_model" | "system";
+  actorId?: string;
+};
+
+function loomAiReviewerHeaders(ctx?: LoomAiReviewerContext): Record<string, string> {
+  return {
+    "x-hsk-actor-kind": ctx?.actorKind ?? "operator",
+    "x-hsk-actor-id": ctx?.actorId ?? "operator",
+  };
+}
+
+export async function runLoomAiJob(
+  workspaceId: string,
+  req: RunLoomAiJobRequest,
+): Promise<LoomAiJobResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/ai-jobs`, {
+    method: "POST",
+    body: req,
+  });
+}
+
+export async function listLoomAiSuggestions(
+  workspaceId: string,
+  filters: { jobId?: string; state?: LoomAiReviewState } = {},
+): Promise<LoomAiSuggestion[]> {
+  const query = new URLSearchParams();
+  if (filters.jobId) query.append("job_id", filters.jobId);
+  if (filters.state) query.append("state", filters.state);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/ai-suggestions${suffix}`);
+}
+
+export async function acceptLoomAiSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+  ctx?: LoomAiReviewerContext,
+  reason?: string,
+): Promise<LoomAiSuggestion> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/ai-suggestions/${encodeURIComponent(
+      suggestionId,
+    )}/accept`,
+    { method: "POST", body: { reason }, headers: loomAiReviewerHeaders(ctx) },
+  );
+}
+
+export async function rejectLoomAiSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+  ctx?: LoomAiReviewerContext,
+  reason?: string,
+): Promise<LoomAiSuggestion> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/ai-suggestions/${encodeURIComponent(
+      suggestionId,
+    )}/reject`,
+    { method: "POST", body: { reason }, headers: loomAiReviewerHeaders(ctx) },
+  );
+}
+
+export async function acceptAllLoomAiSuggestions(
+  workspaceId: string,
+  jobId: string,
+  kind?: LoomAiJobKind,
+  ctx?: LoomAiReviewerContext,
+): Promise<LoomAiAcceptAllResponse> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/ai-jobs/${encodeURIComponent(
+      jobId,
+    )}/accept-all`,
+    { method: "POST", body: { kind }, headers: loomAiReviewerHeaders(ctx) },
+  );
+}
+
 export async function getLoomWikiProjection(
   workspaceId: string,
   projectionId: string,

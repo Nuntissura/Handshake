@@ -47,7 +47,7 @@ pub struct KnowledgeCrdtDenialReceiptRow {
 
 /// Allowed receipt kinds (mirrors the migration CHECK; kept in Rust so
 /// callers fail closed before touching the database).
-pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 11] = [
+pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 12] = [
     "stale_draft_save",
     "concurrent_draft_fork",
     "ahead_of_head_save",
@@ -64,6 +64,9 @@ pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 11] = [
     // matching kernel_crdt_updates row (or a row whose stored content hash
     // disagreed with the presented content).
     "ai_edit_applied_update_missing",
+    // MT-260 AI Loom jobs: a promote attempt on a pending/rejected suggestion,
+    // or by a non-operator/non-validator actor, leaves this durable receipt.
+    "loom_ai_promotion_denied",
 ];
 
 /// Generate a new denial receipt id (`KCDR-<32 hex>`, time-ordered v7 per

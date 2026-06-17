@@ -25,6 +25,7 @@ pub mod knowledge_crdt;
 pub mod knowledge_memory;
 pub mod knowledge_retrieval;
 pub mod loom;
+pub mod loom_ai;
 pub mod postgres;
 pub mod retention;
 

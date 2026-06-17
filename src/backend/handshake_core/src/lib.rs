@@ -217,6 +217,7 @@ pub mod knowledge_wiki;
 pub mod llm;
 #[cfg(feature = "runtime-full")]
 pub mod logging;
+pub mod loom_ai;
 #[cfg(feature = "runtime-full")]
 pub mod loom_fs;
 #[cfg(feature = "runtime-full")]

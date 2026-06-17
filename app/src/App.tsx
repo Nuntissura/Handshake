@@ -48,6 +48,7 @@ import { SourceControlPanel } from "./components/SourceControlPanel";
 import { LoomBlockPanel } from "./components/LoomBlockPanel";
 import { LoomDailyJournalPanel } from "./components/LoomDailyJournalPanel";
 import { LoomWikiPagePanel } from "./components/LoomWikiPagePanel";
+import { LoomAiReviewPanel } from "./components/LoomAiReviewPanel";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { WorkspaceSearchPanel } from "./components/WorkspaceSearchPanel";
 import { buildAppCommandRegistry, resolveEditorAppCommand } from "./lib/app_command_registry";
@@ -595,6 +596,7 @@ function App() {
   const [appCommandPaletteOpen, setAppCommandPaletteOpen] = useState(false);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
+  const [loomAiReviewOpen, setLoomAiReviewOpen] = useState(false);
   const [editorCommandPaletteRequest, setEditorCommandPaletteRequest] =
     useState<EditorCommandPaletteRequest | null>(null);
   const [editorFindRequest, setEditorFindRequest] = useState<EditorFindTargetRequest | null>(null);
@@ -2149,6 +2151,14 @@ function App() {
                 >
                   Find in Files
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setLoomAiReviewOpen((value) => !value)}
+                  data-stable-id="loom-ai-review.open"
+                  data-testid="loom-ai-review.open"
+                >
+                  AI Loom Review
+                </button>
               </div>
 
               {bottomDrawerOpen ? (
@@ -2182,6 +2192,12 @@ function App() {
                       onOpenWorkPacket={openKernelDccWorkPacket}
                       onOpenUserManualPage={(slug) => openUserManualPane(undefined, slug)}
                       onOpenWikiPage={openLoomWikiPagePane}
+                    />
+                  ) : null}
+                  {loomAiReviewOpen && activeWorkspaceId ? (
+                    <LoomAiReviewPanel
+                      workspaceId={activeWorkspaceId}
+                      onClose={() => setLoomAiReviewOpen(false)}
                     />
                   ) : null}
                 </div>
