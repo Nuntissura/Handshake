@@ -1,4 +1,4 @@
-// WP-KERNEL-009 / MT-175 + MT-176 — integrated rich-editor offline round-trip.
+// WP-KERNEL-009 / MT-175 + MT-176 + MT-245 — integrated rich-editor offline round-trip.
 //
 // Serves the BUILT harness (app/dist-harness/harness/rich-editor.html) from a
 // loopback-only static server, blocks every non-loopback request at the browser
@@ -10,6 +10,8 @@
 //     (MT-172/176),
 //   - editing the code block + a content round-trip preserves language + text +
 //     hash (MT-176 deterministic round-trip),
+//   - editor chrome is real in the built surface: outline, status bar, palette
+//     save, go-to-line, and typed hsLink navigation event telemetry (MT-245),
 //   - ZERO external network requests are attempted (MT-175).
 //
 // This is the integrated-editor counterpart of offline_editor_load.spec.ts
@@ -78,6 +80,11 @@ interface RichEditorHarnessWindow {
   __RICH_EDITOR_HARNESS__?: {
     docJson: unknown;
     debug: EditorDebugShape | null;
+    saveCount: number;
+    dirty: boolean;
+    lastSavedAt: string | null;
+    linkNavigations: Array<{ refKind: string; refValue: string; label: string }>;
+    lastNavigation: { refKind: string; refValue: string; label: string } | null;
     roundTrip:
       | null
       | {
@@ -141,6 +148,29 @@ test.describe("WP-KERNEL-009 integrated rich-editor offline round-trip (network 
     await expect(page.getByTestId("rich-text-editor-toolbar")).toBeVisible();
     await expect(page.getByTestId("editor-cmd-format.bold")).toBeVisible();
 
+    // MT-245: the workbench chrome is present on the REAL editor surface, not
+    // only in unit tests. The outline is generated from the live document.
+    const outline = page.getByTestId("rich-text-editor-outline");
+    await expect(outline).toBeVisible();
+    await expect(outline).toHaveAttribute("data-outline-count", "1");
+    const headingOutlineItem = page
+      .getByTestId("rich-text-editor-outline-item")
+      .filter({ hasText: "Offline rich-editor proof" });
+    await expect(headingOutlineItem).toBeVisible();
+    await expect(headingOutlineItem).toHaveAttribute("data-outline-level", "1");
+    await headingOutlineItem.click();
+
+    // MT-245: the status bar reads live editor + authority-owned save state.
+    const statusBar = page.getByTestId("rich-text-editor-status-bar");
+    await expect(statusBar).toBeVisible();
+    await expect(statusBar).toHaveAttribute("data-save-state", "saved");
+    await expect(statusBar).toHaveAttribute("data-editable", "true");
+    await expect
+      .poll(async () => Number(await statusBar.getAttribute("data-word-count") ?? "0"))
+      .toBeGreaterThan(0);
+    await expect(page.getByTestId("rich-text-editor-status-cursor")).toContainText("Ln");
+    await expect(page.getByTestId("rich-text-editor-status-save")).toContainText("Saved");
+
     // The embedded Monaco code block mounted from bundled assets (MT-165/175).
     const codeBlock = page.getByTestId("monaco-code-block").first();
     await expect(codeBlock).toBeVisible();
@@ -154,6 +184,22 @@ test.describe("WP-KERNEL-009 integrated rich-editor offline round-trip (network 
     await expect(page.getByTestId("hs-link").first()).toBeVisible();
     const linkCount = await page.getByTestId("hs-link").count();
     expect(linkCount).toBeGreaterThanOrEqual(2);
+
+    // MT-245: clicking a typed link emits the same navigation intent consumed by
+    // the workbench shell. The offline harness records the real event.
+    await page.locator("[data-testid='hs-link'][data-ref-kind='wp']").click();
+    const chromeState = page.getByTestId("harness-chrome-state");
+    await expect(chromeState).toHaveAttribute("data-last-ref-kind", "wp");
+    await expect(chromeState).toHaveAttribute("data-last-ref-value", "WP-KERNEL-009");
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () =>
+            (window as unknown as RichEditorHarnessWindow).__RICH_EDITOR_HARNESS__
+              ?.linkNavigations?.length ?? 0,
+        ),
+      )
+      .toBeGreaterThanOrEqual(1);
 
     // The visual-debug payload reports the code block + links (MT-172). Read the
     // editor's own published global and poll until it lands (published via a
@@ -170,6 +216,47 @@ test.describe("WP-KERNEL-009 integrated rich-editor offline round-trip (network 
     );
     expect(debug?.codeBlocks?.[0]?.language).toBe("typescript");
     expect(debug?.links?.length).toBeGreaterThanOrEqual(2);
+
+    // MT-245: palette save is wired to the parent-owned save path. The editor
+    // does not persist by itself; it emits onSaveRequested, and the harness
+    // records the same event path RichDocumentView routes to saveRichDocument.
+    await page.getByTestId("editor-open-palette").click();
+    await page.getByTestId("editor-command-palette-input").fill("save");
+    await page.getByTestId("palette-cmd-editor.save").click();
+    await expect(chromeState).toHaveAttribute("data-save-count", "1");
+    await expect(chromeState).toHaveAttribute("data-dirty", "false");
+    await expect(statusBar).toHaveAttribute("data-save-state", "saved");
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () => (window as unknown as RichEditorHarnessWindow).__RICH_EDITOR_HARNESS__?.saveCount ?? 0,
+        ),
+      )
+      .toBe(1);
+
+    // MT-245: go-to-line drives the mounted Monaco reveal bridge and reports
+    // typed errors instead of silently doing nothing for invalid input.
+    const monacoEditor = page.locator("[data-testid='monaco-code-block-host'] .monaco-editor").first();
+    await monacoEditor.click();
+    await expect(statusBar).toHaveAttribute("data-code-language", "typescript");
+    await page.keyboard.press("Control+P");
+    await page.getByTestId("editor-command-palette-input").fill("line");
+    await page.getByTestId("palette-cmd-navigate.gotoLine").click();
+    await expect(page.getByTestId("editor-go-to-line-prompt")).toBeVisible();
+    await page.getByTestId("editor-arg-line").fill("1");
+    await page.getByTestId("editor-arg-confirm").click();
+    await expect(page.getByTestId("editor-go-to-line-prompt")).toBeHidden();
+    await expect(page.locator("[data-testid='monaco-code-block-host'] .selected-text").first()).toBeVisible();
+
+    await monacoEditor.click();
+    await expect(statusBar).toHaveAttribute("data-code-language", "typescript");
+    await page.keyboard.press("Control+P");
+    await page.getByTestId("editor-command-palette-input").fill("line");
+    await page.getByTestId("palette-cmd-navigate.gotoLine").click();
+    await page.getByTestId("editor-arg-line").fill("99");
+    await page.getByTestId("editor-arg-confirm").click();
+    await expect(page.getByTestId("editor-go-to-line-error")).toBeVisible();
+    await expect(page.getByTestId("editor-go-to-line-error")).toContainText("Line 99");
 
     // ---- MT-176: deterministic round-trip of the embedded code block. ----
     // Iteration-3 H7: this is now a REAL re-hydration through the editor

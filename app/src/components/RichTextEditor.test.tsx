@@ -13,6 +13,8 @@ import { act, type ComponentProps } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { RichTextEditor } from "./RichTextEditor";
 import type { JSONContent } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 
 function renderEditor(props?: Partial<ComponentProps<typeof RichTextEditor>>) {
   const onChange = vi.fn();
@@ -207,5 +209,99 @@ describe("RichTextEditor (MT-169..174)", () => {
     // No blank: the fatal notice + dependency banner render.
     expect(await screen.findByTestId("rich-text-editor-fatal")).toBeTruthy();
     expect(screen.getByTestId("rich-text-editor").getAttribute("data-editor-degraded")).toBe("true");
+  });
+
+  it("renders a live heading outline and clicking an item moves the real editor selection (MT-245)", async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    let editorRef: Editor | null = null;
+    const doc: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Runbook" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body text" }] },
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Recovery" }] },
+      ],
+    };
+
+    try {
+      await act(async () => {
+        renderEditor({
+          initialContent: doc,
+          onEditorReady: (editor) => {
+            editorRef = editor;
+          },
+        });
+      });
+
+      const outline = await screen.findByTestId("rich-text-editor-outline");
+      expect(outline).toHaveAttribute("data-outline-count", "2");
+      const items = screen.getAllByTestId("rich-text-editor-outline-item");
+      expect(items.map((item) => item.textContent)).toEqual(["Runbook", "Recovery"]);
+
+      await act(async () => {
+        fireEvent.click(items[1]);
+      });
+      await waitFor(() => {
+        expect(editorRef?.state.selection.from).toBe(Number(items[1].getAttribute("data-selection-pos")));
+        expect(scrollIntoView).toHaveBeenCalled();
+      });
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("renders the MT-245 status bar from live editor state plus authority save state", async () => {
+    let editorRef: Editor | null = null;
+    const doc: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "alpha beta" }] },
+        {
+          type: "monacoCodeBlock",
+          attrs: { language: "typescript", code: "const answer = 42;", contentHash: "hash" },
+        },
+      ],
+    };
+    await act(async () => {
+      renderEditor({
+        initialContent: doc,
+        onEditorReady: (editor) => {
+          editorRef = editor;
+        },
+        documentStatus: {
+          dirty: true,
+          saving: false,
+          blocked: false,
+          backendErrorKind: "conflict",
+          lastSavedAt: "12:34:56",
+        },
+      });
+    });
+
+    const status = await screen.findByTestId("rich-text-editor-status-bar");
+    expect(status).toHaveAttribute("data-save-state", "conflict");
+    expect(status).toHaveAttribute("data-word-count", "5");
+    expect(screen.getByTestId("rich-text-editor-status-save").textContent).toContain("Conflict");
+    expect(screen.getByTestId("rich-text-editor-status-cursor").textContent).toMatch(/Ln \d+, Col \d+/);
+
+    let codePos = -1;
+    editorRef!.state.doc.descendants((node, pos) => {
+      if (node.type.name === "monacoCodeBlock") {
+        codePos = pos;
+        return false;
+      }
+      return true;
+    });
+    expect(codePos).toBeGreaterThanOrEqual(0);
+    await act(async () => {
+      editorRef!.view.dispatch(
+        editorRef!.state.tr.setSelection(NodeSelection.create(editorRef!.state.doc, codePos)),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-text-editor-status-language").textContent).toContain("typescript");
+    });
   });
 });

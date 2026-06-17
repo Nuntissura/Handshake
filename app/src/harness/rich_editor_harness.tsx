@@ -18,7 +18,7 @@
 // NOT call a backend (the offline proof must not need a server); the backend
 // save path is covered by the RichDocumentView vitest suite against the real API.
 
-import { StrictMode, useCallback, useEffect } from "react";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getSchema } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
@@ -30,6 +30,7 @@ import {
   EDITOR_DEBUG_ENABLE_KEY,
   type EditorDebugSnapshot,
 } from "../lib/editor/visual_debug";
+import { onHsLinkNavigate, type HsLinkNavigateDetail } from "../lib/editor/link_navigation";
 
 // Iteration-3 M15: the debug payload is OFF in production bundles by default;
 // the offline proof harness opts in explicitly so the Playwright lane can read
@@ -60,8 +61,17 @@ export interface RichEditorHarnessState {
         beforeLanguage: string;
         afterLanguage: string;
         beforeCode: string;
-        afterCode: string;
-      };
+          afterCode: string;
+        };
+  /** MT-245 chrome proof: number of real editor save requests received. */
+  saveCount: number;
+  /** MT-245 chrome proof: current dirty state passed into the status bar. */
+  dirty: boolean;
+  /** MT-245 chrome proof: last saved timestamp passed into the status bar. */
+  lastSavedAt: string | null;
+  /** MT-245 link proof: typed hsLink navigation events emitted by real chips. */
+  linkNavigations: HsLinkNavigateDetail[];
+  lastNavigation: HsLinkNavigateDetail | null;
 }
 
 declare global {
@@ -106,7 +116,16 @@ const INITIAL_DOC: JSONContent = {
   ],
 };
 
-const state: RichEditorHarnessState = { docJson: INITIAL_DOC, debug: null, roundTrip: null };
+const state: RichEditorHarnessState = {
+  docJson: INITIAL_DOC,
+  debug: null,
+  roundTrip: null,
+  saveCount: 0,
+  dirty: false,
+  lastSavedAt: null,
+  linkNavigations: [],
+  lastNavigation: null,
+};
 
 function firstCodeBlockAttrs(doc: JSONContent | null): { language: string; code: string; contentHash: string } | null {
   if (!doc?.content) return null;
@@ -124,16 +143,47 @@ function firstCodeBlockAttrs(doc: JSONContent | null): { language: string; code:
 }
 
 function HarnessShell() {
+  const [dirty, setDirty] = useState(false);
+  const [saveCount, setSaveCount] = useState(0);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [lastNavigation, setLastNavigation] = useState<HsLinkNavigateDetail | null>(null);
+  const lastSavedDocRef = useRef<JSONContent>(INITIAL_DOC);
+  const baselineCapturedRef = useRef(false);
+
   // Iteration-3 H1: do NOT store onChange JSON in state and pass it back as
   // initialContent — that echo loop teleported the caret on every keystroke.
   // The editor owns the live document; the harness only mirrors the latest
   // JSON (+ the editor's debug snapshot) for the spec to read.
   const onChange = useCallback((next: JSONContent) => {
     state.docJson = next;
+    if (!baselineCapturedRef.current) {
+      baselineCapturedRef.current = true;
+      lastSavedDocRef.current = JSON.parse(JSON.stringify(next)) as JSONContent;
+      state.dirty = false;
+      setDirty(false);
+      return;
+    }
+    const nextDirty = !jsonDeepEquals(next, lastSavedDocRef.current);
+    state.dirty = nextDirty;
+    setDirty(nextDirty);
     const debug = (globalThis as Record<string, unknown>)[EDITOR_DEBUG_GLOBAL_KEY] as
       | EditorDebugSnapshot
       | undefined;
     if (debug) state.debug = debug;
+  }, []);
+
+  const onSaveRequested = useCallback(() => {
+    setSaveCount((previous) => {
+      const next = previous + 1;
+      state.saveCount = next;
+      return next;
+    });
+    const savedAt = new Date().toISOString();
+    lastSavedDocRef.current = JSON.parse(JSON.stringify(state.docJson ?? INITIAL_DOC)) as JSONContent;
+    state.lastSavedAt = savedAt;
+    state.dirty = false;
+    setLastSavedAt(savedAt);
+    setDirty(false);
   }, []);
 
   // In-harness round-trip (iteration-3 H7 — the previous version compared a
@@ -190,10 +240,39 @@ function HarnessShell() {
     window.__RICH_EDITOR_HARNESS__ = Object.assign(state, { runRoundTrip });
   }, [runRoundTrip]);
 
+  useEffect(() => {
+    return onHsLinkNavigate((detail) => {
+      state.linkNavigations.push(detail);
+      state.lastNavigation = detail;
+      setLastNavigation(detail);
+    });
+  }, []);
+
   return (
     <div data-testid="rich-editor-harness-root" style={{ padding: 16 }}>
       <h1 style={{ fontSize: 16 }}>Handshake rich-editor offline harness</h1>
-      <RichTextEditor initialContent={INITIAL_DOC} onChange={onChange} />
+      <RichTextEditor
+        initialContent={INITIAL_DOC}
+        onChange={onChange}
+        onSaveRequested={onSaveRequested}
+        documentStatus={{
+          dirty,
+          saving: false,
+          blocked: false,
+          backendErrorKind: null,
+          lastSavedAt,
+        }}
+      />
+      <div
+        data-testid="harness-chrome-state"
+        data-save-count={String(saveCount)}
+        data-dirty={dirty ? "true" : "false"}
+        data-last-saved-at={lastSavedAt ?? ""}
+        data-last-ref-kind={lastNavigation?.refKind ?? ""}
+        data-last-ref-value={lastNavigation?.refValue ?? ""}
+      >
+        saves={saveCount}; dirty={dirty ? "true" : "false"}
+      </div>
       <button type="button" data-testid="harness-run-roundtrip" onClick={runRoundTrip}>
         Run round-trip
       </button>

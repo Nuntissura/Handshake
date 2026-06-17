@@ -78,6 +78,16 @@ import {
   type ExportFormatId,
 } from "../lib/editor/export_formats";
 import { saveTextToFile } from "../lib/editor/save_to_file";
+import { revealCodeBlockRange } from "../lib/editor/code_block_find_registry";
+import {
+  buildEditorOutline,
+  buildEditorStatus,
+  codeLineRange,
+  findFocusedCodeBlock,
+  MONACO_CODE_BLOCK_STATUS_EVENT,
+  type MonacoCursorSnapshot,
+  type DocumentChromeStatus,
+} from "../lib/editor/editor_chrome";
 import { FindReplacePanel } from "./FindReplacePanel";
 import type {
   EditorBackendError,
@@ -118,6 +128,8 @@ export type RichTextEditorProps = {
    * preventDefault-ed (the browser save dialog must never appear).
    */
   onSaveRequested?: () => void;
+  /** Authority-owned save/dirty/conflict state for the MT-245 status bar. */
+  documentStatus?: DocumentChromeStatus;
   /**
    * Stable id for the per-editor debug namespace (iteration-3 L19):
    * `__HS_EDITOR_DEBUG_BY_ID__[debugId]`. Defaults to "default"; document
@@ -184,9 +196,12 @@ interface ComponentCommand {
   keywords: string[];
 }
 
+const GOTO_LINE_ACTION = "navigate.gotoLine";
+
 const COMPONENT_COMMANDS: readonly ComponentCommand[] = [
   { id: FIND_OPEN_ACTION, label: "Find in document", keywords: ["find", "search", "match"] },
   { id: REPLACE_OPEN_ACTION, label: "Find and replace", keywords: ["replace", "find", "substitute"] },
+  { id: GOTO_LINE_ACTION, label: "Go to line in code block", keywords: ["go", "goto", "line", "code"] },
   ...EXPORT_FORMATS.map((format) => ({
     id: `export.${format.id}`,
     label: `Export: ${format.label}`,
@@ -271,6 +286,7 @@ function RichTextEditorInner({
   documentTitle,
   onEditorReady,
   onSaveRequested,
+  documentStatus,
   debugId = "default",
 }: RichTextEditorProps & { extensions: AnyExtension[] }) {
   const [, forceRefresh] = useState(0);
@@ -285,6 +301,7 @@ function RichTextEditorInner({
   const paletteRef = useRef<HTMLDivElement>(null);
   const argPromptRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const linePromptRef = useRef<HTMLDivElement>(null);
   // Iteration-3 M16: toolbar roving tabindex (single tab stop + arrow keys).
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarFocusIndex, setToolbarFocusIndex] = useState(0);
@@ -297,6 +314,14 @@ function RichTextEditorInner({
   const [exportBusy, setExportBusy] = useState(false);
   const [lastExport, setLastExport] = useState<LastExportInfo | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [linePromptOpen, setLinePromptOpen] = useState(false);
+  const [lineInput, setLineInput] = useState("");
+  const [goToLineError, setGoToLineError] = useState<string | null>(null);
+  const lineInputValueRef = useRef("");
+  const lastFocusedCodeBlockRef = useRef<ReturnType<typeof findFocusedCodeBlock>>(null);
+  const paletteCodeBlockTargetRef = useRef<ReturnType<typeof findFocusedCodeBlock>>(null);
+  const goToLineTargetRef = useRef<ReturnType<typeof findFocusedCodeBlock>>(null);
+  const [monacoCursor, setMonacoCursor] = useState<MonacoCursorSnapshot | null>(null);
 
   const [debugSnapshot, setDebugSnapshot] = useState<EditorDebugSnapshot | null>(null);
 
@@ -365,6 +390,44 @@ function RichTextEditorInner({
     publishEditorDebugSnapshot(snapshot, debugId);
   }, [editor, debugId]);
 
+  const rememberFocusedCodeBlock = useCallback(() => {
+    if (!editor || editor.isDestroyed) return null;
+    const focused = findFocusedCodeBlock(editor.state.doc, editor.state.selection.from);
+    if (focused) lastFocusedCodeBlockRef.current = focused;
+    else lastFocusedCodeBlockRef.current = null;
+    return focused;
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const root = editor.view.dom;
+    const onMonacoStatus = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<MonacoCursorSnapshot>>).detail;
+      if (!detail || typeof detail.pos !== "number") return;
+      if (!detail.focused) {
+        setMonacoCursor((current) => (current?.pos === detail.pos ? null : current));
+        return;
+      }
+      setMonacoCursor({
+        focused: true,
+        pos: detail.pos,
+        language: String(detail.language ?? "plaintext"),
+        line: typeof detail.line === "number" ? detail.line : 1,
+        column: typeof detail.column === "number" ? detail.column : 1,
+      });
+    };
+    root.addEventListener(MONACO_CODE_BLOCK_STATUS_EVENT, onMonacoStatus);
+    return () => root.removeEventListener(MONACO_CODE_BLOCK_STATUS_EVENT, onMonacoStatus);
+  }, [editor]);
+
+  const currentFocusedCodeBlock = useCallback(() => {
+    if (!editor || editor.isDestroyed) return null;
+    if (monacoCursor?.focused) {
+      return findFocusedCodeBlock(editor.state.doc, monacoCursor.pos);
+    }
+    return rememberFocusedCodeBlock();
+  }, [editor, monacoCursor, rememberFocusedCodeBlock]);
+
   // Toolbar active-state refresh + actor-attributed selection snapshot (MT-171)
   // + visual-debug publication (MT-172). Iteration-3 M15: selectionUpdate and
   // transaction fire together on most edits — the refresh/publish work is
@@ -380,6 +443,7 @@ function RichTextEditorInner({
       queueMicrotask(() => {
         refreshQueued = false;
         if (disposed || editor.isDestroyed) return;
+        rememberFocusedCodeBlock();
         forceRefresh((t) => t + 1);
         publishDebug();
       });
@@ -408,7 +472,7 @@ function RichTextEditorInner({
       editor.off("selectionUpdate", onSelection);
       editor.off("transaction", onTx);
     };
-  }, [editor, onSelectionSnapshot, actor, presencePolicy, publishDebug]);
+  }, [editor, onSelectionSnapshot, actor, presencePolicy, publishDebug, rememberFocusedCodeBlock]);
 
   const runCommand = useCallback(
     (cmd: EditorCommandDescriptor, args?: Record<string, string>) => {
@@ -421,6 +485,7 @@ function RichTextEditorInner({
       cmd.run(editor, args);
       setPaletteOpen(false);
       setPaletteQuery("");
+      paletteCodeBlockTargetRef.current = null;
       setPendingCommand(null);
     },
     [editor],
@@ -480,6 +545,8 @@ function RichTextEditorInner({
   // MT-244: component-level command dispatch (find/replace/export surfaces).
   const runComponentCommand = useCallback(
     (id: string) => {
+      const paletteTarget = paletteCodeBlockTargetRef.current;
+      paletteCodeBlockTargetRef.current = null;
       setPaletteOpen(false);
       setPaletteQuery("");
       if (id === FIND_OPEN_ACTION) {
@@ -490,12 +557,46 @@ function RichTextEditorInner({
         setFindPanel("replace");
         return;
       }
+      if (id === GOTO_LINE_ACTION) {
+        goToLineTargetRef.current = currentFocusedCodeBlock() ?? paletteTarget;
+        setGoToLineError(null);
+        lineInputValueRef.current = "";
+        setLineInput("");
+        setLinePromptOpen(true);
+        return;
+      }
       if (id.startsWith("export.")) {
         void runExport(id.slice("export.".length) as ExportFormatId);
       }
     },
-    [runExport],
+    [runExport, currentFocusedCodeBlock],
   );
+
+  const runGoToLine = useCallback(() => {
+    if (!editor || editor.isDestroyed) return;
+    const rawLine = lineInputValueRef.current.trim();
+    const requested = Number(rawLine);
+    const focused = goToLineTargetRef.current;
+    if (!focused) {
+      setGoToLineError("No focused code block. Place the cursor in a code block before running Go to line.");
+      return;
+    }
+    const range = codeLineRange(focused.code, requested);
+    if (!range) {
+      setGoToLineError(`Line ${rawLine || "(blank)"} is outside this code block.`);
+      return;
+    }
+    const revealed = revealCodeBlockRange(focused.pos, range.start, range.end);
+    if (!revealed) {
+      setGoToLineError("The focused code block is not mounted yet; open it and retry.");
+      return;
+    }
+    setGoToLineError(null);
+    setLinePromptOpen(false);
+    goToLineTargetRef.current = null;
+    lineInputValueRef.current = "";
+    setLineInput("");
+  }, [editor]);
 
   // Keyboard: explicit keymap (MT-170 + MT-244). Palette/find/replace +
   // bound commands. Iteration-3 hardening (H3):
@@ -520,6 +621,7 @@ function RichTextEditorInner({
       }
       event.preventDefault();
       if (action === PALETTE_OPEN_ACTION) {
+        paletteCodeBlockTargetRef.current = currentFocusedCodeBlock();
         setPaletteOpen(true);
         return;
       }
@@ -539,7 +641,7 @@ function RichTextEditorInner({
     const root = editor.view.dom;
     root.addEventListener("keydown", handler);
     return () => root.removeEventListener("keydown", handler);
-  }, [editor, runCommand, onSaveRequested]);
+  }, [editor, runCommand, onSaveRequested, currentFocusedCodeBlock]);
 
   // Iteration-3 M13: focus trap + restore for every modal surface. These hooks
   // are declared BEFORE the focus-moving effects below so the previously
@@ -547,6 +649,7 @@ function RichTextEditorInner({
   const onPaletteTrapKeyDown = useDialogFocus(paletteOpen, paletteRef);
   const onArgPromptTrapKeyDown = useDialogFocus(pendingCommand !== null, argPromptRef);
   const onExportTrapKeyDown = useDialogFocus(exportMenuOpen, exportMenuRef);
+  const onLinePromptTrapKeyDown = useDialogFocus(linePromptOpen, linePromptRef);
 
   useEffect(() => {
     if (paletteOpen) paletteInputRef.current?.focus();
@@ -561,6 +664,11 @@ function RichTextEditorInner({
       exportMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     }
   }, [exportMenuOpen]);
+  useEffect(() => {
+    if (linePromptOpen) {
+      linePromptRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    }
+  }, [linePromptOpen]);
 
   // Iteration-3 M16: ARIA toolbar keyboard pattern — one tab stop, arrows move
   // between ENABLED controls; the roving index is stored in full-list terms so
@@ -586,6 +694,8 @@ function RichTextEditorInner({
 
   if (!editor) return null;
 
+  const outline = buildEditorOutline(editor.state.doc);
+  const chromeStatus = buildEditorStatus(editor, documentStatus, monacoCursor);
   const toolbarCommands = EDITOR_COMMANDS.filter((c) =>
     ["history", "format", "block", "list", "table", "code", "link"].includes(c.category),
   );
@@ -636,6 +746,7 @@ function RichTextEditorInner({
       if (component.id === SAVE_ACTION) {
         setPaletteOpen(false);
         setPaletteQuery("");
+        paletteCodeBlockTargetRef.current = null;
         onSaveRequested?.();
         return;
       }
@@ -647,6 +758,7 @@ function RichTextEditorInner({
     if (event.key === "Escape") {
       setPaletteOpen(false);
       setPendingCommand(null);
+      paletteCodeBlockTargetRef.current = null;
       return;
     }
     if (paletteOptionIds.length === 0) return;
@@ -692,6 +804,46 @@ function RichTextEditorInner({
           {backendError.hint ? <span className="muted"> {backendError.hint}</span> : null}
         </div>
       )}
+
+      <nav
+        className="rich-text-editor__outline"
+        aria-label="Document outline"
+        data-testid="rich-text-editor-outline"
+        data-outline-count={String(outline.length)}
+      >
+        <div className="rich-text-editor__outline-title">Outline</div>
+        {outline.length === 0 ? (
+          <div className="rich-text-editor__outline-empty muted" data-testid="rich-text-editor-outline-empty">
+            No headings.
+          </div>
+        ) : (
+          <ol className="rich-text-editor__outline-list">
+            {outline.map((item, index) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className="rich-text-editor__outline-item"
+                  data-testid="rich-text-editor-outline-item"
+                  data-outline-id={item.id}
+                  data-outline-level={String(item.level)}
+                  data-pos={String(item.pos)}
+                  data-selection-pos={String(item.selectionPos)}
+                  data-empty={item.empty ? "true" : "false"}
+                  style={{ paddingLeft: `${Math.max(0, item.level - 1) * 12}px` }}
+                  onClick={() => {
+                    editor.commands.setTextSelection(item.selectionPos);
+                    editor.commands.scrollIntoView();
+                    const heading = editor.view.dom.querySelectorAll("h1,h2,h3,h4,h5,h6")[index];
+                    heading?.scrollIntoView?.({ block: "center" });
+                  }}
+                >
+                  {item.text}
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+      </nav>
 
       {/* Toolbar (MT-169) — labelled, keyboard-reachable (MT-173). Iteration-3
           M16: ARIA toolbar keyboard pattern — ONE tab stop with roving
@@ -770,7 +922,10 @@ function RichTextEditorInner({
           title="More actions (Ctrl/Cmd+P)"
           tabIndex={toolbarCommands.length + 2 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 2)}
-          onClick={() => setPaletteOpen(true)}
+          onClick={() => {
+            paletteCodeBlockTargetRef.current = currentFocusedCodeBlock();
+            setPaletteOpen(true);
+          }}
         >
           More…
         </button>
@@ -788,6 +943,31 @@ function RichTextEditorInner({
       {/* The editing surface. */}
       <div className="rich-text-editor__surface tiptap-scroll" data-testid="rich-text-editor-surface">
         <EditorContent editor={editor} />
+      </div>
+
+      <div
+        className="rich-text-editor__status-bar"
+        data-testid="rich-text-editor-status-bar"
+        data-save-state={chromeStatus.saveState}
+        data-word-count={String(chromeStatus.wordCount)}
+        data-cursor-line={String(chromeStatus.cursor.line)}
+        data-cursor-column={String(chromeStatus.cursor.column)}
+        data-code-language={chromeStatus.focusedCodeLanguage ?? ""}
+        data-editable={chromeStatus.editable ? "true" : "false"}
+      >
+        <span data-testid="rich-text-editor-status-cursor">
+          Ln {chromeStatus.cursor.line}, Col {chromeStatus.cursor.column}
+        </span>
+        <span data-testid="rich-text-editor-status-language">
+          {chromeStatus.focusedCodeLanguage ? chromeStatus.focusedCodeLanguage : "Prose"}
+        </span>
+        <span data-testid="rich-text-editor-status-save">
+          {saveStateLabel(chromeStatus.saveState)}
+          {chromeStatus.lastSavedAt ? ` at ${chromeStatus.lastSavedAt}` : ""}
+        </span>
+        <span data-testid="rich-text-editor-status-words">
+          {chromeStatus.wordCount} word{chromeStatus.wordCount === 1 ? "" : "s"}
+        </span>
       </div>
 
       {/* Save-to-format export menu (MT-244 / DEC-003). Iteration-3 M13:
@@ -1002,6 +1182,67 @@ function RichTextEditorInner({
         </div>
       )}
 
+      {linePromptOpen && (
+        <div
+          ref={linePromptRef}
+          className="rich-text-editor__arg-prompt"
+          role="dialog"
+          aria-label="Go to line options"
+          aria-modal="true"
+          data-testid="editor-go-to-line-prompt"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setLinePromptOpen(false);
+              goToLineTargetRef.current = null;
+              lineInputValueRef.current = "";
+              return;
+            }
+            onLinePromptTrapKeyDown(e);
+          }}
+        >
+          <h4>Go to line</h4>
+          <label className="rich-text-editor__arg-field">
+            <span className="muted small">Line</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              data-testid="editor-arg-line"
+              value={lineInput}
+              onChange={(e) => {
+                lineInputValueRef.current = e.target.value;
+                setLineInput(e.target.value);
+              }}
+            />
+          </label>
+          <div className="rich-text-editor__arg-actions">
+            <button type="button" data-testid="editor-arg-confirm" onClick={runGoToLine}>
+              Go
+            </button>
+            <button
+              type="button"
+              data-testid="editor-arg-cancel"
+              onClick={() => {
+                lineInputValueRef.current = "";
+                goToLineTargetRef.current = null;
+                setLinePromptOpen(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {goToLineError && (
+        <div
+          className="rich-text-editor__goto-line-error"
+          role="alert"
+          data-testid="editor-go-to-line-error"
+        >
+          {goToLineError}
+        </div>
+      )}
+
       {/* Overflow menu (iteration-3 L13): a REAL operator-reachable menu for
           insert + table-structure commands — no longer a hidden stub. */}
       {overflowOpen && (
@@ -1068,4 +1309,21 @@ function ariaLabelFor(cmd: EditorCommandDescriptor): string {
 function paletteHint(cmd: EditorCommandDescriptor): string {
   const chord = bindingsForAction(cmd.id)[0]?.chord;
   return chord ?? cmd.category;
+}
+
+function saveStateLabel(state: "saved" | "dirty" | "saving" | "blocked" | "conflict" | "error"): string {
+  switch (state) {
+    case "saving":
+      return "Saving";
+    case "blocked":
+      return "Save blocked";
+    case "conflict":
+      return "Conflict";
+    case "error":
+      return "Save error";
+    case "dirty":
+      return "Unsaved";
+    case "saved":
+      return "Saved";
+  }
 }

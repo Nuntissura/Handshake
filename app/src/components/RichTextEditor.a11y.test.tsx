@@ -15,6 +15,8 @@ import { act } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { RichTextEditor } from "./RichTextEditor";
 import type { Editor, JSONContent } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
+import { registerCodeBlockFindHandle } from "../lib/editor/code_block_find_registry";
 
 const INITIAL: JSONContent = {
   type: "doc",
@@ -242,14 +244,304 @@ describe("RichTextEditor keyboard accessibility (iteration-3 M12/M13/M16/M6/L16)
       prose.dispatchEvent(event);
     });
     expect(event.defaultPrevented).toBe(true);
-    // The palette lists the save command when a handler is wired.
+    // The palette lists AND runs the save command when a handler is wired.
     await act(async () => {
       fireEvent.click(screen.getByTestId("editor-open-palette"));
     });
     await act(async () => {
       fireEvent.change(screen.getByTestId("editor-command-palette-input"), { target: { value: "save doc" } });
     });
-    expect(await screen.findByTestId("palette-cmd-editor.save")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId("palette-cmd-editor.save"));
+    });
+    expect(onSaveRequested).toHaveBeenCalledTimes(4);
+    await waitFor(() => {
+      expect(screen.queryByTestId("editor-command-palette")).toBeNull();
+    });
+  });
+
+  it("runs go-to-line from the palette against the focused code block and reports invalid lines (MT-245)", async () => {
+    let editor: Editor | null = null;
+    const reveals: Array<{ start: number; end: number }> = [];
+    let codePos = -1;
+    const unregister = registerCodeBlockFindHandle({
+      getPos: () => codePos,
+      reveal: (start, end) => reveals.push({ start, end }),
+    });
+    const withCode: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "before" }] },
+        {
+          type: "monacoCodeBlock",
+          attrs: { language: "typescript", code: "one\ntwo words\nthree", contentHash: "" },
+        },
+      ],
+    };
+    await act(async () => {
+      render(
+        <RichTextEditor
+          initialContent={withCode}
+          onChange={() => {}}
+          onEditorReady={(e) => {
+            editor = e;
+          }}
+        />,
+      );
+    });
+    await waitFor(() => expect(editor).toBeTruthy());
+    editor!.state.doc.descendants((node, pos) => {
+      if (node.type.name === "monacoCodeBlock") {
+        codePos = pos;
+        return false;
+      }
+      return true;
+    });
+    expect(codePos).toBeGreaterThanOrEqual(0);
+
+    try {
+      await act(async () => {
+        editor!.view.dispatch(editor!.state.tr.setSelection(NodeSelection.create(editor!.state.doc, codePos)));
+        fireEvent.click(screen.getByTestId("editor-open-palette"));
+      });
+      await act(async () => {
+        fireEvent.change(screen.getByTestId("editor-command-palette-input"), { target: { value: "line" } });
+        fireEvent.click(await screen.findByTestId("palette-cmd-navigate.gotoLine"));
+      });
+      await act(async () => {
+        fireEvent.change(await screen.findByTestId("editor-arg-line"), { target: { value: "2" } });
+        fireEvent.click(screen.getByTestId("editor-arg-confirm"));
+      });
+      expect(reveals).toEqual([{ start: 4, end: 13 }]);
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("editor-open-palette"));
+      });
+      await act(async () => {
+        fireEvent.change(screen.getByTestId("editor-command-palette-input"), { target: { value: "line" } });
+        fireEvent.click(await screen.findByTestId("palette-cmd-navigate.gotoLine"));
+      });
+      await act(async () => {
+        fireEvent.change(await screen.findByTestId("editor-arg-line"), { target: { value: "99" } });
+        fireEvent.click(screen.getByTestId("editor-arg-confirm"));
+      });
+      const error = await screen.findByTestId("editor-go-to-line-error");
+      expect(error.getAttribute("role")).toBe("alert");
+      expect(error.textContent).toContain("99");
+      expect(reveals).toHaveLength(1);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("does not reuse a stale code-block target after selection moves back to prose (MT-245)", async () => {
+    let editor: Editor | null = null;
+    let firstCodePos = -1;
+    let secondCodePos = -1;
+    const reveals: Array<{ pos: number; start: number; end: number }> = [];
+    const unregisterFirst = registerCodeBlockFindHandle({
+      getPos: () => firstCodePos,
+      reveal: (start, end) => reveals.push({ pos: firstCodePos, start, end }),
+    });
+    const unregisterSecond = registerCodeBlockFindHandle({
+      getPos: () => secondCodePos,
+      reveal: (start, end) => reveals.push({ pos: secondCodePos, start, end }),
+    });
+    const withTwoBlocks: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "before" }] },
+        { type: "monacoCodeBlock", attrs: { language: "typescript", code: "first\nblock", contentHash: "" } },
+        { type: "paragraph", content: [{ type: "text", text: "middle prose" }] },
+        { type: "monacoCodeBlock", attrs: { language: "typescript", code: "second\nblock", contentHash: "" } },
+      ],
+    };
+
+    try {
+      await act(async () => {
+        render(
+          <RichTextEditor
+            initialContent={withTwoBlocks}
+            onChange={() => {}}
+            onEditorReady={(e) => {
+              editor = e;
+            }}
+          />,
+        );
+      });
+      await waitFor(() => expect(editor).toBeTruthy());
+      let middleParagraphSelection = -1;
+      editor!.state.doc.descendants((node, pos) => {
+        if (node.type.name === "monacoCodeBlock") {
+          if (firstCodePos < 0) firstCodePos = pos;
+          else secondCodePos = pos;
+        }
+        if (node.type.name === "paragraph" && node.textContent === "middle prose") {
+          middleParagraphSelection = pos + 1;
+        }
+        return true;
+      });
+      expect(firstCodePos).toBeGreaterThanOrEqual(0);
+      expect(secondCodePos).toBeGreaterThanOrEqual(0);
+      expect(middleParagraphSelection).toBeGreaterThanOrEqual(0);
+
+      await act(async () => {
+        editor!.view.dispatch(editor!.state.tr.setSelection(NodeSelection.create(editor!.state.doc, firstCodePos)));
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-code-language", "typescript");
+      });
+
+      await act(async () => {
+        editor!.commands.setTextSelection(middleParagraphSelection);
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-code-language", "");
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("editor-open-palette"));
+      });
+      await act(async () => {
+        fireEvent.change(screen.getByTestId("editor-command-palette-input"), { target: { value: "line" } });
+        fireEvent.click(await screen.findByTestId("palette-cmd-navigate.gotoLine"));
+      });
+      await act(async () => {
+        fireEvent.change(await screen.findByTestId("editor-arg-line"), { target: { value: "2" } });
+        fireEvent.click(screen.getByTestId("editor-arg-confirm"));
+      });
+
+      const error = await screen.findByTestId("editor-go-to-line-error");
+      expect(error.textContent).toContain("No focused code block");
+      expect(reveals).toEqual([]);
+    } finally {
+      unregisterFirst();
+      unregisterSecond();
+    }
+  });
+
+  it("does not fall back to the only code block when prose has focus for Go to line (MT-245)", async () => {
+    let editor: Editor | null = null;
+    let codePos = -1;
+    let proseSelection = -1;
+    const reveals: Array<{ start: number; end: number }> = [];
+    const unregister = registerCodeBlockFindHandle({
+      getPos: () => codePos,
+      reveal: (start, end) => reveals.push({ start, end }),
+    });
+    const withOneBlock: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "prose cursor stays here" }] },
+        { type: "monacoCodeBlock", attrs: { language: "typescript", code: "first\nsecond", contentHash: "" } },
+      ],
+    };
+
+    try {
+      await act(async () => {
+        render(
+          <RichTextEditor
+            initialContent={withOneBlock}
+            onChange={() => {}}
+            onEditorReady={(e) => {
+              editor = e;
+            }}
+          />,
+        );
+      });
+      await waitFor(() => expect(editor).toBeTruthy());
+      editor!.state.doc.descendants((node, pos) => {
+        if (node.type.name === "paragraph") proseSelection = pos + 1;
+        if (node.type.name === "monacoCodeBlock") codePos = pos;
+        return true;
+      });
+      expect(proseSelection).toBeGreaterThanOrEqual(0);
+      expect(codePos).toBeGreaterThanOrEqual(0);
+
+      await act(async () => {
+        editor!.commands.setTextSelection(proseSelection);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("editor-open-palette"));
+      });
+      await act(async () => {
+        fireEvent.change(screen.getByTestId("editor-command-palette-input"), { target: { value: "line" } });
+        fireEvent.click(await screen.findByTestId("palette-cmd-navigate.gotoLine"));
+      });
+      await act(async () => {
+        fireEvent.change(await screen.findByTestId("editor-arg-line"), { target: { value: "2" } });
+        fireEvent.click(screen.getByTestId("editor-arg-confirm"));
+      });
+
+      const error = await screen.findByTestId("editor-go-to-line-error");
+      expect(error.textContent).toContain("No focused code block");
+      expect(reveals).toEqual([]);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("uses Monaco focus and cursor events for status language and line column (MT-245)", async () => {
+    let editor: Editor | null = null;
+    let codePos = -1;
+    const withCode: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "before" }] },
+        { type: "monacoCodeBlock", attrs: { language: "typescript", code: "one\ntwo", contentHash: "" } },
+      ],
+    };
+
+    await act(async () => {
+      render(
+        <RichTextEditor
+          initialContent={withCode}
+          onChange={() => {}}
+          onEditorReady={(e) => {
+            editor = e;
+          }}
+        />,
+      );
+    });
+    await waitFor(() => expect(editor).toBeTruthy());
+    editor!.state.doc.descendants((node, pos) => {
+      if (node.type.name === "monacoCodeBlock") codePos = pos;
+      return codePos < 0;
+    });
+    expect(codePos).toBeGreaterThanOrEqual(0);
+
+    await act(async () => {
+      fireEvent(
+        screen.getByTestId("monaco-code-block"),
+        new CustomEvent("handshake:monaco-code-block-status", {
+          bubbles: true,
+          detail: { focused: true, pos: codePos, language: "typescript", line: 2, column: 4 },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-code-language", "typescript");
+      expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-cursor-line", "2");
+      expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-cursor-column", "4");
+      expect(screen.getByTestId("rich-text-editor-status-cursor")).toHaveTextContent("Ln 2, Col 4");
+      expect(screen.getByTestId("rich-text-editor-status-language")).toHaveTextContent("typescript");
+    });
+
+    await act(async () => {
+      fireEvent(
+        screen.getByTestId("monaco-code-block"),
+        new CustomEvent("handshake:monaco-code-block-status", {
+          bubbles: true,
+          detail: { focused: false, pos: codePos, language: "typescript", line: 2, column: 4 },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rich-text-editor-status-bar")).toHaveAttribute("data-code-language", "");
+      expect(screen.getByTestId("rich-text-editor-status-language")).toHaveTextContent("Prose");
+    });
   });
 
   it("exits the embedded code block to the prose document with Escape (M6/M17, degraded path)", async () => {

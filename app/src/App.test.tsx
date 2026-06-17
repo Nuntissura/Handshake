@@ -10,6 +10,14 @@ vi.mock("./components/WorkspaceSidebar", () => ({
   WorkspaceSidebar: () => <div data-testid="workspace-sidebar">Workspace Sidebar</div>,
 }));
 
+vi.mock("./components/DocumentView", () => ({
+  DocumentView: ({ documentId }: { documentId: string | null }) => (
+    <div data-testid="app-document-view" data-document-id={documentId ?? ""}>
+      Document {documentId}
+    </div>
+  ),
+}));
+
 vi.mock("./components/SystemStatus", () => ({
   SystemStatus: () => <div data-testid="system-status">Coordinator: OK</div>,
 }));
@@ -23,6 +31,73 @@ vi.mock("./lib/api", () => ({
       updated_at: "2025-01-01T00:00:00Z",
     },
   ]),
+  loadRichDocument: vi.fn(async (documentId: string) => ({
+    document: {
+      rich_document_id: documentId,
+      workspace_id: "w1",
+      document_id: null,
+      title: `Rich ${documentId}`,
+      schema_version: "rich_document_v1",
+      doc_version: 1,
+      content_json: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "opened" }] }] },
+      content_sha256: "0".repeat(64),
+      crdt_document_id: null,
+      crdt_snapshot_id: null,
+      promotion_receipt_event_id: null,
+      projection_refs: [],
+      project_ref: null,
+      folder_ref: null,
+      authority_label: "promoted",
+      owner_actor_kind: "operator",
+      owner_actor_id: "operator",
+      created_at: "2026-06-12T00:00:00Z",
+      updated_at: "2026-06-12T00:00:00Z",
+    },
+    tree: {
+      schema_version: "rich_document_v1",
+      schema_matches: true,
+      block_ids: [],
+      blocks: [],
+    },
+    code_nodes: [],
+  })),
+  loadRichDocumentHistory: vi.fn(async (documentId: string) => ({
+    rich_document_id: documentId,
+    current_version: 1,
+    authority_label: "promoted",
+    owner_actor_kind: "operator",
+    owner_actor_id: "operator",
+    versions: [],
+  })),
+  listRichDocumentEmbeds: vi.fn(async () => ({ embeds: [] })),
+  listRichDocumentBrokenEmbeds: vi.fn(async () => ({ broken_embeds: [], available_actions: [] })),
+  listRichDocumentBacklinks: vi.fn(async () => ({ backlinks: [] })),
+  saveRichDocument: vi.fn(async (documentId: string) => ({
+    document: {
+      rich_document_id: documentId,
+      workspace_id: "w1",
+      document_id: null,
+      title: `Rich ${documentId}`,
+      schema_version: "rich_document_v1",
+      doc_version: 2,
+      content_json: { type: "doc", content: [] },
+      content_sha256: "0".repeat(64),
+      crdt_document_id: null,
+      crdt_snapshot_id: null,
+      promotion_receipt_event_id: null,
+      projection_refs: [],
+      project_ref: null,
+      folder_ref: null,
+      authority_label: "promoted",
+      owner_actor_kind: "operator",
+      owner_actor_id: "operator",
+      created_at: "2026-06-12T00:00:00Z",
+      updated_at: "2026-06-12T00:00:00Z",
+    },
+    save_receipt_event_id: "EVT-APP",
+    backlinks_persisted: 0,
+    backlinks_skipped_reason: null,
+  })),
   createWorkspace: vi.fn(async (name: string) => ({
     id: "w-new",
     name,
@@ -395,6 +470,7 @@ vi.mock("./lib/api", () => ({
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import { FlightRecorderView } from "./components/FlightRecorderView";
+import { HS_LINK_NAVIGATE_EVENT } from "./lib/editor/link_navigation";
 import {
   createDiagnostic,
   getEvents,
@@ -556,6 +632,116 @@ it("opens the UserManual diagnostics tab from the app command palette", async ()
   expect(listUserManualAccessPoints).toHaveBeenCalledTimes(1);
   expect(listUserManualPages).toHaveBeenCalledTimes(1);
   expect(getUserManualPage).toHaveBeenCalledWith("manual-toc");
+});
+
+it("opens a direct rich-document hsLink target in the workspace pane (MT-245/EXT-NAV-LINK-001)", async () => {
+  render(<App />);
+
+  fireEvent(
+    window,
+    new CustomEvent(HS_LINK_NAVIGATE_EVENT, {
+      detail: {
+        refKind: "rich_document",
+        refValue: "KRD-00000000000000000000000000000099",
+        label: "Linked rich doc",
+      },
+    }),
+  );
+
+  expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-state", "navigated");
+  await waitFor(() => {
+    expect(screen.getByTestId("pane-pane-a")).toHaveAttribute("data-pane-type", "workspace");
+    expect(screen.getByTestId("app-document-view")).toHaveAttribute(
+      "data-document-id",
+      "KRD-00000000000000000000000000000099",
+    );
+  });
+});
+
+it("surfaces an unsupported hsLink as a typed visible navigation error (MT-245/EXT-NAV-LINK-001)", async () => {
+  render(<App />);
+
+  fireEvent(
+    window,
+    new CustomEvent(HS_LINK_NAVIGATE_EVENT, {
+      detail: { refKind: "wp", refValue: "NO-SUCH-WP", label: "Missing WP" },
+    }),
+  );
+
+  const error = await screen.findByTestId("hs-link-navigation-error");
+  expect(error.getAttribute("role")).toBe("alert");
+  expect(error).toHaveAttribute("data-ref-kind", "wp");
+  expect(error).toHaveAttribute("data-ref-value", "NO-SUCH-WP");
+  expect(error.textContent).toContain("NO-SUCH-WP");
+  expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-state", "error");
+});
+
+it("routes workspace file hsLinks to the workspace surface without using the rich-document loader (MT-245/EXT-NAV-LINK-001)", async () => {
+  render(<App />);
+
+  fireEvent(
+    window,
+    new CustomEvent(HS_LINK_NAVIGATE_EVENT, {
+      detail: { refKind: "file", refValue: "src/App.tsx", label: "src/App.tsx" },
+    }),
+  );
+
+  await waitFor(() => {
+    expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-state", "navigated");
+    expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-kind", "file");
+    expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-value", "src/App.tsx");
+    expect(screen.getByTestId("pane-pane-a")).toHaveAttribute("data-pane-type", "workspace");
+  });
+  expect(screen.queryByTestId("hs-link-navigation-error")).toBeNull();
+  expect(screen.queryByTestId("app-document-view")).toBeNull();
+});
+
+it("routes typed workspace/project hsLinks to existing app surfaces instead of errors (MT-245/EXT-NAV-LINK-001)", async () => {
+  vi.mocked(getKernelDccProjection).mockClear();
+  vi.mocked(searchUserManual).mockClear();
+  render(<App />);
+  await screen.findByTestId("project-w1");
+
+  const cases: Array<{
+    refKind: string;
+    refValue: string;
+    expectedPane: string;
+    expectedActiveProject?: string;
+  }> = [
+    { refKind: "folder", refValue: "src/components", expectedPane: "workspace" },
+    { refKind: "project", refValue: "w1", expectedPane: "workspace", expectedActiveProject: "w1" },
+    { refKind: "wp", refValue: "WP-KERNEL-009", expectedPane: "kernel-dcc" },
+    { refKind: "spec", refValue: "SPEC_CURRENT", expectedPane: "user-manual" },
+    { refKind: "symbol", refValue: "RichTextEditor", expectedPane: "user-manual" },
+  ];
+
+  for (const routeCase of cases) {
+    fireEvent(
+      window,
+      new CustomEvent(HS_LINK_NAVIGATE_EVENT, {
+        detail: { ...routeCase, label: routeCase.refValue },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-state", "navigated");
+      expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-kind", routeCase.refKind);
+      expect(screen.getByTestId("main-window")).toHaveAttribute("data-link-navigation-value", routeCase.refValue);
+      expect(screen.getByTestId("pane-pane-a")).toHaveAttribute("data-pane-type", routeCase.expectedPane);
+      if (routeCase.expectedActiveProject) {
+        expect(screen.getByTestId("main-window")).toHaveAttribute(
+          "data-active-project-id",
+          routeCase.expectedActiveProject,
+        );
+      }
+    });
+    expect(screen.queryByTestId("hs-link-navigation-error")).toBeNull();
+  }
+
+  expect(getKernelDccProjection).toHaveBeenCalled();
+  await waitFor(() => {
+    expect(searchUserManual).toHaveBeenCalledWith("RichTextEditor", 25);
+  });
 });
 
 it("puts the diagnostics stable selector on the UserManual tab entry point", () => {

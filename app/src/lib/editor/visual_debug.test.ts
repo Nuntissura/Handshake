@@ -61,8 +61,14 @@ describe("editor visual-debug snapshot (MT-172)", () => {
 
   it("documents the canonical stable selector set", () => {
     expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor");
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-outline");
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-outline-item");
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-status-bar");
+    expect(EDITOR_STABLE_SELECTORS).toContain("editor-go-to-line-prompt");
+    expect(EDITOR_STABLE_SELECTORS).toContain("editor-go-to-line-error");
     expect(EDITOR_STABLE_SELECTORS).toContain("monaco-code-block");
     expect(EDITOR_STABLE_SELECTORS).toContain("hs-link");
+    expect(EDITOR_STABLE_SELECTORS).toContain("hs-link-navigation-error");
     expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-backend-error");
   });
 });

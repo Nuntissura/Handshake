@@ -872,8 +872,19 @@ body {
 .document-editor__status {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
   color: var(--hs-color-text-subtle);
   font-size: 14px;
+}
+
+.hs-link-navigation-error {
+  margin: 0 0 10px 0;
+  padding: 8px 12px;
+  border: 1px solid #c0564f;
+  border-radius: 6px;
+  background: rgba(192, 86, 79, 0.12);
+  color: var(--hs-color-text);
+  font-size: 13px;
 }
 
 .document-blocks {
@@ -3042,6 +3053,77 @@ input.settings-row__control:disabled {
 }
 
 /* == WP-KERNEL-009 / MT-244: embeds, find/replace, export menu ============= */
+
+/* MT-245 editor workbench chrome */
+.rich-text-editor__outline {
+  margin: 0 0 8px 0;
+  padding: 8px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 6px;
+  background: var(--hs-color-bg);
+}
+
+.rich-text-editor__outline-title {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--hs-color-text-subtle);
+  text-transform: uppercase;
+}
+
+.rich-text-editor__outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rich-text-editor__outline-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--hs-color-text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+
+.rich-text-editor__outline-item:hover,
+.rich-text-editor__outline-item:focus {
+  border-color: var(--hs-color-border);
+  background: var(--hs-color-accent-soft);
+}
+
+.rich-text-editor__outline-empty {
+  font-size: 13px;
+}
+
+.rich-text-editor__status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 6px;
+  background: var(--hs-color-surface);
+  color: var(--hs-color-text-subtle);
+  font-size: 12px;
+}
+
+.rich-text-editor__goto-line-error {
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 6px 0;
+  font-size: 13px;
+  border: 1px solid #c0564f;
+  background: rgba(192, 86, 79, 0.12);
+}
 
 /* CKC media embeds (HsLinkView) */
 .hs-embed { display: inline-block; max-width: 100%; vertical-align: top; }

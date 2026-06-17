@@ -23,11 +23,21 @@ vi.mock("./RichTextEditor", () => ({
     onChange,
     backendError,
     readOnly,
+    onSaveRequested,
+    documentStatus,
   }: {
     initialContent: JSONContent | null;
     onChange: (doc: JSONContent | null) => void;
     backendError?: { kind: string; message: string } | null;
     readOnly?: boolean;
+    onSaveRequested?: () => void;
+    documentStatus?: {
+      dirty: boolean;
+      saving: boolean;
+      blocked: boolean;
+      backendErrorKind?: string | null;
+      lastSavedAt?: string | null;
+    };
   }) => (
     <div>
       <textarea
@@ -44,6 +54,17 @@ vi.mock("./RichTextEditor", () => ({
           })
         }
       />
+      <div
+        data-testid="mock-editor-status"
+        data-dirty={documentStatus?.dirty ? "true" : "false"}
+        data-saving={documentStatus?.saving ? "true" : "false"}
+        data-blocked={documentStatus?.blocked ? "true" : "false"}
+        data-error-kind={documentStatus?.backendErrorKind ?? ""}
+        data-last-saved-at={documentStatus?.lastSavedAt ?? ""}
+      />
+      <button type="button" data-testid="mock-editor-palette-save" onClick={onSaveRequested}>
+        Palette save
+      </button>
       {backendError ? (
         <div data-testid="rte-backend-error" data-error-kind={backendError.kind}>
           {backendError.message}
@@ -205,6 +226,30 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
     });
   });
 
+  it("routes editor palette save through the same guarded authority save path (MT-245/EXT-SAVE-001)", async () => {
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+
+    const editor = await screen.findByTestId("tiptap-editor");
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "edited" } });
+    });
+    expect(screen.getByTestId("mock-editor-status")).toHaveAttribute("data-dirty", "true");
+    const api = await import("../lib/api");
+    const saveRichDocument = vi.mocked(api.saveRichDocument);
+    const callsBefore = saveRichDocument.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("mock-editor-palette-save"));
+    });
+
+    await waitFor(() => {
+      expect(saveRichDocument.mock.calls.length).toBe(callsBefore + 1);
+      expect(saveRichDocument.mock.calls[callsBefore][0]).toBe("KRD-00000000000000000000000000000001");
+      expect(saveRichDocument.mock.calls[callsBefore][1]).toBe(1);
+    });
+  });
+
   it("surfaces a save conflict as a typed inline backend error (MT-174)", async () => {
     const api = await import("../lib/api");
     vi.mocked(api.saveRichDocument).mockRejectedValueOnce(
@@ -226,6 +271,7 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
     await waitFor(() => {
       const err = screen.getByTestId("rte-backend-error");
       expect(err.getAttribute("data-error-kind")).toBe("conflict");
+      expect(screen.getByTestId("mock-editor-status")).toHaveAttribute("data-error-kind", "conflict");
     });
   });
 

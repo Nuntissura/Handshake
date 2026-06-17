@@ -4,6 +4,7 @@ import {
   type JSX,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -36,6 +37,7 @@ import { loadViewModeFromStorage, saveViewModeToStorage } from "./lib/viewMode";
 import { SystemStatus } from "./components/SystemStatus";
 import { FlightRecorderView } from "./components/FlightRecorderView";
 import { CommandPalette, type CommandPaletteAction } from "./components/CommandPalette";
+import { onHsLinkNavigate, type HsLinkNavigateDetail } from "./lib/editor/link_navigation";
 import { UserManualPanel } from "./components/UserManualPanel";
 import {
   EvidenceDrawer,
@@ -87,6 +89,20 @@ type DragAxis = "vertical" | "horizontal";
 type SplitWeights = {
   vertical: number;
   horizontal: number;
+};
+
+type LinkNavigationError = {
+  refKind: string;
+  refValue: string;
+  label: string;
+  message: string;
+};
+
+type LinkNavigationTarget = {
+  refKind: string;
+  refValue: string;
+  label: string;
+  surface: PaneTabId;
 };
 
 const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
@@ -203,6 +219,22 @@ const clampSplit = (value: number) => Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, va
 
 const uniqueTabs = (tabs: PaneTabId[]) => [...new Set(tabs)];
 
+const DIRECT_DOCUMENT_KINDS = new Set(["doc", "document", "rich_document", "rich-document", "note"]);
+const WORKSPACE_SURFACE_LINK_KINDS = new Set(["file", "folder"]);
+const MANUAL_SEARCH_LINK_KINDS = new Set(["spec", "symbol"]);
+
+function directDocumentTarget(detail: HsLinkNavigateDetail): string | null {
+  const refKind = detail.refKind.trim().toLowerCase();
+  const refValue = detail.refValue.trim();
+  if (!refValue) return null;
+  if (DIRECT_DOCUMENT_KINDS.has(refKind) && refValue.startsWith("KRD-")) return refValue;
+  return null;
+}
+
+function wpTarget(detail: HsLinkNavigateDetail): boolean {
+  return detail.refKind.trim().toLowerCase() === "wp" && detail.refValue.trim().startsWith("WP-");
+}
+
 function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
@@ -234,6 +266,8 @@ function App() {
   const [bottomDrawerOpen, setBottomDrawerOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [appCommandPaletteOpen, setAppCommandPaletteOpen] = useState(false);
+  const [linkNavigationError, setLinkNavigationError] = useState<LinkNavigationError | null>(null);
+  const [linkNavigationTarget, setLinkNavigationTarget] = useState<LinkNavigationTarget | null>(null);
   const [userManualSearchRequest, setUserManualSearchRequest] = useState({ query: "", requestId: 0 });
   const [splitWeights, setSplitWeights] = useState<SplitWeights>({ vertical: 0.5, horizontal: 0.55 });
   const paneGridRef = useRef<HTMLDivElement>(null);
@@ -258,14 +292,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setPanes((current) =>
-      current.map((pane) =>
-        pane.projectRef === activeProjectId ? pane : { ...pane, projectRef: activeProjectId },
-      ),
-    );
+    queueMicrotask(() => {
+      setPanes((current) =>
+        current.map((pane) =>
+          pane.projectRef === activeProjectId ? pane : { ...pane, projectRef: activeProjectId },
+        ),
+      );
+    });
   }, [activeProjectId]);
 
-  const loadKernelDccProjection = () => {
+  const loadKernelDccProjection = useCallback(() => {
     if (kernelDccSurface || kernelDccLoading) {
       return;
     }
@@ -284,16 +320,16 @@ function App() {
       .finally(() => {
         setKernelDccLoading(false);
       });
-  };
+  }, [kernelDccLoading, kernelDccSurface]);
 
   useEffect(() => {
     const hasKernelTab = panes.some((pane) => pane.activeTab === "kernel-dcc");
     if (hasKernelTab && !kernelDccSurface && !kernelDccLoading && !kernelDccError) {
-      loadKernelDccProjection();
+      queueMicrotask(loadKernelDccProjection);
     }
-  }, [panes, kernelDccError, kernelDccLoading, kernelDccSurface]);
+  }, [panes, kernelDccError, kernelDccLoading, kernelDccSurface, loadKernelDccProjection]);
 
-  const setActiveTabForPane = (paneId: PaneId, nextTab: PaneTabId) => {
+  const setActiveTabForPane = useCallback((paneId: PaneId, nextTab: PaneTabId) => {
     setActivePaneId(paneId);
     setPanes((current) =>
       current.map((pane) => {
@@ -307,7 +343,88 @@ function App() {
         };
       }),
     );
-  };
+  }, []);
+
+  useEffect(() => {
+    return onHsLinkNavigate((detail) => {
+      const refKind = detail.refKind.trim().toLowerCase();
+      const refValue = detail.refValue.trim();
+      const fail = () => {
+        setLinkNavigationTarget(null);
+        setLinkNavigationError({
+          refKind: detail.refKind,
+          refValue: detail.refValue,
+          label: detail.label,
+          message: `Cannot resolve ${detail.refKind}:${detail.refValue} to a local Handshake surface.`,
+        });
+      };
+      const markNavigated = (surface: PaneTabId) => {
+        setLinkNavigationError(null);
+        setLinkNavigationTarget({
+          refKind,
+          refValue,
+          label: detail.label,
+          surface,
+        });
+      };
+      const targetDocumentId = directDocumentTarget(detail);
+      if (targetDocumentId) {
+        markNavigated("workspace");
+        setSelectedCanvasId(null);
+        setSelectedDocumentId(targetDocumentId);
+        setActiveTabForPane(activePaneId, "workspace");
+        return;
+      }
+
+      if (WORKSPACE_SURFACE_LINK_KINDS.has(refKind)) {
+        markNavigated("workspace");
+        setSelectedCanvasId(null);
+        setSelectedDocumentId(null);
+        setFileDrawerOpen(true);
+        setActiveTabForPane(activePaneId, "workspace");
+        return;
+      }
+
+      if (refKind === "project") {
+        if (!projects.some((project) => project.id === refValue)) {
+          fail();
+          return;
+        }
+        markNavigated("workspace");
+        setSelectedCanvasId(null);
+        setSelectedDocumentId(null);
+        setProjectDrawerOpen(true);
+        setFileDrawerOpen(true);
+        setActiveProjectId(refValue);
+        setActiveTabForPane(activePaneId, "workspace");
+        return;
+      }
+
+      if (wpTarget(detail)) {
+        markNavigated("kernel-dcc");
+        setActiveTabForPane(activePaneId, "kernel-dcc");
+        return;
+      }
+
+      if (MANUAL_SEARCH_LINK_KINDS.has(refKind)) {
+        markNavigated("user-manual");
+        setPanes((current) =>
+          current.map((pane) =>
+            pane.id === activePaneId
+              ? { ...pane, activeTab: "user-manual", tabs: uniqueTabs(["user-manual", ...pane.tabs]) }
+              : pane,
+          ),
+        );
+        setUserManualSearchRequest((current) => ({
+          query: refValue,
+          requestId: current.requestId + 1,
+        }));
+        return;
+      }
+
+      fail();
+    });
+  }, [activePaneId, projects, setActiveTabForPane]);
 
   const setModule = (moduleId: ModuleId) => {
     const nextDef = MODULE_DEFINITIONS.find((item) => item.id === moduleId);
@@ -632,6 +749,12 @@ function App() {
       data-file-drawer-open={fileDrawerOpen ? "true" : "false"}
       data-bottom-drawer-open={bottomDrawerOpen ? "true" : "false"}
       data-split-weights={`${splitWeights.vertical.toFixed(3)},${splitWeights.horizontal.toFixed(3)}`}
+      data-link-navigation-state={
+        linkNavigationError ? "error" : linkNavigationTarget || selectedDocumentId ? "navigated" : "idle"
+      }
+      data-link-navigation-kind={linkNavigationTarget?.refKind ?? ""}
+      data-link-navigation-value={linkNavigationTarget?.refValue ?? ""}
+      data-link-navigation-surface={linkNavigationTarget?.surface ?? ""}
       data-testid="main-window"
     >
       <div className="app-layout">
@@ -657,6 +780,18 @@ function App() {
             </button>
           </div>
         </header>
+
+        {linkNavigationError && (
+          <div
+            className="hs-link-navigation-error"
+            role="alert"
+            data-testid="hs-link-navigation-error"
+            data-ref-kind={linkNavigationError.refKind}
+            data-ref-value={linkNavigationError.refValue}
+          >
+            {linkNavigationError.message}
+          </div>
+        )}
 
         <div className="main-window-surface">
           <aside
