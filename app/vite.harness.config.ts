@@ -53,6 +53,8 @@ export default defineConfig({
         "loom-search-operators": resolve(appDir, "harness", "loom-search-operators.html"),
         // MT-253: source-control panel real-backend proof (status/diff/stage/commit/branch/log/blame).
         "source-control": resolve(appDir, "harness", "source-control.html"),
+        // MT-245: editor workbench chrome (outline/status-bar/go-to-line/save/link-nav) offline proof.
+        "editor-workbench-chrome": resolve(appDir, "harness", "editor-workbench-chrome.html"),
       },
     },
   },

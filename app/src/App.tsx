@@ -54,7 +54,7 @@ import { WorkspaceSearchPanel } from "./components/WorkspaceSearchPanel";
 import { buildAppCommandRegistry, resolveEditorAppCommand } from "./lib/app_command_registry";
 import type { EditorCommandPaletteRequest } from "./lib/editor/editor_command_palette_request";
 import type { EditorFindOptions, EditorFindRequest } from "./lib/editor/editor_find_request";
-import { onHsLinkNavigate } from "./lib/editor/link_navigation";
+import { onHsLinkNavigate, resolveHsLinkTarget } from "./lib/editor/link_navigation";
 import {
   defaultWorkspaceSettingsState,
   keyboardEventMatchesChord,
@@ -75,8 +75,6 @@ import {
 
 type ModuleId = "MAIN" | "CKC" | "INGEST" | "STAGE" | "LAB" | "STUDIO";
 
-const HS_LINK_LOOM_SOURCE_KINDS = new Set(["note", "loom_block", "file", "tag_hub", "journal"]);
-const HS_LINK_DOCUMENT_SOURCE_KINDS = new Set(["document", "rich_document"]);
 
 type PaneTabId =
   | "workspace"
@@ -327,16 +325,6 @@ const DOCUMENT_TAB_DRAG_MIME = "application/x-handshake-document-tab";
 const clampSplit = (value: number) => Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, value));
 
 const uniqueTabs = (tabs: PaneTabId[]) => [...new Set(tabs)];
-
-const normalizeHsLinkKind = (refKind: string) => refKind.trim().toLowerCase();
-
-const normalizeHsLinkValue = (refValue: string) => refValue.trim();
-
-const isHsLinkDocumentSource = (refKind: string, refValue: string) =>
-  HS_LINK_DOCUMENT_SOURCE_KINDS.has(refKind) || (refKind === "note" && refValue.startsWith("KRD-"));
-
-const isHsLinkLoomSource = (refKind: string, refValue: string) =>
-  HS_LINK_LOOM_SOURCE_KINDS.has(refKind) && !(refKind === "note" && refValue.startsWith("KRD-"));
 
 const paneIdForKeyboardNavigation = (currentPaneId: PaneId, key: string): PaneId => {
   if (key === "ArrowRight") {
@@ -594,6 +582,14 @@ function App() {
   const [bottomDrawerOpen, setBottomDrawerOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [appCommandPaletteOpen, setAppCommandPaletteOpen] = useState(false);
+  // MT-245 (EXT-NAV-LINK-001): an unresolvable typed hsLink surfaces a typed,
+  // visible error — never a silent no-op when no real surface can open it.
+  const [linkNavigationError, setLinkNavigationError] = useState<{
+    refKind: string;
+    refValue: string;
+    label: string;
+    message: string;
+  } | null>(null);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
   const [loomAiReviewOpen, setLoomAiReviewOpen] = useState(false);
@@ -1290,38 +1286,43 @@ function App() {
   useEffect(
     () =>
       onHsLinkNavigate((detail) => {
-        const refKind = normalizeHsLinkKind(detail.refKind);
-        const refValue = normalizeHsLinkValue(detail.refValue);
-        if (!refValue) {
+        // MT-245 (EXT-NAV-LINK-001): the SAME pure resolver the offline proof
+        // harness uses decides which in-app surface owns the typed link. A
+        // resolvable target clears the error and opens the surface; an
+        // unresolvable one surfaces a typed, visible error — never silent.
+        const target = resolveHsLinkTarget(detail);
+        if (target.kind === "error") {
+          setLinkNavigationError({
+            refKind: detail.refKind,
+            refValue: detail.refValue,
+            label: detail.label,
+            message: target.message,
+          });
           return;
         }
-
-        if (isHsLinkDocumentSource(refKind, refValue)) {
-          openWorkspaceDocument(refValue);
-          return;
-        }
-        if (isHsLinkLoomSource(refKind, refValue)) {
-          openLoomBlockPane(refValue);
-          return;
-        }
-        if (refKind === "symbol") {
-          openCodeSymbolPane(refValue);
-          return;
-        }
-        if (refKind === "wp") {
-          openKernelDccWorkPacket(refValue);
-          return;
-        }
-        if (refKind === "mt" || refKind === "micro_task") {
-          openKernelDccMicroTask({ mtId: refValue });
-          return;
-        }
-        if (refKind === "wiki_page") {
-          openLoomWikiPagePane(refValue);
-          return;
-        }
-        if (refKind === "user_manual" || refKind === "user_manual_page") {
-          openUserManualPane(undefined, refValue);
+        setLinkNavigationError(null);
+        switch (target.kind) {
+          case "document":
+            openWorkspaceDocument(target.refValue);
+            return;
+          case "loom":
+            openLoomBlockPane(target.refValue);
+            return;
+          case "symbol":
+            openCodeSymbolPane(target.refValue);
+            return;
+          case "wp":
+            openKernelDccWorkPacket(target.refValue);
+            return;
+          case "mt":
+            openKernelDccMicroTask({ mtId: target.refValue });
+            return;
+          case "wiki_page":
+            openLoomWikiPagePane(target.refValue);
+            return;
+          case "user_manual":
+            openUserManualPane(undefined, target.refValue);
+            return;
         }
       }),
     [
@@ -1889,6 +1890,7 @@ function App() {
       data-bottom-drawer-open={bottomDrawerOpen ? "true" : "false"}
       data-split-weights={`${splitWeights.vertical.toFixed(3)},${splitWeights.horizontal.toFixed(3)}`}
       data-theme={workspaceSettings.theme}
+      data-link-navigation-state={linkNavigationError ? "error" : "ok"}
       data-testid="main-window"
     >
       <div className="app-layout">
@@ -1919,6 +1921,18 @@ function App() {
             </button>
           </div>
         </header>
+
+        {linkNavigationError && (
+          <div
+            className="hs-link-navigation-error"
+            role="alert"
+            data-testid="hs-link-navigation-error"
+            data-ref-kind={linkNavigationError.refKind}
+            data-ref-value={linkNavigationError.refValue}
+          >
+            {linkNavigationError.message}
+          </div>
+        )}
 
         <div className="main-window-surface">
           <aside

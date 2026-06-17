@@ -150,14 +150,20 @@ export const EDITOR_LAST_EXPORT_GLOBAL_KEY = "__HS_EDITOR_LAST_EXPORT__" as cons
 /** The canonical set of stable selectors the editor surfaces expose (for docs/tests). */
 export const EDITOR_STABLE_SELECTORS = [
   "rich-text-editor",
+  "rich-text-editor-outline",
+  "rich-text-editor-outline-item",
+  "rich-text-editor-status-bar",
   "rich-text-editor-toolbar",
   "rich-text-editor-surface",
   "editor-open-palette",
   "editor-command-palette",
   "editor-command-palette-input",
+  "editor-go-to-line-prompt",
+  "editor-go-to-line-error",
   "monaco-code-block",
   "monaco-code-block-language",
   "monaco-code-block-host",
   "hs-link",
+  "hs-link-navigation-error",
   "rich-text-editor-backend-error",
 ] as const;

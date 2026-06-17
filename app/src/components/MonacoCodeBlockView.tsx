@@ -29,6 +29,7 @@ import {
 import { makeCodeBlockAttrs } from "../lib/editor/code_block_serialization";
 import { EDITOR_SNIPPETS, monacoSnippetTemplateForId } from "../lib/editor/editor_snippets";
 import { registerCodeBlockFindHandle } from "../lib/editor/code_block_find_registry";
+import { MONACO_CODE_BLOCK_STATUS_EVENT } from "../lib/editor/editor_chrome";
 import {
   dependencyFailures,
   formatDependencyFailureMessage,
@@ -97,6 +98,38 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   const exitToProseRef = useRef(exitToProse);
   exitToProseRef.current = exitToProse;
 
+  // MT-245 (ED-WB-007): publish focus + cursor position so the RichTextEditor
+  // status bar reads the language + Ln/Col of the focused code island. The
+  // event bubbles to the editor DOM root, where RichTextEditor listens. It is
+  // emitted for both the real Monaco instance and the degraded textarea.
+  const dispatchCodeStatus = (focused: boolean, line = 1, column = 1) => {
+    const pos = typeof getPos === "function" ? getPos() : null;
+    if (typeof pos !== "number") return;
+    const target = hostRef.current ?? fallbackRef.current;
+    target?.dispatchEvent(
+      new CustomEvent(MONACO_CODE_BLOCK_STATUS_EVENT, {
+        bubbles: true,
+        detail: {
+          focused,
+          pos,
+          language: languageRef.current,
+          line,
+          column,
+        },
+      }),
+    );
+  };
+
+  const dispatchFallbackStatus = (focused: boolean) => {
+    const fallback = fallbackRef.current;
+    if (!fallback) {
+      dispatchCodeStatus(focused);
+      return;
+    }
+    const { line, column } = lineColumnFromOffset(fallback.value, fallback.selectionStart ?? 0);
+    dispatchCodeStatus(focused, line, column);
+  };
+
   // MT-244: register the find/replace reveal handle so document-wide find can
   // highlight + scroll a match INSIDE this code block (Monaco when mounted,
   // the degraded textarea otherwise). Unregisters on unmount.
@@ -162,6 +195,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
     if (!host || editorRef.current) return;
     let instance: Editor | null = null;
     let codeIntelligenceActions: monaco.IDisposable | null = null;
+    const disposables: monaco.IDisposable[] = [];
     try {
       instance = createConfiguredEditor({
         container: host,
@@ -176,15 +210,31 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       editorRef.current = instance;
       codeIntelligenceActions = installHandshakeCodeIntelligenceEditorActions(instance);
       const model = instance.getModel();
+      // MT-245 (ED-WB-007): bridge Monaco focus/blur/cursor into the status bar.
+      disposables.push(
+        instance.onDidFocusEditorText(() => {
+          const position = instance?.getPosition();
+          dispatchCodeStatus(true, position?.lineNumber ?? 1, position?.column ?? 1);
+        }),
+        instance.onDidBlurEditorText(() => {
+          const position = instance?.getPosition();
+          dispatchCodeStatus(false, position?.lineNumber ?? 1, position?.column ?? 1);
+        }),
+        instance.onDidChangeCursorPosition((event) => {
+          dispatchCodeStatus(true, event.position.lineNumber, event.position.column);
+        }),
+      );
       if (model) {
-        model.onDidChangeContent(() => {
-          if (applyingRef.current) return;
-          const next = instance!.getValue();
-          // H4/M10: read the CURRENT language (not the mount-time closure) and
-          // mint attrs through the single minting point so the hash can never
-          // drift from {language, code}.
-          updateAttributes(makeCodeBlockAttrs(languageRef.current, next));
-        });
+        disposables.push(
+          model.onDidChangeContent(() => {
+            if (applyingRef.current) return;
+            const next = instance!.getValue();
+            // H4/M10: read the CURRENT language (not the mount-time closure) and
+            // mint attrs through the single minting point so the hash can never
+            // drift from {language, code}.
+            updateAttributes(makeCodeBlockAttrs(languageRef.current, next));
+          }),
+        );
       }
       // M6/M17: keyboard exit. The context expression leaves Escape to Monaco
       // while its own popups are open (find widget, suggestions, rename).
@@ -222,6 +272,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       setDegraded(true);
     }
     return () => {
+      disposables.forEach((disposable) => disposable.dispose());
       codeIntelligenceActions?.dispose();
       instance?.dispose();
       editorRef.current = null;
@@ -395,6 +446,11 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
           readOnly={!isEditable}
           spellCheck={false}
           onChange={(event) => onFallbackChange(event.target.value)}
+          onFocus={() => dispatchFallbackStatus(true)}
+          onBlur={() => dispatchFallbackStatus(false)}
+          onSelect={() => dispatchFallbackStatus(true)}
+          onClick={() => dispatchFallbackStatus(true)}
+          onKeyUp={() => dispatchFallbackStatus(true)}
           onKeyDown={(event) => {
             // M6/M17: same keyboard exit as the Monaco path.
             if (event.key === "Escape") {
@@ -407,4 +463,14 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       )}
     </NodeViewWrapper>
   );
+}
+
+function lineColumnFromOffset(value: string, offset: number): { line: number; column: number } {
+  const safeOffset = Math.max(0, Math.min(value.length, Math.trunc(offset)));
+  const prefix = value.slice(0, safeOffset);
+  const lines = prefix.split("\n");
+  return {
+    line: Math.max(1, lines.length),
+    column: Math.max(1, (lines[lines.length - 1] ?? "").length + 1),
+  };
 }

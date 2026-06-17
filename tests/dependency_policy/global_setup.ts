@@ -23,6 +23,7 @@ const requiredHarnesses = [
   "editor-draft-recovery.html",
   "mt249-code-intelligence.html",
   "source-control.html",
+  "editor-workbench-chrome.html",
 ].map((fileName) => path.join(harnessDir, fileName));
 
 function allHarnessesExist(): boolean {

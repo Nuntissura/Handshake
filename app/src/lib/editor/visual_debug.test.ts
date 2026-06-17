@@ -64,6 +64,12 @@ describe("editor visual-debug snapshot (MT-172)", () => {
     expect(EDITOR_STABLE_SELECTORS).toContain("monaco-code-block");
     expect(EDITOR_STABLE_SELECTORS).toContain("hs-link");
     expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-backend-error");
+    // MT-245 workbench chrome selectors.
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-outline");
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-status-bar");
+    expect(EDITOR_STABLE_SELECTORS).toContain("editor-go-to-line-prompt");
+    expect(EDITOR_STABLE_SELECTORS).toContain("editor-go-to-line-error");
+    expect(EDITOR_STABLE_SELECTORS).toContain("hs-link-navigation-error");
   });
 });
 

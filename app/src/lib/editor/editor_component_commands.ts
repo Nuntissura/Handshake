@@ -7,9 +7,13 @@ export interface EditorComponentCommandDescriptor {
   keywords: string[];
 }
 
+// MT-245 (ED-NAV-006): go-to-line inside the focused embedded code block.
+export const GOTO_LINE_ACTION = "navigate.gotoLine";
+
 export const EDITOR_COMPONENT_COMMANDS: readonly EditorComponentCommandDescriptor[] = [
   { id: FIND_OPEN_ACTION, label: "Find in document", keywords: ["find", "search", "match"] },
   { id: REPLACE_OPEN_ACTION, label: "Find and replace", keywords: ["replace", "find", "substitute"] },
+  { id: GOTO_LINE_ACTION, label: "Go to line in code block", keywords: ["go", "goto", "line", "code"] },
   ...EXPORT_FORMATS.map((format) => ({
     id: `export.${format.id}`,
     label: `Export: ${format.label}`,

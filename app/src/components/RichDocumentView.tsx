@@ -915,6 +915,15 @@ export function RichDocumentView({ documentId, onDirtyChange, commandPaletteRequ
               // Iteration-3 L16: Mod-s / palette save routes through the SAME
               // guarded save path as the button (schema-block included).
               onSaveRequested={() => void onSave()}
+              // MT-245 (ED-WB-007): authority-owned save/dirty/conflict state
+              // feeds the editor status bar — the projection, not the source.
+              documentStatus={{
+                dirty: isDirty,
+                saving: isSaving,
+                blocked: schemaBlocked !== null,
+                backendErrorKind: backendError?.kind ?? null,
+                lastSavedAt,
+              }}
               backendError={backendError}
               // MT-244: bind media embed NodeViews to the document's workspace
               // so [[HS_images:…]]/[[video:…]]/album/slideshow resolve REAL
