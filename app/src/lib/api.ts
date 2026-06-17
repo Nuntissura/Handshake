@@ -2792,3 +2792,215 @@ export async function listRichDocumentBacklinks(
     headers: richDocHeaders(ctx),
   });
 }
+
+// ---------------------------------------------------------------------------
+// MT-254 DebugAdapterCore — adapter registry + durable breakpoints.
+// ---------------------------------------------------------------------------
+
+/** The kind of a runnable debug adapter. Only `node` ships today. */
+export type DebugAdapterKind = "node";
+
+/** A listable debug adapter descriptor (the honesty-gate list). */
+export type DebugAdapterDescriptor = {
+  kind: DebugAdapterKind;
+  id: string;
+  display_name: string;
+  /** Always true for listed adapters: a listed adapter is a runnable adapter. */
+  runnable: boolean;
+};
+
+/** A persisted per-document breakpoint. */
+export type DebugBreakpointRecord = {
+  breakpoint_id: string;
+  rich_document_id: string;
+  workspace_id: string;
+  source_url: string;
+  line: number;
+  condition: string | null;
+  verified: boolean;
+  updated_at: string;
+  event_ledger_event_id: string;
+};
+
+/** A breakpoint to persist (PUT replaces the full set for the document). */
+export type DebugBreakpointInput = {
+  source_url: string;
+  line: number;
+  condition?: string | null;
+  verified?: boolean;
+};
+
+/**
+ * The runnable debug adapters. The list IS the honesty gate: it contains ONLY
+ * adapters that drive a real process (Node today), never disabled/stub entries.
+ */
+export async function getDebugAdapters(): Promise<{ adapters: DebugAdapterDescriptor[] }> {
+  return request(`/debug/adapters`);
+}
+
+/** Durable breakpoints for a RichDocument. */
+export async function getDebugBreakpoints(
+  richDocumentId: string,
+): Promise<{ rich_document_id: string; breakpoints: DebugBreakpointRecord[] }> {
+  return request(`/debug/documents/${encodeURIComponent(richDocumentId)}/breakpoints`);
+}
+
+/** Replace the full breakpoint set for a RichDocument (PUT semantics). */
+export async function setDebugBreakpoints(
+  richDocumentId: string,
+  workspaceId: string,
+  breakpoints: DebugBreakpointInput[],
+): Promise<{ rich_document_id: string; breakpoints: DebugBreakpointRecord[] }> {
+  return request(`/debug/documents/${encodeURIComponent(richDocumentId)}/breakpoints`, {
+    method: "PUT",
+    body: { workspace_id: workspaceId, breakpoints },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// MT-254 DebugAdapterCore — LIVE debug session HTTP surface (real process).
+// These drive the backend `crate::debug_adapter` session over the SAME axum
+// transport the rest of the product UI speaks. No Tauri IPC bridge.
+// ---------------------------------------------------------------------------
+
+/** A breakpoint request against a source (1-based line). */
+export type SessionSourceBreakpoint = {
+  line: number;
+  column?: number;
+  condition?: string;
+};
+
+/** The adapter's verdict on a requested breakpoint (verified is never faked). */
+export type SessionBreakpoint = {
+  id: string;
+  verified: boolean;
+  line?: number;
+  message?: string;
+};
+
+/** One frame of a paused call stack. */
+export type SessionStackFrame = {
+  id: string;
+  name: string;
+  source?: string;
+  line: number;
+  column: number;
+};
+
+/** A variable scope within a paused frame. */
+export type SessionScope = {
+  name: string;
+  variables_reference: string;
+  expensive: boolean;
+};
+
+/** One variable (real runtime value). */
+export type SessionVariable = {
+  name: string;
+  value: string;
+  type_name?: string;
+  variables_reference: string;
+};
+
+/** A streamed dap:// lifecycle/output event (raw payload shape). */
+export type SessionDebugEvent =
+  | { kind: "stopped"; reason: string; top_frame_line?: number; top_frame_source?: string }
+  | { kind: "output"; category: string; output: string }
+  | { kind: "continued" }
+  | { kind: "terminated"; exit_code?: number };
+
+/** Launch a real debuggee; returns the session id + initial (entry) pause. */
+export async function launchDebugSession(input: {
+  adapter: DebugAdapterKind;
+  program: string;
+  cwd?: string;
+  runtime_path?: string;
+}): Promise<{ session_id: string; adapter: string; paused: boolean; top_frame_line?: number }> {
+  return request(`/debug/sessions`, { method: "POST", body: input });
+}
+
+/** Bind breakpoints on the live session (REAL CDP binding). */
+export async function setSessionBreakpoints(
+  sessionId: string,
+  source: string,
+  breakpoints: SessionSourceBreakpoint[],
+): Promise<{ breakpoints: SessionBreakpoint[] }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/breakpoints`, {
+    method: "POST",
+    body: { source, breakpoints },
+  });
+}
+
+/** The paused call stack. */
+export async function getSessionStack(
+  sessionId: string,
+): Promise<{ frames: SessionStackFrame[] }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/stack`);
+}
+
+/** A paused frame's variable scopes. */
+export async function getSessionScopes(
+  sessionId: string,
+  frameId: string,
+): Promise<{ scopes: SessionScope[] }> {
+  return request(
+    `/debug/sessions/${encodeURIComponent(sessionId)}/frames/${encodeURIComponent(frameId)}/scopes`,
+  );
+}
+
+/** Real runtime variables behind a scope/object reference. */
+export async function getSessionVariables(
+  sessionId: string,
+  reference: string,
+): Promise<{ variables: SessionVariable[] }> {
+  return request(
+    `/debug/sessions/${encodeURIComponent(sessionId)}/variables/${encodeURIComponent(reference)}`,
+  );
+}
+
+/** Debug-console eval in the paused frame. */
+export async function evaluateInSession(
+  sessionId: string,
+  frameId: string,
+  expression: string,
+): Promise<{ result: string }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/evaluate`, {
+    method: "POST",
+    body: { frame_id: frameId, expression },
+  });
+}
+
+/** Step over/into/out; resolves once paused again. */
+export async function stepSession(
+  sessionId: string,
+  kind: "over" | "into" | "out",
+): Promise<{ paused: boolean; top_frame_line?: number }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/step`, {
+    method: "POST",
+    body: { kind },
+  });
+}
+
+/** Resume execution. */
+export async function continueSession(sessionId: string): Promise<{ resumed: boolean }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/continue`, { method: "POST" });
+}
+
+/** Pause a running debuggee. */
+export async function pauseSession(sessionId: string): Promise<{ paused: boolean }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/pause`, { method: "POST" });
+}
+
+/** Drain the buffered dap events that arrived since the last poll. */
+export async function pollSessionEvents(
+  sessionId: string,
+): Promise<{ events: SessionDebugEvent[] }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}/events`);
+}
+
+/** Terminate the session; returns the real process exit code if known. */
+export async function terminateDebugSession(
+  sessionId: string,
+): Promise<{ terminated: boolean; exit_code?: number }> {
+  return request(`/debug/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+}

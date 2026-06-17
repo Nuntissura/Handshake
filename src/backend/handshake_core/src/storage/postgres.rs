@@ -3,7 +3,8 @@ use super::{
     BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
     CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource, CalendarSourceProviderType,
     CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
-    CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode, DefaultStorageGuard,
+    CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode, DebugBreakpoint,
+    DebugBreakpointInput, DefaultStorageGuard,
     Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
     LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
@@ -1971,6 +1972,20 @@ fn map_workspace_search_bookmark_state(row: &PgRow) -> StorageResult<WorkspaceSe
     Ok(WorkspaceSearchBookmarkState {
         workspace_id: row.get("workspace_id"),
         bookmark_state: row.get("bookmark_state"),
+        updated_at: row.get("updated_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+fn map_debug_breakpoint(row: &PgRow) -> StorageResult<DebugBreakpoint> {
+    Ok(DebugBreakpoint {
+        breakpoint_id: row.get("breakpoint_id"),
+        rich_document_id: row.get("rich_document_id"),
+        workspace_id: row.get("workspace_id"),
+        source_url: row.get("source_url"),
+        line: row.get("line"),
+        condition: row.get("condition"),
+        verified: row.get("verified"),
         updated_at: row.get("updated_at"),
         event_ledger_event_id: row.get("event_ledger_event_id"),
     })
@@ -7550,6 +7565,114 @@ impl super::Database for PostgresDatabase {
         let state = map_workspace_search_bookmark_state(&row)?;
         tx.commit().await?;
         Ok(state)
+    }
+
+    async fn list_debug_breakpoints(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<DebugBreakpoint>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT breakpoint_id, rich_document_id, workspace_id, source_url, line,
+                   condition, verified, updated_at, event_ledger_event_id
+            FROM knowledge_debug_breakpoints
+            WHERE rich_document_id = $1
+            ORDER BY source_url ASC, line ASC
+            "#,
+        )
+        .bind(rich_document_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.iter().map(map_debug_breakpoint).collect()
+    }
+
+    async fn set_debug_breakpoints(
+        &self,
+        rich_document_id: &str,
+        workspace_id: &str,
+        breakpoints: Vec<DebugBreakpointInput>,
+    ) -> StorageResult<Vec<DebugBreakpoint>> {
+        for bp in &breakpoints {
+            if bp.line < 1 {
+                return Err(StorageError::Validation(
+                    "debug breakpoint line must be >= 1",
+                ));
+            }
+            if bp.source_url.trim().is_empty() {
+                return Err(StorageError::Validation(
+                    "debug breakpoint source_url is required",
+                ));
+            }
+        }
+
+        let run_id = format!("DEBUG-BREAKPOINTS-{rich_document_id}");
+        let payload = json!({
+            "type": "knowledge_debug_breakpoints_recorded",
+            "rich_document_id": rich_document_id,
+            "workspace_id": workspace_id,
+            "breakpoint_count": breakpoints.len(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            KernelActor::System("debug-breakpoints-ui".to_string()),
+        )
+        .aggregate("debug_breakpoints", rich_document_id.to_string())
+        .source_component("debug_breakpoints")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+
+        // PUT semantics: the request is the full breakpoint set for the doc.
+        sqlx::query("DELETE FROM knowledge_debug_breakpoints WHERE rich_document_id = $1")
+            .bind(rich_document_id)
+            .execute(&mut *tx)
+            .await?;
+
+        for bp in &breakpoints {
+            let breakpoint_id = format!("bp-{}", uuid::Uuid::new_v4());
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_debug_breakpoints (
+                    breakpoint_id, rich_document_id, workspace_id, source_url,
+                    line, condition, verified, created_at, updated_at,
+                    event_ledger_event_id
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
+                "#,
+            )
+            .bind(&breakpoint_id)
+            .bind(rich_document_id)
+            .bind(workspace_id)
+            .bind(&bp.source_url)
+            .bind(bp.line)
+            .bind(&bp.condition)
+            .bind(bp.verified)
+            .bind(&stored_event.event_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        let rows = sqlx::query(
+            r#"
+            SELECT breakpoint_id, rich_document_id, workspace_id, source_url, line,
+                   condition, verified, updated_at, event_ledger_event_id
+            FROM knowledge_debug_breakpoints
+            WHERE rich_document_id = $1
+            ORDER BY source_url ASC, line ASC
+            "#,
+        )
+        .bind(rich_document_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let out: Vec<DebugBreakpoint> =
+            rows.iter().map(map_debug_breakpoint).collect::<StorageResult<_>>()?;
+        tx.commit().await?;
+        Ok(out)
     }
 
     async fn loom_visual_debug_snapshot(

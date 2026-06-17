@@ -153,6 +153,7 @@ pub mod capability_registry_workflow;
 /// forbidden-dependency tripwires. Unconditional: the dependency policy
 /// applies to every feature configuration of the product.
 pub mod dependency_policy;
+pub mod debug_adapter;
 #[cfg(feature = "runtime-full")]
 pub mod diagnostics;
 #[cfg(feature = "runtime-full")]

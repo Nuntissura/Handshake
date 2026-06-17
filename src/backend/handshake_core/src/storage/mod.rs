@@ -80,6 +80,31 @@ pub struct WorkspaceSearchBookmarkState {
     pub event_ledger_event_id: String,
 }
 
+/// MT-254 DebugAdapterCore: one durable per-document breakpoint input.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DebugBreakpointInput {
+    pub source_url: String,
+    pub line: i32,
+    #[serde(default)]
+    pub condition: Option<String>,
+    #[serde(default)]
+    pub verified: bool,
+}
+
+/// MT-254 DebugAdapterCore: a persisted per-document breakpoint.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DebugBreakpoint {
+    pub breakpoint_id: String,
+    pub rich_document_id: String,
+    pub workspace_id: String,
+    pub source_url: String,
+    pub line: i32,
+    pub condition: Option<String>,
+    pub verified: bool,
+    pub updated_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
@@ -2173,6 +2198,25 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented(
             "workspace search bookmark backend",
         ))
+    }
+
+    /// MT-254 DebugAdapterCore: list the durable breakpoints for a RichDocument.
+    async fn list_debug_breakpoints(
+        &self,
+        _rich_document_id: &str,
+    ) -> StorageResult<Vec<DebugBreakpoint>> {
+        Err(StorageError::NotImplemented("debug breakpoints backend"))
+    }
+
+    /// MT-254 DebugAdapterCore: replace the full breakpoint set for a
+    /// RichDocument (PUT semantics), each write leaving an EventLedger receipt.
+    async fn set_debug_breakpoints(
+        &self,
+        _rich_document_id: &str,
+        _workspace_id: &str,
+        _breakpoints: Vec<DebugBreakpointInput>,
+    ) -> StorageResult<Vec<DebugBreakpoint>> {
+        Err(StorageError::NotImplemented("debug breakpoints backend"))
     }
 
     /// MT-191 LoomVisualDebugViews: bounded backend snapshot of graph,

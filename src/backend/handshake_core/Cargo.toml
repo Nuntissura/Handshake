@@ -122,6 +122,12 @@ required-features = ["runtime-full", "duckdb-flight-recorder"]
 test = false
 
 [[bin]]
+name = "mt254_debug_session_fixture"
+path = "src/bin/mt254_debug_session_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]
@@ -707,4 +713,14 @@ required-features = ["test-utils"]
 [[test]]
 name = "project_wiki_fanout_tests"
 path = "tests/project_wiki_fanout_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "debug_adapter_node_session"
+path = "tests/debug_adapter_node_session.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "debug_adapter_breakpoint_persistence"
+path = "tests/debug_adapter_breakpoint_persistence.rs"
 required-features = ["test-utils"]
