@@ -76,6 +76,65 @@ describe("LoomBlockPanel", () => {
     expect(screen.getByTestId("loom-block-properties.favorite")).toBeChecked();
   });
 
+  it("sends add_tags/remove_tags to the backend and reflects the returned tag_count", async () => {
+    vi.mocked(getLoomBlock).mockResolvedValueOnce(
+      loomBlock({ derived: { full_text_index: "x", backlink_count: 0, mention_count: 0, tag_count: 0, preview_status: "ready" } }),
+    );
+    vi.mocked(updateLoomBlock).mockResolvedValueOnce(
+      loomBlock({ derived: { full_text_index: "x", backlink_count: 0, mention_count: 0, tag_count: 2, preview_status: "ready" } }),
+    );
+
+    render(<LoomBlockPanel workspaceId="w1" blockId="block-alpha" />);
+
+    await screen.findByTestId("loom-block-properties.title");
+    expect(screen.getByTestId("loom-block-properties.tag-count")).toHaveTextContent("0 tags");
+
+    fireEvent.change(screen.getByTestId("loom-block-properties.add-tags"), {
+      target: { value: "tag-hub-1, tag-hub-2, tag-hub-1" },
+    });
+    fireEvent.change(screen.getByTestId("loom-block-properties.remove-tags"), {
+      target: { value: "tag-hub-9" },
+    });
+    fireEvent.click(screen.getByTestId("loom-block-properties.save"));
+
+    await waitFor(() => {
+      expect(updateLoomBlock).toHaveBeenCalledWith("w1", "block-alpha", {
+        title: "Alpha Loom note",
+        pinned: false,
+        favorite: false,
+        add_tags: ["tag-hub-1", "tag-hub-2"],
+        remove_tags: ["tag-hub-9"],
+      });
+    });
+    expect(await screen.findByTestId("loom-block-properties.status")).toHaveTextContent(
+      "Properties saved",
+    );
+    expect(screen.getByTestId("loom-block-properties.tag-count")).toHaveTextContent("2 tags");
+    // Tag drafts reset after a successful save.
+    expect(screen.getByTestId("loom-block-properties.add-tags")).toHaveValue("");
+    expect(screen.getByTestId("loom-block-properties.remove-tags")).toHaveValue("");
+  });
+
+  it("omits tag fields from the payload when no tags are edited", async () => {
+    vi.mocked(getLoomBlock).mockResolvedValueOnce(loomBlock());
+    vi.mocked(updateLoomBlock).mockResolvedValueOnce(loomBlock());
+
+    render(<LoomBlockPanel workspaceId="w1" blockId="block-alpha" />);
+    await screen.findByTestId("loom-block-properties.title");
+    fireEvent.click(screen.getByTestId("loom-block-properties.save"));
+
+    await waitFor(() => {
+      expect(updateLoomBlock).toHaveBeenCalledWith("w1", "block-alpha", {
+        title: "Alpha Loom note",
+        pinned: false,
+        favorite: false,
+      });
+    });
+    const payload = vi.mocked(updateLoomBlock).mock.calls[0][2];
+    expect(payload).not.toHaveProperty("add_tags");
+    expect(payload).not.toHaveProperty("remove_tags");
+  });
+
   it("announces bookmark refresh when a property save changes pinned state", async () => {
     vi.mocked(getLoomBlock).mockResolvedValueOnce(loomBlock({ pinned: false }));
     vi.mocked(updateLoomBlock).mockResolvedValueOnce(loomBlock({ pinned: true }));

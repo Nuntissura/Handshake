@@ -279,6 +279,7 @@ pub enum KernelEventType {
     KnowledgeQuickSwitcherRecentRecorded,
     KnowledgeWorkbenchLayoutStateRecorded,
     KnowledgeWorkspaceSettingsStateRecorded,
+    KnowledgeWorkspaceSearchBookmarkStateRecorded,
     SourceControlOperationRecorded,
 }
 
@@ -359,6 +360,9 @@ impl KernelEventType {
             Self::KnowledgeWorkspaceSettingsStateRecorded => {
                 "KNOWLEDGE_WORKSPACE_SETTINGS_STATE_RECORDED"
             }
+            Self::KnowledgeWorkspaceSearchBookmarkStateRecorded => {
+                "KNOWLEDGE_WORKSPACE_SEARCH_BOOKMARK_STATE_RECORDED"
+            }
             Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
         }
     }
@@ -429,6 +433,7 @@ impl KernelEventType {
             KernelEventType::KnowledgeQuickSwitcherRecentRecorded,
             KernelEventType::KnowledgeWorkbenchLayoutStateRecorded,
             KernelEventType::KnowledgeWorkspaceSettingsStateRecorded,
+            KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
             KernelEventType::SourceControlOperationRecorded,
         ]
     }

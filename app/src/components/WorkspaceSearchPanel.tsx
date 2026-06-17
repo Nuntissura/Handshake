@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_RICH_DOC_CONTEXT,
+  getWorkspaceSearchBookmarkState,
   loadRichDocument,
   saveRichDocument,
+  saveWorkspaceSearchBookmarkState,
   searchLoomGraph,
   type JSONContentLike,
   type LoomGraphSearchHit,
@@ -26,7 +28,10 @@ const SEARCHABLE_KINDS: Array<{ value: "all" | LoomGraphSearchSourceKind; label:
 ];
 
 const SEARCH_PAGE_SIZE = 500;
-const WORKSPACE_SEARCH_BOOKMARKS_STORAGE_PREFIX = "handshake.workspaceSearch.bookmarks.v1";
+// MT-258: saved searches are durable, canonical state. They persist to
+// PostgreSQL + EventLedger via the search-bookmarks route; this schema_id must
+// match the backend blob contract (hsk.workspace_search_bookmark_state@1).
+const WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID = "hsk.workspace_search_bookmark_state@1";
 const MAX_WORKSPACE_SEARCH_BOOKMARKS = 20;
 
 const KIND_LABELS: Record<LoomGraphSearchSourceKind, string> = {
@@ -114,8 +119,18 @@ function stablePart(value: string): string {
   return stable || "item";
 }
 
-function workspaceSearchBookmarksStorageKey(workspaceId: string): string {
-  return `${WORKSPACE_SEARCH_BOOKMARKS_STORAGE_PREFIX}.${workspaceId}`;
+function parseWorkspaceSearchBookmarks(bookmarkState: unknown): WorkspaceSearchBookmark[] {
+  if (!bookmarkState || typeof bookmarkState !== "object" || Array.isArray(bookmarkState)) return [];
+  const raw = (bookmarkState as Record<string, unknown>).bookmarks;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isWorkspaceSearchBookmark).slice(0, MAX_WORKSPACE_SEARCH_BOOKMARKS);
+}
+
+function workspaceSearchBookmarkBlob(bookmarks: WorkspaceSearchBookmark[]): Record<string, unknown> {
+  return {
+    schema_id: WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID,
+    bookmarks: bookmarks.slice(0, MAX_WORKSPACE_SEARCH_BOOKMARKS),
+  };
 }
 
 function isSearchKind(value: unknown): value is "all" | LoomGraphSearchSourceKind {
@@ -141,28 +156,20 @@ function isWorkspaceSearchBookmark(value: unknown): value is WorkspaceSearchBook
   );
 }
 
-function readWorkspaceSearchBookmarks(workspaceId: string): WorkspaceSearchBookmark[] {
-  try {
-    const raw = window.localStorage.getItem(workspaceSearchBookmarksStorageKey(workspaceId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isWorkspaceSearchBookmark).slice(0, MAX_WORKSPACE_SEARCH_BOOKMARKS);
-  } catch {
-    return [];
-  }
+async function readWorkspaceSearchBookmarks(workspaceId: string): Promise<WorkspaceSearchBookmark[]> {
+  const response = await getWorkspaceSearchBookmarkState(workspaceId);
+  return parseWorkspaceSearchBookmarks(response.bookmark_state);
 }
 
-function writeWorkspaceSearchBookmarks(workspaceId: string, bookmarks: WorkspaceSearchBookmark[]): boolean {
-  try {
-    window.localStorage.setItem(
-      workspaceSearchBookmarksStorageKey(workspaceId),
-      JSON.stringify(bookmarks.slice(0, MAX_WORKSPACE_SEARCH_BOOKMARKS)),
-    );
-    return true;
-  } catch {
-    return false;
-  }
+async function writeWorkspaceSearchBookmarks(
+  workspaceId: string,
+  bookmarks: WorkspaceSearchBookmark[],
+): Promise<WorkspaceSearchBookmark[]> {
+  const response = await saveWorkspaceSearchBookmarkState(
+    workspaceId,
+    workspaceSearchBookmarkBlob(bookmarks),
+  );
+  return parseWorkspaceSearchBookmarks(response.bookmark_state);
 }
 
 function bookmarkIdForSearch(input: Omit<WorkspaceSearchBookmark, "id" | "label" | "savedAt">): string {
@@ -422,8 +429,27 @@ export function WorkspaceSearchPanel({
   );
 
   useEffect(() => {
-    setBookmarks(workspaceId ? readWorkspaceSearchBookmarks(workspaceId) : []);
     setBookmarkStatus(null);
+    if (!workspaceId) {
+      setBookmarks([]);
+      return;
+    }
+    let cancelled = false;
+    readWorkspaceSearchBookmarks(workspaceId)
+      .then((loaded) => {
+        if (!cancelled) setBookmarks(loaded);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setBookmarks([]);
+          setBookmarkStatus(
+            err instanceof Error ? `Saved searches failed to load: ${err.message}` : "Saved searches failed to load.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [workspaceId]);
 
   if (!open) return null;
@@ -437,7 +463,7 @@ export function WorkspaceSearchPanel({
     setError(null);
   };
 
-  const saveSearchBookmark = () => {
+  const saveSearchBookmark = async () => {
     if (!workspaceId) {
       setBookmarkStatus("No workspace selected");
       return;
@@ -465,12 +491,15 @@ export function WorkspaceSearchPanel({
       0,
       MAX_WORKSPACE_SEARCH_BOOKMARKS,
     );
-    if (!writeWorkspaceSearchBookmarks(workspaceId, nextBookmarks)) {
-      setBookmarkStatus("Search bookmark could not be saved.");
-      return;
+    try {
+      const persisted = await writeWorkspaceSearchBookmarks(workspaceId, nextBookmarks);
+      setBookmarks(persisted);
+      setBookmarkStatus(`Saved search bookmark ${bookmark.label}`);
+    } catch (err) {
+      setBookmarkStatus(
+        err instanceof Error ? `Search bookmark could not be saved: ${err.message}` : "Search bookmark could not be saved.",
+      );
     }
-    setBookmarks(nextBookmarks);
-    setBookmarkStatus(`Saved search bookmark ${bookmark.label}`);
   };
 
   const restoreSearchBookmark = (bookmark: WorkspaceSearchBookmark) => {
@@ -485,15 +514,18 @@ export function WorkspaceSearchPanel({
     setBookmarkStatus(`Restored search bookmark ${bookmark.label}`);
   };
 
-  const removeSearchBookmark = (bookmark: WorkspaceSearchBookmark) => {
+  const removeSearchBookmark = async (bookmark: WorkspaceSearchBookmark) => {
     if (!workspaceId) return;
     const nextBookmarks = bookmarks.filter((item) => item.id !== bookmark.id);
-    if (!writeWorkspaceSearchBookmarks(workspaceId, nextBookmarks)) {
-      setBookmarkStatus("Search bookmark could not be removed.");
-      return;
+    try {
+      const persisted = await writeWorkspaceSearchBookmarks(workspaceId, nextBookmarks);
+      setBookmarks(persisted);
+      setBookmarkStatus(`Removed search bookmark ${bookmark.label}`);
+    } catch (err) {
+      setBookmarkStatus(
+        err instanceof Error ? `Search bookmark could not be removed: ${err.message}` : "Search bookmark could not be removed.",
+      );
     }
-    setBookmarks(nextBookmarks);
-    setBookmarkStatus(`Removed search bookmark ${bookmark.label}`);
   };
 
   const runSearch = async (preserveReplaceStatus = false) => {
@@ -810,7 +842,7 @@ export function WorkspaceSearchPanel({
       <div className="workspace-search-panel__bookmarks" data-testid="workspace-search.bookmarks">
         <div className="workspace-search-panel__bookmarks-header">
           <span>Saved searches</span>
-          <button type="button" onClick={saveSearchBookmark} data-testid="workspace-search.save-bookmark">
+          <button type="button" onClick={() => void saveSearchBookmark()} data-testid="workspace-search.save-bookmark">
             Bookmark Search
           </button>
         </div>
@@ -838,7 +870,7 @@ export function WorkspaceSearchPanel({
                 <button
                   type="button"
                   className="workspace-search-panel__bookmark-remove"
-                  onClick={() => removeSearchBookmark(bookmark)}
+                  onClick={() => void removeSearchBookmark(bookmark)}
                   aria-label={`Remove saved search ${bookmark.label}`}
                   data-testid={`workspace-search.bookmark.${bookmark.id}.remove`}
                 >

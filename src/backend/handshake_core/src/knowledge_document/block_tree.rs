@@ -86,6 +86,12 @@ pub enum BlockKind {
     /// node carries `attrs.source_format` + `attrs.repairable` and its
     /// original text content; nothing is lost and the document round-trips.
     ImportedRaw,
+    /// MT-258: a note transclusion — the host document EMBEDS another block by
+    /// reference (`attrs.refValue` = the source block id) and renders the
+    /// SOURCE document's content read-through at view time. The persisted node
+    /// is content-free (no copied body): it carries ONLY the reference, so the
+    /// authority for the transcluded content stays with the source document.
+    Transclusion,
 }
 
 impl BlockKind {
@@ -111,6 +117,7 @@ impl BlockKind {
             Self::WpLink => "wpLink",
             Self::SymbolLink => "symbolLink",
             Self::ImportedRaw => "importedRaw",
+            Self::Transclusion => "loomTransclusion",
         }
     }
 
@@ -137,6 +144,7 @@ impl BlockKind {
             "wpLink" => Self::WpLink,
             "symbolLink" => Self::SymbolLink,
             "importedRaw" => Self::ImportedRaw,
+            "loomTransclusion" => Self::Transclusion,
             _ => return None,
         })
     }

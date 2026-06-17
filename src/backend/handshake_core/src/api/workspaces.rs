@@ -27,7 +27,8 @@ use crate::{
     },
     storage::{
         Block, JobKind, JobState, NewBlock, NewDocument, NewWorkspace, StorageError,
-        WorkbenchLayoutStateInput, WorkspaceSettingsStateInput, WriteActorKind, WriteContext,
+        WorkbenchLayoutStateInput, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput,
+        WriteActorKind, WriteContext,
     },
 };
 
@@ -55,6 +56,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/settings",
             get(get_workspace_settings).put(save_workspace_settings),
+        )
+        .route(
+            "/workspaces/:workspace_id/search-bookmarks",
+            get(get_workspace_search_bookmarks).put(save_workspace_search_bookmarks),
         )
         .route("/workspaces/:workspace_id", delete(delete_workspace))
         .route("/dcc/control-plane", get(dcc_control_plane_snapshot))
@@ -793,6 +798,71 @@ async fn save_workspace_settings(
     Ok(Json(WorkspaceSettingsResponse {
         workspace_id: record.workspace_id,
         settings_state: Some(record.settings_state),
+        updated_at: Some(record.updated_at),
+        event_ledger_event_id: Some(record.event_ledger_event_id),
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct WorkspaceSearchBookmarksResponse {
+    workspace_id: String,
+    bookmark_state: Option<Value>,
+    updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SaveWorkspaceSearchBookmarksRequest {
+    bookmark_state: Value,
+}
+
+async fn get_workspace_search_bookmarks(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> Result<Json<WorkspaceSearchBookmarksResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .get_workspace_search_bookmark_state(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(match record {
+        Some(record) => WorkspaceSearchBookmarksResponse {
+            workspace_id: record.workspace_id,
+            bookmark_state: Some(record.bookmark_state),
+            updated_at: Some(record.updated_at),
+            event_ledger_event_id: Some(record.event_ledger_event_id),
+        },
+        None => WorkspaceSearchBookmarksResponse {
+            workspace_id,
+            bookmark_state: None,
+            updated_at: None,
+            event_ledger_event_id: None,
+        },
+    }))
+}
+
+async fn save_workspace_search_bookmarks(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<SaveWorkspaceSearchBookmarksRequest>,
+) -> Result<Json<WorkspaceSearchBookmarksResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .save_workspace_search_bookmark_state(
+            &workspace_id,
+            WorkspaceSearchBookmarkStateInput {
+                bookmark_state: payload.bookmark_state,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(WorkspaceSearchBookmarksResponse {
+        workspace_id: record.workspace_id,
+        bookmark_state: Some(record.bookmark_state),
         updated_at: Some(record.updated_at),
         event_ledger_event_id: Some(record.event_ledger_event_id),
     }))
@@ -1945,6 +2015,144 @@ mod tests {
 
         let blocks = state.storage.get_blocks(&document.id).await?;
         assert_eq!(blocks.len(), 1, "expected one inserted block");
+
+        Ok(())
+    }
+
+    /// MT-258 saved-search durability: the search-bookmarks route must persist to
+    /// PostgreSQL + EventLedger (NOT localStorage), survive a re-read, replace the
+    /// blob on a second save, reject a malformed blob, and emit a kernel
+    /// EventLedger receipt per save. This proves saved searches are canonical
+    /// state and the UI is a projection.
+    #[tokio::test]
+    async fn mt258_search_bookmarks_persist_to_postgres_and_event_ledger()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::kernel::KernelEventType;
+
+        let Some(state) = setup_state().await? else {
+            eprintln!("SKIP MT-258 search-bookmark route proof: POSTGRES_TEST_URL unavailable");
+            return Ok(());
+        };
+        let workspace = state
+            .storage
+            .create_workspace(
+                &WriteContext::human(Some("tester".into())),
+                NewWorkspace {
+                    name: "search-bookmark-ws".into(),
+                },
+            )
+            .await?;
+        let workspace_id = workspace.id.clone();
+
+        // No saved searches yet: GET returns an empty projection.
+        let empty = get_workspace_search_bookmarks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+        )
+        .await
+        .map_err(|(status, Json(body))| format!("get failed {status}: {}", body.error))?
+        .0;
+        assert!(
+            empty.bookmark_state.is_none(),
+            "fresh workspace has no saved searches"
+        );
+
+        let bookmark = json!({
+            "schema_id": "hsk.workspace_search_bookmark_state@1",
+            "bookmarks": [{
+                "id": "bm-1",
+                "label": "TODO blocks",
+                "query": "TODO",
+                "kind": "all",
+                "tagFilter": "",
+                "pathFilter": "",
+                "caseSensitive": false,
+                "wholeWord": true,
+                "isRegex": false,
+                "savedAt": "2026-06-17T00:00:00Z"
+            }]
+        });
+        let saved = save_workspace_search_bookmarks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(SaveWorkspaceSearchBookmarksRequest {
+                bookmark_state: bookmark.clone(),
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| format!("save failed {status}: {}", body.error))?
+        .0;
+        let first_event_id = saved
+            .event_ledger_event_id
+            .clone()
+            .expect("save returns an EventLedger receipt id");
+        assert!(!first_event_id.trim().is_empty());
+
+        // Re-read straight from Postgres (new GET) confirms durability.
+        let reread = get_workspace_search_bookmarks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+        )
+        .await
+        .map_err(|(status, Json(body))| format!("re-read failed {status}: {}", body.error))?
+        .0;
+        assert_eq!(
+            reread.bookmark_state.as_ref(),
+            Some(&bookmark),
+            "saved searches must round-trip through PostgreSQL"
+        );
+
+        // Second save replaces the blob (the route is the canonical authority).
+        let updated = json!({
+            "schema_id": "hsk.workspace_search_bookmark_state@1",
+            "bookmarks": []
+        });
+        let cleared = save_workspace_search_bookmarks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(SaveWorkspaceSearchBookmarksRequest {
+                bookmark_state: updated.clone(),
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| format!("update failed {status}: {}", body.error))?
+        .0;
+        assert_eq!(cleared.bookmark_state.as_ref(), Some(&updated));
+        assert_ne!(
+            cleared.event_ledger_event_id, saved.event_ledger_event_id,
+            "each save must append a fresh EventLedger receipt"
+        );
+
+        // A malformed blob (missing required schema_id) is rejected, not stored.
+        let bad = save_workspace_search_bookmarks(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(SaveWorkspaceSearchBookmarksRequest {
+                bookmark_state: json!({ "bookmarks": [] }),
+            }),
+        )
+        .await;
+        assert!(bad.is_err(), "blob without schema_id must be rejected");
+
+        // The EventLedger holds a durable receipt for this workspace aggregate.
+        let events = state
+            .storage
+            .list_kernel_events_for_aggregate(
+                "workspace_search_bookmark_state",
+                &workspace_id,
+            )
+            .await?;
+        let receipts: Vec<_> = events
+            .iter()
+            .filter(|event| {
+                event.event_type == KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded
+            })
+            .collect();
+        assert!(
+            receipts.len() >= 2,
+            "two successful saves must yield at least two EventLedger receipts, got {}",
+            receipts.len()
+        );
 
         Ok(())
     }

@@ -12,8 +12,14 @@ import "../App.css";
 
 const workspaceId = "w1";
 
+function initialBlockId(): string {
+  if (typeof window === "undefined") return "block-unpinned";
+  const param = new URLSearchParams(window.location.search).get("block");
+  return param && param.trim() ? param.trim() : "block-unpinned";
+}
+
 function HarnessShell() {
-  const [selectedBlockId, setSelectedBlockId] = useState("block-unpinned");
+  const [selectedBlockId, setSelectedBlockId] = useState(initialBlockId);
   const [openLog, setOpenLog] = useState<string[]>([]);
 
   const openLoomBlock = (blockId: string) => {

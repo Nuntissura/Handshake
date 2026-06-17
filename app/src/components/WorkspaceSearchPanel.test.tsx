@@ -2,8 +2,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkspaceSearchPanel } from "./WorkspaceSearchPanel";
 import {
+  getWorkspaceSearchBookmarkState,
   loadRichDocument,
   saveRichDocument,
+  saveWorkspaceSearchBookmarkState,
   searchLoomGraph,
   type RichDocLoad,
   type RichDocSaveResult,
@@ -16,8 +18,34 @@ vi.mock("../lib/api", async () => {
     searchLoomGraph: vi.fn(),
     loadRichDocument: vi.fn(),
     saveRichDocument: vi.fn(),
+    getWorkspaceSearchBookmarkState: vi.fn(),
+    saveWorkspaceSearchBookmarkState: vi.fn(),
   };
 });
+
+// MT-258: stateful stub of the durable search-bookmark backend so the panel's
+// save -> reload projection round-trips through the route mock (NOT localStorage).
+function installSearchBookmarkBackendStub() {
+  const store = new Map<string, Record<string, unknown> | null>();
+  vi.mocked(getWorkspaceSearchBookmarkState).mockImplementation(async (workspaceId: string) => ({
+    workspace_id: workspaceId,
+    bookmark_state: store.get(workspaceId) ?? null,
+    updated_at: null,
+    event_ledger_event_id: null,
+  }));
+  vi.mocked(saveWorkspaceSearchBookmarkState).mockImplementation(
+    async (workspaceId: string, bookmarkState: Record<string, unknown>) => {
+      store.set(workspaceId, bookmarkState);
+      return {
+        workspace_id: workspaceId,
+        bookmark_state: bookmarkState,
+        updated_at: "2026-06-17T00:00:00Z",
+        event_ledger_event_id: `evt-${store.size}`,
+      };
+    },
+  );
+  return store;
+}
 
 const primaryRichDocumentId = "KRD-00000000000000000000000000000001";
 const secondaryRichDocumentId = "KRD-00000000000000000000000000000002";
@@ -73,6 +101,9 @@ describe("WorkspaceSearchPanel (MT-250)", () => {
     vi.mocked(searchLoomGraph).mockReset();
     vi.mocked(loadRichDocument).mockReset();
     vi.mocked(saveRichDocument).mockReset();
+    vi.mocked(getWorkspaceSearchBookmarkState).mockReset();
+    vi.mocked(saveWorkspaceSearchBookmarkState).mockReset();
+    installSearchBookmarkBackendStub();
     vi.mocked(searchLoomGraph).mockResolvedValue([
       {
         result_kind: "knowledge_entity",
@@ -122,7 +153,8 @@ describe("WorkspaceSearchPanel (MT-250)", () => {
   });
 
   it("saves workspace search bookmarks and restores their filters for a backend search", async () => {
-    render(
+    const store = installSearchBookmarkBackendStub();
+    const { unmount } = render(
       <WorkspaceSearchPanel
         open={true}
         workspaceId="w1"
@@ -143,6 +175,30 @@ describe("WorkspaceSearchPanel (MT-250)", () => {
     expect(await screen.findByTestId("workspace-search.bookmark.alpha-document-tag-1-tag-2-src-app-case-word")).toHaveTextContent(
       "Alpha",
     );
+
+    // Durability: the save went to the backend route (PostgreSQL + EventLedger),
+    // carries the canonical schema_id, and NOT to localStorage.
+    await waitFor(() => expect(saveWorkspaceSearchBookmarkState).toHaveBeenCalled());
+    const savedBlob = store.get("w1") as { schema_id?: string; bookmarks?: unknown[] };
+    expect(savedBlob.schema_id).toBe("hsk.workspace_search_bookmark_state@1");
+    expect(savedBlob.bookmarks).toHaveLength(1);
+    expect(window.localStorage.length).toBe(0);
+
+    // Re-mounting re-hydrates the saved search from the durable backend, proving
+    // the UI is a projection of canonical state (not browser-local memory).
+    unmount();
+    render(
+      <WorkspaceSearchPanel
+        open={true}
+        workspaceId="w1"
+        onClose={vi.fn()}
+        onOpenDocument={vi.fn()}
+        onOpenLoomBlock={vi.fn()}
+      />,
+    );
+    expect(
+      await screen.findByTestId("workspace-search.bookmark.alpha-document-tag-1-tag-2-src-app-case-word"),
+    ).toHaveTextContent("Alpha");
 
     fireEvent.change(screen.getByTestId("workspace-search.query"), { target: { value: "Beta" } });
     fireEvent.change(screen.getByTestId("workspace-search.tag-filter"), { target: { value: "" } });

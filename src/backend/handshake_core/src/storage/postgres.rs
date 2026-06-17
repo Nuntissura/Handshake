@@ -18,9 +18,10 @@ use super::{
     NewWorkspace, PlannedOperation, PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput,
     SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
     StorageGuard, StorageResult, WorkbenchLayoutState, WorkbenchLayoutStateInput,
-    WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSettingsState,
-    WorkspaceSettingsStateInput, WriteContext, LOOM_VISUAL_DEBUG_SCHEMA_ID,
-    WORKBENCH_LAYOUT_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSearchBookmarkState,
+    WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState, WorkspaceSettingsStateInput,
+    WriteContext, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
+    WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
 use crate::kernel::{
     context_bundle::canonical_json_bytes,
@@ -1964,6 +1965,83 @@ fn map_workspace_settings_state(row: &PgRow) -> StorageResult<WorkspaceSettingsS
         updated_at: row.get("updated_at"),
         event_ledger_event_id: row.get("event_ledger_event_id"),
     })
+}
+
+fn map_workspace_search_bookmark_state(row: &PgRow) -> StorageResult<WorkspaceSearchBookmarkState> {
+    Ok(WorkspaceSearchBookmarkState {
+        workspace_id: row.get("workspace_id"),
+        bookmark_state: row.get("bookmark_state"),
+        updated_at: row.get("updated_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+const WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR: &str =
+    "workspace search bookmark_state must match hsk.workspace_search_bookmark_state@1 shape";
+const WORKSPACE_SEARCH_BOOKMARK_MAX: usize = 100;
+
+/// Validates the saved-search bookmark blob shape: a JSON object carrying the
+/// schema id and a bounded `bookmarks` array of well-formed saved-search records.
+/// The shape mirrors the frontend `WorkspaceSearchBookmark` so the projection
+/// (UI) can re-hydrate searches losslessly from canonical state.
+fn validate_workspace_search_bookmark_state_shape(bookmark_state: &Value) -> StorageResult<()> {
+    let Some(object) = bookmark_state.as_object() else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    let Some(bookmarks) = object.get("bookmarks").and_then(Value::as_array) else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    if bookmarks.len() > WORKSPACE_SEARCH_BOOKMARK_MAX {
+        return Err(StorageError::Validation(
+            "workspace search bookmark_state exceeds 100 saved searches",
+        ));
+    }
+    for bookmark in bookmarks {
+        let Some(entry) = bookmark.as_object() else {
+            return Err(StorageError::Validation(
+                WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+            ));
+        };
+        let require_str = |key: &str| -> StorageResult<()> {
+            match entry.get(key).and_then(Value::as_str) {
+                Some(_) => Ok(()),
+                None => Err(StorageError::Validation(
+                    WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+                )),
+            }
+        };
+        let require_nonempty_str = |key: &str| -> StorageResult<()> {
+            match entry.get(key).and_then(Value::as_str) {
+                Some(value) if !value.trim().is_empty() => Ok(()),
+                _ => Err(StorageError::Validation(
+                    WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+                )),
+            }
+        };
+        let require_bool = |key: &str| -> StorageResult<()> {
+            match entry.get(key) {
+                Some(Value::Bool(_)) => Ok(()),
+                _ => Err(StorageError::Validation(
+                    WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+                )),
+            }
+        };
+        require_nonempty_str("id")?;
+        require_nonempty_str("label")?;
+        require_str("query")?;
+        require_nonempty_str("kind")?;
+        require_str("tagFilter")?;
+        require_str("pathFilter")?;
+        require_bool("caseSensitive")?;
+        require_bool("wholeWord")?;
+        require_bool("isRegex")?;
+        require_nonempty_str("savedAt")?;
+    }
+    Ok(())
 }
 
 const WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR: &str =
@@ -7380,6 +7458,96 @@ impl super::Database for PostgresDatabase {
         .fetch_one(&mut *tx)
         .await?;
         let state = map_workspace_settings_state(&row)?;
+        tx.commit().await?;
+        Ok(state)
+    }
+
+    async fn get_workspace_search_bookmark_state(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Option<WorkspaceSearchBookmarkState>> {
+        let row = sqlx::query(
+            r#"
+            SELECT workspace_id, bookmark_state, updated_at, event_ledger_event_id
+            FROM knowledge_workspace_search_bookmark_states
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.as_ref()
+            .map(map_workspace_search_bookmark_state)
+            .transpose()
+    }
+
+    async fn save_workspace_search_bookmark_state(
+        &self,
+        workspace_id: &str,
+        input: WorkspaceSearchBookmarkStateInput,
+    ) -> StorageResult<WorkspaceSearchBookmarkState> {
+        if !input.bookmark_state.is_object() {
+            return Err(StorageError::Validation(
+                "workspace search bookmark_state must be a JSON object",
+            ));
+        }
+        if input
+            .bookmark_state
+            .get("schema_id")
+            .and_then(|value| value.as_str())
+            != Some(WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID)
+        {
+            return Err(StorageError::Validation(
+                "workspace search bookmark_state schema_id must be hsk.workspace_search_bookmark_state@1",
+            ));
+        }
+        validate_workspace_search_bookmark_state_shape(&input.bookmark_state)?;
+
+        let run_id = format!("WORKSPACE-SEARCH-BOOKMARKS-{workspace_id}");
+        let payload = json!({
+            "type": "knowledge_workspace_search_bookmark_state_recorded",
+            "workspace_id": workspace_id,
+            "bookmark_state": input.bookmark_state.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
+            KernelActor::System("workspace-search-bookmarks-ui".to_string()),
+        )
+        .aggregate(
+            "workspace_search_bookmark_state",
+            workspace_id.to_string(),
+        )
+        .source_component("workspace_search_bookmark_state")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_workspace_search_bookmark_states (
+                workspace_id,
+                bookmark_state,
+                updated_at,
+                event_ledger_event_id
+            )
+            VALUES ($1, $2::jsonb, NOW(), $3)
+            ON CONFLICT (workspace_id) DO UPDATE SET
+                bookmark_state = EXCLUDED.bookmark_state,
+                updated_at = NOW(),
+                event_ledger_event_id = EXCLUDED.event_ledger_event_id
+            RETURNING workspace_id, bookmark_state, updated_at, event_ledger_event_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(&input.bookmark_state)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let state = map_workspace_search_bookmark_state(&row)?;
         tx.commit().await?;
         Ok(state)
     }

@@ -308,4 +308,106 @@ test.describe("WP-KERNEL-009 MT-258 Loom bookmarks", () => {
     );
     expect(externalRequests).toEqual([]);
   });
+
+  // MT-258 properties-panel TAG editing browser proof: the real LoomBlockPanel
+  // tag inputs must produce an add_tags/remove_tags PATCH body, and the panel
+  // must reflect the backend-returned tag_count. The route handler mutates a
+  // tag set per block id so the returned derived.tag_count is authoritative
+  // (mirroring the backend recompute), proving the GUI wiring end-to-end.
+  test("edits Loom block tags through the properties panel and real PATCH body", async ({ page }) => {
+    const block = makeBlock("block-tagged", "Tag Subject", false, null);
+    block.derived.tag_count = 0;
+    const tagSet = new Set<string>();
+    const requestEvidence: RequestEvidence[] = [];
+    const externalRequests: string[] = [];
+
+    await page.route("**/*", async (route) => {
+      const url = route.request().url();
+      if (url.startsWith(baseUrl)) {
+        await route.continue();
+        return;
+      }
+      if (url.startsWith(apiBaseUrl)) {
+        const parsed = new URL(url);
+        const method = route.request().method();
+        if (method === "OPTIONS") {
+          await route.fulfill({ status: 204, headers: CORS_HEADERS, body: "" });
+          return;
+        }
+        if (parsed.pathname === "/workspaces" && method === "GET") {
+          return jsonResponse(route, [
+            {
+              id: workspaceId,
+              name: "MT-258 Workspace",
+              created_at: "2026-06-16T00:00:00Z",
+              updated_at: "2026-06-16T00:00:00Z",
+            },
+          ]);
+        }
+        if (parsed.pathname === `/workspaces/${workspaceId}/documents` && method === "GET") {
+          return jsonResponse(route, []);
+        }
+        if (parsed.pathname === `/workspaces/${workspaceId}/canvases` && method === "GET") {
+          return jsonResponse(route, []);
+        }
+        if (parsed.pathname === `/workspaces/${workspaceId}/loom/views/pins` && method === "GET") {
+          return jsonResponse(route, { view_type: "pins", blocks: [] });
+        }
+        if (parsed.pathname === `/workspaces/${workspaceId}/loom/blocks/block-tagged` && method === "GET") {
+          return jsonResponse(route, { ...block, derived: { ...block.derived, tag_count: tagSet.size } });
+        }
+        if (parsed.pathname === `/workspaces/${workspaceId}/loom/blocks/block-tagged` && method === "PATCH") {
+          const body = route.request().postDataJSON() as {
+            add_tags?: string[];
+            remove_tags?: string[];
+          } & Partial<LoomBlockFixture>;
+          requestEvidence.push({ method, path: parsed.pathname, body });
+          for (const tag of body.add_tags ?? []) tagSet.add(tag);
+          for (const tag of body.remove_tags ?? []) tagSet.delete(tag);
+          const next = {
+            ...block,
+            ...body,
+            derived: { ...block.derived, tag_count: tagSet.size },
+            updated_at: "2026-06-16T00:20:00Z",
+          };
+          return jsonResponse(route, next);
+        }
+      }
+      if (!url.startsWith("about:")) externalRequests.push(url);
+      await route.abort("connectionfailed");
+    });
+
+    // The harness reads ?block= to point the real LoomBlockPanel at our subject.
+    await page.goto(`${baseUrl}/harness/loom-bookmarks.html?block=block-tagged`);
+    await expect(page.getByTestId("loom-bookmarks.selected-block")).toHaveText("block-tagged");
+    await expect(page.getByTestId("loom-block-panel")).toContainText("Tag Subject");
+    await expect(page.getByTestId("loom-block-properties.tag-count")).toContainText("0 tags");
+
+    // Use the real properties form: add two tags, then save.
+    await expect(page.getByTestId("loom-block-properties.add-tags")).toBeVisible();
+    await page.getByTestId("loom-block-properties.add-tags").fill("tag-hub-1, tag-hub-2");
+    await page.getByTestId("loom-block-properties.save").click();
+    await expect(page.getByTestId("loom-block-properties.status")).toContainText("Properties saved");
+
+    await page.getByTestId("loom-block-properties.remove-tags").fill("tag-hub-1");
+    await page.getByTestId("loom-block-properties.save").click();
+    await expect(page.getByTestId("loom-block-properties.status")).toContainText("Properties saved");
+
+    expect(requestEvidence).toEqual(
+      expect.arrayContaining([
+        {
+          method: "PATCH",
+          path: `/workspaces/${workspaceId}/loom/blocks/block-tagged`,
+          body: expect.objectContaining({ add_tags: ["tag-hub-1", "tag-hub-2"] }),
+        },
+        {
+          method: "PATCH",
+          path: `/workspaces/${workspaceId}/loom/blocks/block-tagged`,
+          body: expect.objectContaining({ remove_tags: ["tag-hub-1"] }),
+        },
+      ]),
+    );
+    await expect(page.getByTestId("loom-block-properties.tag-count")).toContainText("1 tags");
+    expect(externalRequests).toEqual([]);
+  });
 });

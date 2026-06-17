@@ -427,6 +427,24 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
       });
     },
   },
+  // --- Note transclusion (MT-258): embed a block read-through; the host stores
+  // only the reference atom node, edits route to the source document. ---
+  {
+    id: "transclusion.note",
+    label: "Transclude note (read-through)",
+    category: "embed",
+    keywords: ["transclude", "transclusion", "embed", "note", "block", "read-through"],
+    args: [{ id: "value", label: "Source block", placeholder: "block id" }],
+    run: (e, args) => {
+      const value = (args?.value ?? "").trim();
+      if (value.length === 0) return false;
+      return insertSafely(e, {
+        type: "loomTransclusion",
+        attrs: { refValue: value },
+      });
+    },
+    canRun: (e) => e.isEditable,
+  },
   // --- Embeds (media/album/slideshow) ---
   {
     id: "embed.media",

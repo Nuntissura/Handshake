@@ -2983,6 +2983,18 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
     ) -> StorageResult<Option<KnowledgeRichDocument>>;
 
+    /// MT-258 transclusion: resolve the rich document that ANCHORS to a legacy
+    /// `documents` row (its `document_id` foreign-key anchor) within a
+    /// workspace. A LoomBlock's `document_id` is that same legacy anchor, so a
+    /// note block resolves to its source rich document by this join — no new
+    /// table, no new column. The newest anchored revision wins when more than
+    /// one rich document shares an anchor.
+    async fn get_knowledge_rich_document_by_document_id(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocument>>;
+
     async fn get_knowledge_rich_document_draft(
         &self,
         rich_document_id: &str,
@@ -4970,6 +4982,25 @@ impl KnowledgeStore for PostgresDatabase {
         );
         let row = sqlx::query(&sql)
             .bind(rich_document_id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.as_ref().map(rich_document_from_pg))
+    }
+
+    async fn get_knowledge_rich_document_by_document_id(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocument>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
+             WHERE workspace_id = $1 AND document_id = $2
+             ORDER BY updated_at DESC, rich_document_id DESC
+             LIMIT 1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(document_id)
             .fetch_optional(self.pool())
             .await?;
         Ok(row.as_ref().map(rich_document_from_pg))

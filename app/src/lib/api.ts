@@ -1029,6 +1029,30 @@ export type LoomBlockUpdateRequest = {
   pinned?: boolean;
   favorite?: boolean;
   journal_date?: string | null;
+  /**
+   * MT-258 properties-panel tag editing. Tags are NOT a column: each entry is a
+   * TagHub block id, applied as a `tag` loom_edge from this block. `add_tags`
+   * creates the tag edge; `remove_tags` deletes it. The backend recomputes
+   * `derived.tag_count` after mutating edges.
+   */
+  add_tags?: string[];
+  remove_tags?: string[];
+};
+
+/**
+ * MT-258 note-transclusion read-through. The host doc embeds a LoomBlock by
+ * reference (a single `loomTransclusion` atom node) and renders the SOURCE
+ * document content this resolves to. The host never persists the body; edits
+ * route to `source_document_id`.
+ */
+export type LoomBlockTransclusion = {
+  block_id: string;
+  workspace_id: string;
+  source_document_id: string | null;
+  source_doc_version: number | null;
+  content_json: JSONContentLike | null;
+  resolved: boolean;
+  unresolved_reason?: string | null;
 };
 
 export type LoomViewType = "all" | "unlinked" | "sorted" | "pins" | "favorites";
@@ -1318,9 +1342,44 @@ export async function saveWorkspaceSettingsState(
   });
 }
 
+// MT-258 durable saved searches. Search bookmarks are workspace-scoped support
+// state persisted to PostgreSQL + EventLedger (NOT localStorage); the UI is a
+// projection that re-hydrates from this canonical blob.
+export type WorkspaceSearchBookmarkStateResponse = {
+  workspace_id: string;
+  bookmark_state: Record<string, unknown> | null;
+  updated_at: string | null;
+  event_ledger_event_id: string | null;
+};
+
+export async function getWorkspaceSearchBookmarkState(
+  workspaceId: string,
+): Promise<WorkspaceSearchBookmarkStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/search-bookmarks`);
+}
+
+export async function saveWorkspaceSearchBookmarkState(
+  workspaceId: string,
+  bookmarkState: Record<string, unknown>,
+): Promise<WorkspaceSearchBookmarkStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/search-bookmarks`, {
+    method: "PUT",
+    body: { bookmark_state: bookmarkState },
+  });
+}
+
 export async function getLoomBlock(workspaceId: string, blockId: string): Promise<LoomBlock> {
   return request(
     `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}`,
+  );
+}
+
+export async function getLoomBlockTransclusion(
+  workspaceId: string,
+  blockId: string,
+): Promise<LoomBlockTransclusion> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}/transclusion`,
   );
 }
 

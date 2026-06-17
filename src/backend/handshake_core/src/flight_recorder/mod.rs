@@ -2451,11 +2451,26 @@ fn validate_loom_block_created_payload(payload: &Value) -> Result<(), RecorderEr
 
 fn validate_loom_block_updated_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
-    require_exact_keys(map, &["type", "block_id", "fields_changed", "updated_by"])?;
+    // MT-258 properties-panel tag editing adds optional `tags_added`/`tags_removed`
+    // arrays carrying the TagHub block ids mutated by the patch. They are
+    // optional so pin/title/favorite patches keep emitting the minimal payload,
+    // and array-allow-empty so a tag-only patch records both arrays even when one
+    // side is empty.
+    require_allowed_keys(
+        map,
+        &["type", "block_id", "fields_changed", "updated_by"],
+        &["tags_added", "tags_removed"],
+    )?;
     require_fixed_string(map, "type", "loom_block_updated")?;
     require_safe_id_string(map, "block_id")?;
     require_string_array_allow_empty(map, "fields_changed")?;
     require_limited_choice(map, "updated_by", &["user", "ai"])?;
+    if map.contains_key("tags_added") {
+        require_string_array_allow_empty(map, "tags_added")?;
+    }
+    if map.contains_key("tags_removed") {
+        require_string_array_allow_empty(map, "tags_removed")?;
+    }
     Ok(())
 }
 

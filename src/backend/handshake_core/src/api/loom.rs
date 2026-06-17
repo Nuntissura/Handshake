@@ -96,6 +96,13 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/knowledge",
             get(get_loom_block_knowledge_bridge),
         )
+        // MT-258: note transclusion read-through. Resolves a block to its SOURCE
+        // rich document (loom_blocks.document_id -> knowledge_rich_documents) so
+        // an embedding host doc renders the source content WITHOUT copying it.
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/transclusion",
+            get(get_loom_block_transclusion),
+        )
         // MT-183: reorderable Pins grid ordinal
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
@@ -412,6 +419,97 @@ async fn get_loom_block_knowledge_bridge(
         .map_err(map_storage_error)?
         .ok_or_else(|| not_found("loom_block_not_bridged"))?;
     Ok(Json(bridge))
+}
+
+/// MT-258: a note-transclusion read-through. Given a host doc that embeds a
+/// LoomBlock as an atom node, the host editor needs the SOURCE document's live
+/// content to render the embed. This resolves the block's source rich document
+/// (`loom_blocks.document_id` -> `knowledge_rich_documents`) and returns its
+/// current content JSON + version. The host doc NEVER persists this body; it
+/// keeps only the atom node carrying `block_id`, so editing the source through
+/// `save_knowledge_rich_document_version` flows to ONE authority document.
+#[derive(Debug, Serialize)]
+struct LoomTransclusionResponse {
+    block_id: String,
+    workspace_id: String,
+    /// The source rich document id the block resolves to (the edit target).
+    source_document_id: Option<String>,
+    /// The current version of the source document (for optimistic save).
+    source_doc_version: Option<i64>,
+    /// The live source document JSON (ProseMirror doc node), or null when the
+    /// block resolves to no rich document.
+    content_json: Option<serde_json::Value>,
+    /// `true` only when the block resolves to a real source rich document whose
+    /// content was read through; `false` is a typed, visible unresolved state
+    /// (never a silent blank).
+    resolved: bool,
+    /// A typed reason when `resolved` is false (no document_id, or the
+    /// referenced rich document row is missing).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unresolved_reason: Option<&'static str>,
+}
+
+async fn get_loom_block_transclusion(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<LoomTransclusionResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    // A missing block is a clean 404 (not an empty/unresolved 200).
+    let block = state
+        .storage
+        .get_loom_block(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let Some(document_id) = block.document_id.clone() else {
+        return Ok(Json(LoomTransclusionResponse {
+            block_id,
+            workspace_id,
+            source_document_id: None,
+            source_doc_version: None,
+            content_json: None,
+            resolved: false,
+            unresolved_reason: Some("loom_block_has_no_source_document"),
+        }));
+    };
+
+    // The rich-document authority lives on the KnowledgeStore (implemented on
+    // PostgresDatabase), reached through the shared pool — mirroring the
+    // knowledge_documents API's `db_for`. A LoomBlock's `document_id` is the
+    // legacy `documents` anchor; the source rich document is the one anchored to
+    // that same row (reuse loom_blocks.document_id + knowledge_rich_documents,
+    // no new table/column).
+    let knowledge_db = crate::storage::postgres::PostgresDatabase::new(state.postgres_pool.clone());
+    let document =
+        crate::storage::knowledge::KnowledgeStore::get_knowledge_rich_document_by_document_id(
+            &knowledge_db,
+            &workspace_id,
+            &document_id,
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    let Some(document) = document else {
+        return Ok(Json(LoomTransclusionResponse {
+            block_id,
+            workspace_id,
+            source_document_id: Some(document_id),
+            source_doc_version: None,
+            content_json: None,
+            resolved: false,
+            unresolved_reason: Some("source_rich_document_missing"),
+        }));
+    };
+
+    Ok(Json(LoomTransclusionResponse {
+        block_id,
+        workspace_id,
+        source_document_id: Some(document.rich_document_id),
+        source_doc_version: Some(document.doc_version),
+        content_json: Some(document.content_json),
+        resolved: true,
+        unresolved_reason: None,
+    }))
 }
 
 /// MT-188: the navigation breadcrumb trail for a block (workspace -> project ->
@@ -1235,13 +1333,37 @@ async fn list_loom_blocks_for_tag(
     Ok(Json(blocks))
 }
 
+/// MT-258 properties-panel patch: the typed LoomBlock fields PLUS tag editing.
+/// Tags are NOT a column — they are `tag` loom_edges from this block to a
+/// TagHub block. `add_tags`/`remove_tags` carry TagHub block ids; adding
+/// creates a tag edge (reusing the create-edge path), removing deletes the
+/// matching tag edge. After tag mutations the block metrics are recomputed so
+/// the returned `derived.tag_count` reflects the real edge set.
+#[derive(Debug, Deserialize, Default)]
+struct LoomBlockPatchRequest {
+    #[serde(flatten)]
+    update: LoomBlockUpdate,
+    /// TagHub block ids to attach as `tag` edges (reuses create_loom_edge).
+    #[serde(default)]
+    add_tags: Vec<String>,
+    /// TagHub block ids whose `tag` edge from this block should be removed.
+    #[serde(default)]
+    remove_tags: Vec<String>,
+}
+
 async fn patch_loom_block(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
-    Json(update): Json<LoomBlockUpdate>,
+    Json(payload): Json<LoomBlockPatchRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = WriteContext::human(None);
+
+    let LoomBlockPatchRequest {
+        update,
+        add_tags,
+        remove_tags,
+    } = payload;
 
     let mut fields_changed: Vec<&'static str> = Vec::new();
     if update.title.is_some() {
@@ -1260,11 +1382,86 @@ async fn patch_loom_block(
         fields_changed.push("pin_order");
     }
 
-    let block = state
+    let mut block = state
         .storage
         .update_loom_block(&ctx, &workspace_id, &block_id, update)
         .await
         .map_err(map_storage_error)?;
+
+    let tags_mutated = !add_tags.is_empty() || !remove_tags.is_empty();
+    if tags_mutated {
+        // The current tag edges from this block (so add is idempotent and remove
+        // can locate the precise edge id to delete).
+        let edges = state
+            .storage
+            .list_loom_edges_for_block(&workspace_id, &block_id)
+            .await
+            .map_err(map_storage_error)?;
+
+        for tag_block_id in &add_tags {
+            // The target must be a real TagHub block (parity with create_loom_edge).
+            let target = state
+                .storage
+                .get_loom_block(&workspace_id, tag_block_id)
+                .await
+                .map_err(map_storage_error)?;
+            if !matches!(target.content_type, LoomBlockContentType::TagHub) {
+                return Err(bad_request("HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB"));
+            }
+            let already_tagged = edges.iter().any(|edge| {
+                edge.edge_type == LoomEdgeType::Tag
+                    && edge.source_block_id == block_id
+                    && edge.target_block_id == *tag_block_id
+            });
+            if already_tagged {
+                continue;
+            }
+            state
+                .storage
+                .create_loom_edge(
+                    &ctx,
+                    NewLoomEdge {
+                        edge_id: None,
+                        workspace_id: workspace_id.clone(),
+                        source_block_id: block_id.clone(),
+                        target_block_id: tag_block_id.clone(),
+                        edge_type: LoomEdgeType::Tag,
+                        created_by: LoomEdgeCreatedBy::User,
+                        crdt_site_id: None,
+                        source_anchor: None,
+                    },
+                )
+                .await
+                .map_err(map_storage_error)?;
+        }
+
+        for tag_block_id in &remove_tags {
+            for edge in edges.iter().filter(|edge| {
+                edge.edge_type == LoomEdgeType::Tag
+                    && edge.source_block_id == block_id
+                    && edge.target_block_id == *tag_block_id
+            }) {
+                state
+                    .storage
+                    .delete_loom_edge(&ctx, &workspace_id, &edge.edge_id)
+                    .await
+                    .map_err(map_storage_error)?;
+            }
+        }
+
+        fields_changed.push("tags");
+        // Recompute derived metrics so the returned tag_count is authoritative.
+        state
+            .storage
+            .recompute_block_metrics(&workspace_id, &block_id)
+            .await
+            .map_err(map_storage_error)?;
+        block = state
+            .storage
+            .get_loom_block(&workspace_id, &block_id)
+            .await
+            .map_err(map_storage_error)?;
+    }
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockUpdated,
@@ -1274,6 +1471,8 @@ async fn patch_loom_block(
             "type": "loom_block_updated",
             "block_id": block_id,
             "fields_changed": fields_changed,
+            "tags_added": add_tags,
+            "tags_removed": remove_tags,
             "updated_by": "user"
         }),
     )
@@ -2993,8 +3192,11 @@ mod tests {
         let pinned = patch_loom_block(
             State(state.clone()),
             Path((workspace_id.clone(), block_id.clone())),
-            Json(LoomBlockUpdate {
-                pinned: Some(true),
+            Json(LoomBlockPatchRequest {
+                update: LoomBlockUpdate {
+                    pinned: Some(true),
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
         )
@@ -3059,8 +3261,11 @@ mod tests {
         let unpinned = patch_loom_block(
             State(state.clone()),
             Path((workspace_id.clone(), block_id.clone())),
-            Json(LoomBlockUpdate {
-                pinned: Some(false),
+            Json(LoomBlockPatchRequest {
+                update: LoomBlockUpdate {
+                    pinned: Some(false),
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
         )
@@ -3142,6 +3347,219 @@ mod tests {
         assert!(
             changed_field_count("pin_order") >= 2,
             "order and clear routes must emit pin_order update receipts"
+        );
+
+        Ok(())
+    }
+
+    /// MT-258 properties-panel TAG editing, proven end-to-end through the real
+    /// `patch_loom_block` route against PostgreSQL: add_tags creates `tag`
+    /// loom_edges to a TagHub target, recompute makes `derived.tag_count`
+    /// authoritative, remove_tags deletes the edge, add is idempotent, and a
+    /// non-TagHub target is rejected with HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB.
+    /// A LoomBlockUpdated receipt records the tag mutation (fields_changed=tags,
+    /// tags_added/tags_removed payloads).
+    #[tokio::test]
+    async fn mt258_properties_tag_edit_persists_edges_and_metrics(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            eprintln!("SKIP MT-258 tag-edit route proof: POSTGRES_TEST_URL unavailable");
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+
+        let make_block = |content_type: LoomBlockContentType, title: &str| {
+            let state = state.clone();
+            let workspace_id = workspace_id.clone();
+            let title = title.to_string();
+            async move {
+                create_loom_block(
+                    State(state),
+                    Path(workspace_id),
+                    Json(CreateLoomBlockRequest {
+                        block_id: None,
+                        content_type,
+                        document_id: None,
+                        asset_id: None,
+                        title: Some(title),
+                        pinned: None,
+                        journal_date: None,
+                    }),
+                )
+                .await
+                .map_err(|(status, Json(body))| LoomApiTestCallError {
+                    status,
+                    code: body.error.to_string(),
+                })
+                .map(|response| response.0)
+            }
+        };
+
+        let note = make_block(LoomBlockContentType::Note, "MT-258 tag-edit subject").await?;
+        let tag_a = make_block(LoomBlockContentType::TagHub, "#alpha").await?;
+        let tag_b = make_block(LoomBlockContentType::TagHub, "#beta").await?;
+        let block_id = note.block_id.clone();
+        assert_eq!(
+            note.derived.tag_count, 0,
+            "fresh note starts with zero tags"
+        );
+
+        let patch = |add: Vec<String>, remove: Vec<String>| {
+            let state = state.clone();
+            let workspace_id = workspace_id.clone();
+            let block_id = block_id.clone();
+            async move {
+                patch_loom_block(
+                    State(state),
+                    Path((workspace_id, block_id)),
+                    Json(LoomBlockPatchRequest {
+                        update: LoomBlockUpdate::default(),
+                        add_tags: add,
+                        remove_tags: remove,
+                    }),
+                )
+                .await
+                .map_err(|(status, Json(body))| LoomApiTestCallError {
+                    status,
+                    code: body.error.to_string(),
+                })
+            }
+        };
+
+        // Add two real tag edges; recompute makes tag_count authoritative.
+        let added = patch(
+            vec![tag_a.block_id.clone(), tag_b.block_id.clone()],
+            Vec::new(),
+        )
+        .await?
+        .0;
+        assert_eq!(
+            added.derived.tag_count, 2,
+            "route add_tags must create real tag edges and recompute tag_count"
+        );
+
+        // The edges are real `tag` loom_edges in Postgres, not just a counter.
+        let edges_after_add = state
+            .storage
+            .list_loom_edges_for_block(&workspace_id, &block_id)
+            .await?;
+        let tag_targets: std::collections::HashSet<String> = edges_after_add
+            .iter()
+            .filter(|edge| {
+                edge.edge_type == LoomEdgeType::Tag && edge.source_block_id == block_id
+            })
+            .map(|edge| edge.target_block_id.clone())
+            .collect();
+        assert!(
+            tag_targets.contains(&tag_a.block_id) && tag_targets.contains(&tag_b.block_id),
+            "both TagHub targets must have real tag edges from the block"
+        );
+
+        // Idempotent add: re-adding tag_a must not create a duplicate edge.
+        let re_added = patch(vec![tag_a.block_id.clone()], Vec::new()).await?.0;
+        assert_eq!(
+            re_added.derived.tag_count, 2,
+            "re-adding an existing tag must be idempotent (no duplicate edge)"
+        );
+
+        // Remove one tag edge; tag_count drops to 1 and the edge is gone.
+        let removed = patch(Vec::new(), vec![tag_a.block_id.clone()]).await?.0;
+        assert_eq!(
+            removed.derived.tag_count, 1,
+            "route remove_tags must delete the tag edge and recompute tag_count"
+        );
+        let edges_after_remove = state
+            .storage
+            .list_loom_edges_for_block(&workspace_id, &block_id)
+            .await?;
+        assert!(
+            edges_after_remove.iter().all(|edge| {
+                !(edge.edge_type == LoomEdgeType::Tag
+                    && edge.source_block_id == block_id
+                    && edge.target_block_id == tag_a.block_id)
+            }),
+            "removed tag edge must be gone from Postgres"
+        );
+        assert!(
+            edges_after_remove.iter().any(|edge| {
+                edge.edge_type == LoomEdgeType::Tag
+                    && edge.source_block_id == block_id
+                    && edge.target_block_id == tag_b.block_id
+            }),
+            "the untouched tag edge must survive the remove"
+        );
+
+        // Postgres read after the route confirms durability (not in-memory only).
+        let stored = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        assert_eq!(
+            stored.derived.tag_count, 1,
+            "Postgres re-read confirms the tag mutation persisted"
+        );
+
+        // TagHub guard: a non-TagHub target is rejected, no edge is created.
+        let non_tag = make_block(LoomBlockContentType::Note, "not a tag").await?;
+        let guard = patch(vec![non_tag.block_id.clone()], Vec::new())
+            .await
+            .expect_err("non-TagHub target must be rejected");
+        assert_eq!(guard.status, StatusCode::BAD_REQUEST);
+        assert_eq!(guard.code, "HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB");
+        let after_guard = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        assert_eq!(
+            after_guard.derived.tag_count, 1,
+            "rejected tag target must not change the tag set"
+        );
+
+        // The tag mutation emitted a LoomBlockUpdated receipt with tags payloads.
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
+        let tag_receipts: Vec<_> = events
+            .iter()
+            .filter(|event| {
+                event.event_type == FlightRecorderEventType::LoomBlockUpdated
+                    && event
+                        .payload
+                        .get("block_id")
+                        .and_then(|value| value.as_str())
+                        == Some(block_id.as_str())
+            })
+            .filter(|event| {
+                event
+                    .payload
+                    .get("fields_changed")
+                    .and_then(|value| value.as_array())
+                    .map(|fields| {
+                        fields
+                            .iter()
+                            .any(|changed| changed.as_str() == Some("tags"))
+                    })
+                    .unwrap_or(false)
+            })
+            .collect();
+        assert!(
+            !tag_receipts.is_empty(),
+            "tag mutation must emit a LoomBlockUpdated receipt with fields_changed=tags"
+        );
+        let added_len = |event: &&FlightRecorderEvent, key: &str| {
+            event
+                .payload
+                .get(key)
+                .and_then(|value| value.as_array())
+                .map(|items| items.len())
+                .unwrap_or(0)
+        };
+        assert!(
+            tag_receipts
+                .iter()
+                .any(|event| added_len(event, "tags_added") == 2),
+            "the two-tag add must emit a receipt carrying both added TagHub ids"
+        );
+        assert!(
+            tag_receipts
+                .iter()
+                .any(|event| added_len(event, "tags_removed") == 1),
+            "the tag remove must emit a receipt carrying the removed TagHub id"
         );
 
         Ok(())

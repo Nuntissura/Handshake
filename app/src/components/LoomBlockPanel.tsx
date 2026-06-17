@@ -20,6 +20,17 @@ function optionalText(value: string | number | boolean | null | undefined): stri
   return String(value);
 }
 
+function parseTagBlockIds(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export function LoomBlockPanel({ workspaceId, blockId }: Props) {
   const [block, setBlock] = useState<LoomBlock | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +38,8 @@ export function LoomBlockPanel({ workspaceId, blockId }: Props) {
   const [titleDraft, setTitleDraft] = useState("");
   const [pinnedDraft, setPinnedDraft] = useState(false);
   const [favoriteDraft, setFavoriteDraft] = useState(false);
+  const [addTagDraft, setAddTagDraft] = useState("");
+  const [removeTagDraft, setRemoveTagDraft] = useState("");
   const [savingProperties, setSavingProperties] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<string | null>(null);
   const [propertiesError, setPropertiesError] = useState<string | null>(null);
@@ -90,10 +103,14 @@ export function LoomBlockPanel({ workspaceId, blockId }: Props) {
     setPropertiesStatus(null);
     setPropertiesError(null);
     try {
+      const addTags = parseTagBlockIds(addTagDraft);
+      const removeTags = parseTagBlockIds(removeTagDraft);
       const updated = await updateLoomBlock(workspaceId, block.block_id, {
         title: titleDraft.trim() || null,
         pinned: pinnedDraft,
         favorite: favoriteDraft,
+        ...(addTags.length > 0 ? { add_tags: addTags } : {}),
+        ...(removeTags.length > 0 ? { remove_tags: removeTags } : {}),
       });
       if (updated.pinned !== block.pinned) {
         window.dispatchEvent(
@@ -111,6 +128,8 @@ export function LoomBlockPanel({ workspaceId, blockId }: Props) {
       setTitleDraft(updated.title ?? "");
       setPinnedDraft(updated.pinned);
       setFavoriteDraft(updated.favorite);
+      setAddTagDraft("");
+      setRemoveTagDraft("");
       setPropertiesStatus("Properties saved");
     } catch (err) {
       setPropertiesError(err instanceof Error ? err.message : "Properties save failed");
@@ -209,6 +228,31 @@ export function LoomBlockPanel({ workspaceId, blockId }: Props) {
             />
             <span>Favorite</span>
           </label>
+          <div className="loom-block-panel__tags" data-testid="loom-block-properties.tags">
+            <p className="loom-block-panel__tags-count" data-testid="loom-block-properties.tag-count">
+              {block.derived.tag_count} tags
+            </p>
+            <label className="loom-block-panel__field">
+              <span>Add tags (TagHub block ids, comma-separated)</span>
+              <input
+                type="text"
+                data-testid="loom-block-properties.add-tags"
+                value={addTagDraft}
+                placeholder="tag-block-id, ..."
+                onChange={(event) => setAddTagDraft(event.currentTarget.value)}
+              />
+            </label>
+            <label className="loom-block-panel__field">
+              <span>Remove tags (TagHub block ids, comma-separated)</span>
+              <input
+                type="text"
+                data-testid="loom-block-properties.remove-tags"
+                value={removeTagDraft}
+                placeholder="tag-block-id, ..."
+                onChange={(event) => setRemoveTagDraft(event.currentTarget.value)}
+              />
+            </label>
+          </div>
           <button
             type="submit"
             className="tt-button"

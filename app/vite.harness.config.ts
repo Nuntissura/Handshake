@@ -47,6 +47,10 @@ export default defineConfig({
         "loom-hover-preview": resolve(appDir, "harness", "loom-hover-preview.html"),
         // MT-258: backend-backed Loom bookmarks add/remove/navigation proof.
         "loom-bookmarks": resolve(appDir, "harness", "loom-bookmarks.html"),
+        // MT-258: note transclusion read-through + edit-routes-to-source proof.
+        "loom-transclusion": resolve(appDir, "harness", "loom-transclusion.html"),
+        // MT-258: search-operator UI filtering proof (tag:/path:/kind:/mention:).
+        "loom-search-operators": resolve(appDir, "harness", "loom-search-operators.html"),
       },
     },
   },

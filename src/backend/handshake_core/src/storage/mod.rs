@@ -39,6 +39,7 @@ pub type StorageResult<T> = Result<T, StorageError>;
 
 pub const WORKBENCH_LAYOUT_SCHEMA_ID: &str = "hsk.workbench_layout_state@1";
 pub const WORKSPACE_SETTINGS_SCHEMA_ID: &str = "hsk.workspace_settings_state@1";
+pub const WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID: &str = "hsk.workspace_search_bookmark_state@1";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkbenchLayoutStateInput {
@@ -62,6 +63,19 @@ pub struct WorkspaceSettingsStateInput {
 pub struct WorkspaceSettingsState {
     pub workspace_id: String,
     pub settings_state: Value,
+    pub updated_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkspaceSearchBookmarkStateInput {
+    pub bookmark_state: Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkspaceSearchBookmarkState {
+    pub workspace_id: String,
+    pub bookmark_state: Value,
     pub updated_at: DateTime<Utc>,
     pub event_ledger_event_id: String,
 }
@@ -2140,6 +2154,25 @@ pub trait Database: Send + Sync {
         _input: WorkspaceSettingsStateInput,
     ) -> StorageResult<WorkspaceSettingsState> {
         Err(StorageError::NotImplemented("workspace settings backend"))
+    }
+    /// MT-258 durable workspace search bookmarks (saved searches). Replaces the
+    /// localStorage-only authority with PostgreSQL + EventLedger persistence.
+    async fn get_workspace_search_bookmark_state(
+        &self,
+        _workspace_id: &str,
+    ) -> StorageResult<Option<WorkspaceSearchBookmarkState>> {
+        Err(StorageError::NotImplemented(
+            "workspace search bookmark backend",
+        ))
+    }
+    async fn save_workspace_search_bookmark_state(
+        &self,
+        _workspace_id: &str,
+        _input: WorkspaceSearchBookmarkStateInput,
+    ) -> StorageResult<WorkspaceSearchBookmarkState> {
+        Err(StorageError::NotImplemented(
+            "workspace search bookmark backend",
+        ))
     }
 
     /// MT-191 LoomVisualDebugViews: bounded backend snapshot of graph,

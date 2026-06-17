@@ -21,6 +21,7 @@ import {
   type Wp009ExtensionSetOptions,
 } from "../tiptap/extension_set";
 import { HsLinkNode } from "../tiptap/hs_link_node";
+import { LoomTransclusionNode } from "../tiptap/loom_transclusion_node";
 import { MonacoCodeBlockNode } from "../tiptap/monaco_code_block_node";
 import { AutoCodeBlockRules } from "../tiptap/auto_code_block_rules";
 import { CodeBlockKeystrokeGuard } from "../tiptap/code_block_keystroke_guard";
@@ -54,6 +55,11 @@ export function buildHandshakeEditorExtensions(
     options.embedContext
       ? HsLinkNode.configure({ embedContext: options.embedContext })
       : HsLinkNode,
+    // MT-258: note transclusion (read-through embed; host stores only the atom
+    // node, edits route to the source document — never a copy).
+    options.embedContext
+      ? LoomTransclusionNode.configure({ embedContext: options.embedContext })
+      : LoomTransclusionNode,
     MonacoCodeBlockNode,
     AutoCodeBlockRules,
     CodeBlockKeystrokeGuard,
@@ -65,6 +71,7 @@ export function buildHandshakeEditorExtensions(
 /** Names of the WP-009 custom nodes/rules added on top of the foundation set. */
 export const HANDSHAKE_EDITOR_CUSTOM_EXTENSION_NAMES = [
   "hsLink",
+  "loomTransclusion",
   "monacoCodeBlock",
   "autoCodeBlockRules",
   "codeBlockKeystrokeGuard",
