@@ -33,11 +33,44 @@
     "note": "JSON contract is authority. Per the KERNEL-006/007/008 convention and the operator no-.md directive, no Markdown projection is generated for this stub."
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "READY_FOR_REFINEMENT",
+    "promoted_from_stub_at_utc": "2026-06-17T17:50:00Z",
     "format_version": "2026-04-06",
     "activation_required": true,
     "user_signature_required": true,
-    "refinement_required_before_execution": true
+    "refinement_required_before_execution": true,
+    "spec_status": "SECTION_13_TAILOR_ACTIVE_IN_MASTER_SPEC_v02.194 (own module + TOC, sub-sections 13.1-13.15; signed ilja170620261750; all spec checks pass)",
+    "next_in_build_order_after": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 (start after WP-009 passes tests + validation)"
+  },
+  "refinement_ready": {
+    "spec_authority": "Section 13 (Tailor) is ACTIVE in Master Spec v02.194 (spec-modules/13-tailor-cloth-garment-engine.md), sub-sections 13.1-13.15 including 13.11 Kernel Integration (model lanes), 13.12 Viewport/Visual-Debug, 13.13 Model-First API & LLM Steering, 13.14 Canonical Authority Contracts, 13.15 Validation & HBR. Refinement derives SPEC_ANCHOR / DONE_MEANS from the relevant 13.x sub-section; the research package (.GOV/reference/cloth_engine_research/, 17 topics) is non-normative provenance.",
+    "gaps_status": "CLOSED -- the coherence-review gaps (3 missing moat topics + GarmentSpec/event/migration drift + determinism-vs-promotion) were resolved in the gap-closure pass and canonicalized in 16-contracts.md / 13.14.",
+    "hbr_directive_MUST": {
+      "summary": "Operator directive (post-HANDSHAKE_BUILD_RULES): Tailor is first-class for parallel LLM swarm work AND visually inspectable + navigable in BOTH the back end and the front-end GUI, so models can debug, test, self-correct, and make micro-adjustments through the visual tool while working with Tailor.",
+      "HBR_SWARM": "The model-first Tailor API/primitive (ClothModelAdapter + MCP tool surface, 13.13) MUST support multiple parallel swarm agents working with Tailor concurrently: typed events, leases, cancellation, conflict handling, restartable runtime state, per-agent attributable authoring, safe under concurrent model + operator activity (CRDT pattern editing, EventLedger authority, sandbox/promotion).",
+      "HBR_VIS": "Tailor MUST be visually inspectable for LLMs: the cloth/garment viewport + sim state exposed as model-readable visual capture (screenshots / typed render state) so a model can SEE what it built and make micro-adjustments; visual-debug is part of the default validation loop (13.12).",
+      "HBR_BACKEND_NAVIGATION": "Tailor MUST expose backend navigation/inspection paths (typed state, routes, stable ids, structured logs/receipts) so parallel models observe, attribute, and recover Tailor actions without screen-scraping.",
+      "HBR_FRONTEND_GUI": "Tailor MUST be navigable + inspectable in the front-end GUI (operator surface): garment/sim state, runs, promotions, validation visible + controllable -- the same surfaces a model uses for visual self-correction.",
+      "HBR_MAN": "Tailor's model-callable commands / MCP tools / IPC channels / config keys MUST be documented in the in-product UserManual in the same change.",
+      "HBR_TECH_STACK": "Tailor MUST run on Handshake's existing tech stack + workflow primitives, not bespoke parallels: (a) Tailor simulation / authoring / refit runs execute as Handshake JOBS (AI Job Model + job profiles, the scheduler with leases / backpressure / cancellation / stale-session recovery), reusing ModelSession orchestration; (b) every Tailor lifecycle event (TailorGarmentDraftProposed / TailorSimRunStarted / Completed / Rejected / Validated / Promoted / CrdtUpdateRecorded) emits FLIGHT RECORDER events (a dedicated FR event family) for audit, replay, and operator-surface visibility; (c) HEADLESS PARALLEL operation -- multiple swarm agents drive Tailor headless with no GUI focus-stealing (HBR-QUIET) while the visual + backend-navigation surfaces remain capturable for inspection and self-correction. Reuse the existing job/scheduler/Flight-Recorder/ModelSession infrastructure; do not fork it.",
+      "refinement_action": "Refinement MUST verify 13.11/13.12/13.13/13.15 fully specify the above and, if any gap, enrich Section 13 via a copy-first versioned bundle (next vNN, operator-signed) before activation. Every MT group carries its applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) per HANDSHAKE_BUILD_RULES; hbr-matrix-check must pass before handoff."
+    },
+    "mt_group_plan": {
+      "total_estimate": 350,
+      "groups": "SolverCore(40), KernelIntegration(40), Collision(34), GarmentAuthoring(26), Validation-HBR(26), TrimRigid(24), Fabric(22), UvTexture(22), RenderViewportExport(22), ModelFirstApi(22), Animation(20), AutoFit(18), ProductionBridge(16). (ResearchSpecTranslation is DONE -- Section 13 already authored + active.) Pre-create EVERY MT in full detail so a no-context / small local model can implement one MT at a time.",
+      "source": "gap-closure refinement basis; canonical contracts in 16-contracts.md / 13.14."
+    },
+    "next_session_steps": [
+      "1. Author refinement.json (typed) deriving scope + SPEC_ANCHOR/DONE_MEANS from Section 13.x; verify/enrich Section 13 for the HBR SWARM/VIS/backend-nav/FE-GUI/MAN directive above.",
+      "2. Obtain operator signature for the refinement (and for any Section 13 enrichment bump).",
+      "3. Create the WP-declared wtc-* product worktree on feat/WP-KERNEL-010 + .GOV junction + backup branch.",
+      "4. Pre-create the full-detail MT-*.json set (~350) in the WP packet folder, each carrying its applicable HBR rows.",
+      "5. Refresh Task Board / Build Order / traceability; hand to product implementation."
+    ],
+    "research": {
+      "package": ".GOV/reference/cloth_engine_research/ (17 topics, committed gov_kernel 084b4245)",
+      "canonical_contracts": "16-contracts.md and Master Spec 13.14"
+    }
   },
   "build_order": {
     "domain": "CROSS_BOUNDARY",
