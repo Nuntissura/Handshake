@@ -48,13 +48,12 @@ pub mod spec_seed;
 pub mod store;
 
 pub use migration_plan::{
-    naming_migration_plan, LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan,
-    PlanRow, ShimState,
+    naming_migration_plan, LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow,
+    ShimState,
 };
 pub use store::{
-    ManualSearchHit, NewUserManualPage, UserManualAnchor, UserManualFeatureEntry,
-    UserManualPage, UserManualSection, UserManualStore, UserManualToolEntry,
-    UserManualVersionRow,
+    ManualSearchHit, NewUserManualPage, UserManualAnchor, UserManualFeatureEntry, UserManualPage,
+    UserManualSection, UserManualStore, UserManualToolEntry, UserManualVersionRow,
 };
 
 /// Canonical UserManual corpus version. Independent from the legacy
@@ -63,7 +62,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.0";
+pub const USER_MANUAL_VERSION: &str = "2.0.2";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

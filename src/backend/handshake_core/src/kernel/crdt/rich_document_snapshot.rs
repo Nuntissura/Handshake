@@ -20,8 +20,8 @@ use serde_json::Value;
 use super::identity::CrdtWorkspaceIdentityV1;
 use super::persistence::sha256_hex;
 use super::snapshot::{
-    new_crdt_snapshot_record, validate_crdt_snapshot_record, CrdtSnapshotRecordInputV1,
-    CrdtSnapshotRecordV1,
+    CrdtSnapshotRecordInputV1, CrdtSnapshotRecordV1, new_crdt_snapshot_record,
+    validate_crdt_snapshot_record,
 };
 use super::state_vector::KnowledgeStateVectorV1;
 

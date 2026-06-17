@@ -21,18 +21,32 @@
 import { useEffect, useRef, useState } from "react";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { createConfiguredEditor, monaco } from "../lib/monaco/setup";
+import { SnippetController2 } from "monaco-editor/esm/vs/editor/contrib/snippet/browser/snippetController2.js";
 import {
   HANDSHAKE_CODE_LANGUAGES,
   DEFAULT_CODE_LANGUAGE,
 } from "../lib/monaco/language_registry";
 import { makeCodeBlockAttrs } from "../lib/editor/code_block_serialization";
+import { EDITOR_SNIPPETS, monacoSnippetTemplateForId } from "../lib/editor/editor_snippets";
 import { registerCodeBlockFindHandle } from "../lib/editor/code_block_find_registry";
 import {
   dependencyFailures,
   formatDependencyFailureMessage,
 } from "../lib/dependency_policy/dependency_failure";
+import {
+  installHandshakeCodeIntelligenceEditorActions,
+  refreshHandshakeCodeIntelligenceMarkers,
+} from "../lib/monaco/code_intelligence";
 
 type Editor = monaco.editor.IStandaloneCodeEditor;
+
+const HANDSHAKE_MONACO_LIGHT_THEME = "handshake-light";
+const HANDSHAKE_MONACO_DARK_THEME = "handshake-dark";
+
+function currentWorkspaceMonacoTheme() {
+  const workspaceTheme = document.getElementById("main-window")?.getAttribute("data-theme");
+  return workspaceTheme === "dark" ? HANDSHAKE_MONACO_DARK_THEME : HANDSHAKE_MONACO_LIGHT_THEME;
+}
 
 export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   const { node, updateAttributes, editor, getPos } = props;
@@ -147,6 +161,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
     const host = hostRef.current;
     if (!host || editorRef.current) return;
     let instance: Editor | null = null;
+    let codeIntelligenceActions: monaco.IDisposable | null = null;
     try {
       instance = createConfiguredEditor({
         container: host,
@@ -156,9 +171,10 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         scrollBeyondLastLine: false,
         lineNumbers: "on",
         fontSize: 13,
-        theme: "vs-dark",
+        theme: currentWorkspaceMonacoTheme(),
       });
       editorRef.current = instance;
+      codeIntelligenceActions = installHandshakeCodeIntelligenceEditorActions(instance);
       const model = instance.getModel();
       if (model) {
         model.onDidChangeContent(() => {
@@ -206,6 +222,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       setDegraded(true);
     }
     return () => {
+      codeIntelligenceActions?.dispose();
       instance?.dispose();
       editorRef.current = null;
     };
@@ -213,6 +230,19 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
     // the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldMount]);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const shell = document.getElementById("main-window");
+    const applyTheme = () => monaco.editor.setTheme(currentWorkspaceMonacoTheme());
+    applyTheme();
+    if (!shell || typeof MutationObserver === "undefined") {
+      return undefined;
+    }
+    const observer = new MutationObserver(applyTheme);
+    observer.observe(shell, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, [mounted]);
 
   // Reconcile external code changes (undo/redo, collaborative edits, reload)
   // into the Monaco model without clobbering the user's caret on self-edits.
@@ -253,6 +283,12 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
     if (model) monaco.editor.setModelLanguage(model, language);
   }, [language]);
 
+  useEffect(() => {
+    const instance = editorRef.current;
+    if (!instance) return;
+    void refreshHandshakeCodeIntelligenceMarkers(instance, monaco);
+  }, [code, language, mounted]);
+
   // Reflect read-only state.
   useEffect(() => {
     editorRef.current?.updateOptions({ readOnly: !isEditable });
@@ -262,6 +298,17 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   // point that normalizes the language and computes the matching hash.
   const onLanguageChange = (nextLanguage: string) => {
     updateAttributes(makeCodeBlockAttrs(nextLanguage, code));
+  };
+
+  const insertCodeSnippet = (snippetId: string) => {
+    const instance = editorRef.current;
+    const template = monacoSnippetTemplateForId(snippetId);
+    if (!instance || !template || !isEditable) return;
+    instance.focus();
+    SnippetController2.get(instance)?.insert(template, {
+      undoStopBefore: true,
+      undoStopAfter: true,
+    });
   };
 
   // Fallback textarea writer (degraded mode keeps code editable + persisted).
@@ -297,6 +344,18 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
             ))}
           </select>
         </label>
+        {EDITOR_SNIPPETS.filter((snippet) => snippet.scope === "code").map((snippet) => (
+          <button
+            key={snippet.id}
+            type="button"
+            className="monaco-code-block__snippet-button"
+            data-testid={`monaco-code-snippet-${snippet.id}`}
+            disabled={!mounted || !isEditable}
+            onClick={() => insertCodeSnippet(snippet.id)}
+          >
+            {snippet.label}
+          </button>
+        ))}
         <span className="monaco-code-block__hash muted" data-testid="monaco-code-block-hash">
           {rtHash}
         </span>

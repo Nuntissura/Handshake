@@ -8,8 +8,8 @@
 
 use super::adapter::{AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter};
 use super::hard_isolation::{
-    hard_isolation_adapter_kind, probe_runtime_candidates, typed_unavailable_outcome,
     HardIsolationAdapter, HardIsolationAvailability, RuntimeProbeCandidate, RuntimeProbeOutcome,
+    hard_isolation_adapter_kind, probe_runtime_candidates, typed_unavailable_outcome,
 };
 use super::host_platform_probe::{HostKind, HostPlatformProbe};
 use super::policy::SandboxPolicyV1;

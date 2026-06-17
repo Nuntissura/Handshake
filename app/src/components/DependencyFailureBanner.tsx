@@ -16,7 +16,7 @@
 // the recovery path is restart, then reinstall if the installation is
 // corrupted.
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   dependencyFailures,
   type DependencyFailure,
@@ -30,19 +30,13 @@ export interface DependencyFailureBannerProps {
 export function DependencyFailureBanner({
   registry = dependencyFailures,
 }: DependencyFailureBannerProps) {
-  const [failures, setFailures] = useState<readonly DependencyFailure[]>(() => registry.list());
   const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    // Catch up on failures reported between render and subscription, then
-    // follow the registry live. New failures re-surface a dismissed banner.
-    setFailures([...registry.list()]);
-    const unsubscribe = registry.subscribe(() => {
-      setFailures([...registry.list()]);
+  const failures = useSyncExternalStore<readonly DependencyFailure[]>((onStoreChange) => {
+    return registry.subscribe(() => {
       setDismissed(false);
+      onStoreChange();
     });
-    return unsubscribe;
-  }, [registry]);
+  }, () => registry.list());
 
   if (dismissed || failures.length === 0) return null;
 

@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::kernel::kb003_artifact_classes::{
-    metadata_for, HashPolicy, Kb003ArtifactClass, Kb003ArtifactMetadata,
+    HashPolicy, Kb003ArtifactClass, Kb003ArtifactMetadata, metadata_for,
 };
 use crate::kernel::sandbox::run::SandboxRunV1;
 use crate::kernel::validation::artifact_bundle::{ArtifactBundleManifest, BundleMember};

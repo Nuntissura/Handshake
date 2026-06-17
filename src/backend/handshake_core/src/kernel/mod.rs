@@ -276,6 +276,10 @@ pub enum KernelEventType {
     KnowledgeUserManualEntryRecorded,
     KnowledgeValidationRecorded,
     KnowledgeQuietBackgroundWorkRecorded,
+    KnowledgeQuickSwitcherRecentRecorded,
+    KnowledgeWorkbenchLayoutStateRecorded,
+    KnowledgeWorkspaceSettingsStateRecorded,
+    SourceControlOperationRecorded,
 }
 
 impl KernelEventType {
@@ -346,6 +350,16 @@ impl KernelEventType {
             Self::KnowledgeQuietBackgroundWorkRecorded => {
                 "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
             }
+            Self::KnowledgeQuickSwitcherRecentRecorded => {
+                "KNOWLEDGE_QUICK_SWITCHER_RECENT_RECORDED"
+            }
+            Self::KnowledgeWorkbenchLayoutStateRecorded => {
+                "KNOWLEDGE_WORKBENCH_LAYOUT_STATE_RECORDED"
+            }
+            Self::KnowledgeWorkspaceSettingsStateRecorded => {
+                "KNOWLEDGE_WORKSPACE_SETTINGS_STATE_RECORDED"
+            }
+            Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
         }
     }
 
@@ -412,6 +426,10 @@ impl KernelEventType {
             KernelEventType::KnowledgeUserManualEntryRecorded,
             KernelEventType::KnowledgeValidationRecorded,
             KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
+            KernelEventType::KnowledgeQuickSwitcherRecentRecorded,
+            KernelEventType::KnowledgeWorkbenchLayoutStateRecorded,
+            KernelEventType::KnowledgeWorkspaceSettingsStateRecorded,
+            KernelEventType::SourceControlOperationRecorded,
         ]
     }
 }

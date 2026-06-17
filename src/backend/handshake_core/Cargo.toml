@@ -104,6 +104,18 @@ path = "src/bin/hsk-warm-agent-package.rs"
 test = false
 
 [[bin]]
+name = "mt249_code_intelligence_fixture"
+path = "src/bin/mt249_code_intelligence_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
+name = "mt250_workspace_search_fixture"
+path = "src/bin/mt250_workspace_search_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]
@@ -531,6 +543,11 @@ path = "tests/knowledge_documents_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "knowledge_tiptap_roundtrip_fixture_tests"
+path = "tests/knowledge_tiptap_roundtrip_fixture_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "knowledge_idempotency_tests"
 path = "tests/knowledge_idempotency_tests.rs"
 required-features = ["test-utils"]
@@ -543,6 +560,27 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_fail_closed_tests"
 path = "tests/knowledge_fail_closed_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 LoomObsidianNavigation MT-186: graph search across Loom,
+# ProjectKnowledgeIndex entities, and UserManual authority rows.
+[[test]]
+name = "loom_graph_search_filters_tests"
+path = "tests/loom_graph_search_filters_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 LoomObsidianNavigation MT-189: graph-search retrieval-bias
+# visibility for Loom tag, backlink, and pin influence.
+[[test]]
+name = "loom_retrieval_bias_visibility_tests"
+path = "tests/loom_retrieval_bias_visibility_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 LoomObsidianNavigation MT-191: bounded Loom visual-debug
+# snapshot over graph/backlink/folder/search state from real PostgreSQL.
+[[test]]
+name = "loom_visual_debug_views_tests"
+path = "tests/loom_visual_debug_views_tests.rs"
 required-features = ["test-utils"]
 
 # WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): real-PostgreSQL
@@ -570,6 +608,28 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_ingestion_fixture_tests"
 path = "tests/knowledge_ingestion_fixture_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 SecurityPortabilityValidation MT-237: real-PostgreSQL
+# parallel write conflict fixture over CRDT denial receipts, conflict_state,
+# EventLedger, and pull/merge/resubmit repair.
+[[test]]
+name = "knowledge_parallel_write_conflict_fixture_tests"
+path = "tests/knowledge_parallel_write_conflict_fixture_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 Retrieval replay (MT-238): real-PostgreSQL context-bundle
+# reconstruction from RetrievalTrace, QueryPlan, evidence rows, and receipts.
+[[test]]
+name = "knowledge_retrieval_replay_tests"
+path = "tests/knowledge_retrieval_replay_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 SecurityPortabilityValidation MT-239: real-PostgreSQL
+# UserManual freshness false-PASS fixture for same-count child-row tampering.
+[[test]]
+name = "user_manual_freshness_fixture_tests"
+path = "tests/user_manual_freshness_fixture_tests.rs"
 required-features = ["test-utils"]
 
 # WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080): typed actor/site ids,

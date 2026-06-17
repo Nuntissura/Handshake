@@ -11,9 +11,11 @@
 //   2. undo of typed text (EXT-UNDO smoke),
 //   3. typing INSIDE real Monaco + a language switch, with the round-trip hash
 //      independently recomputed in this spec (H4 browser proof),
-//   4. chord containment inside real Monaco (H3 browser proof),
-//   5. paste of fenced text through a real ClipboardEvent (H6 browser proof),
-//   6. IME composition via CDP Input.imeSetComposition + Input.insertText
+//   4. Monaco column-selection/multi-cursor typing in the embedded code block,
+//   5. prose multi-range simultaneous edit application,
+//   6. chord containment inside real Monaco (H3 browser proof),
+//   7. paste of fenced text through a real ClipboardEvent (H6 browser proof),
+//   8. IME composition via CDP Input.imeSetComposition + Input.insertText
 //      (composition set + commit; multi-segment candidate-window flows cannot
 //      be emulated through CDP — that residue is documented here).
 //
@@ -146,6 +148,10 @@ function firstCodeBlock(doc: DocNode): { language: string; code: string; content
   return found!;
 }
 
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
+
 function hasMark(node: DocNode, mark: string): boolean {
   if ((node.marks ?? []).some((m) => m.type === mark)) return true;
   return (node.content ?? []).some((child) => hasMark(child, mark));
@@ -216,6 +222,28 @@ test.describe("WP-KERNEL-009 iteration-3 REAL typing in the offline editor (netw
       })
       .toBe("stable");
     return last;
+  }
+
+  async function windowSelectionText(page: Page): Promise<string> {
+    return page.evaluate(() => window.getSelection()?.toString() ?? "");
+  }
+
+  async function selectParagraphTextRange(page: Page, start: number, length: number): Promise<void> {
+    const paragraph = page.locator("[data-testid='rich-text-editor-surface'] .ProseMirror p").first();
+    await paragraph.click();
+    await page.keyboard.press("Home");
+    for (let i = 0; i < start; i++) await page.keyboard.press("ArrowRight");
+    await page.keyboard.down("Shift");
+    for (let i = 0; i < length; i++) await page.keyboard.press("ArrowRight");
+    await page.keyboard.up("Shift");
+  }
+
+  async function addCurrentProseMultiRange(page: Page): Promise<void> {
+    await page.getByTestId("editor-open-overflow").click();
+    await expect(page.getByTestId("rich-text-editor-overflow")).toBeVisible();
+    const addRange = page.getByTestId("overflow-cmd-selection.addRange");
+    await expect(addRange).toBeVisible({ timeout: 5000 });
+    await addRange.click();
   }
 
   test("H1 (browser): mid-document typing keeps the caret advancing one position per keystroke", async ({ page }) => {
@@ -296,6 +324,96 @@ test.describe("WP-KERNEL-009 iteration-3 REAL typing in the offline editor (netw
       "data-rt-hash",
       block.contentHash,
     );
+  });
+
+  test("MT-251 (browser): Monaco column selection applies same-column multi-cursor edits", async ({ page }) => {
+    await bootEditor(page);
+    const monaco = page.locator("[data-testid='monaco-code-block-host'] .monaco-editor").first();
+    await monaco.click();
+    await page.keyboard.press("Control+A");
+    await page.keyboard.type("abc\nabc\nabc");
+    await expect
+      .poll(async () => normalizeLineEndings(firstCodeBlock(await readDoc(page)).code))
+      .toBe("abc\nabc\nabc");
+
+    await page.keyboard.press("Control+Home");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.up("Shift");
+    await page.keyboard.type("Z");
+
+    await expect
+      .poll(async () => normalizeLineEndings(firstCodeBlock(await readDoc(page)).code))
+      .toBe("aZbc\naZbc\naZbc");
+  });
+
+  test("MT-251 (browser): prose snippets expand and Tab traverses remapped tab-stops", async ({ page }) => {
+    await bootEditor(page);
+    const paragraph = page.locator("[data-testid='rich-text-editor-surface'] .ProseMirror p").first();
+    await paragraph.click();
+    await page.keyboard.press("End");
+
+    await page.getByTestId("editor-open-overflow").click();
+    await expect(page.getByTestId("rich-text-editor-overflow")).toBeVisible();
+    await page.getByTestId("overflow-cmd-snippet.prose.meeting").click();
+
+    await expect(page.getByTestId("rich-text-editor")).toHaveAttribute("data-snippet-active", "true");
+    await expect.poll(() => windowSelectionText(page)).toBe("Topic");
+
+    await page.keyboard.type("Roadmap");
+    await page.keyboard.press("Tab");
+    await expect.poll(() => windowSelectionText(page)).toBe("Owner");
+
+    await page.keyboard.type("Ilja");
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("rich-text-editor")).toHaveAttribute("data-snippet-active", "false");
+    await expect
+      .poll(async () => firstParagraphText(await readDoc(page)))
+      .toContain("Meeting: Roadmap / Owner: Ilja / Notes: ");
+  });
+
+  test("MT-251 (browser): code snippets use Monaco tab-stop traversal", async ({ page }) => {
+    await bootEditor(page);
+    const codeBlock = page.getByTestId("monaco-code-block").first();
+    const monaco = page.locator("[data-testid='monaco-code-block-host'] .monaco-editor").first();
+    await monaco.click();
+    await page.keyboard.press("Control+A");
+    await page.keyboard.press("Backspace");
+    await expect.poll(async () => normalizeLineEndings(firstCodeBlock(await readDoc(page)).code)).toBe("");
+
+    await codeBlock.getByTestId("monaco-code-snippet-code.function").click();
+    await page.keyboard.type("build");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("input");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("return input;");
+
+    await expect
+      .poll(async () => normalizeLineEndings(firstCodeBlock(await readDoc(page)).code))
+      .toBe("function build(input) {\n    return input;\n}");
+  });
+
+  test("MT-251 (browser): prose multi-range selections receive simultaneous typed edits", async ({ page }) => {
+    await bootEditor(page);
+
+    await selectParagraphTextRange(page, 0, "Intro".length);
+    await addCurrentProseMultiRange(page);
+    await expect(page.getByTestId("rich-text-editor")).toHaveAttribute("data-multi-range-count", "1");
+
+    await selectParagraphTextRange(page, "Intro paragraph with a ".length, "typed".length);
+    await addCurrentProseMultiRange(page);
+    await expect(page.getByTestId("rich-text-editor")).toHaveAttribute("data-multi-range-count", "2");
+
+    const paragraph = page.locator("[data-testid='rich-text-editor-surface'] .ProseMirror p").first();
+    await paragraph.click();
+    await page.keyboard.type("X");
+
+    await expect
+      .poll(async () => firstParagraphText(await readDoc(page)))
+      .toBe("X paragraph with a X link and an embed.");
+    await expect(page.getByTestId("rich-text-editor")).toHaveAttribute("data-multi-range-count", "2");
   });
 
   test("H3 (browser): chords typed inside real Monaco edit code only — prose state never mutates", async ({ page }) => {

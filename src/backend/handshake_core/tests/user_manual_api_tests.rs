@@ -17,15 +17,16 @@ mod knowledge_pg_support;
 mod user_manual_support;
 
 use handshake_core::api;
+use handshake_core::user_manual::USER_MANUAL_VERSION;
 use handshake_core::user_manual::fixtures::{
     restore_page_content_hash, tamper_page_content_hash, unreachable_pages,
 };
 use handshake_core::user_manual::registry::{probe_path, wp009_surface_registry};
-use handshake_core::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
-use handshake_core::user_manual::USER_MANUAL_VERSION;
+use handshake_core::user_manual::seed::{QUICKSTART_AREAS, ensure_seeded};
 use knowledge_pg_support::KnowledgePg;
 use serde_json::Value;
 use sqlx::Connection;
+use std::collections::BTreeSet;
 use user_manual_support::{app_state_for, start_server};
 
 struct ApiFixture {
@@ -62,6 +63,67 @@ async fn receipt_exists(kpg: &KnowledgePg, event_id: &str) -> bool {
     exists
 }
 
+fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
+    let source = include_str!("../src/api/loom.rs");
+    let mut surfaces = BTreeSet::new();
+    let mut remaining = source;
+
+    while let Some(route_start) = remaining.find(".route(") {
+        remaining = &remaining[route_start + ".route(".len()..];
+        let Some(path_start) = remaining.find('"') else {
+            continue;
+        };
+        let after_path_start = &remaining[path_start + 1..];
+        let Some(path_end) = after_path_start.find('"') else {
+            continue;
+        };
+        let path = &after_path_start[..path_end];
+        let after_path = &after_path_start[path_end + 1..];
+        let next_route = after_path.find(".route(").unwrap_or(after_path.len());
+        let route_block = &after_path[..next_route];
+
+        for (needle, method) in [
+            ("get(", "GET"),
+            (".get(", "GET"),
+            ("post(", "POST"),
+            (".post(", "POST"),
+            ("put(", "PUT"),
+            (".put(", "PUT"),
+            ("patch(", "PATCH"),
+            (".patch(", "PATCH"),
+            ("delete(", "DELETE"),
+            (".delete(", "DELETE"),
+        ] {
+            if route_block.contains(needle) {
+                surfaces.insert((method.to_string(), path.to_string()));
+            }
+        }
+
+        remaining = after_path;
+    }
+
+    surfaces
+}
+
+/// MT-195 negative guard: a Loom route mounted in `api::loom` must be present
+/// in the UserManual registry. This catches the opposite direction from the
+/// doc-vs-runtime probe: runtime route -> manual inventory.
+#[test]
+fn mtdoc_every_loom_router_route_is_in_surface_registry() {
+    let registry: BTreeSet<(String, String)> = wp009_surface_registry()
+        .iter()
+        .map(|s| (s.method.to_string(), s.route.to_string()))
+        .collect();
+    let missing: Vec<_> = loom_router_surfaces_from_source()
+        .into_iter()
+        .filter(|surface| !registry.contains(surface))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "mounted Loom routes missing from wp009_surface_registry: {missing:?}"
+    );
+}
+
 /// MT-201: pages list + read; an anonymous read works (bootstrap surface) and
 /// RETURNS a real, persisted bootstrap receipt.
 #[tokio::test]
@@ -94,7 +156,9 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
     assert_eq!(page["page"]["slug"], "manual-toc");
     assert!(!page["sections"].as_array().unwrap().is_empty());
     assert_eq!(page["bootstrap_identity_used"], true);
-    let receipt = page["bootstrap_receipt_event_id"].as_str().expect("receipt id");
+    let receipt = page["bootstrap_receipt_event_id"]
+        .as_str()
+        .expect("receipt id");
     assert!(
         receipt_exists(&fx.kpg, receipt).await,
         "bootstrap receipt {receipt} must be persisted in the EventLedger"
@@ -125,7 +189,10 @@ async fn mt201_search_finds_pages_and_tools() {
         .json()
         .await
         .expect("search json");
-    assert!(found["count"].as_u64().unwrap() > 0, "seeded corpus documents backlinks");
+    assert!(
+        found["count"].as_u64().unwrap() > 0,
+        "seeded corpus documents backlinks"
+    );
 
     let empty = fx
         .http
@@ -167,7 +234,10 @@ async fn mt201_tools_list_and_read_resolve() {
     {
         let tool: Value = fx
             .http
-            .get(format!("{}/usermanual/tools/{}", fx.base, surface.surface_id))
+            .get(format!(
+                "{}/usermanual/tools/{}",
+                fx.base, surface.surface_id
+            ))
             .send()
             .await
             .expect("read code-nav tool")
@@ -177,7 +247,12 @@ async fn mt201_tools_list_and_read_resolve() {
         assert_eq!(tool["tool"]["http_route"], surface.route);
         assert_eq!(tool["tool"]["http_method"], surface.method);
         assert!(!tool["tool"]["common_errors"].as_array().unwrap().is_empty());
-        assert!(!tool["tool"]["recovery_steps"].as_array().unwrap().is_empty());
+        assert!(
+            !tool["tool"]["recovery_steps"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
 
     let missing = fx
@@ -201,7 +276,10 @@ async fn mt201_tools_list_and_read_resolve() {
         .json()
         .await
         .expect("legacy json");
-    assert!(legacy["count"].as_u64().unwrap() > 50, "legacy manifest imported");
+    assert!(
+        legacy["count"].as_u64().unwrap() > 50,
+        "legacy manifest imported"
+    );
 }
 
 /// MT-201: page linking — outbound page links and inbound backlinks resolve.
@@ -267,7 +345,10 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
             .expect("quickstart json");
         assert_eq!(bundle["area"], *area);
         assert!(
-            !bundle["quickstart"]["sections"].as_array().unwrap().is_empty(),
+            !bundle["quickstart"]["sections"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
             "{area} quickstart has sections"
         );
         assert!(
@@ -284,6 +365,57 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
         .await
         .expect("unknown area");
     assert_eq!(missing.status(), 404);
+}
+
+/// MT-199 negative guard: quickstart bundles must fail closed when a seeded
+/// `page_link` target is missing. Returning 200 with a silently omitted linked
+/// page would hand a no-context model an incomplete bootstrap bundle.
+#[tokio::test]
+async fn mt199_quickstart_fails_when_linked_page_is_missing() {
+    let fx = skip_if_no_pg!(fixture().await, "mt199_quickstart_missing_link");
+    let mut conn = fx.kpg.raw_connection().await;
+    let changed_anchor: String = sqlx::query_scalar(
+        r#"
+        WITH victim AS (
+            SELECT a.anchor_id
+            FROM user_manual_anchors a
+            JOIN user_manual_pages p ON p.page_id = a.page_id
+            WHERE p.slug = 'quickstart-index'
+              AND a.anchor_kind = 'page_link'
+            ORDER BY a.anchor_value
+            LIMIT 1
+        )
+        UPDATE user_manual_anchors
+        SET anchor_value = 'missing-linked-page-for-mt199'
+        WHERE anchor_id = (SELECT anchor_id FROM victim)
+        RETURNING anchor_id
+        "#,
+    )
+    .fetch_one(&mut conn)
+    .await
+    .expect("tamper quickstart page_link");
+    conn.close().await.ok();
+
+    let response = fx
+        .http
+        .get(format!("{}/usermanual/quickstarts/index", fx.base))
+        .send()
+        .await
+        .expect("quickstart with missing link");
+    assert_eq!(
+        response.status(),
+        404,
+        "quickstart with tampered anchor {changed_anchor} must fail closed"
+    );
+    let body: Value = response.json().await.expect("missing link error json");
+    assert_eq!(body["error"], "not_found");
+    assert!(
+        body["detail"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("missing-linked-page-for-mt199"),
+        "missing link error should name the unresolved page_link: {body:?}"
+    );
 }
 
 /// MT-200: access points cover the five contract host surfaces and every
@@ -309,10 +441,21 @@ async fn mt200_access_points_resolve() {
             "access point {} targets a missing page {}",
             row["access_point_id"], row["target_page_slug"]
         );
-        assert!(row["stable_element_id"].as_str().unwrap().starts_with("hs-usermanual-"));
+        assert!(
+            row["stable_element_id"]
+                .as_str()
+                .unwrap()
+                .starts_with("hs-usermanual-")
+        );
         hosts.insert(row["host_surface"].as_str().unwrap().to_string());
     }
-    for host in ["editor", "notes_loom", "retrieval_debug", "diagnostics", "command_palette"] {
+    for host in [
+        "editor",
+        "notes_loom",
+        "retrieval_debug",
+        "diagnostics",
+        "command_palette",
+    ] {
         assert!(hosts.contains(host), "missing host surface {host}");
     }
 }
@@ -378,8 +521,15 @@ async fn mt204_freshness_current_then_stale_fixture() {
         .json()
         .await
         .expect("freshness json");
-    assert_eq!(fresh["report"]["fresh"], true, "seeded manual must be fresh: {:?}",
-        fresh["report"]["verdicts"].as_array().map(|v| v.iter().filter(|x| x["kind"] != "current").collect::<Vec<_>>()));
+    assert_eq!(
+        fresh["report"]["fresh"],
+        true,
+        "seeded manual must be fresh: {:?}",
+        fresh["report"]["verdicts"].as_array().map(|v| v
+            .iter()
+            .filter(|x| x["kind"] != "current")
+            .collect::<Vec<_>>())
+    );
     let receipt = fresh["receipt_event_id"].as_str().unwrap();
     assert!(receipt_exists(&fx.kpg, receipt).await);
 
@@ -398,9 +548,11 @@ async fn mt204_freshness_current_then_stale_fixture() {
         .expect("stale json");
     assert_eq!(stale["report"]["fresh"], false);
     assert!(
-        stale["report"]["verdicts"].as_array().unwrap().iter().any(|v| {
-            v["kind"] == "stale_content" && v["subject"] == "core-workflows"
-        }),
+        stale["report"]["verdicts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| { v["kind"] == "stale_content" && v["subject"] == "core-workflows" }),
         "tampered page must yield stale_content"
     );
 
@@ -442,7 +594,10 @@ async fn mt205_projection_renders_readable_navigable_html() {
     assert!(html.contains("data-hs-manual-section="));
     assert!(html.contains("data-hs-manual-link=\"quickstart-index\""));
     assert!(html.contains("data-hs-href=\"/usermanual/pages/quickstart-index\""));
-    assert!(!html.contains("<script>"), "projection must never emit live script");
+    assert!(
+        !html.contains("<script>"),
+        "projection must never emit live script"
+    );
 
     let markdown: Value = fx
         .http
@@ -456,7 +611,12 @@ async fn mt205_projection_renders_readable_navigable_html() {
         .json()
         .await
         .expect("md json");
-    assert!(markdown["rendered"].as_str().unwrap().contains("<topic id=\"manual-toc-0\""));
+    assert!(
+        markdown["rendered"]
+            .as_str()
+            .unwrap()
+            .contains("<topic id=\"manual-toc-0\"")
+    );
 
     let bad = fx
         .http
@@ -508,7 +668,11 @@ async fn mt201_resync_permission_gate_fails_closed() {
         .send()
         .await
         .expect("unknown kind");
-    assert_eq!(unknown.status(), 400, "unknown tokens are rejected, never coerced");
+    assert_eq!(
+        unknown.status(),
+        400,
+        "unknown tokens are rejected, never coerced"
+    );
 
     let allowed = fx
         .http
@@ -519,7 +683,10 @@ async fn mt201_resync_permission_gate_fails_closed() {
         .expect("local_model resync");
     assert_eq!(allowed.status(), 200);
     let report: Value = allowed.json().await.expect("resync json");
-    assert_eq!(report["resync"]["pages_changed"], 0, "already-seeded resync is a no-op");
+    assert_eq!(
+        report["resync"]["pages_changed"], 0,
+        "already-seeded resync is a no-op"
+    );
 }
 
 /// THE doc-vs-runtime keystone: every surface the manual declares is probed
@@ -529,7 +696,10 @@ async fn mt201_resync_permission_gate_fails_closed() {
 /// does not serve (spec 10.15.8: stale docs are a build defect).
 #[tokio::test]
 async fn mtdoc_every_registry_surface_exists_on_the_real_router() {
-    let kpg = skip_if_no_pg!(knowledge_pg_support::knowledge_pg().await, "mtdoc_router_probe");
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "mtdoc_router_probe"
+    );
     ensure_seeded(&kpg.db).await.expect("seed");
     let state = app_state_for(&kpg.schema_url).await;
     let (base, _server) = start_server(api::routes(state)).await;
@@ -547,7 +717,10 @@ async fn mtdoc_every_registry_surface_exists_on_the_real_router() {
             other => panic!("unsupported method {other}"),
         };
         let response = request.send().await.unwrap_or_else(|err| {
-            panic!("probe {} {} failed to send: {err}", surface.method, surface.route)
+            panic!(
+                "probe {} {} failed to send: {err}",
+                surface.method, surface.route
+            )
         });
         let status = response.status();
         assert_ne!(

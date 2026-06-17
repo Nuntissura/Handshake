@@ -9,7 +9,7 @@
 //! promoted (MT-069 bridge). Drafts are never authority.
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
@@ -18,8 +18,8 @@ use crate::storage::{Database, StorageError};
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use super::agent_lease::{
-    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
-    LeaseWriteGuardOutcomeV1,
+    KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
+    guard_lease_for_write,
 };
 
 pub const GRAPH_MUTATION_PROPOSAL_SCHEMA_ID: &str =

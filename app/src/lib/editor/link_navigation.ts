@@ -4,9 +4,9 @@
 // mark, nothing replacing it): a typed [[wp:WP-KERNEL-009]] chip was a dead
 // pixel. This module defines the NAVIGATION INTENT CONTRACT: clicking a chip
 // dispatches a window-level CustomEvent carrying the typed ref. The workbench
-// shell (MT-245/246/248 — tabs/split/document switcher) is the consumer that
-// turns intents into actual navigation; until it lands, the event is the
-// stable machine-readable seam tests and tooling can assert on.
+// shell (MT-245/246/248 — tabs/split/document switcher) consumes this event and
+// turns it into actual navigation. The event remains the stable machine-readable
+// seam tests and tooling can assert on.
 
 export const HS_LINK_NAVIGATE_EVENT = "hs:link-navigate" as const;
 

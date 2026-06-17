@@ -8,10 +8,8 @@ const LEGACY_CACHE_OFFLINE_BOUNDARY_SOURCE_PATH: &str = concat!(
     "ite-Cache-Offline-Boundaries-v1.md"
 );
 
-const SOURCE_IMPORT_FULL: &str =
-    "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002 unless superseded by stricter reset invariants.";
-const SOURCE_IMPORT_POSTGRES_RESET: &str =
-    "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002; preserve work intent while overriding storage authority to Postgres/EventLedger/CRDT and forbidding legacy local-store authority.";
+const SOURCE_IMPORT_FULL: &str = "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002 unless superseded by stricter reset invariants.";
+const SOURCE_IMPORT_POSTGRES_RESET: &str = "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002; preserve work intent while overriding storage authority to Postgres/EventLedger/CRDT and forbidding legacy local-store authority.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FoldClassification {

@@ -24,7 +24,7 @@
 
 mod knowledge_pg_support;
 
-use handshake_core::kernel::KernelActor;
+use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::knowledge_code_index::context_bridge::{
     build_code_context_bundle, DEFAULT_CODE_CONTEXT_TOKEN_BUDGET,
 };
@@ -35,6 +35,10 @@ use handshake_core::knowledge_code_index::monaco_bridge::build_monaco_payload;
 use handshake_core::knowledge_code_index::parser::{CodeLanguage, CodeParserAdapter};
 use handshake_core::knowledge_code_index::scip::{artifact_hash, parse_scip_artifact};
 use handshake_core::knowledge_code_index::staleness::StalenessVerdict;
+use handshake_core::knowledge_ingestion::backpressure::IngestionLimits;
+use handshake_core::knowledge_ingestion::engine::{
+    IngestionContext, IngestionEngine, RootRegistrationRequest,
+};
 use handshake_core::storage::knowledge::{
     KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType,
     KnowledgeEntityKind, KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeScipFormat,
@@ -42,6 +46,7 @@ use handshake_core::storage::knowledge::{
     NewKnowledgeSourceRoot,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::Database;
 use knowledge_pg_support::{knowledge_pg, KnowledgePg};
 use serde_json::json;
 use std::sync::Arc;
@@ -73,6 +78,112 @@ fn ctx() -> CodeIndexContext {
     }
 }
 
+fn ingestion_ctx() -> IngestionContext {
+    IngestionContext {
+        actor: KernelActor::System("knowledge-ingestion-test".to_string()),
+        kernel_task_run_id: "KTR-knowledge-ingestion-test".to_string(),
+        session_run_id: "SR-knowledge-ingestion-test".to_string(),
+        correlation_id: Some("CORR-knowledge-ingestion-test".to_string()),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn event_ledger_idempotency_uses_payload_hash_not_jsonb_shape() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP event_ledger_idempotency_uses_payload_hash_not_jsonb_shape: no PostgreSQL");
+        return;
+    };
+    let suffix = Uuid::now_v7();
+    let event = NewKernelEvent::builder(
+        format!("KTR-jsonb-normalized-{suffix}"),
+        format!("SR-jsonb-normalized-{suffix}"),
+        KernelEventType::KnowledgeValidationRecorded,
+        KernelActor::System("code-index-test".to_string()),
+    )
+    .aggregate(
+        "knowledge_code_index_file",
+        format!("KSRC-jsonb-normalized-{suffix}"),
+    )
+    .idempotency_key(format!("idem-jsonb-normalized-{suffix}"))
+    .source_component("knowledge_code_index")
+    .payload(json!({
+        "kind": "jsonb_normalized_payload",
+        "elapsed_ms": 1e-17,
+    }))
+    .build()
+    .expect("build event");
+
+    let first = pg
+        .db
+        .append_kernel_event(event.clone())
+        .await
+        .expect("append first event");
+    let second = pg
+        .db
+        .append_kernel_event(event)
+        .await
+        .expect("idempotent duplicate append");
+
+    assert_eq!(first.event_id, second.event_id);
+    assert_eq!(first.payload_hash, second.payload_hash);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn event_ledger_idempotency_conflict_reports_key_and_hashes() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP event_ledger_idempotency_conflict_reports_key_and_hashes: no PostgreSQL");
+        return;
+    };
+    let suffix = Uuid::now_v7();
+    let idempotency_key = format!("idem-conflict-detail-{suffix}");
+    let first = NewKernelEvent::builder(
+        format!("KTR-conflict-detail-{suffix}"),
+        format!("SR-conflict-detail-{suffix}"),
+        KernelEventType::KnowledgeValidationRecorded,
+        KernelActor::System("code-index-test".to_string()),
+    )
+    .aggregate(
+        "knowledge_code_index_file",
+        format!("KSRC-conflict-detail-{suffix}"),
+    )
+    .idempotency_key(idempotency_key.clone())
+    .source_component("knowledge_code_index")
+    .payload(json!({"kind": "conflict_detail", "ordinal": 1}))
+    .build()
+    .expect("build first event");
+    let second = NewKernelEvent::builder(
+        format!("KTR-conflict-detail-{suffix}"),
+        format!("SR-conflict-detail-{suffix}"),
+        KernelEventType::KnowledgeValidationRecorded,
+        KernelActor::System("code-index-test".to_string()),
+    )
+    .aggregate(
+        "knowledge_code_index_file",
+        format!("KSRC-conflict-detail-{suffix}"),
+    )
+    .idempotency_key(idempotency_key.clone())
+    .source_component("knowledge_code_index")
+    .payload(json!({"kind": "conflict_detail", "ordinal": 2}))
+    .build()
+    .expect("build second event");
+
+    pg.db
+        .append_kernel_event(first)
+        .await
+        .expect("append first event");
+    let err = pg
+        .db
+        .append_kernel_event(second)
+        .await
+        .expect_err("same idempotency key with divergent payload must fail");
+    let message = err.to_string();
+
+    assert!(message.contains(&idempotency_key), "{message}");
+    assert!(message.contains("existing_payload_hash"), "{message}");
+    assert!(message.contains("new_payload_hash"), "{message}");
+    assert!(message.contains("knowledge_code_index_file"), "{message}");
+}
+
 /// Build a code-index engine on a handle into the SAME isolated schema (the
 /// established ingestion-test pattern: connect a second handle to
 /// `pg.schema_url`, which shares the schema the migrations ran in).
@@ -81,6 +192,13 @@ async fn engine(pg: &KnowledgePg) -> CodeIndexEngine {
         .await
         .expect("connect code-index engine handle to isolated schema");
     CodeIndexEngine::new(Arc::new(db))
+}
+
+async fn ingestion_engine(pg: &KnowledgePg) -> IngestionEngine {
+    let db = PostgresDatabase::connect(&pg.schema_url, 5)
+        .await
+        .expect("connect ingestion engine handle to isolated schema");
+    IngestionEngine::from_database(Arc::new(db))
 }
 
 const RUST_SRC: &str = r#"
@@ -120,6 +238,16 @@ export const Button = (props: Props) => { return null; };
 export const useThing = () => { return 1; };
 "#;
 
+const TSX_SRC: &str = r#"
+import React from "react";
+
+export interface WidgetProps { title: string }
+export function Widget(props: WidgetProps) {
+    return <section>{props.title}</section>;
+}
+export const useWidget = () => "widget";
+"#;
+
 const JS_SRC: &str = r#"
 export function compute(a, b) { return a + b; }
 class Store { put(k, v) {} }
@@ -130,6 +258,25 @@ const PKG_JSON: &str = r#"{
   "name": "demo",
   "scripts": { "build": "tsc", "test": "vitest" }
 }"#;
+
+const JSON_SCHEMA: &str = r#"{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "count": { "type": "number" }
+  }
+}"#;
+
+const MIGRATION_SQL: &str = r#"
+-- CREATE TABLE ignored_comment (id bigint);
+CREATE TABLE public.users (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL
+);
+
+CREATE INDEX idx_users_email ON public.users (email);
+"#;
 
 /// A file the Rust grammar cannot meaningfully parse into symbols but that still
 /// produces a tree (with errors) — used to exercise the `partial` path. For a
@@ -180,8 +327,11 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     let files = [
         ("src/lib.rs", RUST_SRC),
         ("app/service.ts", TS_SRC),
+        ("app/widget.tsx", TSX_SRC),
         ("app/store.js", JS_SRC),
         ("package.json", PKG_JSON),
+        ("schema/user.schema.json", JSON_SCHEMA),
+        ("migrations/20240614_create_users.sql", MIGRATION_SQL),
     ];
     for (path, text) in files {
         let source_id = eng
@@ -201,6 +351,27 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
             .expect("index source");
         assert!(!outcome.failed, "{path} should index cleanly");
     }
+
+    let broken_source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/broken.rs", BROKEN_RUST)
+        .await
+        .expect("register malformed rust source");
+    let broken_outcome = eng
+        .index_code_source(
+            &context,
+            &workspace_id,
+            &broken_source_id,
+            "src/broken.rs",
+            BROKEN_RUST,
+            Some(&run_id),
+        )
+        .await
+        .expect("malformed source should degrade to partial, not abort");
+    assert!(!broken_outcome.failed);
+    assert_eq!(
+        broken_outcome.parse_status,
+        KnowledgeCodeParseStatus::Partial
+    );
 
     // --- Symbols (MT-098..100) ------------------------------------------------
     let symbols = pg
@@ -226,6 +397,18 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     assert!(
         keys.iter()
             .any(|k| *k == "typescript:app/service.ts#useThing~hook"),
+        "{keys:?}"
+    );
+    // TSX fixture: component and hook symbols are indexed from TSX, not only
+    // plain TypeScript.
+    assert!(
+        keys.iter()
+            .any(|k| *k == "tsx:app/widget.tsx#Widget~component"),
+        "{keys:?}"
+    );
+    assert!(
+        keys.iter()
+            .any(|k| *k == "tsx:app/widget.tsx#useWidget~hook"),
         "{keys:?}"
     );
     // JS
@@ -308,10 +491,44 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
         "package script should be a command entity: {:?}",
         commands.iter().map(|c| &c.entity_key).collect::<Vec<_>>()
     );
+    let schemas = pg
+        .db
+        .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Schema)
+        .await
+        .expect("list schema entities");
+    assert!(
+        schemas.iter().any(|s| {
+            s.entity_key == "config:migrations/20240614_create_users.sql#table.public.users"
+        }),
+        "migration table should be a schema entity: {:?}",
+        schemas.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
+    assert!(
+        schemas.iter().any(|s| {
+            s.entity_key == "config:migrations/20240614_create_users.sql#index.idx_users_email"
+        }),
+        "migration index should be a schema entity: {:?}",
+        schemas.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.entity_key == "config:schema/user.schema.json#properties.title"),
+        "JSON schema property should be a schema entity: {:?}",
+        schemas.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
+    assert!(
+        schemas
+            .iter()
+            .all(|s| !s.entity_key.contains("ignored_comment")),
+        "commented-out migration DDL must not be indexed: {:?}",
+        schemas.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
 
     // --- Code-file index state (MT-107 bookkeeping) ---------------------------
-    // MT-101 hardening: every indexed source — the three CODE files (rust/ts/js)
-    // AND the config file (package.json) — now produces a knowledge_code_files
+    // MT-101 hardening: every indexed source — the three CODE files
+    // (rust/ts/js) AND the config files (package.json + migration SQL) — now
+    // produces a knowledge_code_files
     // row, so staleness (MT-107) and the lens cover config sources too. The
     // config row carries language 'config'.
     let code_files = pg
@@ -321,7 +538,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
         .expect("list code files");
     assert_eq!(
         code_files.len(),
-        4,
+        8,
         "one code-file row per source incl. config: {:?}",
         code_files
             .iter()
@@ -329,19 +546,91 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
             .collect::<Vec<_>>()
     );
     assert!(code_files.iter().all(|f| !f.stale));
-    assert!(code_files
-        .iter()
-        .all(|f| f.parse_status == KnowledgeCodeParseStatus::Parsed));
+    assert!(code_files.iter().all(|f| {
+        f.parse_status == KnowledgeCodeParseStatus::Parsed
+            || (f.source_id == broken_source_id
+                && f.parse_status == KnowledgeCodeParseStatus::Partial)
+    }));
     let config_rows: Vec<_> = code_files
         .iter()
         .filter(|f| f.language == KnowledgeCodeLanguage::Config)
         .collect();
     assert_eq!(
         config_rows.len(),
-        1,
-        "the config file must produce exactly one language='config' code-file row"
+        3,
+        "the config files must each produce a language='config' code-file row"
     );
-    assert_eq!(config_rows[0].symbols_indexed, 0);
+    assert!(config_rows.iter().all(|row| row.symbols_indexed == 0));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt112_ingestion_allowlist_excludes_generated_files_before_indexing() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!(
+            "SKIP mt112_ingestion_allowlist_excludes_generated_files_before_indexing: no PostgreSQL"
+        );
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let ing = ingestion_engine(&pg).await;
+    let context = ingestion_ctx();
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(dir.path().join("src")).expect("src dir");
+    std::fs::create_dir_all(dir.path().join("generated")).expect("generated dir");
+    std::fs::write(dir.path().join("src/main.rs"), "pub fn allowed() {}\n").expect("write source");
+    std::fs::write(
+        dir.path().join("generated/out.rs"),
+        "pub fn generated_should_not_index() {}\n",
+    )
+    .expect("write generated");
+
+    let (root, _decision) = ing
+        .register_root(
+            &context,
+            RootRegistrationRequest {
+                workspace_id: workspace_id.clone(),
+                display_name: "fixture-root".to_string(),
+                root_kind: KnowledgeRootKind::ProjectRepo,
+                repo_relative_path: "".to_string(),
+                file_allowlist_policy: json!({
+                    "include": ["**/*"],
+                    "exclude": ["generated/**"],
+                }),
+                operator_approved: false,
+            },
+        )
+        .await
+        .expect("register root");
+
+    let summary = ing
+        .run_ingestion_pass(
+            &context,
+            &root.root_id,
+            dir.path(),
+            &IngestionLimits::default(),
+        )
+        .await
+        .expect("ingestion pass");
+    assert_eq!(
+        summary.skipped_by_allowlist, 1,
+        "generated file should be skipped before source/index registration"
+    );
+    assert_eq!(summary.outcomes.len(), 1);
+
+    let sources = pg
+        .db
+        .list_knowledge_sources_for_root(&root.root_id)
+        .await
+        .expect("list sources");
+    let paths: Vec<_> = sources
+        .iter()
+        .filter_map(|source| source.relative_path.as_deref())
+        .collect();
+    assert!(paths.contains(&"src/main.rs"), "{paths:?}");
+    assert!(
+        !paths.contains(&"generated/out.rs"),
+        "generated file must not become an indexable knowledge source: {paths:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +682,194 @@ async fn mt102_test_validates_edge_to_tested_symbol() {
             e.edge_type == KnowledgeEdgeType::Validates && e.target_entity_id == add.entity_id
         }),
         "expected a validates edge targeting add"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt102_typescript_test_runner_blocks_validate_called_symbols() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!(
+            "SKIP mt102_typescript_test_runner_blocks_validate_called_symbols: no PostgreSQL"
+        );
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let src = r#"
+import { describe, it, test, expect } from "vitest";
+
+export function compute(): number { return 1; }
+export function helper(): number { return 2; }
+
+describe("math", () => {
+    it("computes value", () => {
+        expect(compute()).toBe(1);
+    });
+    test("uses helper", () => {
+        helper();
+    });
+});
+"#;
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "app/service.test.ts", src)
+        .await
+        .expect("register");
+    eng.index_code_source(
+        &context,
+        &workspace_id,
+        &source_id,
+        "app/service.test.ts",
+        src,
+        None,
+    )
+    .await
+    .expect("index");
+
+    let symbols = pg
+        .db
+        .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
+        .await
+        .expect("symbols");
+    let compute = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/service.test.ts#compute~value")
+        .expect("compute symbol");
+    let helper = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/service.test.ts#helper~value")
+        .expect("helper symbol");
+    assert!(
+        symbols.iter().any(|s| {
+            s.entity_key == "typescript:app/service.test.ts#test.math.computes value~test"
+        }),
+        "it() block should be persisted as a test symbol: {:?}",
+        symbols.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
+    assert!(
+        symbols.iter().any(|s| {
+            s.entity_key == "typescript:app/service.test.ts#test.math.uses helper~test"
+        }),
+        "test() block should be persisted as a test symbol: {:?}",
+        symbols.iter().map(|s| &s.entity_key).collect::<Vec<_>>()
+    );
+
+    for target in [compute, helper] {
+        let edges = pg
+            .db
+            .list_knowledge_edges_for_entity(&target.entity_id)
+            .await
+            .expect("edges");
+        assert!(
+            edges.iter().any(|e| {
+                e.edge_type == KnowledgeEdgeType::Validates
+                    && e.target_entity_id == target.entity_id
+            }),
+            "expected a validates edge targeting {}: {edges:?}",
+            target.entity_key
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt102_duplicate_typescript_test_titles_keep_distinct_validates_edges() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!(
+            "SKIP mt102_duplicate_typescript_test_titles_keep_distinct_validates_edges: no PostgreSQL"
+        );
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let src = r#"
+import { describe, it } from "vitest";
+
+export function first(): number { return 1; }
+export function second(): number { return 2; }
+
+describe("math", () => {
+    it("duplicates", () => {
+        first();
+    });
+    it("duplicates", () => {
+        second();
+    });
+});
+"#;
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "app/duplicate.test.ts", src)
+        .await
+        .expect("register");
+    eng.index_code_source(
+        &context,
+        &workspace_id,
+        &source_id,
+        "app/duplicate.test.ts",
+        src,
+        None,
+    )
+    .await
+    .expect("index");
+
+    let symbols = pg
+        .db
+        .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
+        .await
+        .expect("symbols");
+    let first = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/duplicate.test.ts#first~value")
+        .expect("first symbol");
+    let second = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/duplicate.test.ts#second~value")
+        .expect("second symbol");
+    let first_test = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/duplicate.test.ts#test.math.duplicates~test.dup0")
+        .expect("first duplicate-title test symbol");
+    let second_test = symbols
+        .iter()
+        .find(|s| s.entity_key == "typescript:app/duplicate.test.ts#test.math.duplicates~test.dup1")
+        .expect("second duplicate-title test symbol");
+
+    let first_test_edges = pg
+        .db
+        .list_knowledge_edges_for_entity(&first_test.entity_id)
+        .await
+        .expect("first test edges");
+    let second_test_edges = pg
+        .db
+        .list_knowledge_edges_for_entity(&second_test.entity_id)
+        .await
+        .expect("second test edges");
+
+    assert!(
+        first_test_edges.iter().any(|e| {
+            e.edge_type == KnowledgeEdgeType::Validates
+                && e.source_entity_id == first_test.entity_id
+                && e.target_entity_id == first.entity_id
+        }),
+        "first duplicate test must validate first(), not be collapsed onto the later test: {first_test_edges:?}"
+    );
+    assert!(
+        !first_test_edges.iter().any(|e| {
+            e.edge_type == KnowledgeEdgeType::Validates
+                && e.source_entity_id == first_test.entity_id
+                && e.target_entity_id == second.entity_id
+        }),
+        "first duplicate test must not inherit second() coverage: {first_test_edges:?}"
+    );
+    assert!(
+        second_test_edges.iter().any(|e| {
+            e.edge_type == KnowledgeEdgeType::Validates
+                && e.source_entity_id == second_test.entity_id
+                && e.target_entity_id == second.entity_id
+        }),
+        "second duplicate test must validate second(): {second_test_edges:?}"
     );
 }
 
@@ -825,6 +1302,109 @@ async fn mt107_staleness_detected_on_content_change() {
     );
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt107_reindex_replaces_moved_symbol_definition_span() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt107_reindex_replaces_moved_symbol_definition_span: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let v1 = "pub fn target() -> i32 { 1 }\n";
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/lib.rs", v1)
+        .await
+        .expect("register v1");
+    eng.index_code_source(&context, &workspace_id, &source_id, "src/lib.rs", v1, None)
+        .await
+        .expect("index v1");
+
+    let symbol_key = "rust:src/lib.rs#target";
+    let symbol = pg
+        .db
+        .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::Symbol, symbol_key)
+        .await
+        .expect("lookup symbol")
+        .expect("target symbol");
+    let v1_span_ids = pg
+        .db
+        .list_knowledge_entity_span_ids(&symbol.entity_id)
+        .await
+        .expect("v1 symbol spans");
+    assert_eq!(
+        v1_span_ids.len(),
+        1,
+        "initial symbol has one definition span"
+    );
+    let old_span_id = v1_span_ids[0].clone();
+
+    let v2 = "// moved down\n\npub fn target() -> i32 { 2 }\n";
+    let refreshed_source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/lib.rs", v2)
+        .await
+        .expect("register v2");
+    assert_eq!(
+        source_id, refreshed_source_id,
+        "same path refreshes same source"
+    );
+    eng.index_code_source(&context, &workspace_id, &source_id, "src/lib.rs", v2, None)
+        .await
+        .expect("index v2");
+
+    let span_ids = pg
+        .db
+        .list_knowledge_entity_span_ids(&symbol.entity_id)
+        .await
+        .expect("reindexed symbol spans");
+    assert!(
+        !span_ids.contains(&old_span_id),
+        "reindex must unlink the old definition span {old_span_id}, not keep it as current evidence"
+    );
+    let mut ast_spans = Vec::new();
+    for span_id in span_ids {
+        let span = pg
+            .db
+            .get_knowledge_span(&span_id)
+            .await
+            .expect("span lookup")
+            .expect("span exists");
+        if span.source_id == source_id && matches!(span.span_kind, KnowledgeSpanKind::Ast) {
+            ast_spans.push(span);
+        }
+    }
+
+    let expected_start = v2.find("pub fn target").expect("expected target byte") as i64;
+    assert_eq!(
+        ast_spans.len(),
+        1,
+        "reindex must replace stale AST definition evidence, not accumulate old spans: {ast_spans:?}"
+    );
+    assert_eq!(ast_spans[0].range_start, expected_start);
+    assert_eq!(ast_spans[0].line_start, Some(3));
+
+    let parser_version = CodeParserAdapter::new(CodeLanguage::Rust).parser_version();
+    let payload = build_monaco_payload(
+        eng.db(),
+        &workspace_id,
+        "src/lib.rs",
+        &sha256_hex(v2.as_bytes()),
+        &parser_version,
+    )
+    .await
+    .expect("monaco payload after reindex");
+    let lens = payload
+        .entries
+        .iter()
+        .find(|entry| entry.symbol_key == symbol_key)
+        .expect("target lens entry");
+    assert_eq!(
+        lens.definition.start_line, 3,
+        "Monaco/nav projection must consume the refreshed definition span"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-109: the Monaco payload carries symbol entries with definition ranges.
 // ---------------------------------------------------------------------------
@@ -873,6 +1453,53 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
     assert!(add.definition.start_line > 0);
     // `add` has at least one caller (`caller`).
     assert!(add.caller_count >= 1, "add should have a caller");
+
+    let add_symbol = pg
+        .db
+        .get_knowledge_entity_by_identity(
+            &workspace_id,
+            KnowledgeEntityKind::Symbol,
+            "rust:src/lib.rs#add",
+        )
+        .await
+        .expect("lookup add symbol")
+        .expect("add symbol");
+    let validates_edge = pg
+        .db
+        .list_knowledge_edges_for_entity(&add_symbol.entity_id)
+        .await
+        .expect("add edges")
+        .into_iter()
+        .find(|edge| {
+            edge.edge_type == KnowledgeEdgeType::Validates
+                && edge.target_entity_id == add_symbol.entity_id
+        })
+        .expect("validates edge targeting add");
+    let validates_span_id = pg
+        .db
+        .list_knowledge_edge_span_ids(&validates_edge.edge_id)
+        .await
+        .expect("validates edge spans")
+        .into_iter()
+        .next()
+        .expect("validates edge carries span");
+    let validates_span = pg
+        .db
+        .get_knowledge_span(&validates_span_id)
+        .await
+        .expect("get validates span")
+        .expect("validates span exists");
+    let validates_range = (
+        validates_span.line_start.unwrap_or(0),
+        validates_span.line_end.unwrap_or(0),
+    );
+    assert!(
+        add.references
+            .iter()
+            .any(|range| (range.start_line, range.end_line) == validates_range),
+        "Monaco references must include validates/test evidence range {validates_range:?}, got {:?}",
+        add.references
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -936,6 +1563,100 @@ async fn mt110_context_bundle_is_bounded_and_cited() {
             .iter()
             .any(|n| n["symbol_key"] == "rust:src/lib.rs#caller"),
         "caller should appear as a called_by neighbor: {called_by:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt110_context_bundle_rejects_symbol_path_mismatch() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt110_context_bundle_rejects_symbol_path_mismatch: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let a_src = "pub fn focus() {}\n";
+    let b_src = "pub fn other() {}\n";
+    for (path, text) in [("src/a.rs", a_src), ("src/b.rs", b_src)] {
+        let source_id = eng
+            .register_code_source(&workspace_id, Some(&root), path, text)
+            .await
+            .expect("register source");
+        eng.index_code_source(&context, &workspace_id, &source_id, path, text, None)
+            .await
+            .expect("index source");
+    }
+
+    let parser_version = CodeParserAdapter::new(CodeLanguage::Rust).parser_version();
+    let err = build_code_context_bundle(
+        eng.db(),
+        "KTR-bundle-path-test",
+        "SR-bundle-path-test",
+        &workspace_id,
+        "src/b.rs",
+        "rust:src/a.rs#focus",
+        &sha256_hex(b_src.as_bytes()),
+        &parser_version,
+        DEFAULT_CODE_CONTEXT_TOKEN_BUDGET,
+    )
+    .await
+    .expect_err("symbol from src/a.rs must not be bundled under src/b.rs staleness");
+    assert!(
+        err.to_string().contains("does not belong to relative_path"),
+        "unexpected error: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt110_context_bundle_reports_over_budget_focus_doc() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt110_context_bundle_reports_over_budget_focus_doc: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let long_doc_line = "/// ".to_string() + &"long documented behavior ".repeat(80);
+    let src = format!("{long_doc_line}\npub fn documented() {{}}\n");
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/doc.rs", &src)
+        .await
+        .expect("register");
+    eng.index_code_source(
+        &context,
+        &workspace_id,
+        &source_id,
+        "src/doc.rs",
+        &src,
+        None,
+    )
+    .await
+    .expect("index");
+
+    let parser_version = CodeParserAdapter::new(CodeLanguage::Rust).parser_version();
+    let bundle = build_code_context_bundle(
+        eng.db(),
+        "KTR-bundle-budget-test",
+        "SR-bundle-budget-test",
+        &workspace_id,
+        "src/doc.rs",
+        "rust:src/doc.rs#documented",
+        &sha256_hex(src.as_bytes()),
+        &parser_version,
+        1,
+    )
+    .await
+    .expect("bundle");
+    let accounting = &bundle.allowed_context["token_accounting"];
+    assert!(
+        accounting["estimated_tokens_used"].as_u64().unwrap_or(0) > 1,
+        "focus doc is emitted in full, so accounting must report true over-budget usage: {accounting}"
+    );
+    assert_eq!(
+        accounting["truncated"], true,
+        "over-budget focus content must be surfaced as truncated/over-budget"
     );
 }
 
@@ -1018,6 +1739,64 @@ async fn mt105_scip_import_ledger_records_outcomes() {
         .await
         .expect("list imports");
     assert_eq!(all.len(), 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt111_runtime_index_receipt_records_perf_budget_verdict() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt111_runtime_index_receipt_records_perf_budget_verdict: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
+        .await
+        .expect("register");
+    let outcome = eng
+        .index_code_source(
+            &context,
+            &workspace_id,
+            &source_id,
+            "src/lib.rs",
+            RUST_SRC,
+            None,
+        )
+        .await
+        .expect("index");
+
+    let code_file = pg
+        .db
+        .get_knowledge_code_file_by_source(&source_id)
+        .await
+        .expect("code file")
+        .expect("code file row");
+    assert_eq!(
+        code_file.last_index_receipt_event_id.as_deref(),
+        Some(outcome.receipt_event_id.as_str())
+    );
+    let events = pg
+        .db
+        .list_kernel_events_for_aggregate("knowledge_code_index_file", &source_id)
+        .await
+        .expect("list index events");
+    let receipt = events
+        .iter()
+        .find(|event| event.event_id == outcome.receipt_event_id)
+        .expect("index receipt event");
+    let perf = &receipt.payload["perf_budget"];
+    assert_eq!(perf["relative_path"], "src/lib.rs");
+    assert_eq!(perf["within_budget"], true);
+    assert!(
+        perf["elapsed_ms"].as_f64().unwrap_or(0.0) >= 0.0,
+        "receipt must record measured elapsed_ms: {perf}"
+    );
+    assert!(
+        perf["allowed_ms"].as_f64().unwrap_or(0.0) > 0.0,
+        "receipt must record allowed_ms: {perf}"
+    );
 }
 
 // ---------------------------------------------------------------------------

@@ -56,10 +56,14 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
             `GET /usermanual/freshness` compares the stored rows against the compiled-in seed \
             corpus AND the declared WP-009 surface registry, returning typed verdicts \
             (`current`, `stale_content`, `missing_page`, `uncovered_surface`, \
-            `dangling_anchor`, `unseeded_version`). The build-update rule is test-enforced: a \
-            registry surface without an `http_route` anchor on a seeded page fails the suite, \
-            and the doc-vs-runtime tests probe every documented route against the real router \
-            so the manual can never describe a surface the product does not serve.",
+            `dangling_anchor`, `unseeded_version`, `missing_tool_entry`, \
+            `stale_tool_entry`, `missing_feature_entry`, `stale_feature_entry`, \
+            `missing_legacy_alias`, `stale_legacy_alias`). The build-update rule is \
+            test-enforced: a registry surface without an `http_route` anchor on a seeded page \
+            fails the suite; tool entries, feature entries, and legacy aliases are checked \
+            against the seed corpus; and the doc-vs-runtime tests probe every documented route \
+            against the real router so the manual can never describe a surface the product does \
+            not serve.",
     },
     SpecEnrichmentSeedRow {
         seed_id: "UMSPEC-003",
@@ -118,7 +122,10 @@ mod tests {
             assert!(matches!(row.seed_kind, "amend" | "appendix"));
             assert!(row.target_module.ends_with(".md"));
             assert!(!row.target_anchor.trim().is_empty());
-            assert!(row.proposed_wording_md.len() > 80, "wording too thin to lift");
+            assert!(
+                row.proposed_wording_md.len() > 80,
+                "wording too thin to lift"
+            );
         }
     }
 }

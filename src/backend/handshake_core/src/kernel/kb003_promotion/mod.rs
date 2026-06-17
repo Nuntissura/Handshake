@@ -52,5 +52,5 @@ pub use event_emission::{
     build_promotion_rejected_event,
 };
 pub use gate::{OperatorApprovalEvidence, PromotionGate, PromotionGateError, PromotionGateInputs};
-pub use gate_error_kind::{classify_storage_error, NormalisedStorageErrorKind};
+pub use gate_error_kind::{NormalisedStorageErrorKind, classify_storage_error};
 pub use receipt::PromotionReceiptV1;

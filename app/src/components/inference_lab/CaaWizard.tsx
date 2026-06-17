@@ -35,10 +35,6 @@ function blankPair(): CaaPromptPair {
 }
 
 export function CaaWizard({ modelId, capabilities, nLayers }: Props) {
-  if (!capabilities?.supportsActivationSteering) {
-    return null;
-  }
-
   // GLOBAL-PRODUCTION-005..009: paired prompt cells accept verbatim
   // operator wording. The wizard does not filter, censor, or moralise.
   const [pairs, setPairs] = useState<CaaPromptPair[]>([blankPair(), blankPair(), blankPair()]);
@@ -60,6 +56,10 @@ export function CaaWizard({ modelId, capabilities, nLayers }: Props) {
     description.trim().length > 0 &&
     layer >= 0 &&
     layer < nLayers;
+
+  if (!capabilities?.supportsActivationSteering) {
+    return null;
+  }
 
   const updatePair = (index: number, field: keyof CaaPromptPair, value: string) => {
     setPairs((prev) =>

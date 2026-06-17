@@ -63,7 +63,9 @@ const SCROLLBACK: ScrollbackSnapshot = {
 };
 
 const fakeIpc: TerminalIpc = {
+  getContext: async () => ({ cwd: "D:/repo", defaultShell: null }),
   createSession: async () => SESSIONS[0],
+  authorizeInteractive: async () => {},
   writeStdin: async () => {},
   resizeSession: async () => {},
   closeSession: async () => {},

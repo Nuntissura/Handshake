@@ -18,6 +18,14 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import { makeCodeBlockAttrs } from "./code_block_serialization";
+import { insertNoteTemplate } from "./editor_note_templates";
+import { insertProseSnippet, snippetDefaultText } from "./editor_snippets";
+import {
+  addCurrentProseMultiRange,
+  canAddCurrentProseMultiRange,
+  clearProseMultiRanges,
+  getProseMultiRangeState,
+} from "../tiptap/prose_multi_range_selection";
 import { classifyWikilink } from "./wikilink";
 
 export type EditorCommandCategory =
@@ -29,6 +37,9 @@ export type EditorCommandCategory =
   | "tableEdit"
   | "link"
   | "code"
+  | "snippet"
+  | "template"
+  | "selection"
   | "embed"
   | "graph"
   | "mention"
@@ -229,12 +240,28 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
   },
   // --- Table structure editing (iteration-3 L12) — enabled inside a table.
   {
+    id: "table.addRowBefore",
+    label: "Add row above",
+    category: "tableEdit",
+    keywords: ["table", "row", "insert", "above"],
+    run: (e) => e.chain().focus().addRowBefore().run(),
+    canRun: (e) => e.can().addRowBefore(),
+  },
+  {
     id: "table.addRowAfter",
     label: "Add row below",
     category: "tableEdit",
     keywords: ["table", "row", "insert", "below"],
     run: (e) => e.chain().focus().addRowAfter().run(),
     canRun: (e) => e.can().addRowAfter(),
+  },
+  {
+    id: "table.addColumnBefore",
+    label: "Add column left",
+    category: "tableEdit",
+    keywords: ["table", "column", "insert", "left"],
+    run: (e) => e.chain().focus().addColumnBefore().run(),
+    canRun: (e) => e.can().addColumnBefore(),
   },
   {
     id: "table.addColumnAfter",
@@ -269,6 +296,38 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
     canRun: (e) => e.can().toggleHeaderRow(),
   },
   {
+    id: "table.toggleHeaderColumn",
+    label: "Toggle header column",
+    category: "tableEdit",
+    keywords: ["table", "header", "column", "toggle"],
+    run: (e) => e.chain().focus().toggleHeaderColumn().run(),
+    canRun: (e) => e.can().toggleHeaderColumn(),
+  },
+  {
+    id: "table.toggleHeaderCell",
+    label: "Toggle header cell",
+    category: "tableEdit",
+    keywords: ["table", "header", "cell", "toggle"],
+    run: (e) => e.chain().focus().toggleHeaderCell().run(),
+    canRun: (e) => e.can().toggleHeaderCell(),
+  },
+  {
+    id: "table.mergeCells",
+    label: "Merge cells",
+    category: "tableEdit",
+    keywords: ["table", "cell", "merge", "join"],
+    run: (e) => e.chain().focus().mergeCells().run(),
+    canRun: (e) => e.can().mergeCells(),
+  },
+  {
+    id: "table.splitCell",
+    label: "Split cell",
+    category: "tableEdit",
+    keywords: ["table", "cell", "split"],
+    run: (e) => e.chain().focus().splitCell().run(),
+    canRun: (e) => e.can().splitCell(),
+  },
+  {
     id: "table.delete",
     label: "Delete table",
     category: "tableEdit",
@@ -290,6 +349,58 @@ export const EDITOR_COMMANDS: readonly EditorCommandDescriptor[] = [
         attrs: makeCodeBlockAttrs(args?.language ?? "plaintext", ""),
       }),
     isActive: (e) => e.isActive("monacoCodeBlock"),
+  },
+  // --- Snippets (MT-251): prose snippets keep tab-stop state in the editor
+  // snippet helper; code snippets insert a Monaco block seeded from the same
+  // definition, while in-block snippet tab-stops are handled by Monaco itself.
+  {
+    id: "snippet.prose.meeting",
+    label: "Insert meeting snippet",
+    category: "snippet",
+    keywords: ["snippet", "meeting", "owner", "notes", "prose"],
+    run: (e) => insertProseSnippet(e, "prose.meeting"),
+    canRun: (e) => e.isEditable,
+  },
+  {
+    id: "snippet.code.function",
+    label: "Insert function snippet block",
+    category: "snippet",
+    keywords: ["snippet", "code", "function", "typescript"],
+    run: (e) =>
+      insertSafely(e, {
+        type: "monacoCodeBlock",
+        attrs: makeCodeBlockAttrs("typescript", snippetDefaultText("code.function") ?? ""),
+      }),
+    isActive: (e) => e.isActive("monacoCodeBlock"),
+    canRun: (e) => e.isEditable,
+  },
+  // --- Note templates (MT-258): structured, data-only templates with explicit
+  // date/title/cursor variables; no eval and no markdown authority path.
+  {
+    id: "template.note.daily",
+    label: "Insert daily note template",
+    category: "template",
+    keywords: ["template", "daily template", "daily", "note", "date", "title", "cursor"],
+    args: [{ id: "title", label: "Title", placeholder: "Daily project note" }],
+    run: (e, args) => insertNoteTemplate(e, "note.daily", { title: args?.title }),
+    canRun: (e) => e.isEditable,
+  },
+  // --- Prose multi-range editing (MT-251 / EXT-MC-001) ---
+  {
+    id: "selection.addRange",
+    label: "Add selection range",
+    category: "selection",
+    keywords: ["selection", "multi", "range", "cursor", "prose"],
+    run: (e) => addCurrentProseMultiRange(e),
+    canRun: (e) => e.isEditable && canAddCurrentProseMultiRange(e),
+  },
+  {
+    id: "selection.clearRanges",
+    label: "Clear selection ranges",
+    category: "selection",
+    keywords: ["selection", "multi", "range", "clear", "prose"],
+    run: (e) => clearProseMultiRanges(e),
+    canRun: (e) => e.isEditable && getProseMultiRangeState(e).ranges.length > 0,
   },
   // --- Links (typed wikilinks) ---
   {

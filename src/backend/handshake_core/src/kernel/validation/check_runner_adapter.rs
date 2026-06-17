@@ -220,7 +220,9 @@ mod tests {
             // The adapter MUST NOT call this — dispatch goes through the
             // product CheckRunner. If we ever see this in test output, the
             // adapter has regressed.
-            panic!("ValidationCheckRunner dispatched to descriptor.evaluate() — parallel runner regression")
+            panic!(
+                "ValidationCheckRunner dispatched to descriptor.evaluate() — parallel runner regression"
+            )
         }
     }
 

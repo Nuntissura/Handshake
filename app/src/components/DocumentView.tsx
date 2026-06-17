@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { JSONContent } from "@tiptap/core";
 import {
   Block,
@@ -17,10 +17,15 @@ import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
 import { AtelierCollaborationPanel } from "./AtelierCollaborationPanel";
 import { DependencyFailureBanner } from "./DependencyFailureBanner";
 import { RichDocumentView } from "./RichDocumentView";
+import type { EditorCommandPaletteRequest } from "../lib/editor/editor_command_palette_request";
+import type { EditorFindRequest } from "../lib/editor/editor_find_request";
 
 type Props = {
   documentId: string | null;
   onDeleted: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  commandPaletteRequest?: EditorCommandPaletteRequest | null;
+  findRequest?: EditorFindRequest | null;
 };
 
 /// WP-KERNEL-009 (MT-145): a rich-document authority id is `KRD-...`. Those
@@ -31,14 +36,22 @@ function isRichDocumentId(documentId: string | null): documentId is string {
   return typeof documentId === "string" && documentId.startsWith("KRD-");
 }
 
-export function DocumentView({ documentId, onDeleted }: Props) {
+export function DocumentView({ documentId, onDeleted, onDirtyChange, commandPaletteRequest = null, findRequest = null }: Props) {
   if (isRichDocumentId(documentId)) {
-    return <RichDocumentView documentId={documentId} onDeleted={onDeleted} />;
+    return (
+      <RichDocumentView
+        documentId={documentId}
+        onDeleted={onDeleted}
+        onDirtyChange={onDirtyChange}
+        commandPaletteRequest={commandPaletteRequest}
+        findRequest={findRequest}
+      />
+    );
   }
-  return <LegacyDocumentView documentId={documentId} onDeleted={onDeleted} />;
+  return <LegacyDocumentView documentId={documentId} onDeleted={onDeleted} onDirtyChange={onDirtyChange} />;
 }
 
-function LegacyDocumentView({ documentId, onDeleted }: Props) {
+function LegacyDocumentView({ documentId, onDeleted, onDirtyChange }: Props) {
   const [doc, setDoc] = useState<DocumentWithBlocks | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +68,22 @@ function LegacyDocumentView({ documentId, onDeleted }: Props) {
   const [collabOpen, setCollabOpen] = useState(false);
   const [selectionInfo, setSelectionInfo] = useState<TiptapSelectionInfo | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const dirtyReportRef = useRef<{ documentId: string | null; dirty: boolean | null }>({
+    documentId: null,
+    dirty: null,
+  });
+
+  useEffect(() => {
+    if (dirtyReportRef.current.documentId !== documentId || dirtyReportRef.current.dirty === null) {
+      dirtyReportRef.current = { documentId, dirty: isDirty };
+      return;
+    }
+    if (dirtyReportRef.current.dirty === isDirty) {
+      return;
+    }
+    dirtyReportRef.current = { documentId, dirty: isDirty };
+    onDirtyChange?.(isDirty);
+  }, [documentId, isDirty, onDirtyChange]);
 
   useEffect(() => {
     if (!documentId) {

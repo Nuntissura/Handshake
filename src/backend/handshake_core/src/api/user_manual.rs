@@ -21,27 +21,27 @@
 //! manual text cannot be injected at runtime through this surface.
 
 use axum::{
+    Json, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post},
-    Json, Router,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::AppState;
 use crate::knowledge_document::permission::DocumentActorKind;
-use crate::storage::postgres::PostgresDatabase;
 use crate::storage::StorageError;
+use crate::storage::postgres::PostgresDatabase;
 use crate::user_manual::freshness::check_freshness;
 use crate::user_manual::migration_plan::naming_migration_plan;
 use crate::user_manual::projection::{render_page_html, render_page_markdown};
 use crate::user_manual::registry::{user_manual_access_points, wp009_surface_registry};
-use crate::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
+use crate::user_manual::seed::{QUICKSTART_AREAS, ensure_seeded};
 use crate::user_manual::spec_seed::spec_enrichment_seed;
-use crate::user_manual::store::{UserManualStore, LIST_CAP};
+use crate::user_manual::store::{LIST_CAP, UserManualStore};
 use crate::user_manual::{ROUTE_NAMESPACE, USER_MANUAL_VERSION};
-use crate::AppState;
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -339,7 +339,11 @@ async fn get_tool(
 ) -> Result<Json<Value>, ApiError> {
     let db = db_for(&state);
     let store = UserManualStore::new(&db);
-    let Some(tool) = store.get_tool_entry(&tool_id).await.map_err(storage_error)? else {
+    let Some(tool) = store
+        .get_tool_entry(&tool_id)
+        .await
+        .map_err(storage_error)?
+    else {
         return Err(not_found(format!("no UserManual tool entry '{tool_id}'")));
     };
     Ok(Json(json!({"tool": tool})))
@@ -389,21 +393,26 @@ async fn quickstart(
     let mut bundled = Vec::new();
     for anchor in &anchors {
         if anchor.anchor_kind == "page_link" {
-            if let Some((linked_page, linked_sections, _)) = store
+            let Some((linked_page, linked_sections, _)) = store
                 .get_page_by_slug(&anchor.anchor_value)
                 .await
                 .map_err(storage_error)?
-            {
-                bundled.push(json!({
-                    "slug": linked_page.slug,
-                    "title": linked_page.title,
-                    "sections": linked_sections,
-                }));
-            }
+            else {
+                return Err(not_found(format!(
+                    "quickstart page '{quickstart_slug}' links to missing page '{}' — POST /usermanual/resync",
+                    anchor.anchor_value
+                )));
+            };
+            bundled.push(json!({
+                "slug": linked_page.slug,
+                "title": linked_page.title,
+                "sections": linked_sections,
+            }));
         }
     }
     let identity = manual_identity(&headers);
-    let receipt = append_read_receipt(&db, &identity, "quickstart_opened", &quickstart_slug).await?;
+    let receipt =
+        append_read_receipt(&db, &identity, "quickstart_opened", &quickstart_slug).await?;
     Ok(Json(json!({
         "area": area,
         "manual_version": page.manual_version,
@@ -565,11 +574,12 @@ async fn resync(
             .ok_or_else(|| bad_request(format!("unknown x-hsk-actor-kind '{value}'")))?,
     };
     match actor_kind {
-        DocumentActorKind::Operator | DocumentActorKind::System | DocumentActorKind::LocalModel => {}
+        DocumentActorKind::Operator | DocumentActorKind::System | DocumentActorKind::LocalModel => {
+        }
         DocumentActorKind::CloudModel => return Err(forbidden("cloud_model_resync_denied")),
         DocumentActorKind::Validator => return Err(forbidden("validator_resync_denied")),
         DocumentActorKind::Unauthenticated => {
-            return Err(forbidden("unauthenticated_resync_denied"))
+            return Err(forbidden("unauthenticated_resync_denied"));
         }
     }
     let db = db_for(&state);

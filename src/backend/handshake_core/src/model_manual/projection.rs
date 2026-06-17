@@ -21,7 +21,9 @@ pub fn render_model_manual_markdown(manual: &Manual) -> String {
     out.push_str("---\n\n");
 
     out.push_str("# ModelManual\n\n");
-    out.push_str("This on-demand projection is a build artifact. The Rust ModelManual manifest remains canonical.\n\n");
+    out.push_str(
+        "This legacy ModelManual projection is a compatibility artifact. UserManual is canonical.\n\n",
+    );
 
     for group in manual.feature_groups {
         render_feature_group(&mut out, manual.version, group);

@@ -19,6 +19,11 @@
 //!                          anchor targets a missing page (stale docs).
 //! * `unseeded_version`   — no `user_manual_versions` row for this binary's
 //!                          corpus version/hash.
+//! * `missing_tool_entry` / `stale_tool_entry`,
+//!   `missing_feature_entry` / `stale_feature_entry`,
+//!   `missing_legacy_alias` / `stale_legacy_alias`
+//!                        — non-page UserManual authority rows drifted from
+//!                          the compiled-in seed corpus.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -26,7 +31,7 @@ use serde::Serialize;
 
 use super::registry::wp009_surface_registry;
 use super::seed::{corpus_hash, seed_corpus};
-use super::store::UserManualStore;
+use super::store::{UserManualStore, LIST_CAP};
 use super::USER_MANUAL_VERSION;
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::StorageResult;
@@ -40,6 +45,12 @@ pub enum FreshnessVerdictKind {
     UncoveredSurface,
     DanglingAnchor,
     UnseededVersion,
+    MissingToolEntry,
+    StaleToolEntry,
+    MissingFeatureEntry,
+    StaleFeatureEntry,
+    MissingLegacyAlias,
+    StaleLegacyAlias,
 }
 
 impl FreshnessVerdictKind {
@@ -51,6 +62,12 @@ impl FreshnessVerdictKind {
             Self::UncoveredSurface => "uncovered_surface",
             Self::DanglingAnchor => "dangling_anchor",
             Self::UnseededVersion => "unseeded_version",
+            Self::MissingToolEntry => "missing_tool_entry",
+            Self::StaleToolEntry => "stale_tool_entry",
+            Self::MissingFeatureEntry => "missing_feature_entry",
+            Self::StaleFeatureEntry => "stale_feature_entry",
+            Self::MissingLegacyAlias => "missing_legacy_alias",
+            Self::StaleLegacyAlias => "stale_legacy_alias",
         }
     }
 
@@ -98,8 +115,9 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
         None => verdicts.push(FreshnessVerdict {
             kind: FreshnessVerdictKind::UnseededVersion,
             subject: USER_MANUAL_VERSION.to_string(),
-            detail: "no user_manual_versions row for this binary's corpus — run POST /usermanual/resync"
-                .to_string(),
+            detail:
+                "no user_manual_versions row for this binary's corpus — run POST /usermanual/resync"
+                    .to_string(),
         }),
     }
 
@@ -126,15 +144,133 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
                     ),
                 })
             }
-            Some(_) => verdicts.push(FreshnessVerdict {
-                kind: FreshnessVerdictKind::Current,
-                subject: page.slug.clone(),
-                detail: String::new(),
-            }),
+            Some(stored) => {
+                if store
+                    .page_child_rows_match_seed(&stored.page_id, page)
+                    .await?
+                {
+                    verdicts.push(FreshnessVerdict {
+                        kind: FreshnessVerdictKind::Current,
+                        subject: page.slug.clone(),
+                        detail: String::new(),
+                    });
+                } else {
+                    verdicts.push(FreshnessVerdict {
+                        kind: FreshnessVerdictKind::StaleContent,
+                        subject: page.slug.clone(),
+                        detail: "stored page child rows differ from the seed corpus despite matching page hash"
+                            .to_string(),
+                    });
+                }
+            }
         }
     }
 
-    // 3) Registry coverage (uncovered surfaces).
+    // 3) Non-page corpus rows: tool entries, feature entries, and legacy
+    // aliases are authority surfaces too. They must not drift invisibly just
+    // because page hashes still match.
+    let stored_tools = store.list_tool_entries(None, None, LIST_CAP).await?;
+    let stored_tools_by_id: BTreeMap<&str, &super::store::UserManualToolEntry> = stored_tools
+        .iter()
+        .map(|t| (t.tool_id.as_str(), t))
+        .collect();
+    let seed_tool_ids: BTreeSet<&str> = corpus.tools.iter().map(|t| t.tool_id.as_str()).collect();
+    for tool in &corpus.tools {
+        match stored_tools_by_id.get(tool.tool_id.as_str()) {
+            None => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::MissingToolEntry,
+                subject: tool.tool_id.clone(),
+                detail: "seed expects this tool entry; the database does not hold it".to_string(),
+            }),
+            Some(stored) if *stored != tool => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleToolEntry,
+                subject: tool.tool_id.clone(),
+                detail: "stored tool entry row differs from the seed corpus".to_string(),
+            }),
+            Some(_) => {}
+        }
+    }
+    for stored in &stored_tools {
+        if !seed_tool_ids.contains(stored.tool_id.as_str()) {
+            verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleToolEntry,
+                subject: stored.tool_id.clone(),
+                detail: "database holds a tool entry the seed corpus does not declare".to_string(),
+            });
+        }
+    }
+
+    let stored_features = store.list_feature_entries(LIST_CAP).await?;
+    let stored_features_by_id: BTreeMap<&str, &super::store::UserManualFeatureEntry> =
+        stored_features
+            .iter()
+            .map(|f| (f.feature_id.as_str(), f))
+            .collect();
+    let seed_feature_ids: BTreeSet<&str> = corpus
+        .features
+        .iter()
+        .map(|f| f.feature_id.as_str())
+        .collect();
+    for feature in &corpus.features {
+        match stored_features_by_id.get(feature.feature_id.as_str()) {
+            None => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::MissingFeatureEntry,
+                subject: feature.feature_id.clone(),
+                detail: "seed expects this feature entry; the database does not hold it"
+                    .to_string(),
+            }),
+            Some(stored) if *stored != feature => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleFeatureEntry,
+                subject: feature.feature_id.clone(),
+                detail: "stored feature entry row differs from the seed corpus".to_string(),
+            }),
+            Some(_) => {}
+        }
+    }
+    for stored in &stored_features {
+        if !seed_feature_ids.contains(stored.feature_id.as_str()) {
+            verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleFeatureEntry,
+                subject: stored.feature_id.clone(),
+                detail: "database holds a feature entry the seed corpus does not declare"
+                    .to_string(),
+            });
+        }
+    }
+
+    let stored_aliases = store.list_legacy_aliases().await?;
+    let stored_aliases_by_id: BTreeMap<&str, &super::store::LegacyAliasRow> = stored_aliases
+        .iter()
+        .map(|a| (a.alias.as_str(), a))
+        .collect();
+    let seed_alias_ids: BTreeSet<&str> = corpus.aliases.iter().map(|a| a.alias.as_str()).collect();
+    for alias in &corpus.aliases {
+        match stored_aliases_by_id.get(alias.alias.as_str()) {
+            None => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::MissingLegacyAlias,
+                subject: alias.alias.clone(),
+                detail: "seed expects this legacy alias; the database does not hold it".to_string(),
+            }),
+            Some(stored) if *stored != alias => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleLegacyAlias,
+                subject: alias.alias.clone(),
+                detail: "stored legacy alias row differs from the seed corpus".to_string(),
+            }),
+            Some(_) => {}
+        }
+    }
+    for stored in &stored_aliases {
+        if !seed_alias_ids.contains(stored.alias.as_str()) {
+            verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleLegacyAlias,
+                subject: stored.alias.clone(),
+                detail: "database holds a legacy alias the seed corpus does not declare"
+                    .to_string(),
+            });
+        }
+    }
+
+    // 4) Registry coverage (uncovered surfaces).
     let route_anchors = store.anchors_by_kind("http_route").await?;
     let covered: BTreeSet<(String, String)> = route_anchors
         .iter()
@@ -153,7 +289,7 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
         }
     }
 
-    // 4) Dangling http_route anchors (documented but not declared).
+    // 5) Dangling http_route anchors (documented but not declared).
     let declared: BTreeSet<(String, String)> = wp009_surface_registry()
         .iter()
         .map(|s| (s.method.to_string(), s.route.to_string()))
@@ -163,13 +299,14 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
             verdicts.push(FreshnessVerdict {
                 kind: FreshnessVerdictKind::DanglingAnchor,
                 subject: format!("{} {}", anchor.http_method, anchor.anchor_value),
-                detail: "http_route anchor documents a surface the WP-009 registry does not declare"
-                    .to_string(),
+                detail:
+                    "http_route anchor documents a surface the WP-009 registry does not declare"
+                        .to_string(),
             });
         }
     }
 
-    // 5) Dangling page links (stored rows referencing missing pages).
+    // 6) Dangling page links (stored rows referencing missing pages).
     let stored_slugs: BTreeSet<&str> = stored_pages.iter().map(|p| p.slug.as_str()).collect();
     for anchor in store.anchors_by_kind("page_link").await? {
         let known = stored_slugs.contains(anchor.anchor_value.as_str())

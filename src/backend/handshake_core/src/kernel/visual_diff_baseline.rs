@@ -27,7 +27,7 @@ use serde_json::Value;
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::atelier::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use crate::atelier::{AtelierError, AtelierResult, AtelierStore, reject_legacy_runtime_ref};
 
 use super::visual_debugging_loop::{
     VisualComparisonMode, VisualDebuggingThresholdConfigV1, VisualDiffComputationV1,
@@ -134,7 +134,10 @@ fn validate_new_baseline(new: &NewVisualDiffBaseline) -> AtelierResult<()> {
         .content_sha256
         .strip_prefix("sha256:")
         .is_some_and(|hex| {
-            hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
         });
     if !is_sha256 {
         return Err(AtelierError::Validation(
@@ -237,7 +240,7 @@ fn request_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<VisualDiffRequ
                 "diff request row must carry exactly one of baseline_id / \
                  previous_screenshot_ref"
                     .into(),
-            ))
+            ));
         }
     };
     let pixel: i32 = row.get("max_pixel_diff_basis_points");

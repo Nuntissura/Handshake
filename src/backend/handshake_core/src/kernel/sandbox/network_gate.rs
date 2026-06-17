@@ -598,13 +598,15 @@ mod tests {
         ));
         let gate_v1 = NetworkGateV1::default();
         let g = NetworkCapabilityGate::new(&core, &gate_v1);
-        let strict = vec![NetworkGrant::build(
-            "*.example.com",
-            Some("APR-1".into()),
-            Some("PRV-1".into()),
-            true,
-        )
-        .unwrap()];
+        let strict = vec![
+            NetworkGrant::build(
+                "*.example.com",
+                Some("APR-1".into()),
+                Some("PRV-1".into()),
+                true,
+            )
+            .unwrap(),
+        ];
         // Subdomain matches.
         match g.check_host_against(&run(), "api.example.com", &strict) {
             NetworkDecision::Allowed { .. } => {}
@@ -616,13 +618,15 @@ mod tests {
             other => panic!("apex must be excluded when flag set, got {:?}", other),
         }
         // Sanity: with exclude_apex=false the apex does match.
-        let permissive = vec![NetworkGrant::build(
-            "*.example.com",
-            Some("APR-1".into()),
-            Some("PRV-1".into()),
-            false,
-        )
-        .unwrap()];
+        let permissive = vec![
+            NetworkGrant::build(
+                "*.example.com",
+                Some("APR-1".into()),
+                Some("PRV-1".into()),
+                false,
+            )
+            .unwrap(),
+        ];
         match g.check_host_against(&run(), "example.com", &permissive) {
             NetworkDecision::Allowed { .. } => {}
             other => panic!("apex must match when exclude_apex=false, got {:?}", other),

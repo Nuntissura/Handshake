@@ -23,6 +23,8 @@ use crate::storage::postgres::PostgresDatabase;
 use super::staleness::{evaluate_staleness, IndexedState, LiveSourceState, StalenessVerdict};
 use super::{CodeIndexError, CodeIndexResult};
 
+const MONACO_SYMBOL_LOOKUP_LIMIT: i64 = 10_000;
+
 /// A 1-based inclusive line range Monaco can turn into a `monaco.Range`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LineRange {
@@ -60,6 +62,9 @@ pub struct MonacoCodeLensPayload {
     /// Staleness of this file's index; the frontend MUST surface it so a stale
     /// lens is never shown as authoritative.
     pub staleness: StalenessVerdict,
+    /// True when the bounded symbol lookup hit its cap. The frontend can surface
+    /// a partial-lens warning instead of silently treating the payload as full.
+    pub truncated: bool,
     pub entries: Vec<CodeLensEntry>,
 }
 
@@ -131,8 +136,15 @@ pub async fn build_monaco_payload(
     let prefix_c = format!("tsx:{relative_path}#");
     let prefix_d = format!("javascript:{relative_path}#");
     let file_symbols = db
-        .lookup_code_symbols(workspace_id, None, Some(relative_path), 100_000)
+        .lookup_code_symbols(
+            workspace_id,
+            None,
+            Some(relative_path),
+            None,
+            MONACO_SYMBOL_LOOKUP_LIMIT,
+        )
         .await?;
+    let truncated = file_symbols.len() as i64 >= MONACO_SYMBOL_LOOKUP_LIMIT;
 
     let mut entries = Vec::new();
     for symbol in file_symbols {
@@ -162,10 +174,16 @@ pub async fn build_monaco_payload(
         let mut references: Vec<LineRange> = Vec::new();
         let mut caller_count = 0u32;
         for edge in &edges {
-            if edge.edge_type == KnowledgeEdgeType::References
-                && edge.target_entity_id == symbol.entity_id
-            {
-                caller_count += 1;
+            if edge.target_entity_id != symbol.entity_id {
+                continue;
+            }
+            if matches!(
+                edge.edge_type,
+                KnowledgeEdgeType::References | KnowledgeEdgeType::Validates
+            ) {
+                if edge.edge_type == KnowledgeEdgeType::References {
+                    caller_count += 1;
+                }
                 // Reference ranges whose evidence spans live in this file.
                 let span_ids = db.list_knowledge_edge_span_ids(&edge.edge_id).await?;
                 for sid in span_ids {
@@ -221,6 +239,7 @@ pub async fn build_monaco_payload(
         workspace_id: workspace_id.to_string(),
         relative_path: relative_path.to_string(),
         staleness,
+        truncated,
         entries,
     })
 }

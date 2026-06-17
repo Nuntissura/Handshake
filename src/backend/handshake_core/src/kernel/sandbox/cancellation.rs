@@ -17,8 +17,8 @@
 //! any non-`Completed` status, and the dedicated `assert_promotable` returns a
 //! typed denial when called against a cancelled run.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};

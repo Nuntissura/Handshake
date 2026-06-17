@@ -19,6 +19,8 @@
 //!   * Broadcast backpressure -> bounded channel; lagged consumers resync.
 //!   * Session leak -> `kill_on_drop` + reader join + child reap on `Drop`.
 
+#[cfg(windows)]
+use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -69,7 +71,8 @@ use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, Pt
 use tokio::sync::broadcast;
 
 /// Marker injected into scrollback when the byte cap forces older bytes out.
-pub const TRUNCATION_MARKER: &[u8] = b"\r\n[handshake: output truncated -- scrollback byte cap reached]\r\n";
+pub const TRUNCATION_MARKER: &[u8] =
+    b"\r\n[handshake: output truncated -- scrollback byte cap reached]\r\n";
 
 /// Default scrollback byte cap (1.5 MiB), mirroring the one-shot
 /// `TerminalConfig::max_output_bytes` default so interactive and one-shot
@@ -99,6 +102,11 @@ const POST_EXIT_DRAIN_CEILING: Duration = Duration::from_millis(750);
 const POST_EXIT_DRAIN_SETTLE: Duration = Duration::from_millis(60);
 /// Poll granularity while waiting for the reader to go quiescent.
 const POST_EXIT_DRAIN_POLL: Duration = Duration::from_millis(10);
+/// Cursor-position request emitted by ConPTY during startup in headless hosts.
+const DSR_CURSOR_POSITION_QUERY: &[u8] = b"\x1b[6n";
+/// Minimal cursor-position response. This is enough to satisfy ConPTY's startup
+/// status query when no frontend terminal emulator is attached yet.
+const DSR_CURSOR_POSITION_RESPONSE: &[u8] = b"\x1b[1;1R";
 
 /// A single fan-out item from a live PTY session.
 #[derive(Clone, Debug)]
@@ -248,7 +256,7 @@ impl PtySession {
 
         let mut builder = match &cfg.shell {
             Some(shell) if !shell.trim().is_empty() => CommandBuilder::new(shell),
-            _ => CommandBuilder::new_default_prog(),
+            _ => default_shell_command_builder(),
         };
         for arg in &cfg.args {
             builder.arg(arg);
@@ -284,8 +292,7 @@ impl PtySession {
 
         let (tx, _rx) = broadcast::channel(cfg.broadcast_capacity.max(1));
         let scrollback = Arc::new(Mutex::new(Scrollback::new(cfg.scrollback_bytes)));
-        let writer: Arc<Mutex<Option<Box<dyn Write + Send>>>> =
-            Arc::new(Mutex::new(Some(writer)));
+        let writer: Arc<Mutex<Option<Box<dyn Write + Send>>>> = Arc::new(Mutex::new(Some(writer)));
         let master: Arc<Mutex<Option<Box<dyn MasterPty + Send>>>> =
             Arc::new(Mutex::new(Some(master_box)));
         // `raw_exit`: the waiter publishes the child's exit code here as soon as
@@ -373,13 +380,20 @@ impl PtySession {
         let reader_raw = Arc::clone(&raw_exit);
         let reader_latch = Arc::clone(&exit_latch);
         let reader_bytes = Arc::clone(&bytes_read);
+        let reader_writer = Arc::clone(&writer);
         let handle = std::thread::Builder::new()
             .name("handshake-pty-reader".to_string())
             .spawn(move || {
                 // Drain ALL output to scrollback + broadcast first. The byte
                 // counter lets the waiter detect quiescence before it forces the
                 // master close (so the child's final output is not truncated).
-                pump_reader(reader, reader_tx.clone(), reader_scrollback, reader_bytes);
+                pump_reader(
+                    reader,
+                    reader_tx.clone(),
+                    reader_scrollback,
+                    reader_bytes,
+                    Some(DeviceStatusResponder::new(reader_writer)),
+                );
                 // EOF reached (waiter dropped the master). Read the code the
                 // waiter published; it set raw_exit before dropping the master,
                 // so it is normally already present. Poll briefly otherwise.
@@ -482,10 +496,7 @@ impl PtySession {
 
     /// Whether the scrollback byte cap has been hit at least once.
     pub fn scrollback_truncated(&self) -> bool {
-        self.scrollback
-            .lock()
-            .map(|s| s.truncated)
-            .unwrap_or(false)
+        self.scrollback.lock().map(|s| s.truncated).unwrap_or(false)
     }
 
     /// Number of live broadcast receivers (diagnostic).
@@ -535,58 +546,155 @@ fn pump_reader(
     tx: broadcast::Sender<PtyOutput>,
     scrollback: Arc<Mutex<Scrollback>>,
     bytes_read: Arc<AtomicU64>,
+    mut device_status: Option<DeviceStatusResponder>,
 ) {
     let mut buf = [0u8; READ_CHUNK];
     loop {
         match reader.read(&mut buf) {
             Ok(0) => break, // EOF
             Ok(n) => {
-                let chunk = buf[..n].to_vec();
-                if let Ok(mut sb) = scrollback.lock() {
-                    sb.push(&chunk);
-                }
                 // Publish progress so the waiter's post-exit drain can detect
                 // quiescence before it forces the master close.
                 bytes_read.fetch_add(n as u64, Ordering::Release);
-                // Bounded broadcast: if all consumers are gone, keep draining to
-                // scrollback (do not break) so the snapshot stays complete.
-                let _ = tx.send(PtyOutput::Chunk(chunk));
+                let chunk = if let Some(responder) = device_status.as_mut() {
+                    responder.filter(&buf[..n])
+                } else {
+                    buf[..n].to_vec()
+                };
+                publish_pty_chunk(&tx, &scrollback, chunk);
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(_) => break, // read error (e.g. master closed) -> treat as EOF
         }
     }
+    if let Some(mut responder) = device_status {
+        publish_pty_chunk(&tx, &scrollback, responder.finish());
+    }
+}
+
+fn publish_pty_chunk(
+    tx: &broadcast::Sender<PtyOutput>,
+    scrollback: &Arc<Mutex<Scrollback>>,
+    chunk: Vec<u8>,
+) {
+    if chunk.is_empty() {
+        return;
+    }
+    if let Ok(mut sb) = scrollback.lock() {
+        sb.push(&chunk);
+    }
+    // Bounded broadcast: if all consumers are gone, keep draining to scrollback
+    // (do not break) so the snapshot stays complete.
+    let _ = tx.send(PtyOutput::Chunk(chunk));
+}
+
+struct DeviceStatusResponder {
+    writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>,
+    pending: Vec<u8>,
+    answered_startup_query: bool,
+}
+
+impl DeviceStatusResponder {
+    fn new(writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>) -> Self {
+        Self {
+            writer,
+            pending: Vec::new(),
+            answered_startup_query: false,
+        }
+    }
+
+    fn filter(&mut self, bytes: &[u8]) -> Vec<u8> {
+        self.pending.extend_from_slice(bytes);
+        let mut out = Vec::with_capacity(self.pending.len());
+        let mut consumed = 0usize;
+
+        while consumed < self.pending.len() {
+            let remaining = &self.pending[consumed..];
+            if remaining.starts_with(DSR_CURSOR_POSITION_QUERY) {
+                if !self.answered_startup_query && self.write_response() {
+                    self.answered_startup_query = true;
+                    consumed += DSR_CURSOR_POSITION_QUERY.len();
+                    continue;
+                }
+                out.extend_from_slice(DSR_CURSOR_POSITION_QUERY);
+                consumed += DSR_CURSOR_POSITION_QUERY.len();
+                continue;
+            }
+
+            if DSR_CURSOR_POSITION_QUERY.starts_with(remaining) {
+                break;
+            }
+
+            out.push(self.pending[consumed]);
+            consumed += 1;
+        }
+
+        if consumed > 0 {
+            self.pending.drain(0..consumed);
+        }
+        out
+    }
+
+    fn finish(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.pending)
+    }
+
+    fn write_response(&self) -> bool {
+        let Ok(mut guard) = self.writer.lock() else {
+            return false;
+        };
+        let Some(writer) = guard.as_mut() else {
+            return false;
+        };
+        writer.write_all(DSR_CURSOR_POSITION_RESPONSE).is_ok() && writer.flush().is_ok()
+    }
+}
+
+fn default_shell_command_builder() -> CommandBuilder {
+    #[cfg(windows)]
+    {
+        CommandBuilder::new(resolve_windows_default_shell())
+    }
+
+    #[cfg(not(windows))]
+    {
+        CommandBuilder::new_default_prog()
+    }
+}
+
+#[cfg(windows)]
+fn resolve_windows_default_shell() -> String {
+    let path_var = std::env::var_os("PATH");
+    resolve_windows_default_shell_from_path(path_var.as_deref())
+}
+
+#[cfg(windows)]
+fn resolve_windows_default_shell_from_path(path_var: Option<&OsStr>) -> String {
+    const CANDIDATES: [&str; 3] = ["pwsh.exe", "powershell.exe", "cmd.exe"];
+
+    if let Some(paths) = path_var {
+        for dir in std::env::split_paths(paths) {
+            for candidate in CANDIDATES {
+                let path = dir.join(candidate);
+                if path.is_file() {
+                    return path.to_string_lossy().to_string();
+                }
+            }
+        }
+    }
+
+    "cmd.exe".to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // NOTE on the `#[ignore]` tests below (CORRECTED ignore reason): they spawn a
-    // REAL shell under a pseudo-terminal. On Windows that uses ConPTY. Spawn
-    // itself SUCCEEDS on a headless agent/CI host (the conpty initializes and
-    // even emits its startup DSR cursor-position query `ESC[6n`), but with no
-    // attached console host the child process makes no further progress: its
-    // output never flows and `child.wait()` blocks indefinitely (verified by a
-    // raw portable-pty diagnostic on this host — spawn returned in ~18ms, the
-    // reader received only the 4-byte DSR query, and `child.wait()` never
-    // returned). This is NOT the previously-claimed 0xC0000142 spawn-init
-    // failure; it is a headless ConPTY *child progress / wait hang*, so these
-    // end-to-end tests are `#[ignore]`d for headless runs and remain runnable on
-    // a real interactive Windows desktop (or any Unix host, where openpty has no
-    // such restriction) via `cargo test -- --ignored`.
-    //
-    // CRUCIALLY, the load-bearing PTY DATA PATH (reader -> scrollback ->
-    // broadcast) is NOT left without green coverage on the build host: it is
-    // proven HEADLESS-SAFELY by `pump_reader_drains_to_scrollback_and_broadcast`
-    // and `pump_reader_flood_truncates_and_still_broadcasts` below, which drive
-    // the EXACT production `pump_reader` function over a synthetic in-memory
-    // reader (no ConPTY child), asserting that bytes reach scrollback, the byte
-    // counter advances, the broadcast delivers chunks, and the flood path caps +
-    // marks truncation. The scrollback cap + truncation marker, and the
-    // higher-level runtime contracts (capture seam, redaction, capability gates,
-    // isolation, FR events, session lifecycle) are likewise proven by always-on
-    // tests here and in `runtime.rs`.
+    // These tests spawn real shells under a pseudo-terminal. On Windows, ConPTY
+    // emits a startup DSR cursor-position query (`ESC[6n`) before the child
+    // makes progress on headless hosts. The production reader answers that query
+    // through `DeviceStatusResponder`, so the end-to-end PTY path is now covered
+    // by the default test suite instead of living behind `#[ignore]`.
 
     fn echo_config(line: &str) -> PtySpawnConfig {
         // Use the platform shell to echo a known marker then exit, so the test
@@ -612,8 +720,31 @@ mod tests {
         (session.scrollback(), exit)
     }
 
+    #[cfg(windows)]
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
+    fn windows_default_shell_resolver_prefers_pwsh_then_powershell_then_cmd() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let powershell = dir.path().join("powershell.exe");
+        let pwsh = dir.path().join("pwsh.exe");
+        std::fs::write(&powershell, b"").expect("powershell fixture");
+
+        let only_powershell = std::env::join_paths([dir.path()]).expect("path list");
+        assert_eq!(
+            resolve_windows_default_shell_from_path(Some(only_powershell.as_os_str())),
+            powershell.to_string_lossy()
+        );
+
+        std::fs::write(&pwsh, b"").expect("pwsh fixture");
+        let with_pwsh = std::env::join_paths([dir.path()]).expect("path list");
+        assert_eq!(
+            resolve_windows_default_shell_from_path(Some(with_pwsh.as_os_str())),
+            pwsh.to_string_lossy()
+        );
+
+        assert_eq!(resolve_windows_default_shell_from_path(None), "cmd.exe");
+    }
+
+    #[test]
     fn echo_round_trip_via_args() {
         let session = PtySession::spawn(echo_config("HANDSHAKE_PTY_OK")).expect("spawn");
         let (out, exit) = run_to_completion(&session);
@@ -626,7 +757,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn interactive_stdin_round_trip() {
         // Launch an interactive shell, write a command to stdin, and confirm the
         // command's output appears in scrollback (the stdin -> output path). We
@@ -661,7 +791,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn live_broadcast_delivers_to_early_subscriber() {
         // A subscriber attached BEFORE output flows must see the Exit event on
         // the live broadcast (the interactive-panel attach path). Use the
@@ -687,7 +816,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn resize_does_not_error() {
         let mut cfg = PtySpawnConfig::default();
         if cfg!(windows) {
@@ -701,11 +829,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn child_exit_is_surfaced() {
         let session = PtySession::spawn(echo_config("x")).expect("spawn");
         let (_out, exit) = run_to_completion(&session);
-        assert!(exit.is_some(), "child exit code must be surfaced, not silent");
+        assert!(
+            exit.is_some(),
+            "child exit code must be surfaced, not silent"
+        );
         assert_eq!(exit, Some(0));
     }
 
@@ -728,7 +858,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn scrollback_snapshot_backfills() {
         let session = PtySession::spawn(echo_config("BACKFILL_MARKER")).expect("spawn");
         let (_out, _exit) = run_to_completion(&session);
@@ -787,7 +916,13 @@ mod tests {
         let bytes_read = Arc::new(AtomicU64::new(0));
 
         // Run the EXACT production pump on this thread until the scripted EOF.
-        pump_reader(reader, tx.clone(), Arc::clone(&scrollback), Arc::clone(&bytes_read));
+        pump_reader(
+            reader,
+            tx.clone(),
+            Arc::clone(&scrollback),
+            Arc::clone(&bytes_read),
+            None,
+        );
 
         // (1) scrollback holds all bytes.
         let snap = scrollback.lock().unwrap().snapshot();
@@ -796,7 +931,10 @@ mod tests {
             text.contains("HANDSHAKE_DATA_PATH_OK"),
             "scrollback must contain first chunk, got: {text:?}"
         );
-        assert!(text.contains("second chunk"), "scrollback must contain second chunk");
+        assert!(
+            text.contains("second chunk"),
+            "scrollback must contain second chunk"
+        );
         // (2) byte counter advanced by the full payload length.
         let expected = (b"HANDSHAKE_DATA_PATH_OK\r\n".len() + b"second chunk\r\n".len()) as u64;
         assert_eq!(
@@ -829,16 +967,27 @@ mod tests {
         let cap = 64usize;
         let big = vec![b'X'; 4096];
         let reader: Box<dyn Read + Send> = Box::new(ScriptedReader {
-            chunks: vec![big.clone(), b"TAILMARK".to_vec()].into_iter().collect(),
+            chunks: vec![big.clone(), b"TAILMARK".to_vec()]
+                .into_iter()
+                .collect(),
         });
         let (tx, mut rx) = broadcast::channel::<PtyOutput>(1024);
         let scrollback = Arc::new(Mutex::new(Scrollback::new(cap)));
         let bytes_read = Arc::new(AtomicU64::new(0));
 
-        pump_reader(reader, tx.clone(), Arc::clone(&scrollback), Arc::clone(&bytes_read));
+        pump_reader(
+            reader,
+            tx.clone(),
+            Arc::clone(&scrollback),
+            Arc::clone(&bytes_read),
+            None,
+        );
 
         let sb = scrollback.lock().unwrap();
-        assert!(sb.truncated, "flood beyond cap must set the truncation flag");
+        assert!(
+            sb.truncated,
+            "flood beyond cap must set the truncation flag"
+        );
         let snap = sb.snapshot();
         assert!(
             snap.starts_with(TRUNCATION_MARKER),
@@ -846,8 +995,15 @@ mod tests {
         );
         // The most-recent bytes (the tail) survive the cap.
         let payload = &snap[TRUNCATION_MARKER.len()..];
-        assert!(payload.ends_with(b"TAILMARK"), "newest bytes must be retained");
-        assert_eq!(payload.len(), cap, "retained payload must equal the byte cap");
+        assert!(
+            payload.ends_with(b"TAILMARK"),
+            "newest bytes must be retained"
+        );
+        assert_eq!(
+            payload.len(),
+            cap,
+            "retained payload must equal the byte cap"
+        );
 
         // Broadcast still delivered BOTH chunks despite the scrollback cap.
         let mut total = 0usize;
@@ -860,7 +1016,131 @@ mod tests {
                 }
             }
         }
-        assert_eq!(total, big.len() + b"TAILMARK".len(), "broadcast is not capped");
-        assert!(saw_tail, "broadcast must deliver the tail chunk even under flood");
+        assert_eq!(
+            total,
+            big.len() + b"TAILMARK".len(),
+            "broadcast is not capped"
+        );
+        assert!(
+            saw_tail,
+            "broadcast must deliver the tail chunk even under flood"
+        );
+    }
+
+    struct RecordingWriter {
+        bytes: Arc<Mutex<Vec<u8>>>,
+    }
+
+    impl Write for RecordingWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.bytes.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn pump_reader_answers_and_filters_cursor_position_query() {
+        let written = Arc::new(Mutex::new(Vec::new()));
+        let writer: Arc<Mutex<Option<Box<dyn Write + Send>>>> =
+            Arc::new(Mutex::new(Some(Box::new(RecordingWriter {
+                bytes: Arc::clone(&written),
+            }))));
+        let reader: Box<dyn Read + Send> = Box::new(ScriptedReader {
+            chunks: vec![b"before".to_vec(), b"\x1b[6".to_vec(), b"nafter".to_vec()]
+                .into_iter()
+                .collect(),
+        });
+        let (tx, mut rx) = broadcast::channel::<PtyOutput>(64);
+        let scrollback = Arc::new(Mutex::new(Scrollback::new(DEFAULT_SCROLLBACK_BYTES)));
+        let bytes_read = Arc::new(AtomicU64::new(0));
+
+        pump_reader(
+            reader,
+            tx,
+            Arc::clone(&scrollback),
+            Arc::clone(&bytes_read),
+            Some(DeviceStatusResponder::new(writer)),
+        );
+
+        assert_eq!(
+            written.lock().unwrap().as_slice(),
+            DSR_CURSOR_POSITION_RESPONSE
+        );
+        let snap = scrollback.lock().unwrap().snapshot();
+        let text = String::from_utf8_lossy(&snap);
+        assert_eq!(text, "beforeafter");
+        assert!(
+            !snap
+                .windows(DSR_CURSOR_POSITION_QUERY.len())
+                .any(|window| window == DSR_CURSOR_POSITION_QUERY),
+            "DSR query must not leak into scrollback"
+        );
+        assert_eq!(
+            bytes_read.load(Ordering::Acquire),
+            b"before\x1b[6nafter".len() as u64,
+            "drain progress must count raw bytes read, including filtered DSR"
+        );
+
+        let mut received = Vec::new();
+        while let Ok(item) = rx.try_recv() {
+            if let PtyOutput::Chunk(chunk) = item {
+                received.extend_from_slice(&chunk);
+            }
+        }
+        assert_eq!(String::from_utf8_lossy(&received), "beforeafter");
+    }
+
+    #[test]
+    fn pump_reader_only_answers_startup_cursor_position_query() {
+        let written = Arc::new(Mutex::new(Vec::new()));
+        let writer: Arc<Mutex<Option<Box<dyn Write + Send>>>> =
+            Arc::new(Mutex::new(Some(Box::new(RecordingWriter {
+                bytes: Arc::clone(&written),
+            }))));
+        let reader: Box<dyn Read + Send> = Box::new(ScriptedReader {
+            chunks: vec![
+                DSR_CURSOR_POSITION_QUERY.to_vec(),
+                b"after-startup".to_vec(),
+                DSR_CURSOR_POSITION_QUERY.to_vec(),
+            ]
+            .into_iter()
+            .collect(),
+        });
+        let (tx, mut rx) = broadcast::channel::<PtyOutput>(64);
+        let scrollback = Arc::new(Mutex::new(Scrollback::new(DEFAULT_SCROLLBACK_BYTES)));
+        let bytes_read = Arc::new(AtomicU64::new(0));
+
+        pump_reader(
+            reader,
+            tx,
+            Arc::clone(&scrollback),
+            Arc::clone(&bytes_read),
+            Some(DeviceStatusResponder::new(writer)),
+        );
+
+        assert_eq!(
+            written.lock().unwrap().as_slice(),
+            DSR_CURSOR_POSITION_RESPONSE
+        );
+        let snap = scrollback.lock().unwrap().snapshot();
+        assert_eq!(String::from_utf8_lossy(&snap), "after-startup\u{1b}[6n");
+        assert_eq!(
+            bytes_read.load(Ordering::Acquire),
+            (DSR_CURSOR_POSITION_QUERY.len()
+                + b"after-startup".len()
+                + DSR_CURSOR_POSITION_QUERY.len()) as u64
+        );
+
+        let mut received = Vec::new();
+        while let Ok(item) = rx.try_recv() {
+            if let PtyOutput::Chunk(chunk) = item {
+                received.extend_from_slice(&chunk);
+            }
+        }
+        assert_eq!(String::from_utf8_lossy(&received), "after-startup\u{1b}[6n");
     }
 }

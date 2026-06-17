@@ -25,18 +25,24 @@
 //! CRDT service while staying byte-compatible with the bundled frontend
 //! stack (MT-078 proves the no-external-relay posture).
 
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
+
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::Database;
 
 use super::actor_site::{
-    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdError, KnowledgeActorIdV1,
+    KnowledgeActorIdError, KnowledgeActorIdV1, derive_knowledge_site_id, knowledge_crdt_identity,
 };
 use super::persistence::{
-    new_crdt_update_record, sha256_hex, CrdtReplayMetadataV1, CrdtUpdateRecordInputV1,
-    CrdtUpdateRecordV1,
+    CrdtReplayMetadataV1, CrdtUpdateRecordInputV1, CrdtUpdateRecordV1, new_crdt_update_record,
+    sha256_hex,
 };
 use super::state_vector::{
     KnowledgeStateVectorOrdering, KnowledgeStateVectorParseError, KnowledgeStateVectorV1,
@@ -48,6 +54,29 @@ pub const YJS_PUSH_DENIAL_SCHEMA_ID: &str = "hsk.kernel.knowledge_yjs_push_denia
 
 fn b64() -> base64::engine::general_purpose::GeneralPurpose {
     base64::engine::general_purpose::STANDARD
+}
+
+type DocumentPushLocks = Mutex<HashMap<String, Arc<Mutex<()>>>>;
+
+fn document_push_locks() -> &'static DocumentPushLocks {
+    static LOCKS: OnceLock<DocumentPushLocks> = OnceLock::new();
+    LOCKS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+// The Handshake backend is the loopback CRDT ingress point. Serializing one
+// document inside the process keeps same-base pushes from producing orphaned
+// EventLedger update events before the PostgreSQL sequence index rejects a
+// loser. The DB uniqueness constraint remains the cross-process backstop.
+async fn push_lock_for_document(envelope: &YjsUpdateEnvelopeV1) -> Arc<Mutex<()>> {
+    let key = format!(
+        "{}\u{0}{}\u{0}{}",
+        envelope.workspace_id, envelope.document_id, envelope.crdt_document_id
+    );
+    let mut locks = document_push_locks().lock().await;
+    locks
+        .entry(key)
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone()
 }
 
 /// One Yjs update crossing the frontend/backend boundary.
@@ -125,7 +154,10 @@ impl std::fmt::Display for YjsEnvelopeValidationError {
                 "envelope schema id '{found}' is not {YJS_UPDATE_ENVELOPE_SCHEMA_ID}"
             ),
             Self::WrongEncoding { found } => {
-                write!(f, "envelope encoding '{found}' is not {YJS_UPDATE_ENCODING_V1}")
+                write!(
+                    f,
+                    "envelope encoding '{found}' is not {YJS_UPDATE_ENCODING_V1}"
+                )
             }
             Self::ActorIdInvalid { error } => write!(f, "actor id invalid: {error}"),
             Self::SiteIdMismatch { expected, found } => write!(
@@ -494,6 +526,8 @@ pub async fn push_yjs_update(
             });
         }
     };
+    let document_push_lock = push_lock_for_document(envelope).await;
+    let _document_push_guard = document_push_lock.lock().await;
 
     let records = db
         .list_kernel_crdt_updates(

@@ -45,8 +45,6 @@ const OverviewSection: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     getAtelierOverview()
       .then((overview) => {
         if (!cancelled) {
@@ -162,7 +160,6 @@ const IntakeSection: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     listAtelierIntakeBatches()
       .then((data) => {
         if (!cancelled) {
@@ -332,8 +329,6 @@ const CommandCorpusSection: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     listAtelierCommandCorpus()
       .then((data) => {
         if (!cancelled) {
@@ -400,8 +395,6 @@ const StealthWindowsSection: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     listAtelierStealthWindows({ actor_id: ATELIER_PANEL_ACTOR_ID })
       .then((data) => {
         if (!cancelled) {

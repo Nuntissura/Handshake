@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
 
 use super::dcc_projection::{
-    DccCapabilityRowV1, DccDenialSummaryV1, DccPromotionSummaryV1, DccSandboxOutcome,
-    DccSandboxProjectionV1, DccValidationSummaryV1, DCC_SANDBOX_PROJECTION_FAMILY_ID,
+    DCC_SANDBOX_PROJECTION_FAMILY_ID, DccCapabilityRowV1, DccDenialSummaryV1,
+    DccPromotionSummaryV1, DccSandboxOutcome, DccSandboxProjectionV1, DccValidationSummaryV1,
 };
 use super::denial::SandboxDenialRecordV1;
 use super::policy::{CapabilityDecision, SandboxCapability, SandboxPolicyV1};
@@ -224,12 +224,16 @@ mod tests {
         };
         let projection = reconstruct_projection(inputs);
         assert_eq!(projection.artifact_classes_in_view.len(), 2);
-        assert!(projection
-            .artifact_classes_in_view
-            .contains(&Kb003ArtifactClass::SandboxLog));
-        assert!(projection
-            .artifact_classes_in_view
-            .contains(&Kb003ArtifactClass::PromotionReceipt));
+        assert!(
+            projection
+                .artifact_classes_in_view
+                .contains(&Kb003ArtifactClass::SandboxLog)
+        );
+        assert!(
+            projection
+                .artifact_classes_in_view
+                .contains(&Kb003ArtifactClass::PromotionReceipt)
+        );
     }
 
     #[test]

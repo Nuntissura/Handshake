@@ -16,13 +16,14 @@ mod user_manual_support;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use handshake_core::model_manual::{model_manual, render_model_manual_markdown};
 use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
 use handshake_core::user_manual::migration_plan::naming_migration_plan;
 use handshake_core::user_manual::registry::wp009_surface_registry;
 use handshake_core::user_manual::seed::{corpus_hash, ensure_seeded, seed_corpus};
 use handshake_core::user_manual::store::UserManualStore;
 use handshake_core::user_manual::USER_MANUAL_VERSION;
-use sqlx::{Connection, Row};
+use sqlx::Connection;
 
 // ---------------------------------------------------------------------------
 // MT-193: the naming migration plan is complete and deterministic.
@@ -70,12 +71,97 @@ fn mt193_every_legacy_model_manual_file_is_plan_covered() {
         let repo_rel = format!("src/backend/handshake_core/{rel}");
         let covered = plan.rows.iter().any(|row| {
             repo_rel.starts_with(row.legacy_path.trim_end_matches('/'))
-                || row.legacy_path.trim_end_matches('/').ends_with(rel.as_str())
+                || row
+                    .legacy_path
+                    .trim_end_matches('/')
+                    .ends_with(rel.as_str())
         });
         assert!(
             covered,
             "legacy file {repo_rel} has NO naming-migration plan row (MT-193): \
              add a PlanRow before introducing new model_manual surfaces"
+        );
+    }
+}
+
+/// MT-193: the legacy generated projection may remain only as a compatibility
+/// projection. It must not tell no-context readers that ModelManual is still
+/// the canonical authority.
+#[test]
+fn mt193_generated_model_manual_projection_names_usermanual_authority() {
+    fn has_stale_manual_version_phrase(haystack: &str, phrase: &str) -> bool {
+        let mut offset = 0;
+        while let Some(relative) = haystack[offset..].find(phrase) {
+            let index = offset + relative;
+            let has_user_prefix = index >= 5 && &haystack[index - 5..index] == "USER_";
+            if !has_user_prefix {
+                return true;
+            }
+            offset = index + phrase.len();
+        }
+        false
+    }
+
+    let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = crate_root
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("crate is under repo/src/backend/handshake_core");
+    let projection = std::fs::read_to_string(repo_root.join("app/MODEL_MANUAL.md"))
+        .expect("read generated legacy projection");
+
+    assert!(
+        projection.contains(
+            "This legacy ModelManual projection is a compatibility artifact. UserManual is canonical."
+        ),
+        "legacy projection must name UserManual as canonical authority"
+    );
+    assert!(
+        !projection.contains("The Rust ModelManual manifest remains canonical."),
+        "legacy projection still claims ModelManual is canonical"
+    );
+    assert!(
+        projection
+            .contains("HBR-MAN-001 requires every wired surface diff to update UserManual content"),
+        "legacy HBR-MAN wording must point at UserManual"
+    );
+    let stale_hbr_phrases = [
+        "without a MANUAL_VERSION bump",
+        "wired-surface diff without a MANUAL_VERSION bump",
+        "MANUAL_VERSION not bumped",
+        "MANUAL_VERSION not bumped after a wired-surface diff",
+        "Bump MANUAL_VERSION in the same commit as the wired-surface diff",
+        "current MANUAL_VERSION",
+        "Confirm MANUAL_VERSION was bumped on the wired-surface diff",
+    ];
+    for phrase in stale_hbr_phrases {
+        assert!(
+            !has_stale_manual_version_phrase(&projection, phrase),
+            "legacy projection still carries stale HBR-MAN-001 guidance: {phrase}"
+        );
+    }
+
+    let rendered = render_model_manual_markdown(model_manual());
+    assert!(
+        rendered.contains(
+            "This legacy ModelManual projection is a compatibility artifact. UserManual is canonical."
+        ),
+        "legacy projection generator must name UserManual as canonical authority"
+    );
+    assert!(
+        !rendered.contains("The Rust ModelManual manifest remains canonical."),
+        "legacy projection generator still claims ModelManual is canonical"
+    );
+    assert!(
+        rendered
+            .contains("HBR-MAN-001 requires every wired surface diff to update UserManual content"),
+        "legacy source constraint must point at UserManual before regeneration"
+    );
+    for phrase in stale_hbr_phrases {
+        assert!(
+            !has_stale_manual_version_phrase(&rendered, phrase),
+            "legacy projection generator still carries stale HBR-MAN-001 guidance: {phrase}"
         );
     }
 }
@@ -98,10 +184,8 @@ async fn mt193_every_legacy_alias_resolves_to_canonical() {
         "expected at least the 3 Tauri + 3 IPC legacy aliases, got {}",
         aliases.len()
     );
-    let registered_routes: BTreeSet<&str> = wp009_surface_registry()
-        .iter()
-        .map(|s| s.route)
-        .collect();
+    let registered_routes: BTreeSet<&str> =
+        wp009_surface_registry().iter().map(|s| s.route).collect();
     for alias in &aliases {
         match alias.canonical_kind.as_str() {
             "route" => assert!(
@@ -132,7 +216,9 @@ async fn mt193_every_legacy_alias_resolves_to_canonical() {
             ),
             other => panic!("unknown canonical_kind {other}"),
         }
-        assert!(alias.deprecation_note.contains("Deprecated since UserManual"));
+        assert!(alias
+            .deprecation_note
+            .contains("Deprecated since UserManual"));
     }
     // The exact legacy callables stay mapped.
     let names: BTreeSet<&str> = aliases.iter().map(|a| a.alias.as_str()).collect();
@@ -191,8 +277,15 @@ async fn mt194_seed_is_idempotent_and_receipted() {
         "mt194_seed_idempotent"
     );
     let first = ensure_seeded(&kpg.db).await.expect("first seed");
-    assert_eq!(first.pages_changed, first.pages_total, "first seed writes all pages");
-    assert!(first.tools_total > 100, "registry + legacy catalog expected (got {})", first.tools_total);
+    assert_eq!(
+        first.pages_changed, first.pages_total,
+        "first seed writes all pages"
+    );
+    assert!(
+        first.tools_total > 100,
+        "registry + legacy catalog expected (got {})",
+        first.tools_total
+    );
     assert!(first.version_receipt_event_id.is_some());
 
     let mut conn = kpg.raw_connection().await;
@@ -210,10 +303,16 @@ async fn mt194_seed_is_idempotent_and_receipted() {
     );
 
     let second = ensure_seeded(&kpg.db).await.expect("second seed");
-    assert_eq!(second.pages_changed, 0, "re-seed must short-circuit on content hash");
+    assert_eq!(
+        second.pages_changed, 0,
+        "re-seed must short-circuit on content hash"
+    );
     assert_eq!(second.tools_changed, 0);
     assert_eq!(second.features_changed, 0);
-    assert!(second.version_receipt_event_id.is_none(), "no-change reseed must not receipt");
+    assert!(
+        second.version_receipt_event_id.is_none(),
+        "no-change reseed must not receipt"
+    );
 
     let receipts_after_second: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM kernel_event_ledger WHERE event_type = 'KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED'",
@@ -221,7 +320,10 @@ async fn mt194_seed_is_idempotent_and_receipted() {
     .fetch_one(&mut conn)
     .await
     .expect("ledger count 2");
-    assert_eq!(receipts_after_first, receipts_after_second, "idempotent reseed appended receipts");
+    assert_eq!(
+        receipts_after_first, receipts_after_second,
+        "idempotent reseed appended receipts"
+    );
     conn.close().await.ok();
 }
 
@@ -247,14 +349,16 @@ async fn mt194_seed_records_version_metadata() {
     let receipt_id = version.ledger_event_id.expect("version receipt id");
 
     let mut conn = kpg.raw_connection().await;
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = $1)",
-    )
-    .bind(&receipt_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("receipt lookup");
-    assert!(exists, "version receipt {receipt_id} not in kernel_event_ledger");
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = $1)")
+            .bind(&receipt_id)
+            .fetch_one(&mut conn)
+            .await
+            .expect("receipt lookup");
+    assert!(
+        exists,
+        "version receipt {receipt_id} not in kernel_event_ledger"
+    );
     conn.close().await.ok();
 }
 
@@ -276,7 +380,10 @@ async fn mt194_sections_ordered_and_tampered_children_heal() {
     assert_eq!(page.manual_version, USER_MANUAL_VERSION);
     assert!(!sections.is_empty());
     for (index, section) in sections.iter().enumerate() {
-        assert_eq!(section.position as usize, index, "sections must come back ordered");
+        assert_eq!(
+            section.position as usize, index,
+            "sections must come back ordered"
+        );
     }
     assert!(!anchors.is_empty());
 
@@ -290,7 +397,10 @@ async fn mt194_sections_ordered_and_tampered_children_heal() {
     conn.close().await.ok();
 
     let report = ensure_seeded(&kpg.db).await.expect("healing reseed");
-    assert!(report.pages_changed >= 1, "reseed must heal the gutted page");
+    assert!(
+        report.pages_changed >= 1,
+        "reseed must heal the gutted page"
+    );
     let (_, healed_sections, _) = store
         .get_page_by_slug("manual-toc")
         .await
@@ -382,13 +492,118 @@ async fn mt195_uncovered_surface_detection_fires() {
     // Healing: reseed restores coverage (page hash unchanged but anchors
     // missing -> child-count check forces the rewrite).
     ensure_seeded(&kpg.db).await.expect("healing reseed");
-    let healed = check_freshness(&kpg.db).await.expect("freshness after heal");
+    let healed = check_freshness(&kpg.db)
+        .await
+        .expect("freshness after heal");
     assert!(
         !healed
             .verdicts
             .iter()
             .any(|v| v.kind == FreshnessVerdictKind::UncoveredSurface),
         "reseed must restore registry coverage"
+    );
+}
+
+/// MT-204: freshness covers the full seed corpus, not just page rows. Tool,
+/// feature, and legacy-alias row tampering must be visible because those rows
+/// are operator/model navigation authority too.
+#[tokio::test]
+async fn mt204_freshness_detects_non_page_corpus_tampering() {
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "mt204_non_page_tamper"
+    );
+    ensure_seeded(&kpg.db).await.expect("seed");
+
+    let corpus = seed_corpus();
+    let tool_id = corpus
+        .tools
+        .first()
+        .expect("seed has tool entries")
+        .tool_id
+        .clone();
+    let feature_id = corpus
+        .features
+        .first()
+        .expect("seed has feature entries")
+        .feature_id
+        .clone();
+    let alias = corpus
+        .aliases
+        .first()
+        .expect("seed has legacy aliases")
+        .alias
+        .clone();
+
+    let mut conn = kpg.raw_connection().await;
+    sqlx::query("UPDATE user_manual_tool_entries SET description = 'tampered visible tool description' WHERE tool_id = $1")
+        .bind(&tool_id)
+        .execute(&mut conn)
+        .await
+        .expect("tamper tool content");
+    sqlx::query("UPDATE user_manual_feature_entries SET description = 'tampered visible feature description' WHERE feature_id = $1")
+        .bind(&feature_id)
+        .execute(&mut conn)
+        .await
+        .expect("tamper feature content");
+    sqlx::query(
+        "UPDATE user_manual_legacy_aliases SET canonical_ref = 'tampered-alias-target' WHERE alias = $1",
+    )
+    .bind(&alias)
+    .execute(&mut conn)
+    .await
+    .expect("tamper alias target");
+    conn.close().await.ok();
+
+    let report = check_freshness(&kpg.db).await.expect("freshness");
+    assert!(
+        !report.fresh,
+        "non-page corpus tampering must make the manual stale"
+    );
+    assert!(
+        report
+            .verdicts
+            .iter()
+            .any(|v| v.kind == FreshnessVerdictKind::StaleToolEntry && v.subject == tool_id),
+        "tampered tool entry must yield stale_tool_entry; got {:?}",
+        report.verdicts
+    );
+    assert!(
+        report.verdicts.iter().any(|v| {
+            v.kind == FreshnessVerdictKind::StaleFeatureEntry && v.subject == feature_id
+        }),
+        "tampered feature entry must yield stale_feature_entry; got {:?}",
+        report.verdicts
+    );
+    assert!(
+        report
+            .verdicts
+            .iter()
+            .any(|v| v.kind == FreshnessVerdictKind::StaleLegacyAlias && v.subject == alias),
+        "tampered alias row must yield stale_legacy_alias; got {:?}",
+        report.verdicts
+    );
+
+    let healed = ensure_seeded(&kpg.db).await.expect("healing reseed");
+    assert!(
+        healed.tools_changed >= 1,
+        "reseed must heal visible tool row drift even when content_hash was unchanged"
+    );
+    assert!(
+        healed.features_changed >= 1,
+        "reseed must heal visible feature row drift even when content_hash was unchanged"
+    );
+    assert!(
+        healed.aliases_changed >= 1,
+        "reseed must heal visible alias row drift"
+    );
+    let fresh = check_freshness(&kpg.db)
+        .await
+        .expect("freshness after heal");
+    assert!(
+        fresh.fresh,
+        "reseed must restore full corpus freshness: {:?}",
+        fresh.verdicts
     );
 }
 
@@ -410,7 +625,11 @@ async fn mt194_search_is_bounded_and_literal() {
         .expect("nonsense search");
     assert!(nonsense.is_empty());
 
-    let pages_total = store.list_pages(None, None, 500).await.expect("pages").len();
+    let pages_total = store
+        .list_pages(None, None, 500)
+        .await
+        .expect("pages")
+        .len();
     let wildcard = store.search("%", 500).await.expect("wildcard search");
     assert!(
         wildcard.len() < pages_total,

@@ -33,8 +33,10 @@ function makeSession(over: Partial<TerminalSession>): TerminalSession {
 function makeIpc(sessions: TerminalSession[]): TerminalIpc {
   const snap: ScrollbackSnapshot = { sessionId: "s1", seq: 0, chunkBase64: "", truncated: false };
   return {
+    getContext: vi.fn(async () => ({ cwd: "D:/resolved-root", defaultShell: null })),
     listSessions: vi.fn(async () => sessions),
     createSession: vi.fn(async () => sessions[0]),
+    authorizeInteractive: vi.fn(async () => {}),
     writeStdin: vi.fn(async () => {}),
     resizeSession: vi.fn(async () => {}),
     closeSession: vi.fn(async () => {}),
@@ -86,6 +88,127 @@ describe("TerminalPanel", () => {
     expect(screen.getByTestId("terminal-tab-s1")).toBeInTheDocument();
   });
 
+  it("creates a new HumanDev terminal with the workspace root cwd and selects it", async () => {
+    const created = makeSession({ sessionId: "s-new", title: "Terminal" });
+    const ipc = makeIpc([makeSession({ sessionId: "s1", title: "human shell" })]);
+    vi.mocked(ipc.createSession).mockResolvedValueOnce(created);
+    const { renderTerminal } = makeRenderRecorder();
+    render(
+      <TerminalPanel
+        ipc={ipc}
+        renderTerminal={renderTerminal}
+        defaultOpen
+        workspaceRoot="D:/repo"
+        defaultShell="pwsh"
+      />,
+    );
+
+    await screen.findByTestId("terminal-panel-active");
+    fireEvent.click(screen.getByTestId("terminal-new-session"));
+
+    await waitFor(() => expect(ipc.createSession).toHaveBeenCalledWith({
+      sessionType: "HumanDev",
+      shell: "pwsh",
+      cwd: "D:/repo",
+      title: "Terminal",
+    }));
+    expect(await screen.findByTestId("terminal-tab-s-new")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "s-new");
+  });
+
+  it("creates a new HumanDev terminal with the IPC terminal context cwd when props are omitted", async () => {
+    const created = makeSession({ sessionId: "s-new", title: "Terminal" });
+    const ipc = makeIpc([makeSession({ sessionId: "s1", title: "human shell" })]);
+    vi.mocked(ipc.createSession).mockResolvedValueOnce(created);
+    const { renderTerminal } = makeRenderRecorder();
+    render(<TerminalPanel ipc={ipc} renderTerminal={renderTerminal} defaultOpen />);
+
+    await screen.findByTestId("terminal-panel-active");
+    fireEvent.click(screen.getByTestId("terminal-new-session"));
+
+    await waitFor(() => expect(ipc.getContext).toHaveBeenCalled());
+    await waitFor(() => expect(ipc.createSession).toHaveBeenCalledWith({
+      sessionType: "HumanDev",
+      cwd: "D:/resolved-root",
+      title: "Terminal",
+    }));
+    expect(await screen.findByTestId("terminal-tab-s-new")).toBeInTheDocument();
+  });
+
+  it("closes the active terminal tab through IPC and selects a remaining tab", async () => {
+    const ipc = makeIpc([
+      makeSession({ sessionId: "s1", title: "first" }),
+      makeSession({ sessionId: "s2", title: "second" }),
+    ]);
+    const { renderTerminal } = makeRenderRecorder();
+    render(<TerminalPanel ipc={ipc} renderTerminal={renderTerminal} defaultOpen />);
+
+    await screen.findByTestId("terminal-tab-s1");
+    fireEvent.click(screen.getByTestId("terminal-tab-s2"));
+    expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "s2");
+
+    fireEvent.click(screen.getByTestId("terminal-close-session"));
+
+    await waitFor(() => expect(ipc.closeSession).toHaveBeenCalledWith("s2"));
+    expect(screen.queryByTestId("terminal-tab-s2")).not.toBeInTheDocument();
+    expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "s1");
+  });
+
+  it("does not allow Close on captured non-HumanDev sessions", async () => {
+    const ipc = makeIpc([
+      makeSession({
+        sessionId: "capture-1",
+        sessionType: "AiJob",
+        title: "captured ai job",
+        interactiveAllowed: true,
+      }),
+    ]);
+    const { renderTerminal } = makeRenderRecorder();
+    render(<TerminalPanel ipc={ipc} renderTerminal={renderTerminal} defaultOpen />);
+
+    await screen.findByTestId("terminal-panel-active");
+    const close = screen.getByTestId("terminal-close-session");
+
+    expect(close).toBeDisabled();
+    fireEvent.click(close);
+
+    expect(ipc.closeSession).not.toHaveBeenCalled();
+    expect(screen.getByTestId("terminal-tab-capture-1")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "capture-1");
+  });
+
+  it("restarts the active HumanDev terminal by closing then recreating it", async () => {
+    const restarted = makeSession({ sessionId: "s-restart", title: "dev shell" });
+    const ipc = makeIpc([makeSession({ sessionId: "s1", title: "dev shell" })]);
+    vi.mocked(ipc.createSession).mockResolvedValueOnce(restarted);
+    const { renderTerminal } = makeRenderRecorder();
+    render(
+      <TerminalPanel
+        ipc={ipc}
+        renderTerminal={renderTerminal}
+        defaultOpen
+        workspaceRoot="D:/repo"
+        defaultShell="pwsh"
+      />,
+    );
+
+    await screen.findByTestId("terminal-panel-active");
+    fireEvent.click(screen.getByTestId("terminal-restart-session"));
+
+    await waitFor(() => expect(ipc.closeSession).toHaveBeenCalledWith("s1"));
+    expect(ipc.createSession).toHaveBeenCalledWith({
+      sessionType: "HumanDev",
+      shell: "pwsh",
+      cwd: "D:/repo",
+      title: "dev shell",
+    });
+    expect(vi.mocked(ipc.closeSession).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(ipc.createSession).mock.invocationCallOrder[0],
+    );
+    expect(await screen.findByTestId("terminal-tab-s-restart")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "s-restart");
+  });
+
   it("renders an AiJob tab READ-ONLY by default and only interactive after Take control", async () => {
     const ipc = makeIpc([makeSession({ sessionType: "AiJob", title: "captured cloud cli", interactiveAllowed: true })]);
     const { calls, renderTerminal } = makeRenderRecorder();
@@ -102,9 +225,27 @@ describe("TerminalPanel", () => {
     // Flip Take control -> interactive.
     fireEvent.click(screen.getByTestId("terminal-take-control-checkbox"));
 
+    await waitFor(() => expect(ipc.authorizeInteractive).toHaveBeenCalledWith("s1"));
     await waitFor(() => expect(screen.getByTestId("terminal-interactive-badge")).toBeInTheDocument());
     expect(screen.getByTestId("fake-term-s1")).toHaveAttribute("data-readonly", "false");
     expect(calls[calls.length - 1]).toEqual({ sessionId: "s1", readOnly: false });
+  });
+
+  it("keeps a captured session read-only when Take control authorization fails", async () => {
+    const ipc = makeIpc([makeSession({ sessionType: "AiJob", title: "captured cloud cli", interactiveAllowed: true })]);
+    vi.mocked(ipc.authorizeInteractive).mockRejectedValueOnce(new Error("capability denied"));
+    const { calls, renderTerminal } = makeRenderRecorder();
+    render(<TerminalPanel ipc={ipc} renderTerminal={renderTerminal} />);
+    fireEvent.click(screen.getByTestId("disclosure-terminal-toggle"));
+
+    await screen.findByTestId("terminal-panel-active");
+    fireEvent.click(screen.getByTestId("terminal-take-control-checkbox"));
+
+    await waitFor(() => expect(ipc.authorizeInteractive).toHaveBeenCalledWith("s1"));
+    expect(await screen.findByTestId("terminal-panel-error")).toHaveTextContent("capability denied");
+    expect(screen.getByTestId("terminal-readonly-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("fake-term-s1")).toHaveAttribute("data-readonly", "true");
+    expect(calls[calls.length - 1]).toEqual({ sessionId: "s1", readOnly: true });
   });
 
   it("disables Take control for an AiJob session the backend has NOT granted (honest-disabled, never faked)", async () => {
@@ -133,6 +274,28 @@ describe("TerminalPanel", () => {
     expect(screen.getByTestId("terminal-interactive-badge")).toBeInTheDocument();
     expect(screen.queryByTestId("terminal-take-control")).not.toBeInTheDocument();
     expect(screen.getByTestId("fake-term-s1")).toHaveAttribute("data-readonly", "false");
+  });
+
+  it("renders an exited HumanDev session as read-only inspection state", async () => {
+    const ipc = makeIpc([
+      makeSession({
+        sessionType: "HumanDev",
+        interactiveAllowed: true,
+        exited: true,
+        exitCode: 0,
+      }),
+    ]);
+    const { calls, renderTerminal } = makeRenderRecorder();
+    render(<TerminalPanel ipc={ipc} renderTerminal={renderTerminal} />);
+    fireEvent.click(screen.getByTestId("disclosure-terminal-toggle"));
+
+    await screen.findByTestId("terminal-panel-active");
+    expect(screen.getByTestId("terminal-tab-exited-s1")).toHaveTextContent("exited (0)");
+    expect(screen.getByTestId("terminal-readonly-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("terminal-interactive-badge")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("terminal-take-control")).not.toBeInTheDocument();
+    expect(screen.getByTestId("fake-term-s1")).toHaveAttribute("data-readonly", "true");
+    expect(calls[calls.length - 1]).toEqual({ sessionId: "s1", readOnly: true });
   });
 
   it("switches the active session on tab click", async () => {

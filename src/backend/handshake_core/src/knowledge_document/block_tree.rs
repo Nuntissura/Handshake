@@ -7,9 +7,9 @@
 //! JSON:
 //!
 //! * [`BlockKind`] enumerates every supported block type (MT-146): paragraph,
-//!   heading, list (bullet/ordered/task), quote, code, table, image, video,
-//!   album, slideshow, and the typed link blocks file/folder/project/spec/wp/
-//!   symbol.
+//!   heading, list (bullet/ordered/task), quote, code (`codeBlock` and the
+//!   editor's `monacoCodeBlock` node), table, image, video, album, slideshow,
+//!   and the typed link blocks file/folder/project/spec/wp/symbol.
 //! * [`RawDerivedDisplay`] (MT-147, CX-100) carries the three separated layers
 //!   on every block: RAW authority content, DERIVED (summaries/previews
 //!   regenerated from raw), and DISPLAY (display-only UI hints). Only RAW is
@@ -124,6 +124,7 @@ impl BlockKind {
             "taskList" => Self::TaskList,
             "blockquote" => Self::Blockquote,
             "codeBlock" => Self::CodeBlock,
+            "monacoCodeBlock" => Self::CodeBlock,
             "table" => Self::Table,
             "image" => Self::Image,
             "video" => Self::Video,
@@ -413,6 +414,29 @@ pub fn extract_plain_text(node: &Value) -> String {
             .to_string();
     }
     let node_type = obj.get("type").and_then(Value::as_str).unwrap_or("");
+    if node_type == "monacoCodeBlock" {
+        return obj
+            .get("attrs")
+            .and_then(Value::as_object)
+            .and_then(|attrs| attrs.get("code"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+    }
+    if matches!(node_type, "hsLink" | "mention" | "tagMention") {
+        return obj
+            .get("attrs")
+            .and_then(Value::as_object)
+            .and_then(|attrs| {
+                attrs
+                    .get("label")
+                    .and_then(Value::as_str)
+                    .or_else(|| attrs.get("refValue").and_then(Value::as_str))
+                    .or_else(|| attrs.get("id").and_then(Value::as_str))
+            })
+            .unwrap_or("")
+            .to_string();
+    }
     let Some(children) = obj.get("content").and_then(Value::as_array) else {
         return String::new();
     };
@@ -456,6 +480,7 @@ mod tests {
             "taskList",
             "blockquote",
             "codeBlock",
+            "monacoCodeBlock",
             "table",
             "image",
             "video",
@@ -512,6 +537,52 @@ mod tests {
             .derived
             .plain_text
             .contains("<table>"));
+        assert_eq!(tree.to_document_json(), doc, "verbatim round-trip");
+    }
+
+    #[test]
+    fn monaco_code_block_nodes_parse_as_code_blocks_and_roundtrip() {
+        // MT-236: the real WP-009 editor saves Monaco-backed code as the
+        // ProseMirror node `monacoCodeBlock`; the backend typed view treats it
+        // as code while preserving the raw authority JSON verbatim.
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "monacoCodeBlock",
+                  "attrs": { "language": "rust", "code": "fn main() {}", "contentHash": "8f7df260" } }
+            ]
+        });
+        let tree = BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc)
+            .expect("monacoCodeBlock documents must be loadable");
+        assert_eq!(tree.blocks.len(), 1);
+        assert_eq!(tree.blocks[0].kind, BlockKind::CodeBlock);
+        assert_eq!(tree.blocks[0].content.derived.plain_text, "fn main() {}");
+        assert_eq!(tree.to_document_json(), doc, "verbatim round-trip");
+    }
+
+    #[test]
+    fn inline_tiptap_nodes_contribute_derived_plain_text() {
+        // MT-236: inline Tiptap atoms must not disappear from the backend
+        // derived view; raw JSON remains authority, but search/projection text
+        // still needs useful labels from attrs.
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "paragraph", "content": [
+                    { "type": "text", "text": "See " },
+                    { "type": "hsLink", "attrs": { "refKind": "wp", "refValue": "WP-KERNEL-009", "label": "Kernel WP" } },
+                    { "type": "text", "text": " by " },
+                    { "type": "mention", "attrs": { "id": "operator-1", "label": "Operator One" } },
+                    { "type": "text", "text": " tag " },
+                    { "type": "tagMention", "attrs": { "id": "tag-fixture", "label": "fixture" } }
+                ] }
+            ]
+        });
+        let tree = BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc).unwrap();
+        let text = &tree.blocks[0].content.derived.plain_text;
+        assert!(text.contains("Kernel WP"));
+        assert!(text.contains("Operator One"));
+        assert!(text.contains("fixture"));
         assert_eq!(tree.to_document_json(), doc, "verbatim round-trip");
     }
 

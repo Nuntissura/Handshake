@@ -3,20 +3,21 @@ use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
     artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdge,
-    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomViewFilters, LoomViewResponse,
-    LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, StorageCapabilityStore,
-    StorageError, WriteContext,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
+    LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
+    NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, QuickSwitcherRecent,
+    QuickSwitcherRecentInput, StorageCapabilityStore, StorageError, WriteContext,
 };
 use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderValue, StatusCode},
     response::Response,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -77,6 +78,10 @@ pub fn routes(state: AppState) -> Router {
             post(create_loom_block),
         )
         .route(
+            "/workspaces/:workspace_id/loom/journals/:journal_date",
+            put(open_daily_journal),
+        )
+        .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id",
             get(get_loom_block)
                 .patch(patch_loom_block)
@@ -127,8 +132,7 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/workspaces/:workspace_id/loom/folders/:folder_id/blocks/:block_id",
-            axum::routing::put(add_block_to_loom_folder)
-                .delete(remove_block_from_loom_folder),
+            axum::routing::put(add_block_to_loom_folder).delete(remove_block_from_loom_folder),
         )
         // MT-184/185: wiki projection compiler + editable overlay.
         // MT-241/242/243 (project wiki compile layer): GET list serves every
@@ -176,7 +180,10 @@ pub fn routes(state: AppState) -> Router {
             post(import_markdown_to_loom),
         )
         // MT-182: tag hubs (tags as first-class blocks) + nested tags
-        .route("/workspaces/:workspace_id/loom/tags", get(list_loom_tag_hubs))
+        .route(
+            "/workspaces/:workspace_id/loom/tags",
+            get(list_loom_tag_hubs),
+        )
         .route(
             "/workspaces/:workspace_id/loom/tags/:tag_block_id",
             get(get_loom_tag_hub),
@@ -237,6 +244,19 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/loom/search",
             get(search_loom_blocks),
+        )
+        // MT-191: bounded backend visual-debug snapshot for Loom navigation state.
+        .route(
+            "/workspaces/:workspace_id/loom/visual-debug",
+            get(loom_visual_debug_snapshot),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/graph-search",
+            get(search_loom_graph),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/quick-switcher/recents",
+            get(list_quick_switcher_recents).post(record_quick_switcher_recent),
         )
         .with_state(state)
 }
@@ -316,6 +336,41 @@ async fn create_loom_block(
     )
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(block))
+}
+
+fn parse_journal_date(raw: &str) -> ApiResult<String> {
+    let parsed = NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+        .map_err(|_| bad_request("HSK-400-LOOM-JOURNAL-DATE"))?;
+    let canonical = parsed.format("%Y-%m-%d").to_string();
+    if canonical != raw {
+        return Err(bad_request("HSK-400-LOOM-JOURNAL-DATE"));
+    }
+    Ok(canonical)
+}
+
+async fn open_daily_journal(
+    State(state): State<AppState>,
+    Path((workspace_id, journal_date)): Path<(String, String)>,
+) -> ApiResult<Json<LoomBlock>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let journal_date = parse_journal_date(&journal_date)?;
+    let ctx = WriteContext::human(None);
+    let block = state
+        .storage
+        .get_or_create_daily_journal_block(&ctx, &workspace_id, &journal_date)
+        .await
+        .map_err(map_storage_error)?;
+
+    // MT-177 authority still applies to the MT-257 daily journal path. The
+    // bridge is idempotent, so repeated opens keep returning the same block
+    // while proving it resolves through ProjectKnowledgeIndex + EventLedger.
+    state
+        .storage
+        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
+        .await
+        .map_err(map_storage_error)?;
 
     Ok(Json(block))
 }
@@ -489,7 +544,9 @@ fn map_wiki_error(err: crate::knowledge_wiki::WikiCompileError) -> ApiError {
 /// Optional caller identity for wiki compile receipts (same `x-hsk-*` headers
 /// as the code-nav API; absent headers fall back to an attributable system
 /// identity so EventLedger receipts are ALWAYS written).
-fn wiki_compile_context(headers: &axum::http::HeaderMap) -> crate::knowledge_wiki::compiler::WikiCompileContext {
+fn wiki_compile_context(
+    headers: &axum::http::HeaderMap,
+) -> crate::knowledge_wiki::compiler::WikiCompileContext {
     fn hdr<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
         headers
             .get(name)
@@ -497,7 +554,9 @@ fn wiki_compile_context(headers: &axum::http::HeaderMap) -> crate::knowledge_wik
             .map(str::trim)
             .filter(|value| !value.is_empty())
     }
-    let actor_id = hdr(headers, "x-hsk-actor-id").unwrap_or("notes-wiki").to_string();
+    let actor_id = hdr(headers, "x-hsk-actor-id")
+        .unwrap_or("notes-wiki")
+        .to_string();
     let actor = match hdr(headers, "x-hsk-actor-kind") {
         Some("operator") => crate::kernel::KernelActor::Operator(actor_id),
         Some("model_adapter") => crate::kernel::KernelActor::ModelAdapter(actor_id),
@@ -1191,6 +1250,9 @@ async fn patch_loom_block(
     if update.pinned.is_some() {
         fields_changed.push("pinned");
     }
+    if update.favorite.is_some() {
+        fields_changed.push("favorite");
+    }
     if update.journal_date.is_some() {
         fields_changed.push("journal_date");
     }
@@ -1767,6 +1829,151 @@ fn split_ids(value: Option<String>) -> Vec<String> {
         .collect()
 }
 
+fn split_source_kinds(value: Option<String>) -> ApiResult<Vec<LoomSearchSourceKind>> {
+    value
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|source_kind| !source_kind.is_empty())
+        .map(|source_kind| {
+            source_kind
+                .parse::<LoomSearchSourceKind>()
+                .map_err(|_| bad_request("HSK-400-LOOM-SOURCE-KIND"))
+        })
+        .collect()
+}
+
+#[derive(Debug, Default)]
+struct LoomSearchOperatorQuery {
+    q: String,
+    tag_ids: Vec<String>,
+    mention_ids: Vec<String>,
+    source_kinds: Vec<LoomSearchSourceKind>,
+    path: Option<String>,
+}
+
+fn unquote_loom_search_operand(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.len() >= 2 && trimmed.starts_with('"') && trimmed.ends_with('"') {
+        trimmed[1..trimmed.len() - 1].to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn split_loom_search_operator_values(value: &str) -> Vec<String> {
+    unquote_loom_search_operand(value)
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) {
+    if !values.contains(&value) {
+        values.push(value);
+    }
+}
+
+fn parse_loom_search_operator_query(raw: &str) -> ApiResult<LoomSearchOperatorQuery> {
+    let mut parsed = LoomSearchOperatorQuery::default();
+    let mut free_text = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+
+    for ch in raw.chars() {
+        if ch == '"' {
+            quoted = !quoted;
+            current.push(ch);
+            continue;
+        }
+        if ch.is_whitespace() && !quoted {
+            if !current.trim().is_empty() {
+                parse_loom_search_operator_token(&current, &mut parsed, &mut free_text)?;
+            }
+            current.clear();
+            continue;
+        }
+        current.push(ch);
+    }
+
+    if !current.trim().is_empty() {
+        parse_loom_search_operator_token(&current, &mut parsed, &mut free_text)?;
+    }
+    parsed.q = free_text.join(" ").trim().to_string();
+    Ok(parsed)
+}
+
+fn parse_loom_search_operator_token(
+    token: &str,
+    parsed: &mut LoomSearchOperatorQuery,
+    free_text: &mut Vec<String>,
+) -> ApiResult<()> {
+    let Some((operator, operand)) = token.split_once(':') else {
+        free_text.push(unquote_loom_search_operand(token));
+        return Ok(());
+    };
+    if operator
+        .chars()
+        .any(|ch| !(ch.is_ascii_alphanumeric() || ch == '_'))
+    {
+        free_text.push(unquote_loom_search_operand(token));
+        return Ok(());
+    }
+
+    match operator.to_ascii_lowercase().as_str() {
+        "tag" => {
+            for value in split_loom_search_operator_values(operand) {
+                let value = value.trim_start_matches('#').to_string();
+                if !value.is_empty() {
+                    push_unique(&mut parsed.tag_ids, value);
+                }
+            }
+        }
+        "mention" => {
+            for value in split_loom_search_operator_values(operand) {
+                push_unique(&mut parsed.mention_ids, value);
+            }
+        }
+        "path" | "folder" => {
+            let path = unquote_loom_search_operand(operand);
+            if !path.trim().is_empty() {
+                parsed.path = Some(path.trim().to_string());
+            }
+        }
+        "kind" => {
+            for value in split_loom_search_operator_values(operand) {
+                let source_kind = value
+                    .parse::<LoomSearchSourceKind>()
+                    .map_err(|_| bad_request("HSK-400-LOOM-SOURCE-KIND"))?;
+                push_unique(&mut parsed.source_kinds, source_kind);
+            }
+        }
+        _ => free_text.push(unquote_loom_search_operand(token)),
+    }
+    Ok(())
+}
+
+fn merge_unique_strings(left: Vec<String>, right: Vec<String>) -> Vec<String> {
+    let mut merged = left;
+    for value in right {
+        push_unique(&mut merged, value);
+    }
+    merged
+}
+
+fn merge_unique_source_kinds(
+    left: Vec<LoomSearchSourceKind>,
+    right: Vec<LoomSearchSourceKind>,
+) -> Vec<LoomSearchSourceKind> {
+    let mut merged = left;
+    for value in right {
+        push_unique(&mut merged, value);
+    }
+    merged
+}
+
 fn clamp_loom_graph_depth(value: Option<u32>) -> u32 {
     value
         .unwrap_or(DEFAULT_LOOM_GRAPH_DEPTH)
@@ -1818,7 +2025,8 @@ fn view_result_count(resp: &LoomViewResponse) -> usize {
     match resp {
         LoomViewResponse::All { blocks }
         | LoomViewResponse::Unlinked { blocks }
-        | LoomViewResponse::Pins { blocks } => blocks.len(),
+        | LoomViewResponse::Pins { blocks }
+        | LoomViewResponse::Favorites { blocks } => blocks.len(),
         LoomViewResponse::Sorted { groups } => groups.iter().map(|g| g.blocks.len()).sum(),
     }
 }
@@ -1829,6 +2037,7 @@ fn parse_view_type(raw: &str) -> Option<LoomViewType> {
         "unlinked" => Some(LoomViewType::Unlinked),
         "sorted" => Some(LoomViewType::Sorted),
         "pins" => Some(LoomViewType::Pins),
+        "favorites" => Some(LoomViewType::Favorites),
         _ => None,
     }
 }
@@ -2074,9 +2283,33 @@ struct LoomSearchQueryParams {
     #[serde(default)]
     backlink_depth: Option<u32>,
     #[serde(default)]
+    source_kinds: Option<String>,
+    #[serde(default)]
+    case_sensitive: Option<bool>,
+    #[serde(default)]
+    whole_word: Option<bool>,
+    #[serde(default, rename = "regex")]
+    is_regex: Option<bool>,
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
     limit: Option<u32>,
     #[serde(default)]
     offset: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LoomVisualDebugQueryParams {
+    start_block_id: Option<String>,
+    q: Option<String>,
+    #[serde(default)]
+    limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct QuickSwitcherRecentsQueryParams {
+    #[serde(default)]
+    limit: Option<u32>,
 }
 
 async fn search_loom_blocks(
@@ -2085,7 +2318,8 @@ async fn search_loom_blocks(
     Query(query): Query<LoomSearchQueryParams>,
 ) -> ApiResult<Json<Vec<crate::storage::LoomBlockSearchResult>>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let q = query.q.clone().unwrap_or_default();
+    let operators = parse_loom_search_operator_query(query.q.as_deref().unwrap_or_default())?;
+    let q = operators.q;
     if q.trim().is_empty() {
         return Err(bad_request("HSK-400-LOOM-QUERY-REQUIRED"));
     }
@@ -2093,11 +2327,16 @@ async fn search_loom_blocks(
     let filters = LoomSearchFilters {
         content_type: query.content_type,
         mime: query.mime,
-        tag_ids: split_ids(query.tag_ids),
-        mention_ids: split_ids(query.mention_ids),
+        tag_ids: merge_unique_strings(split_ids(query.tag_ids), operators.tag_ids),
+        mention_ids: merge_unique_strings(split_ids(query.mention_ids), operators.mention_ids),
         backlink_depth: query
             .backlink_depth
             .map(|depth| depth.min(MAX_LOOM_GRAPH_DEPTH)),
+        source_kinds: operators.source_kinds,
+        case_sensitive: query.case_sensitive.unwrap_or(false),
+        whole_word: query.whole_word.unwrap_or(false),
+        is_regex: query.is_regex.unwrap_or(false),
+        path: operators.path.or(query.path),
     };
 
     let limit = query.limit.unwrap_or(50).min(500);
@@ -2136,13 +2375,159 @@ async fn search_loom_blocks(
     Ok(Json(results))
 }
 
+async fn loom_visual_debug_snapshot(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomVisualDebugQueryParams>,
+) -> ApiResult<Json<LoomVisualDebugSnapshot>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let start_block_id = query
+        .start_block_id
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| bad_request("HSK-400-LOOM-START-BLOCK-REQUIRED"))?;
+    let q = query
+        .q
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| bad_request("HSK-400-LOOM-QUERY-REQUIRED"))?;
+    let limit = query.limit.unwrap_or(50).clamp(1, 100);
+
+    // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
+    let start = Instant::now();
+    let snapshot = state
+        .storage
+        .loom_visual_debug_snapshot(&workspace_id, &start_block_id, &q, limit)
+        .await
+        .map_err(map_storage_error)?;
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomProjectionRebuilt,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_visual_debug_snapshot",
+            "workspace_id": workspace_id,
+            "start_block_id": start_block_id,
+            "query_length": q.trim().chars().count(),
+            "schema_id": snapshot.schema_id,
+            "node_count": snapshot.graph.nodes.len(),
+            "edge_count": snapshot.graph.edges.len(),
+            "backlink_count": snapshot.backlinks.incoming.len(),
+            "folder_count": snapshot.folders.len(),
+            "search_result_count": snapshot.search.result_count,
+            "duration_ms": duration_ms,
+        }),
+    )
+    .with_wsids(vec![workspace_id.clone()]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(snapshot))
+}
+
+async fn search_loom_graph(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<LoomSearchQueryParams>,
+) -> ApiResult<Json<Vec<LoomGraphSearchResult>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let operators = parse_loom_search_operator_query(query.q.as_deref().unwrap_or_default())?;
+    let q = operators.q;
+    if q.trim().is_empty() {
+        return Err(bad_request("HSK-400-LOOM-QUERY-REQUIRED"));
+    }
+
+    let filters = LoomSearchFilters {
+        content_type: query.content_type,
+        mime: query.mime,
+        tag_ids: merge_unique_strings(split_ids(query.tag_ids), operators.tag_ids),
+        mention_ids: merge_unique_strings(split_ids(query.mention_ids), operators.mention_ids),
+        backlink_depth: query
+            .backlink_depth
+            .map(|depth| depth.min(MAX_LOOM_GRAPH_DEPTH)),
+        source_kinds: merge_unique_source_kinds(
+            split_source_kinds(query.source_kinds)?,
+            operators.source_kinds,
+        ),
+        case_sensitive: query.case_sensitive.unwrap_or(false),
+        whole_word: query.whole_word.unwrap_or(false),
+        is_regex: query.is_regex.unwrap_or(false),
+        path: operators.path.or(query.path),
+    };
+
+    let limit = query.limit.unwrap_or(50).min(500);
+    let offset = query.offset.unwrap_or(0);
+
+    // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
+    let start = Instant::now();
+    let results = state
+        .storage
+        .search_loom_graph(&workspace_id, &q, filters, limit, offset)
+        .await
+        .map_err(map_storage_error)?;
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    let tier_used = state
+        .storage
+        .storage_capabilities()
+        .loom_search_observability_tier();
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomSearchExecuted,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_search_executed",
+            "workspace_id": workspace_id,
+            "query_length": q.trim().chars().count(),
+            "tier_used": tier_used,
+            "result_count": results.len(),
+            "duration_ms": duration_ms,
+        }),
+    )
+    .with_wsids(vec![workspace_id.clone()]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(results))
+}
+
+async fn list_quick_switcher_recents(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(query): Query<QuickSwitcherRecentsQueryParams>,
+) -> ApiResult<Json<Vec<QuickSwitcherRecent>>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
+    let recents = state
+        .storage
+        .list_quick_switcher_recents(&workspace_id, limit)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(recents))
+}
+
+async fn record_quick_switcher_recent(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<QuickSwitcherRecentInput>,
+) -> ApiResult<Json<QuickSwitcherRecent>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let recent = state
+        .storage
+        .record_quick_switcher_recent(&workspace_id, payload)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(recent))
+}
+
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace};
+    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, NewWorkspace};
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
@@ -2239,6 +2624,193 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn search_operator_query_parser_extracts_filters() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse_loom_search_operator_query(
+            r#"Alpha roadmap tag:#tag-1,tag-2 mention:MT-258 kind:document path:"src/app notes""#,
+        )
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        assert_eq!(parsed.q, "Alpha roadmap");
+        assert_eq!(parsed.tag_ids, vec!["tag-1", "tag-2"]);
+        assert_eq!(parsed.mention_ids, vec!["MT-258"]);
+        assert_eq!(parsed.source_kinds, vec![LoomSearchSourceKind::Document]);
+        assert_eq!(parsed.path.as_deref(), Some("src/app notes"));
+        Ok(())
+    }
+
+    #[test]
+    fn search_operator_query_parser_rejects_invalid_kind() {
+        let error = parse_loom_search_operator_query("alpha kind:not-a-kind")
+            .expect_err("invalid kind operator must fail closed");
+        assert_eq!(error.0, StatusCode::BAD_REQUEST);
+        assert_eq!(error.1 .0.error, "HSK-400-LOOM-SOURCE-KIND");
+    }
+
+    #[tokio::test]
+    async fn graph_search_inline_operators_filter_real_rows(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+        let ctx = WriteContext::human(None);
+
+        let tag_block = state
+            .storage
+            .create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::TagHub,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("Operator backend tag".to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived::default(),
+                },
+            )
+            .await?;
+        let mention_target = state
+            .storage
+            .create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("Operator backend mention target".to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived::default(),
+                },
+            )
+            .await?;
+        let matching = state
+            .storage
+            .create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("OperatorPathMatch source".to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived {
+                        full_text_index: Some("OperatorBackendAlpha body".to_string()),
+                        ..Default::default()
+                    },
+                },
+            )
+            .await?;
+        let path_miss = state
+            .storage
+            .create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("OperatorPathMiss source".to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived {
+                        full_text_index: Some("OperatorBackendAlpha body".to_string()),
+                        ..Default::default()
+                    },
+                },
+            )
+            .await?;
+
+        for source_block_id in [&matching.block_id, &path_miss.block_id] {
+            state
+                .storage
+                .create_loom_edge(
+                    &ctx,
+                    NewLoomEdge {
+                        edge_id: None,
+                        workspace_id: workspace_id.clone(),
+                        source_block_id: source_block_id.clone(),
+                        target_block_id: tag_block.block_id.clone(),
+                        edge_type: LoomEdgeType::Tag,
+                        created_by: LoomEdgeCreatedBy::User,
+                        crdt_site_id: None,
+                        source_anchor: None,
+                    },
+                )
+                .await?;
+            state
+                .storage
+                .create_loom_edge(
+                    &ctx,
+                    NewLoomEdge {
+                        edge_id: None,
+                        workspace_id: workspace_id.clone(),
+                        source_block_id: source_block_id.clone(),
+                        target_block_id: mention_target.block_id.clone(),
+                        edge_type: LoomEdgeType::Mention,
+                        created_by: LoomEdgeCreatedBy::User,
+                        crdt_site_id: None,
+                        source_anchor: None,
+                    },
+                )
+                .await?;
+        }
+
+        let hits = search_loom_graph(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Query(LoomSearchQueryParams {
+                q: Some(format!(
+                    "OperatorBackendAlpha tag:{} mention:{} kind:loom_block path:OperatorPathMatch",
+                    tag_block.block_id, mention_target.block_id
+                )),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+
+        let hit_keys: Vec<_> = hits
+            .0
+            .iter()
+            .map(|hit| (hit.source_kind.as_str(), hit.ref_id.as_str()))
+            .collect();
+        assert_eq!(
+            hit_keys,
+            vec![("loom_block", matching.block_id.as_str())],
+            "inline tag/mention/kind/path operators must filter against PostgreSQL rows"
+        );
+        Ok(())
+    }
+
     #[tokio::test]
     async fn import_dedup_emits_fr_evt_loom_006() -> Result<(), Box<dyn std::error::Error>> {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -2329,7 +2901,7 @@ mod tests {
             code: body.error.to_string(),
         })?;
 
-        let _ = search_loom_blocks(
+        let search_results = search_loom_blocks(
             State(state.clone()),
             Path(workspace_id.clone()),
             Query(LoomSearchQueryParams {
@@ -2342,6 +2914,12 @@ mod tests {
             status,
             code: body.error.to_string(),
         })?;
+        assert_eq!(search_results.0.len(), 1);
+        assert_eq!(
+            search_results.0[0].block.title.as_deref(),
+            Some("Alpha"),
+            "legacy /loom/search remains block-only"
+        );
 
         let all_events = state
             .flight_recorder
@@ -2360,6 +2938,210 @@ mod tests {
         assert!(
             !search_events.is_empty(),
             "expected loom_search_executed event"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mt258_bookmark_routes_persist_add_remove_and_emit_receipts(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            eprintln!("SKIP MT-258 bookmark route proof: POSTGRES_TEST_URL unavailable");
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+
+        let created = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some("MT-258 bookmark proof".to_string()),
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        let block_id = created.block_id.clone();
+
+        let bridge = get_loom_block_knowledge_bridge(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        assert_eq!(bridge.block_id, block_id);
+        assert_eq!(bridge.workspace_id, workspace_id);
+        assert!(
+            !bridge.entity_id.trim().is_empty() && !bridge.index_event_id.trim().is_empty(),
+            "bookmarkable LoomBlock must retain its ProjectKnowledgeIndex/EventLedger bridge"
+        );
+
+        let pinned = patch_loom_block(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+            Json(LoomBlockUpdate {
+                pinned: Some(true),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        assert!(pinned.pinned, "route pin returns pinned block");
+
+        let ordered = set_loom_block_pin_order(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+            Json(SetPinOrderRequest { pin_order: Some(0) }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        assert_eq!(ordered.pin_order, Some(0));
+
+        let pins = query_loom_view(
+            State(state.clone()),
+            Path((workspace_id.clone(), "pins".to_string())),
+            Query(LoomViewQuery {
+                limit: Some(100),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        let LoomViewResponse::Pins { blocks } = pins else {
+            panic!("expected pins response");
+        };
+        let pinned_block = blocks
+            .iter()
+            .find(|block| block.block_id == block_id)
+            .expect("pinned block appears in pins view");
+        assert!(pinned_block.pinned);
+        assert_eq!(pinned_block.pin_order, Some(0));
+
+        let cleared = set_loom_block_pin_order(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+            Json(SetPinOrderRequest { pin_order: None }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        assert_eq!(cleared.pin_order, None);
+
+        let unpinned = patch_loom_block(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+            Json(LoomBlockUpdate {
+                pinned: Some(false),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        assert!(!unpinned.pinned, "route unpin returns unpinned block");
+        assert_eq!(
+            unpinned.pin_order, None,
+            "remove flow must clear pin_order before unpinning"
+        );
+
+        let stored = state.storage.get_loom_block(&workspace_id, &block_id).await?;
+        assert!(!stored.pinned, "Postgres read after remove is unpinned");
+        assert_eq!(stored.pin_order, None, "Postgres read after remove is unordered");
+
+        let pins_after_remove = query_loom_view(
+            State(state.clone()),
+            Path((workspace_id.clone(), "pins".to_string())),
+            Query(LoomViewQuery {
+                limit: Some(100),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?
+        .0;
+        let LoomViewResponse::Pins { blocks } = pins_after_remove else {
+            panic!("expected pins response");
+        };
+        assert!(
+            blocks.iter().all(|block| block.block_id != block_id),
+            "removed bookmark must disappear from the real pins view"
+        );
+
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
+        let updated_events: Vec<_> = events
+            .iter()
+            .filter(|event| {
+                event.event_type == FlightRecorderEventType::LoomBlockUpdated
+                    && event.wsids == vec![workspace_id.clone()]
+                    && event
+                        .payload
+                        .get("block_id")
+                        .and_then(|value| value.as_str())
+                        == Some(block_id.as_str())
+            })
+            .collect();
+        let changed_field_count = |field: &str| -> usize {
+            updated_events
+                .iter()
+                .filter(|event| {
+                    event
+                        .payload
+                        .get("fields_changed")
+                        .and_then(|value| value.as_array())
+                        .map(|fields| {
+                            fields
+                                .iter()
+                                .any(|changed| changed.as_str() == Some(field))
+                        })
+                        .unwrap_or(false)
+                })
+                .count()
+        };
+        assert!(
+            changed_field_count("pinned") >= 2,
+            "pin and unpin routes must emit pinned update receipts"
+        );
+        assert!(
+            changed_field_count("pin_order") >= 2,
+            "order and clear routes must emit pin_order update receipts"
         );
 
         Ok(())

@@ -55,10 +55,9 @@ import {
   scanCdnReferences,
   scanDockerArtifacts,
   scanDockerDefault,
-  scanFilesForPatterns,
+  scanForbiddenSourceTripwires,
   scanForbiddenManifestPackages,
-  selfExemptPathSet,
-  walkSourceFiles,
+  validateSourceTripwireAuthority,
 } from "./lib/dependency_policy_scans.mjs";
 import { checkPortableArtifactBoundaries } from "./lib/portable_artifacts_check.mjs";
 
@@ -68,18 +67,6 @@ const skipBuild = process.argv.includes("--skip-build");
 const sourceTripwireFiles = collectFlagValues("--source-tripwire-files").map((path) =>
   resolve(path),
 );
-
-const REQUIRED_SOURCE_PATTERNS = [
-  ["sqlite", "sqlx::Sqlite"],
-  ["sqlite", "SqlitePool"],
-  ["sqlite", "SqlitePoolOptions"],
-  ["sqlite", "SqliteConnectOptions"],
-  ["outside_app", "photoshop.exe"],
-  ["outside_server_daemon", "ollama serve"],
-  ["outside_server_daemon", "localhost:11434"],
-  ["outside_server_daemon", "npm run dev"],
-  ["outside_server_daemon", "localhost:5173"],
-];
 
 function progress(message) {
   process.stderr.write(`[dependency-policy] ${message}\n`);
@@ -115,98 +102,6 @@ function runJsonScript(scriptRelPath, args) {
       json: { pass: false, error: `non-JSON output from ${scriptRelPath}: ${String(result.stdout).slice(0, 400)}` },
     };
   }
-}
-
-function sourceTripwireExceptionEntries(allowlist) {
-  return allowlist.source_tripwire_exceptions?.entries ?? [];
-}
-
-function sourceTripwireExceptionKey(classId, path, pattern) {
-  return `${classId}\0${path}\0${pattern.toLowerCase()}`;
-}
-
-function sourceTripwireExceptionSet(allowlist) {
-  const keys = new Set();
-  for (const entry of sourceTripwireExceptionEntries(allowlist)) {
-    for (const pattern of entry.patterns ?? []) {
-      keys.add(sourceTripwireExceptionKey(entry.class_id, entry.path, pattern));
-    }
-  }
-  return keys;
-}
-
-function validateSourceTripwireAuthority(allowlist) {
-  const problems = [];
-  for (const [classId, pattern] of REQUIRED_SOURCE_PATTERNS) {
-    const cls = allowlist.forbidden_runtime_dependency_classes.find((c) => c.id === classId);
-    if (!cls) {
-      problems.push(`source tripwire class ${classId} missing`);
-      continue;
-    }
-    if (!cls.source_scan_patterns.includes(pattern)) {
-      problems.push(`source tripwire pattern ${classId}:${pattern} missing`);
-    }
-  }
-
-  for (const entry of sourceTripwireExceptionEntries(allowlist)) {
-    if (!entry.class_id || !allowlist.forbidden_runtime_dependency_classes.some((c) => c.id === entry.class_id)) {
-      problems.push(`source tripwire exception references unknown class: ${JSON.stringify(entry)}`);
-    }
-    if (!entry.path || entry.path.includes("\\")) {
-      problems.push(`source tripwire exception path must be exact repo-relative POSIX form: ${JSON.stringify(entry)}`);
-    }
-    if (!Array.isArray(entry.patterns) || entry.patterns.length === 0) {
-      problems.push(`source tripwire exception must be pattern-scoped: ${JSON.stringify(entry)}`);
-    }
-    if (!entry.reason || entry.reason.length < 24) {
-      problems.push(`source tripwire exception must document its rationale: ${JSON.stringify(entry)}`);
-    }
-  }
-  return problems;
-}
-
-function scanForbiddenSourceTripwires({ repoRoot, allowlist, files = null }) {
-  const sourceFiles =
-    files ??
-    allowlist.product_scan_roots.flatMap((root) =>
-      walkSourceFiles(join(repoRoot, ...root.split("/"))),
-    );
-  const exactExemptPaths = selfExemptPathSet(allowlist);
-  const exceptionKeys = sourceTripwireExceptionSet(allowlist);
-  const violations = [];
-  const exceptionsApplied = [];
-  const readErrors = [];
-
-  for (const cls of allowlist.forbidden_runtime_dependency_classes) {
-    if (!Array.isArray(cls.source_scan_patterns) || cls.source_scan_patterns.length === 0) {
-      continue;
-    }
-    const scan = scanFilesForPatterns({
-      repoRoot,
-      files: sourceFiles,
-      patterns: cls.source_scan_patterns,
-      exceptPathPrefixes:
-        cls.id === "docker_default"
-          ? allowlist.docker_opt_in_exceptions.map((e) => e.path_prefix)
-          : [],
-      exactExemptPaths,
-    });
-    readErrors.push(...scan.readErrors);
-
-    for (const violation of scan.violations) {
-      const key = sourceTripwireExceptionKey(cls.id, violation.path, violation.pattern);
-      if (exceptionKeys.has(key)) {
-        exceptionsApplied.push({ class: cls.id, ...violation, exception: "source_tripwire_exceptions" });
-      } else {
-        violations.push({ class: cls.id, ...violation });
-      }
-    }
-    for (const exception of scan.exceptionsApplied) {
-      exceptionsApplied.push({ class: cls.id, ...exception, exception: "path_prefix" });
-    }
-  }
-
-  return { violations, exceptionsApplied, readErrors };
 }
 
 function collectExplicitSourceFileReadErrors(files) {

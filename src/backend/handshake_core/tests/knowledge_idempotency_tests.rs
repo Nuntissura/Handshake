@@ -253,6 +253,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
         "type": "doc",
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "v2"}]}]
     });
+    let crdt_document_id = format!("KCRDT-{}", Uuid::now_v7().simple());
 
     let first = pg
         .db
@@ -261,12 +262,18 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
             &document.rich_document_id,
             1,
             v2.clone(),
+            Some(&crdt_document_id),
+            None,
             None,
         )
         .await
         .expect("first save");
     assert!(!first.replayed);
     assert_eq!(first.value.doc_version, 2);
+    assert_eq!(
+        first.value.crdt_document_id.as_deref(),
+        Some(crdt_document_id.as_str())
+    );
 
     // The EXACT same request again: a non-idempotent path would now fail
     // with a version conflict; the idempotent path replays the result.
@@ -277,6 +284,8 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
             &document.rich_document_id,
             1,
             v2.clone(),
+            Some(&crdt_document_id),
+            None,
             None,
         )
         .await
@@ -285,12 +294,66 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
     assert_eq!(second.value.doc_version, 2);
     assert_eq!(second.value.content_sha256, first.value.content_sha256);
 
+    let crdt_change_err = pg
+        .db
+        .save_knowledge_rich_document_version_idempotent(
+            &format!("idem-save-crdt-change-{}", Uuid::now_v7()),
+            &document.rich_document_id,
+            2,
+            json!({"type": "doc", "content": [{"type": "paragraph"}]}),
+            Some("KCRDT-different-idempotent-save"),
+            None,
+            None,
+        )
+        .await
+        .expect_err("idempotent save must not mutate crdt_document_id once set");
+    assert!(
+        matches!(crdt_change_err, StorageError::Validation(_)),
+        "got {crdt_change_err:?}"
+    );
+
+    let v3 = json!({
+        "type": "doc",
+        "content": [{"type": "paragraph", "content": [{"type": "text", "text": "v3"}]}]
+    });
+    let later = pg
+        .db
+        .save_knowledge_rich_document_version(&document.rich_document_id, 2, v3, None, None, None)
+        .await
+        .expect("later non-idempotent save");
+    assert_eq!(later.doc_version, 3);
+
+    let replay_after_later_save = pg
+        .db
+        .save_knowledge_rich_document_version_idempotent(
+            &key,
+            &document.rich_document_id,
+            1,
+            v2.clone(),
+            Some(&crdt_document_id),
+            None,
+            None,
+        )
+        .await
+        .expect("replayed save after later head changed");
+    assert!(replay_after_later_save.replayed);
+    assert_eq!(
+        replay_after_later_save.value.doc_version, 2,
+        "replay must return the original saved revision, not the mutable document head"
+    );
+    assert_eq!(replay_after_later_save.value.content_json, v2);
+    assert_eq!(
+        replay_after_later_save.value.crdt_document_id.as_deref(),
+        Some(crdt_document_id.as_str())
+    );
+    assert_eq!(replay_after_later_save.value.crdt_snapshot_id, None);
+
     let versions = pg
         .db
         .list_knowledge_rich_document_versions(&document.rich_document_id)
         .await
         .expect("history");
-    assert_eq!(versions.len(), 2, "replay must not append to the history");
+    assert_eq!(versions.len(), 3, "replay must not append to the history");
 
     // A DIFFERENT save reusing the key stays a typed Conflict.
     let err = pg
@@ -300,6 +363,8 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
             &document.rich_document_id,
             2,
             json!({"type": "doc", "content": [{"type": "paragraph"}]}),
+            Some(&crdt_document_id),
+            None,
             None,
         )
         .await

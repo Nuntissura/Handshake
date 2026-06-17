@@ -439,8 +439,7 @@ async fn import_roundtrip(
     let saved: Value = resp.json().await.expect("save json");
     assert_eq!(saved["document"]["doc_version"], 2);
     assert_eq!(
-        saved["document"]["content_json"],
-        loaded["document"]["content_json"],
+        saved["document"]["content_json"], loaded["document"]["content_json"],
         "save round-trip is lossless"
     );
 
@@ -544,7 +543,10 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
     .expect("send");
     assert_eq!(resp.status(), 200);
     let created: Value = resp.json().await.expect("json");
-    assert_eq!(created["embeds_persisted"], 1, "create syncs the embed table");
+    assert_eq!(
+        created["embeds_persisted"], 1,
+        "create syncs the embed table"
+    );
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
         .expect("doc id")
@@ -558,7 +560,12 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
         )
         .send()
     };
-    let body: Value = list_embeds("e1").await.expect("send").json().await.expect("json");
+    let body: Value = list_embeds("e1")
+        .await
+        .expect("send")
+        .json()
+        .await
+        .expect("json");
     let embeds = body["embeds"].as_array().expect("embeds");
     assert_eq!(embeds.len(), 1);
     assert_eq!(embeds[0]["ref_value"], "KMED-ok");
@@ -586,11 +593,17 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
     assert_eq!(resp.status(), 200);
     let saved: Value = resp.json().await.expect("json");
     assert_eq!(saved["embeds_persisted"], 2);
-    let body: Value = list_embeds("e2").await.expect("send").json().await.expect("json");
+    let body: Value = list_embeds("e2")
+        .await
+        .expect("send")
+        .json()
+        .await
+        .expect("json");
     let embeds = body["embeds"].as_array().expect("embeds");
     assert_eq!(embeds.len(), 2);
-    assert!(embeds.iter().any(|e| e["ref_kind"] == "url"
-        && e["ref_value"] == "https://cdn.example/clip.mp4"));
+    assert!(embeds
+        .iter()
+        .any(|e| e["ref_kind"] == "url" && e["ref_value"] == "https://cdn.example/clip.mp4"));
 
     // SAVE with a dangerous embed target -> 400 BEFORE commit; version stays 2.
     for bad in [
@@ -654,8 +667,65 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
     .await
     .expect("send");
     assert_eq!(resp.status(), 200);
-    let body: Value = list_embeds("e3").await.expect("send").json().await.expect("json");
+    let body: Value = list_embeds("e3")
+        .await
+        .expect("send")
+        .json()
+        .await
+        .expect("json");
     assert_eq!(body["embeds"].as_array().expect("embeds").len(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt246_save_rejects_cross_document_crdt_id() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt246_save_rejects_cross_document_crdt_id: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+    let created = create_doc(&base, &http, &workspace_id, "CRDT Boundary").await;
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+    let expected_crdt_id = doc_id.replacen("KRD-", "KCRDT-", 1);
+
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "crdt-bad-save",
+        "operator",
+    )
+    .json(&json!({
+        "expected_version": 1,
+        "content_json": {"type": "doc", "content": []},
+        "crdt_document_id": "KCRDT-ffffffffffffffffffffffffffffffff"
+    }))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(
+        resp.status(),
+        400,
+        "save must reject a CRDT id that does not belong to this rich document"
+    );
+
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "crdt-good-save",
+        "operator",
+    )
+    .json(&json!({
+        "expected_version": 1,
+        "content_json": {"type": "doc", "content": []},
+        "crdt_document_id": expected_crdt_id
+    }))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200, "canonical CRDT id should save");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["document"]["crdt_document_id"], expected_crdt_id);
 }
 
 // ---------------------------------------------------------------------------
@@ -1110,4 +1180,166 @@ async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
     assert!(blocks.iter().any(|b| b["kind"] == "imported_raw"));
     assert!(blocks.iter().any(|b| b["kind"] == "heading"));
     assert!(blocks.iter().any(|b| b["kind"] == "paragraph"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt255_backend_draft_recovery...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    let created = create_doc(&base, &http, &workspace_id, "Draft Recovery").await;
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+    let base_hash = created["document"]["content_sha256"]
+        .as_str()
+        .expect("base hash")
+        .to_string();
+    let recovered_content = json!({
+        "type": "doc",
+        "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "crash sentinel draft" }] }
+        ]
+    });
+
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-save",
+        "operator",
+    )
+    .json(&json!({
+        "base_doc_version": 1,
+        "base_content_sha256": base_hash,
+        "content_json": recovered_content,
+    }))
+    .send()
+    .await
+    .expect("draft upsert send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("draft upsert json");
+    assert_eq!(body["cleared"], false);
+    assert!(
+        body["draft_receipt_event_id"].is_string(),
+        "draft write must leave an EventLedger receipt: {body}"
+    );
+
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-load",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("draft load send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("draft load json");
+    assert_eq!(
+        body["draft"]["draft_content_json"]["content"][0]["content"][0]["text"],
+        "crash sentinel draft"
+    );
+
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "draft-clean-save",
+        "operator",
+    )
+    .json(&json!({
+        "expected_version": 1,
+        "content_json": recovered_content,
+    }))
+    .send()
+    .await
+    .expect("clean save send");
+    assert_eq!(resp.status(), 200);
+    let saved: Value = resp.json().await.expect("clean save json");
+    assert_eq!(saved["document"]["doc_version"], 2);
+
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-load-after-save",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("draft load after save send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("draft load after save json");
+    assert!(
+        body["draft"].is_null(),
+        "clean save must clear draft: {body}"
+    );
+
+    let discard_content = json!({
+        "type": "doc",
+        "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "discard me" }] }
+        ]
+    });
+    let saved_hash = saved["document"]["content_sha256"]
+        .as_str()
+        .expect("saved hash")
+        .to_string();
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-discard-save",
+        "operator",
+    )
+    .json(&json!({
+        "base_doc_version": 2,
+        "base_content_sha256": saved_hash,
+        "content_json": discard_content,
+    }))
+    .send()
+    .await
+    .expect("discard draft upsert send");
+    assert_eq!(resp.status(), 200);
+
+    let resp = headers_with_kind(
+        http.delete(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-discard",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("draft discard send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("draft discard json");
+    assert_eq!(body["cleared"], true);
+    assert!(
+        body["clear_receipt_event_id"].is_string(),
+        "explicit discard must leave an EventLedger receipt: {body}"
+    );
+
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}")),
+        "load-after-discard",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("load after discard send");
+    assert_eq!(resp.status(), 200);
+    let loaded: Value = resp.json().await.expect("load after discard json");
+    assert_eq!(
+        loaded["document"]["content_json"]["content"][0]["content"][0]["text"],
+        "crash sentinel draft",
+        "discarding a recovery draft must leave the saved head untouched"
+    );
+
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/draft")),
+        "draft-load-after-discard",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("draft load after discard send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("draft load after discard json");
+    assert!(body["draft"].is_null(), "discard must remove draft: {body}");
 }

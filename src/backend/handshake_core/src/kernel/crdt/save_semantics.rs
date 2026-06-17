@@ -26,20 +26,20 @@ use serde_json::json;
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::knowledge_crdt::{
-    insert_denial_receipt, new_denial_receipt_id, KnowledgeCrdtDenialReceiptRow,
-    NewKnowledgeCrdtDenialReceipt,
-};
 use crate::storage::Database;
+use crate::storage::knowledge_crdt::{
+    KnowledgeCrdtDenialReceiptRow, NewKnowledgeCrdtDenialReceipt, insert_denial_receipt,
+    new_denial_receipt_id,
+};
 
 use super::actor_site::KnowledgeActorIdV1;
 use super::agent_lease::{
-    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
+    KnowledgeLeaseScopeKind, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1, guard_lease_for_write,
 };
 use super::state_vector::{KnowledgeStateVectorOrdering, KnowledgeStateVectorV1};
 use super::yjs_bridge::{
-    push_yjs_update, read_draft_head, KnowledgeCrdtFlowError, YjsPushDenialReasonV1,
-    YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
+    KnowledgeCrdtFlowError, YjsPushDenialReasonV1, YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
+    push_yjs_update, read_draft_head,
 };
 
 pub const KNOWLEDGE_SAVE_DECISION_SCHEMA_ID: &str = "hsk.kernel.knowledge_save_decision@1";

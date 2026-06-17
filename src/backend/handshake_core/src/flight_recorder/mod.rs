@@ -14,6 +14,7 @@ use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 pub mod duckdb;
+pub mod event_ledger;
 pub mod events_agent_activity;
 pub mod events_llm_infer;
 pub mod fr_emitter;
@@ -1263,7 +1264,7 @@ fn require_rfc3339(map: &Map<String, Value>, key: &str) -> Result<(), RecorderEr
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
 
@@ -1280,7 +1281,7 @@ fn require_uuid_string_non_nil(map: &Map<String, Value>, key: &str) -> Result<()
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty UUID string"
-            )))
+            )));
         }
     };
 
@@ -1350,7 +1351,7 @@ fn require_string_array<'a>(
                     _ => {
                         return Err(RecorderError::InvalidEvent(format!(
                             "payload field {key}[{idx}] must be a non-empty string"
-                        )))
+                        )));
                     }
                 }
             }
@@ -1375,7 +1376,7 @@ fn require_string_array_allow_empty<'a>(
                     _ => {
                         return Err(RecorderError::InvalidEvent(format!(
                             "payload field {key}[{idx}] must be a non-empty string"
-                        )))
+                        )));
                     }
                 }
             }
@@ -1470,7 +1471,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field tool_id must match ^[a-z0-9_]+(\\.[a-z0-9_]+)+$".to_string(),
-            ))
+            ));
         }
     }
 
@@ -1479,7 +1480,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field tool_version must match MAJOR.MINOR.PATCH".to_string(),
-            ))
+            ));
         }
     }
 
@@ -1493,7 +1494,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
             return Err(RecorderError::InvalidEvent(
                 "payload field transport must be one of: local, mcp, mex, stage_bridge, other"
                     .to_string(),
-            ))
+            ));
         }
     }
 
@@ -1502,7 +1503,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field side_effect must be one of: READ, WRITE, EXECUTE".to_string(),
-            ))
+            ));
         }
     }
 
@@ -1527,7 +1528,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                 return Err(RecorderError::InvalidEvent(
                     "payload field idempotency_key must be a bounded string token or null"
                         .to_string(),
-                ))
+                ));
             }
         }
     }
@@ -1540,7 +1541,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                 _ => {
                     return Err(RecorderError::InvalidEvent(
                         "payload field actor.kind must be one of: human, agent, system".to_string(),
-                    ))
+                    ));
                 }
             }
             for key in ["agent_id", "model_id"] {
@@ -1551,7 +1552,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                         _ => {
                             return Err(RecorderError::InvalidEvent(format!(
                                 "payload field actor.{key} must be a safe id string or null"
-                            )))
+                            )));
                         }
                     }
                 }
@@ -1560,7 +1561,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field actor must be an object".to_string(),
-            ))
+            ));
         }
     }
 
@@ -1574,7 +1575,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                 _ => {
                     return Err(RecorderError::InvalidEvent(format!(
                         "payload field {ref_key} must be an artifact handle string or null"
-                    )))
+                    )));
                 }
             }
         }
@@ -1585,7 +1586,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                 _ => {
                     return Err(RecorderError::InvalidEvent(format!(
                         "payload field {hash_key} must be a 64-char hex sha256 or null"
-                    )))
+                    )));
                 }
             }
         }
@@ -1601,7 +1602,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                     _ => {
                         return Err(RecorderError::InvalidEvent(
                             "payload field error.code must be a bounded string token".to_string(),
-                        ))
+                        ));
                     }
                 }
                 match require_key(err, "kind")? {
@@ -1609,7 +1610,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                     _ => {
                         return Err(RecorderError::InvalidEvent(
                             "payload field error.kind must be a bounded string token".to_string(),
-                        ))
+                        ));
                     }
                 }
                 if err.contains_key("message") {
@@ -1618,7 +1619,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                         _ => {
                             return Err(RecorderError::InvalidEvent(
                                 "payload field error.message must be a string or null".to_string(),
-                            ))
+                            ));
                         }
                     }
                 }
@@ -1629,7 +1630,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                             return Err(RecorderError::InvalidEvent(
                                 "payload field error.retryable must be a boolean or null"
                                     .to_string(),
-                            ))
+                            ));
                         }
                     }
                 }
@@ -1637,7 +1638,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field error must be an object or null".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -1652,7 +1653,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field timing must be an object".to_string(),
-            ))
+            ));
         }
     }
 
@@ -1675,7 +1676,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                                         _ => {
                                             return Err(RecorderError::InvalidEvent(format!(
                                                 "payload field resources_touched.{key}[{idx}] must be a bounded string token"
-                                            )))
+                                            )));
                                         }
                                     }
                                 }
@@ -1683,7 +1684,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                             _ => {
                                 return Err(RecorderError::InvalidEvent(format!(
                                     "payload field resources_touched.{key} must be an array"
-                                )))
+                                )));
                             }
                         }
                     }
@@ -1692,7 +1693,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field resources_touched must be an object or null".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -1707,7 +1708,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                         _ => {
                             return Err(RecorderError::InvalidEvent(format!(
                                 "payload field capability_ids[{idx}] must be a bounded string token"
-                            )))
+                            )));
                         }
                     }
                 }
@@ -1715,7 +1716,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field capability_ids must be an array or null".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -1728,7 +1729,7 @@ fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
                 return Err(RecorderError::InvalidEvent(
                     "payload field parent_span_id must be a bounded string token or null"
                         .to_string(),
-                ))
+                ));
             }
         }
     }
@@ -1825,7 +1826,7 @@ fn validate_data_bronze_created_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field bronze_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_string(map, "content_type")?;
@@ -1838,13 +1839,13 @@ fn validate_data_bronze_created_payload(payload: &Value) -> Result<(), RecorderE
                 return Err(RecorderError::InvalidEvent(
                     "payload field ingestion_source must be one of user|connector|system"
                         .to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field ingestion_source must be a string".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "ingestion_method")? {
@@ -1888,7 +1889,7 @@ fn validate_data_silver_created_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field silver_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "bronze_ref")? {
@@ -1896,7 +1897,7 @@ fn validate_data_silver_created_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field bronze_ref must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "chunk_index")?;
@@ -1927,7 +1928,7 @@ fn validate_data_silver_updated_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field superseded_silver_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "new_silver_id")? {
@@ -1935,7 +1936,7 @@ fn validate_data_silver_updated_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field new_silver_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "bronze_ref")? {
@@ -1943,7 +1944,7 @@ fn validate_data_silver_updated_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field bronze_ref must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_string(map, "chunking_strategy")?;
@@ -1972,7 +1973,7 @@ fn validate_data_embedding_computed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field silver_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_string(map, "model_id")?;
@@ -2026,13 +2027,13 @@ fn validate_data_index_updated_payload(payload: &Value) -> Result<(), RecorderEr
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field index_kind must be one of vector|keyword|graph".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field index_kind must be a string".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "update_kind")? {
@@ -2041,13 +2042,13 @@ fn validate_data_index_updated_payload(payload: &Value) -> Result<(), RecorderEr
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field update_kind must be one of insert|delete|update".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field update_kind must be a string".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "records_affected")?;
@@ -2069,13 +2070,13 @@ fn validate_data_index_rebuilt_payload(payload: &Value) -> Result<(), RecorderEr
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field index_kind must be one of vector|keyword|graph".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field index_kind must be a string".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "records_indexed")?;
@@ -2096,7 +2097,7 @@ fn validate_data_validation_failed_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field silver_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_string_array(map, "failed_checks")?;
@@ -2127,7 +2128,7 @@ fn validate_data_retrieval_executed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field request_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_sha256_hex(map, "query_hash")?;
@@ -2212,7 +2213,7 @@ fn validate_data_context_assembled_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field request_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "selected_chunks")?;
@@ -2240,7 +2241,7 @@ fn validate_data_pollution_alert_payload(payload: &Value) -> Result<(), Recorder
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field request_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "pollution_score")?;
@@ -2337,7 +2338,7 @@ fn validate_data_relationship_extracted_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field source_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "target_id")? {
@@ -2345,7 +2346,7 @@ fn validate_data_relationship_extracted_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field target_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     if map.contains_key("confidence") {
@@ -2441,7 +2442,7 @@ fn validate_loom_block_created_payload(payload: &Value) -> Result<(), RecorderEr
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field asset_id must be a safe id string or null".to_string(),
-            ))
+            ));
         }
     }
     require_sha256_hex_or_null(map, "content_hash")?;
@@ -2559,7 +2560,7 @@ fn validate_loom_preview_generated_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field preview_tier must be 0|1|2".to_string(),
-            ))
+            ));
         }
     }
     require_string(map, "format")?;
@@ -2626,7 +2627,11 @@ fn validate_loom_view_queried_payload(payload: &Value) -> Result<(), RecorderErr
     )?;
     require_fixed_string(map, "type", "loom_view_queried")?;
     require_safe_id_string(map, "workspace_id")?;
-    require_limited_choice(map, "view_type", &["all", "unlinked", "sorted", "pins"])?;
+    require_limited_choice(
+        map,
+        "view_type",
+        &["all", "unlinked", "sorted", "pins", "favorites"],
+    )?;
     require_number(map, "filter_count")?;
     require_number(map, "result_count")?;
     require_number(map, "duration_ms")?;
@@ -2654,7 +2659,7 @@ fn validate_loom_search_executed_payload(payload: &Value) -> Result<(), Recorder
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field tier_used must be 1|2|3".to_string(),
-            ))
+            ));
         }
     }
     require_number(map, "result_count")?;
@@ -2803,7 +2808,7 @@ fn validate_runtime_chat_ans001_validation_payload(payload: &Value) -> Result<()
         other => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field role must be \"assistant\" for runtime_chat_ans001_validation (got {other})"
-            )))
+            )));
         }
     }
     validate_runtime_chat_model_role(map)?;
@@ -2871,7 +2876,7 @@ fn require_sha256_hex_lowercase(map: &Map<String, Value>, key: &str) -> Result<(
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
 
@@ -2925,7 +2930,7 @@ fn validate_model_swap_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field request_id must be a bounded string token".to_string(),
-            ))
+            ));
         }
     }
 
@@ -2935,7 +2940,7 @@ fn validate_model_swap_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(format!(
                     "payload field {key} must be a bounded string token"
-                )))
+                )));
             }
         }
     }
@@ -2984,7 +2989,7 @@ fn validate_model_swap_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field context_compile_ref must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -2996,7 +3001,7 @@ fn validate_model_swap_event_payload(
                 _ => {
                     return Err(RecorderError::InvalidEvent(format!(
                         "payload field {key} must be a safe id"
-                    )))
+                    )));
                 }
             }
         }
@@ -3013,7 +3018,7 @@ fn validate_model_swap_event_payload(
                 return Err(RecorderError::InvalidEvent(
                     "payload field outcome must be one of: success, failure, timeout, rollback"
                         .to_string(),
-                ))
+                ));
             }
         }
     }
@@ -3035,13 +3040,13 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field actor must be one of HUMAN_DEV|AI_JOB|PLUGIN_TOOL".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field actor must be a string".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3070,7 +3075,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field determinism_level must be a string".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3103,7 +3108,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field source_entity_refs must be a non-empty array".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3116,7 +3121,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
                     _ => {
                         return Err(RecorderError::InvalidEvent(format!(
                             "payload field source_hashes[{idx}] must be a string"
-                        )))
+                        )));
                     }
                 };
                 if value.len() != 64 || !value.chars().all(|c| c.is_ascii_hexdigit()) {
@@ -3129,7 +3134,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field source_hashes must be a non-empty array".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3149,7 +3154,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field output_artifact_handles must be a non-empty array".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3163,7 +3168,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
                     _ => {
                         return Err(RecorderError::InvalidEvent(format!(
                             "payload field materialized_paths[{idx}] must be a non-empty string"
-                        )))
+                        )));
                     }
                 };
 
@@ -3195,7 +3200,7 @@ fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field materialized_paths must be a non-empty array".to_string(),
-            ))
+            ));
         }
     }
 
@@ -3569,7 +3574,7 @@ fn validate_locus_work_packet_updated_payload(payload: &Value) -> Result<(), Rec
                     _ => {
                         return Err(RecorderError::InvalidEvent(
                             "payload field updated_fields must be an array of strings".to_string(),
-                        ))
+                        ));
                     }
                 }
             }
@@ -3577,7 +3582,7 @@ fn validate_locus_work_packet_updated_payload(payload: &Value) -> Result<(), Rec
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field updated_fields must be an array".to_string(),
-            ))
+            ));
         }
     }
     if inner.contains_key("version") {
@@ -3602,13 +3607,13 @@ fn validate_locus_work_packet_gated_payload(payload: &Value) -> Result<(), Recor
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field gate must be one of pre_work|post_work".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field gate must be a string".to_string(),
-            ))
+            ));
         }
     }
     match require_key(inner, "gate_status")? {
@@ -3617,13 +3622,13 @@ fn validate_locus_work_packet_gated_payload(payload: &Value) -> Result<(), Recor
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field gate_status must be one of pending|pass|fail|skip".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field gate_status must be a string".to_string(),
-            ))
+            ));
         }
     }
     if inner.contains_key("notes") {
@@ -3665,7 +3670,7 @@ fn validate_locus_micro_tasks_registered_payload(payload: &Value) -> Result<(), 
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field mt_ids must be an array".to_string(),
-            ))
+            ));
         }
     }
     if inner.contains_key("count") {
@@ -3721,7 +3726,7 @@ fn validate_locus_mt_iteration_completed_payload(payload: &Value) -> Result<(), 
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field outcome must be a string".to_string(),
-            ))
+            ));
         }
     }
     if inner.contains_key("validation_passed") {
@@ -3838,7 +3843,7 @@ fn validate_locus_dependency_added_payload(payload: &Value) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field dependency_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     validate_locus_wp_id(require_key(inner, "from_wp_id")?)?;
@@ -3850,13 +3855,13 @@ fn validate_locus_dependency_added_payload(payload: &Value) -> Result<(), Record
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field type must be a valid dependency type".to_string(),
-                ))
+                ));
             }
         },
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field type must be a string".to_string(),
-            ))
+            ));
         }
     }
     Ok(())
@@ -3922,7 +3927,7 @@ fn validate_locus_task_board_synced_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field unknown_wp_ids must be an array".to_string(),
-            ))
+            ));
         }
     }
     require_bool(inner, "task_board_written")?;
@@ -4012,7 +4017,7 @@ fn validate_artifact_handle_value(value: &Value, key: &str) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key}.artifact_id must be a string"
-            )))
+            )));
         }
     };
     let parsed = Uuid::parse_str(artifact_id).map_err(|_| {
@@ -4030,7 +4035,7 @@ fn validate_artifact_handle_value(value: &Value, key: &str) -> Result<(), Record
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key}.path must be a string"
-            )))
+            )));
         }
     };
     if path.trim().is_empty() || !is_safe_token(path, 512) {
@@ -4115,7 +4120,7 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field decision must be one of: approved, rejected, partial".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "reviewer_kind")? {
@@ -4123,7 +4128,7 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field reviewer_kind must be one of: user, policy".to_string(),
-            ))
+            ));
         }
     }
     require_artifact_handle_object_or_null(map, "commit_report_ref")?;
@@ -4273,7 +4278,7 @@ fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), Rec
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
     if !matches!(lane, "PRIMARY" | "SUBAGENT" | "BACKGROUND" | "VALIDATION") {
@@ -4293,7 +4298,7 @@ fn require_scheduler_retry_backoff(
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
     if !matches!(raw.as_str(), "fixed" | "exponential") {
@@ -4532,12 +4537,12 @@ fn validate_session_spawn_announce_back_payload(payload: &Value) -> Result<(), R
         Value::String(_) => {
             return Err(RecorderError::InvalidEvent(
                 "payload field status must be one of completed|failed|cancelled".to_string(),
-            ))
+            ));
         }
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field status must be a string".to_string(),
-            ))
+            ));
         }
     }
     require_safe_token_string_or_null(map, "summary_artifact_id", 256)?;
@@ -4635,7 +4640,7 @@ fn require_sha256_hex(map: &Map<String, Value>, key: &str) -> Result<(), Recorde
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
 
@@ -4864,7 +4869,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
             return Err(RecorderError::InvalidEvent(
                 "payload field governance_mode must be one of: gov_strict, gov_standard, gov_light"
                     .to_string(),
-            ))
+            ));
         }
     }
 
@@ -4873,7 +4878,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field thread_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "message_id")? {
@@ -4881,7 +4886,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field message_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
 
@@ -4890,7 +4895,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field from_role must be a string".to_string(),
-            ))
+            ));
         }
     };
     validate_role_id_string(from_role)?;
@@ -4905,7 +4910,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field message_type must be a non-empty string".to_string(),
-            ))
+            ));
         }
     };
     validate_mailbox_message_type(message_type)?;
@@ -4915,7 +4920,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field body_ref must be a bounded artifact handle string".to_string(),
-            ))
+            ));
         }
     }
     require_sha256_hex(map, "body_sha256")?;
@@ -4925,7 +4930,7 @@ fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), R
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field idempotency_key must be a bounded string token".to_string(),
-            ))
+            ));
         }
     }
 
@@ -4942,7 +4947,7 @@ fn require_runtime_governance_path_suffix(
         _ => {
             return Err(RecorderError::InvalidEvent(format!(
                 "payload field {key} must be a non-empty string"
-            )))
+            )));
         }
     };
 
@@ -4993,7 +4998,7 @@ fn validate_gov_gate_transition_payload(payload: &Value) -> Result<(), RecorderE
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field gate_kind must be one of: orchestrator, validator".to_string(),
-            ))
+            ));
         }
     }
     require_safe_token_string(map, "gate", 128)?;
@@ -5006,7 +5011,7 @@ fn validate_gov_gate_transition_payload(payload: &Value) -> Result<(), RecorderE
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field verdict must be PASS, FAIL, or null".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5071,7 +5076,7 @@ fn validate_gov_mailbox_exported_payload(payload: &Value) -> Result<(), Recorder
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field export_root must be a non-empty string".to_string(),
-            ))
+            ));
         }
     };
     if !is_safe_token(export_root, 512) {
@@ -5121,7 +5126,7 @@ fn validate_gov_mailbox_exported_payload(payload: &Value) -> Result<(), Recorder
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field thread_count must be an integer".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "message_count")? {
@@ -5129,7 +5134,7 @@ fn validate_gov_mailbox_exported_payload(payload: &Value) -> Result<(), Recorder
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field message_count must be an integer".to_string(),
-            ))
+            ));
         }
     }
 
@@ -5161,7 +5166,7 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field thread_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "message_id")? {
@@ -5169,7 +5174,7 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field message_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
 
@@ -5178,7 +5183,7 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field transcription_target_kind must be a bounded string".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "target_ref")? {
@@ -5186,7 +5191,7 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field target_ref must be a bounded artifact handle string".to_string(),
-            ))
+            ));
         }
     }
     require_sha256_hex(map, "target_sha256")?;
@@ -5280,7 +5285,7 @@ fn validate_gov_automation_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field decision_id must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "gate_type")? {
@@ -5288,7 +5293,7 @@ fn validate_gov_automation_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field gate_type must be a safe id".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "target_ref")? {
@@ -5296,7 +5301,7 @@ fn validate_gov_automation_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field target_ref must be a bounded string token".to_string(),
-            ))
+            ));
         }
     }
     match require_key(map, "automation_level")? {
@@ -5323,13 +5328,13 @@ fn validate_gov_automation_event_payload(
                 _ => {
                     return Err(RecorderError::InvalidEvent(
                         "payload field decision must be one of: approve, reject, defer".to_string(),
-                    ))
+                    ));
                 }
             },
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field decision must be a string".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5341,13 +5346,13 @@ fn validate_gov_automation_event_payload(
                 _ => {
                     return Err(RecorderError::InvalidEvent(
                         "payload field confidence must be between 0.0 and 1.0".to_string(),
-                    ))
+                    ));
                 }
             },
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field confidence must be a number".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5358,7 +5363,7 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field rationale must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5372,7 +5377,7 @@ fn validate_gov_automation_event_payload(
                         _ => {
                             return Err(RecorderError::InvalidEvent(format!(
                                 "payload field evidence_refs[{idx}] must be a bounded string token"
-                            )))
+                            )));
                         }
                     }
                 }
@@ -5380,7 +5385,7 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field evidence_refs must be an array".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5391,7 +5396,7 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field wp_id must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5402,7 +5407,7 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field mt_id must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5413,7 +5418,7 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field user_id must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5454,7 +5459,7 @@ fn validate_cloud_escalation_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field request_id must be a bounded string token".to_string(),
-            ))
+            ));
         }
     }
 
@@ -5465,7 +5470,7 @@ fn validate_cloud_escalation_event_payload(
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field requested_model_id must be a bounded string token".to_string(),
-            ))
+            ));
         }
     }
 
@@ -5476,7 +5481,7 @@ fn validate_cloud_escalation_event_payload(
                 _ => {
                     return Err(RecorderError::InvalidEvent(format!(
                         "payload field {key} must be a bounded string token"
-                    )))
+                    )));
                 }
             }
         }
@@ -5504,7 +5509,7 @@ fn validate_cloud_escalation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field session_id must be a bounded string token".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5524,7 +5529,7 @@ fn validate_cloud_escalation_event_payload(
                             return Err(RecorderError::InvalidEvent(
                                 "payload field session_ids entries must be bounded string tokens"
                                     .to_string(),
-                            ))
+                            ));
                         }
                     }
                 }
@@ -5532,7 +5537,7 @@ fn validate_cloud_escalation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field session_ids must be an array of strings".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5544,7 +5549,7 @@ fn validate_cloud_escalation_event_payload(
                 _ => {
                     return Err(RecorderError::InvalidEvent(format!(
                         "payload field {key} must be a bounded string token"
-                    )))
+                    )));
                 }
             }
         }
@@ -5556,7 +5561,7 @@ fn validate_cloud_escalation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field local_attempts must be an integer".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -5572,7 +5577,7 @@ fn validate_cloud_escalation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field outcome must be one of: approved, denied, executed".to_string(),
-                ))
+                ));
             }
         }
     }
@@ -6200,7 +6205,7 @@ fn validate_distill_promotion_decided_payload(payload: &Value) -> Result<(), Rec
         _ => {
             return Err(RecorderError::InvalidEvent(
                 "payload field approved must be a boolean".to_string(),
-            ))
+            ));
         }
     }
     require_string(map, "reason")?;
@@ -6224,7 +6229,7 @@ fn validate_distill_pii_detected_payload(payload: &Value) -> Result<(), Recorder
             _ => {
                 return Err(RecorderError::InvalidEvent(format!(
                     "payload field pii_kinds contains unknown PII kind: {kind}"
-                )))
+                )));
             }
         }
     }
@@ -7007,6 +7012,22 @@ mod tests {
     }
 
     #[test]
+    fn flight_recorder_loom_view_queried_accepts_favorites() {
+        let event = distill_event(
+            FlightRecorderEventType::LoomViewQueried,
+            json!({
+                "type": "loom_view_queried",
+                "workspace_id": "WS-1",
+                "view_type": "favorites",
+                "filter_count": 0,
+                "result_count": 1,
+                "duration_ms": 12
+            }),
+        );
+        assert!(event.validate().is_ok(), "{:?}", event.validate());
+    }
+
+    #[test]
     fn flight_recorder_loom_projection_rebuilt_rejects_bad_payload() {
         // Wrong operation value.
         let bad_op = distill_event(
@@ -7031,7 +7052,10 @@ mod tests {
                 "source_block_count": 1,
             }),
         );
-        assert!(missing.validate().is_err(), "missing projection_id must be rejected");
+        assert!(
+            missing.validate().is_err(),
+            "missing projection_id must be rejected"
+        );
 
         // Wrong fixed type string.
         let wrong_type = distill_event(
@@ -7044,7 +7068,10 @@ mod tests {
                 "source_block_count": 1,
             }),
         );
-        assert!(wrong_type.validate().is_err(), "wrong type string must be rejected");
+        assert!(
+            wrong_type.validate().is_err(),
+            "wrong type string must be rejected"
+        );
     }
 
     #[test]

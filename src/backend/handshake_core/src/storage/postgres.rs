@@ -6,14 +6,21 @@ use super::{
     CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode, DefaultStorageGuard,
     Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
-    LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters,
-    LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType,
+    LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
+    LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSourceAnchor,
+    LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState,
+    LoomVisualDebugBacklinkSummary, LoomVisualDebugCounts, LoomVisualDebugFolderSummary,
+    LoomVisualDebugGraphEdgeSummary, LoomVisualDebugGraphNodeSummary, LoomVisualDebugGraphState,
+    LoomVisualDebugSearchHitSummary, LoomVisualDebugSearchState, LoomVisualDebugSnapshot,
     MergeBackArtifact, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset,
     NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
     NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
-    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionCheckpoint, SessionMessage,
-    SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
-    WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    NewWorkspace, PlannedOperation, PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput,
+    SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
+    StorageGuard, StorageResult, WorkbenchLayoutState, WorkbenchLayoutStateInput,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSettingsState,
+    WorkspaceSettingsStateInput, WriteContext, LOOM_VISUAL_DEBUG_SCHEMA_ID,
+    WORKBENCH_LAYOUT_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
 use crate::kernel::{
     context_bundle::canonical_json_bytes,
@@ -30,13 +37,12 @@ use crate::kernel::{
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
-#[cfg(any(test, feature = "test-utils"))]
 use sqlx::QueryBuilder;
 use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
     Executor, Postgres, Row,
 };
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -77,7 +83,7 @@ impl PostgresDatabase {
             SELECT DISTINCT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -128,7 +134,7 @@ impl PostgresDatabase {
             SELECT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -187,8 +193,7 @@ impl PostgresDatabase {
         .fetch_all(&self.pool)
         .await?;
 
-        let mut degree: std::collections::HashMap<String, u32> =
-            std::collections::HashMap::new();
+        let mut degree: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         let mut edges = Vec::with_capacity(edge_rows.len());
         for row in edge_rows {
             let edge = map_loom_edge(row)?;
@@ -228,6 +233,59 @@ impl PostgresDatabase {
             truncated,
             suppressed_hub_ids,
         })
+    }
+
+    async fn loom_visual_debug_counts(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<LoomVisualDebugCounts> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                (SELECT COUNT(*)::BIGINT FROM loom_blocks WHERE workspace_id = $1) AS blocks,
+                (SELECT COUNT(*)::BIGINT FROM loom_edges WHERE workspace_id = $1) AS edges,
+                (SELECT COUNT(*)::BIGINT FROM loom_folders WHERE workspace_id = $1) AS folders,
+                (SELECT COUNT(*)::BIGINT FROM loom_folder_members WHERE workspace_id = $1) AS folder_members,
+                (SELECT COUNT(*)::BIGINT FROM loom_blocks WHERE workspace_id = $1 AND content_type = 'tag_hub') AS tag_hubs,
+                (SELECT COUNT(*)::BIGINT FROM loom_blocks WHERE workspace_id = $1 AND pinned <> 0) AS pinned_blocks,
+                (SELECT COUNT(*)::BIGINT FROM loom_blocks WHERE workspace_id = $1 AND favorite <> 0) AS favorite_blocks,
+                (SELECT COUNT(*)::BIGINT FROM loom_block_knowledge_bridge WHERE workspace_id = $1) AS indexed_bridges
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(LoomVisualDebugCounts {
+            blocks: row.get("blocks"),
+            edges: row.get("edges"),
+            folders: row.get("folders"),
+            folder_members: row.get("folder_members"),
+            tag_hubs: row.get("tag_hubs"),
+            pinned_blocks: row.get("pinned_blocks"),
+            favorite_blocks: row.get("favorite_blocks"),
+            indexed_bridges: row.get("indexed_bridges"),
+        })
+    }
+
+    async fn loom_folder_member_count(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+    ) -> StorageResult<i64> {
+        let count = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::BIGINT
+            FROM loom_folder_members
+            WHERE workspace_id = $1 AND folder_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(folder_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(count)
     }
 }
 
@@ -1693,6 +1751,7 @@ fn map_loom_block(row: PgRow) -> StorageResult<LoomBlock> {
     let preview_status = PreviewStatus::from_str(row.get::<String, _>("preview_status").as_str())?;
 
     let pinned_int: i32 = row.get("pinned");
+    let favorite_int: i32 = row.get("favorite");
     let backlink_count: i32 = row.get("backlink_count");
     let mention_count: i32 = row.get("mention_count");
     let tag_count: i32 = row.get("tag_count");
@@ -1716,6 +1775,7 @@ fn map_loom_block(row: PgRow) -> StorageResult<LoomBlock> {
         original_filename: row.get("original_filename"),
         content_hash: row.get("content_hash"),
         pinned: pinned_int != 0,
+        favorite: favorite_int != 0,
         // MT-183: pin_order is tolerant — SELECTs that do not project it (most)
         // yield None; only the Pins view + single-block reads populate it.
         pin_order: row.try_get::<Option<i32>, _>("pin_order").ok().flatten(),
@@ -1725,6 +1785,128 @@ fn map_loom_block(row: PgRow) -> StorageResult<LoomBlock> {
         imported_at: map_optional_timestamp(&row, "imported_at"),
         derived,
     })
+}
+
+fn loom_debug_trim(value: &str, max_chars: usize) -> String {
+    let trimmed = value.trim();
+    let mut out: String = trimmed.chars().take(max_chars).collect();
+    if trimmed.chars().count() > max_chars {
+        out.push_str("...");
+    }
+    out
+}
+
+fn loom_debug_block_label(block: &LoomBlock) -> String {
+    block
+        .title
+        .as_deref()
+        .or(block.original_filename.as_deref())
+        .map(|value| loom_debug_trim(value, 120))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id))
+}
+
+fn loom_visual_debug_route_ids() -> Vec<String> {
+    [
+        "loom.visual_debug",
+        "loom.blocks.backlinks",
+        "loom.folders.list",
+        "loom.graph.local",
+        "loom.graph.global",
+        "loom.graph_search",
+        "loom.search",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
+}
+
+fn loom_visual_debug_node_summary(node: super::LoomGraphNode) -> LoomVisualDebugGraphNodeSummary {
+    let title = loom_debug_block_label(&node.block);
+    LoomVisualDebugGraphNodeSummary {
+        block_id: node.block.block_id,
+        title,
+        content_type: node.block.content_type,
+        depth: node.depth,
+        degree: node.degree,
+        stale: node.stale,
+        entity_id: node.entity_id,
+    }
+}
+
+fn loom_visual_debug_edge_summary(edge: super::LoomGraphEdge) -> LoomVisualDebugGraphEdgeSummary {
+    LoomVisualDebugGraphEdgeSummary {
+        edge_id: edge.edge.edge_id,
+        source_block_id: edge.edge.source_block_id,
+        target_block_id: edge.edge.target_block_id,
+        edge_type: edge.edge.edge_type,
+        stale: edge.stale,
+    }
+}
+
+fn loom_visual_debug_backlink_summary(
+    backlink: super::LoomBacklink,
+) -> LoomVisualDebugBacklinkSummary {
+    LoomVisualDebugBacklinkSummary {
+        edge_id: backlink.edge.edge_id,
+        source_block_id: backlink.source_block.block_id,
+        edge_type: backlink.edge.edge_type,
+        context_snippet: backlink
+            .context_snippet
+            .map(|snippet| loom_debug_trim(&snippet, 160)),
+    }
+}
+
+fn loom_visual_debug_folder_summary(
+    folder: LoomFolder,
+    member_count: i64,
+    sample_block_ids: Vec<String>,
+) -> LoomVisualDebugFolderSummary {
+    LoomVisualDebugFolderSummary {
+        folder_id: folder.folder_id,
+        parent_folder_id: folder.parent_folder_id,
+        name: loom_debug_trim(&folder.name, 120),
+        color: folder.color,
+        sort_mode: folder.sort_mode,
+        project_ref: folder.project_ref,
+        member_count,
+        sample_block_ids,
+    }
+}
+
+fn loom_visual_debug_search_summary(hit: LoomGraphSearchResult) -> LoomVisualDebugSearchHitSummary {
+    let authority_table = hit
+        .metadata
+        .get("authority_table")
+        .and_then(|value| value.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let retrieval_bias_schema_id = hit
+        .metadata
+        .get("retrieval_bias_schema_id")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let retrieval_bias_score = hit
+        .metadata
+        .get("retrieval_bias_score")
+        .and_then(Value::as_f64);
+    let retrieval_bias_reasons = hit
+        .metadata
+        .get("retrieval_bias_reasons")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    LoomVisualDebugSearchHitSummary {
+        result_kind: hit.result_kind,
+        source_kind: hit.source_kind,
+        ref_id: hit.ref_id,
+        title: loom_debug_trim(&hit.title, 120),
+        excerpt: loom_debug_trim(&hit.excerpt, 160),
+        authority_table,
+        retrieval_bias_schema_id,
+        retrieval_bias_score,
+        retrieval_bias_reasons,
+    }
 }
 
 /// MT-177: extractor version stamped onto the bridge knowledge entity's
@@ -1742,6 +1924,319 @@ fn map_loom_knowledge_bridge(row: &PgRow) -> super::LoomKnowledgeBridge {
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
+}
+
+fn map_quick_switcher_recent(row: &PgRow) -> StorageResult<QuickSwitcherRecent> {
+    let source_kind = row
+        .get::<String, _>("source_kind")
+        .parse::<LoomSearchSourceKind>()?;
+    let result_kind = row
+        .get::<String, _>("result_kind")
+        .parse::<LoomSearchResultKind>()?;
+    Ok(QuickSwitcherRecent {
+        workspace_id: row.get("workspace_id"),
+        hit_key: row.get("hit_key"),
+        source_kind,
+        ref_id: row.get("ref_id"),
+        result_kind,
+        title: row.get("title"),
+        excerpt: row.get("excerpt"),
+        metadata: row.get("metadata"),
+        selected_count: row.get("selected_count"),
+        selected_at: row.get("selected_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+fn map_workbench_layout_state(row: &PgRow) -> StorageResult<WorkbenchLayoutState> {
+    Ok(WorkbenchLayoutState {
+        workspace_id: row.get("workspace_id"),
+        layout_state: row.get("layout_state"),
+        updated_at: row.get("updated_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+fn map_workspace_settings_state(row: &PgRow) -> StorageResult<WorkspaceSettingsState> {
+    Ok(WorkspaceSettingsState {
+        workspace_id: row.get("workspace_id"),
+        settings_state: row.get("settings_state"),
+        updated_at: row.get("updated_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+const WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR: &str =
+    "workbench layout_state must match hsk.workbench_layout_state@1 renderable shape";
+const WORKBENCH_LAYOUT_PANE_IDS: [&str; 4] = ["pane-a", "pane-b", "pane-c", "pane-d"];
+const WORKBENCH_LAYOUT_MODULE_IDS: [&str; 6] = ["MAIN", "CKC", "INGEST", "STAGE", "LAB", "STUDIO"];
+const WORKBENCH_LAYOUT_TAB_IDS: [&str; 17] = [
+    "workspace",
+    "media-downloader",
+    "fonts",
+    "flight-recorder",
+    "kernel-dcc",
+    "inference-lab",
+    "model-runtime",
+    "swarm",
+    "problems",
+    "jobs",
+    "timeline",
+    "user-manual",
+    "code-symbol",
+    "loom-block",
+    "loom-wiki-page",
+    "atelier",
+    "visual-debugger",
+];
+
+fn json_string_in(value: Option<&Value>, allowed: &[&str]) -> bool {
+    match value.and_then(Value::as_str) {
+        Some(candidate) => allowed.contains(&candidate),
+        None => false,
+    }
+}
+
+fn json_required_bool(value: Option<&Value>) -> bool {
+    matches!(value, Some(Value::Bool(_)))
+}
+
+fn json_optional_non_empty_string(value: Option<&Value>) -> bool {
+    match value {
+        None | Some(Value::Null) => true,
+        Some(Value::String(candidate)) => !candidate.trim().is_empty(),
+        _ => false,
+    }
+}
+
+fn json_required_split_weight(value: Option<&Value>) -> bool {
+    match value.and_then(Value::as_f64) {
+        Some(candidate) => (0.2..=0.8).contains(&candidate),
+        None => false,
+    }
+}
+
+fn validate_workbench_layout_open_documents(value: Option<&Value>) -> bool {
+    let Some(value) = value else {
+        return true;
+    };
+    let Some(documents) = value.as_array() else {
+        return false;
+    };
+    documents.iter().all(|document| {
+        let Some(document) = document.as_object() else {
+            return false;
+        };
+        let valid_document_id = document
+            .get("documentId")
+            .and_then(Value::as_str)
+            .is_some_and(|document_id| !document_id.trim().is_empty());
+        valid_document_id
+            && document
+                .get("pinned")
+                .is_none_or(|value| matches!(value, Value::Bool(_)))
+            && document
+                .get("dirty")
+                .is_none_or(|value| matches!(value, Value::Bool(_)))
+    })
+}
+
+fn validate_workbench_layout_pane(value: &Value) -> bool {
+    let Some(pane) = value.as_object() else {
+        return false;
+    };
+    let Some(tabs) = pane.get("tabs").and_then(Value::as_array) else {
+        return false;
+    };
+    let active_document_id = pane.get("activeDocumentId");
+    let active_canvas_id = pane.get("activeCanvasId");
+    json_string_in(pane.get("id"), &WORKBENCH_LAYOUT_PANE_IDS)
+        && json_string_in(pane.get("module"), &WORKBENCH_LAYOUT_MODULE_IDS)
+        && json_string_in(pane.get("activeTab"), &WORKBENCH_LAYOUT_TAB_IDS)
+        && tabs
+            .iter()
+            .all(|tab| json_string_in(Some(tab), &WORKBENCH_LAYOUT_TAB_IDS))
+        && json_required_bool(pane.get("locked"))
+        && matches!(pane.get("projectRef"), Some(Value::String(_)))
+        && json_optional_non_empty_string(active_document_id)
+        && json_optional_non_empty_string(active_canvas_id)
+        && !(matches!(active_document_id, Some(Value::String(_)))
+            && matches!(active_canvas_id, Some(Value::String(_))))
+        && validate_workbench_layout_open_documents(pane.get("openDocuments"))
+}
+
+fn validate_workbench_layout_state_shape(layout_state: &Value) -> StorageResult<()> {
+    let Some(layout) = layout_state.as_object() else {
+        return Err(StorageError::Validation(
+            WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    let Some(split_weights) = layout.get("splitWeights").and_then(Value::as_object) else {
+        return Err(StorageError::Validation(
+            WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    let Some(drawers) = layout.get("drawers").and_then(Value::as_object) else {
+        return Err(StorageError::Validation(
+            WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    let Some(panes) = layout.get("panes").and_then(Value::as_array) else {
+        return Err(StorageError::Validation(
+            WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    let pane_ids = panes
+        .iter()
+        .filter_map(|pane| pane.get("id").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    if !json_string_in(layout.get("activePaneId"), &WORKBENCH_LAYOUT_PANE_IDS)
+        || !json_string_in(layout.get("activeModule"), &WORKBENCH_LAYOUT_MODULE_IDS)
+        || !json_required_split_weight(split_weights.get("vertical"))
+        || !json_required_split_weight(split_weights.get("horizontal"))
+        || !json_required_bool(drawers.get("project"))
+        || !json_required_bool(drawers.get("file"))
+        || !json_required_bool(drawers.get("bottom"))
+        || panes.len() != WORKBENCH_LAYOUT_PANE_IDS.len()
+        || !WORKBENCH_LAYOUT_PANE_IDS
+            .iter()
+            .all(|pane_id| pane_ids.contains(pane_id))
+        || !panes.iter().all(validate_workbench_layout_pane)
+    {
+        return Err(StorageError::Validation(
+            WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR,
+        ));
+    }
+    Ok(())
+}
+
+const WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR: &str =
+    "workspace settings_state must match hsk.workspace_settings_state@1 shape";
+const WORKSPACE_SETTINGS_KEYBINDING_ACTION_IDS: [&str; 2] =
+    ["app.quick_switcher.open", "app.command_palette.open"];
+
+fn normalize_workspace_settings_chord(value: &str) -> Option<String> {
+    let mut parts = value
+        .split('-')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    if parts.is_empty() {
+        return None;
+    }
+    let key = parts.pop()?;
+    let mut modifiers = BTreeSet::new();
+    for part in parts {
+        match part.to_ascii_lowercase().as_str() {
+            "mod" | "cmd" | "command" | "meta" | "ctrl" | "control" => {
+                modifiers.insert("Mod");
+            }
+            "alt" | "option" => {
+                modifiers.insert("Alt");
+            }
+            "shift" => {
+                modifiers.insert("Shift");
+            }
+            _ => return None,
+        }
+    }
+    let key = if key.chars().count() == 1 {
+        key.to_ascii_lowercase()
+    } else {
+        key.to_string()
+    };
+    let mut normalized = Vec::new();
+    for modifier in ["Mod", "Alt", "Shift"] {
+        if modifiers.contains(modifier) {
+            normalized.push(modifier.to_string());
+        }
+    }
+    normalized.push(key);
+    Some(normalized.join("-"))
+}
+
+fn validate_workspace_settings_state_shape(settings_state: &Value) -> StorageResult<()> {
+    let Some(settings_object) = settings_state.as_object() else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    if !json_string_in(settings_object.get("theme"), &["light", "dark"]) {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    }
+
+    let Some(custom_theme_tokens) = settings_object
+        .get("custom_theme_tokens")
+        .and_then(Value::as_object)
+    else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    if !custom_theme_tokens
+        .iter()
+        .all(|(key, value)| key.starts_with("--hs-color-") && value.as_str().is_some())
+    {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    }
+
+    let Some(keybindings) = settings_object
+        .get("keybindings")
+        .and_then(Value::as_object)
+    else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    if !keybindings
+        .keys()
+        .all(|key| WORKSPACE_SETTINGS_KEYBINDING_ACTION_IDS.contains(&key.as_str()))
+        || !WORKSPACE_SETTINGS_KEYBINDING_ACTION_IDS
+            .iter()
+            .all(|action_id| keybindings.contains_key(*action_id))
+    {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    }
+
+    let mut normalized_chords = HashSet::new();
+    for action_id in WORKSPACE_SETTINGS_KEYBINDING_ACTION_IDS {
+        let Some(chord) = keybindings.get(action_id).and_then(Value::as_str) else {
+            return Err(StorageError::Validation(
+                WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+            ));
+        };
+        let Some(normalized) = normalize_workspace_settings_chord(chord) else {
+            return Err(StorageError::Validation(
+                WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+            ));
+        };
+        if !normalized_chords.insert(normalized) {
+            return Err(StorageError::Validation(
+                "workspace settings_state duplicate keybinding chord",
+            ));
+        }
+    }
+
+    let Some(settings) = settings_object.get("settings").and_then(Value::as_object) else {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    };
+    if !json_string_in(settings.get("view_mode"), &["NSFW", "SFW"])
+        || !json_required_bool(settings.get("swarm_board_default_open"))
+    {
+        return Err(StorageError::Validation(
+            WORKSPACE_SETTINGS_SHAPE_VALIDATION_ERROR,
+        ));
+    }
+
+    Ok(())
 }
 
 /// MT-184: deterministic wiki markdown for a set of LoomBlocks. Pure function
@@ -1831,9 +2326,7 @@ fn loom_wiki_projection_from_knowledge(
             arr.iter()
                 // Typed project-wiki pages (MT-241) cite entities/sources/
                 // documents; only genuine LoomBlock citations are block ids.
-                .filter(|v| {
-                    v.get("record_family").and_then(|f| f.as_str()) == Some("LoomBlock")
-                })
+                .filter(|v| v.get("record_family").and_then(|f| f.as_str()) == Some("LoomBlock"))
                 .filter_map(|v| v.get("record_id").and_then(|r| r.as_str()))
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>()
@@ -1890,7 +2383,12 @@ fn map_loom_folder(row: &PgRow) -> StorageResult<super::LoomFolder> {
 /// a snippet leads with the most salient text. Never includes ids or paths.
 fn loom_block_scan_text(block: &LoomBlock) -> String {
     let mut parts: Vec<&str> = Vec::new();
-    if let Some(title) = block.title.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+    if let Some(title) = block
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
         parts.push(title);
     }
     if let Some(text) = block
@@ -1979,6 +2477,521 @@ fn escape_like_token(token: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
+}
+
+fn escape_postgres_regex_literal(token: &str) -> String {
+    let mut escaped = String::new();
+    for ch in token.chars() {
+        if matches!(
+            ch,
+            '\\' | '.' | '^' | '$' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '|'
+        ) {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    escaped
+}
+
+fn loom_search_uses_exact_sql(filters: &LoomSearchFilters) -> bool {
+    filters.case_sensitive || filters.whole_word || filters.is_regex
+}
+
+fn loom_search_regex_pattern(query: &str, filters: &LoomSearchFilters) -> String {
+    if filters.is_regex {
+        query.trim().to_string()
+    } else if filters.whole_word {
+        format!(
+            "(^|[^[:alnum:]_]){}([^[:alnum:]_]|$)",
+            escape_postgres_regex_literal(query.trim())
+        )
+    } else {
+        escape_postgres_regex_literal(query.trim())
+    }
+}
+
+fn push_loom_exact_text_match(
+    qb: &mut QueryBuilder<Postgres>,
+    expressions: &[&str],
+    query: &str,
+    filters: &LoomSearchFilters,
+) {
+    let query = query.trim();
+    if query.is_empty() {
+        return;
+    }
+    qb.push(" AND (");
+    if filters.is_regex || filters.whole_word {
+        let pattern = loom_search_regex_pattern(query, filters);
+        for (index, expression) in expressions.iter().enumerate() {
+            if index > 0 {
+                qb.push(" OR ");
+            }
+            qb.push(*expression)
+                .push(if filters.case_sensitive {
+                    " ~ "
+                } else {
+                    " ~* "
+                })
+                .push_bind(pattern.clone());
+        }
+    } else {
+        let pattern = format!("%{}%", escape_like_token(query));
+        for (index, expression) in expressions.iter().enumerate() {
+            if index > 0 {
+                qb.push(" OR ");
+            }
+            qb.push(*expression)
+                .push(if filters.case_sensitive {
+                    " LIKE "
+                } else {
+                    " ILIKE "
+                })
+                .push_bind(pattern.clone())
+                .push(" ESCAPE '\\'");
+        }
+    }
+    qb.push(")");
+}
+
+fn push_loom_path_filter(
+    qb: &mut QueryBuilder<Postgres>,
+    expressions: &[&str],
+    path: Option<&str>,
+) {
+    let Some(path) = path.map(str::trim).filter(|value| !value.is_empty()) else {
+        return;
+    };
+    let pattern = format!("%{}%", escape_like_token(path));
+    qb.push(" AND (");
+    for (index, expression) in expressions.iter().enumerate() {
+        if index > 0 {
+            qb.push(" OR ");
+        }
+        qb.push(*expression)
+            .push(" ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" ESCAPE '\\'");
+    }
+    qb.push(")");
+}
+
+fn loom_fuzzy_query(tokens: &[String]) -> Option<String> {
+    if tokens.len() != 1 {
+        return None;
+    }
+    let compact: String = tokens[0]
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect();
+    if (2..=12).contains(&compact.len()) {
+        Some(compact)
+    } else {
+        None
+    }
+}
+
+fn loom_fuzzy_contains_like_pattern(query: &str) -> String {
+    format!("%{}%", escape_like_token(query))
+}
+
+fn loom_fuzzy_subsequence_like_pattern(query: &str) -> String {
+    let mut pattern = String::from("%");
+    for ch in query.chars() {
+        pattern.push(ch);
+        pattern.push('%');
+    }
+    pattern
+}
+
+const LOOM_FUZZY_TRIGRAM_THRESHOLD: f32 = 0.22;
+
+fn loom_fuzzy_sql_initials_expression(expression: &str) -> String {
+    format!(
+        r#"lower(regexp_replace(regexp_replace(regexp_replace({expression}, '([[:lower:][:digit:]])([[:upper:]])', E'\\1 \\2', 'g'), '(^|[^[:alnum:]])([[:alnum:]])[[:alnum:]]*', E'\\2', 'g'), '[^[:alnum:]]+', '', 'g'))"#
+    )
+}
+
+fn push_loom_fuzzy_sql_match(qb: &mut QueryBuilder<Postgres>, expressions: &[&str], query: &str) {
+    let contains_pattern = loom_fuzzy_contains_like_pattern(query);
+    let subsequence_pattern = loom_fuzzy_subsequence_like_pattern(query);
+    let initials_prefix_pattern = format!("{}%", escape_like_token(query));
+    qb.push(" AND (");
+    for (index, expression) in expressions.iter().enumerate() {
+        if index > 0 {
+            qb.push(" OR ");
+        }
+        let normalized_expression = format!("lower({expression})");
+        let initials_expression = loom_fuzzy_sql_initials_expression(expression);
+        qb.push("(");
+        qb.push(normalized_expression.as_str())
+            .push(" LIKE ")
+            .push_bind(contains_pattern.clone())
+            .push(" ESCAPE '\\'");
+        if query.len() >= 4 {
+            qb.push(" OR ")
+                .push(normalized_expression.as_str())
+                .push(" LIKE ")
+                .push_bind(subsequence_pattern.clone())
+                .push(" ESCAPE '\\'");
+        }
+        qb.push(" OR ")
+            .push(normalized_expression.as_str())
+            .push(" OPERATOR(public.%) ")
+            .push_bind(query.to_string());
+        qb.push(" OR public.similarity(")
+            .push(normalized_expression.as_str())
+            .push(", ")
+            .push_bind(query.to_string())
+            .push(") >= ")
+            .push_bind(LOOM_FUZZY_TRIGRAM_THRESHOLD);
+        qb.push(" OR ")
+            .push(initials_expression.as_str())
+            .push(" LIKE ")
+            .push_bind(initials_prefix_pattern.clone())
+            .push(" ESCAPE '\\'");
+        qb.push(" OR ")
+            .push(initials_expression.as_str())
+            .push(" LIKE ")
+            .push_bind(subsequence_pattern.clone())
+            .push(" ESCAPE '\\'");
+        qb.push(")");
+    }
+    qb.push(")");
+}
+
+fn is_ascii_subsequence(needle: &str, haystack: &str) -> bool {
+    let mut haystack_chars = haystack.chars();
+    needle.chars().all(|needle_ch| {
+        haystack_chars
+            .by_ref()
+            .any(|haystack_ch| haystack_ch == needle_ch)
+    })
+}
+
+fn loom_fuzzy_forms(value: &str) -> (String, String) {
+    let mut compact = String::new();
+    let mut initials = String::new();
+    let mut at_word_start = true;
+    let mut previous: Option<char> = None;
+
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            let lower = ch.to_ascii_lowercase();
+            compact.push(lower);
+            let camel_boundary = ch.is_ascii_uppercase()
+                && previous
+                    .map(|prev| prev.is_ascii_lowercase() || prev.is_ascii_digit())
+                    .unwrap_or(false);
+            if at_word_start || camel_boundary {
+                initials.push(lower);
+            }
+            at_word_start = false;
+        } else {
+            at_word_start = true;
+        }
+        previous = Some(ch);
+    }
+
+    (compact, initials)
+}
+
+fn loom_typo_max_distance(query_len: usize) -> usize {
+    match query_len {
+        0..=3 => 0,
+        4..=8 => 1,
+        9..=16 => 2,
+        _ => 3,
+    }
+}
+
+fn loom_bounded_edit_distance(left: &str, right: &str, max_distance: usize) -> Option<usize> {
+    let left_len = left.len();
+    let right_len = right.len();
+    if left_len.abs_diff(right_len) > max_distance {
+        return None;
+    }
+
+    let mut previous: Vec<usize> = (0..=right_len).collect();
+    let mut current = vec![0; right_len + 1];
+
+    for (left_index, left_byte) in left.bytes().enumerate() {
+        current[0] = left_index + 1;
+        let mut row_min = current[0];
+        for (right_index, right_byte) in right.bytes().enumerate() {
+            let substitution = if left_byte == right_byte { 0 } else { 1 };
+            let value = (previous[right_index + 1] + 1)
+                .min(current[right_index] + 1)
+                .min(previous[right_index] + substitution);
+            current[right_index + 1] = value;
+            row_min = row_min.min(value);
+        }
+        if row_min > max_distance {
+            return None;
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+
+    let distance = previous[right_len];
+    (distance <= max_distance).then_some(distance)
+}
+
+fn loom_typo_field_score(query: &str, compact: &str) -> Option<f64> {
+    let max_distance = loom_typo_max_distance(query.len());
+    if max_distance == 0 || compact.len() < 4 {
+        return None;
+    }
+
+    let min_window = query.len().saturating_sub(max_distance).max(1);
+    let max_window = (query.len() + max_distance).min(compact.len());
+    let mut best: Option<(usize, usize)> = None;
+
+    for window_len in min_window..=max_window {
+        for start in 0..=compact.len().saturating_sub(window_len) {
+            let candidate = &compact[start..start + window_len];
+            if let Some(distance) = loom_bounded_edit_distance(query, candidate, max_distance) {
+                let start_penalty = start.min(8);
+                let current = (distance, start_penalty);
+                if best.map(|best| current < best).unwrap_or(true) {
+                    best = Some(current);
+                }
+            }
+        }
+    }
+
+    best.map(|(distance, start_penalty)| {
+        14.0 - (distance as f64 * 2.0) - (start_penalty as f64 * 0.25)
+    })
+    .filter(|score| *score > 0.0)
+}
+
+fn loom_fuzzy_field_score(query: &str, value: &str) -> Option<f64> {
+    if value.trim().is_empty() {
+        return None;
+    }
+    let (compact, initials) = loom_fuzzy_forms(value);
+    if initials.starts_with(query) {
+        return Some(24.0);
+    }
+    if is_ascii_subsequence(query, &initials) {
+        return Some(20.0);
+    }
+    if compact.starts_with(query) {
+        return Some(12.0);
+    }
+    if compact.contains(query) {
+        return Some(10.0);
+    }
+    if query.len() >= 4 && is_ascii_subsequence(query, &compact) {
+        return Some(6.0);
+    }
+    loom_typo_field_score(query, &compact)
+}
+
+fn loom_fuzzy_score<'a>(query: &str, fields: impl IntoIterator<Item = &'a str>) -> Option<f64> {
+    fields
+        .into_iter()
+        .filter_map(|field| loom_fuzzy_field_score(query, field))
+        .max_by(|a, b| a.total_cmp(b))
+}
+
+fn loom_search_source_allowed(
+    filters: &LoomSearchFilters,
+    source_kind: LoomSearchSourceKind,
+) -> bool {
+    filters.source_kinds.is_empty() || filters.source_kinds.contains(&source_kind)
+}
+
+const LOOM_GRAPH_SOURCE_ORDER: [LoomSearchSourceKind; 9] = [
+    LoomSearchSourceKind::LoomBlock,
+    LoomSearchSourceKind::File,
+    LoomSearchSourceKind::TagHub,
+    LoomSearchSourceKind::Document,
+    LoomSearchSourceKind::Symbol,
+    LoomSearchSourceKind::WorkPacket,
+    LoomSearchSourceKind::MicroTask,
+    LoomSearchSourceKind::UserManualPage,
+    LoomSearchSourceKind::WikiPage,
+];
+
+fn loom_graph_source_order_index(source_kind: LoomSearchSourceKind) -> usize {
+    LOOM_GRAPH_SOURCE_ORDER
+        .iter()
+        .position(|candidate| *candidate == source_kind)
+        .unwrap_or(LOOM_GRAPH_SOURCE_ORDER.len())
+}
+
+fn order_loom_graph_results_for_breadth(
+    results: Vec<LoomGraphSearchResult>,
+) -> Vec<LoomGraphSearchResult> {
+    if results.len() <= 1 {
+        return results;
+    }
+
+    let mut buckets: Vec<VecDeque<LoomGraphSearchResult>> = LOOM_GRAPH_SOURCE_ORDER
+        .iter()
+        .map(|_| VecDeque::new())
+        .collect();
+    let mut fallback = VecDeque::new();
+    let total = results.len();
+
+    for result in results {
+        let index = loom_graph_source_order_index(result.source_kind);
+        if let Some(bucket) = buckets.get_mut(index) {
+            bucket.push_back(result);
+        } else {
+            fallback.push_back(result);
+        }
+    }
+
+    let mut ordered = Vec::with_capacity(total);
+    loop {
+        let mut progressed = false;
+        for bucket in &mut buckets {
+            if let Some(result) = bucket.pop_front() {
+                ordered.push(result);
+                progressed = true;
+            }
+        }
+        if let Some(result) = fallback.pop_front() {
+            ordered.push(result);
+            progressed = true;
+        }
+        if !progressed {
+            break;
+        }
+    }
+
+    ordered
+}
+
+fn loom_block_graph_source_kind(content_type: &LoomBlockContentType) -> LoomSearchSourceKind {
+    match content_type {
+        LoomBlockContentType::File | LoomBlockContentType::AnnotatedFile => {
+            LoomSearchSourceKind::File
+        }
+        LoomBlockContentType::TagHub => LoomSearchSourceKind::TagHub,
+        LoomBlockContentType::Note | LoomBlockContentType::Journal => {
+            LoomSearchSourceKind::LoomBlock
+        }
+    }
+}
+
+fn loom_search_block_content_type_filter(filters: &LoomSearchFilters) -> Option<Vec<&'static str>> {
+    if filters.source_kinds.is_empty() {
+        return None;
+    }
+
+    let mut content_types = Vec::new();
+    if loom_search_source_allowed(filters, LoomSearchSourceKind::LoomBlock) {
+        content_types.push(LoomBlockContentType::Note.as_str());
+        content_types.push(LoomBlockContentType::Journal.as_str());
+    }
+    if loom_search_source_allowed(filters, LoomSearchSourceKind::File) {
+        content_types.push(LoomBlockContentType::File.as_str());
+        content_types.push(LoomBlockContentType::AnnotatedFile.as_str());
+    }
+    if loom_search_source_allowed(filters, LoomSearchSourceKind::TagHub) {
+        content_types.push(LoomBlockContentType::TagHub.as_str());
+    }
+
+    Some(content_types)
+}
+
+fn loom_search_has_block_scoped_filters(filters: &LoomSearchFilters) -> bool {
+    filters.content_type.is_some()
+        || filters.mime.is_some()
+        || !filters.tag_ids.is_empty()
+        || !filters.mention_ids.is_empty()
+        || filters.backlink_depth.is_some()
+}
+
+const LOOM_RETRIEVAL_BIAS_SCHEMA_ID: &str = "hsk.loom_retrieval_bias@1";
+const LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT: f64 = 5.0;
+const LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT: f64 = 3.0;
+const LOOM_RETRIEVAL_BIAS_TAG_WEIGHT: f64 = 1.5;
+const LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT: f64 = 1.0;
+const LOOM_RETRIEVAL_BIAS_COUNT_CAP: i64 = 10;
+
+fn loom_retrieval_bias_count(value: i64) -> i64 {
+    value.max(0).min(LOOM_RETRIEVAL_BIAS_COUNT_CAP)
+}
+
+fn loom_retrieval_bias_score(block: &LoomBlock) -> f64 {
+    let mut score = 0.0;
+    if block.pinned {
+        score += LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT;
+    }
+    if block.favorite {
+        score += LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT;
+    }
+    score +=
+        loom_retrieval_bias_count(block.derived.tag_count) as f64 * LOOM_RETRIEVAL_BIAS_TAG_WEIGHT;
+    score += loom_retrieval_bias_count(block.derived.backlink_count) as f64
+        * LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT;
+    score
+}
+
+fn loom_retrieval_bias_reasons(block: &LoomBlock) -> Vec<Value> {
+    let mut reasons = Vec::new();
+    if block.pinned {
+        reasons.push(json!({
+            "code": "pinned",
+            "label": "Pinned Loom block",
+            "weight": LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT,
+            "evidence_ref": "loom_blocks.pinned",
+        }));
+    }
+    if block.favorite {
+        reasons.push(json!({
+            "code": "favorite",
+            "label": "Favorite Loom block",
+            "weight": LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT,
+            "evidence_ref": "loom_blocks.favorite",
+        }));
+    }
+    let raw_tag_count = block.derived.tag_count.max(0);
+    let score_tag_count = loom_retrieval_bias_count(raw_tag_count);
+    if raw_tag_count > 0 {
+        reasons.push(json!({
+            "code": "tagged",
+            "label": "Tagged Loom block",
+            "weight": score_tag_count as f64 * LOOM_RETRIEVAL_BIAS_TAG_WEIGHT,
+            "evidence_ref": "loom_blocks.tag_count",
+            "count": raw_tag_count,
+            "score_count": score_tag_count,
+            "score_count_cap": LOOM_RETRIEVAL_BIAS_COUNT_CAP,
+        }));
+    }
+    let raw_backlink_count = block.derived.backlink_count.max(0);
+    let score_backlink_count = loom_retrieval_bias_count(raw_backlink_count);
+    if raw_backlink_count > 0 {
+        reasons.push(json!({
+            "code": "backlinked",
+            "label": "Backlinked Loom block",
+            "weight": score_backlink_count as f64 * LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT,
+            "evidence_ref": "loom_blocks.backlink_count",
+            "count": raw_backlink_count,
+            "score_count": score_backlink_count,
+            "score_count_cap": LOOM_RETRIEVAL_BIAS_COUNT_CAP,
+        }));
+    }
+    reasons
+}
+
+fn loom_retrieval_bias_metadata(block: &LoomBlock, score: f64) -> Value {
+    json!({
+        "authority_table": "loom_blocks",
+        "retrieval_bias_schema_id": LOOM_RETRIEVAL_BIAS_SCHEMA_ID,
+        "retrieval_bias_score": score,
+        "retrieval_bias_reasons": loom_retrieval_bias_reasons(block),
+    })
+}
+
+fn loom_search_excerpt(value: &str) -> String {
+    let compact = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    compact.chars().take(240).collect()
 }
 
 fn map_ai_job(row: PgRow) -> StorageResult<AiJob> {
@@ -2314,6 +3327,7 @@ where
     let payload = String::from_utf8(canonical_json_bytes(&event.payload))
         .map_err(|err| StorageError::Serialization(err.to_string()))?;
 
+    let new_event_id = kernel_event.event_id.clone();
     let row = sqlx::query(
         r#"
         WITH inserted AS (
@@ -2399,7 +3413,7 @@ where
         LIMIT 1
         "#,
     )
-    .bind(kernel_event.event_id)
+    .bind(&kernel_event.event_id)
     .bind(&event.event_version)
     .bind(&event.kernel_task_run_id)
     .bind(&event.session_run_id)
@@ -2419,25 +3433,65 @@ where
     .await?;
 
     let stored = map_kernel_event(row)?;
-    if stored.event_version != event.event_version
-        || stored.kernel_task_run_id != event.kernel_task_run_id
-        || stored.session_run_id != event.session_run_id
-        || stored.aggregate_type != event.aggregate_type
-        || stored.aggregate_id != event.aggregate_id
-        || stored.event_type != event.event_type
-        || stored.actor != event.actor
-        || stored.causation_id != event.causation_id
-        || stored.correlation_id != event.correlation_id
-        || stored.payload_hash != event.payload_hash
-        || stored.source_component != event.source_component
-        || stored.payload != event.payload
-    {
-        return Err(StorageError::Validation(
-            "kernel event idempotency conflict",
-        ));
+    let mut mismatches = Vec::new();
+    if stored.event_version != event.event_version {
+        mismatches.push("event_version");
+    }
+    if stored.kernel_task_run_id != event.kernel_task_run_id {
+        mismatches.push("kernel_task_run_id");
+    }
+    if stored.session_run_id != event.session_run_id {
+        mismatches.push("session_run_id");
+    }
+    if stored.aggregate_type != event.aggregate_type {
+        mismatches.push("aggregate_type");
+    }
+    if stored.aggregate_id != event.aggregate_id {
+        mismatches.push("aggregate_id");
+    }
+    if stored.event_type != event.event_type {
+        mismatches.push("event_type");
+    }
+    if stored.actor != event.actor {
+        mismatches.push("actor");
+    }
+    if stored.causation_id != event.causation_id {
+        mismatches.push("causation_id");
+    }
+    if stored.correlation_id != event.correlation_id {
+        mismatches.push("correlation_id");
+    }
+    if stored.payload_hash != event.payload_hash {
+        mismatches.push("payload_hash");
+    }
+    if stored.source_component != event.source_component {
+        mismatches.push("source_component");
+    }
+    // `payload_hash` is computed from Handshake canonical JSON before insert.
+    // PostgreSQL JSONB may normalize the raw payload shape on readback
+    // (especially numeric rendering), so comparing `Value` directly creates
+    // false idempotency conflicts for successfully inserted events.
+    if !mismatches.is_empty() {
+        return Err(StorageError::Validation(leak_kernel_event_conflict(
+            format!(
+                "kernel event idempotency conflict: idempotency_key={} aggregate={}/{} existing_event_id={} new_event_id={} existing_payload_hash={} new_payload_hash={} mismatches={}",
+                event.idempotency_key,
+                event.aggregate_type,
+                event.aggregate_id,
+                stored.event_id,
+                new_event_id,
+                stored.payload_hash,
+                event.payload_hash,
+                mismatches.join(",")
+            ),
+        )));
     }
 
     Ok(stored)
+}
+
+fn leak_kernel_event_conflict(message: String) -> &'static str {
+    Box::leak(message.into_boxed_str())
 }
 
 fn is_sha256_hex(value: &str) -> bool {
@@ -3805,6 +4859,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                favorite,
                 journal_date,
                 created_at,
                 updated_at,
@@ -3849,6 +4904,166 @@ impl super::Database for PostgresDatabase {
         map_loom_block(row)
     }
 
+    async fn get_or_create_daily_journal_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        journal_date: &str,
+    ) -> StorageResult<LoomBlock> {
+        let now = Utc::now();
+        let id = Uuid::now_v7().to_string();
+        let write_key = format!("{workspace_id}:journal:{journal_date}");
+        let metadata = self.guard.validate_write(ctx, &write_key).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|v| v.to_string());
+        let workflow_id = metadata.workflow_id.map(|v| v.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+        let title = format!("Daily Note {journal_date}");
+        let mut derived = LoomBlockDerived::default();
+        derived.full_text_index = Some(format!("# {title}\n\n"));
+        let derived_json = serde_json::to_string(&derived)?;
+        let preview_status = derived.preview_status.as_str();
+
+        let row = sqlx::query(
+            r#"
+            WITH inserted AS (
+                INSERT INTO loom_blocks (
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    document_id,
+                    asset_id,
+                    title,
+                    original_filename,
+                    content_hash,
+                    pinned,
+                    journal_date,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id,
+                    created_at,
+                    updated_at,
+                    imported_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status,
+                    thumbnail_asset_id,
+                    proxy_asset_id
+                )
+                VALUES (
+                    $1, $2, $3, NULL, NULL, $4, NULL, NULL, 0, $5,
+                    $6, $7, $8, $9, $10,
+                    $11, $11, NULL,
+                    0, 0, 0,
+                    $12, $13, NULL, NULL
+                )
+                ON CONFLICT (workspace_id, journal_date)
+                    WHERE content_type = 'journal' AND journal_date IS NOT NULL
+                DO NOTHING
+                RETURNING
+                    block_id,
+                    workspace_id,
+                    content_type,
+                    document_id,
+                    asset_id,
+                    title,
+                    original_filename,
+                    content_hash,
+                    pinned,
+                    favorite,
+                    pin_order,
+                    journal_date,
+                    created_at,
+                    updated_at,
+                    imported_at,
+                    backlink_count,
+                    mention_count,
+                    tag_count,
+                    derived_json,
+                    preview_status,
+                    thumbnail_asset_id,
+                    proxy_asset_id
+            )
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                favorite,
+                pin_order,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            FROM inserted
+            UNION ALL
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                favorite,
+                pin_order,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $2
+              AND content_type = 'journal'
+              AND journal_date = $5
+              AND NOT EXISTS (SELECT 1 FROM inserted)
+            LIMIT 1
+            "#,
+        )
+        .bind(&id)
+        .bind(workspace_id)
+        .bind(LoomBlockContentType::Journal.as_str())
+        .bind(title)
+        .bind(journal_date)
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(derived_json)
+        .bind(preview_status)
+        .fetch_one(&self.pool)
+        .await?;
+
+        map_loom_block(row)
+    }
+
     async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock> {
         let row = sqlx::query(
             r#"
@@ -3862,6 +5077,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                favorite,
                 pin_order,
                 journal_date,
                 created_at,
@@ -3906,6 +5122,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                favorite,
                 journal_date,
                 created_at,
                 updated_at,
@@ -3949,6 +5166,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                favorite,
                 journal_date,
                 created_at,
                 updated_at,
@@ -3993,6 +5211,7 @@ impl super::Database for PostgresDatabase {
         let edit_event_id = metadata.edit_event_id.to_string();
 
         let pinned: Option<i32> = update.pinned.map(|v| if v { 1 } else { 0 });
+        let favorite: Option<i32> = update.favorite.map(|v| if v { 1 } else { 0 });
 
         let row = sqlx::query(
             r#"
@@ -4002,13 +5221,14 @@ impl super::Database for PostgresDatabase {
                 pinned = COALESCE($2, pinned),
                 journal_date = COALESCE($3, journal_date),
                 pin_order = COALESCE($4, pin_order),
-                last_actor_kind = $5,
-                last_actor_id = $6,
-                last_job_id = $7,
-                last_workflow_id = $8,
-                edit_event_id = $9,
-                updated_at = $10
-            WHERE workspace_id = $11 AND block_id = $12
+                favorite = COALESCE($5, favorite),
+                last_actor_kind = $6,
+                last_actor_id = $7,
+                last_job_id = $8,
+                last_workflow_id = $9,
+                edit_event_id = $10,
+                updated_at = $11
+            WHERE workspace_id = $12 AND block_id = $13
             RETURNING
                 block_id,
                 workspace_id,
@@ -4019,6 +5239,7 @@ impl super::Database for PostgresDatabase {
                 original_filename,
                 content_hash,
                 pinned,
+                favorite,
                 pin_order,
                 journal_date,
                 created_at,
@@ -4037,6 +5258,7 @@ impl super::Database for PostgresDatabase {
         .bind(pinned)
         .bind(update.journal_date)
         .bind(update.pin_order)
+        .bind(favorite)
         .bind(actor_kind)
         .bind(actor_id)
         .bind(job_id)
@@ -4519,6 +5741,7 @@ impl super::Database for PostgresDatabase {
                 b.original_filename,
                 b.content_hash,
                 b.pinned,
+                b.favorite,
                 b.journal_date,
                 b.created_at,
                 b.updated_at,
@@ -4664,6 +5887,7 @@ impl super::Database for PostgresDatabase {
                     b.original_filename,
                     b.content_hash,
                     b.pinned,
+                    b.favorite,
                     b.pin_order,
                     b.journal_date,
                     b.created_at,
@@ -4713,11 +5937,25 @@ impl super::Database for PostgresDatabase {
 
                 if let Some(from) = filters.date_from {
                     push_clause(&mut qb);
-                    qb.push("b.updated_at >= ").push_bind(from);
+                    qb.push(
+                        "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                         THEN b.journal_date >= to_char(",
+                    )
+                    .push_bind(from)
+                    .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at >= ")
+                    .push_bind(from)
+                    .push(" END)");
                 }
                 if let Some(to) = filters.date_to {
                     push_clause(&mut qb);
-                    qb.push("b.updated_at <= ").push_bind(to);
+                    qb.push(
+                        "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                         THEN b.journal_date <= to_char(",
+                    )
+                    .push_bind(to)
+                    .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at <= ")
+                    .push_bind(to)
+                    .push(" END)");
                 }
 
                 if !filters.tag_ids.is_empty() {
@@ -4760,7 +5998,8 @@ impl super::Database for PostgresDatabase {
 
         match view_type {
             LoomViewType::All => {
-                let blocks = select_blocks(None, "ORDER BY b.updated_at DESC, b.block_id ASC").await?;
+                let blocks =
+                    select_blocks(None, "ORDER BY b.updated_at DESC, b.block_id ASC").await?;
                 Ok(LoomViewResponse::All { blocks })
             }
             LoomViewType::Pins => {
@@ -4773,6 +6012,14 @@ impl super::Database for PostgresDatabase {
                 )
                 .await?;
                 Ok(LoomViewResponse::Pins { blocks })
+            }
+            LoomViewType::Favorites => {
+                let blocks = select_blocks(
+                    Some("b.favorite != 0"),
+                    "ORDER BY b.updated_at DESC, b.block_id ASC",
+                )
+                .await?;
+                Ok(LoomViewResponse::Favorites { blocks })
             }
             LoomViewType::Unlinked => {
                 let blocks = select_blocks(
@@ -4833,11 +6080,25 @@ impl super::Database for PostgresDatabase {
 
                 if let Some(from) = filters.date_from {
                     push_clause(&mut qb);
-                    qb.push("b.updated_at >= ").push_bind(from);
+                    qb.push(
+                        "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                         THEN b.journal_date >= to_char(",
+                    )
+                    .push_bind(from)
+                    .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at >= ")
+                    .push_bind(from)
+                    .push(" END)");
                 }
                 if let Some(to) = filters.date_to {
                     push_clause(&mut qb);
-                    qb.push("b.updated_at <= ").push_bind(to);
+                    qb.push(
+                        "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                         THEN b.journal_date <= to_char(",
+                    )
+                    .push_bind(to)
+                    .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at <= ")
+                    .push_bind(to)
+                    .push(" END)");
                 }
 
                 if !filters.tag_ids.is_empty() {
@@ -4892,6 +6153,7 @@ impl super::Database for PostgresDatabase {
                             b.original_filename,
                             b.content_hash,
                             b.pinned,
+                            b.favorite,
                             b.journal_date,
                             b.created_at,
                             b.updated_at,
@@ -4943,11 +6205,25 @@ impl super::Database for PostgresDatabase {
 
                     if let Some(from) = filters.date_from {
                         push_clause(&mut qb);
-                        qb.push("b.updated_at >= ").push_bind(from);
+                        qb.push(
+                            "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                             THEN b.journal_date >= to_char(",
+                        )
+                        .push_bind(from)
+                        .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at >= ")
+                        .push_bind(from)
+                        .push(" END)");
                     }
                     if let Some(to) = filters.date_to {
                         push_clause(&mut qb);
-                        qb.push("b.updated_at <= ").push_bind(to);
+                        qb.push(
+                            "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                             THEN b.journal_date <= to_char(",
+                        )
+                        .push_bind(to)
+                        .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at <= ")
+                        .push_bind(to)
+                        .push(" END)");
                     }
 
                     if !filters.tag_ids.is_empty() {
@@ -5006,10 +6282,20 @@ impl super::Database for PostgresDatabase {
         limit: u32,
         offset: u32,
     ) -> StorageResult<Vec<LoomBlockSearchResult>> {
-        let tokens = normalize_loom_search_tokens(query);
-        if tokens.is_empty() {
+        let exact_sql = loom_search_uses_exact_sql(&filters);
+        let tokens = if exact_sql {
+            vec![query.trim().to_string()]
+        } else {
+            normalize_loom_search_tokens(query)
+        };
+        if tokens.iter().all(|token| token.trim().is_empty()) {
             return Ok(Vec::new());
         }
+        let fuzzy_query = if exact_sql {
+            None
+        } else {
+            loom_fuzzy_query(&tokens)
+        };
         let limit_i64 = limit as i64;
         let offset_i64 = offset as i64;
 
@@ -5025,6 +6311,7 @@ impl super::Database for PostgresDatabase {
                 b.original_filename,
                 b.content_hash,
                 b.pinned,
+                b.favorite,
                 b.journal_date,
                 b.created_at,
                 b.updated_at,
@@ -5055,26 +6342,72 @@ impl super::Database for PostgresDatabase {
         push_clause(&mut qb);
         qb.push("b.workspace_id = ").push_bind(workspace_id);
 
-        for token in tokens {
-            let pattern = format!("%{}%", escape_like_token(&token));
-            push_clause(&mut qb);
-            qb.push("(");
-            qb.push("COALESCE(b.title, '') ILIKE ")
-                .push_bind(pattern.clone())
-                .push(" ESCAPE '\\'");
-            qb.push(" OR COALESCE(b.original_filename, '') ILIKE ")
-                .push_bind(pattern.clone())
-                .push(" ESCAPE '\\'");
-            qb.push(" OR COALESCE((b.derived_json::jsonb ->> 'full_text_index'), '') ILIKE ")
-                .push_bind(pattern)
-                .push(" ESCAPE '\\'");
-            qb.push(")");
+        if exact_sql {
+            push_loom_exact_text_match(
+                &mut qb,
+                &[
+                    "COALESCE(b.title, '')",
+                    "COALESCE(b.original_filename, '')",
+                    "COALESCE((b.derived_json::jsonb ->> 'full_text_index'), '')",
+                ],
+                query,
+                &filters,
+            );
+        } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+            push_loom_fuzzy_sql_match(
+                &mut qb,
+                &[
+                    "b.block_id",
+                    "COALESCE(b.title, '')",
+                    "COALESCE(b.original_filename, '')",
+                ],
+                fuzzy_query,
+            );
+        } else {
+            for token in tokens {
+                let pattern = format!("%{}%", escape_like_token(&token));
+                push_clause(&mut qb);
+                qb.push("(");
+                qb.push("COALESCE(b.title, '') ILIKE ")
+                    .push_bind(pattern.clone())
+                    .push(" ESCAPE '\\'");
+                qb.push(" OR COALESCE(b.original_filename, '') ILIKE ")
+                    .push_bind(pattern.clone())
+                    .push(" ESCAPE '\\'");
+                qb.push(" OR COALESCE((b.derived_json::jsonb ->> 'full_text_index'), '') ILIKE ")
+                    .push_bind(pattern)
+                    .push(" ESCAPE '\\'");
+                qb.push(")");
+            }
         }
+        push_loom_path_filter(
+            &mut qb,
+            &[
+                "b.block_id",
+                "COALESCE(b.document_id, '')",
+                "COALESCE(b.original_filename, '')",
+                "COALESCE(b.title, '')",
+            ],
+            filters.path.as_deref(),
+        );
 
-        if let Some(content_type) = filters.content_type {
+        if let Some(content_type) = filters.content_type.as_ref() {
             push_clause(&mut qb);
             qb.push("b.content_type = ")
                 .push_bind(content_type.as_str());
+        }
+        if let Some(source_content_types) = loom_search_block_content_type_filter(&filters) {
+            push_clause(&mut qb);
+            if source_content_types.is_empty() {
+                qb.push("FALSE");
+            } else {
+                qb.push("b.content_type IN (");
+                let mut separated = qb.separated(", ");
+                for content_type in source_content_types {
+                    separated.push_bind(content_type);
+                }
+                separated.push_unseparated(")");
+            }
         }
         if let Some(mime) = filters.mime {
             push_clause(&mut qb);
@@ -5167,20 +6500,991 @@ impl super::Database for PostgresDatabase {
             }
         }
 
-        qb.push(" ORDER BY b.updated_at DESC, b.block_id ASC ");
-        qb.push(" LIMIT ").push_bind(limit_i64);
-        qb.push(" OFFSET ").push_bind(offset_i64);
+        qb.push(
+            r#"
+            ORDER BY
+                (
+                    CASE WHEN b.pinned != 0 THEN 5.0 ELSE 0.0 END
+                    + CASE WHEN b.favorite != 0 THEN 3.0 ELSE 0.0 END
+                    + (LEAST(GREATEST(COALESCE(b.tag_count, 0), 0), 10)::DOUBLE PRECISION * 1.5)
+                    + (LEAST(GREATEST(COALESCE(b.backlink_count, 0), 0), 10)::DOUBLE PRECISION * 1.0)
+                ) DESC,
+                b.updated_at DESC,
+                b.block_id ASC
+            "#,
+        );
+        if fuzzy_query.is_none() {
+            qb.push(" LIMIT ").push_bind(limit_i64);
+            qb.push(" OFFSET ").push_bind(offset_i64);
+        }
 
         let rows = qb.build().fetch_all(&self.pool).await?;
-        let blocks: Vec<LoomBlockSearchResult> = rows
-            .into_iter()
-            .map(|row| {
-                let block = map_loom_block(row)?;
-                Ok(LoomBlockSearchResult { block, score: 0.0 })
-            })
-            .collect::<StorageResult<Vec<_>>>()?;
+        let mut blocks = Vec::new();
+        for row in rows {
+            let block = map_loom_block(row)?;
+            let fuzzy_score = fuzzy_query.as_deref().and_then(|needle| {
+                loom_fuzzy_score(
+                    needle,
+                    [
+                        block.block_id.as_str(),
+                        block.title.as_deref().unwrap_or_default(),
+                        block.original_filename.as_deref().unwrap_or_default(),
+                    ],
+                )
+            });
+            if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                continue;
+            }
+            let score = loom_retrieval_bias_score(&block) + fuzzy_score.unwrap_or(0.0);
+            blocks.push(LoomBlockSearchResult { block, score });
+        }
 
-        Ok(blocks)
+        if fuzzy_query.is_some() {
+            blocks.sort_by(|left, right| {
+                right
+                    .score
+                    .total_cmp(&left.score)
+                    .then_with(|| left.block.block_id.cmp(&right.block.block_id))
+            });
+            Ok(blocks
+                .into_iter()
+                .skip(offset as usize)
+                .take(limit as usize)
+                .collect())
+        } else {
+            Ok(blocks)
+        }
+    }
+
+    async fn search_loom_graph(
+        &self,
+        workspace_id: &str,
+        query: &str,
+        filters: LoomSearchFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomGraphSearchResult>> {
+        let exact_sql = loom_search_uses_exact_sql(&filters);
+        let tokens = if exact_sql {
+            vec![query.trim().to_string()]
+        } else {
+            normalize_loom_search_tokens(query)
+        };
+        if tokens.iter().all(|token| token.trim().is_empty()) || limit == 0 {
+            return Ok(Vec::new());
+        }
+
+        let fuzzy_query = if exact_sql {
+            None
+        } else {
+            loom_fuzzy_query(&tokens)
+        };
+        let source_limit = limit.min(500);
+        let fetch_limit = offset.saturating_add(source_limit);
+        let candidate_limit = if fuzzy_query.is_some() {
+            offset.saturating_add(source_limit.max(500))
+        } else {
+            fetch_limit
+        };
+        let fetch_limit_i64 = candidate_limit as i64;
+        let block_scoped_filters = loom_search_has_block_scoped_filters(&filters);
+        let mut results = Vec::new();
+
+        let block_source_kinds: Vec<LoomSearchSourceKind> = [
+            LoomSearchSourceKind::LoomBlock,
+            LoomSearchSourceKind::File,
+            LoomSearchSourceKind::TagHub,
+        ]
+        .into_iter()
+        .filter(|kind| loom_search_source_allowed(&filters, *kind))
+        .collect();
+
+        for source_kind_filter in block_source_kinds {
+            let mut source_filters = filters.clone();
+            source_filters.source_kinds = vec![source_kind_filter];
+            let block_hits = self
+                .search_loom_blocks(workspace_id, query, source_filters, candidate_limit, 0)
+                .await?;
+            results.extend(block_hits.into_iter().filter_map(|hit| {
+                let block = hit.block;
+                let source_kind = loom_block_graph_source_kind(&block.content_type);
+                if source_kind != source_kind_filter {
+                    return None;
+                }
+                let score = hit.score;
+                let title = block
+                    .title
+                    .clone()
+                    .or_else(|| block.original_filename.clone())
+                    .unwrap_or_else(|| block.block_id.clone());
+                let excerpt = block
+                    .derived
+                    .full_text_index
+                    .as_deref()
+                    .map(loom_search_excerpt)
+                    .unwrap_or_default();
+                let metadata = loom_retrieval_bias_metadata(&block, score);
+                Some(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::LoomBlock,
+                    source_kind,
+                    ref_id: block.block_id.clone(),
+                    title,
+                    excerpt,
+                    block: Some(block),
+                    score,
+                    metadata,
+                })
+            }));
+        }
+
+        let knowledge_kinds: Vec<LoomSearchSourceKind> = [
+            LoomSearchSourceKind::Symbol,
+            LoomSearchSourceKind::WorkPacket,
+            LoomSearchSourceKind::MicroTask,
+        ]
+        .into_iter()
+        .filter(|kind| !block_scoped_filters && loom_search_source_allowed(&filters, *kind))
+        .collect();
+
+        for source_kind_filter in knowledge_kinds {
+            let mut qb = sqlx::QueryBuilder::<Postgres>::new(
+                r#"
+                SELECT entity_id, entity_kind, entity_key, display_name, detection_provenance
+                FROM knowledge_entities
+                WHERE workspace_id =
+                "#,
+            );
+            qb.push_bind(workspace_id);
+            qb.push(" AND lifecycle_state = 'active' AND entity_kind = ");
+            qb.push_bind(source_kind_filter.as_str());
+
+            if exact_sql {
+                push_loom_exact_text_match(
+                    &mut qb,
+                    &[
+                        "entity_id",
+                        "entity_key",
+                        "display_name",
+                        "detection_provenance::text",
+                    ],
+                    query,
+                    &filters,
+                );
+            } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+                push_loom_fuzzy_sql_match(
+                    &mut qb,
+                    &["entity_id", "entity_key", "display_name"],
+                    fuzzy_query,
+                );
+            } else {
+                for token in &tokens {
+                    let pattern = format!("%{}%", escape_like_token(token));
+                    qb.push(" AND (display_name ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    qb.push(" OR entity_key ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    qb.push(" OR detection_provenance::text ILIKE ")
+                        .push_bind(pattern)
+                        .push(" ESCAPE '\\')");
+                }
+            }
+            push_loom_path_filter(
+                &mut qb,
+                &[
+                    "entity_id",
+                    "entity_key",
+                    "display_name",
+                    "detection_provenance::text",
+                ],
+                filters.path.as_deref(),
+            );
+
+            qb.push(" ORDER BY updated_at DESC, entity_id ASC");
+            if fuzzy_query.is_none() {
+                qb.push(" LIMIT ").push_bind(fetch_limit_i64);
+            }
+
+            let rows = qb.build().fetch_all(&self.pool).await?;
+            for row in rows {
+                let source_kind = row
+                    .get::<String, _>("entity_kind")
+                    .parse::<LoomSearchSourceKind>()?;
+                let entity_key: String = row.get("entity_key");
+                let display_name: String = row.get("display_name");
+                let detection_provenance: Value = row.get("detection_provenance");
+                let ref_id: String = row.get("entity_id");
+                let fuzzy_score = fuzzy_query.as_deref().and_then(|needle| {
+                    loom_fuzzy_score(
+                        needle,
+                        [ref_id.as_str(), entity_key.as_str(), display_name.as_str()],
+                    )
+                });
+                if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                    continue;
+                }
+                results.push(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::KnowledgeEntity,
+                    source_kind,
+                    ref_id,
+                    title: display_name,
+                    excerpt: loom_search_excerpt(&entity_key),
+                    block: None,
+                    score: fuzzy_score.unwrap_or(0.0),
+                    metadata: json!({
+                        "authority_table": "knowledge_entities",
+                        "entity_key": entity_key,
+                        "detection_provenance": detection_provenance,
+                    }),
+                });
+            }
+        }
+
+        if !block_scoped_filters
+            && loom_search_source_allowed(&filters, LoomSearchSourceKind::Document)
+        {
+            let mut document_qb = sqlx::QueryBuilder::<Postgres>::new(
+                r#"
+                SELECT rich_document_id, document_id, title, schema_version,
+                       doc_version, authority_label, content_json
+                FROM knowledge_rich_documents
+                WHERE workspace_id =
+                "#,
+            );
+            document_qb.push_bind(workspace_id);
+
+            if exact_sql {
+                push_loom_exact_text_match(
+                    &mut document_qb,
+                    &[
+                        "rich_document_id",
+                        "COALESCE(document_id, '')",
+                        "title",
+                        "content_json::text",
+                    ],
+                    query,
+                    &filters,
+                );
+            } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+                push_loom_fuzzy_sql_match(
+                    &mut document_qb,
+                    &[
+                        "rich_document_id",
+                        "COALESCE(document_id, '')",
+                        "title",
+                        "content_json::text",
+                    ],
+                    fuzzy_query,
+                );
+            } else {
+                for token in &tokens {
+                    let pattern = format!("%{}%", escape_like_token(token));
+                    document_qb
+                        .push(" AND (rich_document_id ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    document_qb
+                        .push(" OR COALESCE(document_id, '') ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    document_qb
+                        .push(" OR title ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    document_qb
+                        .push(" OR content_json::text ILIKE ")
+                        .push_bind(pattern)
+                        .push(" ESCAPE '\\')");
+                }
+            }
+            push_loom_path_filter(
+                &mut document_qb,
+                &["rich_document_id", "COALESCE(document_id, '')", "title"],
+                filters.path.as_deref(),
+            );
+            document_qb.push(" ORDER BY updated_at DESC, rich_document_id ASC");
+            if fuzzy_query.is_none() {
+                document_qb.push(" LIMIT ").push_bind(fetch_limit_i64);
+            }
+
+            let document_rows = document_qb.build().fetch_all(&self.pool).await?;
+            for row in document_rows {
+                let rich_document_id: String = row.get("rich_document_id");
+                let document_id: Option<String> = row.get("document_id");
+                let title: String = row.get("title");
+                let schema_version: String = row.get("schema_version");
+                let doc_version: i64 = row.get("doc_version");
+                let authority_label: String = row.get("authority_label");
+                let content_json: Value = row.get("content_json");
+                let content_json_text = content_json.to_string();
+                let fuzzy_score = fuzzy_query.as_deref().and_then(|needle| {
+                    loom_fuzzy_score(
+                        needle,
+                        [
+                            rich_document_id.as_str(),
+                            document_id.as_deref().unwrap_or_default(),
+                            title.as_str(),
+                            content_json_text.as_str(),
+                        ],
+                    )
+                });
+                if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                    continue;
+                }
+                results.push(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::KnowledgeEntity,
+                    source_kind: LoomSearchSourceKind::Document,
+                    ref_id: rich_document_id.clone(),
+                    title,
+                    excerpt: loom_search_excerpt(&content_json_text),
+                    block: None,
+                    score: fuzzy_score.unwrap_or(0.0),
+                    metadata: json!({
+                        "authority_table": "knowledge_rich_documents",
+                        "rich_document_id": rich_document_id,
+                        "document_id": document_id,
+                        "schema_version": schema_version,
+                        "doc_version": doc_version,
+                        "authority_label": authority_label,
+                    }),
+                });
+            }
+        }
+
+        if !block_scoped_filters
+            && loom_search_source_allowed(&filters, LoomSearchSourceKind::UserManualPage)
+        {
+            let mut page_qb = sqlx::QueryBuilder::<Postgres>::new(
+                r#"
+                SELECT slug, title, ''::text AS excerpt
+                FROM user_manual_pages
+                WHERE status = 'current'
+                "#,
+            );
+            if exact_sql {
+                push_loom_exact_text_match(&mut page_qb, &["slug", "title"], query, &filters);
+            } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+                push_loom_fuzzy_sql_match(&mut page_qb, &["slug", "title"], fuzzy_query);
+            } else {
+                for token in &tokens {
+                    let pattern = format!("%{}%", escape_like_token(token));
+                    page_qb
+                        .push(" AND (slug ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    page_qb
+                        .push(" OR title ILIKE ")
+                        .push_bind(pattern)
+                        .push(" ESCAPE '\\')");
+                }
+            }
+            push_loom_path_filter(&mut page_qb, &["slug", "title"], filters.path.as_deref());
+            page_qb.push(" ORDER BY slug");
+            if fuzzy_query.is_none() {
+                page_qb.push(" LIMIT ").push_bind(fetch_limit_i64);
+            }
+            let page_rows = page_qb.build().fetch_all(&self.pool).await?;
+            for row in page_rows {
+                let slug: String = row.get("slug");
+                let title: String = row.get("title");
+                let excerpt: String = row.get("excerpt");
+                let fuzzy_score = fuzzy_query.as_deref().and_then(|needle| {
+                    loom_fuzzy_score(needle, [slug.as_str(), title.as_str(), excerpt.as_str()])
+                });
+                if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                    continue;
+                }
+                results.push(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::UserManualPage,
+                    source_kind: LoomSearchSourceKind::UserManualPage,
+                    ref_id: slug.clone(),
+                    title,
+                    excerpt,
+                    block: None,
+                    score: fuzzy_score.unwrap_or(0.0),
+                    metadata: json!({
+                        "authority_table": "user_manual_pages",
+                        "page_slug": slug,
+                    }),
+                });
+            }
+
+            let mut section_qb = sqlx::QueryBuilder::<Postgres>::new(
+                r#"
+                SELECT p.slug, s.title, s.body_md AS excerpt
+                FROM user_manual_sections s
+                JOIN user_manual_pages p ON p.page_id = s.page_id
+                WHERE p.status = 'current'
+                "#,
+            );
+            if exact_sql {
+                push_loom_exact_text_match(
+                    &mut section_qb,
+                    &["p.slug", "p.title", "s.title", "s.body_md"],
+                    query,
+                    &filters,
+                );
+            } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+                push_loom_fuzzy_sql_match(
+                    &mut section_qb,
+                    &["p.slug", "p.title", "s.title"],
+                    fuzzy_query,
+                );
+            } else {
+                for token in &tokens {
+                    let pattern = format!("%{}%", escape_like_token(token));
+                    section_qb
+                        .push(" AND (p.slug ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    section_qb
+                        .push(" OR p.title ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    section_qb
+                        .push(" OR s.title ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    section_qb
+                        .push(" OR s.body_md ILIKE ")
+                        .push_bind(pattern)
+                        .push(" ESCAPE '\\')");
+                }
+            }
+            push_loom_path_filter(
+                &mut section_qb,
+                &["p.slug", "p.title", "s.title"],
+                filters.path.as_deref(),
+            );
+            section_qb.push(" ORDER BY p.slug, s.position");
+            if fuzzy_query.is_none() {
+                section_qb.push(" LIMIT ").push_bind(fetch_limit_i64);
+            }
+            let section_rows = section_qb.build().fetch_all(&self.pool).await?;
+            for row in section_rows {
+                let slug: String = row.get("slug");
+                let title: String = row.get("title");
+                let excerpt: String = row.get("excerpt");
+                let fuzzy_score = fuzzy_query
+                    .as_deref()
+                    .and_then(|needle| loom_fuzzy_score(needle, [slug.as_str(), title.as_str()]));
+                if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                    continue;
+                }
+                results.push(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::UserManualPage,
+                    source_kind: LoomSearchSourceKind::UserManualPage,
+                    ref_id: slug.clone(),
+                    title,
+                    excerpt: loom_search_excerpt(&excerpt),
+                    block: None,
+                    score: fuzzy_score.unwrap_or(0.0),
+                    metadata: json!({
+                        "authority_table": "user_manual_sections",
+                        "page_slug": slug,
+                    }),
+                });
+            }
+        }
+
+        if !block_scoped_filters
+            && loom_search_source_allowed(&filters, LoomSearchSourceKind::WikiPage)
+        {
+            let mut wiki_qb = sqlx::QueryBuilder::<Postgres>::new(
+                r#"
+                SELECT projection_id, title, rendered_content, page_type, rebuild_status
+                FROM knowledge_wiki_projections
+                WHERE workspace_id =
+                "#,
+            );
+            wiki_qb.push_bind(workspace_id);
+            wiki_qb.push(" AND projection_kind = 'wiki_page'");
+            if exact_sql {
+                push_loom_exact_text_match(
+                    &mut wiki_qb,
+                    &["projection_id", "title", "rendered_content"],
+                    query,
+                    &filters,
+                );
+            } else if let Some(fuzzy_query) = fuzzy_query.as_deref() {
+                push_loom_fuzzy_sql_match(&mut wiki_qb, &["projection_id", "title"], fuzzy_query);
+            } else {
+                for token in &tokens {
+                    let pattern = format!("%{}%", escape_like_token(token));
+                    wiki_qb
+                        .push(" AND (projection_id ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    wiki_qb
+                        .push(" OR title ILIKE ")
+                        .push_bind(pattern.clone())
+                        .push(" ESCAPE '\\'");
+                    wiki_qb
+                        .push(" OR rendered_content ILIKE ")
+                        .push_bind(pattern)
+                        .push(" ESCAPE '\\')");
+                }
+            }
+            push_loom_path_filter(
+                &mut wiki_qb,
+                &["projection_id", "title"],
+                filters.path.as_deref(),
+            );
+            wiki_qb.push(" ORDER BY COALESCE(page_type, 'zz') ASC, title ASC");
+            if fuzzy_query.is_none() {
+                wiki_qb.push(" LIMIT ").push_bind(fetch_limit_i64);
+            }
+            let wiki_rows = wiki_qb.build().fetch_all(&self.pool).await?;
+            for row in wiki_rows {
+                let projection_id: String = row.get("projection_id");
+                let title: String = row.get("title");
+                let rendered_content: String = row.get("rendered_content");
+                let page_type: Option<String> = row.get("page_type");
+                let rebuild_status: String = row.get("rebuild_status");
+                let fuzzy_score = fuzzy_query.as_deref().and_then(|needle| {
+                    loom_fuzzy_score(needle, [projection_id.as_str(), title.as_str()])
+                });
+                if fuzzy_query.is_some() && fuzzy_score.is_none() {
+                    continue;
+                }
+                results.push(LoomGraphSearchResult {
+                    result_kind: LoomSearchResultKind::WikiPage,
+                    source_kind: LoomSearchSourceKind::WikiPage,
+                    ref_id: projection_id.clone(),
+                    title,
+                    excerpt: loom_search_excerpt(&rendered_content),
+                    block: None,
+                    score: fuzzy_score.unwrap_or(0.0),
+                    metadata: json!({
+                        "authority_table": "knowledge_wiki_projections",
+                        "projection_id": projection_id,
+                        "page_type": page_type,
+                        "rebuild_status": rebuild_status,
+                    }),
+                });
+            }
+        }
+
+        if fuzzy_query.is_some() {
+            results.sort_by(|left, right| {
+                right
+                    .score
+                    .total_cmp(&left.score)
+                    .then_with(|| left.source_kind.as_str().cmp(right.source_kind.as_str()))
+                    .then_with(|| left.ref_id.cmp(&right.ref_id))
+            });
+        }
+
+        let results = order_loom_graph_results_for_breadth(results);
+
+        Ok(results
+            .into_iter()
+            .skip(offset as usize)
+            .take(source_limit as usize)
+            .collect())
+    }
+
+    async fn record_quick_switcher_recent(
+        &self,
+        workspace_id: &str,
+        input: QuickSwitcherRecentInput,
+    ) -> StorageResult<QuickSwitcherRecent> {
+        let ref_id = input.ref_id.trim();
+        if ref_id.is_empty() {
+            return Err(StorageError::Validation(
+                "quick switcher recent ref_id is required",
+            ));
+        }
+        let title = input.title.trim();
+        if title.is_empty() {
+            return Err(StorageError::Validation(
+                "quick switcher recent title is required",
+            ));
+        }
+
+        let ref_id = ref_id.to_string();
+        let title = title.to_string();
+        let excerpt = input.excerpt.trim().to_string();
+        let source_kind = input.source_kind.as_str();
+        let result_kind = input.result_kind.as_str();
+        let hit_key = format!("{source_kind}:{ref_id}");
+        let metadata = if input.metadata.is_null() {
+            json!({})
+        } else {
+            input.metadata
+        };
+        let run_id = format!("QUICK-SWITCHER-RECENTS-{workspace_id}");
+        let aggregate_id = format!("{workspace_id}:{hit_key}");
+        let payload = json!({
+            "type": "knowledge_quick_switcher_recent_recorded",
+            "workspace_id": workspace_id,
+            "hit_key": hit_key.clone(),
+            "source_kind": source_kind,
+            "ref_id": ref_id.clone(),
+            "result_kind": result_kind,
+            "title": title.clone(),
+            "metadata": metadata.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeQuickSwitcherRecentRecorded,
+            KernelActor::System("quick-switcher-ui".to_string()),
+        )
+        .aggregate("quick_switcher_recent", aggregate_id)
+        .source_component("quick_switcher_recents")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_quick_switcher_recents (
+                workspace_id,
+                hit_key,
+                source_kind,
+                ref_id,
+                result_kind,
+                title,
+                excerpt,
+                metadata,
+                selected_count,
+                selected_at,
+                event_ledger_event_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, 1, NOW(), $9)
+            ON CONFLICT (workspace_id, hit_key) DO UPDATE SET
+                source_kind = EXCLUDED.source_kind,
+                ref_id = EXCLUDED.ref_id,
+                result_kind = EXCLUDED.result_kind,
+                title = EXCLUDED.title,
+                excerpt = EXCLUDED.excerpt,
+                metadata = EXCLUDED.metadata,
+                selected_count = knowledge_quick_switcher_recents.selected_count + 1,
+                selected_at = NOW(),
+                event_ledger_event_id = EXCLUDED.event_ledger_event_id
+            RETURNING workspace_id, hit_key, source_kind, ref_id, result_kind,
+                      title, excerpt, metadata, selected_count, selected_at,
+                      event_ledger_event_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(&hit_key)
+        .bind(source_kind)
+        .bind(&ref_id)
+        .bind(result_kind)
+        .bind(&title)
+        .bind(&excerpt)
+        .bind(&metadata)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let recent = map_quick_switcher_recent(&row)?;
+        tx.commit().await?;
+        Ok(recent)
+    }
+
+    async fn list_quick_switcher_recents(
+        &self,
+        workspace_id: &str,
+        limit: u32,
+    ) -> StorageResult<Vec<QuickSwitcherRecent>> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        let cap = limit.min(100) as i64;
+        let rows = sqlx::query(
+            r#"
+            SELECT workspace_id, hit_key, source_kind, ref_id, result_kind,
+                   title, excerpt, metadata, selected_count, selected_at,
+                   event_ledger_event_id
+            FROM knowledge_quick_switcher_recents
+            WHERE workspace_id = $1
+            ORDER BY selected_at DESC, hit_key ASC
+            LIMIT $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(cap)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.iter().map(map_quick_switcher_recent).collect()
+    }
+
+    async fn get_workbench_layout_state(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Option<WorkbenchLayoutState>> {
+        let row = sqlx::query(
+            r#"
+            SELECT workspace_id, layout_state, updated_at, event_ledger_event_id
+            FROM knowledge_workbench_layout_states
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.as_ref().map(map_workbench_layout_state).transpose()
+    }
+
+    async fn save_workbench_layout_state(
+        &self,
+        workspace_id: &str,
+        input: WorkbenchLayoutStateInput,
+    ) -> StorageResult<WorkbenchLayoutState> {
+        if !input.layout_state.is_object() {
+            return Err(StorageError::Validation(
+                "workbench layout_state must be a JSON object",
+            ));
+        }
+        if input
+            .layout_state
+            .get("schema_id")
+            .and_then(|value| value.as_str())
+            != Some(WORKBENCH_LAYOUT_SCHEMA_ID)
+        {
+            return Err(StorageError::Validation(
+                "workbench layout_state schema_id must be hsk.workbench_layout_state@1",
+            ));
+        }
+        validate_workbench_layout_state_shape(&input.layout_state)?;
+
+        let run_id = format!("WORKBENCH-LAYOUT-{workspace_id}");
+        let payload = json!({
+            "type": "knowledge_workbench_layout_state_recorded",
+            "workspace_id": workspace_id,
+            "layout_state": input.layout_state.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeWorkbenchLayoutStateRecorded,
+            KernelActor::System("workbench-layout-ui".to_string()),
+        )
+        .aggregate("workbench_layout_state", workspace_id.to_string())
+        .source_component("workbench_layout_state")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_workbench_layout_states (
+                workspace_id,
+                layout_state,
+                updated_at,
+                event_ledger_event_id
+            )
+            VALUES ($1, $2::jsonb, NOW(), $3)
+            ON CONFLICT (workspace_id) DO UPDATE SET
+                layout_state = EXCLUDED.layout_state,
+                updated_at = NOW(),
+                event_ledger_event_id = EXCLUDED.event_ledger_event_id
+            RETURNING workspace_id, layout_state, updated_at, event_ledger_event_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(&input.layout_state)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let state = map_workbench_layout_state(&row)?;
+        tx.commit().await?;
+        Ok(state)
+    }
+
+    async fn get_workspace_settings_state(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Option<WorkspaceSettingsState>> {
+        let row = sqlx::query(
+            r#"
+            SELECT workspace_id, settings_state, updated_at, event_ledger_event_id
+            FROM knowledge_workspace_settings_states
+            WHERE workspace_id = $1
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.as_ref().map(map_workspace_settings_state).transpose()
+    }
+
+    async fn save_workspace_settings_state(
+        &self,
+        workspace_id: &str,
+        input: WorkspaceSettingsStateInput,
+    ) -> StorageResult<WorkspaceSettingsState> {
+        if !input.settings_state.is_object() {
+            return Err(StorageError::Validation(
+                "workspace settings_state must be a JSON object",
+            ));
+        }
+        if input
+            .settings_state
+            .get("schema_id")
+            .and_then(|value| value.as_str())
+            != Some(WORKSPACE_SETTINGS_SCHEMA_ID)
+        {
+            return Err(StorageError::Validation(
+                "workspace settings_state schema_id must be hsk.workspace_settings_state@1",
+            ));
+        }
+        validate_workspace_settings_state_shape(&input.settings_state)?;
+
+        let run_id = format!("WORKSPACE-SETTINGS-{workspace_id}");
+        let payload = json!({
+            "type": "knowledge_workspace_settings_state_recorded",
+            "workspace_id": workspace_id,
+            "settings_state": input.settings_state.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeWorkspaceSettingsStateRecorded,
+            KernelActor::System("workspace-settings-ui".to_string()),
+        )
+        .aggregate("workspace_settings_state", workspace_id.to_string())
+        .source_component("workspace_settings_state")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_workspace_settings_states (
+                workspace_id,
+                settings_state,
+                updated_at,
+                event_ledger_event_id
+            )
+            VALUES ($1, $2::jsonb, NOW(), $3)
+            ON CONFLICT (workspace_id) DO UPDATE SET
+                settings_state = EXCLUDED.settings_state,
+                updated_at = NOW(),
+                event_ledger_event_id = EXCLUDED.event_ledger_event_id
+            RETURNING workspace_id, settings_state, updated_at, event_ledger_event_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(&input.settings_state)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let state = map_workspace_settings_state(&row)?;
+        tx.commit().await?;
+        Ok(state)
+    }
+
+    async fn loom_visual_debug_snapshot(
+        &self,
+        workspace_id: &str,
+        start_block_id: &str,
+        query: &str,
+        limit: u32,
+    ) -> StorageResult<LoomVisualDebugSnapshot> {
+        let start_block_id = start_block_id.trim();
+        if start_block_id.is_empty() {
+            return Err(StorageError::Validation(
+                "loom visual-debug start_block_id is required",
+            ));
+        }
+        let query = query.trim();
+        if query.is_empty() {
+            return Err(StorageError::Validation(
+                "loom visual-debug query is required",
+            ));
+        }
+
+        let cap = limit.clamp(1, 100);
+        let folder_sample_limit = cap.min(10);
+
+        let counts = self.loom_visual_debug_counts(workspace_id).await?;
+        let local_graph = self
+            .local_graph(workspace_id, start_block_id, 2, &[], cap)
+            .await?;
+        let backlinks = self
+            .get_backlinks_with_context(workspace_id, start_block_id)
+            .await?;
+        let folders = self.list_loom_folders(workspace_id).await?;
+        let search_hits = self
+            .search_loom_graph(workspace_id, query, LoomSearchFilters::default(), cap, 0)
+            .await?;
+
+        let graph = LoomVisualDebugGraphState {
+            scope: "local".to_string(),
+            nodes: local_graph
+                .nodes
+                .into_iter()
+                .map(loom_visual_debug_node_summary)
+                .collect(),
+            edges: local_graph
+                .edges
+                .into_iter()
+                .map(loom_visual_debug_edge_summary)
+                .collect(),
+            truncated: local_graph.truncated,
+            suppressed_hub_ids: local_graph.suppressed_hub_ids,
+        };
+
+        let backlinks = LoomVisualDebugBacklinkState {
+            target_block_id: start_block_id.to_string(),
+            incoming: backlinks
+                .into_iter()
+                .take(cap as usize)
+                .map(loom_visual_debug_backlink_summary)
+                .collect(),
+        };
+
+        let mut folder_summaries = Vec::new();
+        for folder in folders.into_iter().take(cap as usize) {
+            let member_count = self
+                .loom_folder_member_count(workspace_id, &folder.folder_id)
+                .await?;
+            let sample_block_ids = self
+                .list_loom_folder_blocks(workspace_id, &folder.folder_id, folder_sample_limit, 0)
+                .await?
+                .into_iter()
+                .map(|block| block.block_id)
+                .collect();
+            folder_summaries.push(loom_visual_debug_folder_summary(
+                folder,
+                member_count,
+                sample_block_ids,
+            ));
+        }
+
+        let result_count = search_hits.len();
+        let search = LoomVisualDebugSearchState {
+            query: query.to_string(),
+            result_count,
+            results: search_hits
+                .into_iter()
+                .map(loom_visual_debug_search_summary)
+                .collect(),
+        };
+
+        Ok(LoomVisualDebugSnapshot {
+            workspace_id: workspace_id.to_string(),
+            schema_id: LOOM_VISUAL_DEBUG_SCHEMA_ID,
+            authority_backend: super::LoomAuthorityBackend::PostgresEventLedger,
+            authority_class: "projection",
+            start_block_id: start_block_id.to_string(),
+            route_ids: loom_visual_debug_route_ids(),
+            counts,
+            graph,
+            backlinks,
+            folders: folder_summaries,
+            search,
+        })
     }
 
     // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
@@ -5191,9 +7495,7 @@ impl super::Database for PostgresDatabase {
         workspace_id: &str,
         block_id: &str,
     ) -> StorageResult<super::LoomKnowledgeBridge> {
-        use crate::storage::knowledge::{
-            KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity,
-        };
+        use crate::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity};
 
         // 1. The block must exist and belong to the workspace. This both
         //    fail-closes on a missing/foreign block and gives us the
@@ -5217,9 +7519,7 @@ impl super::Database for PostgresDatabase {
                     .filter(|value| !value.is_empty())
             })
             .map(|value| value.to_string())
-            .unwrap_or_else(|| {
-                format!("{} {}", block.content_type.as_str(), block.block_id)
-            });
+            .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id));
 
         // 2. Upsert the ProjectKnowledgeIndex authority entity. Natural identity
         //    (workspace, 'loom_block', block_id) — stable + idempotent.
@@ -5266,7 +7566,8 @@ impl super::Database for PostgresDatabase {
         .aggregate("knowledge_loom_block", entity.entity_id.clone())
         .idempotency_key(format!(
             "KEI-loom-bridge-{}-{}",
-            entity.entity_id, entity.updated_at.timestamp_nanos_opt().unwrap_or_default()
+            entity.entity_id,
+            entity.updated_at.timestamp_nanos_opt().unwrap_or_default()
         ))
         .source_component("loom_block_knowledge_bridge")
         .payload(payload)
@@ -5430,7 +7731,7 @@ impl super::Database for PostgresDatabase {
             SELECT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -5575,14 +7876,19 @@ impl super::Database for PostgresDatabase {
             .take(cap as usize)
             .map(|r| (r.get::<String, _>("block_id"), r.get::<i64, _>("depth")))
             .collect();
-        let depth_by_id: std::collections::HashMap<String, u32> = kept
-            .iter()
-            .map(|(id, d)| (id.clone(), *d as u32))
-            .collect();
+        let depth_by_id: std::collections::HashMap<String, u32> =
+            kept.iter().map(|(id, d)| (id.clone(), *d as u32)).collect();
         let node_ids: Vec<String> = kept.iter().map(|(id, _)| id.clone()).collect();
 
-        self.assemble_loom_graph(workspace_id, &node_ids, &depth_by_id, edge_type_filter.as_ref(), truncated, Vec::new())
-            .await
+        self.assemble_loom_graph(
+            workspace_id,
+            &node_ids,
+            &depth_by_id,
+            edge_type_filter.as_ref(),
+            truncated,
+            Vec::new(),
+        )
+        .await
     }
 
     // -- MT-180 GlobalGraphApi -------------------------------------------------
@@ -5691,7 +7997,7 @@ impl super::Database for PostgresDatabase {
             SELECT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -5781,7 +8087,7 @@ impl super::Database for PostgresDatabase {
             SELECT DISTINCT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -5839,7 +8145,7 @@ impl super::Database for PostgresDatabase {
             WHERE workspace_id = $8 AND block_id = $9
             RETURNING
                 block_id, workspace_id, content_type, document_id, asset_id,
-                title, original_filename, content_hash, pinned, pin_order,
+                title, original_filename, content_hash, pinned, favorite, pin_order,
                 journal_date, created_at, updated_at, imported_at,
                 backlink_count, mention_count, tag_count, derived_json,
                 preview_status, thumbnail_asset_id, proxy_asset_id
@@ -5927,10 +8233,7 @@ impl super::Database for PostgresDatabase {
         }
     }
 
-    async fn list_loom_folders(
-        &self,
-        workspace_id: &str,
-    ) -> StorageResult<Vec<super::LoomFolder>> {
+    async fn list_loom_folders(&self, workspace_id: &str) -> StorageResult<Vec<super::LoomFolder>> {
         // Parent-before-child order via a recursive walk from the roots, so a
         // caller can build the tree in one pass.
         let rows = sqlx::query(
@@ -6051,18 +8354,13 @@ impl super::Database for PostgresDatabase {
         map_loom_folder(&row)
     }
 
-    async fn delete_loom_folder(
-        &self,
-        workspace_id: &str,
-        folder_id: &str,
-    ) -> StorageResult<()> {
-        let res = sqlx::query(
-            "DELETE FROM loom_folders WHERE workspace_id = $1 AND folder_id = $2",
-        )
-        .bind(workspace_id)
-        .bind(folder_id)
-        .execute(&self.pool)
-        .await?;
+    async fn delete_loom_folder(&self, workspace_id: &str, folder_id: &str) -> StorageResult<()> {
+        let res =
+            sqlx::query("DELETE FROM loom_folders WHERE workspace_id = $1 AND folder_id = $2")
+                .bind(workspace_id)
+                .bind(folder_id)
+                .execute(&self.pool)
+                .await?;
         if res.rows_affected() == 0 {
             return Err(StorageError::NotFound("loom_folder"));
         }
@@ -6134,12 +8432,8 @@ impl super::Database for PostgresDatabase {
             super::LoomFolderSortMode::NameDesc => {
                 "ORDER BY COALESCE(b.title,'') DESC, b.block_id ASC"
             }
-            super::LoomFolderSortMode::CreatedDesc => {
-                "ORDER BY b.created_at DESC, b.block_id ASC"
-            }
-            super::LoomFolderSortMode::UpdatedDesc => {
-                "ORDER BY b.updated_at DESC, b.block_id ASC"
-            }
+            super::LoomFolderSortMode::CreatedDesc => "ORDER BY b.created_at DESC, b.block_id ASC",
+            super::LoomFolderSortMode::UpdatedDesc => "ORDER BY b.updated_at DESC, b.block_id ASC",
             super::LoomFolderSortMode::Manual => {
                 "ORDER BY m.sort_order ASC NULLS LAST, b.updated_at DESC, b.block_id ASC"
             }
@@ -6150,7 +8444,7 @@ impl super::Database for PostgresDatabase {
             SELECT
                 b.block_id, b.workspace_id, b.content_type, b.document_id,
                 b.asset_id, b.title, b.original_filename, b.content_hash,
-                b.pinned, b.pin_order, b.journal_date, b.created_at, b.updated_at,
+                b.pinned, b.favorite, b.pin_order, b.journal_date, b.created_at, b.updated_at,
                 b.imported_at, b.backlink_count, b.mention_count, b.tag_count,
                 b.derived_json, b.preview_status, b.thumbnail_asset_id,
                 b.proxy_asset_id
@@ -6180,11 +8474,15 @@ impl super::Database for PostgresDatabase {
         title: &str,
         block_ids: &[String],
     ) -> StorageResult<super::LoomWikiProjection> {
-        use crate::knowledge_wiki::{loom_block_content_hash, CitedSource, CitedSourceKind, WikiCompileStamp};
+        use crate::knowledge_wiki::{
+            loom_block_content_hash, CitedSource, CitedSourceKind, WikiCompileStamp,
+        };
         use crate::storage::knowledge::NewKnowledgeWikiPage;
         let title = title.trim();
         if title.is_empty() {
-            return Err(StorageError::Validation("loom wiki projection title is required"));
+            return Err(StorageError::Validation(
+                "loom wiki projection title is required",
+            ));
         }
         // Load the source blocks (in the given order, skipping unknown ids would
         // hide errors — instead fail closed on a missing block so citations are
@@ -6349,7 +8647,9 @@ impl super::Database for PostgresDatabase {
     ) -> StorageResult<super::LoomWikiOverlay> {
         let annotation = annotation.trim();
         if annotation.is_empty() {
-            return Err(StorageError::Validation("loom wiki overlay annotation is required"));
+            return Err(StorageError::Validation(
+                "loom wiki overlay annotation is required",
+            ));
         }
         // The projection must exist in this workspace.
         self.get_loom_wiki_projection(workspace_id, projection_id)

@@ -6,6 +6,10 @@ import type {
 
 type Props = {
   surface: KernelDccProjectionSurfaceV1;
+  focusedWorkTarget?: {
+    wpId?: string | null;
+    mtId?: string | null;
+  } | null;
   onTriggerCatalogAction?: (input: {
     work_id: string;
     action_id: string;
@@ -38,10 +42,37 @@ function approvalPreviewForAction(surface: KernelDccProjectionSurfaceV1, actionI
   return surface.approval_previews.find((preview) => preview.action_id === actionId)?.preview_id ?? null;
 }
 
-export function KernelDccProjectionView({ surface, onTriggerCatalogAction }: Props) {
+function focusRefMatches(workRef: string | null, focusRef?: string | null): boolean {
+  if (!focusRef) return true;
+  if (!workRef) return false;
+  return workRef === focusRef || focusRef.startsWith(`${workRef}-`);
+}
+
+function focusedWorkIdForTarget(
+  workItems: KernelDccProjectionSurfaceV1["work_items"],
+  focusedWorkTarget: Props["focusedWorkTarget"],
+): string | null {
+  if (!focusedWorkTarget?.wpId && !focusedWorkTarget?.mtId) return null;
+
+  const candidates = workItems.filter((work) => {
+    const wpMatches = focusRefMatches(work.wp_id, focusedWorkTarget.wpId);
+    const mtMatches = focusRefMatches(work.mt_id, focusedWorkTarget.mtId);
+    return wpMatches && mtMatches;
+  });
+  if (candidates.length === 0) return null;
+
+  if (focusedWorkTarget.wpId && !focusedWorkTarget.mtId) {
+    return candidates.find((work) => work.mt_id === null)?.work_id ?? candidates[0].work_id;
+  }
+
+  return candidates[0].work_id;
+}
+
+export function KernelDccProjectionView({ surface, focusedWorkTarget, onTriggerCatalogAction }: Props) {
   const [triggerResult, setTriggerResult] = useState<KernelDccActionTriggerResponseV1 | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
   const [triggeringActionId, setTriggeringActionId] = useState<string | null>(null);
+  const focusedWorkId = focusedWorkIdForTarget(surface.work_items, focusedWorkTarget);
 
   const triggerAction = async (actionId: string) => {
     if (!onTriggerCatalogAction) return;
@@ -122,15 +153,23 @@ export function KernelDccProjectionView({ surface, onTriggerCatalogAction }: Pro
               </tr>
             </thead>
             <tbody>
-              {surface.work_items.map((work) => (
-                <tr key={work.work_id}>
-                  <td>{work.work_id}</td>
-                  <td>{work.wp_id}</td>
-                  <td>{work.mt_id ?? "none"}</td>
-                  <td>{work.status}</td>
-                  <td>{work.worktree_id}</td>
-                </tr>
-              ))}
+              {surface.work_items.map((work) => {
+                const focused = work.work_id === focusedWorkId;
+                return (
+                  <tr
+                    key={work.work_id}
+                    className={focused ? "kernel-dcc__row--focused" : undefined}
+                    data-testid={`dcc.work_selection.row.${work.work_id}`}
+                    data-focused={focused ? "true" : "false"}
+                  >
+                    <td>{work.work_id}</td>
+                    <td>{work.wp_id}</td>
+                    <td>{work.mt_id ?? "none"}</td>
+                    <td>{work.status}</td>
+                    <td>{work.worktree_id}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>

@@ -11,7 +11,9 @@
 //! `handshake_invoke_handlers!` macro, `.manage`s the state, and spawns the
 //! per-session forwarder in setup.
 
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 
 use base64::Engine;
 use handshake_core::capabilities::CapabilityRegistry;
@@ -33,6 +35,8 @@ pub const KERNEL_TERMINAL_RUN_COMMAND_IPC_CHANNEL: &str = "kernel_terminal_run_c
 pub const KERNEL_TERMINAL_SCROLLBACK_IPC_CHANNEL: &str = "kernel_terminal_scrollback";
 pub const KERNEL_TERMINAL_AUTHORIZE_INTERACTIVE_IPC_CHANNEL: &str =
     "kernel_terminal_authorize_interactive";
+pub const KERNEL_TERMINAL_CONTEXT_IPC_CHANNEL: &str = "kernel_terminal_context";
+pub const KERNEL_TERMINAL_DIAGNOSTICS_IPC_CHANNEL: &str = "kernel_terminal_diagnostics";
 
 /// Tauri managed state holding the shared [`TerminalRuntime`]. Cheap to clone.
 pub struct TerminalRuntimeState {
@@ -106,7 +110,23 @@ pub struct SessionInfoIpc {
     pub instance_id: Option<String>,
     pub trace_id: String,
     pub title: Option<String>,
+    pub interactive_allowed: bool,
     pub interactive_authorized: bool,
+    pub exited: bool,
+    pub exit_code: Option<i32>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalContextIpc {
+    pub cwd: String,
+    pub default_shell: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalDiagnosticsIpc {
+    pub receipt_failure_count: u64,
 }
 
 impl From<SessionInfo> for SessionInfoIpc {
@@ -120,7 +140,13 @@ impl From<SessionInfo> for SessionInfoIpc {
             instance_id: i.binding.instance_id,
             trace_id: i.trace_id,
             title: i.title,
+            interactive_allowed: matches!(
+                i.kind,
+                handshake_core::terminal::SessionKind::Interactive
+            ) && !i.exited,
             interactive_authorized: i.interactive_authorized,
+            exited: i.exited,
+            exit_code: i.exit_code,
         }
     }
 }
@@ -163,6 +189,20 @@ fn parse_session_type(s: Option<&str>) -> TerminalSessionType {
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
+
+/// Return the backend-resolved context for new HumanDev terminal sessions.
+#[tauri::command]
+pub fn kernel_terminal_context() -> TerminalContextIpc {
+    let _ = KERNEL_TERMINAL_CONTEXT_IPC_CHANNEL;
+    let root = crate::workspace_root();
+    let root = root.canonicalize().unwrap_or(root);
+    TerminalContextIpc {
+        cwd: root.to_string_lossy().to_string(),
+        // Keep this null so the PTY backend owns platform-default shell
+        // resolution (`pwsh.exe` -> `powershell.exe` -> `cmd.exe` on Windows).
+        default_shell: None,
+    }
+}
 
 /// Create an interactive PTY session. AiJob sessions are inspect-only until
 /// `kernel_terminal_authorize_interactive` succeeds.
@@ -261,6 +301,20 @@ pub async fn kernel_terminal_list_sessions(
         .collect())
 }
 
+#[tauri::command]
+pub async fn kernel_terminal_diagnostics(
+    state: State<'_, TerminalRuntimeState>,
+) -> Result<TerminalDiagnosticsIpc, String> {
+    let _ = KERNEL_TERMINAL_DIAGNOSTICS_IPC_CHANNEL;
+    Ok(terminal_diagnostics_with_runtime(state.runtime()))
+}
+
+fn terminal_diagnostics_with_runtime(runtime: TerminalRuntime) -> TerminalDiagnosticsIpc {
+    TerminalDiagnosticsIpc {
+        receipt_failure_count: runtime.terminal_receipt_failure_count(),
+    }
+}
+
 /// Authorize AI interactive stdin ("Take control / interact"). Capability-gated.
 #[tauri::command]
 pub async fn kernel_terminal_authorize_interactive(
@@ -298,6 +352,7 @@ pub struct RunCommandRequest {
     #[serde(default)]
     pub args: Vec<String>,
     pub cwd: Option<String>,
+    pub timeout_ms: Option<u64>,
     pub swarm_id: Option<String>,
     #[serde(default)]
     pub capability_scope: Vec<String>,
@@ -308,6 +363,7 @@ pub struct RunCommandRequest {
 pub struct RunCommandResult {
     pub session_id: String,
     pub exit_code: i32,
+    pub timed_out: bool,
     pub output_base64: String,
 }
 
@@ -319,15 +375,23 @@ pub async fn kernel_terminal_run_command(
     state: State<'_, TerminalRuntimeState>,
 ) -> Result<RunCommandResult, String> {
     let _ = KERNEL_TERMINAL_RUN_COMMAND_IPC_CHANNEL;
-    let runtime = state.runtime();
+    run_command_with_runtime(req, state.runtime()).await
+}
+
+async fn run_command_with_runtime(
+    req: RunCommandRequest,
+    runtime: TerminalRuntime,
+) -> Result<RunCommandResult, String> {
     let binding = SessionBinding {
         swarm_id: req.swarm_id.clone(),
         ..Default::default()
     };
+    let cwd_path = req.cwd.clone().map(PathBuf::from);
+    let command_line = one_shot_command_line(req.shell.as_deref(), &req.args);
     let spawn = PtySpawnConfig {
         shell: req.shell.clone(),
         args: req.args.clone(),
-        cwd: req.cwd.clone().map(std::path::PathBuf::from),
+        cwd: cwd_path.clone(),
         env: Vec::new(),
         rows: 24,
         cols: 80,
@@ -350,22 +414,45 @@ pub async fn kernel_terminal_run_command(
     // blocking thread so the async runtime is not stalled.
     let rt_for_wait = runtime.clone();
     let sid = info.session_id.clone();
-    let exit_code = tokio::task::spawn_blocking(move || {
-        rt_for_wait
-            .wait_for_exit(&sid, std::time::Duration::from_secs(300))
-            .ok()
-            .flatten()
-            .unwrap_or(-1)
+    let timeout =
+        std::time::Duration::from_millis(req.timeout_ms.unwrap_or(300_000).clamp(1, 3_600_000));
+    let started_at = Instant::now();
+    let observed_exit = tokio::task::spawn_blocking(move || {
+        rt_for_wait.wait_for_exit(&sid, timeout).ok().flatten()
     })
     .await
-    .unwrap_or(-1);
+    .unwrap_or(None);
+    let duration = started_at.elapsed();
+    let timed_out = observed_exit.is_none();
+    let exit_code = observed_exit.unwrap_or(-1);
     let output = runtime.scrollback(&info.session_id).unwrap_or_default();
-    let _ = runtime.close_session(&info.session_id).await;
+    runtime
+        .close_session(&info.session_id)
+        .await
+        .map_err(|e| format!("terminal cleanup after one-shot command failed: {e}"))?;
+    runtime
+        .record_one_shot_command_result(
+            &info,
+            &command_line,
+            cwd_path.as_deref(),
+            exit_code,
+            timed_out,
+            duration,
+        )
+        .await;
     Ok(RunCommandResult {
         session_id: info.session_id,
         exit_code,
+        timed_out,
         output_base64: base64::engine::general_purpose::STANDARD.encode(output),
     })
+}
+
+fn one_shot_command_line(shell: Option<&str>, args: &[String]) -> String {
+    std::iter::once(shell.unwrap_or("<default-shell>").to_string())
+        .chain(args.iter().cloned())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 // ---------------------------------------------------------------------------
@@ -428,4 +515,380 @@ pub fn spawn_terminal_forwarder(
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use handshake_core::flight_recorder::EventFilter;
+
+    #[cfg(windows)]
+    fn slow_pty_command() -> (String, Vec<String>) {
+        (
+            "cmd.exe".to_string(),
+            vec![
+                "/C".to_string(),
+                "ping".to_string(),
+                "127.0.0.1".to_string(),
+                "-n".to_string(),
+                "5".to_string(),
+            ],
+        )
+    }
+
+    #[cfg(windows)]
+    fn successful_pty_command() -> (String, Vec<String>) {
+        (
+            "cmd.exe".to_string(),
+            vec![
+                "/C".to_string(),
+                "echo HANDSHAKE_ONE_SHOT_OK && dir".to_string(),
+            ],
+        )
+    }
+
+    #[cfg(not(windows))]
+    fn slow_pty_command() -> (String, Vec<String>) {
+        (
+            "/bin/sh".to_string(),
+            vec!["-c".to_string(), "sleep 2".to_string()],
+        )
+    }
+
+    #[cfg(not(windows))]
+    fn successful_pty_command() -> (String, Vec<String>) {
+        (
+            "/bin/sh".to_string(),
+            vec![
+                "-c".to_string(),
+                "printf 'HANDSHAKE_ONE_SHOT_OK\\n'; ls".to_string(),
+            ],
+        )
+    }
+
+    #[tokio::test]
+    async fn run_command_success_returns_output_records_receipt_and_reclaims_session(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let runtime = TerminalRuntime::new(Arc::new(CapabilityRegistry::new()), recorder.clone());
+        let (shell, args) = successful_pty_command();
+
+        let result = run_command_with_runtime(
+            RunCommandRequest {
+                shell: Some(shell),
+                args,
+                cwd: None,
+                timeout_ms: Some(30_000),
+                swarm_id: Some("mt-252-success-proof".to_string()),
+                capability_scope: Vec::new(),
+            },
+            runtime.clone(),
+        )
+        .await?;
+
+        assert!(
+            !result.timed_out,
+            "successful one-shot must not be marked timeout"
+        );
+        assert_eq!(result.exit_code, 0);
+        let output = String::from_utf8(
+            base64::engine::general_purpose::STANDARD.decode(result.output_base64.as_bytes())?,
+        )?;
+        assert!(
+            output.contains("HANDSHAKE_ONE_SHOT_OK"),
+            "one-shot command output must include the echo marker, got: {output:?}"
+        );
+        let events = recorder.list_events(EventFilter::default()).await?;
+        assert!(
+            events.iter().any(|event| {
+                event.payload.get("origin").and_then(|value| value.as_str())
+                    == Some("one_shot_run_command")
+                    && event
+                        .payload
+                        .get("timed_out")
+                        .and_then(|value| value.as_bool())
+                        == Some(false)
+                    && event
+                        .payload
+                        .get("exit_code")
+                        .and_then(|value| value.as_i64())
+                        == Some(0)
+                    && event
+                        .payload
+                        .get("command")
+                        .and_then(|value| value.as_str())
+                        .is_some_and(|command| command.contains("HANDSHAKE_ONE_SHOT_OK"))
+            }),
+            "successful one-shot execution receipt must include command, exit, and timeout=false metadata"
+        );
+        assert!(
+            runtime.list_sessions().is_empty(),
+            "successful one-shot PTY session must be closed and removed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn run_command_timeout_is_explicit_and_reclaims_session(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let runtime = TerminalRuntime::new(Arc::new(CapabilityRegistry::new()), recorder.clone());
+        let (shell, args) = slow_pty_command();
+
+        let result = run_command_with_runtime(
+            RunCommandRequest {
+                shell: Some(shell),
+                args,
+                cwd: None,
+                timeout_ms: Some(25),
+                swarm_id: Some("mt-252-timeout-proof".to_string()),
+                capability_scope: Vec::new(),
+            },
+            runtime.clone(),
+        )
+        .await?;
+
+        assert!(result.timed_out, "timeout must be explicit, not inferred");
+        assert_eq!(result.exit_code, -1);
+        let events = recorder.list_events(EventFilter::default()).await?;
+        assert!(
+            events.iter().any(|event| {
+                event.payload.get("origin").and_then(|value| value.as_str())
+                    == Some("one_shot_run_command")
+                    && event
+                        .payload
+                        .get("timed_out")
+                        .and_then(|value| value.as_bool())
+                        == Some(true)
+                    && event
+                        .payload
+                        .get("exit_code")
+                        .and_then(|value| value.as_i64())
+                        == Some(-1)
+            }),
+            "one-shot command execution receipt must include timeout metadata"
+        );
+        assert!(
+            runtime.list_sessions().is_empty(),
+            "timed-out one-shot PTY session must be closed and removed"
+        );
+        Ok(())
+    }
+
+    struct BlockingOneShotRecorder {
+        entered: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+        release: Arc<tokio::sync::Notify>,
+    }
+
+    #[async_trait::async_trait]
+    impl FlightRecorder for BlockingOneShotRecorder {
+        async fn record_event(
+            &self,
+            event: handshake_core::flight_recorder::FlightRecorderEvent,
+        ) -> Result<(), handshake_core::flight_recorder::RecorderError> {
+            event.validate()?;
+            if event.payload.get("origin").and_then(|value| value.as_str())
+                == Some("one_shot_run_command")
+            {
+                if let Some(sender) = self.entered.lock().expect("entered lock").take() {
+                    let _ = sender.send(());
+                }
+                self.release.notified().await;
+            }
+            Ok(())
+        }
+
+        async fn enforce_retention(
+            &self,
+        ) -> Result<u64, handshake_core::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<
+            Vec<handshake_core::flight_recorder::FlightRecorderEvent>,
+            handshake_core::flight_recorder::RecorderError,
+        > {
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn timed_out_run_command_reclaims_session_before_receipt_write_completes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let release = Arc::new(tokio::sync::Notify::new());
+        let runtime = TerminalRuntime::new(
+            Arc::new(CapabilityRegistry::new()),
+            Arc::new(BlockingOneShotRecorder {
+                entered: std::sync::Mutex::new(Some(entered_tx)),
+                release: release.clone(),
+            }),
+        );
+        let (shell, args) = slow_pty_command();
+        let task_runtime = runtime.clone();
+
+        let command_task = tokio::spawn(run_command_with_runtime(
+            RunCommandRequest {
+                shell: Some(shell),
+                args,
+                cwd: None,
+                timeout_ms: Some(25),
+                swarm_id: Some("mt-252-timeout-cleanup-proof".to_string()),
+                capability_scope: Vec::new(),
+            },
+            task_runtime,
+        ));
+
+        tokio::time::timeout(std::time::Duration::from_secs(10), entered_rx)
+            .await
+            .expect("one-shot receipt write should start")?;
+        let session_reclaimed_while_receipt_blocked = runtime.list_sessions().is_empty();
+        release.notify_waiters();
+
+        let result = tokio::time::timeout(std::time::Duration::from_secs(30), command_task)
+            .await
+            .expect("one-shot command task should finish after releasing recorder")
+            .expect("one-shot command task should not panic")?;
+
+        assert!(result.timed_out);
+        assert!(
+            session_reclaimed_while_receipt_blocked,
+            "timed-out one-shot PTY session must be closed before awaiting receipt persistence"
+        );
+        Ok(())
+    }
+
+    struct FailingRecorder;
+
+    #[async_trait::async_trait]
+    impl FlightRecorder for FailingRecorder {
+        async fn record_event(
+            &self,
+            _event: handshake_core::flight_recorder::FlightRecorderEvent,
+        ) -> Result<(), handshake_core::flight_recorder::RecorderError> {
+            Err(handshake_core::flight_recorder::RecorderError::SinkError(
+                "forced receipt failure".to_string(),
+            ))
+        }
+
+        async fn enforce_retention(
+            &self,
+        ) -> Result<u64, handshake_core::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<
+            Vec<handshake_core::flight_recorder::FlightRecorderEvent>,
+            handshake_core::flight_recorder::RecorderError,
+        > {
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn terminal_diagnostics_reports_receipt_failures() {
+        let runtime = TerminalRuntime::new(
+            Arc::new(CapabilityRegistry::new()),
+            Arc::new(FailingRecorder),
+        );
+        let info = SessionInfo {
+            session_id: "diagnostic-session".to_string(),
+            kind: handshake_core::terminal::SessionKind::Interactive,
+            session_type: TerminalSessionType::HumanDev,
+            binding: SessionBinding::default(),
+            trace_id: uuid::Uuid::now_v7().to_string(),
+            title: Some("diagnostics".to_string()),
+            interactive_authorized: false,
+            exited: false,
+            exit_code: None,
+        };
+
+        runtime
+            .record_one_shot_command_result(
+                &info,
+                "cmd.exe /C echo diagnostics",
+                None,
+                0,
+                false,
+                std::time::Duration::from_millis(1),
+            )
+            .await;
+
+        let diagnostics = terminal_diagnostics_with_runtime(runtime);
+        assert_eq!(diagnostics.receipt_failure_count, 1);
+    }
+
+    #[test]
+    fn session_info_ipc_carries_exit_state_for_completed_terminal_tabs() {
+        let info = SessionInfo {
+            session_id: "exited-session".to_string(),
+            kind: handshake_core::terminal::SessionKind::Interactive,
+            session_type: TerminalSessionType::HumanDev,
+            binding: SessionBinding::default(),
+            trace_id: uuid::Uuid::now_v7().to_string(),
+            title: Some("exited".to_string()),
+            interactive_authorized: true,
+            exited: true,
+            exit_code: Some(7),
+        };
+
+        let ipc: SessionInfoIpc = info.into();
+
+        assert!(ipc.exited);
+        assert_eq!(ipc.exit_code, Some(7));
+        assert!(
+            !ipc.interactive_allowed,
+            "completed sessions stay inspectable but cannot accept stdin"
+        );
+    }
+
+    #[test]
+    fn session_info_ipc_keeps_interactive_ai_take_control_reachable_before_authorization() {
+        let info = SessionInfo {
+            session_id: "interactive-ai".to_string(),
+            kind: handshake_core::terminal::SessionKind::Interactive,
+            session_type: TerminalSessionType::AiJob,
+            binding: SessionBinding::default(),
+            trace_id: uuid::Uuid::now_v7().to_string(),
+            title: Some("ai shell".to_string()),
+            interactive_authorized: false,
+            exited: false,
+            exit_code: None,
+        };
+
+        let ipc: SessionInfoIpc = info.into();
+
+        assert!(
+            ipc.interactive_allowed,
+            "interactive AiJob PTYs must expose a reachable Take-control path before authorization"
+        );
+        assert!(!ipc.interactive_authorized);
+    }
+
+    #[test]
+    fn session_info_ipc_keeps_capture_sessions_non_interactive() {
+        let info = SessionInfo {
+            session_id: "capture-ai".to_string(),
+            kind: handshake_core::terminal::SessionKind::Capture,
+            session_type: TerminalSessionType::AiJob,
+            binding: SessionBinding::default(),
+            trace_id: uuid::Uuid::now_v7().to_string(),
+            title: Some("capture".to_string()),
+            interactive_authorized: false,
+            exited: false,
+            exit_code: None,
+        };
+
+        let ipc: SessionInfoIpc = info.into();
+
+        assert!(!ipc.interactive_allowed);
+        assert!(!ipc.interactive_authorized);
+    }
 }

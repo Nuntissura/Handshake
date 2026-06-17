@@ -24,17 +24,17 @@
 
 use serde_json::json;
 
-use super::migration_plan::naming_migration_plan;
-use super::registry::{user_manual_access_points, wp009_surface_registry, SurfaceGroup};
-use super::store::{
-    sha256_hex, LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage,
-    UserManualFeatureEntry, UserManualStore, UserManualToolEntry,
-};
 use super::USER_MANUAL_VERSION;
+use super::migration_plan::naming_migration_plan;
+use super::registry::{SurfaceGroup, user_manual_access_points, wp009_surface_registry};
+use super::store::{
+    LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage, UserManualFeatureEntry,
+    UserManualStore, UserManualToolEntry, sha256_hex,
+};
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
-use crate::model_manual::{model_manual, CommandStatus};
-use crate::storage::postgres::PostgresDatabase;
+use crate::model_manual::{CommandStatus, model_manual};
 use crate::storage::StorageResult;
+use crate::storage::postgres::PostgresDatabase;
 
 /// Everything the seeder writes.
 pub struct SeedCorpus {
@@ -56,6 +56,7 @@ pub struct SeedReport {
     pub features_total: usize,
     pub features_changed: usize,
     pub aliases_total: usize,
+    pub aliases_changed: usize,
     pub version_receipt_event_id: Option<String>,
 }
 
@@ -445,8 +446,8 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                  cargo test -p handshake_core --lib user_manual\n\
                  ```\n\n\
                  Integration tests provision an isolated schema per test on the real cluster \
-                 (`POSTGRES_TEST_URL` > `DATABASE_URL` > managed cluster) and SKIP loudly only \
-                 when PostgreSQL binaries are absent. There is no SQLite or mock fallback.",
+                 (`POSTGRES_TEST_URL` > `DATABASE_URL` > managed cluster) and fail hard when \
+                 PostgreSQL is unavailable. There is no SQLite or mock fallback.",
             ),
             section(
                 "inputs_outputs",
@@ -628,16 +629,18 @@ fn surface_page(
             "navigation",
             "Routes",
             &group_routes_md(group),
-            json!(wp009_surface_registry()
-                .iter()
-                .filter(|s| s.group == group)
-                .map(|s| json!({
-                    "surface_id": s.surface_id,
-                    "method": s.method,
-                    "route": s.route,
-                    "summary": s.summary,
-                }))
-                .collect::<Vec<_>>()),
+            json!(
+                wp009_surface_registry()
+                    .iter()
+                    .filter(|s| s.group == group)
+                    .map(|s| json!({
+                        "surface_id": s.surface_id,
+                        "method": s.method,
+                        "route": s.route,
+                        "summary": s.summary,
+                    }))
+                    .collect::<Vec<_>>()
+            ),
         ),
     ];
     sections.extend(extra_sections);
@@ -669,16 +672,18 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                 "navigation",
                 "Code navigation routes",
                 &group_routes_md(SurfaceGroup::CodeNavigation),
-                json!(wp009_surface_registry()
-                    .iter()
-                    .filter(|s| s.group == SurfaceGroup::CodeNavigation)
-                    .map(|s| json!({
-                        "surface_id": s.surface_id,
-                        "method": s.method,
-                        "route": s.route,
-                        "summary": s.summary,
-                    }))
-                    .collect::<Vec<_>>()),
+                json!(
+                    wp009_surface_registry()
+                        .iter()
+                        .filter(|s| s.group == SurfaceGroup::CodeNavigation)
+                        .map(|s| json!({
+                            "surface_id": s.surface_id,
+                            "method": s.method,
+                            "route": s.route,
+                            "summary": s.summary,
+                        }))
+                        .collect::<Vec<_>>()
+                ),
             ),
             section(
                 "inputs_outputs",
@@ -749,7 +754,9 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  headers on this surface. Errors are typed: `HSK-400-LOOM-VALIDATION` (bad \
                  payload), `workspace_not_found` / block-level `not_found` codes (404), \
                  `HSK-403-SILENT-EDIT` (a write the storage guard refuses), `HSK-500-LOOM` \
-                 (internal). Graph traversal depth is capped at 8 (default 3).",
+                 (internal). Graph traversal depth is capped at 8 (default 3). \
+                 Graph-search block hits include `hsk.loom_retrieval_bias@1` metadata \
+                 so models can see pin, tag, favorite, and backlink ranking influence.",
             ),
             section(
                 "failure_modes",
@@ -830,7 +837,10 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  `GET .../history/:doc_version`.",
             ),
         ],
-        vec![page_link("permissions-and-safety"), page_link("quickstart-editor")],
+        vec![
+            page_link("permissions-and-safety"),
+            page_link("quickstart-editor"),
+        ],
         vec!["2.3.13.11".into(), "7.1.1.8".into(), "7.1.1.10".into()],
     )
 }
@@ -971,7 +981,9 @@ fn page_usermanual_surface() -> NewUserManualPage {
                  markdown with `<topic>` tags. `GET /usermanual/freshness` compares DB rows vs \
                  the compiled-in corpus vs the surface registry and returns typed verdicts: \
                  `current` | `stale_content` | `uncovered_surface` | `dangling_anchor` | \
-                 `missing_page` | `unseeded_version`.",
+                 `missing_page` | `unseeded_version` | `missing_tool_entry` | \
+                 `stale_tool_entry` | `missing_feature_entry` | `stale_feature_entry` | \
+                 `missing_legacy_alias` | `stale_legacy_alias`.",
             ),
             section(
                 "failure_modes",
@@ -980,14 +992,18 @@ fn page_usermanual_surface() -> NewUserManualPage {
                  - 400 `bad_request` — empty search query, bad format/area token.\n\
                  - 403 `forbidden` — resync attempted by `cloud_model`/`unauthenticated`.\n\
                  - `stale_content` freshness verdicts — the binary's seed changed but the DB \
-                 was not resynced (or a row was tampered): run the gated resync.",
+                 was not resynced (or a page row was tampered): run the gated resync.\n\
+                 - `missing_tool_entry` / `stale_tool_entry`, `missing_feature_entry` / \
+                 `stale_feature_entry`, and `missing_legacy_alias` / `stale_legacy_alias` — \
+                 non-page corpus rows drifted from the compiled seed: run the gated resync.",
             ),
             section(
                 "recovery",
                 "Recovery",
                 "`POST /usermanual/resync` (operator/system/local_model) re-seeds idempotently — \
-                 only changed pages are written and receipted. The freshness route names exactly \
-                 which page/anchor/surface is stale, uncovered, or dangling.",
+                 changed pages, tool entries, feature entries, and legacy aliases are written and \
+                 receipted. The freshness route names exactly which page, anchor, surface, tool, \
+                 feature, or alias is stale, uncovered, dangling, missing, or unseeded.",
             ),
         ],
         vec![page_link("manual-toc")],
@@ -1123,9 +1139,8 @@ fn page_missing_postgres_behavior() -> NewUserManualPage {
                  running before serving; an adopted external cluster is left untouched at \
                  shutdown.\n\
                  - **Tests**: integration tests resolve `POSTGRES_TEST_URL` > `DATABASE_URL` > \
-                 managed cluster; when PostgreSQL BINARIES are genuinely absent they print a \
-                 loud `SKIP ...` marker and return — a green run in a PG-less environment \
-                 proves nothing, which is why validation must run against the real cluster.",
+                 managed cluster; when PostgreSQL is unavailable they fail hard. A green run \
+                 therefore requires real PostgreSQL, not SQLite, mocks, or skipped proof.",
             ),
             section(
                 "recovery",
@@ -1254,7 +1269,7 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  3. If the failure names a missing table, the migration chain is behind: \
                  migrations run automatically per isolated test schema; check the migration file \
                  numbering for collisions.\n\
-                 4. A test that SKIPs PostgreSQL is not a pass — provision the cluster.",
+                 4. A PostgreSQL availability failure is not a pass — provision the cluster.",
             ),
             section(
                 "recovery",
@@ -1341,17 +1356,18 @@ fn page_legacy_bridge() -> NewUserManualPage {
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(plan
-                    .rows
-                    .iter()
-                    .map(|r| json!({
-                        "row_id": r.row_id,
-                        "legacy_id": r.legacy_id,
-                        "canonical_ref": r.canonical_ref,
-                        "phase": r.phase.as_str(),
-                        "shim_state": r.shim_state.as_str(),
-                    }))
-                    .collect::<Vec<_>>()),
+                json!(
+                    plan.rows
+                        .iter()
+                        .map(|r| json!({
+                            "row_id": r.row_id,
+                            "legacy_id": r.legacy_id,
+                            "canonical_ref": r.canonical_ref,
+                            "phase": r.phase.as_str(),
+                            "shim_state": r.shim_state.as_str(),
+                        }))
+                        .collect::<Vec<_>>()
+                ),
             ),
         ],
         anchors: vec![
@@ -1442,7 +1458,8 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
              3. `POST /workspaces/:ws/loom/edges` — link them.\n\
              4. `GET /workspaces/:ws/loom/blocks/:id/backlinks` — backlinks with context.\n\
              5. `GET /workspaces/:ws/loom/graph/local?...` — the local graph.\n\
-             6. `GET /workspaces/:ws/loom/search?q=<term>` — search.\n\
+             6. `GET /workspaces/:ws/loom/graph-search?q=<term>` — search with \
+             `hsk.loom_retrieval_bias@1` reasons on Loom block hits.\n\
              7. `GET /workspaces/:ws/loom/blocks/:id/knowledge` — the authority bridge row \
              (entity + receipt).",
             vec![
@@ -1470,7 +1487,7 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
             "1. Run the surface's SCOPED test target on real PostgreSQL \
              ([[startup-and-run-commands]]): `cargo test -p handshake_core --features \
              test-utils --test <surface>_tests`.\n\
-             2. A printed `SKIP` is NOT a pass — provision PostgreSQL.\n\
+             2. A PostgreSQL availability failure is NOT a pass — provision PostgreSQL.\n\
              3. Check negative fixtures stay red-on-defect (stale, missing, denied, conflict \
              paths).\n\
              4. `GET /usermanual/freshness` — manual-vs-product drift must be `current`.\n\
@@ -1815,43 +1832,38 @@ pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
             features_changed += 1;
         }
     }
+    let mut aliases_changed = 0usize;
     for alias in &corpus.aliases {
-        store.upsert_legacy_alias(alias).await?;
+        if store.upsert_legacy_alias(alias).await? {
+            aliases_changed += 1;
+        }
     }
 
-    let anything_changed = pages_changed + tools_changed + features_changed > 0;
+    let anything_changed = pages_changed + tools_changed + features_changed + aliases_changed > 0;
     let existing_version = store.get_version(USER_MANUAL_VERSION).await?;
     let version_receipt = if anything_changed || existing_version.is_none() {
         Some(
             store
-                .append_manual_receipt(
-                    "corpus_seeded",
+                .record_version_with_receipt(
                     USER_MANUAL_VERSION,
+                    &seed_hash,
+                    corpus.pages.len() as i32,
+                    corpus.tools.len() as i32,
+                    corpus.features.len() as i32,
                     json!({
                         "seed_content_hash": seed_hash,
                         "pages_changed": pages_changed,
                         "tools_changed": tools_changed,
                         "features_changed": features_changed,
+                        "aliases_changed": aliases_changed,
                     }),
+                    "WP-KERNEL-009 MT-193..MT-208 built-in seed corpus",
                 )
                 .await?,
         )
     } else {
         None
     };
-    if anything_changed || existing_version.is_none() {
-        store
-            .record_version(
-                USER_MANUAL_VERSION,
-                &seed_hash,
-                corpus.pages.len() as i32,
-                corpus.tools.len() as i32,
-                corpus.features.len() as i32,
-                version_receipt.as_deref(),
-                "WP-KERNEL-009 MT-193..MT-208 built-in seed corpus",
-            )
-            .await?;
-    }
 
     Ok(SeedReport {
         manual_version: USER_MANUAL_VERSION.into(),
@@ -1863,6 +1875,7 @@ pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
         features_total: corpus.features.len(),
         features_changed,
         aliases_total: corpus.aliases.len(),
+        aliases_changed,
         version_receipt_event_id: version_receipt,
     })
 }

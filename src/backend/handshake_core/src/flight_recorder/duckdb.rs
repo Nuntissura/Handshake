@@ -676,7 +676,9 @@ impl DuckDbFlightRecorder {
         }
 
         // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
-        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+        let mut query = String::from(
+            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events",
+        );
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
@@ -801,256 +803,226 @@ fn raw_event_from_row(row: &duckdb::Row<'_>) -> duckdb::Result<RawEvent> {
 /// `event_type` string -> enum back-compat mapping table.
 fn decode_raw_event(raw: RawEvent) -> Result<FlightRecorderEvent, RecorderError> {
     {
-            let event_id = uuid::Uuid::parse_str(&raw.event_id)
-                .map_err(|e| RecorderError::InvalidEvent(format!("invalid event_id: {}", e)))?;
-            let trace_id = uuid::Uuid::parse_str(&raw.trace_id)
-                .map_err(|e| RecorderError::InvalidEvent(format!("invalid trace_id: {}", e)))?;
-            let secs = raw.timestamp_epoch.trunc() as i64;
-            let nanos = ((raw.timestamp_epoch.fract()) * 1_000_000_000f64) as u32;
-            let timestamp = chrono::DateTime::from_timestamp(secs, nanos)
-                .ok_or_else(|| RecorderError::InvalidEvent("invalid timestamp".into()))?;
+        let event_id = uuid::Uuid::parse_str(&raw.event_id)
+            .map_err(|e| RecorderError::InvalidEvent(format!("invalid event_id: {}", e)))?;
+        let trace_id = uuid::Uuid::parse_str(&raw.trace_id)
+            .map_err(|e| RecorderError::InvalidEvent(format!("invalid trace_id: {}", e)))?;
+        let secs = raw.timestamp_epoch.trunc() as i64;
+        let nanos = ((raw.timestamp_epoch.fract()) * 1_000_000_000f64) as u32;
+        let timestamp = chrono::DateTime::from_timestamp(secs, nanos)
+            .ok_or_else(|| RecorderError::InvalidEvent("invalid timestamp".into()))?;
 
-            let actor = match raw.actor.as_str() {
-                "human" => super::FlightRecorderActor::Human,
-                "agent" => super::FlightRecorderActor::Agent,
-                _ => super::FlightRecorderActor::System,
-            };
+        let actor = match raw.actor.as_str() {
+            "human" => super::FlightRecorderActor::Human,
+            "agent" => super::FlightRecorderActor::Agent,
+            _ => super::FlightRecorderActor::System,
+        };
 
-            let wsids: Vec<String> = raw
-                .wsids
-                .and_then(|s| serde_json::from_str(&s).ok())
-                .unwrap_or_default();
-            let payload: Value = serde_json::from_str(&raw.payload).unwrap_or(Value::Null);
-            let payload_type = payload.get("type").and_then(|value| value.as_str());
-            // Back-compat mapping table for stored event_type strings -> enum variants.
-            let event_type = match raw.event_type.as_str() {
-                "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
-                "editor_edit" => super::FlightRecorderEventType::EditorEdit,
-                "llm_inference" => super::FlightRecorderEventType::LlmInference,
-                "llm_infer.spec_accept" => super::FlightRecorderEventType::LlmInferenceSpecAccept,
-                "llm_infer.spec_reject" => super::FlightRecorderEventType::LlmInferenceSpecReject,
-                "tool_call" => super::FlightRecorderEventType::ToolCall,
-                "diagnostic" => super::FlightRecorderEventType::Diagnostic,
-                "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
-                "micro_task_iteration_started" => {
-                    super::FlightRecorderEventType::MicroTaskIterationStarted
+        let wsids: Vec<String> = raw
+            .wsids
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        let payload: Value = serde_json::from_str(&raw.payload).unwrap_or(Value::Null);
+        let payload_type = payload.get("type").and_then(|value| value.as_str());
+        // Back-compat mapping table for stored event_type strings -> enum variants.
+        let event_type = match raw.event_type.as_str() {
+            "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
+            "editor_edit" => super::FlightRecorderEventType::EditorEdit,
+            "llm_inference" => super::FlightRecorderEventType::LlmInference,
+            "llm_infer.spec_accept" => super::FlightRecorderEventType::LlmInferenceSpecAccept,
+            "llm_infer.spec_reject" => super::FlightRecorderEventType::LlmInferenceSpecReject,
+            "tool_call" => super::FlightRecorderEventType::ToolCall,
+            "diagnostic" => super::FlightRecorderEventType::Diagnostic,
+            "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
+            "micro_task_iteration_started" => {
+                super::FlightRecorderEventType::MicroTaskIterationStarted
+            }
+            "micro_task_iteration_complete" => {
+                super::FlightRecorderEventType::MicroTaskIterationComplete
+            }
+            "micro_task_complete" => super::FlightRecorderEventType::MicroTaskComplete,
+            "micro_task_escalated" => super::FlightRecorderEventType::MicroTaskEscalated,
+            "micro_task_hard_gate" => super::FlightRecorderEventType::MicroTaskHardGate,
+            "micro_task_pause_requested" => super::FlightRecorderEventType::MicroTaskPauseRequested,
+            "micro_task_resumed" => super::FlightRecorderEventType::MicroTaskResumed,
+            "micro_task_loop_completed" => super::FlightRecorderEventType::MicroTaskLoopCompleted,
+            "micro_task_loop_failed" => super::FlightRecorderEventType::MicroTaskLoopFailed,
+            "micro_task_loop_cancelled" => super::FlightRecorderEventType::MicroTaskLoopCancelled,
+            "micro_task_validation" => super::FlightRecorderEventType::MicroTaskValidation,
+            "micro_task_lora_selection" => super::FlightRecorderEventType::MicroTaskLoraSelection,
+            "micro_task_drop_back" => super::FlightRecorderEventType::MicroTaskDropBack,
+            "micro_task_distillation_candidate" => {
+                super::FlightRecorderEventType::MicroTaskDistillationCandidate
+            }
+            "micro_task_skipped" => super::FlightRecorderEventType::MicroTaskSkipped,
+            "micro_task_blocked" => super::FlightRecorderEventType::MicroTaskBlocked,
+            "work_packet_created" => super::FlightRecorderEventType::LocusWorkPacketCreated,
+            "work_packet_updated" => super::FlightRecorderEventType::LocusWorkPacketUpdated,
+            "work_packet_gated" => super::FlightRecorderEventType::LocusWorkPacketGated,
+            "work_packet_completed" => super::FlightRecorderEventType::LocusWorkPacketCompleted,
+            "work_packet_deleted" => super::FlightRecorderEventType::LocusWorkPacketDeleted,
+            "micro_tasks_registered" => super::FlightRecorderEventType::LocusMicroTasksRegistered,
+            "mt_iteration_completed" => super::FlightRecorderEventType::LocusMtIterationCompleted,
+            "mt_started" => super::FlightRecorderEventType::LocusMtStarted,
+            "mt_completed" => super::FlightRecorderEventType::LocusMtCompleted,
+            "mt_escalated" => super::FlightRecorderEventType::LocusMtEscalated,
+            "mt_failed" => super::FlightRecorderEventType::LocusMtFailed,
+            "dependency_added" => super::FlightRecorderEventType::LocusDependencyAdded,
+            "dependency_removed" => super::FlightRecorderEventType::LocusDependencyRemoved,
+            "task_board_entry_added" => super::FlightRecorderEventType::LocusTaskBoardEntryAdded,
+            "task_board_synced" => super::FlightRecorderEventType::LocusTaskBoardSynced,
+            "task_board_status_changed" => {
+                super::FlightRecorderEventType::LocusTaskBoardStatusChanged
+            }
+            "sync_started" => super::FlightRecorderEventType::LocusSyncStarted,
+            "sync_completed" => super::FlightRecorderEventType::LocusSyncCompleted,
+            "sync_failed" => super::FlightRecorderEventType::LocusSyncFailed,
+            "work_query_executed" => super::FlightRecorderEventType::LocusWorkQueryExecuted,
+            "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
+            "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
+            "memory_write_proposed" => super::FlightRecorderEventType::MemoryWriteProposed,
+            "memory_write_reviewed" => super::FlightRecorderEventType::MemoryWriteReviewed,
+            "memory_write_committed" => super::FlightRecorderEventType::MemoryWriteCommitted,
+            "memory_pack_built" => super::FlightRecorderEventType::MemoryPackBuilt,
+            "memory_item_status_changed" => super::FlightRecorderEventType::MemoryItemStatusChanged,
+            "runtime_chat_message_appended" => {
+                super::FlightRecorderEventType::RuntimeChatMessageAppended
+            }
+            "runtime_chat_ans001_validation" => {
+                super::FlightRecorderEventType::RuntimeChatAns001Validation
+            }
+            "runtime_chat_session_closed" => {
+                super::FlightRecorderEventType::RuntimeChatSessionClosed
+            }
+            "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
+            "gov_mailbox_message_created" => {
+                super::FlightRecorderEventType::GovMailboxMessageCreated
+            }
+            "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
+            "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
+            "gov_gate_transition" => super::FlightRecorderEventType::GovGateTransition,
+            "gov_work_packet_activated" => super::FlightRecorderEventType::GovWorkPacketActivated,
+            "gov_decision_created" => super::FlightRecorderEventType::GovDecisionCreated,
+            "gov_decision_applied" => super::FlightRecorderEventType::GovDecisionApplied,
+            "gov_auto_signature_created" => super::FlightRecorderEventType::GovAutoSignatureCreated,
+            "gov_human_intervention_requested" => {
+                super::FlightRecorderEventType::GovHumanInterventionRequested
+            }
+            "gov_human_intervention_received" => {
+                super::FlightRecorderEventType::GovHumanInterventionReceived
+            }
+            "governance.check.started" => super::FlightRecorderEventType::GovernanceCheckStarted,
+            "governance.check.completed" => {
+                super::FlightRecorderEventType::GovernanceCheckCompleted
+            }
+            "governance.check.blocked" => super::FlightRecorderEventType::GovernanceCheckBlocked,
+            "cloud_escalation_requested" => {
+                super::FlightRecorderEventType::CloudEscalationRequested
+            }
+            "cloud_escalation_approved" => super::FlightRecorderEventType::CloudEscalationApproved,
+            "cloud_escalation_denied" => super::FlightRecorderEventType::CloudEscalationDenied,
+            "cloud_escalation_executed" => super::FlightRecorderEventType::CloudEscalationExecuted,
+            "security_violation" => super::FlightRecorderEventType::SecurityViolation,
+            "data_bronze_created" => super::FlightRecorderEventType::DataBronzeCreated,
+            "data_silver_created" => super::FlightRecorderEventType::DataSilverCreated,
+            "data_silver_updated" => super::FlightRecorderEventType::DataSilverUpdated,
+            "data_embedding_computed" => super::FlightRecorderEventType::DataEmbeddingComputed,
+            "data_embedding_model_changed" => {
+                super::FlightRecorderEventType::DataEmbeddingModelChanged
+            }
+            "data_index_updated" => super::FlightRecorderEventType::DataIndexUpdated,
+            "data_index_rebuilt" => super::FlightRecorderEventType::DataIndexRebuilt,
+            "data_validation_failed" => super::FlightRecorderEventType::DataValidationFailed,
+            "data_retrieval_executed" => super::FlightRecorderEventType::DataRetrievalExecuted,
+            "data_context_assembled" => super::FlightRecorderEventType::DataContextAssembled,
+            "data_pollution_alert" => super::FlightRecorderEventType::DataPollutionAlert,
+            "data_quality_degradation" => super::FlightRecorderEventType::DataQualityDegradation,
+            "data_reembedding_triggered" => {
+                super::FlightRecorderEventType::DataReembeddingTriggered
+            }
+            "data_relationship_extracted" => {
+                super::FlightRecorderEventType::DataRelationshipExtracted
+            }
+            "data_golden_query_failed" => super::FlightRecorderEventType::DataGoldenQueryFailed,
+            "loom_block_created" => super::FlightRecorderEventType::LoomBlockCreated,
+            "loom_block_updated" => super::FlightRecorderEventType::LoomBlockUpdated,
+            "loom_block_deleted" => super::FlightRecorderEventType::LoomBlockDeleted,
+            "loom_edge_created" => super::FlightRecorderEventType::LoomEdgeCreated,
+            "loom_edge_deleted" => super::FlightRecorderEventType::LoomEdgeDeleted,
+            "loom_dedup_hit" => super::FlightRecorderEventType::LoomDedupHit,
+            "loom_preview_generated" => super::FlightRecorderEventType::LoomPreviewGenerated,
+            "loom_ai_tag_suggested" => super::FlightRecorderEventType::LoomAiTagSuggested,
+            "loom_ai_tag_accepted" => super::FlightRecorderEventType::LoomAiTagAccepted,
+            "loom_ai_tag_rejected" => super::FlightRecorderEventType::LoomAiTagRejected,
+            "loom_view_queried" => super::FlightRecorderEventType::LoomViewQueried,
+            "loom_search_executed" => super::FlightRecorderEventType::LoomSearchExecuted,
+            "session_scheduler.enqueue" | "session_scheduler_enqueue" => {
+                super::FlightRecorderEventType::SessionSchedulerEnqueue
+            }
+            "session_scheduler.dispatch" | "session_scheduler_dispatch" => {
+                super::FlightRecorderEventType::SessionSchedulerDispatch
+            }
+            "session_scheduler.rate_limited" | "session_scheduler_rate_limited" => {
+                super::FlightRecorderEventType::SessionSchedulerRateLimited
+            }
+            "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
+                super::FlightRecorderEventType::SessionSchedulerCancelled
+            }
+            "session.created" => super::FlightRecorderEventType::SessionCreated,
+            "session.state_change" => super::FlightRecorderEventType::SessionStateChange,
+            "session.message" => super::FlightRecorderEventType::SessionMessage,
+            "session.completed" => super::FlightRecorderEventType::SessionCompleted,
+            "session.budget_warning" => super::FlightRecorderEventType::SessionBudgetWarning,
+            "session.spawn_requested" => super::FlightRecorderEventType::SessionSpawnRequested,
+            "session.spawn_accepted" => super::FlightRecorderEventType::SessionSpawnAccepted,
+            "session.spawn_rejected" => super::FlightRecorderEventType::SessionSpawnRejected,
+            "session.announce_back" => super::FlightRecorderEventType::SessionSpawnAnnounceBack,
+            "session.cascade_cancel" => super::FlightRecorderEventType::SessionCascadeCancel,
+            "session_checkpoint_created" => {
+                super::FlightRecorderEventType::SessionCheckpointCreated
+            }
+            "session_recovery_attempted" => {
+                super::FlightRecorderEventType::SessionRecoveryAttempted
+            }
+            "workspace_isolation.denied" => {
+                super::FlightRecorderEventType::WorkspaceIsolationDenied
+            }
+            "workspace_cross_session.denied" => {
+                super::FlightRecorderEventType::WorkspaceCrossSessionDenied
+            }
+            "workspace_cross_session.approved" => {
+                super::FlightRecorderEventType::WorkspaceCrossSessionApproved
+            }
+            "distill.pii_detected" => super::FlightRecorderEventType::DistillPiiDetected,
+            "capability_action" => {
+                if payload_type == Some("terminal_command") {
+                    super::FlightRecorderEventType::TerminalCommand
+                } else {
+                    super::FlightRecorderEventType::CapabilityAction
                 }
-                "micro_task_iteration_complete" => {
-                    super::FlightRecorderEventType::MicroTaskIterationComplete
-                }
-                "micro_task_complete" => super::FlightRecorderEventType::MicroTaskComplete,
-                "micro_task_escalated" => super::FlightRecorderEventType::MicroTaskEscalated,
-                "micro_task_hard_gate" => super::FlightRecorderEventType::MicroTaskHardGate,
-                "micro_task_pause_requested" => {
-                    super::FlightRecorderEventType::MicroTaskPauseRequested
-                }
-                "micro_task_resumed" => super::FlightRecorderEventType::MicroTaskResumed,
-                "micro_task_loop_completed" => {
-                    super::FlightRecorderEventType::MicroTaskLoopCompleted
-                }
-                "micro_task_loop_failed" => super::FlightRecorderEventType::MicroTaskLoopFailed,
-                "micro_task_loop_cancelled" => {
-                    super::FlightRecorderEventType::MicroTaskLoopCancelled
-                }
-                "micro_task_validation" => super::FlightRecorderEventType::MicroTaskValidation,
-                "micro_task_lora_selection" => {
-                    super::FlightRecorderEventType::MicroTaskLoraSelection
-                }
-                "micro_task_drop_back" => super::FlightRecorderEventType::MicroTaskDropBack,
-                "micro_task_distillation_candidate" => {
-                    super::FlightRecorderEventType::MicroTaskDistillationCandidate
-                }
-                "micro_task_skipped" => super::FlightRecorderEventType::MicroTaskSkipped,
-                "micro_task_blocked" => super::FlightRecorderEventType::MicroTaskBlocked,
-                "work_packet_created" => super::FlightRecorderEventType::LocusWorkPacketCreated,
-                "work_packet_updated" => super::FlightRecorderEventType::LocusWorkPacketUpdated,
-                "work_packet_gated" => super::FlightRecorderEventType::LocusWorkPacketGated,
-                "work_packet_completed" => super::FlightRecorderEventType::LocusWorkPacketCompleted,
-                "work_packet_deleted" => super::FlightRecorderEventType::LocusWorkPacketDeleted,
-                "micro_tasks_registered" => {
-                    super::FlightRecorderEventType::LocusMicroTasksRegistered
-                }
-                "mt_iteration_completed" => {
-                    super::FlightRecorderEventType::LocusMtIterationCompleted
-                }
-                "mt_started" => super::FlightRecorderEventType::LocusMtStarted,
-                "mt_completed" => super::FlightRecorderEventType::LocusMtCompleted,
-                "mt_escalated" => super::FlightRecorderEventType::LocusMtEscalated,
-                "mt_failed" => super::FlightRecorderEventType::LocusMtFailed,
-                "dependency_added" => super::FlightRecorderEventType::LocusDependencyAdded,
-                "dependency_removed" => super::FlightRecorderEventType::LocusDependencyRemoved,
-                "task_board_entry_added" => {
-                    super::FlightRecorderEventType::LocusTaskBoardEntryAdded
-                }
-                "task_board_synced" => super::FlightRecorderEventType::LocusTaskBoardSynced,
-                "task_board_status_changed" => {
-                    super::FlightRecorderEventType::LocusTaskBoardStatusChanged
-                }
-                "sync_started" => super::FlightRecorderEventType::LocusSyncStarted,
-                "sync_completed" => super::FlightRecorderEventType::LocusSyncCompleted,
-                "sync_failed" => super::FlightRecorderEventType::LocusSyncFailed,
-                "work_query_executed" => super::FlightRecorderEventType::LocusWorkQueryExecuted,
-                "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
-                "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
-                "memory_write_proposed" => super::FlightRecorderEventType::MemoryWriteProposed,
-                "memory_write_reviewed" => super::FlightRecorderEventType::MemoryWriteReviewed,
-                "memory_write_committed" => super::FlightRecorderEventType::MemoryWriteCommitted,
-                "memory_pack_built" => super::FlightRecorderEventType::MemoryPackBuilt,
-                "memory_item_status_changed" => {
-                    super::FlightRecorderEventType::MemoryItemStatusChanged
-                }
-                "runtime_chat_message_appended" => {
-                    super::FlightRecorderEventType::RuntimeChatMessageAppended
-                }
-                "runtime_chat_ans001_validation" => {
-                    super::FlightRecorderEventType::RuntimeChatAns001Validation
-                }
-                "runtime_chat_session_closed" => {
-                    super::FlightRecorderEventType::RuntimeChatSessionClosed
-                }
-                "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
-                "gov_mailbox_message_created" => {
-                    super::FlightRecorderEventType::GovMailboxMessageCreated
-                }
-                "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
-                "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
-                "gov_gate_transition" => super::FlightRecorderEventType::GovGateTransition,
-                "gov_work_packet_activated" => {
-                    super::FlightRecorderEventType::GovWorkPacketActivated
-                }
-                "gov_decision_created" => super::FlightRecorderEventType::GovDecisionCreated,
-                "gov_decision_applied" => super::FlightRecorderEventType::GovDecisionApplied,
-                "gov_auto_signature_created" => {
-                    super::FlightRecorderEventType::GovAutoSignatureCreated
-                }
-                "gov_human_intervention_requested" => {
-                    super::FlightRecorderEventType::GovHumanInterventionRequested
-                }
-                "gov_human_intervention_received" => {
-                    super::FlightRecorderEventType::GovHumanInterventionReceived
-                }
-                "governance.check.started" => {
-                    super::FlightRecorderEventType::GovernanceCheckStarted
-                }
-                "governance.check.completed" => {
-                    super::FlightRecorderEventType::GovernanceCheckCompleted
-                }
-                "governance.check.blocked" => {
-                    super::FlightRecorderEventType::GovernanceCheckBlocked
-                }
-                "cloud_escalation_requested" => {
-                    super::FlightRecorderEventType::CloudEscalationRequested
-                }
-                "cloud_escalation_approved" => {
-                    super::FlightRecorderEventType::CloudEscalationApproved
-                }
-                "cloud_escalation_denied" => super::FlightRecorderEventType::CloudEscalationDenied,
-                "cloud_escalation_executed" => {
-                    super::FlightRecorderEventType::CloudEscalationExecuted
-                }
-                "security_violation" => super::FlightRecorderEventType::SecurityViolation,
-                "data_bronze_created" => super::FlightRecorderEventType::DataBronzeCreated,
-                "data_silver_created" => super::FlightRecorderEventType::DataSilverCreated,
-                "data_silver_updated" => super::FlightRecorderEventType::DataSilverUpdated,
-                "data_embedding_computed" => super::FlightRecorderEventType::DataEmbeddingComputed,
-                "data_embedding_model_changed" => {
-                    super::FlightRecorderEventType::DataEmbeddingModelChanged
-                }
-                "data_index_updated" => super::FlightRecorderEventType::DataIndexUpdated,
-                "data_index_rebuilt" => super::FlightRecorderEventType::DataIndexRebuilt,
-                "data_validation_failed" => super::FlightRecorderEventType::DataValidationFailed,
-                "data_retrieval_executed" => super::FlightRecorderEventType::DataRetrievalExecuted,
-                "data_context_assembled" => super::FlightRecorderEventType::DataContextAssembled,
-                "data_pollution_alert" => super::FlightRecorderEventType::DataPollutionAlert,
-                "data_quality_degradation" => {
-                    super::FlightRecorderEventType::DataQualityDegradation
-                }
-                "data_reembedding_triggered" => {
-                    super::FlightRecorderEventType::DataReembeddingTriggered
-                }
-                "data_relationship_extracted" => {
-                    super::FlightRecorderEventType::DataRelationshipExtracted
-                }
-                "data_golden_query_failed" => super::FlightRecorderEventType::DataGoldenQueryFailed,
-                "loom_block_created" => super::FlightRecorderEventType::LoomBlockCreated,
-                "loom_block_updated" => super::FlightRecorderEventType::LoomBlockUpdated,
-                "loom_block_deleted" => super::FlightRecorderEventType::LoomBlockDeleted,
-                "loom_edge_created" => super::FlightRecorderEventType::LoomEdgeCreated,
-                "loom_edge_deleted" => super::FlightRecorderEventType::LoomEdgeDeleted,
-                "loom_dedup_hit" => super::FlightRecorderEventType::LoomDedupHit,
-                "loom_preview_generated" => super::FlightRecorderEventType::LoomPreviewGenerated,
-                "loom_ai_tag_suggested" => super::FlightRecorderEventType::LoomAiTagSuggested,
-                "loom_ai_tag_accepted" => super::FlightRecorderEventType::LoomAiTagAccepted,
-                "loom_ai_tag_rejected" => super::FlightRecorderEventType::LoomAiTagRejected,
-                "loom_view_queried" => super::FlightRecorderEventType::LoomViewQueried,
-                "loom_search_executed" => super::FlightRecorderEventType::LoomSearchExecuted,
-                "session_scheduler.enqueue" | "session_scheduler_enqueue" => {
-                    super::FlightRecorderEventType::SessionSchedulerEnqueue
-                }
-                "session_scheduler.dispatch" | "session_scheduler_dispatch" => {
-                    super::FlightRecorderEventType::SessionSchedulerDispatch
-                }
-                "session_scheduler.rate_limited" | "session_scheduler_rate_limited" => {
-                    super::FlightRecorderEventType::SessionSchedulerRateLimited
-                }
-                "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
-                    super::FlightRecorderEventType::SessionSchedulerCancelled
-                }
-                "session.created" => super::FlightRecorderEventType::SessionCreated,
-                "session.state_change" => super::FlightRecorderEventType::SessionStateChange,
-                "session.message" => super::FlightRecorderEventType::SessionMessage,
-                "session.completed" => super::FlightRecorderEventType::SessionCompleted,
-                "session.budget_warning" => super::FlightRecorderEventType::SessionBudgetWarning,
-                "session.spawn_requested" => super::FlightRecorderEventType::SessionSpawnRequested,
-                "session.spawn_accepted" => super::FlightRecorderEventType::SessionSpawnAccepted,
-                "session.spawn_rejected" => super::FlightRecorderEventType::SessionSpawnRejected,
-                "session.announce_back" => super::FlightRecorderEventType::SessionSpawnAnnounceBack,
-                "session.cascade_cancel" => super::FlightRecorderEventType::SessionCascadeCancel,
-                "session_checkpoint_created" => {
-                    super::FlightRecorderEventType::SessionCheckpointCreated
-                }
-                "session_recovery_attempted" => {
-                    super::FlightRecorderEventType::SessionRecoveryAttempted
-                }
-                "workspace_isolation.denied" => {
-                    super::FlightRecorderEventType::WorkspaceIsolationDenied
-                }
-                "workspace_cross_session.denied" => {
-                    super::FlightRecorderEventType::WorkspaceCrossSessionDenied
-                }
-                "workspace_cross_session.approved" => {
-                    super::FlightRecorderEventType::WorkspaceCrossSessionApproved
-                }
-                "distill.pii_detected" => super::FlightRecorderEventType::DistillPiiDetected,
-                "capability_action" => {
-                    if payload_type == Some("terminal_command") {
-                        super::FlightRecorderEventType::TerminalCommand
-                    } else {
-                        super::FlightRecorderEventType::CapabilityAction
-                    }
-                }
-                "system" => super::FlightRecorderEventType::System,
-                _ => super::FlightRecorderEventType::System,
-            };
+            }
+            "system" => super::FlightRecorderEventType::System,
+            _ => super::FlightRecorderEventType::System,
+        };
 
-            Ok(super::FlightRecorderEvent {
-                event_id,
-                trace_id,
-                timestamp,
-                actor,
-                actor_id: raw.actor_id,
-                event_type,
-                job_id: raw.job_id,
-                workflow_id: raw.workflow_id,
-                model_id: raw.model_id,
-                model_session_id: raw.model_session_id,
-                wsids,
-                activity_span_id: raw.activity_span_id,
-                session_span_id: raw.session_span_id,
-                capability_id: raw.capability_id,
-                policy_decision_id: raw.policy_decision_id,
-                payload,
-            })
+        Ok(super::FlightRecorderEvent {
+            event_id,
+            trace_id,
+            timestamp,
+            actor,
+            actor_id: raw.actor_id,
+            event_type,
+            job_id: raw.job_id,
+            workflow_id: raw.workflow_id,
+            model_id: raw.model_id,
+            model_session_id: raw.model_session_id,
+            wsids,
+            activity_span_id: raw.activity_span_id,
+            session_span_id: raw.session_span_id,
+            capability_id: raw.capability_id,
+            policy_decision_id: raw.policy_decision_id,
+            payload,
+        })
     }
 }
 

@@ -33,6 +33,20 @@ export default defineConfig({
         "rich-editor": resolve(appDir, "harness", "rich-editor.html"),
         // MT-244: embeds + save-to-format + find/replace offline proofs.
         "rich-editor-embeds": resolve(appDir, "harness", "rich-editor-embeds.html"),
+        // MT-234: compact editor visual regression fixture.
+        "editor-visual-regression": resolve(appDir, "harness", "editor-visual-regression.html"),
+        // MT-246: same-document split editor CRDT consistency proof.
+        "rich-editor-collaboration": resolve(appDir, "harness", "rich-editor-collaboration.html"),
+        // MT-247: history-pair rich-document diff + Monaco diff proof.
+        "rich-document-diff": resolve(appDir, "harness", "rich-document-diff.html"),
+        // MT-255: backend-backed rich editor draft recovery proof.
+        "editor-draft-recovery": resolve(appDir, "harness", "editor-draft-recovery.html"),
+        // MT-249: real-backend Monaco code-intelligence provider proof.
+        "mt249-code-intelligence": resolve(appDir, "harness", "mt249-code-intelligence.html"),
+        // MT-258: Loom hsLink hover-preview visual proof.
+        "loom-hover-preview": resolve(appDir, "harness", "loom-hover-preview.html"),
+        // MT-258: backend-backed Loom bookmarks add/remove/navigation proof.
+        "loom-bookmarks": resolve(appDir, "harness", "loom-bookmarks.html"),
       },
     },
   },

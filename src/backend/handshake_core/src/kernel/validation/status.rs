@@ -195,15 +195,21 @@ mod tests {
         assert!(!ValidationStatus::pass().blocks_promotion());
         assert!(ValidationStatus::fail("x").unwrap().blocks_promotion());
         assert!(ValidationStatus::blocked("y").unwrap().blocks_promotion());
-        assert!(ValidationStatus::error("E", "d")
-            .unwrap()
-            .blocks_promotion());
-        assert!(!ValidationStatus::advisory("note")
-            .unwrap()
-            .blocks_promotion());
-        assert!(!ValidationStatus::unsupported("a")
-            .unwrap()
-            .blocks_promotion());
+        assert!(
+            ValidationStatus::error("E", "d")
+                .unwrap()
+                .blocks_promotion()
+        );
+        assert!(
+            !ValidationStatus::advisory("note")
+                .unwrap()
+                .blocks_promotion()
+        );
+        assert!(
+            !ValidationStatus::unsupported("a")
+                .unwrap()
+                .blocks_promotion()
+        );
         assert!(!ValidationStatus::skipped("r").unwrap().blocks_promotion());
     }
 

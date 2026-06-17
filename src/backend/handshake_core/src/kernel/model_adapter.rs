@@ -5,7 +5,7 @@ use serde_json::json;
 #[cfg(feature = "runtime-full")]
 use crate::mcp::gate::{KernelMcpGateDecisionKind, KernelMcpToolGateDecision};
 
-use super::context_bundle::{canonical_json_bytes, sha256_hex, ContextBundle};
+use super::context_bundle::{ContextBundle, canonical_json_bytes, sha256_hex};
 use super::{KernelActor, KernelError, KernelEventType, KernelResult};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

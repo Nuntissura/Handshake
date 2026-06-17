@@ -32,6 +32,7 @@ import {
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import type { AnyExtension } from "@tiptap/core";
+import type { Doc as YDoc } from "yjs";
 import { buildHandshakeEditorExtensions } from "../lib/editor/build_editor_extensions";
 import {
   EDITOR_COMMANDS,
@@ -77,6 +78,15 @@ import {
   buildExportFilename,
   type ExportFormatId,
 } from "../lib/editor/export_formats";
+import {
+  editorComponentCommands,
+  filterEditorComponentCommands,
+} from "../lib/editor/editor_component_commands";
+import {
+  getActiveProseSnippetSession,
+  moveToNextProseSnippetTabStop,
+} from "../lib/editor/editor_snippets";
+import { getProseMultiRangeState } from "../lib/tiptap/prose_multi_range_selection";
 import { saveTextToFile } from "../lib/editor/save_to_file";
 import { FindReplacePanel } from "./FindReplacePanel";
 import type {
@@ -84,6 +94,8 @@ import type {
   EditorBackendErrorKind,
 } from "../lib/editor/backend_error";
 import type { EmbedResolverContext } from "../lib/editor/embed_assets";
+import type { EditorCommandPaletteRequest } from "../lib/editor/editor_command_palette_request";
+import type { EditorFindRequest } from "../lib/editor/editor_find_request";
 import { DependencyFailureBanner } from "./DependencyFailureBanner";
 
 export type { EditorBackendError } from "../lib/editor/backend_error";
@@ -105,6 +117,23 @@ export type RichTextEditorProps = {
   embedContext?: EmbedResolverContext;
   /** Document title used for export file naming (MT-244); optional. */
   documentTitle?: string;
+  /** External app command-palette request that opens this editor's local command palette. */
+  commandPaletteRequest?: EditorCommandPaletteRequest | null;
+  /** External request that opens the document find panel and lands on the matching term. */
+  findRequest?: EditorFindRequest | null;
+  /**
+   * Opt-in Yjs/CRDT document used by split editor groups that open the same
+   * RichDocument. When supplied, both editors bind to the same Tiptap
+   * Collaboration extension document and converge without a save/reload loop.
+   */
+  collaborationDocument?: YDoc;
+  /**
+   * Explicit server-authority reset signal for collaborative editors. Ordinary
+   * rerenders/late joins do not replay initialContent into the shared Y.Doc;
+   * changing this token intentionally replaces the collaborative document from
+   * initialContent for reload/restore flows.
+   */
+  collaborationResetToken?: string | number;
   /**
    * Called once the Tiptap editor instance exists. Lets the parent (document
    * shell, merge UI, tests, diagnostics) reach the live editor without global
@@ -149,13 +178,13 @@ function buildGuardedExtensions(
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {
-  const { extensionFactory, embedContext } = props;
+  const { extensionFactory, embedContext, collaborationDocument } = props;
   const extensions = useMemo(
     () =>
       buildGuardedExtensions(
-        extensionFactory ?? (() => buildHandshakeEditorExtensions({ embedContext })),
+        extensionFactory ?? (() => buildHandshakeEditorExtensions({ embedContext, collaborationDocument })),
       ),
-    [extensionFactory, embedContext],
+    [extensionFactory, embedContext, collaborationDocument],
   );
   if (extensions === null) {
     // Never blank: show the typed failure surface + an inline notice.
@@ -170,40 +199,6 @@ export function RichTextEditor(props: RichTextEditorProps) {
     );
   }
   return <RichTextEditorInner extensions={extensions} {...props} />;
-}
-
-/**
- * Component-level palette commands (MT-244): UI-state actions (find/replace
- * panel, export menu, export formats) that operate on the editor COMPONENT
- * rather than the document, so they live beside — not inside — the pure
- * editor command catalog.
- */
-interface ComponentCommand {
-  id: string;
-  label: string;
-  keywords: string[];
-}
-
-const COMPONENT_COMMANDS: readonly ComponentCommand[] = [
-  { id: FIND_OPEN_ACTION, label: "Find in document", keywords: ["find", "search", "match"] },
-  { id: REPLACE_OPEN_ACTION, label: "Find and replace", keywords: ["replace", "find", "substitute"] },
-  ...EXPORT_FORMATS.map((format) => ({
-    id: `export.${format.id}`,
-    label: `Export: ${format.label}`,
-    keywords: ["export", "save", "download", format.extension, format.id],
-  })),
-];
-
-function filterComponentCommands(query: string, extra: readonly ComponentCommand[]): ComponentCommand[] {
-  const all = [...COMPONENT_COMMANDS, ...extra];
-  const q = query.trim().toLowerCase();
-  if (q.length === 0) return all;
-  return all.filter(
-    (cmd) =>
-      cmd.id.toLowerCase().includes(q) ||
-      cmd.label.toLowerCase().includes(q) ||
-      cmd.keywords.some((k) => k.toLowerCase().includes(q)),
-  );
 }
 
 /**
@@ -269,6 +264,10 @@ function RichTextEditorInner({
   backendError = null,
   embedContext,
   documentTitle,
+  commandPaletteRequest = null,
+  findRequest = null,
+  collaborationDocument,
+  collaborationResetToken,
   onEditorReady,
   onSaveRequested,
   debugId = "default",
@@ -281,6 +280,7 @@ function RichTextEditorInner({
   const [pendingCommand, setPendingCommand] = useState<EditorCommandDescriptor | null>(null);
   const [argValues, setArgValues] = useState<Record<string, string>>({});
   const paletteInputRef = useRef<HTMLInputElement>(null);
+  const lastCommandPaletteRequestIdRef = useRef<number | null>(null);
   // Iteration-3 M13: dialog containers for focus trap + restore.
   const paletteRef = useRef<HTMLDivElement>(null);
   const argPromptRef = useRef<HTMLDivElement>(null);
@@ -291,6 +291,7 @@ function RichTextEditorInner({
 
   // MT-244: find/replace panel + export menu state.
   const [findPanel, setFindPanel] = useState<"closed" | "find" | "replace">("closed");
+  const [focusMode, setFocusMode] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   // Iteration-3 L13: the overflow (insert/table-edit) menu is a real surface.
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -310,6 +311,15 @@ function RichTextEditorInner({
   // Keep the latest onChange without rebinding the editor's onUpdate closure.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const seededCollaborationDocumentRef = useRef<YDoc | null>(null);
+  const lastCollaborationResetTokenRef = useRef<string | number | undefined>(undefined);
+  const hydrationCollaborationDocumentRef = useRef<YDoc | null>(null);
+  const collaborationHydratedRef = useRef(!collaborationDocument);
+  const currentCollaborationDocument = collaborationDocument ?? null;
+  if (hydrationCollaborationDocumentRef.current !== currentCollaborationDocument) {
+    hydrationCollaborationDocumentRef.current = currentCollaborationDocument;
+    collaborationHydratedRef.current = currentCollaborationDocument === null;
+  }
 
   const editor = useEditor({
     extensions,
@@ -318,9 +328,16 @@ function RichTextEditorInner({
     onUpdate: ({ editor }) => {
       const json = editor.getJSON();
       lastEmittedRef.current = json;
+      if (
+        collaborationDocument &&
+        hydrationCollaborationDocumentRef.current === collaborationDocument &&
+        !collaborationHydratedRef.current
+      ) {
+        return;
+      }
       onChangeRef.current(json);
     },
-  });
+  }, [extensions]);
 
   // Reload content ONLY when the upstream document genuinely changed
   // (load/reload/conflict resolution) — never for the editor's own echo:
@@ -330,6 +347,34 @@ function RichTextEditorInner({
   //      caret. A real external update still applies.
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
+    // Once Tiptap is bound to a Y.Doc, the CRDT document is the live local
+    // authority. Seed an empty Y.Doc exactly once, then skip ordinary saved JSON
+    // replays so a late-joining split pane cannot overwrite live edits. An
+    // explicit reset token is the narrow exception used by reload/restore.
+    if (collaborationDocument) {
+      const next = initialContent ?? { type: "doc", content: [{ type: "paragraph" }] };
+      if (collaborationResetToken !== lastCollaborationResetTokenRef.current) {
+        lastCollaborationResetTokenRef.current = collaborationResetToken;
+        seededCollaborationDocumentRef.current = collaborationDocument;
+        editor.commands.setContent(next, { emitUpdate: false });
+        lastEmittedRef.current = null;
+        collaborationHydratedRef.current = true;
+        return;
+      }
+      if (seededCollaborationDocumentRef.current === collaborationDocument) {
+        collaborationHydratedRef.current = true;
+        return;
+      }
+      seededCollaborationDocumentRef.current = collaborationDocument;
+      if (collaborationDocument.getXmlFragment("default").length > 0) {
+        collaborationHydratedRef.current = true;
+        return;
+      }
+      editor.commands.setContent(next, { emitUpdate: false });
+      lastEmittedRef.current = null;
+      collaborationHydratedRef.current = true;
+      return;
+    }
     if (initialContent !== null && initialContent === lastEmittedRef.current) return;
     const next = initialContent ?? { type: "doc", content: [{ type: "paragraph" }] };
     if (jsonDeepEquals(editor.getJSON(), next)) return;
@@ -337,7 +382,7 @@ function RichTextEditorInner({
     // The document is now externally owned; the previous emit no longer
     // describes the editor state.
     lastEmittedRef.current = null;
-  }, [editor, initialContent]);
+  }, [editor, initialContent, collaborationDocument, collaborationResetToken]);
 
   // Reflect read-only changes (schema fail-closed, conflict lockout) onto the
   // live editor — useEditor only applies `editable` at construction.
@@ -512,6 +557,14 @@ function RichTextEditorInner({
     if (!editor) return;
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (event.key === "Tab" && getActiveProseSnippetSession(editor)) {
+        const origin = event.target instanceof Element ? event.target : null;
+        if (!origin?.closest("[data-testid='monaco-code-block']")) {
+          const moved = moveToNextProseSnippetTabStop(editor, event.shiftKey ? -1 : 1);
+          if (moved) event.preventDefault();
+          return;
+        }
+      }
       const action = resolveShortcut(event);
       if (!action) return;
       const origin = event.target instanceof Element ? event.target : null;
@@ -519,6 +572,17 @@ function RichTextEditorInner({
         return;
       }
       event.preventDefault();
+      if (focusMode) {
+        const cmd = EDITOR_COMMAND_BY_ID.get(action);
+        if (
+          action === PALETTE_OPEN_ACTION ||
+          action === FIND_OPEN_ACTION ||
+          action === REPLACE_OPEN_ACTION ||
+          (cmd && commandRequiresArg(cmd))
+        ) {
+          return;
+        }
+      }
       if (action === PALETTE_OPEN_ACTION) {
         setPaletteOpen(true);
         return;
@@ -539,7 +603,7 @@ function RichTextEditorInner({
     const root = editor.view.dom;
     root.addEventListener("keydown", handler);
     return () => root.removeEventListener("keydown", handler);
-  }, [editor, runCommand, onSaveRequested]);
+  }, [editor, focusMode, runCommand, onSaveRequested]);
 
   // Iteration-3 M13: focus trap + restore for every modal surface. These hooks
   // are declared BEFORE the focus-moving effects below so the previously
@@ -551,6 +615,25 @@ function RichTextEditorInner({
   useEffect(() => {
     if (paletteOpen) paletteInputRef.current?.focus();
   }, [paletteOpen]);
+
+  useEffect(() => {
+    if (!commandPaletteRequest) return;
+    if (lastCommandPaletteRequestIdRef.current === commandPaletteRequest.requestId) return;
+    lastCommandPaletteRequestIdRef.current = commandPaletteRequest.requestId;
+    if (focusMode) return;
+    setPendingCommand(null);
+    setArgValues({});
+    setPaletteQuery(commandPaletteRequest.query);
+    setPaletteActiveIndex(0);
+    setPaletteOpen(true);
+  }, [commandPaletteRequest, focusMode]);
+
+  useEffect(() => {
+    if (!findRequest) return;
+    if (focusMode) return;
+    setFindPanel("find");
+  }, [findRequest, focusMode]);
+
   useEffect(() => {
     if (pendingCommand) {
       argPromptRef.current?.querySelector<HTMLInputElement>("input")?.focus();
@@ -592,11 +675,25 @@ function RichTextEditorInner({
   // Iteration-3 L13/L12: the overflow set (insert + table-structure commands)
   // is a REAL operator-reachable menu now, not a hidden stub.
   const overflowCommands = EDITOR_COMMANDS.filter((c) =>
-    ["tableEdit", "embed", "graph", "mention", "manual"].includes(c.category),
+    ["tableEdit", "snippet", "template", "selection", "embed", "graph", "mention", "manual"].includes(c.category),
   );
   // Iteration-3 M11: truthful enable/disable from the catalog's canRun.
   const commandDisabled = (cmd: EditorCommandDescriptor): boolean =>
     readOnly || (cmd.canRun ? !cmd.canRun(editor) : false);
+  const focusToggleIndex = toolbarCommands.length + 3;
+  const toggleFocusMode = () => {
+    const next = !focusMode;
+    if (next) {
+      setOverflowOpen(false);
+      setPaletteOpen(false);
+      setExportMenuOpen(false);
+      setFindPanel("closed");
+      setPendingCommand(null);
+      setArgValues({});
+      setToolbarFocusIndex(focusToggleIndex);
+    }
+    setFocusMode(next);
+  };
   // M16: the roving tab stop must always sit on an ENABLED control (e.g. Undo
   // is disabled until the first edit) so the toolbar never loses its tab stop.
   const toolbarDisabledFlags = toolbarCommands.map((cmd) => commandDisabled(cmd));
@@ -609,11 +706,10 @@ function RichTextEditorInner({
     effectiveToolbarFocus = firstEnabled >= 0 ? firstEnabled : toolbarDisabledFlags.length;
   }
   const paletteResults = filterEditorCommands(paletteQuery);
-  const componentResults = filterComponentCommands(
+  const proseMultiRangeCount = getProseMultiRangeState(editor).ranges.length;
+  const componentResults = filterEditorComponentCommands(
     paletteQuery,
-    onSaveRequested
-      ? [{ id: SAVE_ACTION, label: "Save document", keywords: ["save", "persist", "write"] }]
-      : [],
+    editorComponentCommands({ includeSave: Boolean(onSaveRequested) }),
   );
   // Combined keyboard-navigable option order (M12): editor commands first,
   // then component commands — matching the rendered list order.
@@ -670,10 +766,15 @@ function RichTextEditorInner({
 
   return (
     <div
-      className="rich-text-editor"
+      className={focusMode ? "rich-text-editor rich-text-editor--focus-mode" : "rich-text-editor"}
       data-testid="rich-text-editor"
       data-editor-degraded="false"
       data-readonly={readOnly ? "true" : "false"}
+      data-focus-mode={focusMode ? "true" : "false"}
+      data-snippet-active={getActiveProseSnippetSession(editor) ? "true" : "false"}
+      data-snippet-id={getActiveProseSnippetSession(editor)?.snippetId ?? ""}
+      data-multi-range-count={String(proseMultiRangeCount)}
+      data-multi-range-active={proseMultiRangeCount > 0 ? "true" : "false"}
       data-code-block-count={String(debugSnapshot?.codeBlocks.length ?? 0)}
       data-link-count={String(debugSnapshot?.links.length ?? 0)}
       data-selection-empty={debugSnapshot ? String(debugSnapshot.selection.empty) : "true"}
@@ -702,6 +803,7 @@ function RichTextEditorInner({
         role="toolbar"
         aria-label="Editor formatting"
         data-testid="rich-text-editor-toolbar"
+        data-focus-mode={focusMode ? "true" : "false"}
         onKeyDown={onToolbarKeyDown}
       >
         {toolbarCommands.map((cmd, index) => (
@@ -712,11 +814,13 @@ function RichTextEditorInner({
             data-testid={`editor-cmd-${cmd.id}`}
             data-command-id={cmd.id}
             data-active={cmd.isActive?.(editor) ? "true" : "false"}
+            data-focus-mode-hidden={focusMode ? "true" : "false"}
+            hidden={focusMode}
             aria-pressed={cmd.isActive?.(editor) ? "true" : "false"}
             aria-label={ariaLabelFor(cmd)}
             title={ariaLabelFor(cmd)}
-            disabled={commandDisabled(cmd)}
-            tabIndex={!commandDisabled(cmd) && index === effectiveToolbarFocus ? 0 : -1}
+            disabled={focusMode || commandDisabled(cmd)}
+            tabIndex={!focusMode && !commandDisabled(cmd) && index === effectiveToolbarFocus ? 0 : -1}
             onFocus={() => setToolbarFocusIndex(index)}
             onClick={() => runCommand(cmd)}
           >
@@ -727,14 +831,16 @@ function RichTextEditorInner({
           type="button"
           className="tt-button"
           data-testid="editor-open-overflow"
+          data-focus-mode-hidden={focusMode ? "true" : "false"}
           aria-label="Insert and table commands"
           aria-haspopup="menu"
           aria-expanded={overflowOpen}
           title="Insert and table commands"
+          hidden={focusMode}
           tabIndex={toolbarCommands.length === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length)}
           onClick={() => setOverflowOpen((open) => !open)}
-          disabled={readOnly}
+          disabled={focusMode || readOnly}
         >
           Insert…
         </button>
@@ -742,11 +848,14 @@ function RichTextEditorInner({
           type="button"
           className="tt-button"
           data-testid="editor-open-find"
+          data-focus-mode-hidden={focusMode ? "true" : "false"}
           aria-label="Find in document (Ctrl/Cmd+F)"
           title="Find in document (Ctrl/Cmd+F)"
+          hidden={focusMode}
           tabIndex={toolbarCommands.length + 1 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 1)}
           onClick={() => setFindPanel((open) => (open === "closed" ? "find" : "closed"))}
+          disabled={focusMode}
         >
           Find
         </button>
@@ -754,11 +863,14 @@ function RichTextEditorInner({
           type="button"
           className="tt-button"
           data-testid="editor-open-export"
+          data-focus-mode-hidden={focusMode ? "true" : "false"}
           aria-label="Export document (save to format)"
           title="Export document (save to format)"
+          hidden={focusMode}
           tabIndex={toolbarCommands.length + 1 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 1)}
           onClick={() => setExportMenuOpen(true)}
+          disabled={focusMode}
         >
           Export…
         </button>
@@ -766,27 +878,49 @@ function RichTextEditorInner({
           type="button"
           className="tt-button"
           data-testid="editor-open-palette"
+          data-focus-mode-hidden={focusMode ? "true" : "false"}
           aria-label="Open command palette (more actions)"
-          title="More actions (Ctrl/Cmd+P)"
+          title="More actions (Ctrl/Cmd+Shift+P)"
+          hidden={focusMode}
           tabIndex={toolbarCommands.length + 2 === effectiveToolbarFocus ? 0 : -1}
           onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 2)}
           onClick={() => setPaletteOpen(true)}
+          disabled={focusMode}
         >
           More…
+        </button>
+        <button
+          type="button"
+          className={focusMode ? "tt-button tt-button--active" : "tt-button"}
+          data-testid="editor-toggle-focus-mode"
+          aria-label={focusMode ? "Exit focus mode" : "Enter focus mode"}
+          aria-pressed={focusMode ? "true" : "false"}
+          title={focusMode ? "Exit focus mode" : "Enter focus mode"}
+          tabIndex={focusMode || focusToggleIndex === effectiveToolbarFocus ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(focusToggleIndex)}
+          onClick={toggleFocusMode}
+        >
+          Focus
         </button>
       </div>
 
       {/* Document-wide find/replace (MT-244): prose + code blocks. */}
       {findPanel !== "closed" && (
         <FindReplacePanel
+          key={findRequest ? `find-request-${findRequest.requestId}` : "manual-find"}
           editor={editor}
           withReplace={findPanel === "replace" && !readOnly}
+          findRequest={findRequest}
           onClose={() => setFindPanel("closed")}
         />
       )}
 
       {/* The editing surface. */}
-      <div className="rich-text-editor__surface tiptap-scroll" data-testid="rich-text-editor-surface">
+      <div
+        className="rich-text-editor__surface tiptap-scroll"
+        data-testid="rich-text-editor-surface"
+        data-focus-mode={focusMode ? "true" : "false"}
+      >
         <EditorContent editor={editor} />
       </div>
 
@@ -958,7 +1092,7 @@ function RichTextEditorInner({
       {/* Arg prompt for commands needing input (link target, language, …).
           Iteration-3 M13: focus lands on the first field, Tab is trapped,
           Escape cancels, and focus restores on close. */}
-      {pendingCommand && (
+      {!focusMode && pendingCommand && (
         <div
           ref={argPromptRef}
           className="rich-text-editor__arg-prompt"

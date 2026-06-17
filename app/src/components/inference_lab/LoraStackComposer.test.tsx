@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ModelCapabilities } from "../../lib/ipc/model_runtime";
+import type { LoraStackItem } from "../../lib/ipc/lora";
 
 const loraListMock = vi.hoisted(() => vi.fn());
 const loraMountMock = vi.hoisted(() => vi.fn());
@@ -335,7 +336,7 @@ describe("LoraStackComposer", () => {
       modelId: MODEL_ID,
       eventType: "FR-EVT-LLM-INFER-LORA-SWAP",
       previousStack: [],
-      activeStack: request.settings.execPolicy.loraStack.map((it: any) =>
+      activeStack: request.settings.execPolicy.loraStack.map((it: LoraStackItem) =>
         lightEntry(it.descriptor.loraId, it.strength),
       ),
     }));
@@ -475,7 +476,7 @@ describe("LoraStackComposer", () => {
       modelId: MODEL_ID,
       eventType: "FR-EVT-LLM-INFER-LORA-SWAP",
       previousStack: [],
-      activeStack: request.settings.execPolicy.loraStack.map((it: any) =>
+      activeStack: request.settings.execPolicy.loraStack.map((it: LoraStackItem) =>
         lightEntry(it.descriptor.loraId, it.strength),
       ),
     }));
@@ -545,7 +546,7 @@ describe("LoraStackComposer", () => {
       modelId: MODEL_ID,
       eventType: "FR-EVT-LLM-INFER-LORA-SWAP",
       previousStack: [],
-      activeStack: request.settings.execPolicy.loraStack.map((it: any) =>
+      activeStack: request.settings.execPolicy.loraStack.map((it: LoraStackItem) =>
         lightEntry(it.descriptor.loraId, it.strength),
       ),
     }));
@@ -608,7 +609,7 @@ describe("LoraStackComposer", () => {
     });
     const swapCall = loraSwapMock.mock.calls[0][0];
     expect(
-      swapCall.settings.execPolicy.loraStack.map((it: any) => it.descriptor.loraId),
+      swapCall.settings.execPolicy.loraStack.map((it: LoraStackItem) => it.descriptor.loraId),
     ).toEqual([secondId, firstId]);
   });
 

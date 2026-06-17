@@ -29,7 +29,7 @@ export type DependencyFailureListener = (failure: DependencyFailure) => void;
 
 /** In-memory registry of bundled-dependency failures (per window). */
 export class DependencyFailureRegistry {
-  private failures: DependencyFailure[] = [];
+  private failures: readonly DependencyFailure[] = [];
   private listeners = new Set<DependencyFailureListener>();
 
   report(failure: Omit<DependencyFailure, "occurred_at">): DependencyFailure {
@@ -37,7 +37,7 @@ export class DependencyFailureRegistry {
       ...failure,
       occurred_at: new Date().toISOString(),
     };
-    this.failures.push(entry);
+    this.failures = [...this.failures, entry];
     for (const listener of this.listeners) {
       try {
         listener(entry);

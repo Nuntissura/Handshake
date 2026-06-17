@@ -425,11 +425,31 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Remove a block from a folder.",
         "Path params.",
         "Empty success."),
+    surface!("loom.wiki.list", SurfaceGroup::NotesLoom, "GET",
+        "/workspaces/:workspace_id/loom/wiki",
+        "List compiled project-wiki pages with staleness verdicts.",
+        "workspace_id path param.",
+        "JSON wiki page rows with staleness verdicts."),
     surface!("loom.wiki.compile", SurfaceGroup::NotesLoom, "POST",
         "/workspaces/:workspace_id/loom/wiki",
         "Compile a project-wiki projection over Loom blocks (knowledge-as-compile-target).",
         "JSON wiki compile spec.",
         "JSON projection row (projection_id) + receipt."),
+    surface!("loom.wiki.bootstrap", SurfaceGroup::NotesLoom, "POST",
+        "/workspaces/:workspace_id/loom/wiki/bootstrap",
+        "Bootstrap project-wiki pages from current Loom authority rows.",
+        "JSON bootstrap options.",
+        "JSON bootstrap report + receipt."),
+    surface!("loom.wiki.drift_check", SurfaceGroup::NotesLoom, "POST",
+        "/workspaces/:workspace_id/loom/wiki/drift-check",
+        "Check project-wiki projection drift against Loom authority rows.",
+        "JSON drift-check options.",
+        "JSON drift verdicts."),
+    surface!("loom.wiki.fanout", SurfaceGroup::NotesLoom, "POST",
+        "/workspaces/:workspace_id/loom/wiki/fanout",
+        "Fan out incremental project-wiki regeneration for stale pages.",
+        "JSON fanout request.",
+        "JSON fanout report + receipts."),
     surface!("loom.wiki.get", SurfaceGroup::NotesLoom, "GET",
         "/workspaces/:workspace_id/loom/wiki/:projection_id",
         "Load a compiled wiki projection (projection only, never authority).",
@@ -545,6 +565,16 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Search Loom blocks (text + filters, observability-tiered).",
         "q + filter query params.",
         "JSON search hits."),
+    surface!("loom.visual_debug", SurfaceGroup::NotesLoom, "GET",
+        "/workspaces/:workspace_id/loom/visual-debug",
+        "Bounded visual-debug snapshot of Loom graph, backlink, folder, and search state.",
+        "start_block_id + q query params; optional limit.",
+        "JSON hsk.loom_visual_debug@1 projection payload."),
+    surface!("loom.graph_search", SurfaceGroup::NotesLoom, "GET",
+        "/workspaces/:workspace_id/loom/graph-search",
+        "Search across Loom blocks, ProjectKnowledgeIndex entities, and UserManual pages with explainable Loom retrieval-bias metadata.",
+        "q + filter query params including source_kinds.",
+        "JSON heterogeneous graph-search hits; Loom block hits include hsk.loom_retrieval_bias@1 metadata."),
     // -- UserManual (api/user_manual.rs — this group's own surface) --------
     surface!("usermanual.pages.list", SurfaceGroup::UserManual, "GET",
         "/usermanual/pages",
@@ -771,7 +801,10 @@ mod tests {
                 s.method,
                 s.route
             );
-            assert!(matches!(s.method, "GET" | "POST" | "PUT" | "DELETE" | "PATCH"));
+            assert!(matches!(
+                s.method,
+                "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
+            ));
             assert!(s.route.starts_with('/'), "route must be absolute");
             assert!(!s.summary.trim().is_empty());
             assert!(!s.expected_input.trim().is_empty());

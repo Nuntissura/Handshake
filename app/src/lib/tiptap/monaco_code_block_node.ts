@@ -43,6 +43,7 @@ declare module "@tiptap/core" {
 function parseAttrsFromElement(element: HTMLElement): MonacoCodeBlockAttrs {
   const language =
     element.getAttribute("data-language") ??
+    element.getAttribute("data-hs-language") ??
     element.querySelector("code")?.getAttribute("data-language") ??
     DEFAULT_CODE_LANGUAGE;
   const code =
@@ -66,17 +67,22 @@ export const MonacoCodeBlockNode = Node.create({
     return {
       language: {
         default: DEFAULT_CODE_LANGUAGE,
-        parseHTML: (element) => element.getAttribute("data-language") ?? DEFAULT_CODE_LANGUAGE,
+        parseHTML: (element) =>
+          element.getAttribute("data-language") ?? element.getAttribute("data-hs-language") ?? DEFAULT_CODE_LANGUAGE,
         renderHTML: (attributes) => ({ "data-language": String(attributes.language) }),
       },
       code: {
         default: "",
-        parseHTML: (element) => element.getAttribute("data-code") ?? "",
+        parseHTML: (element) =>
+          element.getAttribute("data-code") ??
+          element.querySelector("code")?.textContent ??
+          element.textContent ??
+          "",
         renderHTML: (attributes) => ({ "data-code": String(attributes.code) }),
       },
       contentHash: {
         default: "",
-        parseHTML: (element) => element.getAttribute("data-rt-hash") ?? "",
+        parseHTML: (element) => element.getAttribute("data-rt-hash") ?? element.getAttribute("data-hs-rt-hash") ?? "",
         renderHTML: (attributes) => ({ "data-rt-hash": String(attributes.contentHash) }),
       },
     };
@@ -89,6 +95,13 @@ export const MonacoCodeBlockNode = Node.create({
         // Must outrank StarterKit's generic `pre` codeBlock rule (default
         // priority 50), otherwise a serialized Monaco block re-imports as a
         // plain code block and loses language/hash (MT-244 round-trip).
+        priority: 100,
+        getAttrs: (node) => (node instanceof HTMLElement ? parseAttrsFromElement(node) : false),
+      },
+      {
+        tag: "pre[data-hs-node='monacoCodeBlock']",
+        // Same priority as the legacy render selector: data-hs-* is the
+        // stable export semantic channel, not a best-effort decoration.
         priority: 100,
         getAttrs: (node) => (node instanceof HTMLElement ? parseAttrsFromElement(node) : false),
       },

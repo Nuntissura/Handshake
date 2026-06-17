@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::identity::{validate_crdt_workspace_identity, CrdtWorkspaceIdentityV1};
-use super::persistence::{sha256_hex, validate_crdt_update_record, CrdtUpdateRecordV1};
+use super::identity::{CrdtWorkspaceIdentityV1, validate_crdt_workspace_identity};
+use super::persistence::{CrdtUpdateRecordV1, sha256_hex, validate_crdt_update_record};
 
 pub const CRDT_CONTEXT_SLICE_SCHEMA_ID: &str = "hsk.kernel.crdt_context_slice@1";
 

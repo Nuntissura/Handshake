@@ -70,6 +70,18 @@ impl DocumentLinkKind {
             _ => return None,
         })
     }
+
+    fn from_hs_link_ref_kind(ref_kind: &str) -> Self {
+        match ref_kind.trim().to_ascii_lowercase().as_str() {
+            "file" => Self::File,
+            "folder" => Self::Folder,
+            "project" => Self::Project,
+            "spec" => Self::Spec,
+            "wp" => Self::Wp,
+            "symbol" => Self::Symbol,
+            _ => Self::Wikilink,
+        }
+    }
 }
 
 /// A single typed link reference emitted by a document (MT-155).
@@ -179,6 +191,13 @@ fn extract_from_block(source_document_id: &str, block: &Block) -> Vec<DocumentLi
         }
     }
 
+    extract_structured_inline_references(
+        source_document_id,
+        &block.content.raw,
+        &block.block_id,
+        &mut out,
+    );
+
     // Inline wikilinks / mentions / tags inside the block's plain text.
     let text = &block.content.derived.plain_text;
     for target in scan_wikilinks(text) {
@@ -217,6 +236,92 @@ fn typed_link_target(raw: &Value) -> Option<String> {
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|t| !t.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn extract_structured_inline_references(
+    source_document_id: &str,
+    node: &Value,
+    block_id: &str,
+    out: &mut Vec<DocumentLinkReference>,
+) {
+    let Some(obj) = node.as_object() else {
+        return;
+    };
+    match obj.get("type").and_then(Value::as_str) {
+        Some("hsLink") => {
+            if let Some((kind, target)) = hs_link_reference(obj) {
+                out.push(DocumentLinkReference::new(
+                    source_document_id,
+                    kind,
+                    &target,
+                    block_id,
+                ));
+            }
+        }
+        Some("mention") => {
+            if let Some(target) = inline_attr_target(obj, &["id", "label"]) {
+                out.push(DocumentLinkReference::new(
+                    source_document_id,
+                    DocumentLinkKind::Mention,
+                    &target,
+                    block_id,
+                ));
+            }
+        }
+        Some("tagMention") => {
+            if let Some(target) = inline_attr_target(obj, &["id", "label"]) {
+                out.push(DocumentLinkReference::new(
+                    source_document_id,
+                    DocumentLinkKind::Tag,
+                    &target,
+                    block_id,
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    if let Some(children) = obj.get("content").and_then(Value::as_array) {
+        for child in children {
+            extract_structured_inline_references(source_document_id, child, block_id, out);
+        }
+    }
+}
+
+fn hs_link_reference(obj: &serde_json::Map<String, Value>) -> Option<(DocumentLinkKind, String)> {
+    let attrs = obj.get("attrs").and_then(Value::as_object)?;
+    let ref_kind = attrs
+        .get("refKind")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("wikilink");
+    let ref_value = attrs
+        .get("refValue")
+        .and_then(Value::as_str)
+        .or_else(|| attrs.get("target").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())?;
+    let kind = DocumentLinkKind::from_hs_link_ref_kind(ref_kind);
+    let target = if kind == DocumentLinkKind::Wikilink
+        && !matches!(
+            ref_kind.to_ascii_lowercase().as_str(),
+            "note" | "wikilink" | "wiki"
+        ) {
+        format!("{ref_kind}:{ref_value}")
+    } else {
+        ref_value.to_string()
+    };
+    Some((kind, target))
+}
+
+fn inline_attr_target(obj: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<String> {
+    let attrs = obj.get("attrs").and_then(Value::as_object)?;
+    keys.iter()
+        .find_map(|key| attrs.get(*key).and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
 }
 
@@ -304,6 +409,40 @@ mod tests {
         assert!(has(DocumentLinkKind::Wp, "WP-1"));
         assert!(has(DocumentLinkKind::Spec, "2.3.13.11"));
         assert!(has(DocumentLinkKind::File, "src/main.rs"));
+    }
+
+    #[test]
+    fn extracts_inline_tiptap_node_references_from_attrs() {
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "paragraph", "content": [
+                    { "type": "text", "text": "Structured inline refs " },
+                    { "type": "hsLink", "attrs": { "refKind": "file", "refValue": "src/lib/editor.ts", "label": "editor.ts" } },
+                    { "type": "text", "text": " " },
+                    { "type": "hsLink", "attrs": { "refKind": "wp", "refValue": "WP-KERNEL-009", "label": "WP-KERNEL-009" } },
+                    { "type": "text", "text": " " },
+                    { "type": "hsLink", "attrs": { "refKind": "video", "refValue": "KVID-fixture", "label": "video" } },
+                    { "type": "text", "text": " " },
+                    { "type": "mention", "attrs": { "id": "operator-1", "label": "Operator One" } },
+                    { "type": "text", "text": " " },
+                    { "type": "tagMention", "attrs": { "id": "tag-fixture", "label": "fixture" } }
+                ] }
+            ]
+        });
+        let tiptap_tree =
+            BlockTree::from_document_json("KRD-doc", DOCUMENT_SCHEMA_VERSION, &doc).unwrap();
+        let refs = DocumentLinkReferences::extract(&tiptap_tree);
+        let has = |kind: DocumentLinkKind, target: &str| {
+            refs.references
+                .iter()
+                .any(|r| r.kind == kind && r.target == target)
+        };
+        assert!(has(DocumentLinkKind::File, "src/lib/editor.ts"));
+        assert!(has(DocumentLinkKind::Wp, "WP-KERNEL-009"));
+        assert!(has(DocumentLinkKind::Wikilink, "video:KVID-fixture"));
+        assert!(has(DocumentLinkKind::Mention, "operator-1"));
+        assert!(has(DocumentLinkKind::Tag, "tag-fixture"));
     }
 
     #[test]

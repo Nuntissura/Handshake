@@ -44,7 +44,7 @@ describe("editor keymap (MT-170)", () => {
   });
 
   it("resolves the command-palette open chords", () => {
-    expect(resolveShortcut({ key: "p", ctrlKey: true })).toBe(PALETTE_OPEN_ACTION);
+    expect(resolveShortcut({ key: "p", ctrlKey: true })).toBeNull();
     expect(resolveShortcut({ key: "p", ctrlKey: true, shiftKey: true })).toBe(PALETTE_OPEN_ACTION);
   });
 

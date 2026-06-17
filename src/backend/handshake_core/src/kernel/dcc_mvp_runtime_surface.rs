@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::action_catalog::{KernelActionCatalogV1, KernelCatalogActionV1};
 use super::action_envelope::{ApprovalPosture, AuthorityEffect};
 use super::crdt::promotion_bridge::{
-    promotion_idempotency_key, CrdtPromotionBridgeInputV1, CrdtPromotionBridgeLedgerResultV1,
-    CrdtPromotionBridgeStatus,
+    CrdtPromotionBridgeInputV1, CrdtPromotionBridgeLedgerResultV1, CrdtPromotionBridgeStatus,
+    promotion_idempotency_key,
 };
 use super::crdt::validity_guard::{
     CrdtPromotionValidationDecision, CrdtPromotionValidationReportV1, CrdtStateValidationError,

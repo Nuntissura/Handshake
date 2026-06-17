@@ -51,7 +51,6 @@ export const EDITOR_KEY_BINDINGS: readonly KeyBinding[] = [
   { chord: "Mod-e", action: "format.code", description: "Inline code" },
   { chord: "Mod-k", action: "link.wikilink", description: "Insert link" },
   { chord: "Mod-Alt-c", action: "code.insert", description: "Insert code block" },
-  { chord: "Mod-p", action: PALETTE_OPEN_ACTION, description: "Open command palette" },
   { chord: "Mod-Shift-p", action: PALETTE_OPEN_ACTION, description: "Open command palette" },
   { chord: "Mod-f", action: FIND_OPEN_ACTION, description: "Find in document" },
   { chord: "Mod-h", action: REPLACE_OPEN_ACTION, description: "Find and replace" },

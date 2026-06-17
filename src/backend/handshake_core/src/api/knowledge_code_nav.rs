@@ -290,6 +290,8 @@ struct LookupParams {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
+    prefix: Option<String>,
+    #[serde(default)]
     path: Option<String>,
     #[serde(default)]
     limit: Option<i64>,
@@ -403,13 +405,27 @@ async fn lookup_symbols(
 ) -> Result<Json<Value>, ApiError> {
     let db = db_for(&state);
     let ctx = nav_context(&headers)?;
-    if params.name.is_none() && params.path.is_none() {
-        return Err(bad_request("at least one of name or path is required"));
+    let name = params
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let prefix = params
+        .prefix
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let path = params
+        .path
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    if name.is_none() && prefix.is_none() && path.is_none() {
+        return Err(bad_request(
+            "at least one of name, prefix, or path is required",
+        ));
     }
     let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP);
-
-    let name = params.name.as_deref();
-    let path = params.path.as_deref();
 
     // DB-side path/name pushdown (MT-106 DoS fix): SQL cuts the candidate set to
     // the matching path segment / name suffix instead of loading every symbol in
@@ -421,6 +437,7 @@ async fn lookup_symbols(
             &params.workspace_id,
             name,
             path,
+            prefix,
             (limit.saturating_mul(4)).clamp(limit, 10_000),
         )
         .await
@@ -437,7 +454,17 @@ async fn lookup_symbols(
                 Some(p) => symbol_path_segment(&s.entity_key) == p,
                 None => true,
             };
-            name_ok && path_ok
+            let prefix_ok = match prefix {
+                Some(p) => {
+                    let prefix = p.to_ascii_lowercase();
+                    symbol_simple_name(&s.entity_key)
+                        .to_ascii_lowercase()
+                        .starts_with(&prefix)
+                        || s.display_name.to_ascii_lowercase().starts_with(&prefix)
+                }
+                None => true,
+            };
+            name_ok && path_ok && prefix_ok
         })
         .collect();
     matched.sort_by(|a, b| a.entity_key.cmp(&b.entity_key));
@@ -452,7 +479,7 @@ async fn lookup_symbols(
         &db,
         &ctx,
         "symbol_lookup",
-        json!({"workspace_id": params.workspace_id, "name": name, "path": path, "matches": results.len()}),
+        json!({"workspace_id": params.workspace_id, "name": name, "prefix": prefix, "path": path, "matches": results.len()}),
     )
     .await?;
     let quiet_receipt =

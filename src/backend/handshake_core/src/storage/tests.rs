@@ -1,16 +1,16 @@
 #[allow(unused_imports)]
 use super::{
-    AccessMode, BlockUpdate, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
-    CalendarEventVisibility, CalendarEventWindowQuery, CalendarSourceProviderType,
-    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
-    ControlPlaneStorageConfig, ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef,
-    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
-    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
-    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
-    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageBackendKind,
-    StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
-    StructuredCollaborationStore, WriteContext, postgres::PostgresDatabase,
+    postgres::PostgresDatabase, AccessMode, BlockUpdate, CalendarEventExportMode,
+    CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery,
+    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, ControlPlaneStorageConfig, ControlPlaneStorageMode, Database,
+    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
+    LoomBlock, LoomBlockContentType, LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob,
+    NewAsset, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
+    NewLoomEdge, NewNodeExecution, NewWorkspace, OperationType, PlannedOperation, SafetyMode,
+    StorageBackendKind, StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
+    StructuredCollaborationStore, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -190,8 +190,8 @@ pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Databas
 
 /// Build a PostgreSQL backend and pool for tests that may run without local Postgres.
 #[allow(dead_code)]
-pub async fn optional_postgres_backend_with_pool_from_env()
--> StorageResult<Option<PostgresTestBackend>> {
+pub async fn optional_postgres_backend_with_pool_from_env(
+) -> StorageResult<Option<PostgresTestBackend>> {
     match postgres_backend_with_pool_from_env().await {
         Ok(backend) => Ok(Some(backend)),
         Err(StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests")) => Ok(None),
@@ -1474,6 +1474,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
             super::LoomBlockUpdate {
                 title: Some("Portable".into()),
                 pinned: Some(true),
+                favorite: None,
                 journal_date: Some("2026-03-14".into()),
                 pin_order: None,
             },
@@ -3027,22 +3028,19 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
     let db = db.into_arc();
 
     assert!(db.supports_structured_collab_artifacts());
-    assert!(
-        db.structured_collab_work_packet_row("WP-TEST")
-            .await?
-            .is_none()
-    );
+    assert!(db
+        .structured_collab_work_packet_row("WP-TEST")
+        .await?
+        .is_none());
     assert!(db.structured_collab_work_packet_rows().await?.is_empty());
-    assert!(
-        db.structured_collab_micro_task_status_rows("WP-TEST")
-            .await?
-            .is_empty()
-    );
-    assert!(
-        db.structured_collab_micro_task_rows("WP-TEST")
-            .await?
-            .is_empty()
-    );
+    assert!(db
+        .structured_collab_micro_task_status_rows("WP-TEST")
+        .await?
+        .is_empty());
+    assert!(db
+        .structured_collab_micro_task_rows("WP-TEST")
+        .await?
+        .is_empty());
     assert_eq!(
         db.structured_collab_micro_task_metadata("WP-TEST", "MT-TEST")
             .await?,

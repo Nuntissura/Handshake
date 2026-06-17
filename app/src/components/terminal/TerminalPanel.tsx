@@ -4,6 +4,8 @@ import { Disclosure } from "../common/Disclosure";
 import { TerminalView } from "./TerminalView";
 import {
   defaultTerminalIpc,
+  type CreateSessionRequest,
+  type TerminalContext,
   type TerminalIpc,
   type TerminalSession,
 } from "../../lib/ipc/terminal";
@@ -23,9 +25,10 @@ import {
 //   1. AiJob (and any non-HumanDev) capture sessions render READ-ONLY by
 //      default — inspect only. stdin is NOT wired.
 //   2. To interact, the operator must (a) the backend must report the session
-//      as interactiveAllowed (capability), AND (b) the operator must flip an
-//      explicit per-session "Take control" toggle. Only then does the panel
-//      mount TerminalView with readOnly=false and wire onData -> writeStdin.
+//      as interactiveAllowed (an interactive PTY that may request control), AND
+//      (b) the operator must flip an explicit per-session "Take control" toggle.
+//      Only then does the panel mount TerminalView with readOnly=false and wire
+//      onData -> writeStdin.
 // The toggle is UX intent, not authorization: kernel_terminal_write_stdin is the
 // real enforcement boundary backend-side. The toggle merely refuses to even ask.
 //
@@ -73,6 +76,10 @@ export interface TerminalPanelProps {
    * re-arm focus so clicking Inspect again re-focuses the swarm's lane.
    */
   openSignal?: number;
+  /** Optional cwd for new/restarted HumanDev terminals. Should be the workspace root when known. */
+  workspaceRoot?: string | null;
+  /** Optional shell override for new/restarted HumanDev terminals. Backend default is used when omitted. */
+  defaultShell?: string | null;
 }
 
 function laneLabel(session: TerminalSession): { key: string; label: string } {
@@ -116,6 +123,8 @@ function TerminalPanelBody({
   focusSwarmId,
   focusInstanceId,
   focusSignal,
+  workspaceRoot,
+  defaultShell,
 }: {
   ipc: TerminalIpc;
   renderTerminal: NonNullable<TerminalPanelProps["renderTerminal"]>;
@@ -124,17 +133,66 @@ function TerminalPanelBody({
   focusInstanceId?: string | null;
   /** Bumped by the board so a repeat "Inspect terminal" re-arms focus. */
   focusSignal?: number;
+  workspaceRoot?: string | null;
+  defaultShell?: string | null;
 }) {
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [terminalContext, setTerminalContext] = useState<TerminalContext | null>(null);
   // Per-session operator "Take control" intent. Absent/false = inspect-only.
   const [interacting, setInteracting] = useState<Record<string, boolean>>({});
+  const [authorizing, setAuthorizing] = useState<Record<string, boolean>>({});
   // One-shot board focus guard, keyed by the current focus request. Each new
   // focusSignal re-arms it so a repeat Inspect click re-focuses the swarm lane.
   // setState only happens after an await inside the async refresh, so we never
   // call setState synchronously in an effect body.
   const focusedSignal = useRef<number | undefined>(undefined);
+
+  const buildHumanSessionRequest = useCallback(
+    (title: string, context: TerminalContext | null): CreateSessionRequest => {
+      const request: CreateSessionRequest = {
+        sessionType: "HumanDev",
+        title,
+      };
+      const shell = (defaultShell ?? context?.defaultShell ?? "").trim();
+      const cwd = (workspaceRoot ?? context?.cwd ?? "").trim();
+      if (shell) request.shell = shell;
+      if (cwd) request.cwd = cwd;
+      return request;
+    },
+    [defaultShell, workspaceRoot],
+  );
+
+  const needsTerminalContext = !workspaceRoot?.trim() || !defaultShell?.trim();
+
+  useEffect(() => {
+    if (!needsTerminalContext) return;
+    let active = true;
+    void ipc.getContext()
+      .then((context) => {
+        if (active) setTerminalContext(context);
+      })
+      .catch(() => {
+        // Non-fatal while merely opening the drawer; New/Restart surfaces the
+        // error if context is still needed for a concrete terminal action.
+      });
+    return () => {
+      active = false;
+    };
+  }, [ipc, needsTerminalContext]);
+
+  const resolveHumanSessionRequest = useCallback(
+    async (title: string): Promise<CreateSessionRequest> => {
+      let context = terminalContext;
+      if (needsTerminalContext && !context) {
+        context = await ipc.getContext();
+        setTerminalContext(context);
+      }
+      return buildHumanSessionRequest(title, context);
+    },
+    [buildHumanSessionRequest, ipc, needsTerminalContext, terminalContext],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -178,9 +236,7 @@ function TerminalPanelBody({
   useEffect(() => {
     // refresh() awaits ipc.listSessions() BEFORE any setState, so this does not
     // synchronously update state in the effect body (mirrors SwarmBoard's
-    // `void reconcile()`). The lint rule cannot see across the prop-method await
-    // boundary, so it is disabled here with that rationale.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // `void reconcile()`).
     void refresh();
   }, [refresh]);
 
@@ -202,13 +258,97 @@ function TerminalPanelBody({
 
   const active = sessions.find((s) => s.sessionId === activeId) ?? null;
 
+  const handleNewSession = useCallback(async () => {
+    try {
+      const created = await ipc.createSession(await resolveHumanSessionRequest("Terminal"));
+      setSessions((prev) => {
+        if (prev.some((s) => s.sessionId === created.sessionId)) {
+          return prev.map((s) => (s.sessionId === created.sessionId ? created : s));
+        }
+        return [...prev, created];
+      });
+      setActiveId(created.sessionId);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [ipc, resolveHumanSessionRequest]);
+
+  const handleCloseSession = useCallback(async () => {
+    if (!active) return;
+    if (active.sessionType !== "HumanDev") return;
+    const closingId = active.sessionId;
+    try {
+      await ipc.closeSession(closingId);
+      const next = sessions.filter((s) => s.sessionId !== closingId);
+      setSessions(next);
+      setInteracting((prev) => {
+        const copy = { ...prev };
+        delete copy[closingId];
+        return copy;
+      });
+      setActiveId(next[0]?.sessionId ?? null);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [active, ipc, sessions]);
+
+  const handleRestartSession = useCallback(async () => {
+    if (!active || active.sessionType !== "HumanDev") return;
+    const restarting = active;
+    try {
+      await ipc.closeSession(restarting.sessionId);
+      const remaining = sessions.filter((s) => s.sessionId !== restarting.sessionId);
+      setSessions(remaining);
+      setInteracting((prev) => {
+        const copy = { ...prev };
+        delete copy[restarting.sessionId];
+        return copy;
+      });
+      setActiveId(remaining[0]?.sessionId ?? null);
+
+      const created = await ipc.createSession(await resolveHumanSessionRequest(restarting.title || "Terminal"));
+      setSessions((prev) => [...prev.filter((s) => s.sessionId !== created.sessionId), created]);
+      setActiveId(created.sessionId);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [active, ipc, resolveHumanSessionRequest, sessions]);
+
+  const handleTakeControlChange = useCallback(
+    async (session: TerminalSession, checked: boolean) => {
+      if (!session.interactiveAllowed || session.exited) return;
+      if (!checked) {
+        setInteracting((prev) => ({ ...prev, [session.sessionId]: false }));
+        setError(null);
+        return;
+      }
+      setAuthorizing((prev) => ({ ...prev, [session.sessionId]: true }));
+      try {
+        await ipc.authorizeInteractive(session.sessionId);
+        setInteracting((prev) => ({ ...prev, [session.sessionId]: true }));
+        setError(null);
+      } catch (e) {
+        setInteracting((prev) => ({ ...prev, [session.sessionId]: false }));
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setAuthorizing((prev) => ({ ...prev, [session.sessionId]: false }));
+      }
+    },
+    [ipc],
+  );
+
   // A session is read-only unless it is interactive-capable AND the operator is
   // in control of it. HumanDev sessions are interactive by default (their whole
-  // purpose), so they have no Take-control gate and are never inspect-only here.
-  // Non-HumanDev (AiJob/PluginTool) CAPTURE sessions default to read-only
-  // (inspect) and become interactive only after the operator flips Take control
-  // AND the backend reports interactiveAllowed (TERM-INVARIANTS).
+  // purpose), so they have no Take-control gate while the PTY is live. Exited
+  // sessions remain inspectable but never writable.
+  // Non-HumanDev (AiJob/PluginTool) sessions default to read-only (inspect) and
+  // become interactive only after the operator flips Take control AND the
+  // backend reports interactiveAllowed (TERM-INVARIANTS).
   const isReadOnly = (s: TerminalSession): boolean => {
+    if (s.exited) return true;
     if (!s.interactiveAllowed) return true; // backend capability gate (authority)
     if (s.sessionType === "HumanDev") return false; // human terminal: interactive
     return !interacting[s.sessionId]; // capture session: gated by Take control
@@ -216,6 +356,27 @@ function TerminalPanelBody({
 
   return (
     <div className="terminal-panel" data-testid="terminal-panel-body">
+      <div
+        className="terminal-panel__actions"
+        style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end", marginBottom: 8 }}
+      >
+        <button
+          type="button"
+          data-testid="terminal-new-session"
+          aria-label="New terminal session"
+          onClick={() => void handleNewSession()}
+          style={{
+            fontSize: 12,
+            padding: "3px 8px",
+            borderRadius: 6,
+            border: "1px solid var(--hs-color-border, #d1d5db)",
+            background: "var(--hs-color-surface)",
+            color: "var(--hs-color-text)",
+          }}
+        >
+          New
+        </button>
+      </div>
       <div
         className="terminal-panel__tabs"
         data-testid="terminal-panel-tabs"
@@ -297,6 +458,44 @@ function TerminalPanelBody({
                 interactive
               </span>
             )}
+            <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+              <button
+                type="button"
+                data-testid="terminal-restart-session"
+                aria-label="Restart terminal session"
+                disabled={active.sessionType !== "HumanDev"}
+                onClick={() => void handleRestartSession()}
+                style={{
+                  fontSize: 12,
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--hs-color-border, #d1d5db)",
+                  background: "var(--hs-color-surface)",
+                  color: "var(--hs-color-text)",
+                  opacity: active.sessionType === "HumanDev" ? 1 : 0.5,
+                }}
+              >
+                Restart
+              </button>
+              <button
+                type="button"
+                data-testid="terminal-close-session"
+                aria-label="Close terminal session"
+                disabled={active.sessionType !== "HumanDev"}
+                onClick={() => void handleCloseSession()}
+                style={{
+                  fontSize: 12,
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--hs-color-border, #d1d5db)",
+                  background: "var(--hs-color-surface)",
+                  color: "var(--hs-color-text)",
+                  opacity: active.sessionType === "HumanDev" ? 1 : 0.5,
+                }}
+              >
+                Close
+              </button>
+            </div>
 
             {/* Take-control gate. Only offered when the backend reports the
                 session interactive-capable. For AiJob capture sessions that the
@@ -310,16 +509,14 @@ function TerminalPanelBody({
                     ? "Take control: wire keyboard input to this session"
                     : "Interaction not permitted for this session (no capability grant)"
                 }
-                style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: "auto", opacity: active.interactiveAllowed ? 1 : 0.5 }}
+                style={{ display: "flex", gap: 4, alignItems: "center", opacity: active.interactiveAllowed && !active.exited ? 1 : 0.5 }}
               >
                 <input
                   type="checkbox"
                   data-testid="terminal-take-control-checkbox"
-                  disabled={!active.interactiveAllowed || active.exited}
-                  checked={!!interacting[active.sessionId] && active.interactiveAllowed}
-                  onChange={(e) =>
-                    setInteracting((prev) => ({ ...prev, [active.sessionId]: e.target.checked }))
-                  }
+                  disabled={!active.interactiveAllowed || active.exited || !!authorizing[active.sessionId]}
+                  checked={!active.exited && !!interacting[active.sessionId] && active.interactiveAllowed}
+                  onChange={(e) => void handleTakeControlChange(active, e.target.checked)}
                 />
                 <span>Take control</span>
               </label>
@@ -355,6 +552,8 @@ export function TerminalPanel({
   focusSwarmId,
   focusInstanceId,
   openSignal,
+  workspaceRoot,
+  defaultShell,
 }: TerminalPanelProps) {
   return (
     <Disclosure
@@ -372,6 +571,8 @@ export function TerminalPanel({
         focusSwarmId={focusSwarmId}
         focusInstanceId={focusInstanceId}
         focusSignal={openSignal}
+        workspaceRoot={workspaceRoot}
+        defaultShell={defaultShell}
       />
     </Disclosure>
   );

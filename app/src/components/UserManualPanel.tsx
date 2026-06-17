@@ -87,7 +87,11 @@ export function UserManualPanel({
             (point) => point.access_point_id === DIAGNOSTICS_ACCESS_POINT_ID,
           )?.target_page_slug ?? null;
         const nextSlug = initialSlug ?? diagnosticsTarget ?? pagesResponse.pages[0]?.slug ?? null;
-        setSelectedSlug((current) => current ?? nextSlug);
+        if (initialSlug) {
+          setSelectedSlug(initialSlug);
+        } else {
+          setSelectedSlug((current) => current ?? nextSlug);
+        }
       })
       .catch((err) => {
         if (!cancelled) setIndexError(errorMessage(err, "Failed to load UserManual index"));

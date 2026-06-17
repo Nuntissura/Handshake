@@ -273,7 +273,11 @@ mod imp {
         let json = match result_rx.recv_timeout(CDP_CALL_TIMEOUT) {
             Ok(Ok(json)) => json,
             Ok(Err(e)) => return Err(e),
-            Err(_) => return Err(format!("visual debugger: timed out awaiting {method} result")),
+            Err(_) => {
+                return Err(format!(
+                    "visual debugger: timed out awaiting {method} result"
+                ));
+            }
         };
 
         if json.trim().is_empty() {
@@ -457,9 +461,7 @@ mod imp {
                 let Some(node_idx) = value_as_i64(ni) else {
                     continue;
                 };
-                let Some(backend) = backend_ids
-                    .get(node_idx as usize)
-                    .and_then(value_as_i64)
+                let Some(backend) = backend_ids.get(node_idx as usize).and_then(value_as_i64)
                 else {
                     continue;
                 };
@@ -562,11 +564,11 @@ mod imp {
                                             // ParameterObjectAsJson writes a COM-allocated
                                             // (CoTaskMemAlloc) PWSTR; `take_pwstr` copies it into a
                                             // String and frees the COM buffer (no leak per event).
-                                            if unsafe { args.ParameterObjectAsJson(&mut raw) }.is_ok()
+                                            if unsafe { args.ParameterObjectAsJson(&mut raw) }
+                                                .is_ok()
                                             {
                                                 let json = take_pwstr(raw);
-                                                if let Some(entry) =
-                                                    parse_event(&kind_owned, &json)
+                                                if let Some(entry) = parse_event(&kind_owned, &json)
                                                 {
                                                     buf.push(entry);
                                                 }

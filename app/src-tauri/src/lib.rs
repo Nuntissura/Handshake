@@ -189,9 +189,11 @@ macro_rules! handshake_invoke_handlers {
             commands::visual_debugger::visual_debug_ax_tree,
             commands::visual_debugger::visual_debug_console,
             commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_context,
             commands::terminal::kernel_terminal_write_stdin,
             commands::terminal::kernel_terminal_resize,
             commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_diagnostics,
             commands::terminal::kernel_terminal_list_sessions,
             commands::terminal::kernel_terminal_run_command,
             commands::terminal::kernel_terminal_scrollback,
@@ -333,9 +335,11 @@ macro_rules! handshake_invoke_handlers {
             commands::visual_debugger::visual_debug_ax_tree,
             commands::visual_debugger::visual_debug_console,
             commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_context,
             commands::terminal::kernel_terminal_write_stdin,
             commands::terminal::kernel_terminal_resize,
             commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_diagnostics,
             commands::terminal::kernel_terminal_list_sessions,
             commands::terminal::kernel_terminal_run_command,
             commands::terminal::kernel_terminal_scrollback,
@@ -519,7 +523,7 @@ struct MdSessionRecordV0 {
     cookie_jar_artifact_ref: Option<serde_json::Value>,
 }
 
-fn workspace_root() -> PathBuf {
+pub(crate) fn workspace_root() -> PathBuf {
     if let Ok(value) = std::env::var("HANDSHAKE_WORKSPACE_ROOT") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
@@ -1092,18 +1096,43 @@ pub fn run() {
             // same DuckDB Flight Recorder. Clone the handle before the match below
             // consumes `swarm_recorder` into the swarm runtime constructor.
             let schedule_recorder = swarm_recorder.clone();
+            let control_plane_storage_result = tauri::async_runtime::block_on(async {
+                handshake_core::storage::init_control_plane_storage().await
+            });
+            let terminal_event_ledger_database = match &control_plane_storage_result {
+                Ok(control_plane) => Some(control_plane.database.clone()),
+                Err(error) => {
+                    eprintln!(
+                        "MT-252 terminal EventLedger mirror unavailable: {error}; terminal receipts remain DuckDB-only"
+                    );
+                    None
+                }
+            };
             // INTEGRATED TERMINAL (spec §10.1): build the production
             // `TerminalRuntime` bound to the SAME durable DuckDB Flight Recorder
             // the swarm path uses, so `FR-EVT-TERMINAL-SESSION-OPEN / -COMMAND-EXEC
-            // / -SESSION-CLOSE` land in the same recorder as the swarm lifecycle
-            // events. The capability registry is the canonical one (validates the
-            // `terminal.interact` gate). The runtime is wired only when the durable
+            // / -SESSION-CLOSE` land in the same recorder as the swarm lifecycle.
+            // When the PostgreSQL control plane is available, the recorder is also
+            // wrapped with the MT-252 EventLedger mirror so terminal start/command/
+            // close receipts replay by terminal_session aggregate. The capability
+            // registry is the canonical one (validates the `terminal.interact`
+            // gate). The runtime is wired only when the durable
             // recorder exists; if the swarm FR init fell back to the stderr sink
             // (None) the terminal capture seam stays UNWIRED rather than faked
             // (honest-disabled), matching the swarm's best-effort fallback.
             let terminal_recorder = swarm_recorder.clone();
             let terminal_runtime: Option<handshake_core::terminal::TerminalRuntime> =
                 terminal_recorder.map(|recorder| {
+                    let recorder: Arc<dyn handshake_core::flight_recorder::FlightRecorder> =
+                        match terminal_event_ledger_database.clone() {
+                            Some(database) => Arc::new(
+                                handshake_core::flight_recorder::event_ledger::EventLedgerFlightRecorderMirror::new(
+                                    recorder,
+                                    database,
+                                ),
+                            ),
+                            None => recorder,
+                        };
                     let capabilities =
                         Arc::new(handshake_core::capabilities::CapabilityRegistry::new());
                     handshake_core::terminal::TerminalRuntime::new(capabilities, recorder)
@@ -1136,7 +1165,7 @@ pub fn run() {
             let terminal_capture_runtime = terminal_runtime.clone();
             let (swarm_state, board_events, scheduler_state) =
                 tauri::async_runtime::block_on(async move {
-                    let cloud_assistance_recorder = match handshake_core::storage::init_control_plane_storage().await {
+                    let cloud_assistance_recorder = match control_plane_storage_result {
                         Ok(control_plane) => Some(Arc::new(
                             commands::swarm_runtime::PostgresCloudAssistanceReceiptRecorder::from_control_plane(
                                 control_plane,

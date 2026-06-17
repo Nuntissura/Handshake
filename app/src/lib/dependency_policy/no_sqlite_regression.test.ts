@@ -29,9 +29,8 @@ import {
   npmManifestDependencyNames,
   pnpmLockPackageNames,
   scanCargoLockUnionEntries,
-  scanFilesForPatterns,
+  scanForbiddenSourceTripwires,
   scanForbiddenManifestPackages,
-  walkSourceFiles,
 } from "../../../scripts/lib/dependency_policy_scans.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
@@ -122,16 +121,41 @@ describe("MT-025 no sqlite transitive regression", () => {
       (c) => c.id === "sqlite",
     )!;
     expect(sqliteClass.source_scan_patterns).toContain("node:sqlite");
-    const files = allowlist.product_scan_roots.flatMap((root) =>
-      walkSourceFiles(join(repoRoot, ...root.split("/"))),
-    );
-    const { violations } = scanFilesForPatterns({
+    const { violations, exceptionsApplied, readErrors } = scanForbiddenSourceTripwires({
       repoRoot,
-      files,
-      patterns: sqliteClass.source_scan_patterns,
-      // Policy data/scanner/test files legitimately contain the pattern.
-      excludePathSubstrings: ["dependency_policy", "dependency-policy"],
+      allowlist,
     });
-    expect(violations, JSON.stringify(violations, null, 2)).toHaveLength(0);
+    const sqliteViolations = violations.filter((v) => v.class === "sqlite");
+    expect(readErrors, JSON.stringify(readErrors, null, 2)).toHaveLength(0);
+    expect(sqliteViolations, JSON.stringify(sqliteViolations, null, 2)).toHaveLength(0);
+    expect(exceptionsApplied).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          class: "sqlite",
+          path: "src/backend/handshake_core/src/managed_postgres.rs",
+          pattern: "sqlite fallback",
+          exception: "source_tripwire_exceptions",
+        }),
+        expect.objectContaining({
+          class: "sqlite",
+          path: "src/backend/handshake_core/src/atelier/mod.rs",
+          pattern: "sqlite:",
+          exception: "source_tripwire_exceptions",
+        }),
+      ]),
+    );
+  });
+
+  it("keeps source sqlite tripwire alive for non-exempt source fixtures", () => {
+    const fixture = join(
+      repoRoot,
+      "src/backend/handshake_core/tests/fixtures/atelier_core_data/llm_evidence_pack.json",
+    );
+    const { violations } = scanForbiddenSourceTripwires({
+      repoRoot,
+      allowlist,
+      files: [fixture],
+    });
+    expect(violations.some((v) => v.class === "sqlite")).toBe(true);
   });
 });

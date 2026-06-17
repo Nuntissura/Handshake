@@ -253,7 +253,8 @@ pub fn build_kernel002_validator_finding_reports() -> ValidatorFindingReportsCon
                 "PRODUCT_TRIAGE",
                 FindingRoutingOutcome::CreateProductBug,
             ),
-            observed_behavior: "Finding report only exists as free-form validator prose.".to_string(),
+            observed_behavior: "Finding report only exists as free-form validator prose."
+                .to_string(),
             expected_behavior: "Finding report is typed, reproducible, and routable.".to_string(),
             reproduction_steps: vec![
                 "Run validator review with a non-pass/fail finding.".to_string(),
@@ -272,7 +273,9 @@ pub fn build_kernel002_validator_finding_reports() -> ValidatorFindingReportsCon
                 "ORCHESTRATOR",
                 FindingRoutingOutcome::CreateSpecGap,
             ),
-            gap_statement: "Work packet does not yet encode every non-pass/fail validator finding class.".to_string(),
+            gap_statement:
+                "Work packet does not yet encode every non-pass/fail validator finding class."
+                    .to_string(),
             missing_contract_fields: vec![
                 "validator_reasoning".to_string(),
                 "proposed_destination".to_string(),
@@ -292,7 +295,8 @@ pub fn build_kernel002_validator_finding_reports() -> ValidatorFindingReportsCon
                 FindingRoutingOutcome::ParkOutOfScope,
             ),
             rejected_scope_statement:
-                "Finding belongs to a future governance UX polish pass, not this Kernel002 MT.".to_string(),
+                "Finding belongs to a future governance UX polish pass, not this Kernel002 MT."
+                    .to_string(),
             parking_reason:
                 "Preserve the observation for planning without blocking current implementation."
                     .to_string(),

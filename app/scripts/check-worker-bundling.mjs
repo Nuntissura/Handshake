@@ -37,38 +37,15 @@
 // .cargo/config.toml (MT-026) and are not part of this frontend scan.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  assertSingleOccurrenceExceptions,
-  externalWorkerLoads,
-  loadAllowlist,
-  partitionCdnHits,
-  scanSplitHostCdn,
-} from "./lib/dependency_policy_scans.mjs";
+import { loadAllowlist } from "./lib/dependency_policy_scans.mjs";
+import { listFilesRecursive, scanWorkerBundleTree } from "./lib/worker_bundling_scan.mjs";
 
 const appDir = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const repoRoot = join(appDir, "..");
 const skipBuild = process.argv.includes("--skip-build");
-
-const REQUIRED_MONACO_WORKERS = ["editor", "ts", "json", "css", "html"];
-
-function listFilesRecursive(rootDir, skipNames = new Set()) {
-  if (!existsSync(rootDir)) return [];
-  const out = [];
-  const stack = [rootDir];
-  while (stack.length > 0) {
-    const dir = stack.pop();
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (skipNames.has(entry.name)) continue;
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) stack.push(full);
-      else out.push(full);
-    }
-  }
-  return out;
-}
 
 function rel(fullPath) {
   return relative(repoRoot, fullPath).split(sep).join("/");
@@ -114,75 +91,6 @@ function runBuild(scriptName) {
   }
 }
 
-function scanDistTree(distDir, allowlist) {
-  const cdnPatterns = allowlist.forbidden_runtime_dependency_classes
-    .find((c) => c.id === "cdn_runtime_asset")
-    .source_scan_patterns.map((p) => p.toLowerCase());
-
-  const files = listFilesRecursive(distDir);
-  const jsFiles = files.filter((f) => /\.(js|mjs|cjs)$/i.test(f));
-  const textFiles = files.filter((f) => /\.(js|mjs|cjs|html|css|json|webmanifest)$/i.test(f));
-
-  const externalWorkerRefs = [];
-  const cdnHits = [];
-  const cdnExceptionsApplied = [];
-  const splitHostCdnHits = [];
-  const textContents = []; // {relPath, content} for the tree-level H1 occurrence cap
-  let monacoMarker = false;
-
-  for (const file of textFiles) {
-    const content = readFileSync(file, "utf8");
-    textContents.push({ relPath: rel(file), content });
-    for (const pattern of cdnPatterns) {
-      const { violations, exempted } = partitionCdnHits({
-        content,
-        relPath: rel(file),
-        pattern,
-        allowlist,
-      });
-      cdnHits.push(...violations);
-      cdnExceptionsApplied.push(...exempted);
-    }
-    // H4: catch CDN hosts that only re-form after adjacent string-literal
-    // concatenation is collapsed (e.g. "https://cdn." + "jsdelivr.net").
-    splitHostCdnHits.push(...scanSplitHostCdn({ content, relPath: rel(file), patterns: cdnPatterns }));
-    if (jsFiles.includes(file)) {
-      externalWorkerRefs.push(...externalWorkerLoads(content, rel(file)));
-      if (content.includes("MonacoEnvironment")) monacoMarker = true;
-    }
-  }
-
-  // H1: marker-exempted CDN patterns are capped at max_total_occurrences across
-  // the WHOLE dist tree — a second hostile esm.sh anywhere fails the scan even
-  // if it sits next to the legitimate ASSETS_FALLBACK_URL marker.
-  const { perPattern: occurrenceCaps, violations: occurrenceViolations } =
-    assertSingleOccurrenceExceptions({ files: textContents, allowlist });
-
-  const workerChunks = files
-    .map((f) => rel(f))
-    .filter((f) => /(^|\/)[^/]*\.worker-[^/]*\.js$/.test(f) || /(^|\/)worker-[^/]*\.js$/.test(f));
-
-  const missingMonacoWorkers = monacoMarker
-    ? REQUIRED_MONACO_WORKERS.filter(
-        (kind) => !workerChunks.some((chunk) => chunk.includes(`${kind}.worker-`)),
-      )
-    : [];
-
-  return {
-    dist: rel(distDir),
-    files_scanned: textFiles.length,
-    bundles_monaco: monacoMarker,
-    worker_chunks: workerChunks,
-    missing_monaco_workers: missingMonacoWorkers,
-    external_worker_refs: externalWorkerRefs,
-    cdn_hits: cdnHits,
-    cdn_exceptions_applied: cdnExceptionsApplied,
-    split_host_cdn_hits: splitHostCdnHits,
-    occurrence_caps: occurrenceCaps,
-    occurrence_violations: occurrenceViolations,
-  };
-}
-
 function main() {
   const allowlist = loadAllowlist(repoRoot);
   const distMain = join(appDir, "dist");
@@ -224,7 +132,10 @@ function main() {
     }
   }
 
-  const trees = [scanDistTree(distMain, allowlist), scanDistTree(distHarness, allowlist)];
+  const trees = [
+    scanWorkerBundleTree(distMain, allowlist, { reportRoot: repoRoot }),
+    scanWorkerBundleTree(distHarness, allowlist, { reportRoot: repoRoot }),
+  ];
   const harnessTree = trees.find((t) => t.dist.endsWith("dist-harness"));
 
   const failures = [];

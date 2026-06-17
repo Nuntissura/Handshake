@@ -295,7 +295,7 @@ pub fn build_kernel002_local_model_microtask_loop() -> LocalModelFreshContextMic
             ],
             memory_pack_ref: "runtime://fems/memory-pack/WP-KERNEL-002/MT-054".to_string(),
             previous_attempt_refs: vec![
-                "runtime://locus/mt-iterations/WP-KERNEL-002/MT-054".to_string()
+                "runtime://locus/mt-iterations/WP-KERNEL-002/MT-054".to_string(),
             ],
             required_context_refs: strings(&REQUIRED_CONTEXT_REFS),
             forbidden_context_refs: strings(&FORBIDDEN_CONTEXT_REFS),

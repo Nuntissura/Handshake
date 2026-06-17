@@ -15,7 +15,8 @@ import { StrictMode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   createConfiguredEditor,
-  proveTypescriptWorkerRoundTrip,
+  proveBundledMonacoWorkers,
+  type MonacoWorkerProofs,
 } from "../lib/monaco/setup";
 import { dependencyFailures } from "../lib/dependency_policy/dependency_failure";
 import { DependencyFailureBanner } from "../components/DependencyFailureBanner";
@@ -25,6 +26,7 @@ import "monaco-editor/min/vs/editor/editor.main.css";
 export interface HarnessState {
   monacoReady: boolean;
   monacoWorkerProof: string | null;
+  monacoWorkerProofs: MonacoWorkerProofs | null;
   tiptapReady: boolean;
   tiptapExtensions: string[];
   /** Live document-model text accessor (MT-030 offline typing proof). */
@@ -44,6 +46,7 @@ declare global {
 const state: HarnessState = {
   monacoReady: false,
   monacoWorkerProof: null,
+  monacoWorkerProofs: null,
   tiptapReady: false,
   tiptapExtensions: [],
   failures: [],
@@ -76,10 +79,11 @@ async function mountMonaco(host: HTMLElement): Promise<void> {
   });
   const model = editor.getModel();
   if (!model) throw new Error("monaco model missing");
-  // Real worker round-trip: getSyntacticDiagnostics answered by the bundled
-  // ts.worker proves a genuine web worker booted from local assets.
-  const responded = await proveTypescriptWorkerRoundTrip(model);
-  state.monacoWorkerProof = responded ? "ts-worker-responded" : "ts-worker-no-response";
+  // Real worker proof: every Monaco worker kind is constructed from bundled
+  // assets; ts.worker additionally answers a language-service round-trip.
+  const proofs = await proveBundledMonacoWorkers(model);
+  state.monacoWorkerProofs = proofs;
+  state.monacoWorkerProof = proofs.typescript;
   state.monacoReady = true;
 }
 

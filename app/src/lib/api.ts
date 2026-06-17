@@ -34,6 +34,17 @@ function writeContextHeaders(ctx?: WriteContext): Record<string, string> | undef
   return headers;
 }
 
+function codeNavHeaders(label: string): Record<string, string> {
+  const safeLabel = label.replace(/[^a-zA-Z0-9_.:-]+/g, "-").slice(0, 80) || "code-nav";
+  return {
+    "x-hsk-actor-kind": "model_adapter",
+    "x-hsk-actor-id": "handshake-monaco-code-intelligence",
+    "x-hsk-kernel-task-run-id": `MT-249-${safeLabel}`,
+    "x-hsk-session-run-id": "frontend-code-intelligence",
+    "x-hsk-correlation-id": `frontend-code-intelligence-${safeLabel}`,
+  };
+}
+
 /**
  * Typed backend request failure (iteration-3 M18): carries the HTTP status and
  * raw body so consumers (EditorBackendErrorStates and friends) can classify
@@ -916,6 +927,269 @@ export type UserManualAccessPointsResponse = {
   access_points: UserManualAccessPoint[];
 };
 
+export type LoomGraphSearchSourceKind =
+  | "loom_block"
+  | "file"
+  | "tag_hub"
+  | "document"
+  | "symbol"
+  | "work_packet"
+  | "micro_task"
+  | "user_manual_page"
+  | "wiki_page";
+
+export type LoomGraphSearchResultKind = "loom_block" | "knowledge_entity" | "user_manual_page" | "wiki_page";
+
+export type LoomGraphSearchHit = {
+  result_kind: LoomGraphSearchResultKind;
+  source_kind: LoomGraphSearchSourceKind;
+  ref_id: string;
+  title: string;
+  excerpt: string;
+  block?: unknown | null;
+  score: number;
+  metadata: unknown;
+};
+
+export type QuickSwitcherRecent = {
+  workspace_id: string;
+  hit_key: string;
+  source_kind: LoomGraphSearchSourceKind;
+  ref_id: string;
+  result_kind: LoomGraphSearchResultKind;
+  title: string;
+  excerpt: string;
+  metadata: unknown;
+  selected_count: number;
+  selected_at: string;
+  event_ledger_event_id: string;
+};
+
+export type RecordQuickSwitcherRecentRequest = {
+  result_kind: LoomGraphSearchResultKind;
+  source_kind: LoomGraphSearchSourceKind;
+  ref_id: string;
+  title: string;
+  excerpt: string;
+  metadata: unknown;
+};
+
+export type WorkbenchLayoutStateResponse = {
+  workspace_id: string;
+  layout_state: Record<string, unknown> | null;
+  updated_at: string | null;
+  event_ledger_event_id: string | null;
+};
+
+export type WorkspaceSettingsStateResponse = {
+  workspace_id: string;
+  settings_state: Record<string, unknown> | null;
+  updated_at: string | null;
+  event_ledger_event_id: string | null;
+};
+
+export type LoomBlockContentType = "note" | "file" | "annotated_file" | "tag_hub" | "journal" | string;
+
+export type LoomBlockDerived = {
+  full_text_index?: string | null;
+  embedding_id?: string | null;
+  auto_tags?: string[] | null;
+  auto_caption?: string | null;
+  quality_score?: number | null;
+  backlink_count: number;
+  mention_count: number;
+  tag_count: number;
+  thumbnail_asset_id?: string | null;
+  proxy_asset_id?: string | null;
+  preview_status: string;
+  generated_by?: unknown | null;
+};
+
+export type LoomBlock = {
+  block_id: string;
+  workspace_id: string;
+  content_type: LoomBlockContentType;
+  document_id?: string | null;
+  asset_id?: string | null;
+  title?: string | null;
+  original_filename?: string | null;
+  content_hash?: string | null;
+  pinned: boolean;
+  favorite: boolean;
+  pin_order?: number | null;
+  journal_date?: string | null;
+  created_at: string;
+  updated_at: string;
+  imported_at?: string | null;
+  derived: LoomBlockDerived;
+};
+
+export type LoomBlockUpdateRequest = {
+  title?: string | null;
+  pinned?: boolean;
+  favorite?: boolean;
+  journal_date?: string | null;
+};
+
+export type LoomViewType = "all" | "unlinked" | "sorted" | "pins" | "favorites";
+
+export type LoomViewQuery = {
+  contentType?: LoomBlockContentType;
+  mime?: string;
+  tagIds?: string[];
+  mentionIds?: string[];
+  limit?: number;
+  offset?: number;
+};
+
+export type LoomViewGroup = {
+  edge_type: string;
+  target_block_id: string;
+  blocks: LoomBlock[];
+};
+
+export type LoomViewResponse =
+  | { view_type: "all"; blocks: LoomBlock[] }
+  | { view_type: "unlinked"; blocks: LoomBlock[] }
+  | { view_type: "pins"; blocks: LoomBlock[] }
+  | { view_type: "favorites"; blocks: LoomBlock[] }
+  | { view_type: "sorted"; groups: LoomViewGroup[] };
+
+export type LoomWikiProjection = {
+  projection_id: string;
+  workspace_id: string;
+  title: string;
+  source_block_ids: string[];
+  rendered_content: string;
+  staleness_hash: string;
+  rebuild_status: string;
+  page_type?: string | null;
+  compile_stamp?: unknown | null;
+  page_links: unknown;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LoomWikiPageResponse = LoomWikiProjection & {
+  staleness_verdict: unknown;
+};
+
+export type LoomGraphSearchQuery = {
+  q: string;
+  limit?: number;
+  offset?: number;
+  sourceKinds?: LoomGraphSearchSourceKind[];
+  contentType?: string;
+  mime?: string;
+  tagIds?: string[];
+  mentionIds?: string[];
+  backlinkDepth?: number;
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  isRegex?: boolean;
+  path?: string;
+};
+
+export type CodeSymbolDefinition = {
+  span_id: string;
+  source_id: string;
+  line_start: number;
+  line_end: number;
+  range_start: number;
+  range_end: number;
+  section_path?: string | null;
+};
+
+export type CodeSymbolNavProjection = {
+  symbol_entity_id: string;
+  symbol_key: string;
+  display_name: string;
+  symbol_kind: string;
+  owning_wp?: string | null;
+  primary_source_id?: string | null;
+  lifecycle_state: string;
+  definition: CodeSymbolDefinition | null;
+  staleness: unknown;
+};
+
+export type CodeSymbolResponse = {
+  symbol: CodeSymbolNavProjection;
+  nav_receipt_event_id: string;
+  quiet_background_work_receipt_id: string;
+};
+
+export type CodeSymbolLookupQuery = {
+  workspaceId: string;
+  name?: string;
+  prefix?: string;
+  path?: string;
+  limit?: number;
+};
+
+export type CodeSymbolLookupResponse = {
+  workspace_id: string;
+  matches: CodeSymbolNavProjection[];
+  nav_receipt_event_id: string;
+  quiet_background_work_receipt_id: string;
+};
+
+export type CodeSymbolEvidenceSpan = {
+  span_id: string;
+  source_id: string;
+  span_kind?: string;
+  line_start?: number | null;
+  line_end?: number | null;
+  range_start?: number | null;
+  range_end?: number | null;
+  section_path?: string | null;
+  content_sha256?: string | null;
+  parser_version?: string | null;
+};
+
+export type CodeSymbolReference = {
+  symbol_entity_id: string;
+  symbol_key: string;
+  display_name: string;
+  confidence: number;
+  evidence_spans: CodeSymbolEvidenceSpan[];
+  staleness: unknown;
+};
+
+export type CodeSymbolReferencesResponse = {
+  symbol_entity_id: string;
+  staleness: unknown;
+  callers: CodeSymbolReference[];
+  callees: CodeSymbolReference[];
+  nav_receipt_event_id: string;
+  quiet_background_work_receipt_id: string;
+};
+
+export type CodeLensLineRange = {
+  start_line: number;
+  end_line: number;
+};
+
+export type CodeFileLensEntry = {
+  symbol_entity_id: string;
+  symbol_key: string;
+  display_name: string;
+  symbol_kind: string;
+  definition: CodeLensLineRange;
+  references: CodeLensLineRange[];
+  doc?: string | null;
+  caller_count: number;
+};
+
+export type CodeFileLensResponse = {
+  workspace_id: string;
+  relative_path: string;
+  staleness: unknown;
+  truncated: boolean;
+  entries: CodeFileLensEntry[];
+  nav_receipt_event_id: string;
+  quiet_background_work_receipt_id: string;
+};
+
 export type UserManualPagesQuery = {
   kind?: string;
   audience?: string;
@@ -955,6 +1229,368 @@ export async function searchUserManual(
 
 export async function listUserManualAccessPoints(): Promise<UserManualAccessPointsResponse> {
   return request("/api/usermanual/access-points");
+}
+
+export async function searchLoomGraph(
+  workspaceId: string,
+  params: LoomGraphSearchQuery,
+): Promise<LoomGraphSearchHit[]> {
+  const query = new URLSearchParams();
+  query.append("q", params.q);
+  if (params.sourceKinds && params.sourceKinds.length > 0) {
+    query.append("source_kinds", params.sourceKinds.join(","));
+  }
+  if (params.contentType) query.append("content_type", params.contentType);
+  if (params.mime) query.append("mime", params.mime);
+  if (params.tagIds && params.tagIds.length > 0) query.append("tag_ids", params.tagIds.join(","));
+  if (params.mentionIds && params.mentionIds.length > 0) query.append("mention_ids", params.mentionIds.join(","));
+  if (params.backlinkDepth !== undefined) query.append("backlink_depth", String(params.backlinkDepth));
+  if (params.caseSensitive !== undefined) query.append("case_sensitive", String(params.caseSensitive));
+  if (params.wholeWord !== undefined) query.append("whole_word", String(params.wholeWord));
+  if (params.isRegex !== undefined) query.append("regex", String(params.isRegex));
+  if (params.path) query.append("path", params.path);
+  if (params.limit !== undefined) query.append("limit", String(params.limit));
+  if (params.offset !== undefined) query.append("offset", String(params.offset));
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/graph-search?${query.toString()}`,
+  );
+}
+
+export async function listQuickSwitcherRecents(
+  workspaceId: string,
+  limit = 20,
+): Promise<QuickSwitcherRecent[]> {
+  const query = new URLSearchParams();
+  query.append("limit", String(limit));
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/quick-switcher/recents?${query.toString()}`,
+  );
+}
+
+export async function recordQuickSwitcherRecent(
+  workspaceId: string,
+  hit: RecordQuickSwitcherRecentRequest,
+): Promise<QuickSwitcherRecent> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/quick-switcher/recents`, {
+    method: "POST",
+    body: hit,
+  });
+}
+
+export async function getLoomWikiProjection(
+  workspaceId: string,
+  projectionId: string,
+): Promise<LoomWikiPageResponse> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/wiki/${encodeURIComponent(projectionId)}`,
+  );
+}
+
+export async function getWorkbenchLayoutState(
+  workspaceId: string,
+): Promise<WorkbenchLayoutStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/workbench/layout`);
+}
+
+export async function saveWorkbenchLayoutState(
+  workspaceId: string,
+  layoutState: Record<string, unknown>,
+): Promise<WorkbenchLayoutStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/workbench/layout`, {
+    method: "PUT",
+    body: { layout_state: layoutState },
+  });
+}
+
+export async function getWorkspaceSettingsState(
+  workspaceId: string,
+): Promise<WorkspaceSettingsStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/settings`);
+}
+
+export async function saveWorkspaceSettingsState(
+  workspaceId: string,
+  settingsState: Record<string, unknown>,
+): Promise<WorkspaceSettingsStateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/settings`, {
+    method: "PUT",
+    body: { settings_state: settingsState },
+  });
+}
+
+export async function getLoomBlock(workspaceId: string, blockId: string): Promise<LoomBlock> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}`,
+  );
+}
+
+export async function queryLoomView(
+  workspaceId: string,
+  viewType: LoomViewType,
+  params: LoomViewQuery = {},
+): Promise<LoomViewResponse> {
+  const query = new URLSearchParams();
+  if (params.contentType) query.append("content_type", params.contentType);
+  if (params.mime) query.append("mime", params.mime);
+  if (params.tagIds && params.tagIds.length > 0) query.append("tag_ids", params.tagIds.join(","));
+  if (params.mentionIds && params.mentionIds.length > 0) {
+    query.append("mention_ids", params.mentionIds.join(","));
+  }
+  if (params.limit !== undefined) query.append("limit", String(params.limit));
+  if (params.offset !== undefined) query.append("offset", String(params.offset));
+  const suffix = query.toString();
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/views/${encodeURIComponent(viewType)}${
+      suffix ? `?${suffix}` : ""
+    }`,
+  );
+}
+
+export async function updateLoomBlock(
+  workspaceId: string,
+  blockId: string,
+  update: LoomBlockUpdateRequest,
+): Promise<LoomBlock> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}`,
+    { method: "PATCH", body: update },
+  );
+}
+
+export async function setLoomBlockPinOrder(
+  workspaceId: string,
+  blockId: string,
+  pinOrder: number | null,
+): Promise<LoomBlock> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}/pin-order`,
+    { method: "PUT", body: { pin_order: pinOrder } },
+  );
+}
+
+export async function openDailyJournal(
+  workspaceId: string,
+  journalDate: string,
+): Promise<LoomBlock> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/journals/${encodeURIComponent(journalDate)}`,
+    { method: "PUT" },
+  );
+}
+
+export type SourceControlStatusCode =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "untracked"
+  | "ignored"
+  | "unmerged"
+  | "unknown";
+
+export type SourceControlDiffScope = "worktree" | "staged";
+
+export type SourceControlStatusEntry = {
+  path: string;
+  index: SourceControlStatusCode | null;
+  worktree: SourceControlStatusCode | null;
+};
+
+export type SourceControlStatus = {
+  repo_root: string;
+  branch: string | null;
+  entries: SourceControlStatusEntry[];
+};
+
+export type SourceControlDiff = {
+  path: string;
+  scope: SourceControlDiffScope;
+  patch: string;
+};
+
+export type SourceControlReceipt = {
+  operation: string;
+  paths: string[];
+  event_ledger_event_id?: string | null;
+};
+
+export type SourceControlCommit = {
+  id: string;
+  message: string;
+  event_ledger_event_id?: string | null;
+};
+
+export type SourceControlLogEntry = {
+  id: string;
+  author: string;
+  timestamp: number;
+  message: string;
+};
+
+export type SourceControlLog = {
+  entries: SourceControlLogEntry[];
+};
+
+export type SourceControlBranch = {
+  name: string;
+  current: boolean;
+  commit_id: string;
+};
+
+export type SourceControlBlameLine = {
+  line_number: number;
+  commit_id: string;
+  author: string;
+  content: string;
+};
+
+export type SourceControlBlame = {
+  path: string;
+  lines: SourceControlBlameLine[];
+};
+
+function sourceControlRepoQuery(repoPath: string): URLSearchParams {
+  return new URLSearchParams({ repo_path: repoPath });
+}
+
+export async function getSourceControlStatus(repoPath: string): Promise<SourceControlStatus> {
+  const query = sourceControlRepoQuery(repoPath);
+  return request(`/source-control/status?${query.toString()}`);
+}
+
+export async function getSourceControlDiff(
+  repoPath: string,
+  path: string,
+  scope: SourceControlDiffScope,
+): Promise<SourceControlDiff> {
+  const query = sourceControlRepoQuery(repoPath);
+  query.append("path", path);
+  query.append("scope", scope);
+  return request(`/source-control/diff?${query.toString()}`);
+}
+
+export async function stageSourceControlPaths(
+  repoPath: string,
+  paths: string[],
+): Promise<SourceControlReceipt> {
+  return request("/source-control/stage", {
+    method: "POST",
+    body: { repo_path: repoPath, paths },
+  });
+}
+
+export async function unstageSourceControlPaths(
+  repoPath: string,
+  paths: string[],
+): Promise<SourceControlReceipt> {
+  return request("/source-control/unstage", {
+    method: "POST",
+    body: { repo_path: repoPath, paths },
+  });
+}
+
+export async function discardSourceControlPaths(
+  repoPath: string,
+  paths: string[],
+  confirmed: boolean,
+): Promise<SourceControlReceipt> {
+  return request("/source-control/discard", {
+    method: "POST",
+    body: { repo_path: repoPath, paths, confirmed },
+  });
+}
+
+export async function commitSourceControl(
+  repoPath: string,
+  message: string,
+): Promise<SourceControlCommit> {
+  return request("/source-control/commit", {
+    method: "POST",
+    body: { repo_path: repoPath, message },
+  });
+}
+
+export async function listSourceControlBranches(repoPath: string): Promise<SourceControlBranch[]> {
+  const query = sourceControlRepoQuery(repoPath);
+  return request(`/source-control/branches?${query.toString()}`);
+}
+
+export async function createSourceControlBranch(
+  repoPath: string,
+  name: string,
+): Promise<SourceControlReceipt> {
+  return request("/source-control/branches", {
+    method: "POST",
+    body: { repo_path: repoPath, name },
+  });
+}
+
+export async function switchSourceControlBranch(
+  repoPath: string,
+  name: string,
+): Promise<SourceControlReceipt> {
+  return request("/source-control/switch", {
+    method: "POST",
+    body: { repo_path: repoPath, name },
+  });
+}
+
+export async function getSourceControlLog(
+  repoPath: string,
+  limit?: number,
+): Promise<SourceControlLog> {
+  const query = sourceControlRepoQuery(repoPath);
+  if (limit !== undefined) query.append("limit", String(limit));
+  return request(`/source-control/log?${query.toString()}`);
+}
+
+export async function getSourceControlBlame(
+  repoPath: string,
+  path: string,
+): Promise<SourceControlBlame> {
+  const query = sourceControlRepoQuery(repoPath);
+  query.append("path", path);
+  return request(`/source-control/blame?${query.toString()}`);
+}
+
+export async function getCodeSymbol(symbolEntityId: string): Promise<CodeSymbolResponse> {
+  return request(`/knowledge/code/symbols/${encodeURIComponent(symbolEntityId)}`, {
+    headers: codeNavHeaders(`symbol-${symbolEntityId}`),
+  });
+}
+
+export async function lookupCodeSymbols(query: CodeSymbolLookupQuery): Promise<CodeSymbolLookupResponse> {
+  const params = new URLSearchParams({ workspace_id: query.workspaceId });
+  if (query.name) params.append("name", query.name);
+  if (query.prefix) params.append("prefix", query.prefix);
+  if (query.path) params.append("path", query.path);
+  if (query.limit !== undefined) params.append("limit", String(query.limit));
+  return request(`/knowledge/code/symbols?${params.toString()}`, {
+    headers: codeNavHeaders(`lookup-${query.workspaceId}`),
+  });
+}
+
+export async function getCodeSymbolReferences(symbolEntityId: string): Promise<CodeSymbolReferencesResponse> {
+  return request(`/knowledge/code/symbols/${encodeURIComponent(symbolEntityId)}/references`, {
+    headers: codeNavHeaders(`references-${symbolEntityId}`),
+  });
+}
+
+export async function getCodeFileLens(
+  workspaceId: string,
+  relativePath: string,
+  contentHash: string,
+  parserVersion: string,
+): Promise<CodeFileLensResponse> {
+  const params = new URLSearchParams({
+    workspace_id: workspaceId,
+    content_hash: contentHash,
+    parser_version: parserVersion,
+  });
+  return request(`/knowledge/code/files/${encodeURIComponent(relativePath)}/lens?${params.toString()}`, {
+    headers: codeNavHeaders(`lens-${workspaceId}`),
+  });
 }
 
 export async function getAtelierRoles(): Promise<AtelierRolesResponse> {
@@ -1591,10 +2227,12 @@ export async function listAtelierIntakeBatches(): Promise<AtelierIntakeBatch[]> 
 export async function openAtelierIntakeBatch(
   input: OpenAtelierIntakeBatchRequest,
 ): Promise<AtelierIntakeBatch>;
+// eslint-disable-next-line no-redeclare
 export async function openAtelierIntakeBatch(
   idempotencyKey: string,
   sourceLabel: string,
 ): Promise<AtelierIntakeBatch>;
+// eslint-disable-next-line no-redeclare
 export async function openAtelierIntakeBatch(
   inputOrKey: OpenAtelierIntakeBatchRequest | string,
   sourceLabel?: string,
@@ -1855,13 +2493,62 @@ export type RichDocSaveResult = {
   backlinks_skipped_reason: string | null;
 };
 
+export type RichDocSaveMetadata = {
+  crdt_document_id?: string | null;
+  crdt_snapshot_id?: string | null;
+  promotion_receipt_event_id?: string | null;
+};
+
+export type RichDocumentDraft = {
+  rich_document_id: string;
+  workspace_id: string;
+  base_doc_version: number;
+  base_content_sha256: string;
+  draft_content_json: JSONContentLike;
+  draft_content_sha256: string;
+  actor_kind: string;
+  actor_id: string;
+  kernel_task_run_id: string;
+  session_run_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RichDocumentDraftLoad = {
+  rich_document_id: string;
+  current_doc_version: number;
+  current_content_sha256: string;
+  draft: RichDocumentDraft | null;
+};
+
+export type RichDocumentDraftWriteResult = {
+  rich_document_id: string;
+  draft: RichDocumentDraft | null;
+  cleared: boolean;
+  draft_receipt_event_id: string | null;
+  receipt_error: string | null;
+};
+
+export type RichDocumentDraftClearResult = {
+  rich_document_id: string;
+  cleared: boolean;
+  clear_receipt_event_id: string | null;
+  receipt_error: string | null;
+};
+
 export type RichDocVersion = {
   rich_document_id: string;
   doc_version: number;
   schema_version: string;
   content_sha256: string;
+  crdt_snapshot_id?: string | null;
   promotion_receipt_event_id: string | null;
   created_at: string;
+};
+
+export type RichDocVersionBody = RichDocVersion & {
+  content_json: JSONContentLike;
+  crdt_snapshot_id: string | null;
 };
 
 export type RichDocHistory = {
@@ -1923,15 +2610,59 @@ export async function loadRichDocument(
   });
 }
 
+export async function loadRichDocumentDraft(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocumentDraftLoad> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/draft`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function upsertRichDocumentDraft(
+  documentId: string,
+  baseDocVersion: number,
+  baseContentSha256: string,
+  contentJson: JSONContentLike,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocumentDraftWriteResult> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/draft`, {
+    method: "PUT",
+    body: {
+      base_doc_version: baseDocVersion,
+      base_content_sha256: baseContentSha256,
+      content_json: contentJson,
+    },
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function clearRichDocumentDraft(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocumentDraftClearResult> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/draft`, {
+    method: "DELETE",
+    headers: richDocHeaders(ctx),
+  });
+}
+
 export async function saveRichDocument(
   documentId: string,
   expectedVersion: number,
   contentJson: JSONContentLike,
   ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+  metadata: RichDocSaveMetadata = {},
 ): Promise<RichDocSaveResult> {
+  const body: Record<string, unknown> = { expected_version: expectedVersion, content_json: contentJson };
+  if (metadata.crdt_document_id !== undefined) body.crdt_document_id = metadata.crdt_document_id;
+  if (metadata.crdt_snapshot_id !== undefined) body.crdt_snapshot_id = metadata.crdt_snapshot_id;
+  if (metadata.promotion_receipt_event_id !== undefined) {
+    body.promotion_receipt_event_id = metadata.promotion_receipt_event_id;
+  }
   return request(`/knowledge/documents/${encodeURIComponent(documentId)}/save`, {
     method: "PUT",
-    body: { expected_version: expectedVersion, content_json: contentJson },
+    body,
     headers: richDocHeaders(ctx),
   });
 }
@@ -1952,6 +2683,17 @@ export async function loadRichDocumentHistory(
   return request(`/knowledge/documents/${encodeURIComponent(documentId)}/history`, {
     headers: richDocHeaders(ctx),
   });
+}
+
+export async function loadRichDocumentVersion(
+  documentId: string,
+  docVersion: number,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ rich_document_id: string; version: RichDocVersionBody }> {
+  return request(
+    `/knowledge/documents/${encodeURIComponent(documentId)}/history/${encodeURIComponent(String(docVersion))}`,
+    { headers: richDocHeaders(ctx) },
+  );
 }
 
 export async function exportRichDocumentProjection(

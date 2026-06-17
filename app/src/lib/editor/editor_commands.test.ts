@@ -49,6 +49,7 @@ describe("editor command catalog (MT-169)", () => {
       "tableEdit",
       "link",
       "code",
+      "selection",
       "embed",
       "graph",
       "mention",
@@ -123,6 +124,65 @@ describe("command correctness hardening (iteration-3 M11/L12/L14/M1)", () => {
     return count;
   }
 
+  function countTableCells(editor: Editor): number {
+    return countNodes(editor, "tableCell") + countNodes(editor, "tableHeader");
+  }
+
+  function tableCellPositions(editor: Editor): number[] {
+    const positions: number[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
+        positions.push(pos);
+      }
+      return true;
+    });
+    return positions;
+  }
+
+  function selectTableCell(editor: Editor, index = 0): void {
+    const positions = tableCellPositions(editor);
+    expect(positions.length, "table should expose selectable cells").toBeGreaterThan(index);
+    editor.commands.setTextSelection(positions[index] + 2);
+  }
+
+  function selectAdjacentTableCells(editor: Editor): void {
+    const positions = tableCellPositions(editor);
+    expect(positions.length, "table should expose an adjacent cell range").toBeGreaterThanOrEqual(2);
+    editor.commands.setCellSelection({ anchorCell: positions[0], headCell: positions[1] });
+  }
+
+  function command(id: string) {
+    const found = EDITOR_COMMAND_BY_ID.get(id);
+    expect(found, `${id} command must be registered`).toBeDefined();
+    return found!;
+  }
+
+  async function waitForHistoryBoundary(): Promise<void> {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 650);
+    });
+  }
+
+  async function expectUndoableMutation(
+    editor: Editor,
+    id: string,
+    assertMutated?: () => void,
+  ): Promise<void> {
+    const target = command(id);
+    const undo = command("history.undo");
+    await waitForHistoryBoundary();
+    const before = editor.getJSON();
+
+    expect(target.canRun?.(editor), `${id} should be enabled before mutation`).toBe(true);
+    expect(target.run(editor), `${id} should run`).toBe(true);
+    expect(editor.getJSON(), `${id} should mutate the document`).not.toEqual(before);
+    assertMutated?.();
+
+    expect(undo.canRun?.(editor), `history.undo should be enabled after ${id}`).toBe(true);
+    expect(undo.run(editor), `history.undo should run after ${id}`).toBe(true);
+    expect(editor.getJSON(), `history.undo should restore the exact document before ${id}`).toEqual(before);
+  }
+
   it("M11: insert commands on a NodeSelection insert AFTER the node, never replace it", () => {
     const editor = makeEditor();
     EDITOR_COMMAND_BY_ID.get("code.insert")!.run(editor, { language: "rust" });
@@ -184,6 +244,153 @@ describe("command correctness hardening (iteration-3 M11/L12/L14/M1)", () => {
     expect(deleteTable.canRun!(editor)).toBe(true);
     deleteTable.run(editor);
     expect(countNodes(editor, "table")).toBe(0);
+    editor.destroy();
+  });
+
+  it("MT-251: exposes the full table operation command surface", () => {
+    const required = [
+      "table.addRowBefore",
+      "table.addRowAfter",
+      "table.addColumnBefore",
+      "table.addColumnAfter",
+      "table.deleteRow",
+      "table.deleteColumn",
+      "table.toggleHeaderRow",
+      "table.toggleHeaderColumn",
+      "table.toggleHeaderCell",
+      "table.mergeCells",
+      "table.splitCell",
+      "table.delete",
+    ];
+
+    for (const id of required) {
+      expect(EDITOR_COMMAND_BY_ID.has(id), `${id} should be operator-reachable`).toBe(true);
+    }
+  });
+
+  it("MT-251: table row/column commands mutate real tables and undo restores exact documents", async () => {
+    const editor = makeEditor();
+    const addRowBefore = command("table.addRowBefore");
+    const addColumnBefore = command("table.addColumnBefore");
+    const deleteRow = command("table.deleteRow");
+    const deleteColumn = command("table.deleteColumn");
+
+    expect(addRowBefore.canRun!(editor)).toBe(false);
+    expect(addColumnBefore.canRun!(editor)).toBe(false);
+    expect(deleteRow.canRun!(editor)).toBe(false);
+    expect(deleteColumn.canRun!(editor)).toBe(false);
+
+    command("table.insert").run(editor);
+    selectTableCell(editor);
+    expect(addRowBefore.canRun!(editor)).toBe(true);
+    expect(addColumnBefore.canRun!(editor)).toBe(true);
+    expect(deleteRow.canRun!(editor)).toBe(true);
+    expect(deleteColumn.canRun!(editor)).toBe(true);
+
+    const rowsBefore = countNodes(editor, "tableRow");
+    const cellsBefore = countTableCells(editor);
+    await expectUndoableMutation(editor, "table.addRowBefore", () => {
+      expect(countNodes(editor, "tableRow")).toBe(rowsBefore + 1);
+      expect(countTableCells(editor)).toBe(cellsBefore + 3);
+    });
+
+    selectTableCell(editor);
+    await expectUndoableMutation(editor, "table.addColumnBefore", () => {
+      expect(countTableCells(editor)).toBe(cellsBefore + rowsBefore);
+    });
+
+    selectTableCell(editor);
+    await expectUndoableMutation(editor, "table.deleteRow", () => {
+      expect(countNodes(editor, "tableRow")).toBe(rowsBefore - 1);
+    });
+
+    selectTableCell(editor);
+    await expectUndoableMutation(editor, "table.deleteColumn", () => {
+      expect(countTableCells(editor)).toBe(cellsBefore - rowsBefore);
+    });
+    editor.destroy();
+  });
+
+  it("MT-251: header toggles mutate real table cell types and undo restores exact documents", async () => {
+    const editor = makeEditor();
+    command("table.insert").run(editor);
+    const toggleHeaderCell = command("table.toggleHeaderCell");
+    const toggleHeaderColumn = command("table.toggleHeaderColumn");
+    const toggleHeaderRow = command("table.toggleHeaderRow");
+
+    selectTableCell(editor);
+    const headersBefore = countNodes(editor, "tableHeader");
+    expect(headersBefore).toBe(3);
+    expect(toggleHeaderCell.canRun!(editor)).toBe(true);
+    await expectUndoableMutation(editor, "table.toggleHeaderCell", () => {
+      expect(countNodes(editor, "tableHeader")).toBe(headersBefore - 1);
+    });
+
+    selectTableCell(editor);
+    expect(toggleHeaderColumn.canRun!(editor)).toBe(true);
+    await expectUndoableMutation(editor, "table.toggleHeaderColumn", () => {
+      expect(countNodes(editor, "tableHeader")).toBeGreaterThan(headersBefore);
+    });
+
+    selectTableCell(editor);
+    expect(toggleHeaderRow.canRun!(editor)).toBe(true);
+    await expectUndoableMutation(editor, "table.toggleHeaderRow", () => {
+      expect(countNodes(editor, "tableHeader")).toBeLessThan(headersBefore);
+    });
+    editor.destroy();
+  });
+
+  it("MT-251: table operation canRun reflects invalid table and selection states", () => {
+    const editor = makeEditor();
+    const invalidOutsideTable = [
+      "table.addRowBefore",
+      "table.addColumnBefore",
+      "table.deleteRow",
+      "table.deleteColumn",
+      "table.toggleHeaderColumn",
+      "table.toggleHeaderCell",
+      "table.mergeCells",
+      "table.splitCell",
+      "table.delete",
+    ];
+
+    for (const id of invalidOutsideTable) {
+      expect(command(id).canRun?.(editor), `${id} should be disabled outside tables`).toBe(false);
+    }
+
+    command("table.insert").run(editor);
+    selectTableCell(editor);
+    expect(command("table.mergeCells").canRun?.(editor), "merge requires a multi-cell selection").toBe(false);
+    expect(command("table.splitCell").canRun?.(editor), "split requires an already-merged cell").toBe(false);
+
+    selectAdjacentTableCells(editor);
+    expect(command("table.mergeCells").canRun?.(editor)).toBe(true);
+    expect(command("table.splitCell").canRun?.(editor), "split stays disabled before merge").toBe(false);
+    expect(command("table.mergeCells").run(editor)).toBe(true);
+    expect(command("table.splitCell").canRun?.(editor)).toBe(true);
+    editor.destroy();
+  });
+
+  it("MT-251: merge and split cells operate on a real selected table range and undo exactly", async () => {
+    const editor = makeEditor();
+    command("table.insert").run(editor);
+    const mergeCells = command("table.mergeCells");
+    const splitCell = command("table.splitCell");
+
+    selectAdjacentTableCells(editor);
+    expect(mergeCells.canRun!(editor)).toBe(true);
+    const cellsBefore = countTableCells(editor);
+    await expectUndoableMutation(editor, "table.mergeCells", () => {
+      expect(countTableCells(editor)).toBe(cellsBefore - 1);
+    });
+
+    selectAdjacentTableCells(editor);
+    expect(mergeCells.run(editor)).toBe(true);
+    await waitForHistoryBoundary();
+    expect(splitCell.canRun!(editor)).toBe(true);
+    await expectUndoableMutation(editor, "table.splitCell", () => {
+      expect(countTableCells(editor)).toBe(cellsBefore);
+    });
     editor.destroy();
   });
 

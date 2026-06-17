@@ -14,7 +14,8 @@
 // excalidraw ASSETS_FALLBACK_URL exemption cannot widen to arbitrary esm.sh
 // references.
 
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -26,6 +27,7 @@ import {
   partitionCdnHits,
   scanSplitHostCdn,
 } from "../../../scripts/lib/dependency_policy_scans.mjs";
+import { scanWorkerBundleTree } from "../../../scripts/lib/worker_bundling_scan.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const allowlist = loadAllowlist(repoRoot);
@@ -233,5 +235,66 @@ describe("MT-027 H4 split-host CDN evasion (string-concatenation normalization)"
       patterns: cdnPatterns,
     });
     expect(hits).toHaveLength(0);
+  });
+});
+
+describe("MT-235 Monaco worker offline fixture", () => {
+  function withFixtureDist(files: Record<string, string>, run: (distDir: string) => void) {
+    const distDir = mkdtempSync(join(tmpdir(), "hsk-worker-dist-"));
+    try {
+      for (const [relPath, content] of Object.entries(files)) {
+        const fullPath = join(distDir, relPath);
+        mkdirSync(dirname(fullPath), { recursive: true });
+        writeFileSync(fullPath, content, "utf8");
+      }
+      run(distDir);
+    } finally {
+      rmSync(distDir, { recursive: true, force: true });
+    }
+  }
+
+  it("fails closed when a Monaco bundle is missing one required local worker chunk", () => {
+    withFixtureDist(
+      {
+        "assets/index.js": "globalThis.MonacoEnvironment = {};",
+        "assets/editor.worker-a.js": "",
+        "assets/ts.worker-a.js": "",
+        "assets/json.worker-a.js": "",
+        "assets/css.worker-a.js": "",
+      },
+      (distDir) => {
+        const tree = scanWorkerBundleTree(distDir, allowlist);
+        expect(tree.bundles_monaco).toBe(true);
+        expect(tree.worker_chunks).toEqual([
+          "assets/css.worker-a.js",
+          "assets/editor.worker-a.js",
+          "assets/json.worker-a.js",
+          "assets/ts.worker-a.js",
+        ]);
+        expect(tree.missing_monaco_workers).toEqual(["html"]);
+      },
+    );
+  });
+
+  it("accepts the required bundled-local Monaco worker chunks with zero external loads", () => {
+    withFixtureDist(
+      {
+        "assets/index.js":
+          'globalThis.MonacoEnvironment = { getWorker(){ return new Worker(new URL("./ts.worker-a.js", import.meta.url)); } };',
+        "assets/editor.worker-a.js": "",
+        "assets/ts.worker-a.js": "",
+        "assets/json.worker-a.js": "",
+        "assets/css.worker-a.js": "",
+        "assets/html.worker-a.js": "",
+      },
+      (distDir) => {
+        const tree = scanWorkerBundleTree(distDir, allowlist);
+        expect(tree.bundles_monaco).toBe(true);
+        expect(tree.missing_monaco_workers).toEqual([]);
+        expect(tree.external_worker_refs).toEqual([]);
+        expect(tree.cdn_hits).toEqual([]);
+        expect(tree.split_host_cdn_hits).toEqual([]);
+      },
+    );
   });
 });

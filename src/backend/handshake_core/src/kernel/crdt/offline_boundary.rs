@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::storage::Database;
 
 use super::yjs_bridge::{
-    push_yjs_update, KnowledgeCrdtFlowError, YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
+    KnowledgeCrdtFlowError, YjsPushOutcomeV1, YjsUpdateEnvelopeV1, push_yjs_update,
 };
 
 pub const OFFLINE_DRAFT_BOUNDARY_CONTRACT_SCHEMA_ID: &str =

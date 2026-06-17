@@ -15,13 +15,13 @@ use serde_json::json;
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
+use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
     self, NewRecoveryReceipt, NewSwarmCheckpoint, RecoveryReceiptRow, SwarmCheckpointRow,
 };
-use crate::storage::Database;
 
 use super::actor_site::KnowledgeActorIdV1;
-use super::agent_lease::{new_ulid, LeaseFlowError};
+use super::agent_lease::{LeaseFlowError, new_ulid};
 use super::persistence::sha256_hex;
 
 pub const SWARM_CHECKPOINT_SCHEMA_ID: &str = "hsk.kernel.knowledge_swarm_checkpoint@1";

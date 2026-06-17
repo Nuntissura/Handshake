@@ -84,7 +84,7 @@ mod tests {
     };
     use crate::kernel::kb003_promotion::decision::PromotionRejectionReason;
     use crate::kernel::sandbox::dcc_projection::{
-        DccSandboxOutcome, DccSandboxProjectionV1, DCC_SANDBOX_PROJECTION_FAMILY_ID,
+        DCC_SANDBOX_PROJECTION_FAMILY_ID, DccSandboxOutcome, DccSandboxProjectionV1,
     };
     use crate::kernel::sandbox::policy::CapabilityDecision;
     use crate::kernel::sandbox::run::{SandboxRunStatus, SandboxRunV1};
@@ -117,11 +117,9 @@ mod tests {
 
     fn sample_bundle() -> Kb003ArtifactBundleV1 {
         let run = SandboxRunV1::new_requested("KTR-1", "SES-1", "process_tier", "POL-1@1", "WSP-1");
-        let handles =
-            vec![
-                Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa")
-                    .unwrap(),
-            ];
+        let handles = vec![
+            Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa").unwrap(),
+        ];
         KbArtifactBundleAssembler::assemble(&run, handles).unwrap()
     }
 
@@ -136,16 +134,19 @@ mod tests {
         let prom = p.promotion.as_ref().unwrap();
         assert_eq!(prom.decision, "ACCEPTED");
         assert_eq!(prom.receipt_id.as_deref(), Some(r.receipt_id.as_str()));
-        assert!(p
-            .artifact_refs
-            .iter()
-            .any(|s| s.starts_with("kb003://promotion_receipt/")));
-        assert!(p
-            .artifact_classes_in_view
-            .contains(&Kb003ArtifactClass::PromotionReceipt));
-        assert!(p
-            .artifact_classes_in_view
-            .contains(&Kb003ArtifactClass::SandboxLog));
+        assert!(
+            p.artifact_refs
+                .iter()
+                .any(|s| s.starts_with("kb003://promotion_receipt/"))
+        );
+        assert!(
+            p.artifact_classes_in_view
+                .contains(&Kb003ArtifactClass::PromotionReceipt)
+        );
+        assert!(
+            p.artifact_classes_in_view
+                .contains(&Kb003ArtifactClass::SandboxLog)
+        );
     }
 
     #[test]

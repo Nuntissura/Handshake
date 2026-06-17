@@ -2,18 +2,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::context_bundle::{canonical_json_bytes, sha256_hex};
 use super::{
-    flight_recorder_mirror_event, ArtifactRecord, ContextBundle, KernelActor, KernelError,
-    KernelEvent, KernelEventType, KernelResult, KernelTaskRun, ModelAdapter, ModelAdapterRequest,
-    NewKernelEvent, OperatorPromotionApproval, PromotionDecisionKind, PromotionGate, SessionRun,
-    SessionRunState, ToolDecisionKind, ToolDecisionRecord, TraceProjection, ValidationOutcome,
-    ValidationRunner,
+    ArtifactRecord, ContextBundle, KernelActor, KernelError, KernelEvent, KernelEventType,
+    KernelResult, KernelTaskRun, ModelAdapter, ModelAdapterRequest, NewKernelEvent,
+    OperatorPromotionApproval, PromotionDecisionKind, PromotionGate, SessionRun, SessionRunState,
+    ToolDecisionKind, ToolDecisionRecord, TraceProjection, ValidationOutcome, ValidationRunner,
+    flight_recorder_mirror_event,
 };
 use crate::flight_recorder::FlightRecorder;
-use crate::mcp::gate::{evaluate_kernel_tool_gate_decision, KernelMcpToolGateRequest};
+use crate::mcp::gate::{KernelMcpToolGateRequest, evaluate_kernel_tool_gate_decision};
 use crate::storage::{
     Database, ModelSessionState, NewModelSession, NewSessionMessage, SessionMessage,
     SessionMessageRole,

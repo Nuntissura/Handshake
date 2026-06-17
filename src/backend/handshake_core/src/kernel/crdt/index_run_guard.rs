@@ -24,15 +24,15 @@ use serde_json::json;
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::knowledge_crdt::{
-    insert_denial_receipt, new_denial_receipt_id, AgentLaneLeaseRow, NewKnowledgeCrdtDenialReceipt,
-};
 use crate::storage::Database;
+use crate::storage::knowledge_crdt::{
+    AgentLaneLeaseRow, NewKnowledgeCrdtDenialReceipt, insert_denial_receipt, new_denial_receipt_id,
+};
 
 use super::actor_site::KnowledgeActorIdV1;
 use super::agent_lease::{
-    claim_lease, release_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1,
-    LeaseFlowError,
+    KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1, LeaseFlowError, claim_lease,
+    release_lease,
 };
 
 pub const INDEX_RUN_SLOT_REJECTION_SCHEMA_ID: &str =

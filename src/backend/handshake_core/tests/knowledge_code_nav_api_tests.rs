@@ -269,6 +269,30 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     );
     assert_eq!(add_match["staleness"]["fresh"], true);
 
+    // --- Symbol lookup by prefix (MT-249 completion bridge) -------------------
+    let prefix_lookup = nav_headers(
+        http.get(format!("{base}/knowledge/code/symbols")).query(&[
+            ("workspace_id", workspace_id.as_str()),
+            ("prefix", "ad"),
+            ("limit", "10"),
+        ]),
+        "prefix-lookup",
+    )
+    .send()
+    .await
+    .expect("prefix lookup send");
+    assert_eq!(prefix_lookup.status(), 200);
+    let prefix_body: Value = prefix_lookup.json().await.expect("prefix lookup json");
+    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &prefix_body, "prefix").await;
+    assert!(
+        prefix_body["matches"]
+            .as_array()
+            .expect("prefix matches")
+            .iter()
+            .any(|m| m["symbol_key"] == "rust:src/lib.rs#add"),
+        "prefix completion lookup should find add: {prefix_body:?}"
+    );
+
     // --- Symbol detail --------------------------------------------------------
     let detail = nav_headers(
         http.get(format!("{base}/knowledge/code/symbols/{add_id}")),

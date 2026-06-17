@@ -4857,6 +4857,8 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
             1,
             saved_content.clone(),
             None,
+            None,
+            None,
         )
         .await
         .expect("real rich-document save commits before interruption");
@@ -4931,6 +4933,8 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
             &created_doc.rich_document_id,
             1,
             saved_content.clone(),
+            None,
+            None,
             None,
         )
         .await;

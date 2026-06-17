@@ -738,8 +738,7 @@ fn stub_promotion_operation() -> MechanicalContractOperationV1 {
         command: DeterministicContractCommandV1 {
             command_id: "task-packet-stub-contracts-check".to_string(),
             command_line: "just task-packet-stub-contracts --all".to_string(),
-            script_ref: ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs"
-                .to_string(),
+            script_ref: ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs".to_string(),
             dry_run_supported: true,
             repair_mode_supported: true,
             output_schema_id: WORK_PACKET_STUB_CONTRACT_SCHEMA_ID.to_string(),

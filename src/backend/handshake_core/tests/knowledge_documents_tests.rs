@@ -258,6 +258,8 @@ mod mt_059_rich_documents {
                 &created.rich_document_id,
                 1,
                 v2_content.clone(),
+                Some("KCRDT-richdoc-version-save"),
+                None,
                 Some(&receipt.event_id),
             )
             .await
@@ -268,6 +270,26 @@ mod mt_059_rich_documents {
             saved.promotion_receipt_event_id.as_deref(),
             Some(receipt.event_id.as_str())
         );
+        assert_eq!(
+            saved.crdt_document_id.as_deref(),
+            Some("KCRDT-richdoc-version-save")
+        );
+        let crdt_change_err = pg
+            .db
+            .save_knowledge_rich_document_version(
+                &created.rich_document_id,
+                2,
+                json!({"type": "doc", "content": []}),
+                Some("KCRDT-richdoc-version-save-other"),
+                None,
+                None,
+            )
+            .await
+            .expect_err("crdt_document_id must be immutable once set");
+        assert!(
+            matches!(crdt_change_err, StorageError::Validation(_)),
+            "got {crdt_change_err:?}"
+        );
 
         // Optimistic concurrency: stale expected_version fails closed.
         let err = pg
@@ -276,6 +298,8 @@ mod mt_059_rich_documents {
                 &created.rich_document_id,
                 1,
                 json!({"type": "doc", "content": []}),
+                None,
+                None,
                 None,
             )
             .await

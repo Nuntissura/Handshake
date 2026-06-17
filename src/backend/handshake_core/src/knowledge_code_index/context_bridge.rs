@@ -100,6 +100,18 @@ pub async fn build_code_context_bundle(
         .ok_or_else(|| {
             CodeIndexError::Validation(format!("symbol '{symbol_key}' is not indexed"))
         })?;
+    let focus_path = symbol_key_relative_path(&focus.entity_key).ok_or_else(|| {
+        CodeIndexError::Validation(format!(
+            "symbol '{}' has an invalid code symbol key",
+            focus.entity_key
+        ))
+    })?;
+    if focus_path != relative_path {
+        return Err(CodeIndexError::Validation(format!(
+            "symbol '{}' does not belong to relative_path '{}'",
+            focus.entity_key, relative_path
+        )));
+    }
 
     // Staleness of the file the symbol lives in.
     let staleness = file_staleness(
@@ -176,9 +188,9 @@ pub async fn build_code_context_bundle(
         + estimate_tokens(&focus.entity_key)
         + focus_doc.as_deref().map(estimate_tokens).unwrap_or(0);
     let budget = token_budget as usize;
-    let mut used = focus_tokens.min(budget);
+    let mut used = focus_tokens;
     let mut included: Vec<&CitedNeighbor> = Vec::new();
-    let mut truncated = false;
+    let mut truncated = focus_tokens > budget;
     // Pack smallest-first within the deterministic order to maximize inclusion.
     let mut by_size: Vec<&CitedNeighbor> = neighbors.iter().collect();
     by_size.sort_by(|a, b| {
@@ -336,6 +348,16 @@ fn staleness_label(verdict: &StalenessVerdict) -> &'static str {
     verdict.label()
 }
 
+fn symbol_key_relative_path(symbol_key: &str) -> Option<&str> {
+    let (_, rest) = symbol_key.split_once(':')?;
+    let (path, _) = rest.split_once('#')?;
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,5 +391,18 @@ mod tests {
         assert_eq!(v["span_id"], "KSP-abc");
         assert_eq!(v["line_start"], 10);
         assert_eq!(v["line_end"], 12);
+    }
+
+    #[test]
+    fn symbol_key_path_is_extracted_from_code_key() {
+        assert_eq!(
+            symbol_key_relative_path("rust:src/lib.rs#add"),
+            Some("src/lib.rs")
+        );
+        assert_eq!(
+            symbol_key_relative_path("tsx:app/widget.tsx#Widget~component"),
+            Some("app/widget.tsx")
+        );
+        assert_eq!(symbol_key_relative_path("not-a-code-key"), None);
     }
 }

@@ -18,7 +18,10 @@
 //!   * Captured output is secret-redacted before it leaves the runtime.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
 
 use serde::Serialize;
 use serde_json::json;
@@ -49,6 +52,8 @@ pub enum RuntimeError {
     Isolation(String),
     #[error("HSK-TRT-004: capture session is read-only and cannot accept stdin")]
     CaptureReadOnly,
+    #[error("HSK-TRT-005: capture session close must be driven by its producer sink")]
+    CaptureCloseDenied,
     #[error(transparent)]
     Pty(#[from] PtyError),
 }
@@ -82,6 +87,11 @@ pub struct SessionInfo {
     pub title: Option<String>,
     /// True when AI stdin has been authorized for an interactive AiJob session.
     pub interactive_authorized: bool,
+    /// True once the underlying terminal producer has exited but the session
+    /// remains inspectable until explicit close/reap.
+    pub exited: bool,
+    /// Exit code when known for an exited terminal producer.
+    pub exit_code: Option<i32>,
 }
 
 /// One output fan-out item exposed to the Tauri forwarder. Mirrors
@@ -129,6 +139,7 @@ struct RuntimeInner {
     redaction_enabled: bool,
     broadcast_capacity: usize,
     scrollback_bytes: usize,
+    terminal_receipt_failures: AtomicU64,
 }
 
 impl TerminalRuntime {
@@ -145,8 +156,15 @@ impl TerminalRuntime {
                 redaction_enabled: true,
                 broadcast_capacity: crate::terminal::pty::DEFAULT_BROADCAST_CAPACITY,
                 scrollback_bytes: crate::terminal::pty::DEFAULT_SCROLLBACK_BYTES,
+                terminal_receipt_failures: AtomicU64::new(0),
             }),
         }
+    }
+
+    /// Number of terminal Flight Recorder/EventLedger receipt writes that failed
+    /// while terminal operation continued best-effort.
+    pub fn terminal_receipt_failure_count(&self) -> u64 {
+        self.inner.terminal_receipt_failures.load(Ordering::Acquire)
     }
 
     /// Subscribe to one session's output stream (chunks + exit).
@@ -218,6 +236,8 @@ impl TerminalRuntime {
             trace_id: trace_id.to_string(),
             title,
             interactive_authorized: matches!(session_type, TerminalSessionType::HumanDev),
+            exited: false,
+            exit_code: None,
         };
 
         {
@@ -262,6 +282,8 @@ impl TerminalRuntime {
             trace_id: trace_id.to_string(),
             title,
             interactive_authorized: false,
+            exited: false,
+            exit_code: None,
         };
 
         {
@@ -309,17 +331,22 @@ impl TerminalRuntime {
     /// any stdin is accepted (TERM-INVARIANTS: AI command exec is
     /// capability-checked + trace-linked).
     pub async fn authorize_interactive(&self, session_id: &str) -> Result<(), RuntimeError> {
-        let (session_type, scope, trace_id) = {
+        let (kind, session_type, scope, trace_id) = {
             let sessions = self.lock_sessions();
             let entry = sessions
                 .get(session_id)
                 .ok_or_else(|| RuntimeError::UnknownSession(session_id.to_string()))?;
             (
+                entry.info.kind,
                 entry.info.session_type,
                 entry.capability_scope.clone(),
                 entry.info.trace_id.clone(),
             )
         };
+
+        if !matches!(kind, SessionKind::Interactive) {
+            return Err(RuntimeError::CaptureReadOnly);
+        }
 
         // HumanDev sessions are interactive for the human by default.
         if matches!(session_type, TerminalSessionType::HumanDev) {
@@ -332,13 +359,8 @@ impl TerminalRuntime {
             .enforce_can_perform(CAP_TERMINAL_INTERACT, &scope)
             .map_err(|e| RuntimeError::CapabilityDenied(e.to_string()))?;
         let outcome = if allowed { "allow" } else { "deny" };
-        self.record_capability_action(
-            CAP_TERMINAL_INTERACT,
-            session_id,
-            &trace_id,
-            outcome,
-        )
-        .await;
+        self.record_capability_action(CAP_TERMINAL_INTERACT, session_id, &trace_id, outcome)
+            .await;
         if !allowed {
             return Err(RuntimeError::CapabilityDenied(format!(
                 "{CAP_TERMINAL_INTERACT} not granted for AI session {session_id}"
@@ -389,10 +411,7 @@ impl TerminalRuntime {
             )));
         }
 
-        let pty = entry
-            .pty
-            .as_ref()
-            .ok_or(RuntimeError::CaptureReadOnly)?;
+        let pty = entry.pty.as_ref().ok_or(RuntimeError::CaptureReadOnly)?;
         pty.write_stdin(bytes)?;
         Ok(())
     }
@@ -431,6 +450,61 @@ impl TerminalRuntime {
                 .await;
         }
         Ok(())
+    }
+
+    /// Record the actual command executed through the one-shot terminal command
+    /// IPC path, including its final timeout/exit metadata.
+    pub async fn record_one_shot_command_result(
+        &self,
+        info: &SessionInfo,
+        command_line: &str,
+        cwd: Option<&std::path::Path>,
+        exit_code: i32,
+        timed_out: bool,
+        duration: std::time::Duration,
+    ) {
+        let redacted = if self.inner.redaction_enabled {
+            self.inner
+                .redactor
+                .redact_chunk(command_line.as_bytes())
+                .redacted
+        } else {
+            command_line.to_string()
+        };
+        let payload = json!({
+            "type": "terminal_command",
+            "fr_event": "FR-EVT-TERMINAL-COMMAND-EXEC",
+            "session_id": info.session_id,
+            "session_type": info.session_type.as_str(),
+            "kind": info.kind,
+            "swarm_id": info.binding.swarm_id,
+            "worktree_id": info.binding.worktree_id,
+            "instance_id": info.binding.instance_id,
+            "command": redacted,
+            "origin": "one_shot_run_command",
+            "cwd": cwd.map(|path| path.display().to_string()).unwrap_or_default(),
+            "exit_code": exit_code,
+            "duration_ms": duration.as_millis().min(u64::MAX as u128) as u64,
+            "timed_out": timed_out,
+            "cancelled": false,
+            "truncated_bytes": 0,
+            "redaction_applied": self.inner.redaction_enabled,
+            "human_consent_obtained": false,
+        });
+        let trace = Uuid::parse_str(&info.trace_id).unwrap_or_else(|_| Uuid::now_v7());
+        let mut event = FlightRecorderEvent::new(
+            FlightRecorderEventType::TerminalCommand,
+            FlightRecorderActor::Agent,
+            trace,
+            payload,
+        )
+        .with_actor_id("terminal_runtime")
+        .with_session_span(info.session_id.clone());
+        if let Some(swarm) = &info.binding.swarm_id {
+            event = event.with_job_id(swarm.clone());
+        }
+        self.record_terminal_receipt_event(event, "terminal_one_shot_command")
+            .await;
     }
 
     /// Resize an interactive session. No-op for capture sessions.
@@ -482,17 +556,45 @@ impl TerminalRuntime {
         }
     }
 
-    /// Close a session: kill the child (interactive), drop the entry, and record
-    /// the close to the Flight Recorder.
+    /// Close an interactive session: kill the child, drop the entry, and record
+    /// the close to the Flight Recorder. Capture sessions are producer-owned and
+    /// must be finished by their [`CaptureSink`]; a public close would hide live
+    /// background output while the producer can still emit bytes.
     pub async fn close_session(&self, session_id: &str) -> Result<(), RuntimeError> {
+        let info = {
+            let mut sessions = self.lock_sessions();
+            let entry = sessions
+                .get(session_id)
+                .ok_or_else(|| RuntimeError::UnknownSession(session_id.to_string()))?;
+            if entry.info.kind == SessionKind::Capture {
+                return Err(RuntimeError::CaptureCloseDenied);
+            }
+            let entry = sessions
+                .remove(session_id)
+                .ok_or_else(|| RuntimeError::UnknownSession(session_id.to_string()))?;
+            let mut info = entry.info;
+            if let Some(pty) = &entry.pty {
+                if let Some(code) = pty.exit_code() {
+                    info.exited = true;
+                    info.exit_code = Some(code);
+                }
+                pty.kill();
+            }
+            info
+        };
+        self.record_session_close(&info).await;
+        Ok(())
+    }
+
+    async fn close_capture_session_from_producer(
+        &self,
+        session_id: &str,
+    ) -> Result<(), RuntimeError> {
         let info = {
             let mut sessions = self.lock_sessions();
             let entry = sessions
                 .remove(session_id)
                 .ok_or_else(|| RuntimeError::UnknownSession(session_id.to_string()))?;
-            if let Some(pty) = &entry.pty {
-                pty.kill();
-            }
             entry.info
         };
         self.record_session_close(&info).await;
@@ -503,16 +605,17 @@ impl TerminalRuntime {
     /// async FR close event. Used by [`CaptureSink`]'s [`Drop`] leak guard, which
     /// runs in a synchronous (possibly non-async) context — a dropped producer
     /// must not leave a ghost session in the "inspect all background work" panel.
-    /// Returns true if a session was actually removed.
-    fn reap_capture_session(&self, session_id: &str) -> bool {
+    /// Returns the removed session info so the drop path can emit a best-effort
+    /// close receipt from an async runtime when one is available.
+    fn reap_capture_session(&self, session_id: &str) -> Option<SessionInfo> {
         let mut sessions = self.lock_sessions();
-        sessions.remove(session_id).is_some()
+        sessions.remove(session_id).map(|entry| entry.info)
     }
 
     /// List all live sessions (for the panel's tab strip / board affordance).
     pub fn list_sessions(&self) -> Vec<SessionInfo> {
         let sessions = self.lock_sessions();
-        let mut out: Vec<SessionInfo> = sessions.values().map(|e| e.info.clone()).collect();
+        let mut out: Vec<SessionInfo> = sessions.values().map(session_info_snapshot).collect();
         out.sort_by(|a, b| a.session_id.cmp(&b.session_id));
         out
     }
@@ -565,7 +668,7 @@ impl TerminalRuntime {
             "instance_id": info.binding.instance_id,
             "command": "<session-close>",
             "cwd": "",
-            "exit_code": 0,
+            "exit_code": info.exit_code.unwrap_or(0),
             "duration_ms": 0,
             "timed_out": false,
             "cancelled": false,
@@ -591,7 +694,8 @@ impl TerminalRuntime {
         if let Some(swarm) = &info.binding.swarm_id {
             event = event.with_job_id(swarm.clone());
         }
-        let _ = self.inner.flight_recorder.record_event(event).await;
+        self.record_terminal_receipt_event(event, "terminal_session_lifecycle")
+            .await;
     }
 
     /// FR-EVT-TERMINAL-COMMAND-EXEC for a single AI interactive stdin write. The
@@ -634,7 +738,8 @@ impl TerminalRuntime {
         )
         .with_actor_id("terminal_runtime")
         .with_session_span(session_id.to_string());
-        let _ = self.inner.flight_recorder.record_event(event).await;
+        self.record_terminal_receipt_event(event, "terminal_interactive_command")
+            .await;
     }
 
     async fn record_capability_action(
@@ -663,8 +768,38 @@ impl TerminalRuntime {
         .with_actor_id("terminal_runtime")
         .with_capability(capability_id.to_string())
         .with_session_span(session_id.to_string());
-        let _ = self.inner.flight_recorder.record_event(event).await;
+        self.record_terminal_receipt_event(event, "terminal_capability_action")
+            .await;
     }
+
+    async fn record_terminal_receipt_event(
+        &self,
+        event: FlightRecorderEvent,
+        context: &'static str,
+    ) {
+        if let Err(err) = self.inner.flight_recorder.record_event(event).await {
+            self.inner
+                .terminal_receipt_failures
+                .fetch_add(1, Ordering::AcqRel);
+            tracing::warn!(
+                target: "handshake_core::terminal",
+                context,
+                error = %err,
+                "terminal_flight_recorder_receipt_failed"
+            );
+        }
+    }
+}
+
+fn session_info_snapshot(entry: &SessionEntry) -> SessionInfo {
+    let mut info = entry.info.clone();
+    if let Some(pty) = &entry.pty {
+        if let Some(code) = pty.exit_code() {
+            info.exited = true;
+            info.exit_code = Some(code);
+        }
+    }
+    info
 }
 
 fn redact_chunk(redactor: &dyn SecretRedactor, enabled: bool, bytes: &[u8]) -> Vec<u8> {
@@ -751,11 +886,8 @@ impl CaptureSink {
         )
         .with_actor_id("terminal_capture")
         .with_session_span(self.session_id.clone());
-        let _ = self
-            .runtime
-            .inner
-            .flight_recorder
-            .record_event(event)
+        self.runtime
+            .record_terminal_receipt_event(event, "terminal_capture_feed")
             .await;
     }
 
@@ -766,7 +898,10 @@ impl CaptureSink {
         self.closed
             .store(true, std::sync::atomic::Ordering::Release);
         let _ = self.tx.send(SessionOutput::Exit(exit_code));
-        let _ = self.runtime.close_session(&self.session_id).await;
+        let _ = self
+            .runtime
+            .close_capture_session_from_producer(&self.session_id)
+            .await;
     }
 }
 
@@ -777,15 +912,36 @@ impl Drop for CaptureSink {
         // panic, or the future being dropped mid-stream — the capture session
         // would otherwise stay in the registry forever and accumulate as an
         // orphaned ghost in the "inspect all background work" panel. Best-effort,
-        // synchronous reap: signal exit on the relay and remove the session entry
-        // directly (no async needed, since `close_session`'s only extra work is
-        // the FR close event, which we emit via the synchronous reap path).
+        // synchronous reap: signal exit on the relay and remove the session
+        // entry directly, then schedule the async close receipt when possible.
         if self.closed.load(std::sync::atomic::Ordering::Acquire) {
             return;
         }
         // Signal consumers the stream ended abnormally (exit code -1).
         let _ = self.tx.send(SessionOutput::Exit(-1));
-        self.runtime.reap_capture_session(&self.session_id);
+        let Some(info) = self.runtime.reap_capture_session(&self.session_id) else {
+            return;
+        };
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                let runtime = self.runtime.clone();
+                handle.spawn(async move {
+                    runtime.record_session_close(&info).await;
+                });
+            }
+            Err(err) => {
+                self.runtime
+                    .inner
+                    .terminal_receipt_failures
+                    .fetch_add(1, Ordering::AcqRel);
+                tracing::warn!(
+                    target: "handshake_core::terminal",
+                    error = %err,
+                    session_id = %self.session_id,
+                    "terminal_capture_drop_close_receipt_unavailable"
+                );
+            }
+        }
     }
 }
 
@@ -819,6 +975,26 @@ mod tests {
         }
     }
 
+    struct FailingRecorder;
+
+    #[async_trait]
+    impl FlightRecorder for FailingRecorder {
+        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            Err(RecorderError::SinkError(
+                "forced receipt failure".to_string(),
+            ))
+        }
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            Ok(0)
+        }
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
     impl CountingRecorder {
         fn fr_events(&self) -> Vec<String> {
             self.events
@@ -832,6 +1008,12 @@ mod tests {
                         .map(|s| s.to_string())
                 })
                 .collect()
+        }
+        fn fr_event_count(&self, expected: &str) -> usize {
+            self.fr_events()
+                .iter()
+                .filter(|actual| actual.as_str() == expected)
+                .count()
         }
         fn capability_outcomes(&self) -> Vec<(String, String)> {
             self.events
@@ -855,16 +1037,186 @@ mod tests {
         Arc::new(CapabilityRegistry::new())
     }
 
-    fn echo_spawn() -> PtySpawnConfig {
+    fn marker_echo_spawn(marker: &str) -> PtySpawnConfig {
         let mut cfg = PtySpawnConfig::default();
         if cfg!(windows) {
             cfg.shell = Some("cmd.exe".to_string());
-            cfg.args = vec!["/C".to_string(), "echo RUNTIME_OK".to_string()];
+            cfg.args = vec!["/C".to_string(), format!("echo {marker}")];
         } else {
             cfg.shell = Some("/bin/sh".to_string());
-            cfg.args = vec!["-c".to_string(), "printf 'RUNTIME_OK\\n'".to_string()];
+            cfg.args = vec!["-c".to_string(), format!("printf '{marker}\\n'")];
         }
         cfg
+    }
+
+    fn echo_spawn() -> PtySpawnConfig {
+        marker_echo_spawn("RUNTIME_OK")
+    }
+
+    #[tokio::test]
+    async fn terminal_receipt_failures_are_counted() {
+        let rt = TerminalRuntime::new(
+            Arc::new(CapabilityRegistry::new()),
+            Arc::new(FailingRecorder),
+        );
+        let info = SessionInfo {
+            session_id: Uuid::now_v7().to_string(),
+            kind: SessionKind::Interactive,
+            session_type: TerminalSessionType::HumanDev,
+            binding: SessionBinding::default(),
+            trace_id: Uuid::now_v7().to_string(),
+            title: Some("receipt-failure-proof".to_string()),
+            interactive_authorized: false,
+            exited: false,
+            exit_code: None,
+        };
+
+        rt.record_one_shot_command_result(
+            &info,
+            "cmd.exe /C echo missing-receipt",
+            None,
+            0,
+            false,
+            std::time::Duration::from_millis(1),
+        )
+        .await;
+
+        assert_eq!(
+            rt.terminal_receipt_failure_count(),
+            1,
+            "terminal receipt write failures must be observable"
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_human_terminal_sessions_keep_isolated_scrollback() {
+        let recorder = Arc::new(CountingRecorder::default());
+        let rt = TerminalRuntime::new(registry_with(&[]), recorder.clone());
+
+        let first = rt
+            .create_session(
+                TerminalSessionType::HumanDev,
+                SessionBinding {
+                    swarm_id: Some("terminal-isolation-a".to_string()),
+                    ..Default::default()
+                },
+                vec![],
+                marker_echo_spawn("HSK_CONCURRENT_TERMINAL_A"),
+                Some("terminal A".to_string()),
+            )
+            .await
+            .expect("create first terminal");
+        let second = rt
+            .create_session(
+                TerminalSessionType::HumanDev,
+                SessionBinding {
+                    swarm_id: Some("terminal-isolation-b".to_string()),
+                    ..Default::default()
+                },
+                vec![],
+                marker_echo_spawn("HSK_CONCURRENT_TERMINAL_B"),
+                Some("terminal B".to_string()),
+            )
+            .await
+            .expect("create second terminal");
+
+        let first_exit = rt
+            .wait_for_exit(&first.session_id, std::time::Duration::from_secs(30))
+            .expect("wait first terminal");
+        let second_exit = rt
+            .wait_for_exit(&second.session_id, std::time::Duration::from_secs(30))
+            .expect("wait second terminal");
+        assert_eq!(first_exit, Some(0));
+        assert_eq!(second_exit, Some(0));
+
+        let first_text = String::from_utf8_lossy(
+            &rt.scrollback(&first.session_id)
+                .expect("first terminal scrollback"),
+        )
+        .to_string();
+        let second_text = String::from_utf8_lossy(
+            &rt.scrollback(&second.session_id)
+                .expect("second terminal scrollback"),
+        )
+        .to_string();
+        assert!(
+            first_text.contains("HSK_CONCURRENT_TERMINAL_A"),
+            "first scrollback must contain its marker, got: {first_text:?}"
+        );
+        assert!(
+            !first_text.contains("HSK_CONCURRENT_TERMINAL_B"),
+            "first scrollback must not contain second marker, got: {first_text:?}"
+        );
+        assert!(
+            second_text.contains("HSK_CONCURRENT_TERMINAL_B"),
+            "second scrollback must contain its marker, got: {second_text:?}"
+        );
+        assert!(
+            !second_text.contains("HSK_CONCURRENT_TERMINAL_A"),
+            "second scrollback must not contain first marker, got: {second_text:?}"
+        );
+        assert_eq!(
+            rt.list_sessions().len(),
+            2,
+            "completed terminal sessions remain inspectable until explicitly closed"
+        );
+
+        rt.close_session(&first.session_id)
+            .await
+            .expect("close first terminal");
+        rt.close_session(&second.session_id)
+            .await
+            .expect("close second terminal");
+        assert!(rt.list_sessions().is_empty());
+        assert_eq!(
+            recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-OPEN"),
+            2,
+            "each concurrent terminal must record an open receipt"
+        );
+        assert_eq!(
+            recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-CLOSE"),
+            2,
+            "each concurrent terminal must record a close receipt"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_sessions_marks_completed_interactive_sessions_exited_until_closed() {
+        let recorder = Arc::new(CountingRecorder::default());
+        let rt = TerminalRuntime::new(registry_with(&[]), recorder);
+        let info = rt
+            .create_session(
+                TerminalSessionType::HumanDev,
+                SessionBinding::default(),
+                vec![],
+                marker_echo_spawn("HSK_TERMINAL_EXIT_STATE"),
+                Some("exit-state".to_string()),
+            )
+            .await
+            .expect("create terminal");
+
+        let exit = rt
+            .wait_for_exit(&info.session_id, std::time::Duration::from_secs(30))
+            .expect("wait terminal");
+        assert_eq!(exit, Some(0));
+
+        let listed = rt
+            .list_sessions()
+            .into_iter()
+            .find(|session| session.session_id == info.session_id)
+            .expect("completed terminal remains inspectable before explicit close");
+        assert!(listed.exited, "completed terminal must be marked exited");
+        assert_eq!(listed.exit_code, Some(0));
+
+        rt.close_session(&info.session_id)
+            .await
+            .expect("close completed terminal");
+        assert!(
+            rt.list_sessions()
+                .into_iter()
+                .all(|session| session.session_id != info.session_id),
+            "explicit close removes the completed terminal"
+        );
     }
 
     #[tokio::test]
@@ -876,7 +1228,9 @@ mod tests {
             instance_id: Some("inst-1".to_string()),
             ..Default::default()
         };
-        let (info, sink) = rt.create_capture_session(binding, Some("cloud-cli".into())).await;
+        let (info, sink) = rt
+            .create_capture_session(binding, Some("cloud-cli".into()))
+            .await;
         let mut rx = rt.subscribe(&info.session_id).unwrap();
         sink.feed(b"hello from background\n").await;
 
@@ -926,6 +1280,78 @@ mod tests {
             .write_stdin(&info.session_id, b"whoami\n", true)
             .unwrap_err();
         assert!(matches!(err, RuntimeError::CaptureReadOnly));
+    }
+
+    #[tokio::test]
+    async fn authorize_interactive_rejects_capture_sessions() {
+        let recorder = Arc::new(CountingRecorder::default());
+        let rt = TerminalRuntime::new(registry_with(&[CAP_TERMINAL_INTERACT]), recorder);
+        let (info, _sink) = rt
+            .create_capture_session(SessionBinding::default(), Some("capture".to_string()))
+            .await;
+
+        let err = rt
+            .authorize_interactive(&info.session_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, RuntimeError::CaptureReadOnly));
+        assert!(
+            !rt.list_sessions()
+                .into_iter()
+                .find(|session| session.session_id == info.session_id)
+                .expect("capture session remains inspectable")
+                .interactive_authorized,
+            "rejected capture authorization must not mutate the descriptor"
+        );
+    }
+
+    #[tokio::test]
+    async fn public_close_does_not_remove_live_capture_session() {
+        // Captured sessions are owned by their producer sink. A generic terminal
+        // close must not remove the registry entry while the producer can still
+        // feed output, or the operator loses the inspection surface for live
+        // background work.
+        let recorder = Arc::new(CountingRecorder::default());
+        let rt = TerminalRuntime::new(registry_with(&[]), recorder.clone());
+        let (info, sink) = rt
+            .create_capture_session(SessionBinding::default(), Some("captured".into()))
+            .await;
+        let mut rx = rt
+            .subscribe(&info.session_id)
+            .expect("subscribe before close");
+
+        let err = rt.close_session(&info.session_id).await.unwrap_err();
+        assert!(matches!(err, RuntimeError::CaptureCloseDenied));
+        assert_eq!(
+            rt.list_sessions().len(),
+            1,
+            "public close must leave the live capture session visible"
+        );
+        rt.subscribe(&info.session_id)
+            .expect("public close must not remove capture session");
+        assert_eq!(
+            recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-CLOSE"),
+            0,
+            "rejected public close must not record durable close evidence"
+        );
+
+        sink.feed(b"still visible after rejected close\n").await;
+        match rx.recv().await.unwrap() {
+            SessionOutput::Chunk(bytes) => assert!(
+                String::from_utf8_lossy(&bytes).contains("still visible"),
+                "producer output must still reach subscribers after rejected public close"
+            ),
+            other => panic!("expected chunk after rejected close, got {other:?}"),
+        }
+
+        sink.close(0).await;
+        assert_eq!(rt.list_sessions().len(), 0);
+        assert_eq!(
+            recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-CLOSE"),
+            1,
+            "producer close must record exactly one durable close event"
+        );
     }
 
     #[tokio::test]
@@ -1069,19 +1495,17 @@ mod tests {
             "AI interactive command must emit FR-EVT-TERMINAL-COMMAND-EXEC (before={before}, after={after})"
         );
         // The recorded command must carry the (redacted) payload.
-        let has_cmd = recorder
-            .events
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|e| {
-                e.payload
-                    .get("origin")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s == "ai_interactive_stdin")
-                    .unwrap_or(false)
-            });
-        assert!(has_cmd, "interactive command FR event must be tagged ai_interactive_stdin");
+        let has_cmd = recorder.events.lock().unwrap().iter().any(|e| {
+            e.payload
+                .get("origin")
+                .and_then(|v| v.as_str())
+                .map(|s| s == "ai_interactive_stdin")
+                .unwrap_or(false)
+        });
+        assert!(
+            has_cmd,
+            "interactive command FR event must be tagged ai_interactive_stdin"
+        );
         let _ = rt.close_session(&info.session_id).await;
         let _ = rt.close_session(&shell.session_id).await;
     }
@@ -1123,7 +1547,10 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(ai_cmds, 0, "human keystrokes must not be AI-command-recorded");
+        assert_eq!(
+            ai_cmds, 0,
+            "human keystrokes must not be AI-command-recorded"
+        );
         let _ = rt.close_session(&info.session_id).await;
     }
 
@@ -1132,12 +1559,16 @@ mod tests {
         // Leak guard: a CaptureSink dropped WITHOUT close() must not leave a ghost
         // session in the registry (orphaned "inspect all background work" tab).
         let recorder = Arc::new(CountingRecorder::default());
-        let rt = TerminalRuntime::new(registry_with(&[]), recorder);
+        let rt = TerminalRuntime::new(registry_with(&[]), recorder.clone());
         let session_id = {
             let (info, sink) = rt
                 .create_capture_session(SessionBinding::default(), Some("leaky".into()))
                 .await;
-            assert_eq!(rt.list_sessions().len(), 1, "session present while sink live");
+            assert_eq!(
+                rt.list_sessions().len(),
+                1,
+                "session present while sink live"
+            );
             sink.feed(b"partial output before drop\n").await;
             // Drop the sink WITHOUT calling close() (simulates task cancellation /
             // producer panic / future dropped mid-stream).
@@ -1153,6 +1584,17 @@ mod tests {
         assert!(
             rt.subscribe(&session_id).is_err(),
             "reaped session must be unknown"
+        );
+        for _ in 0..50 {
+            if recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-CLOSE") >= 1 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert_eq!(
+            recorder.fr_event_count("FR-EVT-TERMINAL-SESSION-CLOSE"),
+            1,
+            "dropped capture sink must still emit a close receipt"
         );
     }
 

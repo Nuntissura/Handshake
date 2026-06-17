@@ -123,9 +123,16 @@ export function ABCompare({
   const canGenerate = promptList.length > 0 && resolvedActiveVectorIds.length > 0;
 
   useEffect(() => {
+    let active = true;
     requestSeqRef.current += 1;
-    setApplyState({ status: "idle" });
-    setState((previous) => (previous.status === "idle" ? previous : { status: "idle" }));
+    queueMicrotask(() => {
+      if (!active) return;
+      setApplyState({ status: "idle" });
+      setState((previous) => (previous.status === "idle" ? previous : { status: "idle" }));
+    });
+    return () => {
+      active = false;
+    };
   }, [selectionKey]);
 
   const handleGenerate = async () => {

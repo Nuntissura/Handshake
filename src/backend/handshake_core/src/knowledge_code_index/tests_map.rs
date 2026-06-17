@@ -26,6 +26,9 @@ use super::symbols::{ExtractedSymbol, SymbolKind};
 pub struct TestMapping {
     /// The test symbol's path (e.g. `tests::it_works`).
     pub test_symbol_path: String,
+    /// The symbol discriminator assigned by the extractor, when the test path is
+    /// not unique (e.g. duplicate JS/TS test titles).
+    pub test_disambiguator: Option<String>,
     /// Byte range of the test (evidence span source).
     pub start_byte: usize,
     pub end_byte: usize,
@@ -46,11 +49,10 @@ pub fn extract_test_mappings(
     let mut out = Vec::new();
     for symbol in symbols {
         let is_test = match tree.language {
-            CodeLanguage::Rust => symbol.kind == SymbolKind::Test,
-            // TS/JS: heuristic test functions named like test cases are not
-            // reliably symbols, so we map test-runner call blocks instead
-            // (handled below); skip non-Rust symbols here.
-            _ => false,
+            CodeLanguage::Rust
+            | CodeLanguage::TypeScript
+            | CodeLanguage::Tsx
+            | CodeLanguage::JavaScript => symbol.kind == SymbolKind::Test,
         };
         if !is_test {
             continue;
@@ -69,6 +71,7 @@ pub fn extract_test_mappings(
         }
         out.push(TestMapping {
             test_symbol_path: symbol.symbol_path.clone(),
+            test_disambiguator: symbol.disambiguator.clone(),
             start_byte: symbol.start_byte,
             end_byte: symbol.end_byte,
             start_line: symbol.start_line,
@@ -128,17 +131,25 @@ fn call_callee_name(tree: &ParsedTree, call: &AstNode, source: &str) -> Option<S
     match callee.kind.as_str() {
         "identifier" => tree.node_text(callee, source).map(|s| s.to_string()),
         "scoped_identifier" | "field_expression" | "member_expression" => {
-            // Take the last identifier child as the simple name.
-            tree.children_of(callee.index)
+            let ids: Vec<&str> = tree
+                .children_of(callee.index)
                 .filter(|c| {
                     matches!(
                         c.kind.as_str(),
                         "identifier" | "property_identifier" | "field_identifier"
                     )
                 })
-                .last()
-                .and_then(|c| tree.node_text(c, source))
-                .map(|s| s.to_string())
+                .filter_map(|c| tree.node_text(c, source))
+                .collect();
+            if tree.language != CodeLanguage::Rust
+                && ids.len() == 2
+                && matches!(ids[0], "describe" | "it" | "test")
+                && matches!(ids[1], "only" | "skip" | "todo")
+            {
+                return Some(ids[0].to_string());
+            }
+            // Take the last identifier child as the simple name.
+            ids.into_iter().last().map(|s| s.to_string())
         }
         _ => None,
     }
@@ -232,5 +243,115 @@ mod tests {
         let symbols = extract_symbols(&tree, src);
         let mappings = extract_test_mappings(&tree, src, &symbols);
         assert!(mappings.is_empty(), "{mappings:?}");
+    }
+
+    #[test]
+    fn maps_typescript_it_and_test_blocks_to_called_functions() {
+        let src = r#"
+import { describe, it, test, expect } from "vitest";
+
+export function compute(): number { return 1; }
+export function helper(): number { return 2; }
+
+describe("math", () => {
+    it("computes value", () => {
+        expect(compute()).toBe(1);
+    });
+    test("uses helper", () => {
+        helper();
+    });
+});
+"#;
+        let tree = CodeParserAdapter::new(CodeLanguage::TypeScript)
+            .parse(src)
+            .unwrap();
+        let symbols = extract_symbols(&tree, src);
+        let mappings = extract_test_mappings(&tree, src, &symbols);
+        assert_eq!(mappings.len(), 2, "{mappings:?}");
+
+        let compute = mappings
+            .iter()
+            .find(|m| m.test_symbol_path == "test.math.computes value")
+            .expect("compute test mapping");
+        assert_eq!(compute.referenced_names, vec!["compute".to_string()]);
+
+        let helper = mappings
+            .iter()
+            .find(|m| m.test_symbol_path == "test.math.uses helper")
+            .expect("helper test mapping");
+        assert_eq!(helper.referenced_names, vec!["helper".to_string()]);
+    }
+
+    #[test]
+    fn maps_typescript_runner_modifiers_without_modifier_false_edges() {
+        let src = r#"
+import { describe, it, expect } from "vitest";
+
+export function compute(): number { return 1; }
+export function only(): number { return 2; }
+
+describe("math", () => {
+    it.only("focused", () => {
+        expect(compute()).toBe(1);
+    });
+});
+"#;
+        let tree = CodeParserAdapter::new(CodeLanguage::TypeScript)
+            .parse(src)
+            .unwrap();
+        let symbols = extract_symbols(&tree, src);
+        let mappings = extract_test_mappings(&tree, src, &symbols);
+        assert_eq!(mappings.len(), 1, "{mappings:?}");
+        assert_eq!(
+            mappings[0].referenced_names,
+            vec!["compute".to_string()],
+            "runner modifier names must not resolve as product coverage: {mappings:?}"
+        );
+    }
+
+    #[test]
+    fn maps_javascript_test_runner_blocks_to_called_functions() {
+        let src = r#"
+import { describe, test } from "vitest";
+
+export function compute() { return 1; }
+
+describe("math", () => {
+    test("uses compute", () => {
+        compute();
+    });
+});
+"#;
+        let tree = CodeParserAdapter::new(CodeLanguage::JavaScript)
+            .parse(src)
+            .unwrap();
+        let symbols = extract_symbols(&tree, src);
+        let mappings = extract_test_mappings(&tree, src, &symbols);
+        assert_eq!(mappings.len(), 1, "{mappings:?}");
+        assert_eq!(mappings[0].test_symbol_path, "test.math.uses compute");
+        assert_eq!(mappings[0].referenced_names, vec!["compute".to_string()]);
+    }
+
+    #[test]
+    fn maps_tsx_test_runner_blocks_to_called_components() {
+        let src = r#"
+import { describe, it } from "vitest";
+
+export function Button() { return <button />; }
+
+describe("ui", () => {
+    it("renders button", () => {
+        Button();
+    });
+});
+"#;
+        let tree = CodeParserAdapter::new(CodeLanguage::Tsx)
+            .parse(src)
+            .unwrap();
+        let symbols = extract_symbols(&tree, src);
+        let mappings = extract_test_mappings(&tree, src, &symbols);
+        assert_eq!(mappings.len(), 1, "{mappings:?}");
+        assert_eq!(mappings[0].test_symbol_path, "test.ui.renders button");
+        assert_eq!(mappings[0].referenced_names, vec!["Button".to_string()]);
     }
 }

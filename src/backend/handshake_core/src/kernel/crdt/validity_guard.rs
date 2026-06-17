@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::context_slice::CrdtMaterializedFieldV1;
-use super::identity::{validate_crdt_workspace_identity, CrdtWorkspaceIdentityV1};
+use super::identity::{CrdtWorkspaceIdentityV1, validate_crdt_workspace_identity};
 
 pub const CRDT_SCHEMA_GUARD_CONTRACT_SCHEMA_ID: &str = "hsk.kernel.crdt_schema_guard@1";
 pub const CRDT_PROMOTION_VALIDATION_REPORT_SCHEMA_ID: &str =

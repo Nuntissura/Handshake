@@ -72,7 +72,9 @@ impl std::fmt::Display for KnowledgeStateVectorParseError {
             Self::MissingClockSeparator { entry } => {
                 write!(f, "state vector entry '{entry}' is missing '='")
             }
-            Self::EmptySite { entry } => write!(f, "state vector entry '{entry}' has an empty site"),
+            Self::EmptySite { entry } => {
+                write!(f, "state vector entry '{entry}' has an empty site")
+            }
             Self::BadSiteChar { entry, found } => write!(
                 f,
                 "state vector entry '{entry}' contains forbidden site character '{found}'"

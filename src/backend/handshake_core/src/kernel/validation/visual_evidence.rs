@@ -8,7 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::kernel::kb003_artifact_classes::{metadata_for, Kb003ArtifactClass};
+use crate::kernel::kb003_artifact_classes::{Kb003ArtifactClass, metadata_for};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

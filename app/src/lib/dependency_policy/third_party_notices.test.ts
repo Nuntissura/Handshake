@@ -13,6 +13,7 @@
 // Regenerate after dependency changes: pnpm run generate:third-party-notices
 
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

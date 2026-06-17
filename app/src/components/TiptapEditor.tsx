@@ -63,7 +63,7 @@ export function TiptapEditor(props: TiptapEditorProps) {
   // failure (DependencyFailureBanner shows it at the mount site) and the
   // editor renders nothing — booting an Editor without its schema would crash
   // into a blank surface.
-  const extensions = useMemo(buildGuardedDocumentExtensions, []);
+  const extensions = useMemo(() => buildGuardedDocumentExtensions(), []);
   if (extensions === null) return null;
   return <TiptapEditorInner extensions={extensions} {...props} />;
 }

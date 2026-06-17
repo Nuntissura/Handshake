@@ -7,11 +7,11 @@ use uuid::Uuid;
 use super::context_bundle::canonical_json_bytes;
 use super::model_adapter::ModelAdapterOutput;
 use super::{KernelError, KernelEventType, KernelResult};
-use crate::storage::artifacts::{
-    artifact_root_rel, write_file_artifact, ArtifactClassification, ArtifactLayer,
-    ArtifactManifest, ArtifactPayloadKind,
-};
 use crate::storage::EntityRef;
+use crate::storage::artifacts::{
+    ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+    artifact_root_rel, write_file_artifact,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ArtifactRecord {

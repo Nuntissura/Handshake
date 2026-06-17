@@ -76,8 +76,8 @@ mod tests {
     use crate::kernel::dcc_kb003_lane_wake::{DccKb003LaneWakeRowV1, LaneWakeReceiptV1};
     use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
     use crate::kernel::sandbox::dcc_projection::{
-        DccDenialSummaryV1, DccSandboxOutcome, DccSandboxProjectionV1,
-        DCC_SANDBOX_PROJECTION_FAMILY_ID,
+        DCC_SANDBOX_PROJECTION_FAMILY_ID, DccDenialSummaryV1, DccSandboxOutcome,
+        DccSandboxProjectionV1,
     };
     use crate::kernel::sandbox::policy::CapabilityDecision;
     use crate::kernel::sandbox::run::SandboxRunStatus;

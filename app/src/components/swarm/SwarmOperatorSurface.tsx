@@ -132,11 +132,17 @@ export function SwarmOperatorSurface({
   const [sessionOpenSignal, setSessionOpenSignal] = useState(0);
   const prevChatInstanceId = useRef<string | null>(null);
   useEffect(() => {
+    let active = true;
     const current = room.chatInstanceId;
     if (current && current !== prevChatInstanceId.current) {
-      setSessionOpenSignal((n) => n + 1);
+      queueMicrotask(() => {
+        if (active) setSessionOpenSignal((n) => n + 1);
+      });
     }
     prevChatInstanceId.current = current;
+    return () => {
+      active = false;
+    };
   }, [room.chatInstanceId]);
 
   // Resource budget badge: in-use/cap, or an exhausted chip.

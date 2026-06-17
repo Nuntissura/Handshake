@@ -17,8 +17,8 @@
 //         images inline up to HTML_INLINE_IMAGE_MAX_BYTES each and
 //         HTML_INLINE_TOTAL_MAX_BYTES per document; VIDEOS ARE NEVER INLINED
 //         (base64 blowup ×1.37 on multi-hundred-MB media makes the file
-//         unopenable) — a video keeps a reference-linked <video> plus a
-//         visible data-hs-inline-skipped="video_size_guard" notice.
+//         unopenable) — non-inlined media fails closed with a visible
+//         data-hs-export-error marker and no backend content URL in the file.
 //       * reference_linked — media elements reference the backend asset
 //         content URLs (file is small; needs the backend running to show
 //         media).
@@ -53,6 +53,7 @@ import { WP009_RICH_DOCUMENT_SCHEMA_VERSION } from "../tiptap/extension_set";
 import {
   assetContentUrl,
   isMediaEmbedKind,
+  MAX_SEQUENCE_ITEMS,
   parseAssetRefList,
   resolveEmbedAsset,
   type EmbedResolverContext,
@@ -241,6 +242,13 @@ async function renderMediaEmbeds(
     outcome.embedErrors.push({ refKind: plan.kind, refValue: plan.refValue, errorKind });
   };
 
+  const appendInlineNote = (plan: MediaExportPlan, reason: string, text: string) => {
+    const note = doc.createElement("span");
+    note.setAttribute("data-hs-inline-note", reason);
+    note.textContent = text;
+    plan.span.appendChild(note);
+  };
+
   const appendImage = async (
     plan: MediaExportPlan,
     parent: HTMLElement,
@@ -271,6 +279,9 @@ async function renderMediaEmbeds(
         } else {
           plan.span.setAttribute("data-hs-inline-skipped", inlined.skipped);
           outcome.inlineSkips.push({ refKind: plan.kind, refValue: assetId, reason: inlined.skipped });
+          markError(plan, inlined.skipped);
+          appendInlineNote(plan, inlined.skipped, " [image not inlined: size guard]");
+          return false;
         }
       } catch (error) {
         markError(plan, `content_fetch_failed:${error instanceof Error ? error.message : String(error)}`);
@@ -297,6 +308,20 @@ async function renderMediaEmbeds(
         markError(plan, resolution.errorKind);
         continue;
       }
+      if (mode === "self_contained") {
+        // Self-contained exports must not contain backend content URLs. Videos
+        // are intentionally not inlined, so they fail closed with a visible
+        // marker instead of a network-loading <video src>.
+        plan.span.setAttribute("data-hs-inline-skipped", "video_size_guard");
+        outcome.inlineSkips.push({
+          refKind: "video",
+          refValue: plan.refValue,
+          reason: "video_size_guard",
+        });
+        markError(plan, "video_size_guard");
+        appendInlineNote(plan, "video_size_guard", " [video not inlined: workspace asset required]");
+        continue;
+      }
       const video = doc.createElement("video");
       video.setAttribute("controls", "");
       // preload=none: an exported file must open with ZERO automatic network
@@ -306,25 +331,16 @@ async function renderMediaEmbeds(
       video.setAttribute("data-hs-asset-id", resolution.asset.asset_id);
       video.setAttribute("src", resolution.contentUrl);
       plan.span.appendChild(video);
-      if (mode === "self_contained") {
-        // DOCUMENTED GUARD: videos are never base64-inlined (module header).
-        plan.span.setAttribute("data-hs-inline-skipped", "video_size_guard");
-        outcome.inlineSkips.push({
-          refKind: "video",
-          refValue: plan.refValue,
-          reason: "video_size_guard",
-        });
-        const note = doc.createElement("span");
-        note.setAttribute("data-hs-inline-note", "video_size_guard");
-        note.textContent = " [video not inlined: references the workspace asset]";
-        plan.span.appendChild(note);
-      }
       continue;
     }
     // album / slideshow → ordered sequence of real images.
     const refs = parseAssetRefList(plan.refValue);
     if (refs.length === 0) {
       markError(plan, "empty_ref");
+      continue;
+    }
+    if (refs.length > MAX_SEQUENCE_ITEMS) {
+      markError(plan, "invalid_ref");
       continue;
     }
     const sequence = doc.createElement("span");

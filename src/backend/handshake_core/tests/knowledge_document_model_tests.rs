@@ -163,7 +163,7 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
         json!("See [[Deploy Guide]] and tag #ops and #release.");
     let saved = pg
         .db
-        .save_knowledge_rich_document_version(&created.rich_document_id, 1, v2.clone(), None)
+        .save_knowledge_rich_document_version(&created.rich_document_id, 1, v2.clone(), None, None, None)
         .await
         .expect("save v2");
     assert_eq!(saved.doc_version, 2);
@@ -464,7 +464,14 @@ async fn crash_recovery_reconstructs_document_from_postgres() {
         .expect("create");
     let saved = pg
         .db
-        .save_knowledge_rich_document_version(&created.rich_document_id, 1, mixed_document(), None)
+        .save_knowledge_rich_document_version(
+            &created.rich_document_id,
+            1,
+            mixed_document(),
+            None,
+            None,
+            None,
+        )
         .await
         .expect("save v2");
 
@@ -528,7 +535,7 @@ async fn crash_recovery_reconstructs_draft_writebox_state_from_postgres() {
     wip["content"][1]["content"][0]["text"] = json!("draft work in progress, not yet promoted");
     let saved = pg
         .db
-        .save_knowledge_rich_document_version(&created.rich_document_id, 1, wip.clone(), None)
+        .save_knowledge_rich_document_version(&created.rich_document_id, 1, wip.clone(), None, None, None)
         .await
         .expect("save draft v2");
     assert_eq!(saved.doc_version, 2);

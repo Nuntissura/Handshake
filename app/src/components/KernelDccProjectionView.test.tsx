@@ -275,6 +275,69 @@ it("keeps the app DCC surface projection-only", () => {
   expect(screen.queryByRole("button", { name: /mutate/i })).toBeNull();
 });
 
+it("marks the focused work-selection row for quick-switcher WP and MT targets", () => {
+  render(
+    <KernelDccProjectionView
+      surface={surface}
+      focusedWorkTarget={{ wpId: "WP-KERNEL-002", mtId: "MT-DCC-123" }}
+    />,
+  );
+
+  const focusedRow = screen.getByTestId("dcc.work_selection.row.work-backend-123");
+  expect(focusedRow).toHaveAttribute("data-focused", "true");
+  expect(focusedRow).toHaveTextContent("WP-KERNEL-002");
+  expect(focusedRow).toHaveTextContent("MT-DCC-123");
+});
+
+it("marks the focused work-selection row for suffix-bearing quick-switcher entity keys", () => {
+  render(
+    <KernelDccProjectionView
+      surface={surface}
+      focusedWorkTarget={{ wpId: "WP-KERNEL-002-GraphSearchAlpha", mtId: "MT-DCC-123-GraphSearchAlpha" }}
+    />,
+  );
+
+  expect(screen.getByTestId("dcc.work_selection.row.work-backend-123")).toHaveAttribute(
+    "data-focused",
+    "true",
+  );
+});
+
+it("marks only one work-selection row for WP-only quick-switcher targets", () => {
+  const multiRowSurface: KernelDccProjectionSurfaceV1 = {
+    ...surface,
+    work_items: [
+      {
+        ...surface.work_items[0],
+        work_id: "work-wp-aggregate",
+        wp_id: "WP-KERNEL-002",
+        mt_id: null,
+      },
+      {
+        ...surface.work_items[0],
+        work_id: "work-mt-a",
+        wp_id: "WP-KERNEL-002",
+        mt_id: "MT-DCC-A",
+      },
+      {
+        ...surface.work_items[0],
+        work_id: "work-mt-b",
+        wp_id: "WP-KERNEL-002",
+        mt_id: "MT-DCC-B",
+      },
+    ],
+  };
+
+  render(<KernelDccProjectionView surface={multiRowSurface} focusedWorkTarget={{ wpId: "WP-KERNEL-002" }} />);
+
+  expect(screen.getByTestId("dcc.work_selection.row.work-wp-aggregate")).toHaveAttribute(
+    "data-focused",
+    "true",
+  );
+  expect(screen.getByTestId("dcc.work_selection.row.work-mt-a")).toHaveAttribute("data-focused", "false");
+  expect(screen.getByTestId("dcc.work_selection.row.work-mt-b")).toHaveAttribute("data-focused", "false");
+});
+
 it("triggers governed catalog actions through the provided API path", async () => {
   const onTriggerCatalogAction = vi.fn(async () => ({
     schema_id: "hsk.kernel.dcc_governed_action_trigger_result@1" as const,

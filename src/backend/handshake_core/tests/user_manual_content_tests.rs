@@ -34,11 +34,11 @@ use handshake_core::user_manual::bundle_bridge::{
     ensure_manual_page_entity, manual_bundle_candidate,
 };
 use handshake_core::user_manual::fixtures::{delete_page, insert_orphan_page, unreachable_pages};
-use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
-use handshake_core::user_manual::seed::ensure_seeded;
+use handshake_core::user_manual::freshness::{FreshnessVerdictKind, check_freshness};
+use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
 use handshake_core::user_manual::spec_seed::spec_enrichment_seed;
 use handshake_core::user_manual::store::UserManualStore;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::PathBuf;
 use user_manual_support::{app_state_for, start_server};
 
@@ -432,10 +432,12 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         "citation must carry the drift hash prefix: {citation}"
     );
     // The bundle itself is targeted at the manual page.
-    assert!(bundle
-        .allowed_context
-        .to_string()
-        .contains("user_manual_page"));
+    assert!(
+        bundle
+            .allowed_context
+            .to_string()
+            .contains("user_manual_page")
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +609,66 @@ fn mt207_spec_seed_anchors_exist_in_current_bundle() {
     }
 }
 
+/// MT-204/MT-207: the model-facing manual and the prepared spec seed must
+/// name the full freshness verdict vocabulary. Non-page corpus rows are now
+/// freshness authority too, so stale docs here would teach models to ignore
+/// tool, feature, or legacy-alias drift.
+#[test]
+fn mt204_freshness_docs_name_every_verdict_kind() {
+    let verdicts = [
+        FreshnessVerdictKind::Current.as_str(),
+        FreshnessVerdictKind::StaleContent.as_str(),
+        FreshnessVerdictKind::MissingPage.as_str(),
+        FreshnessVerdictKind::UncoveredSurface.as_str(),
+        FreshnessVerdictKind::DanglingAnchor.as_str(),
+        FreshnessVerdictKind::UnseededVersion.as_str(),
+        FreshnessVerdictKind::MissingToolEntry.as_str(),
+        FreshnessVerdictKind::StaleToolEntry.as_str(),
+        FreshnessVerdictKind::MissingFeatureEntry.as_str(),
+        FreshnessVerdictKind::StaleFeatureEntry.as_str(),
+        FreshnessVerdictKind::MissingLegacyAlias.as_str(),
+        FreshnessVerdictKind::StaleLegacyAlias.as_str(),
+    ];
+
+    let corpus = seed_corpus();
+    let manual = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "usermanual-surface")
+        .expect("usermanual surface page seeded");
+    let manual_text = manual
+        .sections
+        .iter()
+        .map(|section| section.body_md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let spec_text = spec_enrichment_seed()
+        .iter()
+        .find(|row| row.seed_id == "UMSPEC-002")
+        .expect("UMSPEC-002 seed row")
+        .proposed_wording_md;
+
+    for verdict in verdicts {
+        assert!(
+            manual_text.contains(verdict),
+            "seeded usermanual-surface page must document freshness verdict {verdict}"
+        );
+        assert!(
+            spec_text.contains(verdict),
+            "UMSPEC-002 must document freshness verdict {verdict}"
+        );
+    }
+
+    assert!(
+        manual_text.contains("changed pages, tool entries, feature entries, and legacy aliases"),
+        "recovery guidance must say resync covers non-page corpus rows"
+    );
+    assert!(
+        !manual_text.contains("only changed pages are written"),
+        "recovery guidance must not claim resync writes only pages"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-208 fixtures (the families not already driven by the API tests).
 // ---------------------------------------------------------------------------
@@ -665,11 +727,13 @@ async fn mt208_legacy_redirect_fixture() {
         .expect("model_manual_get maps");
     assert_eq!(alias.canonical_kind, "route");
     assert_eq!(alias.canonical_ref, "/usermanual/legacy/model-manual");
-    assert!(store
-        .get_legacy_alias("model_manual_get_v2_definitely_unknown")
-        .await
-        .expect("unknown alias query")
-        .is_none());
+    assert!(
+        store
+            .get_legacy_alias("model_manual_get_v2_definitely_unknown")
+            .await
+            .expect("unknown alias query")
+            .is_none()
+    );
 }
 
 /// MT-208: visual-navigation fixture — an orphan page (nothing links to it)

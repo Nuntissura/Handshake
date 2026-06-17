@@ -13,13 +13,26 @@ import path from "node:path";
 // Playwright transpiles these files to CJS — import.meta is unavailable).
 const repoRoot = path.resolve(__dirname, "..", "..");
 const appDir = path.join(repoRoot, "app");
-const harnessIndex = path.join(appDir, "dist-harness", "harness", "dependency-policy.html");
+const harnessDir = path.join(appDir, "dist-harness", "harness");
+const requiredHarnesses = [
+  "dependency-policy.html",
+  "rich-editor.html",
+  "rich-editor-embeds.html",
+  "rich-editor-collaboration.html",
+  "rich-document-diff.html",
+  "editor-draft-recovery.html",
+  "mt249-code-intelligence.html",
+].map((fileName) => path.join(harnessDir, fileName));
+
+function allHarnessesExist(): boolean {
+  return requiredHarnesses.every((harnessPath) => existsSync(harnessPath));
+}
 
 export default function globalSetup(): void {
-  if (process.env.HARNESS_SKIP_BUILD === "1" && existsSync(harnessIndex)) {
+  if (process.env.HARNESS_SKIP_BUILD === "1" && allHarnessesExist()) {
     return;
   }
-  if (existsSync(harnessIndex) && process.env.HARNESS_FORCE_BUILD !== "1") {
+  if (allHarnessesExist() && process.env.HARNESS_FORCE_BUILD !== "1") {
     // Reuse the existing build; `pnpm run build:harness` refreshes it.
     return;
   }
@@ -43,7 +56,8 @@ export default function globalSetup(): void {
   if (result.status !== 0) {
     throw new Error(`harness build failed with exit code ${result.status}`);
   }
-  if (!existsSync(harnessIndex)) {
-    throw new Error(`harness build produced no ${harnessIndex}`);
+  const missing = requiredHarnesses.filter((harnessPath) => !existsSync(harnessPath));
+  if (missing.length > 0) {
+    throw new Error(`harness build missing expected outputs: ${missing.join(", ")}`);
   }
 }

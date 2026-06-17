@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use super::identity::CrdtWorkspaceIdentityV1;
 use super::persistence::{
-    sha256_hex, validate_crdt_update_record, CrdtReplayStepV1, CrdtStorageAuthorityPosture,
-    CrdtUpdateRecordV1, CrdtUpdateRecordValidationError,
+    CrdtReplayStepV1, CrdtStorageAuthorityPosture, CrdtUpdateRecordV1,
+    CrdtUpdateRecordValidationError, sha256_hex, validate_crdt_update_record,
 };
 
 pub const CRDT_SNAPSHOT_RECORD_SCHEMA_ID: &str = "hsk.kernel.crdt_snapshot_record@1";

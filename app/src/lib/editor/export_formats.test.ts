@@ -32,7 +32,7 @@ import {
   HTML_INLINE_IMAGE_MAX_BYTES,
   EXPORT_FORMATS,
 } from "./export_formats";
-import type { EmbedAssetMetadata, EmbedResolverContext } from "./embed_assets";
+import { MAX_SEQUENCE_ITEMS, type EmbedAssetMetadata, type EmbedResolverContext } from "./embed_assets";
 
 const WS = "ws-export";
 const BASE = "http://127.0.0.1:9";
@@ -173,6 +173,31 @@ describe("HTML primary projection (DEC-003)", () => {
     expect(String(codeBlock?.attrs?.code)).toBe(TRICKY_CODE);
   });
 
+  it("imports from data-hs-* semantics when legacy render attributes are absent", async () => {
+    const original = normalize(SOURCE_DOC);
+    const context = embedContextWith({ "img-1": { metadata: asset("img-1", "image/png"), bytes: PNG_BYTES } });
+    const { html } = await exportHtml(original, { mode: "reference_linked", embedContext: context });
+    const dom = new DOMParser().parseFromString(html, "text/html");
+
+    for (const span of Array.from(dom.querySelectorAll("span[data-hs-node='hsLink']"))) {
+      span.removeAttribute("data-testid");
+      span.removeAttribute("data-ref-kind");
+      span.removeAttribute("data-ref-value");
+      span.removeAttribute("data-label");
+      span.removeAttribute("data-resolved");
+    }
+    for (const pre of Array.from(dom.querySelectorAll("pre[data-hs-node='monacoCodeBlock']"))) {
+      pre.removeAttribute("data-testid");
+      pre.removeAttribute("data-language");
+      pre.removeAttribute("data-code");
+      pre.removeAttribute("data-rt-hash");
+      pre.querySelector("code")?.removeAttribute("data-language");
+    }
+
+    const reimported = normalize(importHtml(`<!doctype html>\n${dom.documentElement.outerHTML}`));
+    expect(reimported).toEqual(original);
+  });
+
   it("stamps data-hs-* typed semantics on links, embeds, code blocks, and the document", async () => {
     const { html } = await exportHtml(normalize(SOURCE_DOC), {
       mode: "reference_linked",
@@ -221,7 +246,7 @@ describe("HTML primary projection (DEC-003)", () => {
     expect(img?.getAttribute("src")).toBe(`${BASE}/workspaces/${WS}/assets/img-1/content`);
   });
 
-  it("never inlines videos in self-contained mode (documented size guard)", async () => {
+  it("fails closed for videos in self-contained mode instead of emitting backend URLs", async () => {
     const doc: JSONContent = {
       type: "doc",
       content: [
@@ -236,9 +261,11 @@ describe("HTML primary projection (DEC-003)", () => {
     });
     const result = await exportHtml(normalize(doc), { mode: "self_contained", embedContext: context });
     const dom = new DOMParser().parseFromString(result.html, "text/html");
-    const video = dom.querySelector("span[data-hs-ref-kind='video'] video");
-    expect(video?.getAttribute("src")).toBe(`${BASE}/workspaces/${WS}/assets/vid-1/content`);
-    expect(video?.getAttribute("src")).not.toContain("data:");
+    const span = dom.querySelector("span[data-hs-ref-kind='video']");
+    expect(dom.querySelector("span[data-hs-ref-kind='video'] video")).toBeNull();
+    expect(result.html).not.toContain(`${BASE}/workspaces/${WS}/assets/vid-1/content`);
+    expect(span?.getAttribute("data-hs-export-error")).toBe("video_size_guard");
+    expect(result.embedErrors).toContainEqual({ refKind: "video", refValue: "vid-1", errorKind: "video_size_guard" });
     expect(result.inlineSkips).toContainEqual({ refKind: "video", refValue: "vid-1", reason: "video_size_guard" });
     expect(dom.querySelector("span[data-hs-inline-skipped='video_size_guard']")).toBeTruthy();
     expect(dom.querySelector("span[data-hs-inline-note]")?.textContent).toContain("not inlined");
@@ -261,7 +288,14 @@ describe("HTML primary projection (DEC-003)", () => {
       },
     });
     const result = await exportHtml(normalize(doc), { mode: "self_contained", embedContext: context });
+    const dom = new DOMParser().parseFromString(result.html, "text/html");
     expect(result.inlineSkips).toContainEqual({ refKind: "images", refValue: "huge-1", reason: "image_size_guard" });
+    expect(result.embedErrors).toContainEqual({ refKind: "images", refValue: "huge-1", errorKind: "image_size_guard" });
+    expect(dom.querySelector("span[data-hs-ref-kind='images'] img")).toBeNull();
+    expect(dom.querySelector("span[data-hs-ref-kind='images']")?.getAttribute("data-hs-export-error")).toBe(
+      "image_size_guard",
+    );
+    expect(result.html).not.toContain(`${BASE}/workspaces/${WS}/assets/huge-1/content`);
     // The metadata endpoint was hit, the CONTENT endpoint was not.
     const fetchImpl = context.fetchImpl as ReturnType<typeof vi.fn>;
     const urls = fetchImpl.mock.calls.map((call) => String(call[0]));
@@ -269,7 +303,7 @@ describe("HTML primary projection (DEC-003)", () => {
     expect(urls.some((url) => url.endsWith("/assets/huge-1/content"))).toBe(false);
   });
 
-  it("falls back to reference-linking for an image over the per-image cap", async () => {
+  it("fails closed for an image over the per-image cap after content fetch", async () => {
     const big = new Uint8Array(HTML_INLINE_IMAGE_MAX_BYTES + 1);
     const doc: JSONContent = {
       type: "doc",
@@ -283,9 +317,13 @@ describe("HTML primary projection (DEC-003)", () => {
     const context = embedContextWith({ "big-1": { metadata: asset("big-1", "image/png"), bytes: big } });
     const result = await exportHtml(normalize(doc), { mode: "self_contained", embedContext: context });
     const dom = new DOMParser().parseFromString(result.html, "text/html");
-    const img = dom.querySelector("span[data-hs-ref-kind='images'] img");
-    expect(img?.getAttribute("src")).toBe(`${BASE}/workspaces/${WS}/assets/big-1/content`);
+    expect(dom.querySelector("span[data-hs-ref-kind='images'] img")).toBeNull();
+    expect(dom.querySelector("span[data-hs-ref-kind='images']")?.getAttribute("data-hs-export-error")).toBe(
+      "image_size_guard",
+    );
+    expect(result.html).not.toContain(`${BASE}/workspaces/${WS}/assets/big-1/content`);
     expect(result.inlineSkips).toContainEqual({ refKind: "images", refValue: "big-1", reason: "image_size_guard" });
+    expect(result.embedErrors).toContainEqual({ refKind: "images", refValue: "big-1", errorKind: "image_size_guard" });
     expect(result.inlinedBytes).toBe(0);
   });
 
@@ -324,6 +362,29 @@ describe("HTML primary projection (DEC-003)", () => {
     expect(imgs.length).toBe(2);
     expect(imgs[0].getAttribute("data-hs-asset-id")).toBe("s-1");
     expect(imgs[1].getAttribute("data-hs-asset-id")).toBe("s-2");
+  });
+
+  it("fails closed before resolving oversized album/slideshow sequences", async () => {
+    const refs = Array.from({ length: MAX_SEQUENCE_ITEMS + 1 }, (_, index) => `s-${index + 1}`);
+    const doc: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "hsLink", attrs: { refKind: "slideshow", refValue: refs.join(","), label: "too many", resolved: true } },
+          ],
+        },
+      ],
+    };
+    const context = embedContextWith({});
+    const result = await exportHtml(normalize(doc), { mode: "reference_linked", embedContext: context });
+    const dom = new DOMParser().parseFromString(result.html, "text/html");
+    const span = dom.querySelector("span[data-hs-ref-kind='slideshow']");
+    expect(span?.getAttribute("data-hs-export-error")).toBe("invalid_ref");
+    expect(span?.querySelector("span[data-hs-sequence]")).toBeNull();
+    expect(result.embedErrors).toContainEqual({ refKind: "slideshow", refValue: refs.join(","), errorKind: "invalid_ref" });
+    expect(context.fetchImpl).toHaveBeenCalledTimes(0);
   });
 });
 

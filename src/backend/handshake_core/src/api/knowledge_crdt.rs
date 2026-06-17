@@ -29,9 +29,12 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::kernel::crdt::conflict_ui::{compute_conflict_ui_state, ConflictUiStateV1};
+use crate::kernel::crdt::save_semantics::{
+    save_rich_document_draft, KnowledgeDraftSaveOutcomeV1, KnowledgeSaveDecisionV1,
+};
 use crate::kernel::crdt::yjs_bridge::{
-    pull_yjs_updates, push_yjs_update, read_draft_head, YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
-    YjsUpdatePullResponseV1,
+    pull_yjs_updates, read_draft_head, YjsPushDenialReasonV1, YjsPushDenialV1, YjsPushOutcomeV1,
+    YjsUpdateEnvelopeV1, YjsUpdatePullResponseV1, YJS_PUSH_DENIAL_SCHEMA_ID,
 };
 use crate::storage::knowledge_crdt::list_denial_receipts_for_document;
 use crate::storage::Database;
@@ -148,8 +151,9 @@ async fn push_update(
         ),
         "push_update",
     );
-    match push_yjs_update(state.db.as_ref(), &envelope).await {
-        Ok(result) => {
+    match save_rich_document_draft(state.db.as_ref(), &state.pool, &envelope).await {
+        Ok(outcome) => {
+            let result = yjs_push_outcome_from_draft_outcome(&envelope, outcome);
             let status = match &result {
                 YjsPushOutcomeV1::Stored { .. } | YjsPushOutcomeV1::AlreadyStored { .. } => {
                     StatusCode::OK
@@ -165,6 +169,80 @@ async fn push_update(
                 message: error.to_string(),
             }),
         )),
+    }
+}
+
+fn yjs_push_outcome_from_draft_outcome(
+    envelope: &YjsUpdateEnvelopeV1,
+    outcome: KnowledgeDraftSaveOutcomeV1,
+) -> YjsPushOutcomeV1 {
+    match outcome {
+        KnowledgeDraftSaveOutcomeV1::Accepted {
+            update_seq,
+            update_id,
+            event_ledger_event_id,
+            head_state_vector,
+        } => YjsPushOutcomeV1::Stored {
+            update_seq,
+            update_id,
+            event_ledger_event_id,
+            head_state_vector,
+        },
+        KnowledgeDraftSaveOutcomeV1::AlreadyApplied {
+            update_seq,
+            update_id,
+            event_ledger_event_id,
+            head_state_vector,
+        } => YjsPushOutcomeV1::AlreadyStored {
+            update_seq,
+            update_id,
+            event_ledger_event_id,
+            head_state_vector,
+        },
+        KnowledgeDraftSaveOutcomeV1::Conflict {
+            decision,
+            head_update_seq,
+            head_state_vector,
+            ..
+        } => denied_push_outcome(
+            envelope,
+            YjsPushDenialReasonV1::StaleBase {
+                head_update_seq,
+                head_state_vector,
+                ordering: yjs_ordering_for_save_decision(&decision).to_string(),
+            },
+        ),
+        KnowledgeDraftSaveOutcomeV1::Rejected { reason } => denied_push_outcome(envelope, reason),
+        KnowledgeDraftSaveOutcomeV1::LeaseDenied { denial } => denied_push_outcome(
+            envelope,
+            YjsPushDenialReasonV1::EnvelopeInvalid {
+                messages: vec![format!("lease write denied: {:?}", denial.reason)],
+            },
+        ),
+    }
+}
+
+fn denied_push_outcome(
+    envelope: &YjsUpdateEnvelopeV1,
+    reason: YjsPushDenialReasonV1,
+) -> YjsPushOutcomeV1 {
+    YjsPushOutcomeV1::Denied {
+        denial: YjsPushDenialV1 {
+            schema_id: YJS_PUSH_DENIAL_SCHEMA_ID.to_string(),
+            crdt_document_id: envelope.crdt_document_id.clone(),
+            update_id: envelope.update_id.clone(),
+            actor_id: envelope.actor_id.clone(),
+            reason,
+        },
+    }
+}
+
+fn yjs_ordering_for_save_decision(decision: &KnowledgeSaveDecisionV1) -> &'static str {
+    match decision {
+        KnowledgeSaveDecisionV1::FastForward => "Equal",
+        KnowledgeSaveDecisionV1::StaleWrite { .. } => "Dominates",
+        KnowledgeSaveDecisionV1::AheadOfHead { .. } => "DominatedBy",
+        KnowledgeSaveDecisionV1::ConcurrentFork { .. } => "Concurrent",
     }
 }
 

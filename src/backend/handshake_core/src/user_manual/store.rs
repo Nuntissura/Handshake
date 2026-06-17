@@ -7,6 +7,8 @@
 //! The compiled-in seed corpus (`super::seed`) is the deterministic input;
 //! rendered markdown/HTML are projections. All list reads are bounded.
 
+use std::collections::BTreeSet;
+
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -15,7 +17,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
 use crate::storage::{Database, StorageError, StorageResult};
 
 /// Bound for list/search reads (matches the knowledge API convention).
@@ -198,6 +200,45 @@ pub fn sha256_hex(input: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+fn section_rows_match_seed(stored: &[UserManualSection], expected: &[NewManualSection]) -> bool {
+    stored.len() == expected.len()
+        && stored
+            .iter()
+            .zip(expected)
+            .enumerate()
+            .all(|(position, (stored, expected))| {
+                stored.position == position as i32
+                    && stored.section_kind.as_str() == expected.section_kind
+                    && stored.title.as_str() == expected.title.as_str()
+                    && stored.body_md.as_str() == expected.body_md.as_str()
+                    && stored.body_json.as_ref() == expected.body_json.as_ref()
+            })
+}
+
+fn anchor_rows_match_seed(stored: &[UserManualAnchor], expected: &[NewManualAnchor]) -> bool {
+    let stored_keys: BTreeSet<_> = stored
+        .iter()
+        .map(|anchor| {
+            (
+                anchor.anchor_kind.as_str(),
+                anchor.anchor_value.as_str(),
+                anchor.http_method.as_str(),
+            )
+        })
+        .collect();
+    let expected_keys: BTreeSet<_> = expected
+        .iter()
+        .map(|anchor| {
+            (
+                anchor.anchor_kind,
+                anchor.anchor_value.as_str(),
+                anchor.http_method,
+            )
+        })
+        .collect();
+    stored_keys == expected_keys
+}
+
 // ---------------------------------------------------------------------------
 // Store.
 // ---------------------------------------------------------------------------
@@ -220,13 +261,13 @@ impl<'a> UserManualStore<'a> {
     /// Append a `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` EventLedger receipt for
     /// a manual mutation. Returns the event id for the row's
     /// `ledger_event_id`.
-    pub async fn append_manual_receipt(
+    fn manual_receipt_event(
         &self,
         action: &str,
         subject: &str,
         payload: Value,
-    ) -> StorageResult<String> {
-        let event = NewKernelEvent::builder(
+    ) -> StorageResult<NewKernelEvent> {
+        NewKernelEvent::builder(
             format!("UM-{}", Uuid::now_v7()),
             format!("UMS-{}", Uuid::now_v7()),
             KernelEventType::KnowledgeUserManualEntryRecorded,
@@ -241,7 +282,16 @@ impl<'a> UserManualStore<'a> {
             "detail": payload,
         }))
         .build()
-        .map_err(|_| StorageError::Validation("user manual receipt event invalid"))?;
+        .map_err(|_| StorageError::Validation("user manual receipt event invalid"))
+    }
+
+    pub async fn append_manual_receipt(
+        &self,
+        action: &str,
+        subject: &str,
+        payload: Value,
+    ) -> StorageResult<String> {
+        let event = self.manual_receipt_event(action, subject, payload)?;
         let recorded = self.db.append_kernel_event(event).await?;
         Ok(recorded.event_id)
     }
@@ -250,7 +300,7 @@ impl<'a> UserManualStore<'a> {
 
     /// Idempotent page upsert keyed on `slug`. Returns `(page_id, changed)`:
     /// `changed == false` means the stored row already matches the seed —
-    /// content hash AND child-row counts (a tampered/partially-deleted
+    /// content hash AND child-row content (a tampered/partially-deleted
     /// section or anchor set is NOT current even when the page hash matches,
     /// so resync heals it). On change, sections and anchors are replaced
     /// transactionally and a receipt is appended. The page row write is a
@@ -263,58 +313,38 @@ impl<'a> UserManualStore<'a> {
         status: &str,
     ) -> StorageResult<(String, bool)> {
         let content_hash = page.content_hash();
-        let existing: Option<(String, String)> = sqlx::query(
-            "SELECT page_id, content_hash FROM user_manual_pages WHERE slug = $1",
-        )
-        .bind(&page.slug)
-        .fetch_optional(self.db.pool())
-        .await?
-        .map(|row| (row.get("page_id"), row.get("content_hash")));
+        let existing: Option<(String, String)> =
+            sqlx::query("SELECT page_id, content_hash FROM user_manual_pages WHERE slug = $1")
+                .bind(&page.slug)
+                .fetch_optional(self.db.pool())
+                .await?
+                .map(|row| (row.get("page_id"), row.get("content_hash")));
 
         if let Some((page_id, stored_hash)) = &existing {
-            if stored_hash == &content_hash {
-                let (section_count, anchor_count): (i64, i64) = {
-                    let row = sqlx::query(
-                        r#"
-                        SELECT
-                          (SELECT COUNT(*) FROM user_manual_sections WHERE page_id = $1) AS sections,
-                          (SELECT COUNT(*) FROM user_manual_anchors WHERE page_id = $1) AS anchors
-                        "#,
-                    )
-                    .bind(page_id)
-                    .fetch_one(self.db.pool())
-                    .await?;
-                    (row.get("sections"), row.get("anchors"))
-                };
-                // Anchors dedupe on (kind, value, method); compare against the
-                // deduped expectation.
-                let expected_anchors = page
-                    .anchors
-                    .iter()
-                    .map(|a| (a.anchor_kind, a.anchor_value.as_str(), a.http_method))
-                    .collect::<std::collections::BTreeSet<_>>()
-                    .len();
-                if section_count as usize == page.sections.len()
-                    && anchor_count as usize == expected_anchors
-                {
-                    return Ok((page_id.clone(), false));
-                }
+            if stored_hash == &content_hash
+                && self.page_child_rows_match_seed(page_id, page).await?
+            {
+                return Ok((page_id.clone(), false));
             }
         }
 
-        let receipt_id = self
-            .append_manual_receipt(
-                if existing.is_some() { "page_updated" } else { "page_seeded" },
-                &page.slug,
-                json!({
-                    "content_hash": content_hash,
-                    "manual_version": manual_version,
-                    "page_kind": page.page_kind,
-                }),
-            )
-            .await?;
-
         let mut tx = self.db.pool().begin().await?;
+        let receipt_event = self.manual_receipt_event(
+            if existing.is_some() {
+                "page_updated"
+            } else {
+                "page_seeded"
+            },
+            &page.slug,
+            json!({
+                "content_hash": content_hash,
+                "manual_version": manual_version,
+                "page_kind": page.page_kind,
+            }),
+        )?;
+        let receipt_id = append_kernel_event_with_executor(&mut *tx, receipt_event)
+            .await?
+            .event_id;
         let page_id: String = sqlx::query(
             r#"
             INSERT INTO user_manual_pages (
@@ -400,11 +430,29 @@ impl<'a> UserManualStore<'a> {
         Ok((page_id, true))
     }
 
+    pub(crate) async fn page_child_rows_match_seed(
+        &self,
+        page_id: &str,
+        page: &NewUserManualPage,
+    ) -> StorageResult<bool> {
+        let sections = self.sections_for(page_id).await?;
+        if !section_rows_match_seed(&sections, &page.sections) {
+            return Ok(false);
+        }
+        let anchors = self.anchors_for(page_id).await?;
+        Ok(anchor_rows_match_seed(&anchors, &page.anchors))
+    }
+
     pub async fn get_page_by_slug(
         &self,
         slug: &str,
-    ) -> StorageResult<Option<(UserManualPage, Vec<UserManualSection>, Vec<UserManualAnchor>)>>
-    {
+    ) -> StorageResult<
+        Option<(
+            UserManualPage,
+            Vec<UserManualSection>,
+            Vec<UserManualAnchor>,
+        )>,
+    > {
         let Some(row) = sqlx::query(
             r#"
             SELECT page_id, slug, title, page_kind, audience, body, content_hash,
@@ -647,14 +695,8 @@ impl<'a> UserManualStore<'a> {
     // -- tool entries ----------------------------------------------------------
 
     pub async fn upsert_tool_entry(&self, entry: &UserManualToolEntry) -> StorageResult<bool> {
-        let stored: Option<String> = sqlx::query(
-            "SELECT content_hash FROM user_manual_tool_entries WHERE tool_id = $1",
-        )
-        .bind(&entry.tool_id)
-        .fetch_optional(self.db.pool())
-        .await?
-        .map(|row| row.get("content_hash"));
-        if stored.as_deref() == Some(entry.content_hash.as_str()) {
+        let stored = self.get_tool_entry(&entry.tool_id).await?;
+        if stored.as_ref() == Some(entry) {
             return Ok(false);
         }
         sqlx::query(
@@ -709,7 +751,10 @@ impl<'a> UserManualStore<'a> {
         Ok(true)
     }
 
-    pub async fn get_tool_entry(&self, tool_id: &str) -> StorageResult<Option<UserManualToolEntry>> {
+    pub async fn get_tool_entry(
+        &self,
+        tool_id: &str,
+    ) -> StorageResult<Option<UserManualToolEntry>> {
         let row = sqlx::query(
             r#"
             SELECT tool_id, page_id, name, status, ipc_channel, tauri_command,
@@ -758,14 +803,8 @@ impl<'a> UserManualStore<'a> {
         &self,
         entry: &UserManualFeatureEntry,
     ) -> StorageResult<bool> {
-        let stored: Option<String> = sqlx::query(
-            "SELECT content_hash FROM user_manual_feature_entries WHERE feature_id = $1",
-        )
-        .bind(&entry.feature_id)
-        .fetch_optional(self.db.pool())
-        .await?
-        .map(|row| row.get("content_hash"));
-        if stored.as_deref() == Some(entry.content_hash.as_str()) {
+        let stored = self.get_feature_entry(&entry.feature_id).await?;
+        if stored.as_ref() == Some(entry) {
             return Ok(false);
         }
         sqlx::query(
@@ -796,6 +835,23 @@ impl<'a> UserManualStore<'a> {
         Ok(true)
     }
 
+    pub async fn get_feature_entry(
+        &self,
+        feature_id: &str,
+    ) -> StorageResult<Option<UserManualFeatureEntry>> {
+        let row = sqlx::query(
+            r#"
+            SELECT feature_id, title, description, tool_ids, origin,
+                   content_hash, manual_version
+            FROM user_manual_feature_entries WHERE feature_id = $1
+            "#,
+        )
+        .bind(feature_id)
+        .fetch_optional(self.db.pool())
+        .await?;
+        row.as_ref().map(feature_from_row).transpose()
+    }
+
     pub async fn list_feature_entries(
         &self,
         limit: i64,
@@ -811,24 +867,16 @@ impl<'a> UserManualStore<'a> {
         .bind(limit)
         .fetch_all(self.db.pool())
         .await?;
-        rows.iter()
-            .map(|row| {
-                Ok(UserManualFeatureEntry {
-                    feature_id: row.get("feature_id"),
-                    title: row.get("title"),
-                    description: row.get("description"),
-                    tool_ids: string_vec(row.get("tool_ids"))?,
-                    origin: row.get("origin"),
-                    content_hash: row.get("content_hash"),
-                    manual_version: row.get("manual_version"),
-                })
-            })
-            .collect()
+        rows.iter().map(feature_from_row).collect()
     }
 
     // -- legacy aliases -----------------------------------------------------------
 
-    pub async fn upsert_legacy_alias(&self, alias: &LegacyAliasRow) -> StorageResult<()> {
+    pub async fn upsert_legacy_alias(&self, alias: &LegacyAliasRow) -> StorageResult<bool> {
+        let stored = self.get_legacy_alias(&alias.alias).await?;
+        if stored.as_ref() == Some(alias) {
+            return Ok(false);
+        }
         sqlx::query(
             r#"
             INSERT INTO user_manual_legacy_aliases (
@@ -852,7 +900,7 @@ impl<'a> UserManualStore<'a> {
         .bind(&alias.manual_version)
         .execute(self.db.pool())
         .await?;
-        Ok(())
+        Ok(true)
     }
 
     pub async fn get_legacy_alias(&self, alias: &str) -> StorageResult<Option<LegacyAliasRow>> {
@@ -940,6 +988,51 @@ impl<'a> UserManualStore<'a> {
         Ok(())
     }
 
+    pub async fn record_version_with_receipt(
+        &self,
+        manual_version: &str,
+        seed_content_hash: &str,
+        page_count: i32,
+        tool_count: i32,
+        feature_count: i32,
+        receipt_payload: Value,
+        note: &str,
+    ) -> StorageResult<String> {
+        let mut tx = self.db.pool().begin().await?;
+        let receipt_event =
+            self.manual_receipt_event("corpus_seeded", manual_version, receipt_payload)?;
+        let receipt_id = append_kernel_event_with_executor(&mut *tx, receipt_event)
+            .await?
+            .event_id;
+        sqlx::query(
+            r#"
+            INSERT INTO user_manual_versions (
+                manual_version, seed_content_hash, page_count, tool_count,
+                feature_count, ledger_event_id, note
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+            ON CONFLICT (manual_version) DO UPDATE SET
+                seed_content_hash = EXCLUDED.seed_content_hash,
+                page_count = EXCLUDED.page_count,
+                tool_count = EXCLUDED.tool_count,
+                feature_count = EXCLUDED.feature_count,
+                ledger_event_id = EXCLUDED.ledger_event_id,
+                note = EXCLUDED.note,
+                seeded_at = NOW()
+            "#,
+        )
+        .bind(manual_version)
+        .bind(seed_content_hash)
+        .bind(page_count)
+        .bind(tool_count)
+        .bind(feature_count)
+        .bind(&receipt_id)
+        .bind(note)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(receipt_id)
+    }
+
     pub async fn get_version(
         &self,
         manual_version: &str,
@@ -1018,6 +1111,18 @@ fn tool_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<UserManualToolEnt
         schema_fields: string_vec(row.get("schema_fields"))?,
         common_errors: string_vec(row.get("common_errors"))?,
         recovery_steps: string_vec(row.get("recovery_steps"))?,
+        origin: row.get("origin"),
+        content_hash: row.get("content_hash"),
+        manual_version: row.get("manual_version"),
+    })
+}
+
+fn feature_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<UserManualFeatureEntry> {
+    Ok(UserManualFeatureEntry {
+        feature_id: row.get("feature_id"),
+        title: row.get("title"),
+        description: row.get("description"),
+        tool_ids: string_vec(row.get("tool_ids"))?,
         origin: row.get("origin"),
         content_hash: row.get("content_hash"),
         manual_version: row.get("manual_version"),

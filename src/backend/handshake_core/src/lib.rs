@@ -252,6 +252,9 @@ pub mod self_improve;
 pub mod session_checkpoint;
 #[cfg(feature = "runtime-full")]
 pub mod session_transcript;
+/// WP-KERNEL-009 MT-253: Handshake-native local git source-control backend.
+#[cfg(feature = "runtime-full")]
+pub mod source_control;
 #[cfg(feature = "runtime-full")]
 pub mod storage;
 #[cfg(feature = "runtime-full")]

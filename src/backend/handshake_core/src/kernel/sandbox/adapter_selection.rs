@@ -285,9 +285,11 @@ mod tests {
         assert_eq!(r.adapter.kind().tier, AdapterIsolationTier::Process);
         assert_eq!(hard.probes(), 1, "selection must not re-run runtime probes");
         assert_eq!(r.fallbacks.len(), 1);
-        assert!(r.fallbacks[0]
-            .availability_state
-            .contains("counting_hard_isolation=BLOCKED"));
+        assert!(
+            r.fallbacks[0]
+                .availability_state
+                .contains("counting_hard_isolation=BLOCKED")
+        );
     }
 
     #[test]

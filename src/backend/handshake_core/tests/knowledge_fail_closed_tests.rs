@@ -184,6 +184,8 @@ async fn every_knowledge_api_fails_closed_when_postgres_is_unavailable() {
             1,
             json!({"type": "doc", "content": []}),
             None,
+            None,
+            None,
         )
         .await,
     );

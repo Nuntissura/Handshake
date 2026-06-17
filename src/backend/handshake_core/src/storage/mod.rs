@@ -37,6 +37,35 @@ pub mod tests;
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
+pub const WORKBENCH_LAYOUT_SCHEMA_ID: &str = "hsk.workbench_layout_state@1";
+pub const WORKSPACE_SETTINGS_SCHEMA_ID: &str = "hsk.workspace_settings_state@1";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkbenchLayoutStateInput {
+    pub layout_state: Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkbenchLayoutState {
+    pub workspace_id: String,
+    pub layout_state: Value,
+    pub updated_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkspaceSettingsStateInput {
+    pub settings_state: Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WorkspaceSettingsState {
+    pub workspace_id: String,
+    pub settings_state: Value,
+    pub updated_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
@@ -532,7 +561,9 @@ pub mod artifacts {
         PathTraversalBlocked { path: String },
         #[error("write blocked: target escapes root: {path}")]
         RootEscape { path: String },
-        #[error("missing retention_ttl_days for high-sensitivity artifact: artifact_id={artifact_id} kind={kind:?}")]
+        #[error(
+            "missing retention_ttl_days for high-sensitivity artifact: artifact_id={artifact_id} kind={kind:?}"
+        )]
         MissingRetentionTtlDays {
             artifact_id: Uuid,
             kind: ArtifactPayloadKind,
@@ -696,7 +727,7 @@ pub mod artifacts {
                 Component::ParentDir | Component::Prefix(_) | Component::RootDir => {
                     return Err(ArtifactError::PathTraversalBlocked {
                         path: rel_path.to_string(),
-                    })
+                    });
                 }
                 _ => {}
             }
@@ -1419,9 +1450,7 @@ impl ModelSessionState {
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
-            ModelSessionState::Completed
-                | ModelSessionState::Failed
-                | ModelSessionState::Cancelled
+            ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
         )
     }
 }
@@ -1964,6 +1993,12 @@ pub trait Database: Send + Sync {
         ctx: &WriteContext,
         block: NewLoomBlock,
     ) -> StorageResult<LoomBlock>;
+    async fn get_or_create_daily_journal_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        journal_date: &str,
+    ) -> StorageResult<LoomBlock>;
     async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock>;
     async fn find_loom_block_by_content_hash(
         &self,
@@ -2054,6 +2089,70 @@ pub trait Database: Send + Sync {
         limit: u32,
         offset: u32,
     ) -> StorageResult<Vec<LoomBlockSearchResult>>;
+    async fn search_loom_graph(
+        &self,
+        workspace_id: &str,
+        query: &str,
+        filters: LoomSearchFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomGraphSearchResult>>;
+    async fn record_quick_switcher_recent(
+        &self,
+        _workspace_id: &str,
+        _input: QuickSwitcherRecentInput,
+    ) -> StorageResult<QuickSwitcherRecent> {
+        Err(StorageError::NotImplemented(
+            "quick switcher recents backend",
+        ))
+    }
+    async fn list_quick_switcher_recents(
+        &self,
+        _workspace_id: &str,
+        _limit: u32,
+    ) -> StorageResult<Vec<QuickSwitcherRecent>> {
+        Err(StorageError::NotImplemented(
+            "quick switcher recents backend",
+        ))
+    }
+    async fn get_workbench_layout_state(
+        &self,
+        _workspace_id: &str,
+    ) -> StorageResult<Option<WorkbenchLayoutState>> {
+        Err(StorageError::NotImplemented("workbench layout backend"))
+    }
+    async fn save_workbench_layout_state(
+        &self,
+        _workspace_id: &str,
+        _input: WorkbenchLayoutStateInput,
+    ) -> StorageResult<WorkbenchLayoutState> {
+        Err(StorageError::NotImplemented("workbench layout backend"))
+    }
+    async fn get_workspace_settings_state(
+        &self,
+        _workspace_id: &str,
+    ) -> StorageResult<Option<WorkspaceSettingsState>> {
+        Err(StorageError::NotImplemented("workspace settings backend"))
+    }
+    async fn save_workspace_settings_state(
+        &self,
+        _workspace_id: &str,
+        _input: WorkspaceSettingsStateInput,
+    ) -> StorageResult<WorkspaceSettingsState> {
+        Err(StorageError::NotImplemented("workspace settings backend"))
+    }
+
+    /// MT-191 LoomVisualDebugViews: bounded backend snapshot of graph,
+    /// backlink, folder, and search state for one reproducible debug context.
+    async fn loom_visual_debug_snapshot(
+        &self,
+        _workspace_id: &str,
+        _start_block_id: &str,
+        _query: &str,
+        _limit: u32,
+    ) -> StorageResult<LoomVisualDebugSnapshot> {
+        Err(StorageError::NotImplemented("loom visual-debug backend"))
+    }
 
     // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
     /// The single authority backend for the Loom surface. WP-KERNEL-009
@@ -2256,11 +2355,7 @@ pub trait Database: Send + Sync {
 
     /// Delete a folder and its subtree (membership rows cascade; the LoomBlocks
     /// themselves are untouched — folders are an overlay, not ownership).
-    async fn delete_loom_folder(
-        &self,
-        _workspace_id: &str,
-        _folder_id: &str,
-    ) -> StorageResult<()> {
+    async fn delete_loom_folder(&self, _workspace_id: &str, _folder_id: &str) -> StorageResult<()> {
         Err(StorageError::NotImplemented("loom folder backend"))
     }
 

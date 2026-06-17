@@ -42,9 +42,7 @@
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::flight_recorder::{
-    FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-};
+use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::model_runtime::cloud::agent_activity::{AgentActivity, AgentActivityKind};
 use crate::model_runtime::ModelId;
 use crate::terminal::redaction::SecretRedactor;
@@ -120,9 +118,7 @@ pub fn agent_activity_event(
             Some(redact_value(redactor, input)),
             None,
         ),
-        AgentActivity::Thinking { text } => {
-            (None, None, Some(redact_str(redactor, text)))
-        }
+        AgentActivity::Thinking { text } => (None, None, Some(redact_str(redactor, text))),
         AgentActivity::Text { text } => (None, None, Some(redact_str(redactor, text))),
         AgentActivity::Other { raw } => (None, None, Some(redact_str(redactor, raw))),
     };
@@ -165,13 +161,9 @@ pub fn agent_activity_event(
         _ => FlightRecorderEventType::System,
     };
 
-    let mut event = FlightRecorderEvent::new(
-        event_type,
-        FlightRecorderActor::Agent,
-        request_id,
-        payload,
-    )
-    .with_model_id(model_id.to_string());
+    let mut event =
+        FlightRecorderEvent::new(event_type, FlightRecorderActor::Agent, request_id, payload)
+            .with_model_id(model_id.to_string());
     if let Some(instance_id) = instance_id {
         event = event.with_session_span(instance_id.to_string());
     }
@@ -206,10 +198,7 @@ mod tests {
         );
         assert_eq!(ev.event_type, FlightRecorderEventType::ToolCall);
         assert_eq!(ev.session_span_id.as_deref(), Some("mid#0"));
-        assert_eq!(
-            ev.payload.get("event_id").unwrap(),
-            FR_EVT_AGENT_TOOLCALL
-        );
+        assert_eq!(ev.payload.get("event_id").unwrap(), FR_EVT_AGENT_TOOLCALL);
         assert_eq!(ev.payload.get("activity_kind").unwrap(), "tool_call");
         assert_eq!(ev.payload.get("name").unwrap(), "Bash");
         assert_eq!(ev.payload.get("instance_id").unwrap(), "mid#0");
@@ -285,7 +274,10 @@ mod tests {
             .and_then(|d| d.get("command"))
             .and_then(|v| v.as_str())
             .unwrap();
-        assert!(command.contains("REDACTED"), "secret must be redacted: {command}");
+        assert!(
+            command.contains("REDACTED"),
+            "secret must be redacted: {command}"
+        );
         assert!(!command.contains("supersecretvalue123"));
 
         let think = AgentActivity::Thinking {
@@ -301,7 +293,10 @@ mod tests {
             &PatternRedactor,
         );
         let text = ev2.payload.get("text").and_then(|v| v.as_str()).unwrap();
-        assert!(text.contains("REDACTED"), "thinking secret must be redacted: {text}");
+        assert!(
+            text.contains("REDACTED"),
+            "thinking secret must be redacted: {text}"
+        );
         assert!(!text.contains("hunter2value"));
     }
 

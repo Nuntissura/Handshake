@@ -46,14 +46,14 @@ use serde_json::json;
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::knowledge_crdt::{
-    self, insert_denial_receipt, new_denial_receipt_id, NewKnowledgeCrdtDenialReceipt,
-    NewPromotedFact, PromotedFactRow, PromotionSpanRejection, PromotionSpanValidation,
-};
 use crate::storage::Database;
+use crate::storage::knowledge_crdt::{
+    self, NewKnowledgeCrdtDenialReceipt, NewPromotedFact, PromotedFactRow, PromotionSpanRejection,
+    PromotionSpanValidation, insert_denial_receipt, new_denial_receipt_id,
+};
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
-use super::agent_lease::{new_ulid, LeaseFlowError};
+use super::agent_lease::{LeaseFlowError, new_ulid};
 
 pub const GRAPH_PROMOTION_DENIAL_SCHEMA_ID: &str = "hsk.kernel.knowledge_graph_promotion_denial@1";
 

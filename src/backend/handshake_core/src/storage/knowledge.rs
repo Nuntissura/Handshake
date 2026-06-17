@@ -1899,6 +1899,36 @@ pub struct KnowledgeRichDocumentVersionMeta {
     pub created_at: DateTime<Utc>,
 }
 
+/// Backend-persisted unsaved editor draft for crash recovery (MT-255). This is
+/// support state, not a promoted RichDocument revision.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeRichDocumentDraft {
+    pub rich_document_id: String,
+    pub workspace_id: String,
+    pub base_doc_version: i64,
+    pub base_content_sha256: String,
+    pub draft_content_json: Value,
+    pub draft_content_sha256: String,
+    pub actor_kind: String,
+    pub actor_id: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct UpsertKnowledgeRichDocumentDraft {
+    pub rich_document_id: String,
+    pub base_doc_version: i64,
+    pub base_content_sha256: String,
+    pub content_json: Value,
+    pub actor_kind: String,
+    pub actor_id: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+}
+
 /// A Monaco-backed code block embedded in a RichDocument.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct KnowledgeEditorCodeNode {
@@ -1961,6 +1991,29 @@ fn rich_document_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeRichDocument {
         authority_label: row.get("authority_label"),
         owner_actor_kind: row.get("owner_actor_kind"),
         owner_actor_id: row.get("owner_actor_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+const KNOWLEDGE_RICH_DOCUMENT_DRAFT_COLUMNS: &str = r#"
+    rich_document_id, workspace_id, base_doc_version, base_content_sha256,
+    draft_content_json, draft_content_sha256, actor_kind, actor_id,
+    kernel_task_run_id, session_run_id, created_at, updated_at
+"#;
+
+fn rich_document_draft_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeRichDocumentDraft {
+    KnowledgeRichDocumentDraft {
+        rich_document_id: row.get("rich_document_id"),
+        workspace_id: row.get("workspace_id"),
+        base_doc_version: row.get("base_doc_version"),
+        base_content_sha256: row.get("base_content_sha256"),
+        draft_content_json: row.get("draft_content_json"),
+        draft_content_sha256: row.get("draft_content_sha256"),
+        actor_kind: row.get("actor_kind"),
+        actor_id: row.get("actor_id"),
+        kernel_task_run_id: row.get("kernel_task_run_id"),
+        session_run_id: row.get("session_run_id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
@@ -2498,6 +2551,42 @@ fn validate_knowledge_idempotency_key(idempotency_key: &str) -> StorageResult<()
     Ok(())
 }
 
+const RICH_DOCUMENT_RESULT_REF_KIND: &str = "rich_document";
+const RICH_DOCUMENT_VERSION_RESULT_REF_KIND: &str = "rich_document_version";
+
+fn rich_document_version_result_ref_id(rich_document_id: &str, doc_version: i64) -> String {
+    format!("{rich_document_id}:{doc_version}")
+}
+
+fn parse_rich_document_version_result_ref_id(ref_id: &str) -> StorageResult<(String, i64)> {
+    let Some((rich_document_id, doc_version)) = ref_id.rsplit_once(':') else {
+        return Err(StorageError::Validation(
+            "rich document version idempotency result ref is malformed",
+        ));
+    };
+    if rich_document_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "rich document version idempotency result ref is missing document id",
+        ));
+    }
+    let doc_version = doc_version.parse::<i64>().map_err(|_| {
+        StorageError::Validation(
+            "rich document version idempotency result ref has malformed doc_version",
+        )
+    })?;
+    Ok((rich_document_id.to_string(), doc_version))
+}
+
+fn rich_document_crdt_id_change_requested(
+    existing_crdt_document_id: Option<&str>,
+    requested_crdt_document_id: Option<&str>,
+) -> bool {
+    matches!(
+        (existing_crdt_document_id, requested_crdt_document_id),
+        (Some(existing), Some(requested)) if existing != requested
+    )
+}
+
 /// Looks up a committed idempotency key. Same hash -> the prior result ref;
 /// different hash -> typed Conflict (divergent duplicate).
 async fn find_knowledge_idempotency_result(
@@ -2712,6 +2801,21 @@ pub trait KnowledgeStore: Send + Sync {
     /// Lists the evidence span ids an entity was detected from.
     async fn list_knowledge_entity_span_ids(&self, entity_id: &str) -> StorageResult<Vec<String>>;
 
+    /// Replaces the entity evidence spans scoped to one source and span kind.
+    ///
+    /// Normal entity upsert is merge-oriented because many knowledge entities
+    /// are legitimately supported by multiple spans. Code definitions are
+    /// different: a stable symbol re-detected in the same source must have one
+    /// current AST definition span, not every historical location.
+    async fn replace_knowledge_entity_spans_for_source_kind(
+        &self,
+        entity_id: &str,
+        source_id: &str,
+        span_kind: KnowledgeSpanKind,
+        evidence_span_ids: &[String],
+        detected_in_run: Option<&str>,
+    ) -> StorageResult<()>;
+
     /// Marks an entity retired (it stops participating in new detection).
     async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity>;
 
@@ -2879,6 +2983,21 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
     ) -> StorageResult<Option<KnowledgeRichDocument>>;
 
+    async fn get_knowledge_rich_document_draft(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocumentDraft>>;
+
+    async fn upsert_knowledge_rich_document_draft(
+        &self,
+        upsert: UpsertKnowledgeRichDocumentDraft,
+    ) -> StorageResult<KnowledgeRichDocumentDraft>;
+
+    async fn clear_knowledge_rich_document_draft(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<bool>;
+
     /// Optimistic-concurrency save: succeeds only when `expected_version`
     /// matches the current `doc_version`; bumps the version, recomputes the
     /// content hash, and appends the revision (with its EventLedger promotion
@@ -2889,6 +3008,8 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
         expected_version: i64,
         content_json: Value,
+        crdt_document_id: Option<&str>,
+        crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeRichDocument>;
 
@@ -3088,6 +3209,8 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
         expected_version: i64,
         content_json: Value,
+        crdt_document_id: Option<&str>,
+        crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>>;
 }
@@ -3117,6 +3240,8 @@ impl PostgresDatabase {
         rich_document_id: &str,
         expected_version: i64,
         content_json: &Value,
+        crdt_document_id: Option<&str>,
+        crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
         request_hash: &str,
     ) -> StorageResult<Option<KnowledgeRichDocument>> {
@@ -3129,9 +3254,13 @@ impl PostgresDatabase {
             SET doc_version = doc_version + 1,
                 content_json = $3,
                 content_sha256 = $4,
-                promotion_receipt_event_id = $5,
+                crdt_document_id = COALESCE($5, crdt_document_id),
+                crdt_snapshot_id = $6,
+                promotion_receipt_event_id = $7,
                 updated_at = NOW()
-            WHERE rich_document_id = $1 AND doc_version = $2
+            WHERE rich_document_id = $1
+              AND doc_version = $2
+              AND ($5::text IS NULL OR crdt_document_id IS NULL OR crdt_document_id = $5)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
@@ -3140,17 +3269,30 @@ impl PostgresDatabase {
             .bind(expected_version)
             .bind(content_json)
             .bind(&content_sha256)
+            .bind(crdt_document_id)
+            .bind(crdt_snapshot_id)
             .bind(promotion_receipt_event_id)
             .fetch_optional(&mut *tx)
             .await?;
         let Some(row) = row else {
-            let exists: Option<i64> = sqlx::query_scalar(
-                "SELECT doc_version FROM knowledge_rich_documents WHERE rich_document_id = $1",
+            let exists: Option<(i64, Option<String>)> = sqlx::query_as(
+                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents WHERE rich_document_id = $1",
             )
             .bind(rich_document_id)
             .fetch_optional(&mut *tx)
             .await?;
             return Err(match exists {
+                Some((current_version, existing_crdt_document_id))
+                    if current_version == expected_version
+                        && rich_document_crdt_id_change_requested(
+                            existing_crdt_document_id.as_deref(),
+                            crdt_document_id,
+                        ) =>
+                {
+                    StorageError::Validation(
+                        "knowledge rich document crdt_document_id cannot change once set",
+                    )
+                }
                 Some(_) => StorageError::Conflict(
                     "knowledge rich document version conflict: expected_version is stale",
                 ),
@@ -3183,8 +3325,8 @@ impl PostgresDatabase {
             &document.workspace_id,
             KnowledgeIdempotentOperationKind::RichDocumentSave,
             request_hash,
-            "rich_document",
-            &document.rich_document_id,
+            RICH_DOCUMENT_VERSION_RESULT_REF_KIND,
+            &rich_document_version_result_ref_id(&document.rich_document_id, document.doc_version),
         )
         .await?;
         if !claimed {
@@ -3848,6 +3990,81 @@ impl KnowledgeStore for PostgresDatabase {
             .into_iter()
             .map(|row| row.get::<String, _>("span_id"))
             .collect())
+    }
+
+    async fn replace_knowledge_entity_spans_for_source_kind(
+        &self,
+        entity_id: &str,
+        source_id: &str,
+        span_kind: KnowledgeSpanKind,
+        evidence_span_ids: &[String],
+        detected_in_run: Option<&str>,
+    ) -> StorageResult<()> {
+        let mut replacement_ids = evidence_span_ids.to_vec();
+        replacement_ids.sort();
+        replacement_ids.dedup();
+        if replacement_ids.is_empty() {
+            return Err(StorageError::Validation(
+                "replacement entity evidence spans must not be empty",
+            ));
+        }
+
+        let matching_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM knowledge_spans
+            WHERE source_id = $1
+              AND span_kind = $2
+              AND span_id = ANY($3)
+            "#,
+        )
+        .bind(source_id)
+        .bind(span_kind.as_str())
+        .bind(&replacement_ids)
+        .fetch_one(self.pool())
+        .await?;
+        if matching_count != replacement_ids.len() as i64 {
+            return Err(StorageError::Validation(
+                "replacement entity evidence spans must all exist on the requested source/kind",
+            ));
+        }
+
+        let mut tx = self.pool().begin().await?;
+        sqlx::query(
+            r#"
+            DELETE FROM knowledge_entity_spans es
+            USING knowledge_spans s
+            WHERE es.span_id = s.span_id
+              AND es.entity_id = $1
+              AND s.source_id = $2
+              AND s.span_kind = $3
+              AND NOT (es.span_id = ANY($4))
+            "#,
+        )
+        .bind(entity_id)
+        .bind(source_id)
+        .bind(span_kind.as_str())
+        .bind(&replacement_ids)
+        .execute(&mut *tx)
+        .await?;
+
+        for span_id in &replacement_ids {
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_entity_spans (entity_id, span_id, detected_in_run)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (entity_id, span_id)
+                DO UPDATE SET detected_in_run = EXCLUDED.detected_in_run
+                "#,
+            )
+            .bind(entity_id)
+            .bind(span_id)
+            .bind(detected_in_run)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity> {
@@ -4758,11 +4975,121 @@ impl KnowledgeStore for PostgresDatabase {
         Ok(row.as_ref().map(rich_document_from_pg))
     }
 
+    async fn get_knowledge_rich_document_draft(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocumentDraft>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_RICH_DOCUMENT_DRAFT_COLUMNS}
+             FROM knowledge_rich_document_drafts
+             WHERE rich_document_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.as_ref().map(rich_document_draft_from_pg))
+    }
+
+    async fn upsert_knowledge_rich_document_draft(
+        &self,
+        upsert: UpsertKnowledgeRichDocumentDraft,
+    ) -> StorageResult<KnowledgeRichDocumentDraft> {
+        if upsert.base_doc_version < 1 {
+            return Err(StorageError::Validation(
+                "knowledge rich document draft base_doc_version must be >= 1",
+            ));
+        }
+        if upsert.base_content_sha256.len() != 64
+            || !upsert
+                .base_content_sha256
+                .bytes()
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+        {
+            return Err(StorageError::Validation(
+                "knowledge rich document draft base_content_sha256 must be a sha256 hex digest",
+            ));
+        }
+        for value in [
+            upsert.actor_kind.as_str(),
+            upsert.actor_id.as_str(),
+            upsert.kernel_task_run_id.as_str(),
+            upsert.session_run_id.as_str(),
+        ] {
+            if value.trim() != value || value.is_empty() {
+                return Err(StorageError::Validation(
+                    "knowledge rich document draft identity fields must be non-empty and trimmed",
+                ));
+            }
+        }
+        if !matches!(
+            upsert.actor_kind.as_str(),
+            "operator" | "local_model" | "cloud_model" | "validator" | "system" | "unauthenticated"
+        ) {
+            return Err(StorageError::Validation(
+                "knowledge rich document draft actor_kind must be a document actor kind",
+            ));
+        }
+
+        let draft_content_sha256 = knowledge_canonical_json_sha256(&upsert.content_json);
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_rich_document_drafts
+                (rich_document_id, workspace_id, base_doc_version,
+                 base_content_sha256, draft_content_json, draft_content_sha256,
+                 actor_kind, actor_id, kernel_task_run_id, session_run_id)
+            SELECT $1, workspace_id, $2, $3, $4, $5, $6, $7, $8, $9
+            FROM knowledge_rich_documents
+            WHERE rich_document_id = $1
+            ON CONFLICT (rich_document_id) DO UPDATE
+            SET workspace_id = EXCLUDED.workspace_id,
+                base_doc_version = EXCLUDED.base_doc_version,
+                base_content_sha256 = EXCLUDED.base_content_sha256,
+                draft_content_json = EXCLUDED.draft_content_json,
+                draft_content_sha256 = EXCLUDED.draft_content_sha256,
+                actor_kind = EXCLUDED.actor_kind,
+                actor_id = EXCLUDED.actor_id,
+                kernel_task_run_id = EXCLUDED.kernel_task_run_id,
+                session_run_id = EXCLUDED.session_run_id,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_DRAFT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&upsert.rich_document_id)
+            .bind(upsert.base_doc_version)
+            .bind(&upsert.base_content_sha256)
+            .bind(&upsert.content_json)
+            .bind(&draft_content_sha256)
+            .bind(&upsert.actor_kind)
+            .bind(&upsert.actor_id)
+            .bind(&upsert.kernel_task_run_id)
+            .bind(&upsert.session_run_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        Ok(rich_document_draft_from_pg(&row))
+    }
+
+    async fn clear_knowledge_rich_document_draft(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<bool> {
+        let result =
+            sqlx::query("DELETE FROM knowledge_rich_document_drafts WHERE rich_document_id = $1")
+                .bind(rich_document_id)
+                .execute(self.pool())
+                .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
     async fn save_knowledge_rich_document_version(
         &self,
         rich_document_id: &str,
         expected_version: i64,
         content_json: Value,
+        crdt_document_id: Option<&str>,
+        crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeRichDocument> {
         let content_sha256 = knowledge_canonical_json_sha256(&content_json);
@@ -4774,9 +5101,13 @@ impl KnowledgeStore for PostgresDatabase {
             SET doc_version = doc_version + 1,
                 content_json = $3,
                 content_sha256 = $4,
-                promotion_receipt_event_id = $5,
+                crdt_document_id = COALESCE($5, crdt_document_id),
+                crdt_snapshot_id = $6,
+                promotion_receipt_event_id = $7,
                 updated_at = NOW()
-            WHERE rich_document_id = $1 AND doc_version = $2
+            WHERE rich_document_id = $1
+              AND doc_version = $2
+              AND ($5::text IS NULL OR crdt_document_id IS NULL OR crdt_document_id = $5)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
@@ -4785,19 +5116,32 @@ impl KnowledgeStore for PostgresDatabase {
             .bind(expected_version)
             .bind(&content_json)
             .bind(&content_sha256)
+            .bind(crdt_document_id)
+            .bind(crdt_snapshot_id)
             .bind(promotion_receipt_event_id)
             .fetch_optional(&mut *tx)
             .await?;
         let Some(row) = row else {
             // Distinguish a stale expected_version (typed Conflict, the
             // optimistic-concurrency fail-closed path) from a missing doc.
-            let exists: Option<i64> = sqlx::query_scalar(
-                "SELECT doc_version FROM knowledge_rich_documents WHERE rich_document_id = $1",
+            let exists: Option<(i64, Option<String>)> = sqlx::query_as(
+                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents WHERE rich_document_id = $1",
             )
             .bind(rich_document_id)
             .fetch_optional(&mut *tx)
             .await?;
             return Err(match exists {
+                Some((current_version, existing_crdt_document_id))
+                    if current_version == expected_version
+                        && rich_document_crdt_id_change_requested(
+                            existing_crdt_document_id.as_deref(),
+                            crdt_document_id,
+                        ) =>
+                {
+                    StorageError::Validation(
+                        "knowledge rich document crdt_document_id cannot change once set",
+                    )
+                }
                 Some(_) => StorageError::Conflict(
                     "knowledge rich document version conflict: expected_version is stale",
                 ),
@@ -4823,6 +5167,10 @@ impl KnowledgeStore for PostgresDatabase {
         .bind(&document.promotion_receipt_event_id)
         .execute(&mut *tx)
         .await?;
+        sqlx::query("DELETE FROM knowledge_rich_document_drafts WHERE rich_document_id = $1")
+            .bind(&document.rich_document_id)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(document)
     }
@@ -5623,6 +5971,8 @@ impl KnowledgeStore for PostgresDatabase {
         rich_document_id: &str,
         expected_version: i64,
         content_json: Value,
+        crdt_document_id: Option<&str>,
+        crdt_snapshot_id: Option<&str>,
         promotion_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>> {
         validate_knowledge_idempotency_key(idempotency_key)?;
@@ -5632,17 +5982,52 @@ impl KnowledgeStore for PostgresDatabase {
                 "rich_document_id": rich_document_id,
                 "expected_version": expected_version,
                 "content_json": content_json,
+                "crdt_document_id": crdt_document_id,
+                "crdt_snapshot_id": crdt_snapshot_id,
                 "promotion_receipt_event_id": promotion_receipt_event_id,
             }),
         )?;
 
-        let replay = |document_id: String| async move {
-            let document = self
-                .get_knowledge_rich_document(&document_id)
-                .await?
-                .ok_or(StorageError::NotFound(
-                    "knowledge idempotency result rich document",
-                ))?;
+        let replay = |result_ref_kind: String, result_ref_id: String| async move {
+            let document = match result_ref_kind.as_str() {
+                RICH_DOCUMENT_VERSION_RESULT_REF_KIND => {
+                    let (document_id, doc_version) =
+                        parse_rich_document_version_result_ref_id(&result_ref_id)?;
+                    let current = self
+                        .get_knowledge_rich_document(&document_id)
+                        .await?
+                        .ok_or(StorageError::NotFound(
+                            "knowledge idempotency result rich document",
+                        ))?;
+                    let version = self
+                        .get_knowledge_rich_document_version(&document_id, doc_version)
+                        .await?
+                        .ok_or(StorageError::NotFound(
+                            "knowledge idempotency result rich document version",
+                        ))?;
+                    KnowledgeRichDocument {
+                        schema_version: version.schema_version,
+                        doc_version: version.doc_version,
+                        content_json: version.content_json,
+                        content_sha256: version.content_sha256,
+                        crdt_snapshot_id: version.crdt_snapshot_id,
+                        promotion_receipt_event_id: version.promotion_receipt_event_id,
+                        updated_at: version.created_at,
+                        ..current
+                    }
+                }
+                RICH_DOCUMENT_RESULT_REF_KIND => self
+                    .get_knowledge_rich_document(&result_ref_id)
+                    .await?
+                    .ok_or(StorageError::NotFound(
+                        "knowledge idempotency result rich document",
+                    ))?,
+                _ => {
+                    return Err(StorageError::Validation(
+                        "knowledge idempotency result ref kind is not valid for rich document save",
+                    ));
+                }
+            };
             Ok(KnowledgeIdempotentWrite {
                 value: document,
                 replayed: true,
@@ -5650,10 +6035,10 @@ impl KnowledgeStore for PostgresDatabase {
         };
 
         // Committed replay: return the prior result without writing.
-        if let Some((_, document_id)) =
+        if let Some((result_ref_kind, result_ref_id)) =
             find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash).await?
         {
-            return replay(document_id).await;
+            return replay(result_ref_kind, result_ref_id).await;
         }
 
         // The optimistic save + key claim in ONE transaction.
@@ -5663,6 +6048,8 @@ impl KnowledgeStore for PostgresDatabase {
                 rich_document_id,
                 expected_version,
                 &content_json,
+                crdt_document_id,
+                crdt_snapshot_id,
                 promotion_receipt_event_id,
                 &request_hash,
             )
@@ -5675,23 +6062,23 @@ impl KnowledgeStore for PostgresDatabase {
             // Race lost on the key claim: the write rolled back; re-read the
             // winner's committed result.
             Ok(None) => {
-                let (_, document_id) =
+                let (result_ref_kind, result_ref_id) =
                     find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash)
                         .await?
                         .ok_or(StorageError::Conflict(
                             "knowledge idempotency race lost without a committed winner row",
                         ))?;
-                replay(document_id).await
+                replay(result_ref_kind, result_ref_id).await
             }
             // A replayed save typically loses the optimistic version race
             // first (the winner already bumped doc_version). If the same
             // key+payload committed, that conflict IS the replay signal.
             Err(StorageError::Conflict(message)) => {
-                if let Some((_, document_id)) =
+                if let Some((result_ref_kind, result_ref_id)) =
                     find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash)
                         .await?
                 {
-                    return replay(document_id).await;
+                    return replay(result_ref_kind, result_ref_id).await;
                 }
                 Err(StorageError::Conflict(message))
             }
@@ -6409,18 +6796,19 @@ impl PostgresDatabase {
 
     /// MT-106: DB-side symbol lookup for the nav API. The code-symbol entity_key
     /// is `{lang}:{relative_path}#{symbol_path}`, so the high-selectivity path
-    /// and name filters push down to SQL instead of loading every symbol in the
+    /// and name/prefix filters push down to SQL instead of loading every symbol in the
     /// workspace and filtering in Rust (the adversarial-review DoS: a 100k-symbol
     /// repo transferred + heap-allocated on every lookup). A `path` filter
     /// matches the `:{path}#` segment; a `name` filter matches the trailing
     /// symbol-path segment (`%name`) OR display_name; results are bounded by
-    /// `limit`. The trailing-segment match is refined caller-side for exactness,
+    /// `limit`. The trailing-segment and prefix matches are refined caller-side,
     /// but the SQL has already cut the candidate set to the matching path/name.
     pub async fn lookup_code_symbols(
         &self,
         workspace_id: &str,
         name: Option<&str>,
         path: Option<&str>,
+        prefix: Option<&str>,
         limit: i64,
     ) -> StorageResult<Vec<KnowledgeEntity>> {
         let mut sql = format!(
@@ -6428,12 +6816,17 @@ impl PostgresDatabase {
              WHERE workspace_id = $1 AND entity_kind = 'symbol'"
         );
         // $2 path-segment LIKE, $3 name-suffix LIKE, $4 name equality on
-        // display_name, $5 limit. Unused params are bound as NULL and guarded by
+        // display_name, $5 limit, $6..$9 prefix matches. Unused params are guarded by
         // the `IS NULL OR` shape so the planner can still use the entity_key
         // index for the supplied filter(s).
         sql.push_str(
-            " AND ($2::text IS NULL OR entity_key LIKE $2)
-              AND ($3::text IS NULL OR entity_key LIKE $3 OR display_name = $4)
+            " AND ($2::text IS NULL OR entity_key LIKE $2 ESCAPE '\\')
+              AND ($3::text IS NULL OR entity_key LIKE $3 ESCAPE '\\' OR display_name = $4)
+              AND ($6::text IS NULL
+                   OR lower(display_name) LIKE $6 ESCAPE '\\'
+                   OR lower(entity_key) LIKE $7 ESCAPE '\\'
+                   OR lower(entity_key) LIKE $8 ESCAPE '\\'
+                   OR lower(entity_key) LIKE $9 ESCAPE '\\')
              ORDER BY entity_key
              LIMIT $5",
         );
@@ -6442,12 +6835,24 @@ impl PostgresDatabase {
         let path_like = path.map(|p| format!("%:{}#%", escape_like(p)));
         // `name` -> match a key ending in the simple name after `.`/`::`.
         let name_like = name.map(|n| format!("%{}", escape_like(n)));
+        // `prefix` -> bounded completion lookup for simple names after `#`,
+        // `.`, or `::`, plus display_name. SQL is intentionally broad; the API
+        // refines exact simple-name prefixes before serving.
+        let prefix_lower = prefix.map(|p| escape_like(&p.to_ascii_lowercase()));
+        let prefix_display_like = prefix_lower.as_ref().map(|p| format!("{p}%"));
+        let prefix_hash_like = prefix_lower.as_ref().map(|p| format!("%#{p}%"));
+        let prefix_dot_like = prefix_lower.as_ref().map(|p| format!("%.{}%", p));
+        let prefix_colon_like = prefix_lower.as_ref().map(|p| format!("%::{}%", p));
         let rows = sqlx::query(&sql)
             .bind(workspace_id)
             .bind(path_like.as_deref())
             .bind(name_like.as_deref())
             .bind(name)
             .bind(limit.clamp(1, 10_000))
+            .bind(prefix_display_like.as_deref())
+            .bind(prefix_hash_like.as_deref())
+            .bind(prefix_dot_like.as_deref())
+            .bind(prefix_colon_like.as_deref())
             .fetch_all(self.pool())
             .await?;
         rows.iter().map(entity_from_pg).collect()

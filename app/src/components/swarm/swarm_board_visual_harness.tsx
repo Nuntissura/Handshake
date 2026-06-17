@@ -11,7 +11,6 @@ import { SwarmBoard } from "./SwarmBoard";
 import type {
   TerminalIpc,
   TerminalSession,
-  TerminalSubscription,
 } from "../../lib/ipc/terminal";
 
 declare global {
@@ -72,9 +71,13 @@ const TERMINAL_SESSIONS: TerminalSession[] = [
 ];
 
 const terminalIpc: TerminalIpc = {
+  async getContext() {
+    return { cwd: "D:/repo", defaultShell: null };
+  },
   async createSession() {
     return TERMINAL_SESSIONS[0];
   },
+  async authorizeInteractive() {},
   async writeStdin() {},
   async resizeSession() {},
   async closeSession() {},
@@ -84,7 +87,7 @@ const terminalIpc: TerminalIpc = {
   async scrollback(sessionId: string) {
     return { sessionId, seq: 0, chunkBase64: "", truncated: false };
   },
-  async subscribe(_sub: TerminalSubscription) {
+  async subscribe() {
     return () => {};
   },
 };

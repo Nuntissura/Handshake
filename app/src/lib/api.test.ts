@@ -3,22 +3,51 @@ import {
   acceptAtelierAiTagSuggestion,
   applyAtelierAiTagSuggestion,
   archiveAtelierDeletionTargets,
+  getCodeSymbol,
+  getCodeSymbolReferences,
+  getCodeFileLens,
   getKernelDccProjection,
+  getLoomBlock,
+  getLoomWikiProjection,
+  queryLoomView,
+  getWorkbenchLayoutState,
+  getWorkspaceSettingsState,
   getUserManualPage,
+  getSourceControlDiff,
+  getSourceControlStatus,
   importAtelierClipboardImage,
   listUserManualAccessPoints,
   listUserManualPages,
   listAtelierAiTagSuggestionsForCharacter,
   listAtelierFilesystemHealthFindings,
   listAtelierStealthWindows,
+  listQuickSwitcherRecents,
+  openDailyJournal,
   openAtelierIntakeBatch,
   previewAtelierDeletionImpact,
   recordAtelierAiTagSuggestion,
   recordAtelierUrlImageImport,
+  recordQuickSwitcherRecent,
   rejectAtelierAiTagSuggestion,
   restoreAtelierDeletionTargets,
   runAtelierFilesystemHealthCheck,
+  saveRichDocument,
+  saveWorkbenchLayoutState,
+  saveWorkspaceSettingsState,
+  searchLoomGraph,
   searchUserManual,
+  setLoomBlockPinOrder,
+  stageSourceControlPaths,
+  discardSourceControlPaths,
+  commitSourceControl,
+  createSourceControlBranch,
+  getSourceControlBlame,
+  getSourceControlLog,
+  listSourceControlBranches,
+  switchSourceControlBranch,
+  lookupCodeSymbols,
+  unstageSourceControlPaths,
+  updateLoomBlock,
 } from "./api";
 
 describe("Kernel DCC API projection composition", () => {
@@ -674,6 +703,947 @@ describe("UserManual API client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:37501/api/usermanual/access-points",
       expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
+describe("Loom graph search API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("queries graph search with the nine quick switcher source kinds", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse([
+        {
+          result_kind: "loom_block",
+          source_kind: "loom_block",
+          ref_id: "block-alpha",
+          title: "GraphSearchAlpha Loom note",
+          excerpt: "GraphSearchAlpha joins notes to code and manuals.",
+          score: 4.2,
+          metadata: { content_type: "note" },
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchLoomGraph("w1", {
+      q: "GraphSearchAlpha",
+      limit: 25,
+      sourceKinds: [
+        "loom_block",
+        "file",
+        "tag_hub",
+        "document",
+        "symbol",
+        "work_packet",
+        "micro_task",
+        "user_manual_page",
+        "wiki_page",
+      ],
+    });
+
+    expect(result[0].source_kind).toBe("loom_block");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/graph-search?q=GraphSearchAlpha&source_kinds=loom_block%2Cfile%2Ctag_hub%2Cdocument%2Csymbol%2Cwork_packet%2Cmicro_task%2Cuser_manual_page%2Cwiki_page&limit=25",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("passes exact workspace-search operators as backend query parameters", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await searchLoomGraph("w1", {
+      q: "Alpha.*Beta",
+      limit: 500,
+      offset: 500,
+      sourceKinds: ["document"],
+      tagIds: ["tag-1"],
+      caseSensitive: true,
+      wholeWord: true,
+      isRegex: true,
+      path: "src/app",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/graph-search?q=Alpha.*Beta&source_kinds=document&tag_ids=tag-1&case_sensitive=true&whole_word=true&regex=true&path=src%2Fapp&limit=500&offset=500",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads one Loom wiki projection by workspace and projection id", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        projection_id: "KWP-alpha",
+        workspace_id: "w1",
+        title: "GraphSearchAlpha Wiki Page",
+        source_block_ids: ["block-alpha"],
+        rendered_content: "GraphSearchAlpha wiki rendered content.",
+        staleness_hash: "hash-alpha",
+        rebuild_status: "fresh",
+        page_type: "concept",
+        compile_stamp: null,
+        page_links: [],
+        created_at: "2026-06-15T00:00:00Z",
+        updated_at: "2026-06-15T00:00:00Z",
+        staleness_verdict: { status: "fresh" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getLoomWikiProjection("w1", "KWP-alpha");
+
+    expect(result.projection_id).toBe("KWP-alpha");
+    expect(result.staleness_verdict).toEqual({ status: "fresh" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/wiki/KWP-alpha",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
+describe("Quick switcher recents API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("lists durable quick switcher recents for one workspace", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse([
+        {
+          workspace_id: "w1",
+          hit_key: "user_manual_page:recent-beta",
+          source_kind: "user_manual_page",
+          ref_id: "recent-beta",
+          result_kind: "user_manual_page",
+          title: "Recent Beta",
+          excerpt: "Persisted from EventLedger-backed recents.",
+          metadata: { page_slug: "recent-beta" },
+          selected_count: 2,
+          selected_at: "2026-06-15T00:00:00Z",
+          event_ledger_event_id: "EVT-quick-switcher-beta",
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await listQuickSwitcherRecents("w1", 20);
+
+    expect(result[0].hit_key).toBe("user_manual_page:recent-beta");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/quick-switcher/recents?limit=20",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("records selected quick switcher hits through the backend recents endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        hit_key: "user_manual_page:recent-beta",
+        source_kind: "user_manual_page",
+        ref_id: "recent-beta",
+        result_kind: "user_manual_page",
+        title: "Recent Beta",
+        excerpt: "Selected from QuickSwitcher.",
+        metadata: { page_slug: "recent-beta" },
+        selected_count: 1,
+        selected_at: "2026-06-15T00:00:00Z",
+        event_ledger_event_id: "EVT-quick-switcher-beta",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await recordQuickSwitcherRecent("w1", {
+      result_kind: "user_manual_page",
+      source_kind: "user_manual_page",
+      ref_id: "recent-beta",
+      title: "Recent Beta",
+      excerpt: "Selected from QuickSwitcher.",
+      metadata: { page_slug: "recent-beta" },
+    });
+
+    expect(result.event_ledger_event_id).toBe("EVT-quick-switcher-beta");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/quick-switcher/recents",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          result_kind: "user_manual_page",
+          source_kind: "user_manual_page",
+          ref_id: "recent-beta",
+          title: "Recent Beta",
+          excerpt: "Selected from QuickSwitcher.",
+          metadata: { page_slug: "recent-beta" },
+        }),
+      }),
+    );
+  });
+});
+
+describe("Rich document API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends CRDT promotion metadata when saving a rich document", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        document: {
+          rich_document_id: "KRD-api-save",
+          workspace_id: "w1",
+          document_id: null,
+          title: "Runbook",
+          schema_version: "rich_document_v1",
+          doc_version: 2,
+          content_json: { type: "doc", content: [] },
+          content_sha256: "0".repeat(64),
+          crdt_document_id: "KCRDT-api-save",
+          crdt_snapshot_id: "snap-api-save",
+          promotion_receipt_event_id: "EVT-api-save",
+          projection_refs: [],
+          project_ref: null,
+          folder_ref: null,
+          authority_label: "promoted",
+          owner_actor_kind: null,
+          owner_actor_id: null,
+          created_at: "2026-06-15T00:00:00Z",
+          updated_at: "2026-06-15T00:00:00Z",
+        },
+        save_receipt_event_id: "EVT-api-save-receipt",
+        backlinks_persisted: 0,
+        backlinks_skipped_reason: null,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const content = { type: "doc", content: [] };
+    await saveRichDocument(
+      "KRD-api-save",
+      1,
+      content,
+      {
+        actor_id: "operator",
+        kernel_task_run_id: "KTR-api-save",
+        session_run_id: "SR-api-save",
+      },
+      {
+        crdt_document_id: "KCRDT-api-save",
+        crdt_snapshot_id: "snap-api-save",
+        promotion_receipt_event_id: "EVT-api-save",
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/knowledge/documents/KRD-api-save/save",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          expected_version: 1,
+          content_json: content,
+          crdt_document_id: "KCRDT-api-save",
+          crdt_snapshot_id: "snap-api-save",
+          promotion_receipt_event_id: "EVT-api-save",
+        }),
+      }),
+    );
+  });
+});
+
+describe("Workbench layout state API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("loads the durable workbench layout state for one workspace", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        layout_state: {
+          schema_id: "hsk.workbench_layout_state@1",
+          activePaneId: "pane-b",
+          activeModule: "CKC",
+          splitWeights: { vertical: 0.62, horizontal: 0.44 },
+          drawers: { project: true, file: false, bottom: true },
+          panes: [
+            { id: "pane-a", module: "MAIN", activeTab: "workspace", tabs: ["workspace"], locked: false, projectRef: "w1" },
+            { id: "pane-b", module: "CKC", activeTab: "kernel-dcc", tabs: ["kernel-dcc", "workspace"], locked: false, projectRef: "w1" },
+            { id: "pane-c", module: "INGEST", activeTab: "flight-recorder", tabs: ["flight-recorder"], locked: false, projectRef: "w1" },
+            { id: "pane-d", module: "STAGE", activeTab: "fonts", tabs: ["fonts"], locked: false, projectRef: "w1" },
+          ],
+        },
+        updated_at: "2026-06-15T00:00:00Z",
+        event_ledger_event_id: "EVT-workbench-layout",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getWorkbenchLayoutState("w1");
+
+    expect(result.layout_state?.schema_id).toBe("hsk.workbench_layout_state@1");
+    expect(result.layout_state?.activePaneId).toBe("pane-b");
+    expect(result.event_ledger_event_id).toBe("EVT-workbench-layout");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/workbench/layout",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("saves durable workbench layout state through the backend layout endpoint", async () => {
+    const layoutState = {
+      schema_id: "hsk.workbench_layout_state@1",
+      activePaneId: "pane-c",
+      activeModule: "INGEST",
+      splitWeights: { vertical: 0.58, horizontal: 0.51 },
+      drawers: { project: true, file: false, bottom: true },
+      panes: [
+        { id: "pane-a", module: "MAIN", activeTab: "workspace", tabs: ["workspace"], locked: false, projectRef: "w1" },
+        { id: "pane-b", module: "CKC", activeTab: "kernel-dcc", tabs: ["kernel-dcc"], locked: false, projectRef: "w1" },
+        { id: "pane-c", module: "INGEST", activeTab: "flight-recorder", tabs: ["flight-recorder"], locked: false, projectRef: "w1" },
+        { id: "pane-d", module: "STAGE", activeTab: "fonts", tabs: ["fonts"], locked: false, projectRef: "w1" },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        layout_state: layoutState,
+        updated_at: "2026-06-15T00:05:00Z",
+        event_ledger_event_id: "EVT-workbench-layout-save",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await saveWorkbenchLayoutState("w1", layoutState);
+
+    expect(result.layout_state).toEqual(layoutState);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/workbench/layout",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ layout_state: layoutState }),
+      }),
+    );
+  });
+});
+
+describe("Workspace settings state API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("loads durable workspace settings state with its EventLedger receipt", async () => {
+    const settingsState = {
+      schema_id: "hsk.workspace_settings_state@1",
+      theme: "dark",
+      custom_theme_tokens: {},
+      keybindings: {
+        "app.quick_switcher.open": "Alt-q",
+        "app.command_palette.open": "Mod-Shift-p",
+      },
+      settings: {
+        view_mode: "SFW",
+        swarm_board_default_open: true,
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        settings_state: settingsState,
+        updated_at: "2026-06-15T00:10:00Z",
+        event_ledger_event_id: "EVT-workspace-settings",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getWorkspaceSettingsState("w1");
+
+    expect(result.settings_state).toEqual(settingsState);
+    expect(result.event_ledger_event_id).toBe("EVT-workspace-settings");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/settings",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("saves durable workspace settings state through the backend settings endpoint", async () => {
+    const settingsState = {
+      schema_id: "hsk.workspace_settings_state@1",
+      theme: "light",
+      custom_theme_tokens: {},
+      keybindings: {
+        "app.quick_switcher.open": "Mod-p",
+        "app.command_palette.open": "Alt-c",
+      },
+      settings: {
+        view_mode: "NSFW",
+        swarm_board_default_open: false,
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        settings_state: settingsState,
+        updated_at: "2026-06-15T00:11:00Z",
+        event_ledger_event_id: "EVT-workspace-settings-save",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await saveWorkspaceSettingsState("w1", settingsState);
+
+    expect(result.settings_state).toEqual(settingsState);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/settings",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ settings_state: settingsState }),
+      }),
+    );
+  });
+});
+
+describe("Loom block API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches one Loom block by workspace and block id from the backend route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        block_id: "block-alpha",
+        workspace_id: "w1",
+        content_type: "note",
+        document_id: null,
+        asset_id: null,
+        title: "GraphSearchAlpha standalone Loom note",
+        original_filename: null,
+        content_hash: "hash-alpha",
+        pinned: false,
+        favorite: true,
+        pin_order: null,
+        journal_date: null,
+        created_at: "2026-06-15T00:00:00Z",
+        updated_at: "2026-06-15T00:00:00Z",
+        imported_at: null,
+        derived: {
+          full_text_index: "GraphSearchAlpha joins notes to code and manuals.",
+          backlink_count: 1,
+          mention_count: 2,
+          tag_count: 3,
+          preview_status: "none",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getLoomBlock("w1", "block-alpha");
+
+    expect(result.title).toBe("GraphSearchAlpha standalone Loom note");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/blocks/block-alpha",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("patches Loom block properties through the backend update route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        block_id: "block-alpha",
+        workspace_id: "w1",
+        content_type: "note",
+        document_id: null,
+        asset_id: null,
+        title: "Updated Alpha",
+        original_filename: null,
+        content_hash: "hash-alpha",
+        pinned: true,
+        favorite: true,
+        pin_order: null,
+        journal_date: null,
+        created_at: "2026-06-15T00:00:00Z",
+        updated_at: "2026-06-16T00:00:00Z",
+        imported_at: null,
+        derived: {
+          full_text_index: "GraphSearchAlpha joins notes to code and manuals.",
+          backlink_count: 1,
+          mention_count: 2,
+          tag_count: 3,
+          preview_status: "ready",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await updateLoomBlock("w1", "block-alpha", {
+      title: "Updated Alpha",
+      pinned: true,
+      favorite: true,
+    });
+
+    expect(result.title).toBe("Updated Alpha");
+    expect(result.pinned).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/blocks/block-alpha",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          title: "Updated Alpha",
+          pinned: true,
+          favorite: true,
+        }),
+      }),
+    );
+  });
+
+  it("queries the reusable Loom pins view for bookmark surfaces", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        view_type: "pins",
+        blocks: [
+          {
+            block_id: "block-alpha",
+            workspace_id: "w1",
+            content_type: "note",
+            document_id: null,
+            asset_id: null,
+            title: "Pinned Alpha",
+            original_filename: null,
+            content_hash: "hash-alpha",
+            pinned: true,
+            favorite: false,
+            pin_order: 0,
+            journal_date: null,
+            created_at: "2026-06-15T00:00:00Z",
+            updated_at: "2026-06-16T00:00:00Z",
+            imported_at: null,
+            derived: {
+              full_text_index: "Pinned alpha text",
+              backlink_count: 1,
+              mention_count: 2,
+              tag_count: 3,
+              preview_status: "ready",
+            },
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await queryLoomView("w1", "pins", {
+      contentType: "note",
+      limit: 50,
+      offset: 5,
+      tagIds: ["tag-alpha"],
+    });
+
+    expect(result.view_type).toBe("pins");
+    if (result.view_type !== "pins") throw new Error("expected pins view response");
+    expect(result.blocks[0].block_id).toBe("block-alpha");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/views/pins?content_type=note&tag_ids=tag-alpha&limit=50&offset=5",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("clears Loom pin order through the dedicated pin-order route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        block_id: "block-alpha",
+        workspace_id: "w1",
+        content_type: "note",
+        document_id: null,
+        asset_id: null,
+        title: "Pinned Alpha",
+        original_filename: null,
+        content_hash: "hash-alpha",
+        pinned: true,
+        favorite: false,
+        pin_order: null,
+        journal_date: null,
+        created_at: "2026-06-15T00:00:00Z",
+        updated_at: "2026-06-16T00:00:00Z",
+        imported_at: null,
+        derived: {
+          full_text_index: "Pinned alpha text",
+          backlink_count: 1,
+          mention_count: 2,
+          tag_count: 3,
+          preview_status: "ready",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await setLoomBlockPinOrder("w1", "block-alpha", null);
+
+    expect(result.pin_order).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/blocks/block-alpha/pin-order",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ pin_order: null }),
+      }),
+    );
+  });
+
+  it("opens a daily journal block with a PUT to the date-addressed backend route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        block_id: "journal-2026-06-16",
+        workspace_id: "w1",
+        content_type: "journal",
+        document_id: null,
+        asset_id: null,
+        title: "Daily Note 2026-06-16",
+        original_filename: null,
+        content_hash: null,
+        pinned: false,
+        favorite: false,
+        pin_order: null,
+        journal_date: "2026-06-16",
+        created_at: "2026-06-16T00:00:00Z",
+        updated_at: "2026-06-16T00:00:00Z",
+        imported_at: null,
+        derived: {
+          full_text_index: "# Daily Note 2026-06-16\n\n",
+          backlink_count: 0,
+          mention_count: 0,
+          tag_count: 0,
+          preview_status: "none",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await openDailyJournal("w1", "2026-06-16");
+
+    expect(result.content_type).toBe("journal");
+    expect(result.journal_date).toBe("2026-06-16");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/workspaces/w1/loom/journals/2026-06-16",
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+});
+
+describe("Source control API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses the typed local git backend routes for status, diff, stage, discard, and commit", async () => {
+    const repoPath = "D:\\Projects\\Handshake Repo";
+    const statusQuery = new URLSearchParams({ repo_path: repoPath }).toString();
+    const diffQuery = new URLSearchParams({
+      repo_path: repoPath,
+      path: "src/main.rs",
+      scope: "worktree",
+    }).toString();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          repo_root: repoPath,
+          branch: "main",
+          entries: [{ path: "src/main.rs", index: null, worktree: "modified" }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          path: "src/main.rs",
+          scope: "worktree",
+          patch: "@@ -1 +1\n+changed\n",
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ operation: "stage", paths: ["src/main.rs"] }))
+      .mockResolvedValueOnce(jsonResponse({ operation: "discard", paths: ["scratch"] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: "a".repeat(40),
+          message: "source control commit",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const status = await getSourceControlStatus(repoPath);
+    const diff = await getSourceControlDiff(repoPath, "src/main.rs", "worktree");
+    const stage = await stageSourceControlPaths(repoPath, ["src/main.rs"]);
+    const discard = await discardSourceControlPaths(repoPath, ["scratch"], true);
+    const commit = await commitSourceControl(repoPath, "source control commit");
+
+    expect(status.entries[0].worktree).toBe("modified");
+    expect(diff.patch).toContain("+changed");
+    expect(stage.operation).toBe("stage");
+    expect(discard.operation).toBe("discard");
+    expect(commit.id).toHaveLength(40);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `http://127.0.0.1:37501/source-control/status?${statusQuery}`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `http://127.0.0.1:37501/source-control/diff?${diffQuery}`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://127.0.0.1:37501/source-control/stage",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ repo_path: repoPath, paths: ["src/main.rs"] }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "http://127.0.0.1:37501/source-control/discard",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ repo_path: repoPath, paths: ["scratch"], confirmed: true }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "http://127.0.0.1:37501/source-control/commit",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ repo_path: repoPath, message: "source control commit" }),
+      }),
+    );
+  });
+
+  it("uses the typed local git backend routes for unstage, branches, log, and blame", async () => {
+    const repoPath = "D:\\Projects\\Handshake Repo";
+    const repoQuery = new URLSearchParams({ repo_path: repoPath }).toString();
+    const logQuery = new URLSearchParams({ repo_path: repoPath, limit: "5" }).toString();
+    const blameQuery = new URLSearchParams({
+      repo_path: repoPath,
+      path: "src/main.rs",
+    }).toString();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ operation: "unstage", paths: ["src/main.rs"] }))
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { name: "main", current: true, commit_id: "a".repeat(40) },
+          { name: "feature/source-control", current: false, commit_id: "b".repeat(40) },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ operation: "create_branch", paths: ["feature/source-control"] }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ operation: "switch_branch", paths: ["main"] }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          entries: [{ id: "a".repeat(40), author: "Tester", timestamp: 1_700_000_000, message: "init" }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          path: "src/main.rs",
+          lines: [{ line_number: 1, commit_id: "a".repeat(40), author: "Tester", content: "fn main() {}" }],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const unstage = await unstageSourceControlPaths(repoPath, ["src/main.rs"]);
+    const branches = await listSourceControlBranches(repoPath);
+    const created = await createSourceControlBranch(repoPath, "feature/source-control");
+    const switched = await switchSourceControlBranch(repoPath, "main");
+    const log = await getSourceControlLog(repoPath, 5);
+    const blame = await getSourceControlBlame(repoPath, "src/main.rs");
+
+    expect(unstage.operation).toBe("unstage");
+    expect(branches[0].current).toBe(true);
+    expect(created.operation).toBe("create_branch");
+    expect(switched.operation).toBe("switch_branch");
+    expect(log.entries[0].message).toBe("init");
+    expect(blame.lines[0].line_number).toBe(1);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:37501/source-control/unstage",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ repo_path: repoPath, paths: ["src/main.rs"] }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `http://127.0.0.1:37501/source-control/branches?${repoQuery}`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://127.0.0.1:37501/source-control/branches",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          repo_path: repoPath,
+          name: "feature/source-control",
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "http://127.0.0.1:37501/source-control/switch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ repo_path: repoPath, name: "main" }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      `http://127.0.0.1:37501/source-control/log?${logQuery}`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      `http://127.0.0.1:37501/source-control/blame?${blameQuery}`,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
+describe("Code symbol nav API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches one code symbol by entity id from the backend nav route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        symbol: {
+          symbol_entity_id: "KEN-symbol-alpha",
+          symbol_key: "rust:src/backend/graph_search.rs#GraphSearchAlpha",
+          display_name: "GraphSearchAlpha",
+          symbol_kind: "function",
+          owning_wp: "WP-KERNEL-009",
+          primary_source_id: "src-backend-graph-search-rs",
+          lifecycle_state: "active",
+          definition: {
+            span_id: "span-alpha",
+            source_id: "src-backend-graph-search-rs",
+            line_start: 12,
+            line_end: 34,
+            range_start: 400,
+            range_end: 900,
+            section_path: "GraphSearchAlpha",
+          },
+          staleness: { status: "fresh" },
+        },
+        nav_receipt_event_id: "EVT-symbol-get",
+        quiet_background_work_receipt_id: "quiet-symbol-get",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getCodeSymbol("KEN-symbol-alpha");
+
+    expect(result.symbol.display_name).toBe("GraphSearchAlpha");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/knowledge/code/symbols/KEN-symbol-alpha",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          "x-hsk-actor-kind": "model_adapter",
+          "x-hsk-actor-id": "handshake-monaco-code-intelligence",
+          "x-hsk-kernel-task-run-id": "MT-249-symbol-KEN-symbol-alpha",
+          "x-hsk-session-run-id": "frontend-code-intelligence",
+          "x-hsk-correlation-id": "frontend-code-intelligence-symbol-KEN-symbol-alpha",
+        }),
+      }),
+    );
+  });
+
+  it("looks up code symbols by prefix for Monaco completions", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        matches: [
+          {
+            symbol_entity_id: "KEN-symbol-alpha",
+            symbol_key: "rust:src/lib.rs#add",
+            display_name: "add",
+            symbol_kind: "function",
+            lifecycle_state: "active",
+            definition: null,
+            staleness: { state: "fresh", fresh: true },
+          },
+        ],
+        nav_receipt_event_id: "EVT-lookup",
+        quiet_background_work_receipt_id: "quiet-lookup",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await lookupCodeSymbols({ workspaceId: "w1", prefix: "ad", limit: 20 });
+
+    expect(result.matches[0].display_name).toBe("add");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/knowledge/code/symbols?workspace_id=w1&prefix=ad&limit=20",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-hsk-actor-kind": "model_adapter",
+          "x-hsk-kernel-task-run-id": "MT-249-lookup-w1",
+        }),
+      }),
+    );
+  });
+
+  it("fetches code symbol references with backend nav identity headers", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        symbol_entity_id: "KEN-symbol-alpha",
+        staleness: { state: "fresh", fresh: true },
+        callers: [],
+        callees: [],
+        nav_receipt_event_id: "EVT-refs",
+        quiet_background_work_receipt_id: "quiet-refs",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getCodeSymbolReferences("KEN-symbol-alpha");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/knowledge/code/symbols/KEN-symbol-alpha/references",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-hsk-actor-kind": "model_adapter",
+          "x-hsk-kernel-task-run-id": "MT-249-references-KEN-symbol-alpha",
+        }),
+      }),
+    );
+  });
+
+  it("fetches the file lens payload with encoded path and staleness inputs", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        workspace_id: "w1",
+        relative_path: "src/lib.rs",
+        staleness: { state: "fresh", fresh: true },
+        truncated: false,
+        entries: [],
+        nav_receipt_event_id: "EVT-lens",
+        quiet_background_work_receipt_id: "quiet-lens",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getCodeFileLens("w1", "src/lib.rs", "abc123", "tree-sitter-rust@1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/knowledge/code/files/src%2Flib.rs/lens?workspace_id=w1&content_hash=abc123&parser_version=tree-sitter-rust%401",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-hsk-actor-kind": "model_adapter",
+          "x-hsk-kernel-task-run-id": "MT-249-lens-w1",
+        }),
+      }),
     );
   });
 });

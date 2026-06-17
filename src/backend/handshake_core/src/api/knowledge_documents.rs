@@ -53,6 +53,7 @@ use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRichDocument,
     KnowledgeSourceKind, KnowledgeStore, NewKnowledgeEntity, NewKnowledgeRichDocument,
     NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
+    UpsertKnowledgeRichDocumentDraft,
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
@@ -69,6 +70,12 @@ pub fn routes(state: AppState) -> Router {
         .route("/knowledge/documents", post(create_document))
         .route("/knowledge/documents/import", post(import_document))
         .route("/knowledge/documents/:document_id", get(load_document))
+        .route(
+            "/knowledge/documents/:document_id/draft",
+            get(load_document_draft)
+                .put(upsert_document_draft)
+                .delete(clear_document_draft),
+        )
         .route("/knowledge/documents/:document_id/save", put(save_document))
         .route("/knowledge/documents/:document_id/blocks", get(load_blocks))
         .route(
@@ -127,6 +134,44 @@ fn bad_request(detail: impl Into<String>) -> ApiError {
         StatusCode::BAD_REQUEST,
         Json(json!({"error": "bad_request", "detail": detail.into()})),
     )
+}
+
+fn canonical_rich_document_crdt_document_id(rich_document_id: &str) -> String {
+    rich_document_id
+        .strip_prefix("KRD-")
+        .map(|suffix| format!("KCRDT-{suffix}"))
+        .unwrap_or_else(|| format!("KCRDT-{rich_document_id}"))
+}
+
+async fn validated_save_crdt_document_id(
+    db: &PostgresDatabase,
+    rich_document_id: &str,
+    requested_crdt_document_id: Option<&str>,
+) -> Result<Option<String>, ApiError> {
+    let Some(requested) = requested_crdt_document_id.map(str::trim) else {
+        return Ok(None);
+    };
+    if requested.is_empty() {
+        return Err(bad_request(
+            "crdt_document_id must be non-empty when supplied",
+        ));
+    }
+
+    let document = db
+        .get_knowledge_rich_document(rich_document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    let allowed = document
+        .crdt_document_id
+        .unwrap_or_else(|| canonical_rich_document_crdt_document_id(rich_document_id));
+    if requested != allowed {
+        return Err(bad_request(format!(
+            "crdt_document_id '{requested}' does not belong to rich document '{rich_document_id}'"
+        )));
+    }
+
+    Ok(Some(requested.to_string()))
 }
 
 fn not_found(detail: impl Into<String>) -> ApiError {
@@ -447,6 +492,19 @@ struct CreateDocumentBody {
 struct SaveDocumentBody {
     expected_version: i64,
     content_json: Value,
+    #[serde(default)]
+    crdt_document_id: Option<String>,
+    #[serde(default)]
+    crdt_snapshot_id: Option<String>,
+    #[serde(default)]
+    promotion_receipt_event_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpsertDocumentDraftBody {
+    base_doc_version: i64,
+    base_content_sha256: String,
+    content_json: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -665,8 +723,7 @@ async fn create_document(
     let mut knowledge_indexed = false;
     let mut knowledge_index_error: Option<String> = None;
     if ctx.require(DocumentAction::Index).is_ok() {
-        (knowledge_indexed, knowledge_index_error) =
-            index_document_non_fatal(&db, &created).await;
+        (knowledge_indexed, knowledge_index_error) = index_document_non_fatal(&db, &created).await;
     }
 
     Ok(Json(json!({
@@ -713,6 +770,177 @@ async fn load_document(
     })))
 }
 
+/// GET /knowledge/documents/:document_id/draft — load backend-persisted
+/// unsaved editor content for crash recovery (MT-255).
+async fn load_document_draft(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Read)?;
+    let db = db_for(&state);
+
+    let document = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    let draft = db
+        .get_knowledge_rich_document_draft(&document_id)
+        .await
+        .map_err(storage_error)?;
+
+    let visible_draft = draft.filter(|draft| {
+        draft.draft_content_sha256 != document.content_sha256
+            && draft.draft_content_json != document.content_json
+    });
+
+    Ok(Json(json!({
+        "rich_document_id": document.rich_document_id,
+        "current_doc_version": document.doc_version,
+        "current_content_sha256": document.content_sha256,
+        "draft": visible_draft,
+    })))
+}
+
+/// PUT /knowledge/documents/:document_id/draft — persist unsaved editor
+/// content to PostgreSQL so a crash/reopen can offer restore/discard (MT-255).
+async fn upsert_document_draft(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<UpsertDocumentDraftBody>,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Write)?;
+    let db = db_for(&state);
+
+    let document = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    if body.base_doc_version > document.doc_version {
+        return Err(conflict(
+            "draft base version is newer than the current document",
+        ));
+    }
+    if body.base_doc_version == document.doc_version
+        && body.base_content_sha256 != document.content_sha256
+    {
+        return Err(conflict(
+            "draft base content hash does not match the current document",
+        ));
+    }
+
+    let tree = BlockTree::from_document_json(
+        &document.rich_document_id,
+        &document.schema_version,
+        &body.content_json,
+    )
+    .map_err(|err| bad_request(format!("draft block tree is malformed: {err}")))?;
+    validate_block_embeds(&tree).map_err(|(block_id, err)| {
+        bad_request(format!(
+            "draft embed block `{block_id}` target rejected: {err}"
+        ))
+    })?;
+
+    if body.content_json == document.content_json {
+        let cleared = db
+            .clear_knowledge_rich_document_draft(&document.rich_document_id)
+            .await
+            .map_err(storage_error)?;
+        let (receipt, receipt_error) = record_receipt_non_fatal(
+            &db,
+            &ctx,
+            KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
+            &document.rich_document_id,
+            json!({"event": "draft_noop_cleared", "cleared": cleared}),
+        )
+        .await;
+        return Ok(Json(json!({
+            "rich_document_id": document.rich_document_id,
+            "draft": null,
+            "cleared": cleared,
+            "draft_receipt_event_id": receipt,
+            "receipt_error": receipt_error,
+        })));
+    }
+
+    let draft = db
+        .upsert_knowledge_rich_document_draft(UpsertKnowledgeRichDocumentDraft {
+            rich_document_id: document.rich_document_id.clone(),
+            base_doc_version: body.base_doc_version,
+            base_content_sha256: body.base_content_sha256,
+            content_json: body.content_json,
+            actor_kind: ctx.actor_kind.as_str().to_string(),
+            actor_id: actor_id_of(&ctx.actor),
+            kernel_task_run_id: ctx.kernel_task_run_id.clone(),
+            session_run_id: ctx.session_run_id.clone(),
+        })
+        .await
+        .map_err(storage_error)?;
+
+    let (receipt, receipt_error) = record_receipt_non_fatal(
+        &db,
+        &ctx,
+        KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
+        &document.rich_document_id,
+        json!({
+            "event": "draft_saved",
+            "base_doc_version": draft.base_doc_version,
+            "draft_content_sha256": draft.draft_content_sha256,
+        }),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "rich_document_id": document.rich_document_id,
+        "draft": draft,
+        "cleared": false,
+        "draft_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+    })))
+}
+
+/// DELETE /knowledge/documents/:document_id/draft — explicit operator discard
+/// for a persisted recovery draft (MT-255).
+async fn clear_document_draft(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Write)?;
+    let db = db_for(&state);
+
+    let document = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    let cleared = db
+        .clear_knowledge_rich_document_draft(&document.rich_document_id)
+        .await
+        .map_err(storage_error)?;
+    let (receipt, receipt_error) = record_receipt_non_fatal(
+        &db,
+        &ctx,
+        KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
+        &document.rich_document_id,
+        json!({"event": "draft_cleared", "cleared": cleared}),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "rich_document_id": document.rich_document_id,
+        "cleared": cleared,
+        "clear_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+    })))
+}
+
 /// PUT /knowledge/documents/:document_id/save — optimistic-concurrency save
 /// (MT-149). Builds on MT-059 `save_knowledge_rich_document_version`; a stale
 /// `expected_version` returns 409. Leaves a save receipt, re-extracts the
@@ -749,13 +977,18 @@ async fn save_document(
     let validated_embeds = validate_block_embeds(&tree).map_err(|(block_id, err)| {
         bad_request(format!("embed block `{block_id}` target rejected: {err}"))
     })?;
+    let crdt_document_id =
+        validated_save_crdt_document_id(&db, &document_id, body.crdt_document_id.as_deref())
+            .await?;
 
     let saved = db
         .save_knowledge_rich_document_version(
             &document_id,
             body.expected_version,
             body.content_json.clone(),
-            None,
+            crdt_document_id.as_deref(),
+            body.crdt_snapshot_id.as_deref(),
+            body.promotion_receipt_event_id.as_deref(),
         )
         .await
         .map_err(storage_error)?;
@@ -1211,8 +1444,7 @@ async fn rename_document(
     let mut knowledge_indexed = false;
     let mut knowledge_index_error: Option<String> = None;
     if ctx.require(DocumentAction::Index).is_ok() {
-        (knowledge_indexed, knowledge_index_error) =
-            index_document_non_fatal(&db, &updated).await;
+        (knowledge_indexed, knowledge_index_error) = index_document_non_fatal(&db, &updated).await;
     }
     Ok(Json(json!({
         "document": updated,
@@ -1313,7 +1545,8 @@ async fn batch_documents(
                     if title.is_empty() {
                         Err(StorageError::Validation("title must be non-empty"))
                     } else {
-                        db.rename_knowledge_rich_document(&document_id, &title).await
+                        db.rename_knowledge_rich_document(&document_id, &title)
+                            .await
                     }
                 }
                 BatchOperation::Move {

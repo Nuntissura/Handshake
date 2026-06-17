@@ -20,7 +20,12 @@ import {
   dependencyFailures,
   formatDependencyFailureMessage,
 } from "../dependency_policy/dependency_failure";
-import { workerKindForLabel, type MonacoWorkerKind } from "./worker_map";
+import {
+  BUNDLED_MONACO_WORKER_KINDS,
+  workerKindForLabel,
+  type MonacoWorkerKind,
+} from "./worker_map";
+import { ensureHandshakeCodeIntelligenceProviders } from "./code_intelligence";
 
 type WorkerConstructor = new () => Worker;
 
@@ -62,6 +67,10 @@ function constructWorker(label: string): Worker {
 }
 
 let environmentInstalled = false;
+let handshakeThemesInstalled = false;
+const proofWorkers: Worker[] = [];
+export const HANDSHAKE_MONACO_LIGHT_THEME = "handshake-light";
+export const HANDSHAKE_MONACO_DARK_THEME = "handshake-dark";
 
 /**
  * Installs MonacoEnvironment.getWorker with the locally bundled workers.
@@ -77,8 +86,42 @@ export function ensureMonacoEnvironment(): void {
   environmentInstalled = true;
 }
 
+export function ensureHandshakeMonacoThemes(): void {
+  if (handshakeThemesInstalled) return;
+  monaco.editor.defineTheme(HANDSHAKE_MONACO_LIGHT_THEME, {
+    base: "vs",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#ffffff",
+      "editor.foreground": "#0f172a",
+      "editorLineNumber.foreground": "#64748b",
+      "editor.selectionBackground": "#bfdbfe",
+      "editorCursor.foreground": "#2563eb",
+    },
+  });
+  monaco.editor.defineTheme(HANDSHAKE_MONACO_DARK_THEME, {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#1d232b",
+      "editor.foreground": "#f8fafc",
+      "editorLineNumber.foreground": "#94a3b8",
+      "editor.selectionBackground": "#166534",
+      "editorCursor.foreground": "#22c55e",
+    },
+  });
+  handshakeThemesInstalled = true;
+}
+
 export interface ConfiguredEditorOptions
   extends monaco.editor.IStandaloneEditorConstructionOptions {
+  container: HTMLElement;
+}
+
+export interface ConfiguredDiffEditorOptions
+  extends monaco.editor.IDiffEditorConstructionOptions {
   container: HTMLElement;
 }
 
@@ -92,17 +135,60 @@ export function createConfiguredEditor(
   options: ConfiguredEditorOptions,
 ): monaco.editor.IStandaloneCodeEditor {
   ensureMonacoEnvironment();
+  ensureHandshakeMonacoThemes();
+  ensureHandshakeCodeIntelligenceProviders(monaco);
   const { container, ...editorOptions } = options;
   try {
     return monaco.editor.create(container, {
       automaticLayout: true,
-      minimap: { enabled: false },
+      minimap: { enabled: true },
+      stickyScroll: { enabled: true },
+      inlayHints: { enabled: "on" },
+      columnSelection: true,
+      multiCursorModifier: "alt",
+      multiCursorPaste: "spread",
+      multiCursorMergeOverlapping: true,
       ...editorOptions,
     });
   } catch (error) {
     const failure = {
       dependency: "monaco-editor",
       component: "editor",
+      phase: "editor_mount" as const,
+      cause: error instanceof Error ? error.message : String(error),
+    };
+    dependencyFailures.report({
+      ...failure,
+      message: formatDependencyFailureMessage(failure),
+    });
+    throw error;
+  }
+}
+
+/**
+ * Creates a standalone Monaco diff editor through the same bundled-worker
+ * setup and typed dependency-failure path as regular code editors.
+ */
+export function createConfiguredDiffEditor(
+  options: ConfiguredDiffEditorOptions,
+): monaco.editor.IStandaloneDiffEditor {
+  ensureMonacoEnvironment();
+  ensureHandshakeMonacoThemes();
+  ensureHandshakeCodeIntelligenceProviders(monaco);
+  const { container, ...editorOptions } = options;
+  try {
+    return monaco.editor.createDiffEditor(container, {
+      automaticLayout: true,
+      minimap: { enabled: true },
+      stickyScroll: { enabled: true },
+      inlayHints: { enabled: "on" },
+      readOnly: true,
+      ...editorOptions,
+    });
+  } catch (error) {
+    const failure = {
+      dependency: "monaco-editor",
+      component: "diff-editor",
       phase: "editor_mount" as const,
       cause: error instanceof Error ? error.message : String(error),
     };
@@ -157,6 +243,44 @@ export async function proveTypescriptWorkerRoundTrip(
   throw lastError instanceof Error
     ? lastError
     : new Error(`typescript worker round-trip timed out: ${String(lastError)}`);
+}
+
+export type MonacoWorkerProofs = Record<MonacoWorkerKind, string>;
+
+const PROOF_LABELS: Record<MonacoWorkerKind, string> = {
+  editor: "editor",
+  typescript: "typescript",
+  json: "json",
+  css: "css",
+  html: "html",
+};
+
+/**
+ * MT-235 runtime proof: construct every locally bundled Monaco worker kind
+ * through the same MonacoEnvironment route the editor uses. The TypeScript
+ * worker gets the stronger language-service round-trip; the other workers are
+ * held alive so the offline Playwright request ledger can observe each local
+ * chunk request before the page closes.
+ */
+export async function proveBundledMonacoWorkers(
+  model: monaco.editor.ITextModel,
+): Promise<MonacoWorkerProofs> {
+  ensureMonacoEnvironment();
+  const environment = (globalThis as { MonacoEnvironment?: monaco.Environment }).MonacoEnvironment;
+  if (!environment?.getWorker) throw new Error("MonacoEnvironment.getWorker missing");
+
+  const proofs = {} as MonacoWorkerProofs;
+  for (const kind of BUNDLED_MONACO_WORKER_KINDS) {
+    if (kind === "typescript") {
+      const responded = await proveTypescriptWorkerRoundTrip(model);
+      proofs.typescript = responded ? "ts-worker-responded" : "ts-worker-no-response";
+      continue;
+    }
+    const worker = await environment.getWorker(`mt235-${kind}`, PROOF_LABELS[kind]);
+    proofWorkers.push(worker);
+    proofs[kind] = "worker-constructed";
+  }
+  return proofs;
 }
 
 export { monaco };

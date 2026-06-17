@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::identity::{validate_crdt_workspace_identity, CrdtWorkspaceIdentityV1};
-use super::persistence::{validate_crdt_update_record, CrdtUpdateRecordV1};
+use super::identity::{CrdtWorkspaceIdentityV1, validate_crdt_workspace_identity};
+use super::persistence::{CrdtUpdateRecordV1, validate_crdt_update_record};
 
 pub const CRDT_CONFLICT_PRESENCE_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.crdt_conflict_presence_projection@1";

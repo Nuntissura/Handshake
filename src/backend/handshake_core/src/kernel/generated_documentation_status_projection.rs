@@ -141,8 +141,8 @@ pub struct GeneratedDocumentationStatusProjectionValidationError {
     pub message: &'static str,
 }
 
-pub fn build_kernel002_generated_documentation_status_projection(
-) -> GeneratedDocumentationStatusProjectionV1 {
+pub fn build_kernel002_generated_documentation_status_projection()
+-> GeneratedDocumentationStatusProjectionV1 {
     let source_ids = vec![
         "wp-contract-kernel002".to_string(),
         "mt-contract-mt055".to_string(),

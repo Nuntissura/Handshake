@@ -173,6 +173,7 @@ pub struct LoomBlock {
     pub original_filename: Option<String>,
     pub content_hash: Option<String>,
     pub pinned: bool,
+    pub favorite: bool,
     /// MT-183: user-controlled ordinal for the reorderable Pins grid. `None`
     /// (un-ordered) pins sort after explicitly-ordered pins, then by recency.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -204,6 +205,7 @@ pub struct NewLoomBlock {
 pub struct LoomBlockUpdate {
     pub title: Option<String>,
     pub pinned: Option<bool>,
+    pub favorite: Option<bool>,
     pub journal_date: Option<String>,
     /// MT-183: set/clear the Pins-grid ordinal. Send a value to position the
     /// pin; send `null` via the dedicated reorder endpoint to clear it.
@@ -320,6 +322,7 @@ pub enum LoomViewType {
     Unlinked,
     Sorted,
     Pins,
+    Favorites,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -351,7 +354,59 @@ pub enum LoomViewResponse {
     All { blocks: Vec<LoomBlock> },
     Unlinked { blocks: Vec<LoomBlock> },
     Pins { blocks: Vec<LoomBlock> },
+    Favorites { blocks: Vec<LoomBlock> },
     Sorted { groups: Vec<LoomViewGroup> },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomSearchSourceKind {
+    LoomBlock,
+    File,
+    TagHub,
+    Document,
+    Symbol,
+    WorkPacket,
+    MicroTask,
+    UserManualPage,
+    WikiPage,
+}
+
+impl LoomSearchSourceKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::LoomBlock => "loom_block",
+            Self::File => "file",
+            Self::TagHub => "tag_hub",
+            Self::Document => "document",
+            Self::Symbol => "symbol",
+            Self::WorkPacket => "work_packet",
+            Self::MicroTask => "micro_task",
+            Self::UserManualPage => "user_manual_page",
+            Self::WikiPage => "wiki_page",
+        }
+    }
+}
+
+impl FromStr for LoomSearchSourceKind {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "loom_block" => Ok(Self::LoomBlock),
+            "file" => Ok(Self::File),
+            "tag_hub" => Ok(Self::TagHub),
+            "document" => Ok(Self::Document),
+            "symbol" => Ok(Self::Symbol),
+            "work_packet" => Ok(Self::WorkPacket),
+            "micro_task" => Ok(Self::MicroTask),
+            "user_manual_page" => Ok(Self::UserManualPage),
+            "wiki_page" => Ok(Self::WikiPage),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid loom search source_kind",
+            )),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -366,6 +421,16 @@ pub struct LoomSearchFilters {
     pub mention_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub backlink_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_kinds: Vec<LoomSearchSourceKind>,
+    #[serde(default)]
+    pub case_sensitive: bool,
+    #[serde(default)]
+    pub whole_word: bool,
+    #[serde(default)]
+    pub is_regex: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -373,6 +438,210 @@ pub struct LoomBlockSearchResult {
     pub block: LoomBlock,
     #[serde(default)]
     pub score: f64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomSearchResultKind {
+    LoomBlock,
+    KnowledgeEntity,
+    UserManualPage,
+    WikiPage,
+}
+
+impl LoomSearchResultKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::LoomBlock => "loom_block",
+            Self::KnowledgeEntity => "knowledge_entity",
+            Self::UserManualPage => "user_manual_page",
+            Self::WikiPage => "wiki_page",
+        }
+    }
+}
+
+impl FromStr for LoomSearchResultKind {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "loom_block" => Ok(Self::LoomBlock),
+            "knowledge_entity" => Ok(Self::KnowledgeEntity),
+            "user_manual_page" => Ok(Self::UserManualPage),
+            "wiki_page" => Ok(Self::WikiPage),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid loom search result_kind",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomGraphSearchResult {
+    pub result_kind: LoomSearchResultKind,
+    pub source_kind: LoomSearchSourceKind,
+    pub ref_id: String,
+    pub title: String,
+    #[serde(default)]
+    pub excerpt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block: Option<LoomBlock>,
+    #[serde(default)]
+    pub score: f64,
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub metadata: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct QuickSwitcherRecentInput {
+    pub result_kind: LoomSearchResultKind,
+    pub source_kind: LoomSearchSourceKind,
+    pub ref_id: String,
+    pub title: String,
+    #[serde(default)]
+    pub excerpt: String,
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub metadata: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct QuickSwitcherRecent {
+    pub workspace_id: String,
+    pub hit_key: String,
+    pub source_kind: LoomSearchSourceKind,
+    pub ref_id: String,
+    pub result_kind: LoomSearchResultKind,
+    pub title: String,
+    #[serde(default)]
+    pub excerpt: String,
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub metadata: serde_json::Value,
+    pub selected_count: i64,
+    pub selected_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
+// ---------------------------------------------------------------------------
+// MT-191 LoomVisualDebugViews
+//
+// A bounded backend debug payload for no-context models and visual-debug
+// surfaces. This is a projection over Loom authority rows (PostgreSQL +
+// EventLedger bridge evidence), never a parallel graph/search store and never a
+// full-content export.
+// ---------------------------------------------------------------------------
+
+pub const LOOM_VISUAL_DEBUG_SCHEMA_ID: &str = "hsk.loom_visual_debug@1";
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LoomVisualDebugCounts {
+    pub blocks: i64,
+    pub edges: i64,
+    pub folders: i64,
+    pub folder_members: i64,
+    pub tag_hubs: i64,
+    pub pinned_blocks: i64,
+    pub favorite_blocks: i64,
+    pub indexed_bridges: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugGraphNodeSummary {
+    pub block_id: String,
+    pub title: String,
+    pub content_type: LoomBlockContentType,
+    pub depth: u32,
+    pub degree: u32,
+    pub stale: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entity_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugGraphEdgeSummary {
+    pub edge_id: String,
+    pub source_block_id: String,
+    pub target_block_id: String,
+    pub edge_type: LoomEdgeType,
+    pub stale: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugGraphState {
+    pub scope: String,
+    pub nodes: Vec<LoomVisualDebugGraphNodeSummary>,
+    pub edges: Vec<LoomVisualDebugGraphEdgeSummary>,
+    pub truncated: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suppressed_hub_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugBacklinkSummary {
+    pub edge_id: String,
+    pub source_block_id: String,
+    pub edge_type: LoomEdgeType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_snippet: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugBacklinkState {
+    pub target_block_id: String,
+    pub incoming: Vec<LoomVisualDebugBacklinkSummary>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugFolderSummary {
+    pub folder_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_folder_id: Option<String>,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    pub sort_mode: LoomFolderSortMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_ref: Option<String>,
+    pub member_count: i64,
+    pub sample_block_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugSearchHitSummary {
+    pub result_kind: LoomSearchResultKind,
+    pub source_kind: LoomSearchSourceKind,
+    pub ref_id: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub excerpt: String,
+    pub authority_table: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieval_bias_schema_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retrieval_bias_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retrieval_bias_reasons: Vec<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugSearchState {
+    pub query: String,
+    pub result_count: usize,
+    pub results: Vec<LoomVisualDebugSearchHitSummary>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomVisualDebugSnapshot {
+    pub workspace_id: String,
+    pub schema_id: &'static str,
+    pub authority_backend: LoomAuthorityBackend,
+    pub authority_class: &'static str,
+    pub start_block_id: String,
+    pub route_ids: Vec<String>,
+    pub counts: LoomVisualDebugCounts,
+    pub graph: LoomVisualDebugGraphState,
+    pub backlinks: LoomVisualDebugBacklinkState,
+    pub folders: Vec<LoomVisualDebugFolderSummary>,
+    pub search: LoomVisualDebugSearchState,
 }
 
 // ---------------------------------------------------------------------------
@@ -578,7 +847,11 @@ pub struct LoomTagHub {
 pub fn loom_context_snippet(text: &str, match_start: usize, match_len: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
     if chars.is_empty() || match_start >= chars.len() {
-        return text.trim().chars().take(LOOM_SNIPPET_CONTEXT_CHARS * 2).collect();
+        return text
+            .trim()
+            .chars()
+            .take(LOOM_SNIPPET_CONTEXT_CHARS * 2)
+            .collect();
     }
     let match_end = match_start.saturating_add(match_len).min(chars.len());
     let window_start = match_start.saturating_sub(LOOM_SNIPPET_CONTEXT_CHARS);
@@ -615,10 +888,7 @@ pub fn loom_find_unlinked_term(text: &str, term: &str) -> Option<(usize, usize)>
     if needle.is_empty() || needle.len() > hay.len() {
         return None;
     }
-    let hay_lower: Vec<char> = hay
-        .iter()
-        .flat_map(|c| c.to_lowercase())
-        .collect();
+    let hay_lower: Vec<char> = hay.iter().flat_map(|c| c.to_lowercase()).collect();
     // to_lowercase can change length for some scripts; fall back to a simple
     // per-char lowercase comparison aligned to the original char vector to keep
     // offsets meaningful. Guard the rare expansion case by recomputing on the

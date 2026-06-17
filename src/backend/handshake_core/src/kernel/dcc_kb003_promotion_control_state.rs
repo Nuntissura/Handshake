@@ -148,7 +148,7 @@ mod tests {
     use super::*;
     use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
     use crate::kernel::sandbox::dcc_projection::{
-        DccPromotionSummaryV1, DccValidationSummaryV1, DCC_SANDBOX_PROJECTION_FAMILY_ID,
+        DCC_SANDBOX_PROJECTION_FAMILY_ID, DccPromotionSummaryV1, DccValidationSummaryV1,
     };
     use crate::kernel::sandbox::policy::CapabilityDecision;
     use crate::kernel::sandbox::run::SandboxRunStatus;
@@ -188,13 +188,17 @@ mod tests {
             PromotionEligibility::Ineligible { reasons } => reasons,
             _ => panic!(),
         };
-        assert!(reasons
-            .iter()
-            .any(|r| matches!(r, PromotionIneligibilityReason::SandboxNotCompleted { .. })));
+        assert!(
+            reasons
+                .iter()
+                .any(|r| matches!(r, PromotionIneligibilityReason::SandboxNotCompleted { .. }))
+        );
         // Must also flag missing validation.
-        assert!(reasons
-            .iter()
-            .any(|r| matches!(r, PromotionIneligibilityReason::ValidationMissing)));
+        assert!(
+            reasons
+                .iter()
+                .any(|r| matches!(r, PromotionIneligibilityReason::ValidationMissing))
+        );
     }
 
     #[test]

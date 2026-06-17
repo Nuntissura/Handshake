@@ -86,24 +86,32 @@ mod tests {
             },
         ];
         let export = DccKb003PortableExportV1::partition("SBX-1", members);
-        assert!(export
-            .exported
-            .iter()
-            .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxLog));
-        assert!(export
-            .exported
-            .iter()
-            .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxManifest));
+        assert!(
+            export
+                .exported
+                .iter()
+                .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxLog)
+        );
+        assert!(
+            export
+                .exported
+                .iter()
+                .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxManifest)
+        );
         // Screenshot is withheld and reported.
-        assert!(!export
-            .exported
-            .iter()
-            .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxScreenshot));
-        assert!(export
-            .redacted_report
-            .entries
-            .iter()
-            .any(|e| e.artifact_class == Kb003ArtifactClass::SandboxScreenshot));
+        assert!(
+            !export
+                .exported
+                .iter()
+                .any(|m| m.artifact_class == Kb003ArtifactClass::SandboxScreenshot)
+        );
+        assert!(
+            export
+                .redacted_report
+                .entries
+                .iter()
+                .any(|e| e.artifact_class == Kb003ArtifactClass::SandboxScreenshot)
+        );
     }
 
     #[test]

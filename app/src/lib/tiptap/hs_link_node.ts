@@ -39,6 +39,14 @@ export interface HsLinkAttributes {
 
 export type { EmbedResolverContext };
 
+function readHsLinkAttr(element: HTMLElement, legacyName: string, hsName: string): string | null {
+  return element.getAttribute(legacyName) ?? element.getAttribute(hsName);
+}
+
+function readHsLinkKind(element: HTMLElement): string | null {
+  return readHsLinkAttr(element, "data-ref-kind", "data-hs-ref-kind");
+}
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     hsLink: {
@@ -75,17 +83,17 @@ export const HsLinkNode = Node.create<HsLinkNodeOptions>({
         default: "unknown",
         // Iteration-3 L3: pasted HTML could mint a chip with ANY
         // data-ref-kind string; the kind is clamped to the known vocabulary.
-        parseHTML: (element) => clampRefKind(element.getAttribute("data-ref-kind")).refKind,
+        parseHTML: (element) => clampRefKind(readHsLinkKind(element)).refKind,
         renderHTML: (attributes) => ({ "data-ref-kind": String(attributes.refKind) }),
       },
       refValue: {
         default: "",
-        parseHTML: (element) => element.getAttribute("data-ref-value") ?? "",
+        parseHTML: (element) => readHsLinkAttr(element, "data-ref-value", "data-hs-ref-value") ?? "",
         renderHTML: (attributes) => ({ "data-ref-value": String(attributes.refValue) }),
       },
       label: {
         default: "",
-        parseHTML: (element) => element.getAttribute("data-label") ?? element.textContent ?? "",
+        parseHTML: (element) => readHsLinkAttr(element, "data-label", "data-hs-label") ?? element.textContent ?? "",
         renderHTML: (attributes) => ({ "data-label": String(attributes.label) }),
       },
       resolved: {
@@ -93,8 +101,8 @@ export const HsLinkNode = Node.create<HsLinkNodeOptions>({
         // L3: an unknown/spoofed kind also DROPS the claimed resolved flag so
         // the chip renders visibly unresolved instead of confidently trusted.
         parseHTML: (element) => {
-          if (!clampRefKind(element.getAttribute("data-ref-kind")).known) return false;
-          return element.getAttribute("data-resolved") !== "false";
+          if (!clampRefKind(readHsLinkKind(element)).known) return false;
+          return readHsLinkAttr(element, "data-resolved", "data-hs-resolved") !== "false";
         },
         renderHTML: (attributes) => ({ "data-resolved": attributes.resolved ? "true" : "false" }),
       },
@@ -102,7 +110,7 @@ export const HsLinkNode = Node.create<HsLinkNodeOptions>({
   },
 
   parseHTML() {
-    return [{ tag: "span[data-testid='hs-link']" }];
+    return [{ tag: "span[data-testid='hs-link']" }, { tag: "span[data-hs-node='hsLink']" }];
   },
 
   renderHTML({ node, HTMLAttributes }) {

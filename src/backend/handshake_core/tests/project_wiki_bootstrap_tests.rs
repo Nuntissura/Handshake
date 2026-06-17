@@ -235,9 +235,18 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
         "expected module pages for src/knowledge_code_index and src/knowledge_wiki, got {}",
         outcome.module_pages
     );
-    assert!(outcome.concept_pages >= 1, "doc passages must produce concept pages");
-    assert_eq!(outcome.entity_pages, 1, "one rich document -> one entity page");
-    assert_eq!(outcome.decision_pages, 1, "one WP entity -> one decision page");
+    assert!(
+        outcome.concept_pages >= 1,
+        "doc passages must produce concept pages"
+    );
+    assert_eq!(
+        outcome.entity_pages, 1,
+        "one rich document -> one entity page"
+    );
+    assert_eq!(
+        outcome.decision_pages, 1,
+        "one WP entity -> one decision page"
+    );
 
     let titles: Vec<&str> = outcome.pages.iter().map(|p| p.title.as_str()).collect();
     assert!(
@@ -248,7 +257,10 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
         titles.contains(&"module: src/knowledge_wiki"),
         "module page for src/knowledge_wiki missing: {titles:?}"
     );
-    assert!(titles.contains(&WIKI_INDEX_PAGE_TITLE), "index page missing");
+    assert!(
+        titles.contains(&WIKI_INDEX_PAGE_TITLE),
+        "index page missing"
+    );
 
     // ---- citation proof on a real module page -----------------------------
     let module_page = outcome
@@ -259,10 +271,20 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
     assert_eq!(module_page.page_type.as_deref(), Some("module"));
     let stamp = WikiCompileStamp::from_value(module_page.compile_stamp.as_ref())
         .expect("module page MUST be stamped (ship-together guard)");
-    assert!(stamp.ledger_version > 0, "stamp carries the EventLedger version");
-    assert!(!stamp.cited_sources.is_empty(), "no placeholder pages: citations required");
+    assert!(
+        stamp.ledger_version > 0,
+        "stamp carries the EventLedger version"
+    );
+    assert!(
+        !stamp.cited_sources.is_empty(),
+        "no placeholder pages: citations required"
+    );
     for cited in &stamp.cited_sources {
-        assert_eq!(cited.content_hash.len(), 64, "citation hash must be sha256 hex");
+        assert_eq!(
+            cited.content_hash.len(),
+            64,
+            "citation hash must be sha256 hex"
+        );
         assert!(
             cited.content_hash.chars().all(|c| c.is_ascii_hexdigit()),
             "citation hash must be hex"
@@ -278,6 +300,7 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
             &workspace_id,
             Some("evaluate_staleness"),
             Some("src/knowledge_code_index/staleness.rs"),
+            None,
             10,
         )
         .await
@@ -336,7 +359,11 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
                 .fetch_one(&mut conn)
                 .await
                 .expect("source query");
-                assert_eq!(source_count, 1, "cited source {} resolves with its hash", cited.id);
+                assert_eq!(
+                    source_count, 1,
+                    "cited source {} resolves with its hash",
+                    cited.id
+                );
             }
             _ => {}
         }
@@ -377,12 +404,16 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
 
     // ---- EventLedger compile receipts (LM-PWIKI-012) ------------------------
     assert_eq!(
-        ledger_event_kind(&pg, &outcome.started_receipt_event_id).await.as_deref(),
+        ledger_event_kind(&pg, &outcome.started_receipt_event_id)
+            .await
+            .as_deref(),
         Some("wiki_bootstrap_compile_started"),
         "started receipt exists in the EventLedger"
     );
     assert_eq!(
-        ledger_event_kind(&pg, &outcome.completed_receipt_event_id).await.as_deref(),
+        ledger_event_kind(&pg, &outcome.completed_receipt_event_id)
+            .await
+            .as_deref(),
         Some("wiki_bootstrap_compile_completed"),
         "completed receipt exists in the EventLedger"
     );
@@ -449,7 +480,10 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
     // projections appends nothing and mutates nothing; including the operator
     // overlay: annotations survive projection churn).
     let after = authority_fingerprint(&pg).await;
-    assert_eq!(before, after, "authority byte-identical after deleting the whole wiki");
+    assert_eq!(
+        before, after,
+        "authority byte-identical after deleting the whole wiki"
+    );
     let overlays = pg
         .db
         .list_loom_wiki_overlays(&workspace_id, &annotated.projection_id)
@@ -481,12 +515,13 @@ async fn mt241_recompile_is_idempotent() {
         .expect("second bootstrap");
 
     // Same page set: stable identity (no duplicates), identical content.
-    assert_eq!(first.pages.len(), second.pages.len(), "no duplicate pages on recompile");
-    let mut first_by_title: std::collections::BTreeMap<&str, _> = first
-        .pages
-        .iter()
-        .map(|p| (p.title.as_str(), p))
-        .collect();
+    assert_eq!(
+        first.pages.len(),
+        second.pages.len(),
+        "no duplicate pages on recompile"
+    );
+    let mut first_by_title: std::collections::BTreeMap<&str, _> =
+        first.pages.iter().map(|p| (p.title.as_str(), p)).collect();
     for page in &second.pages {
         let original = first_by_title
             .remove(page.title.as_str())
@@ -516,7 +551,10 @@ async fn mt241_recompile_is_idempotent() {
         .check_workspace(&wiki_ctx(), &workspace_id, false)
         .await
         .expect("drift check");
-    assert_eq!(report.stale_pages, 0, "no-change recompile yields zero stale pages");
+    assert_eq!(
+        report.stale_pages, 0,
+        "no-change recompile yields zero stale pages"
+    );
     assert_eq!(report.unstamped_pages, 0, "every compiled page is stamped");
 }
 
@@ -557,7 +595,10 @@ async fn mt241_token_budget_splits_clusters_loudly() {
         .filter(|p| p.title.contains("(part "))
         .collect();
     if outcome.split_clusters >= 1 {
-        assert!(!part_pages.is_empty(), "split clusters emit '(part N)' pages");
+        assert!(
+            !part_pages.is_empty(),
+            "split clusters emit '(part N)' pages"
+        );
         let part_one = part_pages
             .iter()
             .find(|p| p.title.ends_with("(part 1)"))

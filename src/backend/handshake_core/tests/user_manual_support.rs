@@ -135,8 +135,11 @@ macro_rules! skip_if_no_pg {
         match $opt {
             Some(value) => value,
             None => {
-                eprintln!(concat!("SKIP ", $name, ": PostgreSQL unavailable"));
-                return;
+                panic!(concat!(
+                    "PostgreSQL unavailable for ",
+                    $name,
+                    ": UserManual proof requires live PostgreSQL/EventLedger"
+                ));
             }
         }
     };

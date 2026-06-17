@@ -408,6 +408,21 @@ const TS_SCOPE_KINDS: &[&str] = &["class_declaration", "internal_module", "modul
 fn extract_typescript(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
     let mut out = Vec::new();
     for node in &tree.nodes {
+        if let Some((name, symbol_path)) = ts_js_test_case_symbol_path(tree, node, source) {
+            out.push(ExtractedSymbol {
+                kind: SymbolKind::Test,
+                name,
+                symbol_path,
+                node_kind: node.kind.clone(),
+                start_byte: node.start_byte,
+                end_byte: node.end_byte,
+                start_line: node.start_line,
+                end_line: node.end_line,
+                has_error: node.has_error,
+                disambiguator: Some("test".to_string()),
+            });
+            continue;
+        }
         // A node may yield MULTIPLE symbols (a multi-declarator const), so the
         // extractor returns a Vec.
         let symbols: Vec<(SymbolKind, String)> = match node.kind.as_str() {
@@ -477,6 +492,7 @@ fn ts_js_kind_tag(kind: SymbolKind) -> &'static str {
         SymbolKind::Component => "component",
         SymbolKind::Hook => "hook",
         SymbolKind::Constant => "const",
+        SymbolKind::Test => "test",
         // Function/Module and any other share the `value` namespace.
         _ => "value",
     }
@@ -566,6 +582,21 @@ const JS_SCOPE_KINDS: &[&str] = &["class_declaration"];
 fn extract_javascript(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
     let mut out = Vec::new();
     for node in &tree.nodes {
+        if let Some((name, symbol_path)) = ts_js_test_case_symbol_path(tree, node, source) {
+            out.push(ExtractedSymbol {
+                kind: SymbolKind::Test,
+                name,
+                symbol_path,
+                node_kind: node.kind.clone(),
+                start_byte: node.start_byte,
+                end_byte: node.end_byte,
+                start_line: node.start_line,
+                end_line: node.end_line,
+                has_error: node.has_error,
+                disambiguator: Some("test".to_string()),
+            });
+            continue;
+        }
         let symbols: Vec<(SymbolKind, String)> = match node.kind.as_str() {
             "function_declaration" | "generator_function_declaration" => {
                 decl_name(tree, node, source)
@@ -603,6 +634,164 @@ fn extract_javascript(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
         }
     }
     out
+}
+
+fn ts_js_test_case_symbol_path(
+    tree: &ParsedTree,
+    node: &AstNode,
+    source: &str,
+) -> Option<(String, String)> {
+    if node.kind != "call_expression" {
+        return None;
+    }
+    let runner = ts_js_runner_call(tree, node, source)?;
+    if runner.name != "it" && runner.name != "test" {
+        return None;
+    }
+    if matches!(
+        runner.modifier,
+        Some(TsJsRunnerModifier::Skip | TsJsRunnerModifier::Todo)
+    ) {
+        return None;
+    }
+    let case_title = first_direct_call_string_arg(tree, node, source)?;
+    let mut suites = Vec::new();
+    let mut current = node.parent;
+    while let Some(parent_index) = current {
+        let parent = &tree.nodes[parent_index];
+        if parent.kind == "call_expression" {
+            let runner = ts_js_runner_call(tree, parent, source);
+            if matches!(
+                runner.map(|call| call.modifier),
+                Some(Some(TsJsRunnerModifier::Skip | TsJsRunnerModifier::Todo))
+            ) {
+                return None;
+            }
+            if runner.map(|call| call.name) == Some("describe") {
+                let title = first_direct_call_string_arg(tree, parent, source)?;
+                suites.push(title);
+            }
+        }
+        current = parent.parent;
+    }
+    suites.reverse();
+
+    let mut path = Vec::with_capacity(suites.len() + 2);
+    path.push("test".to_string());
+    path.extend(suites);
+    path.push(case_title.clone());
+    Some((case_title, path.join(".")))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TsJsRunnerModifier {
+    Only,
+    Skip,
+    Todo,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TsJsRunnerCall {
+    name: &'static str,
+    modifier: Option<TsJsRunnerModifier>,
+}
+
+fn ts_js_runner_call(tree: &ParsedTree, call: &AstNode, source: &str) -> Option<TsJsRunnerCall> {
+    let callee = tree
+        .children_of(call.index)
+        .find(|c| c.field_name.as_deref() == Some("function"))
+        .or_else(|| tree.children_of(call.index).next())?;
+    match callee.kind.as_str() {
+        "identifier" => runner_name(tree.node_text(callee, source)?).map(|name| TsJsRunnerCall {
+            name,
+            modifier: None,
+        }),
+        "member_expression" | "field_expression" => {
+            let ids: Vec<&str> = tree
+                .children_of(callee.index)
+                .filter(|c| {
+                    matches!(
+                        c.kind.as_str(),
+                        "identifier" | "property_identifier" | "field_identifier"
+                    )
+                })
+                .filter_map(|c| tree.node_text(c, source))
+                .collect();
+            if ids.len() != 2 {
+                return None;
+            }
+            let name = runner_name(ids[0])?;
+            let modifier = runner_modifier(ids[1])?;
+            Some(TsJsRunnerCall {
+                name,
+                modifier: Some(modifier),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn runner_name(value: &str) -> Option<&'static str> {
+    match value {
+        "describe" => Some("describe"),
+        "it" => Some("it"),
+        "test" => Some("test"),
+        _ => None,
+    }
+}
+
+fn runner_modifier(value: &str) -> Option<TsJsRunnerModifier> {
+    match value {
+        "only" => Some(TsJsRunnerModifier::Only),
+        "skip" => Some(TsJsRunnerModifier::Skip),
+        "todo" => Some(TsJsRunnerModifier::Todo),
+        _ => None,
+    }
+}
+
+fn first_direct_call_string_arg(tree: &ParsedTree, call: &AstNode, source: &str) -> Option<String> {
+    let args = tree
+        .children_of(call.index)
+        .find(|c| c.kind == "arguments")?;
+    tree.children_of(args.index)
+        .filter(|n| n.start_byte >= args.start_byte && n.end_byte <= args.end_byte)
+        .min_by_key(|n| n.start_byte)
+        .filter(|n| matches!(n.kind.as_str(), "string" | "template_string"))
+        .and_then(|n| tree.node_text(n, source))
+        .and_then(normalize_test_title)
+}
+
+fn normalize_test_title(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    let unquoted = if trimmed.len() >= 2 {
+        let first = trimmed.chars().next()?;
+        let last = trimmed.chars().last()?;
+        if matches!(first, '"' | '\'' | '`') && first == last {
+            &trimmed[first.len_utf8()..trimmed.len() - last.len_utf8()]
+        } else {
+            trimmed
+        }
+    } else {
+        trimmed
+    };
+    let mut out = String::new();
+    let mut pending_space = false;
+    for ch in unquoted.chars() {
+        if ch.is_alphanumeric() || ch == '_' || ch == '-' {
+            if pending_space && !out.is_empty() {
+                out.push(' ');
+            }
+            pending_space = false;
+            out.push(ch);
+        } else {
+            pending_space = true;
+        }
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
 }
 
 #[cfg(test)]
@@ -680,6 +869,101 @@ enum Color { Red, Green }
         assert_eq!(by_path.get("useThing"), Some(&SymbolKind::Hook));
         assert_eq!(by_path.get("Id"), Some(&SymbolKind::TypeAlias));
         assert_eq!(by_path.get("Color"), Some(&SymbolKind::Enum));
+    }
+
+    #[test]
+    fn typescript_extracts_test_runner_calls_as_test_symbols() {
+        let src = r#"
+import { describe, it, test, expect } from "vitest";
+
+export function compute(): number { return 1; }
+export function helper(): number { return 2; }
+
+describe("math", () => {
+    it("computes value", () => {
+        expect(compute()).toBe(1);
+    });
+    test("uses helper", () => {
+        helper();
+    });
+});
+"#;
+        let tree = parse(CodeLanguage::TypeScript, src);
+        let syms = extract_symbols(&tree, src);
+        let tests: Vec<_> = syms.iter().filter(|s| s.kind == SymbolKind::Test).collect();
+        assert_eq!(
+            tests.len(),
+            2,
+            "it/test call blocks should become test symbols: {syms:?}"
+        );
+        let paths: Vec<&str> = tests.iter().map(|s| s.symbol_path.as_str()).collect();
+        assert!(
+            paths.contains(&"test.math.computes value"),
+            "nested it() should carry its describe() suite path: {paths:?}"
+        );
+        assert!(
+            paths.contains(&"test.math.uses helper"),
+            "nested test() should carry its describe() suite path: {paths:?}"
+        );
+        assert!(tests
+            .iter()
+            .all(|s| s.disambiguator.as_deref() == Some("test")));
+    }
+
+    #[test]
+    fn typescript_test_symbols_reject_non_runner_member_calls_and_dynamic_titles() {
+        let src = r#"
+function makeTitle(value: string): string { return value; }
+export function compute(): number { return 1; }
+
+const suite = {
+    test(name: string, body: () => void) { body(); }
+};
+
+suite.test("not a runner", () => {
+    compute();
+});
+
+test(makeTitle("computed title"), () => {
+    compute();
+});
+"#;
+        let tree = parse(CodeLanguage::TypeScript, src);
+        let syms = extract_symbols(&tree, src);
+        let tests: Vec<_> = syms.iter().filter(|s| s.kind == SymbolKind::Test).collect();
+        assert!(
+            tests.is_empty(),
+            "only bare it/test or known runner modifiers with literal first titles are test symbols: {tests:?}"
+        );
+    }
+
+    #[test]
+    fn typescript_test_symbols_accept_only_modifier_and_exclude_inactive_cases() {
+        let src = r#"
+import { describe, it, test } from "vitest";
+export function compute(): number { return 1; }
+
+describe("math", () => {
+    it.only("focused", () => {
+        compute();
+    });
+    it.skip("skipped", () => {
+        compute();
+    });
+    test.todo("todo case", () => {
+        compute();
+    });
+});
+"#;
+        let tree = parse(CodeLanguage::TypeScript, src);
+        let syms = extract_symbols(&tree, src);
+        let tests: Vec<_> = syms.iter().filter(|s| s.kind == SymbolKind::Test).collect();
+        let paths: Vec<&str> = tests.iter().map(|s| s.symbol_path.as_str()).collect();
+        assert_eq!(
+            paths,
+            vec!["test.math.focused"],
+            "only active runner cases should become validates-capable test symbols: {tests:?}"
+        );
     }
 
     #[test]

@@ -6,49 +6,61 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // execution routing). We mock only the IPC CALLS of the swarm runtime module —
 // the real hook + form components render. This mirrors SwarmOperatorSurface.test.
 
-const spawnSessionMock = vi.fn(async (_request: Record<string, unknown>) => ({
-  modelId: "m",
-  instance: 0,
-  composite: "m#0",
-}));
-const spawnLocalCloudPairMock = vi.fn(async (_request: Record<string, unknown>) => ({
-  local: {
-    provider: "local",
-    instanceId: { modelId: "local-m", instance: 0, composite: "local-m#0" },
-    error: null,
-  },
-  cloud: {
-    provider: "byok_cloud",
-    instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
-    error: null,
-  },
-}));
-const spawnWithCloudEscalationMock = vi.fn(async (_request: Record<string, unknown>) => ({
-  selected: "cloud",
-  escalated: true,
-  escalationReason: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
-  local: {
-    provider: "local",
-    instanceId: null,
-    error: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
-  },
-  cloud: {
-    provider: "byok_cloud",
-    instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
-    error: null,
-  },
-}));
-const chatGenerateWithCloudEscalationMock = vi.fn(async (_request: Record<string, unknown>) => ({
-  selected: "cloud",
-  escalated: true,
-  escalationReason: "local overloaded",
-  localError: null,
-  local: null,
-  cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
-  cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
-  cloudAssistanceReceipt: null,
-  cloudError: null,
-}));
+const spawnSessionMock = vi.fn(async (request: Record<string, unknown>) => {
+  void request;
+  return {
+    modelId: "m",
+    instance: 0,
+    composite: "m#0",
+  };
+});
+const spawnLocalCloudPairMock = vi.fn(async (request: Record<string, unknown>) => {
+  void request;
+  return {
+    local: {
+      provider: "local",
+      instanceId: { modelId: "local-m", instance: 0, composite: "local-m#0" },
+      error: null,
+    },
+    cloud: {
+      provider: "byok_cloud",
+      instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+      error: null,
+    },
+  };
+});
+const spawnWithCloudEscalationMock = vi.fn(async (request: Record<string, unknown>) => {
+  void request;
+  return {
+    selected: "cloud",
+    escalated: true,
+    escalationReason: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
+    local: {
+      provider: "local",
+      instanceId: null,
+      error: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
+    },
+    cloud: {
+      provider: "byok_cloud",
+      instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+      error: null,
+    },
+  };
+});
+const chatGenerateWithCloudEscalationMock = vi.fn(async (request: Record<string, unknown>) => {
+  void request;
+  return {
+    selected: "cloud",
+    escalated: true,
+    escalationReason: "local overloaded",
+    localError: null,
+    local: null,
+    cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+    cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
+    cloudAssistanceReceipt: null,
+    cloudError: null,
+  };
+});
 const listWorktreesMock = vi.fn(async () => [
   { worktreeId: "wt-existing", liveSessionCount: 2 },
 ]);

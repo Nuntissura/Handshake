@@ -40,11 +40,14 @@ import {
   EMPTY_FIND_HIGHLIGHTS,
   type FindHighlightPayload,
 } from "../lib/tiptap/find_decorations";
+import type { EditorFindRequest } from "../lib/editor/editor_find_request";
 
 export interface FindReplacePanelProps {
   editor: Editor;
   /** Show the replace row (Mod-h) or find-only (Mod-f). */
   withReplace: boolean;
+  /** Optional external find request, e.g. workspace search opening a result. */
+  findRequest?: EditorFindRequest | null;
   onClose: () => void;
 }
 
@@ -74,13 +77,13 @@ function clearHighlights(editor: Editor): void {
   editor.view.dispatch(editor.state.tr.setMeta(FIND_DECORATIONS_META, EMPTY_FIND_HIGHLIGHTS));
 }
 
-export function FindReplacePanel({ editor, withReplace, onClose }: FindReplacePanelProps) {
-  const [term, setTerm] = useState("");
+export function FindReplacePanel({ editor, withReplace, findRequest = null, onClose }: FindReplacePanelProps) {
+  const [term, setTerm] = useState(() => findRequest?.query ?? "");
   const [replacement, setReplacement] = useState("");
-  const [caseSensitive, setCaseSensitive] = useState(false);
-  const [wholeWord, setWholeWord] = useState(false);
-  const [isRegex, setIsRegex] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [caseSensitive, setCaseSensitive] = useState(() => findRequest?.caseSensitive ?? false);
+  const [wholeWord, setWholeWord] = useState(() => findRequest?.wholeWord ?? false);
+  const [isRegex, setIsRegex] = useState(() => findRequest?.isRegex ?? false);
+  const [activeIndex, setActiveIndex] = useState(() => (findRequest?.query ? 0 : -1));
   const [docVersion, setDocVersion] = useState(0);
   const [lastOutcome, setLastOutcome] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,6 +136,15 @@ export function FindReplacePanel({ editor, withReplace, onClose }: FindReplacePa
     },
     [editor, scan.matches],
   );
+
+  useEffect(() => {
+    if (!findRequest || scan.error || scan.matches.length === 0) return;
+    const match = scan.matches[0];
+    selectMatch(editor, match);
+    if (match.kind === "code") {
+      revealCodeBlockRange(match.nodePos, match.start, match.end);
+    }
+  }, [editor, findRequest, scan.error, scan.matches]);
 
   const findNext = useCallback(() => {
     if (scan.matches.length === 0) return;

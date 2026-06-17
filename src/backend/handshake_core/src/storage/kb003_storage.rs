@@ -190,7 +190,9 @@ pub struct PromotionReceiptRowV1 {
 pub enum Kb003StorageError {
     #[error("authority guard failed: {0}")]
     Authority(#[from] NoSqliteTripwireError),
-    #[error("idempotency conflict on key `{key}`: existing payload hash `{existing_hash}` != new `{new_hash}`")]
+    #[error(
+        "idempotency conflict on key `{key}`: existing payload hash `{existing_hash}` != new `{new_hash}`"
+    )]
     IdempotencyConflict {
         key: String,
         existing_hash: String,

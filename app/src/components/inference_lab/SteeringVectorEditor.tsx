@@ -41,7 +41,9 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
       return;
     }
     let active = true;
-    setState({ status: "loading" });
+    queueMicrotask(() => {
+      if (active) setState({ status: "loading" });
+    });
 
     listVectors(modelId)
       .then((vectors) => {

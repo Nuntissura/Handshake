@@ -51,7 +51,10 @@ export function useSwarmBoard() {
     setBoard({ cards: indexCards(snap.cards) });
     setLagged(false);
   }, []);
-  reconcileRef.current = reconcile;
+
+  useEffect(() => {
+    reconcileRef.current = reconcile;
+  }, [reconcile]);
 
   const applyDelta = useCallback((delta: SwarmBoardDelta) => {
     // A gap in the monotonic seq means we missed events -> reconcile, never
@@ -85,7 +88,9 @@ export function useSwarmBoard() {
   useEffect(() => {
     let alive = true;
     let unlisten: (() => void) | undefined;
-    void reconcile();
+    queueMicrotask(() => {
+      if (alive) void reconcile();
+    });
     void subscribeBoardEvents(applyDelta, () => {
       setLagged(true);
       void reconcile();

@@ -7,7 +7,7 @@ manual_version: "1.0.6"
 
 # ModelManual
 
-This on-demand projection is a build artifact. The Rust ModelManual manifest remains canonical.
+This legacy ModelManual projection is a compatibility artifact. UserManual is canonical.
 
 <topic id="feature-hbr-process-diagnostics" status="current" version="1.0.6" summary="HBR, Process Ledger, And Diagnostics">
 
@@ -1443,7 +1443,7 @@ Recovery steps:
 
 ## Safety Constraint: manual_same_commit_currency
 
-Constraint: HBR-MAN-001 requires every wired surface diff to update ModelManual content and bump MANUAL_VERSION in the same commit.
+Constraint: HBR-MAN-001 requires every wired surface diff to update UserManual content and bump USER_MANUAL_VERSION in the same commit.
 
 Enforcement point: hbr-man-001 paired-diff check
 
@@ -1525,7 +1525,7 @@ Expected outcome: The governed session completes with traceable evidence and no 
 Failure modes:
 - HBR matrix row remains PENDING
 - Evidence pointer cannot be resolved
-- MANUAL_VERSION not bumped after a wired-surface diff
+- USER_MANUAL_VERSION not bumped after a wired-surface diff
 
 
 </topic>
@@ -1554,4 +1554,3 @@ Failure modes:
 
 
 </topic>
-

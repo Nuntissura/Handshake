@@ -24,8 +24,12 @@
 use serde_json::{json, Value};
 
 use crate::kernel::context_bundle::ContextBundle;
+use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_retrieval::budget::{allocate, BudgetAllocation, BudgetItem, PriorityTier};
-use crate::knowledge_retrieval::plan::{QueryPlan, RetrievalTrace, RouteTaken, SelectedRef};
+use crate::knowledge_retrieval::plan::{
+    CandidateScores, QueryPlan, RetrievalCandidate, RetrievalStore, RetrievalTrace, RouteTaken,
+    SelectedRef,
+};
 use crate::knowledge_retrieval::snippet::EvidenceSnippet;
 use crate::storage::knowledge::{
     KnowledgeBundleItemDecision, KnowledgeBundleItemRefKind, KnowledgeStore,
@@ -33,7 +37,7 @@ use crate::storage::knowledge::{
 };
 use crate::storage::knowledge_retrieval::record_retrieval_trace;
 use crate::storage::postgres::PostgresDatabase;
-use crate::storage::{StorageError, StorageResult};
+use crate::storage::{Database, StorageError, StorageResult};
 
 /// What a bundle is being compiled FOR (spec MT-136 target list). The kind is
 /// recorded in the bundle's `allowed_context` so a consumer knows the bundle's
@@ -175,6 +179,34 @@ impl<'a> ContextBundleCompilerV2<'a> {
         // 3. Construct the kernel V1 bundle (content-hashed id) — persisted as-is.
         let bundle = ContextBundle::new(kernel_task_run_id, session_run_id, allowed_context)
             .map_err(|err| StorageError::Validation(kernel_err_str(err)))?;
+        let bundle_id = bundle.context_bundle_id.clone();
+        let bundle_context_hash = bundle.context_hash.clone();
+        let build_receipt_event_id = match build_receipt_event_id {
+            Some(event_id) => Some(event_id),
+            None => {
+                let event = NewKernelEvent::builder(
+                    kernel_task_run_id,
+                    session_run_id,
+                    KernelEventType::ContextBundleRecorded,
+                    KernelActor::System("knowledge-retrieval".to_string()),
+                )
+                .aggregate("context_bundle", bundle_id.clone())
+                .idempotency_key(format!(
+                    "knowledge-context-bundle:{bundle_id}:{bundle_context_hash}"
+                ))
+                .payload(json!({
+                    "bundle_id": bundle_id,
+                    "context_hash": bundle_context_hash,
+                    "query_plan_id": plan.plan_id,
+                    "retrieval_mode": plan.retrieval_mode.to_storage_str(),
+                    "target": {"kind": target_kind.as_str(), "ref": target_ref},
+                    "tokens_used": allocation.tokens_used,
+                }))
+                .build()
+                .map_err(|_| StorageError::Validation("context bundle receipt event is invalid"))?;
+                Some(self.db.append_kernel_event(event).await?.event_id)
+            }
+        };
 
         // 4. Per-item decisions (included / excluded_*), in candidate order.
         let items: Vec<NewKnowledgeContextBundleItem> = candidates
@@ -220,6 +252,24 @@ impl<'a> ContextBundleCompilerV2<'a> {
             .filter(|c| allocation.is_admitted(&c.ref_id))
             .enumerate()
         {
+            if !trace
+                .candidates
+                .iter()
+                .any(|existing| existing.candidate_id == candidate.ref_id)
+            {
+                trace.candidates.push(RetrievalCandidate {
+                    candidate_id: candidate.ref_id.clone(),
+                    kind: candidate_kind(candidate.ref_kind).to_string(),
+                    store: plan
+                        .route
+                        .first()
+                        .map(|step| step.store)
+                        .unwrap_or(RetrievalStore::BoundedReadOnly),
+                    scores: CandidateScores::default(),
+                    base_score: candidate.relevance_score,
+                    tiebreak: candidate.ref_id.clone(),
+                });
+            }
             trace.selected.push(SelectedRef {
                 candidate_id: candidate.ref_id.clone(),
                 final_rank: rank as u32,
@@ -276,6 +326,16 @@ fn item_decision(allocation: &BudgetAllocation, ref_id: &str) -> KnowledgeBundle
     // spec `excluded_budget` decision (the bundle items enum has no
     // per-source-specific value; the precise reason is in the trace).
     KnowledgeBundleItemDecision::ExcludedBudget
+}
+
+fn candidate_kind(ref_kind: KnowledgeBundleItemRefKind) -> &'static str {
+    match ref_kind {
+        KnowledgeBundleItemRefKind::Source => "source_ref",
+        KnowledgeBundleItemRefKind::Entity => "entity_ref",
+        KnowledgeBundleItemRefKind::Span => "span_ref",
+        KnowledgeBundleItemRefKind::Passage => "passage_ref",
+        KnowledgeBundleItemRefKind::Claim => "claim_ref",
+    }
 }
 
 fn kernel_err_str(err: crate::kernel::KernelError) -> &'static str {

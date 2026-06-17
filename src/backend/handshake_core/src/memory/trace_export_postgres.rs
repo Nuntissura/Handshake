@@ -119,7 +119,7 @@ impl PostgresTraceSource {
 fn is_idempotency_conflict(error: &StorageError) -> bool {
     matches!(
         error,
-        StorageError::Validation(message) if *message == "kernel event idempotency conflict"
+        StorageError::Validation(message) if message.starts_with("kernel event idempotency conflict")
     )
 }
 

@@ -19,8 +19,8 @@ use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::knowledge_crdt::{
-    self, insert_denial_receipt, new_denial_receipt_id, AgentLaneLeaseRow, LeaseInsertOutcome,
-    LeaseTakeoverFailure, NewAgentLaneLease, NewKnowledgeCrdtDenialReceipt,
+    self, AgentLaneLeaseRow, LeaseInsertOutcome, LeaseTakeoverFailure, NewAgentLaneLease,
+    NewKnowledgeCrdtDenialReceipt, insert_denial_receipt, new_denial_receipt_id,
 };
 use crate::storage::{Database, StorageError};
 

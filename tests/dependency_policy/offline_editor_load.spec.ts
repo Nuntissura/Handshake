@@ -112,6 +112,13 @@ test.describe("WP-KERNEL-009 offline editor load (built assets, network blocked)
     );
     const state = await page.evaluate(() => window.__HARNESS_STATE__);
     expect(state?.monacoWorkerProof).toBe("ts-worker-responded");
+    expect(state?.monacoWorkerProofs).toEqual({
+      editor: "worker-constructed",
+      typescript: "ts-worker-responded",
+      json: "worker-constructed",
+      css: "worker-constructed",
+      html: "worker-constructed",
+    });
     expect(state?.errors ?? []).toEqual([]);
     expect(state?.failures ?? []).toEqual([]);
 
@@ -168,6 +175,20 @@ test.describe("WP-KERNEL-009 offline editor load (built assets, network blocked)
       servedRequests.some((url) => /worker-[^/]*\.js/.test(url)),
       `no worker chunk request seen; served: ${servedRequests.join(", ")}`,
     ).toBe(true);
+    for (const workerChunk of [
+      "editor.worker-",
+      "ts.worker-",
+      "json.worker-",
+      "css.worker-",
+      "html.worker-",
+    ]) {
+      await expect
+        .poll(
+          async () => servedRequests.some((url) => url.includes(workerChunk)),
+          { message: `missing loopback-served ${workerChunk} chunk` },
+        )
+        .toBe(true);
+    }
 
     // THE offline guarantee: zero external requests attempted.
     expect(externalRequests, `external requests attempted: ${externalRequests.join(", ")}`).toEqual([]);
@@ -185,6 +206,7 @@ declare global {
     __HARNESS_STATE__?: {
       monacoReady: boolean;
       monacoWorkerProof: string | null;
+      monacoWorkerProofs?: Record<"editor" | "typescript" | "json" | "css" | "html", string>;
       tiptapReady: boolean;
       tiptapExtensions: string[];
       tiptapDocText?: () => string;

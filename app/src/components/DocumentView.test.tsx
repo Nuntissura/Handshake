@@ -105,6 +105,23 @@ vi.mock("../lib/api", () => {
 });
 
 describe("DocumentView", () => {
+  it("does not report an initial clean legacy document state as a dirty transition", async () => {
+    const dirtyReports: boolean[] = [];
+
+    render(
+      <DocumentView
+        documentId="doc-1"
+        onDeleted={() => {}}
+        onDirtyChange={(dirty) => dirtyReports.push(dirty)}
+      />,
+    );
+
+    await screen.findByTestId("tiptap-editor");
+    await act(async () => {});
+
+    expect(dirtyReports).toEqual([]);
+  });
+
   it("saves edited text via updateDocumentBlocks", async () => {
     await act(async () => {
       render(<DocumentView documentId="doc-1" onDeleted={() => {}} />);
@@ -171,5 +188,41 @@ describe("DocumentView", () => {
       expect(addJob).toHaveBeenCalledTimes(1);
       expect(addJob).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", docId: "doc-1" }));
     });
+  });
+
+  it("does not report the previous legacy document dirty state after switching documents", async () => {
+    const dirtyReports: Array<{ documentId: string; dirty: boolean }> = [];
+
+    const { rerender } = render(
+      <DocumentView
+        documentId="doc-1"
+        onDeleted={() => {}}
+        onDirtyChange={(dirty) => dirtyReports.push({ documentId: "doc-1", dirty })}
+      />,
+    );
+
+    const editor = await screen.findByTestId("tiptap-editor");
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "dirty doc 1" } });
+    });
+    await waitFor(() => {
+      expect(dirtyReports).toContainEqual({ documentId: "doc-1", dirty: true });
+    });
+
+    dirtyReports.length = 0;
+    await act(async () => {
+      rerender(
+        <DocumentView
+          documentId="doc-2"
+          onDeleted={() => {}}
+          onDirtyChange={(dirty) => dirtyReports.push({ documentId: "doc-2", dirty })}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(dirtyReports).toContainEqual({ documentId: "doc-2", dirty: false });
+    });
+    expect(dirtyReports).not.toContainEqual({ documentId: "doc-2", dirty: true });
   });
 });

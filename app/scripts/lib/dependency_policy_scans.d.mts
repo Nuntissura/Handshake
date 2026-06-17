@@ -53,6 +53,14 @@ export interface AllowlistDocument {
     shell_extensions?: string[];
     shell_content_markers?: string[];
   };
+  source_tripwire_exceptions?: {
+    entries: Array<{
+      class_id: string;
+      path: string;
+      patterns: string[];
+      reason: string;
+    }>;
+  };
 }
 
 export interface PatternViolation {
@@ -65,7 +73,21 @@ export interface PatternViolation {
 export interface PatternScanResult {
   violations: PatternViolation[];
   exceptionsApplied: Array<{ path: string; exception: string; patterns: string[] }>;
+  readErrors: Array<{ path: string; error: string }>;
 }
+
+export type SourceTripwireExceptionEntry = {
+  class_id: string;
+  path: string;
+  patterns: string[];
+  reason: string;
+};
+
+export type SourceTripwireViolation = PatternViolation & { class: string };
+
+export type SourceTripwireExceptionApplied =
+  | (PatternViolation & { class: string; exception: "source_tripwire_exceptions" })
+  | { class: string; path: string; exception: "path_prefix"; patterns: string[] };
 
 export declare function loadAllowlist(repoRoot: string): AllowlistDocument;
 export declare function selfExemptPathSet(allowlist: AllowlistDocument): Set<string>;
@@ -95,6 +117,29 @@ export declare function scanCdnReferences(args: {
   repoRoot: string;
   allowlist: AllowlistDocument;
 }): PatternScanResult;
+export declare const DEFAULT_REQUIRED_SOURCE_PATTERNS: Array<[string, string]>;
+export declare function sourceTripwireExceptionEntries(
+  allowlist: AllowlistDocument,
+): SourceTripwireExceptionEntry[];
+export declare function sourceTripwireExceptionKey(
+  classId: string,
+  path: string,
+  pattern: string,
+): string;
+export declare function sourceTripwireExceptionSet(allowlist: AllowlistDocument): Set<string>;
+export declare function validateSourceTripwireAuthority(
+  allowlist: AllowlistDocument,
+  requiredPatterns?: Array<[string, string]>,
+): string[];
+export declare function scanForbiddenSourceTripwires(args: {
+  repoRoot: string;
+  allowlist: AllowlistDocument;
+  files?: string[] | null;
+}): {
+  violations: SourceTripwireViolation[];
+  exceptionsApplied: SourceTripwireExceptionApplied[];
+  readErrors: Array<{ path: string; error: string }>;
+};
 export declare function npmManifestDependencyNames(packageJsonText: string): string[];
 export declare function externalWorkerLoads(
   content: string,

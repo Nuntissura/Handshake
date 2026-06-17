@@ -1,22 +1,23 @@
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{delete, get, post, put},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::fs;
 use uuid::Uuid;
 
 use crate::ace::validators::atelier_scope::{
-    apply_selection_bounded_patchsets, sha256_hex, AtelierScopeError, DocPatchsetV1,
-    SelectionRangeV1,
+    AtelierScopeError, DocPatchsetV1, SelectionRangeV1, apply_selection_bounded_patchsets,
+    sha256_hex,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::workflows::build_dcc_control_plane_snapshot;
 use crate::{
+    AppState,
     diagnostics::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
     },
@@ -26,9 +27,8 @@ use crate::{
     },
     storage::{
         Block, JobKind, JobState, NewBlock, NewDocument, NewWorkspace, StorageError,
-        WriteActorKind, WriteContext,
+        WorkbenchLayoutStateInput, WorkspaceSettingsStateInput, WriteActorKind, WriteContext,
     },
-    AppState,
 };
 
 pub fn routes(state: AppState) -> Router {
@@ -48,6 +48,14 @@ pub fn routes(state: AppState) -> Router {
             post(apply_atelier_patchsets),
         )
         .route("/atelier/roles", get(list_atelier_roles))
+        .route(
+            "/workspaces/:workspace_id/workbench/layout",
+            get(get_workbench_layout).put(save_workbench_layout),
+        )
+        .route(
+            "/workspaces/:workspace_id/settings",
+            get(get_workspace_settings).put(save_workspace_settings),
+        )
         .route("/workspaces/:workspace_id", delete(delete_workspace))
         .route("/dcc/control-plane", get(dcc_control_plane_snapshot))
         .with_state(state)
@@ -463,7 +471,7 @@ async fn write_context_from_headers(
             let (job_id, workflow_id) = match (job_id, workflow_id) {
                 (Some(job_id), Some(workflow_id)) => (job_id, workflow_id),
                 (job_id, workflow_id) => {
-                    return Ok(WriteContext::ai(actor_id, job_id, workflow_id))
+                    return Ok(WriteContext::ai(actor_id, job_id, workflow_id));
                 }
             };
 
@@ -658,6 +666,136 @@ async fn delete_workspace(
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Serialize)]
+struct WorkbenchLayoutResponse {
+    workspace_id: String,
+    layout_state: Option<Value>,
+    updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SaveWorkbenchLayoutRequest {
+    layout_state: Value,
+}
+
+async fn get_workbench_layout(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> Result<Json<WorkbenchLayoutResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .get_workbench_layout_state(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(match record {
+        Some(record) => WorkbenchLayoutResponse {
+            workspace_id: record.workspace_id,
+            layout_state: Some(record.layout_state),
+            updated_at: Some(record.updated_at),
+            event_ledger_event_id: Some(record.event_ledger_event_id),
+        },
+        None => WorkbenchLayoutResponse {
+            workspace_id,
+            layout_state: None,
+            updated_at: None,
+            event_ledger_event_id: None,
+        },
+    }))
+}
+
+async fn save_workbench_layout(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<SaveWorkbenchLayoutRequest>,
+) -> Result<Json<WorkbenchLayoutResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .save_workbench_layout_state(
+            &workspace_id,
+            WorkbenchLayoutStateInput {
+                layout_state: payload.layout_state,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(WorkbenchLayoutResponse {
+        workspace_id: record.workspace_id,
+        layout_state: Some(record.layout_state),
+        updated_at: Some(record.updated_at),
+        event_ledger_event_id: Some(record.event_ledger_event_id),
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct WorkspaceSettingsResponse {
+    workspace_id: String,
+    settings_state: Option<Value>,
+    updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    event_ledger_event_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SaveWorkspaceSettingsRequest {
+    settings_state: Value,
+}
+
+async fn get_workspace_settings(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .get_workspace_settings_state(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(match record {
+        Some(record) => WorkspaceSettingsResponse {
+            workspace_id: record.workspace_id,
+            settings_state: Some(record.settings_state),
+            updated_at: Some(record.updated_at),
+            event_ledger_event_id: Some(record.event_ledger_event_id),
+        },
+        None => WorkspaceSettingsResponse {
+            workspace_id,
+            settings_state: None,
+            updated_at: None,
+            event_ledger_event_id: None,
+        },
+    }))
+}
+
+async fn save_workspace_settings(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<SaveWorkspaceSettingsRequest>,
+) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .save_workspace_settings_state(
+            &workspace_id,
+            WorkspaceSettingsStateInput {
+                settings_state: payload.settings_state,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(WorkspaceSettingsResponse {
+        workspace_id: record.workspace_id,
+        settings_state: Some(record.settings_state),
+        updated_at: Some(record.updated_at),
+        event_ledger_event_id: Some(record.event_ledger_event_id),
+    }))
 }
 
 async fn create_document(
@@ -991,7 +1129,7 @@ async fn apply_atelier_patchsets(
                 }
                 AtelierScopeError::HashMismatch(_) => return Err(atelier_stale_selection_error()),
                 AtelierScopeError::InvalidSelection(_) | AtelierScopeError::InvalidPatchset(_) => {
-                    return Err(bad_request_error())
+                    return Err(bad_request_error());
                 }
             }
         }
@@ -1237,12 +1375,12 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::diagnostics::DiagFilter;
     use crate::flight_recorder::{
-        duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorderEventType,
+        EventFilter, FlightRecorderEventType, duckdb::DuckDbFlightRecorder,
     };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database, EntityRef, JobKind,
-        JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
+        AccessMode, Database, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob,
+        PlannedOperation, SafetyMode, tests::optional_postgres_backend_with_pool_from_env,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
@@ -1283,8 +1421,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_accepts_matching_job_output(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_accepts_matching_job_output()
+    -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1403,8 +1541,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale()
+    -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1510,8 +1648,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch()
+    -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1622,8 +1760,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replace_blocks_rejects_ai_when_context_missing(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn replace_blocks_rejects_ai_when_context_missing()
+    -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
@@ -1710,8 +1848,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replace_blocks_accepts_ai_and_persists_traceability(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn replace_blocks_accepts_ai_and_persists_traceability()
+    -> Result<(), Box<dyn std::error::Error>> {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };

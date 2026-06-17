@@ -91,7 +91,11 @@ pub struct VisualDiffComputeError {
 
 impl std::fmt::Display for VisualDiffComputeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "visual diff computation failed: {}", self.message)
+        write!(
+            formatter,
+            "visual diff computation failed: {}",
+            self.message
+        )
     }
 }
 
@@ -135,8 +139,7 @@ pub fn compute_visual_comparison(
                 .zip(candidate_bytes.iter())
                 .filter(|(reference, candidate)| reference != candidate)
                 .count() as u64;
-            let length_differing =
-                reference_bytes.len().abs_diff(candidate_bytes.len()) as u64;
+            let length_differing = reference_bytes.len().abs_diff(candidate_bytes.len()) as u64;
             let differing = overlap_differing + length_differing;
             let mismatch_basis_points = mismatch_basis_points(differing, compared);
             let threshold_exceeded =
@@ -155,12 +158,12 @@ pub fn compute_visual_comparison(
             })
         }
         VisualComparisonMode::StructuralDom => {
-            let reference: serde_json::Value = serde_json::from_slice(reference_bytes)
-                .map_err(|err| VisualDiffComputeError {
+            let reference: serde_json::Value =
+                serde_json::from_slice(reference_bytes).map_err(|err| VisualDiffComputeError {
                     message: format!("reference DOM snapshot is not valid JSON: {err}"),
                 })?;
-            let candidate: serde_json::Value = serde_json::from_slice(candidate_bytes)
-                .map_err(|err| VisualDiffComputeError {
+            let candidate: serde_json::Value =
+                serde_json::from_slice(candidate_bytes).map_err(|err| VisualDiffComputeError {
                     message: format!("candidate DOM snapshot is not valid JSON: {err}"),
                 })?;
             let (compared, mismatched) = structural_node_diff(&reference, &candidate);
@@ -251,8 +254,7 @@ fn structural_node_diff(
             (compared, mismatched)
         }
         (reference_leaf, candidate_leaf)
-            if std::mem::discriminant(reference_leaf)
-                == std::mem::discriminant(candidate_leaf) =>
+            if std::mem::discriminant(reference_leaf) == std::mem::discriminant(candidate_leaf) =>
         {
             (1, u64::from(reference_leaf != candidate_leaf))
         }

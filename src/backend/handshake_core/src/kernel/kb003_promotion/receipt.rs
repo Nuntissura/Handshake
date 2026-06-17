@@ -22,7 +22,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
-use crate::kernel::kb003_artifact_classes::{metadata_for, HashPolicy, Kb003ArtifactClass};
+use crate::kernel::kb003_artifact_classes::{HashPolicy, Kb003ArtifactClass, metadata_for};
 use crate::kernel::kb003_schemas::SCHEMA_KERNEL_PROMOTION_RECEIPT_V1;
 
 use super::decision::{PromotionDecisionV1, PromotionOutcome};

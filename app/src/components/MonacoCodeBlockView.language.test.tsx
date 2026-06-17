@@ -26,6 +26,9 @@ const monacoDouble = vi.hoisted(() => {
     pushEditCalls: 0,
     viewStateSaved: 0,
     viewStateRestored: 0,
+    createdTheme: "",
+    setThemeCalls: [] as string[],
+    snippetTemplates: [] as string[],
   };
   return {
     state,
@@ -36,6 +39,9 @@ const monacoDouble = vi.hoisted(() => {
       state.pushEditCalls = 0;
       state.viewStateSaved = 0;
       state.viewStateRestored = 0;
+      state.createdTheme = "";
+      state.setThemeCalls = [];
+      state.snippetTemplates = [];
     },
     /** Simulates the operator typing inside Monaco (model change + listeners). */
     type(next: string) {
@@ -74,6 +80,7 @@ vi.mock("../lib/monaco/setup", () => {
     setSelection: () => {},
     revealRangeInCenterIfOutsideViewport: () => {},
     addCommand: () => null,
+    focus: () => {},
     saveViewState: () => {
       monacoDouble.state.viewStateSaved += 1;
       return { dummy: true };
@@ -83,13 +90,30 @@ vi.mock("../lib/monaco/setup", () => {
     },
   };
   return {
-    createConfiguredEditor: ({ value }: { value: string }) => {
+    createConfiguredEditor: ({ value, theme }: { value: string; theme?: string }) => {
       monacoDouble.state.value = value;
+      monacoDouble.state.createdTheme = theme ?? "";
       return instance;
     },
-    monaco: { editor: { setModelLanguage: () => {} }, KeyCode: { Escape: 9 } },
+    monaco: {
+      editor: {
+        setModelLanguage: () => {},
+        setTheme: (theme: string) => monacoDouble.state.setThemeCalls.push(theme),
+      },
+      KeyCode: { Escape: 9 },
+    },
   };
 });
+
+vi.mock("monaco-editor/esm/vs/editor/contrib/snippet/browser/snippetController2.js", () => ({
+  SnippetController2: {
+    get: () => ({
+      insert: (template: string) => {
+        monacoDouble.state.snippetTemplates.push(template);
+      },
+    }),
+  },
+}));
 
 function Harness({
   language,
@@ -108,6 +132,14 @@ function Harness({
   if (!editor) return null;
   onEditor?.(editor);
   return <EditorContent editor={editor} />;
+}
+
+function ThemedHarness({ theme, language, code }: { theme: string; language: string; code: string }) {
+  return (
+    <main id="main-window" data-theme={theme}>
+      <Harness language={language} code={code} />
+    </main>
+  );
 }
 
 describe("MonacoCodeBlockView language/hash integrity (iteration-3 H4/M10)", () => {
@@ -176,6 +208,40 @@ describe("MonacoCodeBlockView language/hash integrity (iteration-3 H4/M10)", () 
     await waitFor(() => {
       expect(block.getAttribute("data-rt-hash")).toBe(codeBlockHash("python", "42"));
     });
+  });
+
+  it("mounts Monaco with the workspace theme and updates when the shell theme changes", async () => {
+    await act(async () => {
+      render(<ThemedHarness theme="light" language="typescript" code={"const themed = true;"} />);
+    });
+    const block = await screen.findByTestId("monaco-code-block");
+    await waitFor(() => expect(block.getAttribute("data-monaco-mounted")).toBe("true"));
+
+    expect(monacoDouble.state.createdTheme).toBe("handshake-light");
+
+    await act(async () => {
+      document.getElementById("main-window")?.setAttribute("data-theme", "dark");
+    });
+
+    await waitFor(() => {
+      expect(monacoDouble.state.setThemeCalls).toContain("handshake-dark");
+    });
+  });
+
+  it("inserts code snippets through Monaco's native snippet controller (MT-251)", async () => {
+    await act(async () => {
+      render(<Harness language="typescript" code={""} />);
+    });
+    const block = await screen.findByTestId("monaco-code-block");
+    await waitFor(() => expect(block.getAttribute("data-monaco-mounted")).toBe("true"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("monaco-code-snippet-code.function"));
+    });
+
+    expect(monacoDouble.state.snippetTemplates).toEqual([
+      "function ${1:name}(${2:args}) {\n\t${0}\n}",
+    ]);
   });
 
   it("mounts Monaco lazily on viewport intersection, showing a code preview meanwhile (iteration-3 L7)", async () => {

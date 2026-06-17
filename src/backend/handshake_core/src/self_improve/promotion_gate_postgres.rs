@@ -116,9 +116,7 @@ impl PostgresPromotionGate {
             "status": status_label,
             "ticket": ticket,
         });
-        if let (Value::Object(target), Value::Object(fields)) =
-            (&mut payload, decision_fields)
-        {
+        if let (Value::Object(target), Value::Object(fields)) = (&mut payload, decision_fields) {
             target.extend(fields);
         }
 
@@ -128,7 +126,10 @@ impl PostgresPromotionGate {
             event_type,
             KernelActor::PromotionGate("self_improve_loop".to_string()),
         )
-        .aggregate(PROMOTION_TICKET_AGGREGATE_TYPE, ticket.ticket_id.to_string())
+        .aggregate(
+            PROMOTION_TICKET_AGGREGATE_TYPE,
+            ticket.ticket_id.to_string(),
+        )
         .idempotency_key(format!(
             "self_improve_promotion_decision:{}:{status_label}",
             ticket.ticket_id
@@ -162,9 +163,7 @@ impl PostgresPromotionGate {
                 .await
         })
         .map_err(|error| GateError::Io {
-            message: format!(
-                "reading promotion ticket from kernel_event_ledger failed: {error}"
-            ),
+            message: format!("reading promotion ticket from kernel_event_ledger failed: {error}"),
         })
     }
 }
@@ -172,7 +171,7 @@ impl PostgresPromotionGate {
 fn is_idempotency_conflict(error: &StorageError) -> bool {
     matches!(
         error,
-        StorageError::Validation(message) if *message == "kernel event idempotency conflict"
+        StorageError::Validation(message) if message.starts_with("kernel event idempotency conflict")
     )
 }
 
@@ -221,7 +220,10 @@ impl PromotionGateSubmitter for PostgresPromotionGate {
             KernelEventType::PromotionRequested,
             KernelActor::PromotionGate("self_improve_loop".to_string()),
         )
-        .aggregate(PROMOTION_TICKET_AGGREGATE_TYPE, ticket.ticket_id.to_string())
+        .aggregate(
+            PROMOTION_TICKET_AGGREGATE_TYPE,
+            ticket.ticket_id.to_string(),
+        )
         .idempotency_key(format!(
             "self_improve_promotion_submit:{}",
             ticket.ticket_id

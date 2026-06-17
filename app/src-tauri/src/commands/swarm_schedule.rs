@@ -321,7 +321,7 @@ fn build_spawn_request(
                     return Err(
                         "local template requires a runtime_binding (candle | llama_cpp)"
                             .to_string(),
-                    )
+                    );
                 }
             };
             let path = template

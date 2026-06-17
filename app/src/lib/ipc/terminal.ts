@@ -16,6 +16,8 @@ import { invoke } from "@tauri-apps/api/core";
 /** Session classes, matching the backend TerminalSessionType serde. */
 export type TerminalSessionType = "HumanDev" | "AiJob" | "PluginTool";
 
+type BackendTerminalSessionType = "HUMAN_DEV" | "AI_JOB" | "PLUGIN_TOOL";
+
 export interface TerminalSession {
   sessionId: string;
   sessionType: TerminalSessionType;
@@ -41,13 +43,31 @@ export interface TerminalSession {
   interactiveAllowed: boolean;
 }
 
+export interface TerminalContext {
+  /** Backend-resolved workspace root for new HumanDev terminal cwd. */
+  cwd: string;
+  /** Optional shell override. Null means omit shell and let the backend resolve its platform default. */
+  defaultShell: string | null;
+}
+
+export interface TerminalDiagnostics {
+  /** Runtime-wide count of failed terminal Flight Recorder/EventLedger receipt writes. */
+  receiptFailureCount: number;
+}
+
 export interface CreateSessionRequest {
-  sessionType: TerminalSessionType;
+  sessionType?: TerminalSessionType | null;
   /** Shell/program to launch (HumanDev). Backend default when omitted. */
   shell?: string | null;
+  args?: string[];
+  cwd?: string | null;
+  rows?: number;
+  cols?: number;
   swarmId?: string | null;
   worktreeId?: string | null;
+  instanceId?: string | null;
   title?: string | null;
+  capabilityScope?: string[];
 }
 
 /** A scrollback snapshot: raw captured bytes (base64) up to the backend cap. */
@@ -63,10 +83,108 @@ export interface ScrollbackSnapshot {
 
 /** One-shot run_command result (capability-gated, redacted, timeout-bounded). */
 export interface RunCommandResult {
+  sessionId: string;
   exitCode: number | null;
   /** Combined stdout/stderr after secret redaction. */
   output: string;
   timedOut: boolean;
+}
+
+interface SessionInfoIpc {
+  sessionId: string;
+  kind?: string;
+  sessionType: string;
+  swarmId: string | null;
+  worktreeId: string | null;
+  instanceId: string | null;
+  title?: string | null;
+  exited?: boolean;
+  exitCode?: number | null;
+  interactiveAllowed?: boolean;
+  interactiveAuthorized?: boolean;
+}
+
+interface RunCommandResultIpc {
+  sessionId: string;
+  exitCode: number;
+  timedOut?: boolean;
+  outputBase64: string;
+}
+
+function toBackendSessionType(sessionType: TerminalSessionType | null | undefined): BackendTerminalSessionType | undefined {
+  switch (sessionType) {
+    case "HumanDev":
+      return "HUMAN_DEV";
+    case "AiJob":
+      return "AI_JOB";
+    case "PluginTool":
+      return "PLUGIN_TOOL";
+    default:
+      return undefined;
+  }
+}
+
+function fromBackendSessionType(sessionType: string): TerminalSessionType {
+  switch (sessionType) {
+    case "HUMAN_DEV":
+    case "HumanDev":
+      return "HumanDev";
+    case "AI_JOB":
+    case "AiJob":
+      return "AiJob";
+    case "PLUGIN_TOOL":
+    case "PluginTool":
+      return "PluginTool";
+    default:
+      return "PluginTool";
+  }
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+function normalizeCreateSessionRequest(request: CreateSessionRequest) {
+  return {
+    ...request,
+    sessionType: toBackendSessionType(request.sessionType),
+  };
+}
+
+function normalizeInteractiveAllowed(
+  raw: SessionInfoIpc,
+  sessionType: TerminalSessionType,
+  exited: boolean,
+): boolean {
+  if (exited) return false;
+  if (raw.interactiveAllowed !== undefined) return raw.interactiveAllowed;
+  if (sessionType === "HumanDev") return true;
+
+  const kind = raw.kind?.toUpperCase();
+  if (kind === "INTERACTIVE") return true;
+  if (kind === "CAPTURE") return false;
+
+  return raw.interactiveAuthorized ?? false;
+}
+
+function normalizeSession(raw: SessionInfoIpc): TerminalSession {
+  const sessionType = fromBackendSessionType(raw.sessionType);
+  const exited = raw.exited ?? false;
+  return {
+    sessionId: raw.sessionId,
+    sessionType,
+    swarmId: raw.swarmId ?? null,
+    worktreeId: raw.worktreeId ?? null,
+    instanceId: raw.instanceId ?? null,
+    title: raw.title ?? raw.sessionId,
+    exited,
+    exitCode: raw.exitCode ?? null,
+    interactiveAllowed: normalizeInteractiveAllowed(raw, sessionType, exited),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +192,10 @@ export interface RunCommandResult {
 // ---------------------------------------------------------------------------
 
 export async function createSession(request: CreateSessionRequest): Promise<TerminalSession> {
-  return await invoke<TerminalSession>("kernel_terminal_create_session", { request });
+  const raw = await invoke<SessionInfoIpc>("kernel_terminal_create_session", {
+    req: normalizeCreateSessionRequest(request),
+  });
+  return normalizeSession(raw);
 }
 
 /**
@@ -84,8 +205,20 @@ export async function createSession(request: CreateSessionRequest): Promise<Term
  * panel only calls this after the Take-control gate resolves ok, but the gate is
  * not the authority — this call is.
  */
-export async function writeStdin(sessionId: string, data: string): Promise<void> {
-  await invoke("kernel_terminal_write_stdin", { sessionId, data });
+export async function writeStdin(
+  sessionId: string,
+  data: string,
+  options: { asAi?: boolean } = {},
+): Promise<void> {
+  await invoke("kernel_terminal_write_stdin", {
+    sessionId,
+    dataBase64: bytesToBase64(new TextEncoder().encode(data)),
+    asAi: options.asAi ?? false,
+  });
+}
+
+export async function authorizeInteractive(sessionId: string): Promise<void> {
+  await invoke("kernel_terminal_authorize_interactive", { sessionId });
 }
 
 export async function resizeSession(sessionId: string, cols: number, rows: number): Promise<void> {
@@ -97,17 +230,54 @@ export async function closeSession(sessionId: string): Promise<void> {
 }
 
 export async function listSessions(): Promise<TerminalSession[]> {
-  return await invoke<TerminalSession[]>("kernel_terminal_list_sessions");
+  const raw = await invoke<SessionInfoIpc[]>("kernel_terminal_list_sessions");
+  return raw.map(normalizeSession);
+}
+
+export async function getContext(): Promise<TerminalContext> {
+  return invoke<TerminalContext>("kernel_terminal_context");
+}
+
+export async function getDiagnostics(): Promise<TerminalDiagnostics> {
+  return invoke<TerminalDiagnostics>("kernel_terminal_diagnostics");
 }
 
 export async function runCommand(
-  request: { command: string; args?: string[]; timeoutMs?: number; swarmId?: string | null },
+  request: {
+    command: string;
+    args?: string[];
+    cwd?: string | null;
+    timeoutMs?: number;
+    swarmId?: string | null;
+    capabilityScope?: string[];
+  },
 ): Promise<RunCommandResult> {
-  return await invoke<RunCommandResult>("kernel_terminal_run_command", { request });
+  const raw = await invoke<RunCommandResultIpc>("kernel_terminal_run_command", {
+    req: {
+      shell: request.command,
+      args: request.args ?? [],
+      cwd: request.cwd,
+      timeoutMs: request.timeoutMs,
+      swarmId: request.swarmId,
+      capabilityScope: request.capabilityScope ?? [],
+    },
+  });
+  return {
+    sessionId: raw.sessionId,
+    exitCode: raw.exitCode,
+    output: new TextDecoder().decode(decodeChunk(raw.outputBase64)),
+    timedOut: raw.timedOut ?? raw.exitCode === -1,
+  };
 }
 
 export async function scrollback(sessionId: string): Promise<ScrollbackSnapshot> {
-  return await invoke<ScrollbackSnapshot>("kernel_terminal_scrollback", { sessionId });
+  const chunkBase64 = await invoke<string>("kernel_terminal_scrollback", { sessionId });
+  return {
+    sessionId,
+    seq: 0,
+    chunkBase64,
+    truncated: false,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -119,19 +289,19 @@ export async function scrollback(sessionId: string): Promise<ScrollbackSnapshot>
 // ---------------------------------------------------------------------------
 
 export interface TerminalOutputEvent {
-  session_id: string;
+  sessionId: string;
   seq: number;
   /** Base64 of a raw byte chunk. NEVER decode as text: see decodeChunk. */
-  chunk_base64: string;
+  chunkBase64: string;
 }
 
 export interface TerminalExitEvent {
-  session_id: string;
-  exit_code: number | null;
+  sessionId: string;
+  exitCode: number | null;
 }
 
 export interface TerminalResyncEvent {
-  session_id: string;
+  sessionId: string;
   dropped: number;
 }
 
@@ -178,27 +348,27 @@ export async function subscribe(sub: TerminalSubscription): Promise<() => void> 
   const lastSeq = new Map<string, number>();
 
   const unOutput = await listen<TerminalOutputEvent>("terminal://output", (e) => {
-    const { session_id, seq, chunk_base64 } = e.payload;
-    const prev = lastSeq.get(session_id);
+    const { sessionId, seq, chunkBase64 } = e.payload;
+    const prev = lastSeq.get(sessionId);
     if (prev !== undefined && seq !== prev + 1) {
       // Gap: we missed bytes for this session. Re-baseline and ask for resync.
-      lastSeq.set(session_id, seq);
-      sub.onResync(session_id, { reason: "seq-gap", dropped: seq - prev - 1 });
+      lastSeq.set(sessionId, seq);
+      sub.onResync(sessionId, { reason: "seq-gap", dropped: seq - prev - 1 });
       return;
     }
-    lastSeq.set(session_id, seq);
-    sub.onOutput(session_id, decodeChunk(chunk_base64));
+    lastSeq.set(sessionId, seq);
+    sub.onOutput(sessionId, decodeChunk(chunkBase64));
   });
 
   const unExit = await listen<TerminalExitEvent>("terminal://exit", (e) => {
-    sub.onExit(e.payload.session_id, e.payload.exit_code);
+    sub.onExit(e.payload.sessionId, e.payload.exitCode);
   });
 
   const unResync = await listen<TerminalResyncEvent>("terminal://resync", (e) => {
     // Backend told us its bounded broadcast lagged for this session: force a
     // scrollback refetch and drop our seq baseline so the next output re-seeds.
-    lastSeq.delete(e.payload.session_id);
-    sub.onResync(e.payload.session_id, { reason: "broadcast-lag", dropped: e.payload.dropped });
+    lastSeq.delete(e.payload.sessionId);
+    sub.onResync(e.payload.sessionId, { reason: "broadcast-lag", dropped: e.payload.dropped });
   });
 
   return () => {
@@ -214,7 +384,9 @@ export async function subscribe(sub: TerminalSubscription): Promise<() => void> 
  * implementation is `defaultTerminalIpc` below; tests pass a fake.
  */
 export interface TerminalIpc {
+  getContext(): Promise<TerminalContext>;
   createSession(request: CreateSessionRequest): Promise<TerminalSession>;
+  authorizeInteractive(sessionId: string): Promise<void>;
   writeStdin(sessionId: string, data: string): Promise<void>;
   resizeSession(sessionId: string, cols: number, rows: number): Promise<void>;
   closeSession(sessionId: string): Promise<void>;
@@ -224,7 +396,9 @@ export interface TerminalIpc {
 }
 
 export const defaultTerminalIpc: TerminalIpc = {
+  getContext,
   createSession,
+  authorizeInteractive,
   writeStdin,
   resizeSession,
   closeSession,

@@ -16,20 +16,20 @@
 //! `ai_edit_promotion_denied` receipt + PROMOTION_REJECTED event.
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::knowledge_crdt::{
-    self, insert_denial_receipt, new_denial_receipt_id, AiEditProposalRow, NewAiEditProposal,
-    NewKnowledgeCrdtDenialReceipt,
-};
 use crate::storage::Database;
+use crate::storage::knowledge_crdt::{
+    self, AiEditProposalRow, NewAiEditProposal, NewKnowledgeCrdtDenialReceipt,
+    insert_denial_receipt, new_denial_receipt_id,
+};
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use super::agent_lease::{
-    guard_lease_for_write, new_ulid, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
-    LeaseWriteGuardOutcomeV1,
+    KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
+    guard_lease_for_write, new_ulid,
 };
 use super::persistence::sha256_hex;
 use super::state_vector::KnowledgeStateVectorV1;
@@ -677,7 +677,7 @@ pub async fn apply_approved_ai_edit(
         None => {
             return Ok(AiEditApplyOutcomeV1::UnknownProposal {
                 proposal_id: proposal_id.to_string(),
-            })
+            });
         }
     };
     if !matches!(proposal.review_state.as_str(), "approved" | "promoted") {

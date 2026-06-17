@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::operator_foreground::focus_audit::{assert_no_handshake_foreground, FocusAuditReport};
+use crate::operator_foreground::focus_audit::{FocusAuditReport, assert_no_handshake_foreground};
 use crate::storage::artifacts::{
-    artifact_root_rel, write_file_artifact, ArtifactClassification, ArtifactError, ArtifactLayer,
-    ArtifactManifest, ArtifactPayloadKind,
+    ArtifactClassification, ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+    artifact_root_rel, write_file_artifact,
 };
 use crate::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,

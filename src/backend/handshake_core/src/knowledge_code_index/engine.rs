@@ -34,6 +34,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Instant;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -59,9 +60,10 @@ use crate::swarm_orchestration::state_recovery::{
 use super::config_schema::{detect_config_format, extract_config_facts, ConfigFactKind};
 use super::docs_todo::{extract_doc_passages, extract_operator_strings, DocPassageKind};
 use super::parser::{CodeLanguage, CodeParserAdapter};
+use super::perf::{CodeIndexBudget, PerfSample};
 use super::relationships::{extract_relationships, RelationshipKind};
 use super::symbols::{extract_symbols, ExtractedSymbol, SymbolKind};
-use super::tests_map::extract_test_mappings;
+use super::tests_map::{extract_test_mappings, TestMapping};
 use super::{CodeIndexError, CodeIndexResult, CODE_EXTRACTOR_VERSION};
 
 /// Backend-navigation context (spec 2.3.13.11): every engine mutation carries
@@ -441,6 +443,7 @@ impl CodeIndexEngine {
         let content_hash = sha256_hex(text.as_bytes());
         let adapter = CodeParserAdapter::new(language);
         let parser_version = adapter.parser_version();
+        let perf_started = Instant::now();
 
         // MT-108: a genuine parse failure (grammar init / no tree) OR a caught
         // tree-sitter FFI panic is captured here. `adapter.parse` wraps the FFI
@@ -484,6 +487,14 @@ impl CodeIndexEngine {
         doc_passages.extend(operator_strings);
         let relationships = extract_relationships(&tree, text, &symbols);
         let test_mappings = extract_test_mappings(&tree, text, &symbols);
+        let perf_budget = CodeIndexBudget::default();
+        let perf_sample = PerfSample::measure(
+            &perf_budget,
+            relative_path,
+            text.lines().count(),
+            perf_started.elapsed().as_secs_f64() * 1000.0,
+        );
+        let perf_budget_json = perf_sample_json(&perf_sample, &perf_budget);
 
         // A tree with syntax errors that still yielded symbols => partial.
         let parse_status = if tree.root_has_error {
@@ -513,6 +524,7 @@ impl CodeIndexEngine {
                     "relationships": relationships.len(),
                     "content_hash": content_hash,
                     "extractor_version": CODE_EXTRACTOR_VERSION,
+                    "perf_budget": perf_budget_json,
                 }),
             )
             .await?;
@@ -539,6 +551,7 @@ impl CodeIndexEngine {
         // Symbols: span + entity + contains edge each. Map symbol_path ->
         // (entity_id, span_id) so relationship resolution can wire edges.
         let mut symbol_index: HashMap<String, ResolvedSymbol> = HashMap::new();
+        let mut test_symbol_index: HashMap<SymbolIdentityKey, ResolvedSymbol> = HashMap::new();
         for symbol in &symbols {
             let resolved = self
                 .write_symbol(
@@ -566,7 +579,12 @@ impl CodeIndexEngine {
                     evidence_span_ids: vec![resolved.span_id.clone()],
                 })
                 .await?;
-            symbol_index.insert(symbol.symbol_path.clone(), resolved);
+            if symbol.kind == SymbolKind::Test {
+                test_symbol_index.insert(symbol_identity_key(symbol), resolved.clone());
+            }
+            symbol_index
+                .entry(symbol.symbol_path.clone())
+                .or_insert(resolved);
         }
 
         // Doc/TODO passages: text span + concept entity, documents edge to the
@@ -663,6 +681,7 @@ impl CodeIndexEngine {
                 index_run_id,
                 &test_mappings,
                 &symbol_index,
+                &test_symbol_index,
             )
             .await?;
 
@@ -686,7 +705,14 @@ impl CodeIndexEngine {
                 parse_status,
                 symbols_indexed: symbols.len() as i32,
                 edges_indexed: edges_indexed as i32,
-                failure_detail: None,
+                failure_detail: if perf_sample.within_budget {
+                    None
+                } else {
+                    Some(json!({
+                        "kind": "code_index_perf_budget_exceeded",
+                        "perf_budget": perf_sample_json(&perf_sample, &perf_budget),
+                    }))
+                },
                 last_indexed_in_run: index_run_id.map(|s| s.to_string()),
                 last_index_receipt_event_id: Some(receipt_event_id.clone()),
             })
@@ -765,6 +791,15 @@ impl CodeIndexEngine {
                 detected_in_run: index_run_id.map(|s| s.to_string()),
                 evidence_span_ids: vec![span.span_id.clone()],
             })
+            .await?;
+        self.db
+            .replace_knowledge_entity_spans_for_source_kind(
+                &entity.entity_id,
+                source_id,
+                KnowledgeSpanKind::Ast,
+                std::slice::from_ref(&span.span_id),
+                index_run_id,
+            )
             .await?;
 
         Ok(ResolvedSymbol {
@@ -909,14 +944,20 @@ impl CodeIndexEngine {
         parser_version: &str,
         receipt_event_id: &str,
         index_run_id: Option<&str>,
-        mappings: &[super::tests_map::TestMapping],
+        mappings: &[TestMapping],
         symbol_index: &HashMap<String, ResolvedSymbol>,
+        test_symbol_index: &HashMap<SymbolIdentityKey, ResolvedSymbol>,
     ) -> CodeIndexResult<usize> {
         let mut written = 0usize;
         for mapping in mappings {
-            let Some(test) = symbol_index.get(&mapping.test_symbol_path) else {
+            let test_key = test_mapping_identity_key(mapping);
+            let Some(test) = test_symbol_index
+                .get(&test_key)
+                .or_else(|| symbol_index.get(&mapping.test_symbol_path))
+            else {
                 continue;
             };
+            let test_label = test_mapping_label(mapping);
             for name in &mapping.referenced_names {
                 let Some(target_id) = resolve_symbol_by_name(symbol_index, name) else {
                     continue;
@@ -933,17 +974,18 @@ impl CodeIndexEngine {
                         range_end: mapping.end_byte as i64,
                         line_start: Some(mapping.start_line as i32),
                         line_end: Some(mapping.end_line as i32),
-                        section_path: Some(format!("test:{}", mapping.test_symbol_path)),
+                        section_path: Some(format!("test:{test_label}")),
                         content_sha256: sha256_hex(
-                            format!("validates|{}|{name}", mapping.test_symbol_path).as_bytes(),
+                            format!(
+                                "validates|{test_label}|{}|{}|{name}",
+                                mapping.start_byte, mapping.end_byte
+                            )
+                            .as_bytes(),
                         ),
                         parser_version: parser_version.to_string(),
                         extraction_receipt_event_id: Some(receipt_event_id.to_string()),
                         index_run_id: index_run_id.map(|s| s.to_string()),
-                        display_snippet: Some(format!(
-                            "test {} -> {name}",
-                            mapping.test_symbol_path
-                        )),
+                        display_snippet: Some(format!("test {test_label} -> {name}")),
                     })
                     .await?;
                 self.db
@@ -1170,7 +1212,11 @@ impl CodeIndexEngine {
                 })
                 .await?;
             let entity_kind = match fact.fact_kind {
-                ConfigFactKind::SchemaProperty => KnowledgeEntityKind::Schema,
+                ConfigFactKind::SchemaProperty
+                | ConfigFactKind::MigrationTable
+                | ConfigFactKind::MigrationIndex
+                | ConfigFactKind::MigrationFunction
+                | ConfigFactKind::MigrationTrigger => KnowledgeEntityKind::Schema,
                 ConfigFactKind::PackageScript => KnowledgeEntityKind::Command,
                 ConfigFactKind::ConfigKey | ConfigFactKind::TomlTable => {
                     KnowledgeEntityKind::Concept
@@ -1333,6 +1379,33 @@ struct ResolvedSymbol {
     symbol_kind: SymbolKind,
 }
 
+type SymbolIdentityKey = (String, Option<String>, usize, usize);
+
+fn symbol_identity_key(symbol: &ExtractedSymbol) -> SymbolIdentityKey {
+    (
+        symbol.symbol_path.clone(),
+        symbol.disambiguator.clone(),
+        symbol.start_byte,
+        symbol.end_byte,
+    )
+}
+
+fn test_mapping_identity_key(mapping: &TestMapping) -> SymbolIdentityKey {
+    (
+        mapping.test_symbol_path.clone(),
+        mapping.test_disambiguator.clone(),
+        mapping.start_byte,
+        mapping.end_byte,
+    )
+}
+
+fn test_mapping_label(mapping: &TestMapping) -> String {
+    match &mapping.test_disambiguator {
+        Some(disambiguator) => format!("{}~{disambiguator}", mapping.test_symbol_path),
+        None => mapping.test_symbol_path.clone(),
+    }
+}
+
 /// Resolve a target symbol by SIMPLE name against this file's indexed symbols.
 /// Matches the last path segment so `Foo::bar` resolves on `bar`. Returns the
 /// first match (deterministic by the index insertion order; ambiguous names
@@ -1374,6 +1447,7 @@ fn config_format_str(format: super::config_schema::ConfigFormat) -> &'static str
         ConfigFormat::Json => "json",
         ConfigFormat::Yaml => "yaml",
         ConfigFormat::Toml => "toml",
+        ConfigFormat::Sql => "sql",
     }
 }
 
@@ -1391,6 +1465,20 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+fn perf_sample_json(sample: &PerfSample, budget: &CodeIndexBudget) -> Value {
+    json!({
+        "relative_path": &sample.relative_path,
+        "line_count": sample.line_count,
+        "elapsed_ms": sample.elapsed_ms,
+        "allowed_ms": sample.allowed_ms,
+        "within_budget": sample.within_budget,
+        "budget": {
+            "max_ms_per_kloc": budget.max_ms_per_kloc,
+            "fixed_overhead_ms": budget.fixed_overhead_ms,
+        },
+    })
 }
 
 /// Read a file under a runtime anchor and index it (convenience for a

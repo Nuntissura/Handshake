@@ -15,11 +15,20 @@
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { act } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 import { RichTextEditor } from "./RichTextEditor";
+import { getLoomBlock, type LoomBlock } from "../lib/api";
 import type { EmbedAssetMetadata } from "../lib/editor/embed_assets";
 import { onHsLinkNavigate, type HsLinkNavigateDetail } from "../lib/editor/link_navigation";
+
+vi.mock("../lib/api", async () => {
+  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+  return {
+    ...actual,
+    getLoomBlock: vi.fn(),
+  };
+});
 
 const WS = "ws-embed-test";
 const BASE = "http://127.0.0.1:9";
@@ -35,6 +44,33 @@ function asset(id: string, mime: string): EmbedAssetMetadata {
     size_bytes: 64,
     width: 4,
     height: 4,
+  };
+}
+
+function loomBlock(blockId: string, title: string, fullText: string): LoomBlock {
+  return {
+    block_id: blockId,
+    workspace_id: WS,
+    content_type: "note",
+    document_id: null,
+    asset_id: null,
+    title,
+    original_filename: null,
+    content_hash: null,
+    pinned: false,
+    favorite: false,
+    pin_order: null,
+    journal_date: null,
+    created_at: "2026-06-16T00:00:00Z",
+    updated_at: "2026-06-16T00:00:00Z",
+    imported_at: null,
+    derived: {
+      full_text_index: fullText,
+      backlink_count: 2,
+      mention_count: 3,
+      tag_count: 4,
+      preview_status: "ready",
+    },
   };
 }
 
@@ -93,6 +129,10 @@ async function mountWithEmbeds(
 }
 
 describe("HsLinkView media embeds (MT-244)", () => {
+  beforeEach(() => {
+    vi.mocked(getLoomBlock).mockReset();
+  });
+
   it("renders a real <img> from the typed backend asset content URL", async () => {
     await mountWithEmbeds(docWithLink("images", "img-1"), { "img-1": asset("img-1", "image/png") });
     const img = await screen.findByTestId("hs-embed-image");
@@ -183,6 +223,37 @@ describe("HsLinkView media embeds (MT-244)", () => {
     // No embed surfaces for a chip kind.
     expect(screen.queryByTestId("hs-embed-error")).toBeNull();
     expect(screen.queryByTestId("hs-embed-loading")).toBeNull();
+  });
+
+  it("loads a Loom block hover preview for non-media Loom links", async () => {
+    vi.mocked(getLoomBlock).mockResolvedValueOnce(
+      loomBlock("block-alpha", "Alpha Loom note", "Alpha hover preview text from the indexed block body."),
+    );
+    await mountWithEmbeds(docWithLink("note", "block-alpha"), {});
+
+    const chip = await screen.findByTestId("hs-link");
+    await act(async () => {
+      fireEvent.mouseEnter(chip);
+    });
+
+    expect(await screen.findByTestId("hs-link-preview")).toHaveTextContent("Alpha Loom note");
+    expect(screen.getByTestId("hs-link-preview")).toHaveTextContent("Alpha hover preview text");
+    expect(screen.getByTestId("hs-link-preview")).toHaveTextContent("4 tags");
+    expect(getLoomBlock).toHaveBeenCalledWith(WS, "block-alpha");
+  });
+
+  it("renders a visible hover preview error when a Loom block cannot resolve", async () => {
+    vi.mocked(getLoomBlock).mockRejectedValueOnce(new Error("missing block"));
+    await mountWithEmbeds(docWithLink("note", "missing-block"), {});
+
+    const chip = await screen.findByTestId("hs-link");
+    await act(async () => {
+      fireEvent.mouseEnter(chip);
+    });
+
+    const error = await screen.findByTestId("hs-link-preview-error");
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(error).toHaveTextContent("missing block");
   });
 
   it("dispatches a typed navigation intent when a chip is clicked (iteration-3 EXT-NAV-LINK-001)", async () => {
