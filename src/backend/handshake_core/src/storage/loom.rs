@@ -627,6 +627,74 @@ pub struct LoomGraphSearchResult {
     pub metadata: serde_json::Value,
 }
 
+// =============================================================================
+// LoomSearchV2 (WP-KERNEL-009 MT-264) — Postgres-native hybrid search over the
+// derived loom_block_search_index projection.
+// =============================================================================
+
+/// A search query against the LoomSearchV2 hybrid index.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LoomSearchV2Request {
+    /// The raw operator query text.
+    pub query: String,
+    /// Optional content_type facet filter (e.g. only 'note' blocks).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<LoomBlockContentType>,
+    /// Optional tag facet: only blocks tagged with one of these tag-hub block ids.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tag_ids: Vec<String>,
+    /// When set, a REAL query embedding for the semantic (pgvector kNN) modality.
+    /// `None` means no embedding model configured -> keyword/trigram only (the
+    /// `semantic_available` flag on the response is false). NEVER fabricated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_embedding: Option<Vec<f32>>,
+    /// Graph blend: extra weight applied to a hit per inbound/outbound loom_edge
+    /// (link-aware ranking). 0.0 disables the boost.
+    #[serde(default)]
+    pub graph_boost: f64,
+    /// Max results.
+    #[serde(default)]
+    pub limit: u32,
+    /// Result offset.
+    #[serde(default)]
+    pub offset: u32,
+}
+
+/// One hybrid search hit. Per-modality sub-scores are surfaced so the UI/tests
+/// can prove which modality matched. `block` is a REFERENCE into loom_blocks
+/// (open-in-place), never a content copy.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomSearchV2Hit {
+    pub block: LoomBlock,
+    /// Fused relevance score (keyword + trigram + vector + graph blend).
+    pub score: f64,
+    /// FTS ts_rank component.
+    pub fts_rank: f64,
+    /// pg_trgm similarity component.
+    pub trgm_sim: f64,
+    /// pgvector cosine similarity component (1 - cosine distance). 0.0 when the
+    /// semantic modality is unavailable.
+    pub vector_sim: f64,
+    /// loom_edges degree used for the graph blend.
+    pub edge_degree: i64,
+    /// ts_headline highlight of the matching text (with <mark> markers).
+    #[serde(default)]
+    pub highlight: String,
+}
+
+/// A faceted, ranked LoomSearchV2 result set.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomSearchV2Response {
+    pub hits: Vec<LoomSearchV2Hit>,
+    /// content_type -> count facet over the (unpaginated) matching set.
+    pub content_type_facets: std::collections::BTreeMap<String, i64>,
+    /// Whether the semantic (pgvector) modality contributed (a query embedding
+    /// was supplied). False => typed keyword/trigram fallback, no fabrication.
+    pub semantic_available: bool,
+    /// Total matching hits before limit/offset.
+    pub total: i64,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct QuickSwitcherRecentInput {
     pub result_kind: LoomSearchResultKind,

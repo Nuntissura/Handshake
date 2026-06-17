@@ -2197,6 +2197,36 @@ pub trait Database: Send + Sync {
         limit: u32,
         offset: u32,
     ) -> StorageResult<Vec<LoomGraphSearchResult>>;
+
+    /// WP-KERNEL-009 MT-264 LoomSearchV2: refresh the derived search-index
+    /// projection row for one block (FTS text + optional REAL embedding) inside
+    /// the authority write path, EventLedger-receipted. `embedding` is `None`
+    /// when no embedding model is configured (keyword/trigram only — never
+    /// fabricated). Called on block create/update; delete is handled by the
+    /// ON DELETE CASCADE FK so a deleted block can never leave a stale hit.
+    async fn reindex_loom_block_search(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _search_text: &str,
+        _embedding: Option<&[f32]>,
+        _embedding_model: Option<&str>,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom search v2 reindex backend"))
+    }
+
+    /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid Postgres-native search fusing
+    /// FTS (ts_rank) + pg_trgm similarity + pgvector kNN, with ts_headline
+    /// highlight, content_type facets, and loom_edges graph-blend ranking, in a
+    /// single SQL query joined against the canonical loom_blocks table.
+    async fn loom_search_v2(
+        &self,
+        _workspace_id: &str,
+        _request: LoomSearchV2Request,
+    ) -> StorageResult<LoomSearchV2Response> {
+        Err(StorageError::NotImplemented("loom search v2 backend"))
+    }
     async fn record_quick_switcher_recent(
         &self,
         _workspace_id: &str,

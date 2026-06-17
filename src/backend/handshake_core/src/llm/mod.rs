@@ -44,6 +44,19 @@ pub trait LlmClient: Send + Sync {
     /// `model_id`, and `TokenUsage` per §4.2.3.2.
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError>;
 
+    /// Produces a real embedding vector for the given text via the configured
+    /// model runtime (e.g. Ollama `/api/embeddings`). This is the model-runtime
+    /// surface LoomSearchV2 (WP-KERNEL-009 MT-264) uses to embed block text and
+    /// search queries for the semantic (pgvector kNN) modality.
+    ///
+    /// The default implementation returns a typed `ProviderError` so providers
+    /// that do not expose an embedding endpoint compile unchanged. Callers MUST
+    /// treat the typed error as "no embedding model configured" and degrade to
+    /// the keyword/trigram modalities — they must NEVER fabricate a vector.
+    async fn embedding(&self, _req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        Err(LlmError::EmbeddingUnsupported)
+    }
+
     /// Cancels an in-flight request when the underlying provider exposes a
     /// model-specific cancellation path. The default implementation cancels
     /// the supplied token so callers can rely on fail-closed local state even
@@ -136,6 +149,49 @@ pub struct CompletionResponse {
     pub usage: TokenUsage,
     /// Request latency in milliseconds.
     pub latency_ms: u64,
+}
+
+/// Request payload for an embedding call (WP-KERNEL-009 MT-264 LoomSearchV2).
+///
+/// Carries the same `trace_id` discipline as [`CompletionRequest`] so the
+/// embedding call is Flight-Recorder-correlatable per §11.5.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbeddingRequest {
+    /// Flight Recorder correlation id.
+    pub trace_id: Uuid,
+    /// The text to embed (block content or a search query).
+    pub input: String,
+    /// Embedding model identifier (e.g. "nomic-embed-text").
+    pub model_id: String,
+}
+
+impl EmbeddingRequest {
+    pub fn new(trace_id: Uuid, input: String, model_id: String) -> Self {
+        Self {
+            trace_id,
+            input,
+            model_id,
+        }
+    }
+}
+
+/// Response from an embedding call. `vector` is a real dense embedding produced
+/// by the configured model — never fabricated by the search layer.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmbeddingResponse {
+    /// The dense embedding vector.
+    pub vector: Vec<f32>,
+    /// The model that produced it (for receipts/provenance).
+    pub model_id: String,
+    /// Request latency in milliseconds.
+    pub latency_ms: u64,
+}
+
+impl EmbeddingResponse {
+    /// The embedding dimensionality.
+    pub fn dim(&self) -> usize {
+        self.vector.len()
+    }
 }
 
 /// Token usage metrics for budgeting and Flight Recorder.
@@ -244,6 +300,12 @@ pub enum LlmError {
     /// HSK-500-LLM: Internal provider error.
     #[error("HSK-500-LLM: Internal provider error: {0}")]
     ProviderError(String),
+
+    /// HSK-501-EMBEDDING-UNSUPPORTED: The configured model runtime does not
+    /// expose an embedding endpoint (no embedding model configured). Callers
+    /// MUST degrade to keyword/trigram modalities — NEVER fabricate a vector.
+    #[error("HSK-501-EMBEDDING-UNSUPPORTED: no embedding model configured")]
+    EmbeddingUnsupported,
 }
 
 /// LLM client used when the provider is unavailable at startup.

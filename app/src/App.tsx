@@ -51,6 +51,7 @@ import { LoomWikiPagePanel } from "./components/LoomWikiPagePanel";
 import { LoomAiReviewPanel } from "./components/LoomAiReviewPanel";
 import { QuickSwitcher } from "./components/QuickSwitcher";
 import { WorkspaceSearchPanel } from "./components/WorkspaceSearchPanel";
+import { LoomSearchV2Panel } from "./components/LoomSearchV2Panel";
 import { buildAppCommandRegistry, resolveEditorAppCommand } from "./lib/app_command_registry";
 import type { EditorCommandPaletteRequest } from "./lib/editor/editor_command_palette_request";
 import type { EditorFindOptions, EditorFindRequest } from "./lib/editor/editor_find_request";
@@ -592,6 +593,11 @@ function App() {
   } | null>(null);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
+  // MT-264: LoomSearchV2 -- hybrid (full-text + fuzzy + semantic) Postgres-native
+  // search over the whole Loom corpus, blended with the Loom graph. Supersedes
+  // the MT-258 workspace search panel's loom-block lane with a ranked,
+  // highlighted, typo-tolerant, semantically-relevant surface.
+  const [loomSearchV2Open, setLoomSearchV2Open] = useState(false);
   const [loomAiReviewOpen, setLoomAiReviewOpen] = useState(false);
   const [editorCommandPaletteRequest, setEditorCommandPaletteRequest] =
     useState<EditorCommandPaletteRequest | null>(null);
@@ -2167,6 +2173,14 @@ function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setLoomSearchV2Open((value) => !value)}
+                  data-stable-id="loom-search-v2.open"
+                  data-testid="loom-search-v2.open"
+                >
+                  Loom Search
+                </button>
+                <button
+                  type="button"
                   onClick={() => setLoomAiReviewOpen((value) => !value)}
                   data-stable-id="loom-ai-review.open"
                   data-testid="loom-ai-review.open"
@@ -2206,6 +2220,12 @@ function App() {
                       onOpenWorkPacket={openKernelDccWorkPacket}
                       onOpenUserManualPage={(slug) => openUserManualPane(undefined, slug)}
                       onOpenWikiPage={openLoomWikiPagePane}
+                    />
+                  ) : null}
+                  {loomSearchV2Open ? (
+                    <LoomSearchV2Panel
+                      workspaceId={activeWorkspaceId}
+                      onOpenBlock={openLoomBlockPane}
                     />
                   ) : null}
                   {loomAiReviewOpen && activeWorkspaceId ? (

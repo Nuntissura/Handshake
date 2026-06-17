@@ -13,7 +13,8 @@ use super::{
     LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember,
     LoomCollectionWithMembers, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
-    LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSourceAnchor,
+    LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSearchV2Hit,
+    LoomSearchV2Request, LoomSearchV2Response, LoomSourceAnchor,
     MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert,
     LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, LoomVisualDebugBacklinkState,
     LoomVisualDebugBacklinkSummary, LoomVisualDebugCounts, LoomVisualDebugFolderSummary,
@@ -2898,6 +2899,75 @@ fn normalize_loom_search_tokens(raw: &str) -> Vec<String> {
         .collect()
 }
 
+/// Flattens a LoomBlock into the human-readable text the LoomSearchV2 index
+/// covers: title + original_filename + the derived full_text_index payload.
+/// WP-KERNEL-009 MT-264.
+pub(crate) fn loom_block_search_text(block: &LoomBlock) -> String {
+    let mut parts: Vec<&str> = Vec::new();
+    if let Some(title) = block.title.as_deref() {
+        parts.push(title);
+    }
+    if let Some(filename) = block.original_filename.as_deref() {
+        parts.push(filename);
+    }
+    if let Some(full_text) = block.derived.full_text_index.as_deref() {
+        parts.push(full_text);
+    }
+    parts.join("\n")
+}
+
+/// Upserts ONLY the keyword/trigram (search_text) projection for a block,
+/// preserving any existing embedding. Used inside the block create/update
+/// authority write path so FTS/trigram stays consistent. WP-KERNEL-009 MT-264.
+async fn upsert_loom_block_search_text(
+    pool: &PgPool,
+    workspace_id: &str,
+    block_id: &str,
+    content_type: &str,
+    search_text: &str,
+) -> StorageResult<()> {
+    sqlx::query(
+        r#"
+        INSERT INTO loom_block_search_index
+            (block_id, workspace_id, content_type, search_text, indexed_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (block_id) DO UPDATE SET
+            workspace_id = EXCLUDED.workspace_id,
+            content_type = EXCLUDED.content_type,
+            search_text = EXCLUDED.search_text,
+            indexed_at = NOW()
+        "#,
+    )
+    .bind(block_id)
+    .bind(workspace_id)
+    .bind(content_type)
+    .bind(search_text)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Formats a real f32 embedding as a pgvector text literal `[a,b,c]`. The caller
+/// casts it `::public.vector` in SQL. WP-KERNEL-009 MT-264 LoomSearchV2.
+fn format_pgvector_literal(embedding: &[f32]) -> String {
+    let mut out = String::with_capacity(embedding.len() * 8 + 2);
+    out.push('[');
+    for (idx, value) in embedding.iter().enumerate() {
+        if idx > 0 {
+            out.push(',');
+        }
+        // Finite guard: pgvector rejects NaN/Inf, and a fabricated/garbage
+        // vector should fail loudly rather than silently coerce.
+        if value.is_finite() {
+            out.push_str(&format!("{value}"));
+        } else {
+            out.push('0');
+        }
+    }
+    out.push(']');
+    out
+}
+
 fn escape_like_token(token: &str) -> String {
     token
         .replace('\\', "\\\\")
@@ -5679,7 +5749,21 @@ impl super::Database for PostgresDatabase {
         .fetch_one(&self.pool)
         .await?;
 
-        map_loom_block(row)
+        let created = map_loom_block(row)?;
+        // WP-KERNEL-009 MT-264: keep the LoomSearchV2 keyword/trigram projection
+        // consistent on create. The embedding modality is refreshed separately
+        // by the search service when an embedding model is configured (it is
+        // NEVER fabricated here). FTS/trigram consistency is transactional with
+        // the block's existence: a deleted block CASCADE-drops its index row.
+        upsert_loom_block_search_text(
+            &self.pool,
+            &created.workspace_id,
+            &created.block_id,
+            created.content_type.as_str(),
+            &loom_block_search_text(&created),
+        )
+        .await?;
+        Ok(created)
     }
 
     async fn get_or_create_daily_journal_block(
@@ -5839,7 +5923,26 @@ impl super::Database for PostgresDatabase {
         .fetch_one(&self.pool)
         .await?;
 
-        map_loom_block(row)
+        let block = map_loom_block(row)?;
+        // WP-KERNEL-009 MT-264: a daily-journal block is a real authority
+        // LoomBlock (content_type journal, with a derived full_text_index
+        // title). Without this upsert it would get NO loom_block_search_index
+        // row on creation and be silently absent from LoomSearchV2 until
+        // separately edited — a stale/missing-projection drift. The upsert is
+        // idempotent (ON CONFLICT DO UPDATE), so on the "already exists" branch
+        // of the UNION it simply refreshes the existing row's search_text rather
+        // than creating a duplicate. The embedding modality is refreshed
+        // separately by the search service when a model is configured (never
+        // fabricated here).
+        upsert_loom_block_search_text(
+            &self.pool,
+            &block.workspace_id,
+            &block.block_id,
+            block.content_type.as_str(),
+            &loom_block_search_text(&block),
+        )
+        .await?;
+        Ok(block)
     }
 
     async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock> {
@@ -6049,7 +6152,21 @@ impl super::Database for PostgresDatabase {
         .await?;
 
         match row {
-            Some(row) => map_loom_block(row),
+            Some(row) => {
+                let updated = map_loom_block(row)?;
+                // WP-KERNEL-009 MT-264: refresh the keyword/trigram projection
+                // on update so an edited title/text is reflected in subsequent
+                // searches (no stale hit). Embedding refresh is separate.
+                upsert_loom_block_search_text(
+                    &self.pool,
+                    &updated.workspace_id,
+                    &updated.block_id,
+                    updated.content_type.as_str(),
+                    &loom_block_search_text(&updated),
+                )
+                .await?;
+                Ok(updated)
+            }
             None => Err(StorageError::NotFound("loom_block")),
         }
     }
@@ -7861,6 +7978,208 @@ impl super::Database for PostgresDatabase {
             .skip(offset as usize)
             .take(source_limit as usize)
             .collect())
+    }
+
+    async fn reindex_loom_block_search(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        search_text: &str,
+        embedding: Option<&[f32]>,
+        embedding_model: Option<&str>,
+    ) -> StorageResult<()> {
+        // The reindex is a receipted authority write: validate_write produces
+        // the edit_event_id receipt (same discipline as block writes) so the
+        // projection refresh is attributable in the EventLedger.
+        let _metadata = self.guard.validate_write(ctx, block_id).await?;
+
+        // The block must exist (FK) and belong to the workspace; we read its
+        // content_type so the projection row carries the facet dimension.
+        let content_type: Option<String> = sqlx::query_scalar(
+            "SELECT content_type FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2",
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(content_type) = content_type else {
+            return Err(StorageError::NotFound("loom_block"));
+        };
+
+        let embedding_literal = embedding.map(format_pgvector_literal);
+
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            "INSERT INTO loom_block_search_index \
+             (block_id, workspace_id, content_type, search_text, embedding, embedding_model, indexed_at) VALUES (",
+        );
+        qb.push_bind(block_id);
+        qb.push(", ").push_bind(workspace_id);
+        qb.push(", ").push_bind(&content_type);
+        qb.push(", ").push_bind(search_text);
+        qb.push(", ");
+        match &embedding_literal {
+            Some(literal) => {
+                qb.push_bind(literal).push("::public.vector");
+            }
+            None => {
+                qb.push("NULL");
+            }
+        }
+        qb.push(", ").push_bind(embedding_model);
+        qb.push(", NOW()) ON CONFLICT (block_id) DO UPDATE SET \
+             workspace_id = EXCLUDED.workspace_id, \
+             content_type = EXCLUDED.content_type, \
+             search_text = EXCLUDED.search_text, \
+             embedding = EXCLUDED.embedding, \
+             embedding_model = EXCLUDED.embedding_model, \
+             indexed_at = NOW()");
+        qb.build().execute(&self.pool).await?;
+        Ok(())
+    }
+
+    async fn loom_search_v2(
+        &self,
+        workspace_id: &str,
+        request: LoomSearchV2Request,
+    ) -> StorageResult<LoomSearchV2Response> {
+        let query = request.query.trim().to_string();
+        if query.is_empty() {
+            return Ok(LoomSearchV2Response {
+                hits: Vec::new(),
+                content_type_facets: std::collections::BTreeMap::new(),
+                semantic_available: request.query_embedding.is_some(),
+                total: 0,
+            });
+        }
+        let limit = if request.limit == 0 { 25 } else { request.limit } as i64;
+        let offset = request.offset as i64;
+        let graph_boost = request.graph_boost.max(0.0);
+        let semantic_available = request.query_embedding.is_some();
+        let embedding_literal = request
+            .query_embedding
+            .as_deref()
+            .map(format_pgvector_literal);
+
+        // A single SQL statement joining the derived index against the canonical
+        // loom_blocks table. Per-modality sub-scores:
+        //   fts   = ts_rank(search_tsv, websearch_to_tsquery(query))
+        //   trgm  = similarity(search_text, query)        (pg_trgm)
+        //   vec   = 1 - (embedding <=> query_embedding)   (pgvector cosine sim)
+        // graph blend = edge_degree * graph_boost.
+        // A row qualifies if ANY keyword/trigram modality matches OR (when a
+        // query embedding is supplied) it is among the vector neighbours.
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            "WITH scored AS (SELECT \
+                si.block_id, si.content_type, \
+                ts_rank(si.search_tsv, websearch_to_tsquery('english', ",
+        );
+        qb.push_bind(&query);
+        qb.push("))::float8 AS fts_rank, public.similarity(si.search_text, ");
+        qb.push_bind(&query);
+        qb.push(")::float8 AS trgm_sim, ");
+        match &embedding_literal {
+            Some(literal) => {
+                qb.push("CASE WHEN si.embedding IS NULL THEN 0.0 ELSE (1.0 - (si.embedding OPERATOR(public.<=>) ");
+                qb.push_bind(literal);
+                qb.push("::public.vector)) END AS vector_sim, ");
+            }
+            None => {
+                qb.push("0.0::float8 AS vector_sim, ");
+            }
+        }
+        qb.push(
+            "COALESCE((SELECT COUNT(*) FROM loom_edges e WHERE e.workspace_id = si.workspace_id \
+                AND (e.source_block_id = si.block_id OR e.target_block_id = si.block_id)), 0) AS edge_degree, \
+             ts_headline('english', si.search_text, websearch_to_tsquery('english', ",
+        );
+        qb.push_bind(&query);
+        qb.push("), 'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MaxWords=18, MinWords=5') AS highlight \
+             FROM loom_block_search_index si WHERE si.workspace_id = ");
+        qb.push_bind(workspace_id);
+
+        if let Some(content_type) = request.content_type.as_ref() {
+            qb.push(" AND si.content_type = ").push_bind(content_type.as_str());
+        }
+        if !request.tag_ids.is_empty() {
+            qb.push(
+                " AND EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = si.workspace_id \
+                 AND e.source_block_id = si.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+            );
+            let mut sep = qb.separated(", ");
+            for tag_id in &request.tag_ids {
+                sep.push_bind(tag_id);
+            }
+            sep.push_unseparated("))");
+        }
+
+        // Match predicate: keyword OR trigram OR (semantic neighbour when avail).
+        qb.push(" AND (si.search_tsv @@ websearch_to_tsquery('english', ");
+        qb.push_bind(&query);
+        qb.push(") OR public.similarity(si.search_text, ");
+        qb.push_bind(&query);
+        qb.push(") > 0.1");
+        if let Some(literal) = &embedding_literal {
+            qb.push(" OR (si.embedding IS NOT NULL AND (si.embedding OPERATOR(public.<=>) ");
+            qb.push_bind(literal);
+            qb.push("::public.vector) < 0.55)");
+        }
+        qb.push(")) SELECT block_id, content_type, fts_rank, trgm_sim, vector_sim, edge_degree, highlight, \
+                 (fts_rank * 1.0 + trgm_sim * 0.6 + vector_sim * 1.2 + (edge_degree::float8 * ");
+        qb.push_bind(graph_boost);
+        qb.push(")) AS fused_score, COUNT(*) OVER () AS total_count \
+                 FROM scored ORDER BY fused_score DESC, block_id ASC LIMIT ");
+        qb.push_bind(limit);
+        qb.push(" OFFSET ").push_bind(offset);
+
+        let rows = qb.build().fetch_all(&self.pool).await?;
+
+        let mut hits = Vec::with_capacity(rows.len());
+        let mut total: i64 = 0;
+        for row in &rows {
+            let block_id: String = row.get("block_id");
+            total = row.get("total_count");
+            let block = self.get_loom_block(workspace_id, &block_id).await?;
+            hits.push(LoomSearchV2Hit {
+                block,
+                score: row.get::<f64, _>("fused_score"),
+                fts_rank: row.get::<f64, _>("fts_rank"),
+                trgm_sim: row.get::<f64, _>("trgm_sim"),
+                vector_sim: row.get::<f64, _>("vector_sim"),
+                edge_degree: row.get::<i64, _>("edge_degree"),
+                highlight: row.get::<String, _>("highlight"),
+            });
+        }
+
+        // content_type facet over the full matching set (not just the page).
+        let mut facet_qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            "SELECT si.content_type, COUNT(*) AS n FROM loom_block_search_index si \
+             WHERE si.workspace_id = ",
+        );
+        facet_qb.push_bind(workspace_id);
+        facet_qb.push(" AND (si.search_tsv @@ websearch_to_tsquery('english', ");
+        facet_qb.push_bind(&query);
+        facet_qb.push(") OR public.similarity(si.search_text, ");
+        facet_qb.push_bind(&query);
+        facet_qb.push(") > 0.1");
+        if let Some(literal) = &embedding_literal {
+            facet_qb.push(" OR (si.embedding IS NOT NULL AND (si.embedding OPERATOR(public.<=>) ");
+            facet_qb.push_bind(literal);
+            facet_qb.push("::public.vector) < 0.55)");
+        }
+        facet_qb.push(") GROUP BY si.content_type");
+        let facet_rows = facet_qb.build().fetch_all(&self.pool).await?;
+        let mut content_type_facets = std::collections::BTreeMap::new();
+        for row in &facet_rows {
+            content_type_facets.insert(row.get::<String, _>("content_type"), row.get::<i64, _>("n"));
+        }
+
+        Ok(LoomSearchV2Response {
+            hits,
+            content_type_facets,
+            semantic_available,
+            total,
+        })
     }
 
     async fn record_quick_switcher_recent(

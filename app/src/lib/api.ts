@@ -1342,6 +1342,54 @@ export async function searchLoomGraph(
   );
 }
 
+// ===========================================================================
+// MT-264: LoomSearchV2 -- Postgres-native, graph-blended hybrid search
+// (FTS + pg_trgm + pgvector kNN). Results are references into LoomBlocks.
+// ===========================================================================
+
+export type LoomSearchV2Hit = {
+  block: LoomBlock;
+  score: number;
+  fts_rank: number;
+  trgm_sim: number;
+  vector_sim: number;
+  edge_degree: number;
+  highlight: string;
+};
+
+export type LoomSearchV2Response = {
+  hits: LoomSearchV2Hit[];
+  content_type_facets: Record<string, number>;
+  semantic_available: boolean;
+  total: number;
+};
+
+export type LoomSearchV2Request = {
+  query: string;
+  contentType?: LoomBlockContentType;
+  tagIds?: string[];
+  graphBoost?: number;
+  limit?: number;
+  offset?: number;
+};
+
+export async function loomSearchV2(
+  workspaceId: string,
+  params: LoomSearchV2Request,
+): Promise<LoomSearchV2Response> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/search-v2`, {
+    method: "POST",
+    body: {
+      query: params.query,
+      content_type: params.contentType,
+      tag_ids: params.tagIds ?? [],
+      graph_boost: params.graphBoost ?? 0,
+      limit: params.limit ?? 25,
+      offset: params.offset ?? 0,
+    },
+  });
+}
+
 export async function listQuickSwitcherRecents(
   workspaceId: string,
   limit = 20,

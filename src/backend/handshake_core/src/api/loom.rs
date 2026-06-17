@@ -287,6 +287,13 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/graph-search",
             get(search_loom_graph),
         )
+        // MT-264: LoomSearchV2 -- Postgres-native, graph-blended hybrid search
+        // (FTS + pg_trgm + pgvector kNN). Supersedes/extends the MT-258/250
+        // workspace search entrypoint.
+        .route(
+            "/workspaces/:workspace_id/loom/search-v2",
+            post(loom_search_v2),
+        )
         .route(
             "/workspaces/:workspace_id/loom/quick-switcher/recents",
             get(list_quick_switcher_recents).post(record_quick_switcher_recent),
@@ -438,7 +445,48 @@ async fn create_loom_block(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
+    // WP-KERNEL-009 MT-264: refresh the semantic embedding projection so a
+    // normally-created block is searchable by the semantic modality (not only
+    // by tests that manually reindex). No-op decline when no model configured.
+    refresh_loom_block_embedding(&state, &ctx, &block).await;
+
     Ok(Json(block))
+}
+
+/// WP-KERNEL-009 MT-264: refresh the LoomSearchV2 semantic (embedding)
+/// projection for a block on the authority write path. The keyword/trigram
+/// (`search_text`) projection is refreshed synchronously inside the storage
+/// `create_loom_block` / `update_loom_block` / `get_or_create_daily_journal_block`
+/// paths; the embedding modality additionally requires the model runtime, which
+/// only the API layer holds (`state.llm_client`). This calls the same
+/// `loom_search::reindex_block` the semantic tests use, so a created/edited
+/// block's embedding is produced through the operator's configured model — and
+/// is OMITTED (typed decline, no fabrication) when no embedding model is
+/// configured. A reindex failure is non-fatal to the write that already
+/// committed: it is recorded to the Flight Recorder so the block stays usable
+/// while the embedding can be backfilled, rather than failing an otherwise
+/// successful authority write.
+async fn refresh_loom_block_embedding(state: &AppState, ctx: &WriteContext, block: &LoomBlock) {
+    match crate::loom_search::reindex_block(state.storage.as_ref(), state.llm_client.as_ref(), ctx, block)
+        .await
+    {
+        Ok(_wrote_embedding) => {}
+        Err(err) => {
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomBlockCreated,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_search_v2_reindex_failed",
+                    "block_id": block.block_id,
+                    "workspace_id": block.workspace_id,
+                    "error": err.to_string(),
+                }),
+            )
+            .with_wsids(vec![block.workspace_id.clone()]);
+            let _ = state.flight_recorder.record_event(event).await;
+        }
+    }
 }
 
 fn parse_journal_date(raw: &str) -> ApiResult<String> {
@@ -472,6 +520,10 @@ async fn open_daily_journal(
         .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
         .await
         .map_err(map_storage_error)?;
+
+    // WP-KERNEL-009 MT-264: refresh the semantic embedding projection for the
+    // journal block (the keyword/trigram row is written in storage).
+    refresh_loom_block_embedding(&state, &ctx, &block).await;
 
     Ok(Json(block))
 }
@@ -1573,6 +1625,12 @@ async fn patch_loom_block(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
+    // WP-KERNEL-009 MT-264: an edited title/text changes the block's flattened
+    // search text, so refresh the semantic embedding projection too (the
+    // keyword/trigram row is refreshed in storage update_loom_block). No-op
+    // decline when no embedding model is configured.
+    refresh_loom_block_embedding(&state, &ctx, &block).await;
+
     Ok(Json(block))
 }
 
@@ -2596,6 +2654,52 @@ async fn run_loom_ai_job(
         kind: result.kind,
         suggestions: result.suggestions,
     }))
+}
+
+/// MT-264 LoomSearchV2 request body.
+#[derive(Debug, Deserialize, Default)]
+struct LoomSearchV2Body {
+    query: String,
+    #[serde(default)]
+    content_type: Option<crate::storage::LoomBlockContentType>,
+    #[serde(default)]
+    tag_ids: Vec<String>,
+    #[serde(default)]
+    graph_boost: f64,
+    #[serde(default)]
+    limit: u32,
+    #[serde(default)]
+    offset: u32,
+}
+
+/// MT-264 LoomSearchV2 handler: embeds the query through the configured model
+/// runtime (typed decline -> keyword/trigram fallback) and runs the hybrid
+/// Postgres-native search. The response carries per-modality scores, content
+/// facets, ts_headline highlights, and a `semantic_available` flag.
+async fn loom_search_v2(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<LoomSearchV2Body>,
+) -> ApiResult<Json<crate::storage::LoomSearchV2Response>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let request = crate::storage::LoomSearchV2Request {
+        query: payload.query,
+        content_type: payload.content_type,
+        tag_ids: payload.tag_ids,
+        query_embedding: None,
+        graph_boost: payload.graph_boost,
+        limit: payload.limit,
+        offset: payload.offset,
+    };
+    let resp = crate::loom_search::search(
+        state.storage.as_ref(),
+        state.llm_client.as_ref(),
+        &workspace_id,
+        request,
+    )
+    .await
+    .map_err(map_storage_error)?;
+    Ok(Json(resp))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -4096,6 +4200,191 @@ mod tests {
             )
             .await?;
         Ok(ws.id)
+    }
+
+    /// WP-KERNEL-009 MT-264: an AppState whose model runtime DOES expose a real
+    /// (deterministic) 768-d embedding endpoint, so the API authority write path
+    /// produces and persists block embeddings exactly like a configured Ollama
+    /// embedding model. Used to prove blocker #2 (embedding refreshed on
+    /// create/update through the real handler, not only in manual-reindex tests).
+    async fn setup_state_with_embedding() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
+            return Ok(None);
+        };
+        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        Ok(Some(AppState {
+            storage: backend.database,
+            postgres_pool: backend.postgres_pool,
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client: Arc::new(
+                InMemoryLlmClient::new("ok".into())
+                    .with_embedding_dim(crate::loom_search::LOOM_SEARCH_EMBEDDING_DIM),
+            ),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(crate::workflows::SessionRegistry::new(
+                crate::workflows::SessionSchedulerConfig::default(),
+            )),
+        }))
+    }
+
+    /// The number of `loom_block_search_index` rows for a block that carry a
+    /// non-NULL embedding (semantic projection populated).
+    async fn embedded_index_rows(
+        state: &AppState,
+        block_id: &str,
+    ) -> Result<i64, Box<dyn std::error::Error>> {
+        let n: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM loom_block_search_index \
+             WHERE block_id = $1 AND embedding IS NOT NULL",
+        )
+        .bind(block_id)
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        Ok(n)
+    }
+
+    /// MT-264 blocker #2: a block created through the REAL `create_loom_block`
+    /// API handler (with a configured embedding model) gets its embedding
+    /// populated on the authority write path — not only when a test manually
+    /// calls `reindex_block`. Editing the title through `patch_loom_block`
+    /// re-embeds the new text. Both are proven against real PostgreSQL.
+    #[tokio::test]
+    async fn mt264_api_create_and_update_refresh_embedding() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let Some(state) = setup_state_with_embedding().await? else {
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+
+        let created = create_loom_block(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(CreateLoomBlockRequest {
+                block_id: None,
+                content_type: LoomBlockContentType::Note,
+                title: Some("Embedding write path note".to_string()),
+                document_id: None,
+                asset_id: None,
+                pinned: None,
+                journal_date: None,
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        let block_id = created.0.block_id.clone();
+
+        // The embedding was produced on the create authority write path.
+        assert_eq!(
+            embedded_index_rows(&state, &block_id).await?,
+            1,
+            "create_loom_block must populate the semantic embedding projection"
+        );
+
+        // The semantic modality is reachable through the real search handler.
+        let resp = loom_search_v2(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(LoomSearchV2Body {
+                query: "Embedding write path note".to_string(),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert!(
+            resp.0.semantic_available,
+            "embedding model configured -> semantic available through API"
+        );
+
+        // Edit the title through the patch handler -> embedding re-refreshed.
+        let _ = patch_loom_block(
+            State(state.clone()),
+            Path((workspace_id.clone(), block_id.clone())),
+            Json(LoomBlockPatchRequest {
+                update: LoomBlockUpdate {
+                    title: Some("Edited embedding write path note".to_string()),
+                    ..Default::default()
+                },
+                add_tags: Vec::new(),
+                remove_tags: Vec::new(),
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert_eq!(
+            embedded_index_rows(&state, &block_id).await?,
+            1,
+            "patch_loom_block must keep the embedding projection populated"
+        );
+        Ok(())
+    }
+
+    /// MT-264 blocker #5: a daily-journal block created through
+    /// `open_daily_journal` (which calls `get_or_create_daily_journal_block`)
+    /// gets a `loom_block_search_index` row on creation and is immediately
+    /// findable by LoomSearchV2 — no stale/missing-projection drift. Proven
+    /// against real PostgreSQL.
+    #[tokio::test]
+    async fn mt264_journal_block_indexed_on_create() -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+
+        let journal = open_daily_journal(
+            State(state.clone()),
+            Path((workspace_id.clone(), "2026-06-18".to_string())),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        let block_id = journal.0.block_id.clone();
+
+        // The journal block has an index row immediately on creation.
+        let index_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1",
+        )
+        .bind(&block_id)
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(
+            index_rows, 1,
+            "journal block must get a search-index row on creation (no drift)"
+        );
+
+        // And it is findable by its title text via LoomSearchV2 (FTS over the
+        // "Daily Note 2026-06-18" title). No embedding model is configured here,
+        // so this proves the keyword projection alone makes it searchable.
+        let resp = loom_search_v2(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            Json(LoomSearchV2Body {
+                query: "Daily Note 2026-06-18".to_string(),
+                ..Default::default()
+            }),
+        )
+        .await
+        .map_err(|(status, Json(body))| LoomApiTestCallError {
+            status,
+            code: body.error.to_string(),
+        })?;
+        assert!(
+            resp.0.hits.iter().any(|h| h.block.block_id == block_id),
+            "journal block must be findable by LoomSearchV2 immediately after creation"
+        );
+        Ok(())
     }
 
     async fn set_loom_metrics_for_block(

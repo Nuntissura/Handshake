@@ -220,6 +220,7 @@ pub mod logging;
 pub mod loom_ai;
 #[cfg(feature = "runtime-full")]
 pub mod loom_fs;
+pub mod loom_search;
 #[cfg(feature = "runtime-full")]
 pub mod mcp;
 #[cfg(feature = "runtime-full")]

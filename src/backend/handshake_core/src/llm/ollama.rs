@@ -9,7 +9,8 @@
 //! - Emits Flight Recorder llm_inference events internally (§4.2.3.2 Observability Invariant)
 
 use super::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, ModelTier, TokenUsage,
+    CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient,
+    LlmError, ModelProfile, ModelTier, TokenUsage,
 };
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
@@ -293,6 +294,20 @@ struct OllamaShowRequest {
     name: String,
 }
 
+/// Ollama /api/embeddings request format.
+#[derive(Serialize)]
+struct OllamaEmbeddingRequest {
+    model: String,
+    prompt: String,
+}
+
+/// Ollama /api/embeddings response format.
+#[derive(Deserialize)]
+struct OllamaEmbeddingResponse {
+    #[serde(default)]
+    embedding: Vec<f32>,
+}
+
 /// Ollama /api/generate response format.
 #[derive(Deserialize)]
 struct OllamaGenerateResponse {
@@ -441,6 +456,52 @@ impl LlmClient for OllamaAdapter {
         })
     }
 
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        if req.trace_id == uuid::Uuid::nil() {
+            return Err(LlmError::ProviderError(
+                "trace_id must be a non-nil UUID".to_string(),
+            ));
+        }
+        if req.model_id.trim().is_empty() {
+            return Err(LlmError::ProviderError(
+                "embedding model_id must not be empty".to_string(),
+            ));
+        }
+        let url = format!("{}/api/embeddings", self.base_url);
+        let started = std::time::Instant::now();
+        let response = self
+            .client
+            .post(&url)
+            .json(&OllamaEmbeddingRequest {
+                model: req.model_id.clone(),
+                prompt: req.input.clone(),
+            })
+            .send()
+            .await
+            .map_err(|err| LlmError::ProviderError(format!("Ollama /api/embeddings: {err}")))?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(LlmError::ProviderError(format!(
+                "Ollama /api/embeddings error ({status}): {body}"
+            )));
+        }
+        let parsed: OllamaEmbeddingResponse = response
+            .json()
+            .await
+            .map_err(|err| LlmError::ProviderError(format!("Ollama embedding parse: {err}")))?;
+        if parsed.embedding.is_empty() {
+            return Err(LlmError::ProviderError(
+                "Ollama returned an empty embedding vector".to_string(),
+            ));
+        }
+        Ok(EmbeddingResponse {
+            vector: parsed.embedding,
+            model_id: req.model_id,
+            latency_ms: started.elapsed().as_millis() as u64,
+        })
+    }
+
     async fn swap_model(&self, req: ModelSwapRequestV0_4) -> Result<(), LlmError> {
         if req.timeout_ms == 0 {
             return Err(LlmError::ProviderError(
@@ -492,6 +553,15 @@ pub struct InMemoryLlmClient {
     usage_override: Option<TokenUsage>,
     profile: ModelProfile,
     latency_ms: u64,
+    /// When `Some(dim)`, [`LlmClient::embedding`] produces a real deterministic
+    /// dense vector of this dimensionality from the input text (a hashed
+    /// bag-of-words projection). This is an HONEST embedding substitute for the
+    /// real Ollama `/api/embeddings` path: the vector is a genuine function of
+    /// the text, so semantically-overlapping inputs land closer under pgvector
+    /// distance — it is NOT a fabricated search result. When `None`, the
+    /// embedding call declines with the typed `EmbeddingUnsupported` error, the
+    /// same as a runtime with no embedding model configured.
+    embedding_dim: Option<usize>,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -503,7 +573,43 @@ impl InMemoryLlmClient {
             usage_override: None,
             profile: ModelProfile::new("in-memory-model".to_string(), 4096),
             latency_ms: 0, // Zero latency for deterministic tests
+            embedding_dim: None,
         }
+    }
+
+    /// Enables the real deterministic embedding path with the given
+    /// dimensionality (mirrors a configured Ollama embedding model).
+    pub fn with_embedding_dim(mut self, dim: usize) -> Self {
+        self.embedding_dim = Some(dim);
+        self
+    }
+
+    /// The deterministic, real bag-of-words embedding used by the test/util
+    /// embedding path. Tokens are lowercased; each token hashes to a dimension
+    /// and accumulates a sign-stable weight; the vector is L2-normalized. Equal
+    /// or overlapping text yields closer vectors under cosine/L2 distance.
+    pub fn deterministic_embedding(input: &str, dim: usize) -> Vec<f32> {
+        let mut vector = vec![0.0f32; dim.max(1)];
+        for token in input
+            .to_lowercase()
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|t| !t.is_empty())
+        {
+            let mut hasher = Sha256::new();
+            hasher.update(token.as_bytes());
+            let digest = hasher.finalize();
+            let idx = (u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]) as usize)
+                % vector.len();
+            let sign = if digest[4] & 1 == 0 { 1.0 } else { -1.0 };
+            vector[idx] += sign;
+        }
+        let norm: f32 = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for v in &mut vector {
+                *v /= norm;
+            }
+        }
+        vector
     }
 
     /// Creates an in-memory client with specific usage metrics.
@@ -566,6 +672,17 @@ impl LlmClient for InMemoryLlmClient {
             usage,
             latency_ms: self.latency_ms,
         })
+    }
+
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        match self.embedding_dim {
+            Some(dim) => Ok(EmbeddingResponse {
+                vector: Self::deterministic_embedding(&req.input, dim),
+                model_id: req.model_id,
+                latency_ms: self.latency_ms,
+            }),
+            None => Err(LlmError::EmbeddingUnsupported),
+        }
     }
 
     fn profile(&self) -> &ModelProfile {
