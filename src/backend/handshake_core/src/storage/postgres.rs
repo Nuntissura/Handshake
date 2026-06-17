@@ -1,5 +1,7 @@
 use super::{
     validate_job_contract, AccessMode, AiJob, AiJobListFilter, Asset, Block, BlockUpdate,
+    BlockViewDefinition, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewRecord,
+    BlockViewResults, BLOCK_VIEW_UNTAGGED_LANE,
     BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
     CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource, CalendarSourceProviderType,
     CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
@@ -1515,6 +1517,232 @@ impl PostgresDatabase {
 
     pub fn into_arc(self) -> Arc<dyn super::Database> {
         Arc::new(self)
+    }
+
+    /// MT-262: server-side block-collection-view page. Reuses the SAME filter
+    /// SQL as `query_loom_view` (workspace, content_type, mime, journal-aware
+    /// date range, tag/mention EXISTS) but takes a TYPED, injection-safe ORDER
+    /// BY (column + direction are `&'static str`s from `BlockViewField` /
+    /// `BlockViewSortDirection`, never operator text). All filtering, ordering,
+    /// limit, and offset run in PostgreSQL so paging is correct across a PAGE
+    /// BOUNDARY (no client-side sort over a partial page).
+    async fn select_block_view_page(
+        &self,
+        workspace_id: &str,
+        filters: &LoomViewFilters,
+        order_col: &'static str,
+        order_dir: &'static str,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<LoomBlock>> {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            r#"
+            SELECT
+                b.block_id,
+                b.workspace_id,
+                b.content_type,
+                b.document_id,
+                b.asset_id,
+                b.title,
+                b.original_filename,
+                b.content_hash,
+                b.pinned,
+                b.favorite,
+                b.pin_order,
+                b.journal_date,
+                b.created_at,
+                b.updated_at,
+                b.imported_at,
+                b.backlink_count,
+                b.mention_count,
+                b.tag_count,
+                b.derived_json,
+                b.preview_status,
+                b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_blocks b
+            LEFT JOIN assets a
+              ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
+            "#,
+        );
+
+        let mut has_where = false;
+        let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
+            if has_where {
+                builder.push(" AND ");
+            } else {
+                builder.push(" WHERE ");
+                has_where = true;
+            }
+        };
+
+        push_clause(&mut qb);
+        qb.push("b.workspace_id = ").push_bind(workspace_id.to_string());
+
+        if let Some(content_type) = &filters.content_type {
+            push_clause(&mut qb);
+            qb.push("b.content_type = ")
+                .push_bind(content_type.as_str());
+        }
+
+        if let Some(mime) = &filters.mime {
+            push_clause(&mut qb);
+            qb.push("a.mime = ").push_bind(mime.clone());
+        }
+
+        if let Some(from) = filters.date_from {
+            push_clause(&mut qb);
+            qb.push(
+                "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                 THEN b.journal_date >= to_char(",
+            )
+            .push_bind(from)
+            .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at >= ")
+            .push_bind(from)
+            .push(" END)");
+        }
+        if let Some(to) = filters.date_to {
+            push_clause(&mut qb);
+            qb.push(
+                "(CASE WHEN b.content_type = 'journal' AND b.journal_date IS NOT NULL \
+                 THEN b.journal_date <= to_char(",
+            )
+            .push_bind(to)
+            .push("::timestamptz, 'YYYY-MM-DD') ELSE b.updated_at <= ")
+            .push_bind(to)
+            .push(" END)");
+        }
+
+        if !filters.tag_ids.is_empty() {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for tag_id in &filters.tag_ids {
+                separated.push_bind(tag_id.clone());
+            }
+            separated.push_unseparated("))");
+        }
+
+        if !filters.mention_ids.is_empty() {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for mention_id in &filters.mention_ids {
+                separated.push_bind(mention_id.clone());
+            }
+            separated.push_unseparated("))");
+        }
+
+        // Typed, injection-safe ORDER BY. A stable block_id tiebreak makes the
+        // global sort deterministic across page boundaries.
+        qb.push(" ORDER BY ");
+        qb.push(order_col);
+        qb.push(" ");
+        qb.push(order_dir);
+        qb.push(" NULLS LAST, b.block_id ASC");
+        qb.push(" LIMIT ").push_bind(limit);
+        qb.push(" OFFSET ").push_bind(offset);
+
+        let rows = qb.build().fetch_all(&self.pool).await?;
+        rows.into_iter()
+            .map(map_loom_block)
+            .collect::<StorageResult<Vec<_>>>()
+    }
+
+    /// Partition an already-server-side-sorted block page into Kanban lanes by
+    /// tag edge. One lane per requested tag id (preserving the definition's tag
+    /// order, so lane order is stable) plus an "untagged" lane. A block is
+    /// placed in EVERY lane whose tag it carries (a card can appear under each
+    /// of its tags). Tag membership is read from the REAL loom_edges; the lanes
+    /// are a pure projection of that authority, never view-local state.
+    async fn partition_blocks_by_tag(
+        &self,
+        workspace_id: &str,
+        blocks: &[LoomBlock],
+        tag_ids: &[String],
+    ) -> StorageResult<Vec<BlockViewLane>> {
+        use std::collections::{HashMap, HashSet};
+
+        // The tag edges (block -> tag target) for the page, read from authority.
+        let block_ids: Vec<String> = blocks.iter().map(|b| b.block_id.clone()).collect();
+        let mut tags_by_block: HashMap<String, HashSet<String>> = HashMap::new();
+        if !block_ids.is_empty() {
+            let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+                "SELECT source_block_id, target_block_id FROM loom_edges \
+                 WHERE workspace_id = ",
+            );
+            qb.push_bind(workspace_id.to_string());
+            qb.push(" AND edge_type = 'tag' AND source_block_id IN (");
+            let mut separated = qb.separated(", ");
+            for id in &block_ids {
+                separated.push_bind(id.clone());
+            }
+            separated.push_unseparated(")");
+            let rows = qb.build().fetch_all(&self.pool).await?;
+            for row in rows {
+                let src: String = row.get("source_block_id");
+                let tgt: String = row.get("target_block_id");
+                tags_by_block.entry(src).or_default().insert(tgt);
+            }
+        }
+
+        // Lane order: the definition's tag ids in declared order, then untagged.
+        let mut lane_keys: Vec<String> = Vec::new();
+        let mut seen: HashSet<String> = HashSet::new();
+        for tag in tag_ids {
+            if seen.insert(tag.clone()) {
+                lane_keys.push(tag.clone());
+            }
+        }
+
+        let mut lanes: Vec<BlockViewLane> = lane_keys
+            .iter()
+            .map(|key| BlockViewLane {
+                key: key.clone(),
+                blocks: Vec::new(),
+            })
+            .collect();
+        let mut untagged = BlockViewLane {
+            key: BLOCK_VIEW_UNTAGGED_LANE.to_string(),
+            blocks: Vec::new(),
+        };
+
+        for block in blocks {
+            let block_tags = tags_by_block.get(&block.block_id);
+            let mut placed = false;
+            for lane in lanes.iter_mut() {
+                if block_tags.is_some_and(|set| set.contains(&lane.key)) {
+                    lane.blocks.push(block.clone());
+                    placed = true;
+                }
+            }
+            // If the view does not constrain to specific tags, surface every
+            // distinct tag as its own lane so a free Kanban still groups.
+            if lane_keys.is_empty() {
+                if let Some(set) = block_tags {
+                    for tag in set {
+                        match lanes.iter_mut().find(|l| &l.key == tag) {
+                            Some(lane) => lane.blocks.push(block.clone()),
+                            None => lanes.push(BlockViewLane {
+                                key: tag.clone(),
+                                blocks: vec![block.clone()],
+                            }),
+                        }
+                    }
+                    placed = !set.is_empty();
+                }
+            }
+            if !placed {
+                untagged.blocks.push(block.clone());
+            }
+        }
+
+        lanes.push(untagged);
+        Ok(lanes)
     }
 
     async fn ensure_model_session_schema(&self) -> StorageResult<()> {
@@ -3064,6 +3292,45 @@ fn order_loom_graph_results_for_breadth(
     ordered
 }
 
+/// MT-262: partition an already-server-side-sorted block page into Kanban lanes
+/// by a typed block field value. Lane membership is a pure projection of the
+/// block's own field (read from authority rows), never view-local state. Lanes
+/// appear in first-seen order to keep lane order stable across re-queries.
+fn partition_blocks_by_field(blocks: &[LoomBlock], field: &super::BlockViewField) -> Vec<BlockViewLane> {
+    use super::BlockViewField;
+    let mut lanes: Vec<BlockViewLane> = Vec::new();
+    for block in blocks {
+        let key = match field {
+            BlockViewField::ContentType => block.content_type.as_str().to_string(),
+            BlockViewField::Pinned => if block.pinned { "pinned" } else { "unpinned" }.to_string(),
+            BlockViewField::Favorite => {
+                if block.favorite { "favorite" } else { "not_favorite" }.to_string()
+            }
+            BlockViewField::JournalDate => block
+                .journal_date
+                .clone()
+                .unwrap_or_else(|| BLOCK_VIEW_UNTAGGED_LANE.to_string()),
+            BlockViewField::Title => block
+                .title
+                .clone()
+                .unwrap_or_else(|| BLOCK_VIEW_UNTAGGED_LANE.to_string()),
+            BlockViewField::BacklinkCount => block.derived.backlink_count.to_string(),
+            BlockViewField::MentionCount => block.derived.mention_count.to_string(),
+            BlockViewField::TagCount => block.derived.tag_count.to_string(),
+            BlockViewField::Created => block.created_at.to_rfc3339(),
+            BlockViewField::Updated => block.updated_at.to_rfc3339(),
+        };
+        match lanes.iter_mut().find(|l| l.key == key) {
+            Some(lane) => lane.blocks.push(block.clone()),
+            None => lanes.push(BlockViewLane {
+                key,
+                blocks: vec![block.clone()],
+            }),
+        }
+    }
+    lanes
+}
+
 fn loom_block_graph_source_kind(content_type: &LoomBlockContentType) -> LoomSearchSourceKind {
     match content_type {
         LoomBlockContentType::File | LoomBlockContentType::AnnotatedFile => {
@@ -3072,7 +3339,8 @@ fn loom_block_graph_source_kind(content_type: &LoomBlockContentType) -> LoomSear
         LoomBlockContentType::TagHub => LoomSearchSourceKind::TagHub,
         LoomBlockContentType::Note
         | LoomBlockContentType::Journal
-        | LoomBlockContentType::Canvas => LoomSearchSourceKind::LoomBlock,
+        | LoomBlockContentType::Canvas
+        | LoomBlockContentType::ViewDef => LoomSearchSourceKind::LoomBlock,
     }
 }
 
@@ -8119,6 +8387,215 @@ impl super::Database for PostgresDatabase {
             return Err(StorageError::NotFound("loom_canvas_visual_edge"));
         }
         Ok(())
+    }
+
+    // -- MT-262 BlockCollectionViews -------------------------------------------
+    async fn create_block_view(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        title: Option<String>,
+        definition: BlockViewDefinition,
+    ) -> StorageResult<BlockViewRecord> {
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|v| v.to_string());
+        let workflow_id = metadata.workflow_id.map(|v| v.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        // The dedicated typed payload column. NEVER derived_json (which is the
+        // full-text index overload) — a view definition is its own authority.
+        let definition_json = serde_json::to_string(&definition)?;
+
+        // Flip the (already bridged) block to a view_def block carrying its
+        // definition. The CHECK constraint guarantees a view_def block always
+        // has a definition and nothing else ever does.
+        let res = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                content_type = 'view_def',
+                title = COALESCE($1, title),
+                view_definition_json = $2,
+                last_actor_kind = $3,
+                last_actor_id = $4,
+                last_job_id = $5,
+                last_workflow_id = $6,
+                edit_event_id = $7,
+                updated_at = $8
+            WHERE workspace_id = $9 AND block_id = $10
+            "#,
+        )
+        .bind(title)
+        .bind(&definition_json)
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        self.get_block_view(workspace_id, block_id).await
+    }
+
+    async fn get_block_view(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<BlockViewRecord> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                favorite,
+                pin_order,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id,
+                view_definition_json
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2 AND content_type = 'view_def'
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        let definition_raw: Option<String> = row.get("view_definition_json");
+        let definition_raw =
+            definition_raw.ok_or(StorageError::Validation("view_def block missing definition"))?;
+        let definition: BlockViewDefinition = serde_json::from_str(&definition_raw)?;
+        let block = map_loom_block(row)?;
+        Ok(BlockViewRecord { block, definition })
+    }
+
+    async fn update_block_view_definition(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        definition: BlockViewDefinition,
+    ) -> StorageResult<BlockViewRecord> {
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|v| v.to_string());
+        let workflow_id = metadata.workflow_id.map(|v| v.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+        let definition_json = serde_json::to_string(&definition)?;
+
+        let res = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                view_definition_json = $1,
+                last_actor_kind = $2,
+                last_actor_id = $3,
+                last_job_id = $4,
+                last_workflow_id = $5,
+                edit_event_id = $6,
+                updated_at = $7
+            WHERE workspace_id = $8 AND block_id = $9 AND content_type = 'view_def'
+            "#,
+        )
+        .bind(&definition_json)
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        self.get_block_view(workspace_id, block_id).await
+    }
+
+    async fn query_block_view_results(
+        &self,
+        workspace_id: &str,
+        definition: &BlockViewDefinition,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<BlockViewResults> {
+        let filters = definition.query.to_filters();
+
+        // Resolve the typed ORDER BY (server-side). Default: most-recently
+        // updated first, then a stable block_id tiebreak so paging is
+        // deterministic across a PAGE BOUNDARY.
+        let (order_col, order_dir): (&'static str, &'static str) = match &definition.sort {
+            Some(sort) => (sort.field.order_column(), sort.direction.sql()),
+            None => ("b.updated_at", "DESC"),
+        };
+
+        // For a tag-grouped Kanban view we must fetch a larger window so each
+        // lane is materialised from the SAME server-side-sorted SQL result,
+        // then split into lanes. Filtering / ordering remain server-side; only
+        // the lane bucketing is a pure partition of an already-sorted SQL page.
+        let blocks = self
+            .select_block_view_page(
+                workspace_id,
+                &filters,
+                order_col,
+                order_dir,
+                limit as i64,
+                offset as i64,
+            )
+            .await?;
+
+        let total_returned = blocks.len() as u32;
+
+        let groups: Vec<BlockViewLane> = match (&definition.kind, &definition.group_by) {
+            (BlockViewKind::Kanban, Some(BlockViewGroupBy::Tag)) => {
+                self.partition_blocks_by_tag(workspace_id, &blocks, &definition.query.tag_ids)
+                    .await?
+            }
+            (BlockViewKind::Kanban, Some(BlockViewGroupBy::Field { field })) => {
+                partition_blocks_by_field(&blocks, field)
+            }
+            _ => Vec::new(),
+        };
+
+        Ok(BlockViewResults {
+            kind: definition.kind,
+            blocks,
+            groups,
+            total_returned,
+        })
     }
 
     async fn get_workbench_layout_state(

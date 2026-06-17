@@ -47,6 +47,12 @@ pub enum LoomBlockContentType {
     /// MT-261 CanvasBoard: an Obsidian-canvas-class board. The board itself is a
     /// typed LoomBlock; placed items are block-id references (never copies).
     Canvas,
+    /// MT-262 BlockCollectionViews: a saved block-collection view (table /
+    /// Kanban / calendar). The view itself is a typed LoomBlock; its
+    /// query/columns/grouping live in the dedicated `view_definition_json`
+    /// column. Reads run through the real Loom query backend; mutations route
+    /// through the normal block/edge update paths with receipts.
+    ViewDef,
 }
 
 impl LoomBlockContentType {
@@ -58,6 +64,7 @@ impl LoomBlockContentType {
             LoomBlockContentType::TagHub => "tag_hub",
             LoomBlockContentType::Journal => "journal",
             LoomBlockContentType::Canvas => "canvas",
+            LoomBlockContentType::ViewDef => "view_def",
         }
     }
 }
@@ -73,6 +80,7 @@ impl FromStr for LoomBlockContentType {
             "tag_hub" => Ok(LoomBlockContentType::TagHub),
             "journal" => Ok(LoomBlockContentType::Journal),
             "canvas" => Ok(LoomBlockContentType::Canvas),
+            "view_def" => Ok(LoomBlockContentType::ViewDef),
             _ => Err(crate::storage::StorageError::Validation(
                 "invalid loom block content_type",
             )),
@@ -1370,6 +1378,220 @@ pub struct LoomCanvasBoardView {
     pub placements: Vec<LoomCanvasPlacement>,
     pub visual_edges: Vec<LoomCanvasVisualEdge>,
 }
+
+// =============================================================================
+// MT-262 BlockCollectionViews
+// =============================================================================
+
+/// The shape a saved block-collection view renders as. Each kind reads the SAME
+/// real Loom query backend; only the projection differs.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockViewKind {
+    Table,
+    Kanban,
+    Calendar,
+}
+
+impl BlockViewKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BlockViewKind::Table => "table",
+            BlockViewKind::Kanban => "kanban",
+            BlockViewKind::Calendar => "calendar",
+        }
+    }
+}
+
+impl FromStr for BlockViewKind {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "table" => Ok(BlockViewKind::Table),
+            "kanban" => Ok(BlockViewKind::Kanban),
+            "calendar" => Ok(BlockViewKind::Calendar),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid block view kind",
+            )),
+        }
+    }
+}
+
+/// A typed, sortable column / field projected from a real block field. Every
+/// variant maps to a concrete SQL column so ORDER BY runs server-side (never a
+/// client-side sort over a partial page).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockViewField {
+    Title,
+    Created,
+    Updated,
+    JournalDate,
+    ContentType,
+    Pinned,
+    Favorite,
+    BacklinkCount,
+    MentionCount,
+    TagCount,
+}
+
+impl BlockViewField {
+    /// The fully-qualified, injection-safe SQL column this field orders by.
+    /// Returned as a `&'static str` so it is impossible to inject operator
+    /// text into ORDER BY.
+    pub fn order_column(&self) -> &'static str {
+        match self {
+            BlockViewField::Title => "b.title",
+            BlockViewField::Created => "b.created_at",
+            BlockViewField::Updated => "b.updated_at",
+            BlockViewField::JournalDate => "b.journal_date",
+            BlockViewField::ContentType => "b.content_type",
+            BlockViewField::Pinned => "b.pinned",
+            BlockViewField::Favorite => "b.favorite",
+            BlockViewField::BacklinkCount => "b.backlink_count",
+            BlockViewField::MentionCount => "b.mention_count",
+            BlockViewField::TagCount => "b.tag_count",
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BlockViewField::Title => "title",
+            BlockViewField::Created => "created",
+            BlockViewField::Updated => "updated",
+            BlockViewField::JournalDate => "journal_date",
+            BlockViewField::ContentType => "content_type",
+            BlockViewField::Pinned => "pinned",
+            BlockViewField::Favorite => "favorite",
+            BlockViewField::BacklinkCount => "backlink_count",
+            BlockViewField::MentionCount => "mention_count",
+            BlockViewField::TagCount => "tag_count",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockViewSortDirection {
+    Asc,
+    #[default]
+    Desc,
+}
+
+impl BlockViewSortDirection {
+    /// SQL keyword — `&'static str`, never operator text.
+    pub fn sql(&self) -> &'static str {
+        match self {
+            BlockViewSortDirection::Asc => "ASC",
+            BlockViewSortDirection::Desc => "DESC",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockViewSort {
+    pub field: BlockViewField,
+    #[serde(default)]
+    pub direction: BlockViewSortDirection,
+}
+
+/// The query a saved view runs. Maps 1:1 to the existing `LoomViewFilters`
+/// (server-side SQL filtering). `tag_ids` doubles as the Kanban grouping
+/// universe when the view groups by tag.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct BlockViewQuery {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<LoomBlockContentType>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mime: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_from: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_to: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tag_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mention_ids: Vec<String>,
+}
+
+impl BlockViewQuery {
+    pub fn to_filters(&self) -> LoomViewFilters {
+        LoomViewFilters {
+            content_type: self.content_type.clone(),
+            mime: self.mime.clone(),
+            date_from: self.date_from,
+            date_to: self.date_to,
+            tag_ids: self.tag_ids.clone(),
+            mention_ids: self.mention_ids.clone(),
+        }
+    }
+}
+
+/// How a Kanban view groups its cards. Tag-edge grouping is the drag target
+/// (drag = real tag edge create/delete); field grouping buckets by a typed
+/// block field.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BlockViewGroupBy {
+    /// Group by tag edge: one lane per tag block id (plus an implicit
+    /// "untagged" lane). Drag between lanes mutates the real tag edges.
+    Tag,
+    /// Group by a typed block field (e.g. content_type).
+    Field { field: BlockViewField },
+}
+
+/// The full definition of a saved view, persisted in `view_definition_json`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockViewDefinition {
+    pub kind: BlockViewKind,
+    #[serde(default)]
+    pub query: BlockViewQuery,
+    /// Columns shown in the table view (typed fields, ordered).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub columns: Vec<BlockViewField>,
+    /// Kanban grouping (only meaningful for `kind = kanban`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_by: Option<BlockViewGroupBy>,
+    /// Server-side sort (table / calendar ordering).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sort: Option<BlockViewSort>,
+    /// Which date field the calendar view buckets by (defaults to created).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar_date_field: Option<BlockViewField>,
+}
+
+/// A saved view block: the typed LoomBlock plus its decoded definition.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockViewRecord {
+    pub block: LoomBlock,
+    pub definition: BlockViewDefinition,
+}
+
+/// Result of executing a saved view's query against the real Loom backend.
+/// `blocks` is the flat (table/calendar) result; `groups` is populated for
+/// Kanban views (one entry per lane, in stable order).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockViewResults {
+    pub kind: BlockViewKind,
+    pub blocks: Vec<LoomBlock>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub groups: Vec<BlockViewLane>,
+    pub total_returned: u32,
+}
+
+/// One Kanban lane: a grouping key (tag block id, field value, or "untagged")
+/// plus the blocks in that lane (already server-side sorted).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockViewLane {
+    /// Stable lane key. For tag grouping this is the tag block id (or the
+    /// sentinel `__untagged__`); for field grouping it is the field value.
+    pub key: String,
+    pub blocks: Vec<LoomBlock>,
+}
+
+/// The sentinel lane key for blocks with no tag in a tag-grouped Kanban view.
+pub const BLOCK_VIEW_UNTAGGED_LANE: &str = "__untagged__";
 
 #[cfg(test)]
 mod mt178_helper_tests {

@@ -2,7 +2,8 @@ use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRec
 use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
-    artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
+    artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults, LoomBlock,
+    LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
     LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
     LoomCanvasVisualEdge, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
@@ -344,6 +345,19 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/loom/canvas-visual-edges/:visual_edge_id",
             delete(remove_canvas_visual_edge),
+        )
+        // MT-262 BlockCollectionViews: saved table/Kanban/calendar view defs.
+        .route(
+            "/workspaces/:workspace_id/loom/views/definitions",
+            post(create_block_view),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/views/definitions/:block_id",
+            get(get_block_view).patch(update_block_view),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/views/definitions/:block_id/results",
+            post(query_block_view_results),
         )
         .with_state(state)
 }
@@ -3810,6 +3824,196 @@ async fn remove_canvas_visual_edge(
         .await
         .map_err(map_storage_error)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+// =============================================================================
+// MT-262 BlockCollectionViews handlers
+// =============================================================================
+
+#[derive(Debug, Deserialize)]
+struct CreateBlockViewRequest {
+    #[serde(default)]
+    block_id: Option<String>,
+    #[serde(default)]
+    title: Option<String>,
+    definition: BlockViewDefinition,
+}
+
+/// Create a saved view: a typed `LoomBlock(content_type='view_def')` born
+/// through `create_loom_block` + the ProjectKnowledgeIndex bridge (so it gets a
+/// real authority receipt), then stamped with its definition. NO parallel store.
+async fn create_block_view(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<CreateBlockViewRequest>,
+) -> ApiResult<Json<BlockViewRecord>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+
+    // The view is born as a normal LoomBlock first (note type), then flipped to
+    // view_def with its definition — so it picks up the same bridge + receipt
+    // path every block uses. We cannot create it directly as view_def because
+    // the CHECK requires the definition column to be set in the same write, and
+    // create_loom_block does not write view_definition_json.
+    let block = state
+        .storage
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: payload.block_id,
+                workspace_id: workspace_id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: payload.title.clone(),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: LoomBlockDerived::default(),
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    state
+        .storage
+        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let record = state
+        .storage
+        .create_block_view(
+            &ctx,
+            &workspace_id,
+            &block.block_id,
+            payload.title,
+            payload.definition,
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockCreated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_block_view_created",
+            "workspace_id": workspace_id,
+            "block_id": record.block.block_id,
+            "view_kind": record.definition.kind.as_str(),
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(record))
+}
+
+async fn get_block_view(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<BlockViewRecord>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .get_block_view(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(record))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateBlockViewRequest {
+    definition: BlockViewDefinition,
+}
+
+/// Persist a new definition for a saved view (e.g. a table header click that
+/// re-sorts the view stores the new sort in PostgreSQL, not localStorage).
+async fn update_block_view(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<UpdateBlockViewRequest>,
+) -> ApiResult<Json<BlockViewRecord>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .update_block_view_definition(
+            &WriteContext::human(None),
+            &workspace_id,
+            &block_id,
+            payload.definition,
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockUpdated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_block_updated",
+            "block_id": record.block.block_id,
+            "fields_changed": ["view_definition"],
+            "updated_by": "user",
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(record))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct BlockViewResultsRequest {
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
+    offset: Option<u32>,
+}
+
+/// Execute a saved view's query against the REAL Loom query backend. Filtering,
+/// the typed ORDER BY, and Kanban lane partitioning all run server-side.
+async fn query_block_view_results(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<BlockViewResultsRequest>,
+) -> ApiResult<Json<BlockViewResults>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let record = state
+        .storage
+        .get_block_view(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let limit = payload.limit.unwrap_or(100).min(500);
+    let offset = payload.offset.unwrap_or(0);
+
+    let results = state
+        .storage
+        .query_block_view_results(&workspace_id, &record.definition, limit, offset)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomViewQueried,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_block_view_queried",
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "view_kind": results.kind.as_str(),
+            "result_count": results.total_returned,
+            "lane_count": results.groups.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id.clone()]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(results))
 }
 
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]

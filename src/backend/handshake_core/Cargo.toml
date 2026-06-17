@@ -134,6 +134,12 @@ required-features = ["runtime-full", "duckdb-flight-recorder"]
 test = false
 
 [[bin]]
+name = "mt262_block_collection_views_fixture"
+path = "src/bin/mt262_block_collection_views_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]
@@ -737,4 +743,13 @@ required-features = ["test-utils"]
 [[test]]
 name = "loom_canvas_board_tests"
 path = "tests/loom_canvas_board_tests.rs"
+required-features = ["test-utils"]
+
+# MT-262 BlockCollectionViews: saved table/Kanban/calendar views over the real
+# Loom query backend. Proves a view IS a typed LoomBlock (view_def +
+# view_definition_json), typed table sort is SQL-side across a page boundary,
+# Kanban drag mutates real tag edges, and calendar buckets by a real date field.
+[[test]]
+name = "loom_block_collection_views_tests"
+path = "tests/loom_block_collection_views_tests.rs"
 required-features = ["test-utils"]

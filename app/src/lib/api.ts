@@ -1079,6 +1079,68 @@ export type LoomViewResponse =
   | { view_type: "favorites"; blocks: LoomBlock[] }
   | { view_type: "sorted"; groups: LoomViewGroup[] };
 
+// MT-262 BlockCollectionViews ------------------------------------------------
+export type BlockViewKind = "table" | "kanban" | "calendar";
+
+export type BlockViewField =
+  | "title"
+  | "created"
+  | "updated"
+  | "journal_date"
+  | "content_type"
+  | "pinned"
+  | "favorite"
+  | "backlink_count"
+  | "mention_count"
+  | "tag_count";
+
+export type BlockViewSortDirection = "asc" | "desc";
+
+export type BlockViewSort = {
+  field: BlockViewField;
+  direction?: BlockViewSortDirection;
+};
+
+export type BlockViewQuery = {
+  content_type?: LoomBlockContentType;
+  mime?: string;
+  date_from?: string;
+  date_to?: string;
+  tag_ids?: string[];
+  mention_ids?: string[];
+};
+
+export type BlockViewGroupBy = { kind: "tag" } | { kind: "field"; field: BlockViewField };
+
+export type BlockViewDefinition = {
+  kind: BlockViewKind;
+  query?: BlockViewQuery;
+  columns?: BlockViewField[];
+  group_by?: BlockViewGroupBy | null;
+  sort?: BlockViewSort | null;
+  calendar_date_field?: BlockViewField | null;
+};
+
+export type BlockViewRecord = {
+  block: LoomBlock;
+  definition: BlockViewDefinition;
+};
+
+export type BlockViewLane = {
+  key: string;
+  blocks: LoomBlock[];
+};
+
+export type BlockViewResults = {
+  kind: BlockViewKind;
+  blocks: LoomBlock[];
+  groups?: BlockViewLane[];
+  total_returned: number;
+};
+
+/** The sentinel Kanban lane key for blocks with no tag in a tag-grouped view. */
+export const BLOCK_VIEW_UNTAGGED_LANE = "__untagged__";
+
 export type LoomWikiProjection = {
   projection_id: string;
   workspace_id: string;
@@ -1785,6 +1847,60 @@ export async function updateLoomBlock(
   return request(
     `/workspaces/${encodeURIComponent(workspaceId)}/loom/blocks/${encodeURIComponent(blockId)}`,
     { method: "PATCH", body: update },
+  );
+}
+
+// MT-262 BlockCollectionViews API --------------------------------------------
+
+/** Create a saved view (a typed view_def LoomBlock + bridge + receipt). */
+export async function createBlockView(
+  workspaceId: string,
+  definition: BlockViewDefinition,
+  options: { title?: string; blockId?: string } = {},
+): Promise<BlockViewRecord> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/views/definitions`,
+    {
+      method: "POST",
+      body: {
+        block_id: options.blockId,
+        title: options.title,
+        definition,
+      },
+    },
+  );
+}
+
+export async function getBlockView(
+  workspaceId: string,
+  blockId: string,
+): Promise<BlockViewRecord> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/views/definitions/${encodeURIComponent(blockId)}`,
+  );
+}
+
+/** Persist a new definition for a saved view (e.g. a re-sort), to PostgreSQL. */
+export async function updateBlockView(
+  workspaceId: string,
+  blockId: string,
+  definition: BlockViewDefinition,
+): Promise<BlockViewRecord> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/views/definitions/${encodeURIComponent(blockId)}`,
+    { method: "PATCH", body: { definition } },
+  );
+}
+
+/** Execute a saved view against the REAL Loom query backend (SQL-side). */
+export async function queryBlockViewResults(
+  workspaceId: string,
+  blockId: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<BlockViewResults> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/views/definitions/${encodeURIComponent(blockId)}/results`,
+    { method: "POST", body: { limit: params.limit, offset: params.offset } },
   );
 }
 

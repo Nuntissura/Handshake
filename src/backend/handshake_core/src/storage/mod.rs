@@ -2353,6 +2353,72 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
 
+    // -- MT-262 BlockCollectionViews -------------------------------------------
+    /// Create a saved block-collection view: a typed
+    /// `LoomBlock(content_type='view_def')` whose query/columns/grouping are
+    /// persisted in the dedicated `view_definition_json` column (NOT a
+    /// derived_json overload). The block must already exist (created via
+    /// `create_loom_block` + bridge); this sets its content_type + definition.
+    /// Authority is PostgreSQL + EventLedger; there is NO parallel/localStorage
+    /// store for view definitions.
+    async fn create_block_view(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _title: Option<String>,
+        _definition: BlockViewDefinition,
+    ) -> StorageResult<BlockViewRecord> {
+        Err(StorageError::NotImplemented(
+            "loom block collection view backend",
+        ))
+    }
+
+    /// Read a saved view block: the typed LoomBlock plus its decoded
+    /// definition. Errors `NotFound` if the block does not exist or is not a
+    /// `view_def` block.
+    async fn get_block_view(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<BlockViewRecord> {
+        Err(StorageError::NotImplemented(
+            "loom block collection view backend",
+        ))
+    }
+
+    /// Replace a saved view's definition (e.g. a table header click re-sorting
+    /// the view persists the new sort), leaving an updated_at bump. Authority is
+    /// PostgreSQL; never localStorage.
+    async fn update_block_view_definition(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _definition: BlockViewDefinition,
+    ) -> StorageResult<BlockViewRecord> {
+        Err(StorageError::NotImplemented(
+            "loom block collection view backend",
+        ))
+    }
+
+    /// Execute a saved view's query against the REAL Loom query backend. All
+    /// filtering, the typed ORDER BY, and Kanban grouping run server-side in
+    /// SQL (never client-side over a partial page). For Kanban (group_by) the
+    /// result is split into lanes; for table/calendar it is a single sorted
+    /// page.
+    async fn query_block_view_results(
+        &self,
+        _workspace_id: &str,
+        _definition: &BlockViewDefinition,
+        _limit: u32,
+        _offset: u32,
+    ) -> StorageResult<BlockViewResults> {
+        Err(StorageError::NotImplemented(
+            "loom block collection view backend",
+        ))
+    }
+
     /// MT-254 DebugAdapterCore: list the durable breakpoints for a RichDocument.
     async fn list_debug_breakpoints(
         &self,
