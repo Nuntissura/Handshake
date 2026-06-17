@@ -1,0 +1,180 @@
+# Research paper index — Handshake-native cloth simulation engine (Marvelous-Designer-equivalent "detailer").
+# Machine-readable map over the per-topic research files in this folder.
+# Read INSTRUCTIONS.md for how to read and edit this paper. Subtopic full id = "<topic_id>.<suffix>".
+
+research_paper:
+  id: handshake-tailor
+  feature_name: Tailor
+  title: "Handshake Tailor — Native Cloth/Garment Engine (Marvelous-Designer-equivalent) — Research"
+  naming:
+    feature: "Tailor (Handshake Tailor) — operator-chosen 2026-06-17; the model-first 'AI tailor' angle (describe a garment -> it gets tailored)."
+    module: "handshake_core::tailor"
+    solver_crate: "tailor-solver"
+    event_prefix: "Tailor*   (e.g. TailorGarmentPromoted, TailorSimRunStarted)"
+    table_prefix: "tailor_*   (e.g. tailor_garments, tailor_runs, tailor_materials)"
+    terminology_note: "'Tailor' is the FEATURE / module / crate / event / table identifier. 'cloth' stays the physics/sim terminology (cloth simulation, cloth-vs-body collision, XPBD cloth). Research-paper topic_ids (T-CLOTH-SOLVER, etc.) are stable and NOT renamed — they name topics, not the feature."
+    family: "Atelier (character studio) · Loom (canvas boards) · Tailor (cloth/garment engine)"
+  purpose: >-
+    Forward research for a FUTURE Handshake creative module: a fully-featured, model-steerable
+    cloth/garment authoring + simulation system built native in Handshake (Rust, no side apps).
+    Inventories the wtc-kernel-009 codebase, maps Marvelous Designer's full feature set, studies
+    open-source cloth/garment projects + their code, and translates to a Handshake-native Rust design.
+  status: "draft — landscape+architecture foundation complete and codebase-verified; 3 named moat topics + a canonical-contracts reconciliation pending before this can gate an implementation WP (see known_issues / planned_topics)."
+  updated_at: "2026-06-17"
+  repo: Handshake
+  worktree_inspected: "wtc-kernel-009 (feat/WP-KERNEL-009)"
+  location: ".GOV/reference/cloth_engine_research/"
+  instruction_file: "INSTRUCTIONS.md"
+  generated_by: "KERNEL_BUILDER multi-agent research workflow (17 agents); repomem KERNEL_BUILDER-20260617-130953"
+  authority_note: "Reference/landscape material only. NOT a Work Packet, Master Spec, or validator authority. Per KERNEL_BUILDER_PROTOCOL this is input to a future packet, not a packet."
+
+header_convention:
+  topic_header: "## [<TOPIC_ID>] <Title>            # exactly one per file"
+  subtopic_header: "### [<TOPIC_ID>.<suffix>] <Title>  # machine-readable, greppable, every subtopic"
+  frontmatter_keys: [file_id, topic_id, title, status, depends_on, summary, sources, updated_at]
+  grep_examples:
+    - "rg '^## \\[' .                       # list every topic"
+    - "rg '^### \\[T-CLOTH-SOLVER' .         # subtopics of one topic"
+    - "rg '^### \\[T-[A-Z-]+\\.sources\\]' . # every sources block"
+
+topics:
+  - id: T-OVERVIEW
+    title: "Overview and Scope"
+    file: "00-overview.md"
+    status: draft
+    depends_on: []
+    summary: "Frames the Handshake-native, model-first, MD-equivalent cloth/garment detailer as a creative module on the kernel: vision, constraints, differentiator, OSS landscape anchor, build-order note."
+    subtopics: [vision, handshake-constraints, differentiator, prior-rd, module-topology, build-order, feature-scope, risks, sources]
+  - id: T-CODEBASE
+    title: "Handshake Codebase Inventory (wtc-kernel-009)"
+    file: "01-codebase-inventory.md"
+    status: draft
+    depends_on: []
+    summary: "Inventory of the wtc-kernel-009 worktree: crate layout, Postgres/EventLedger APIs, sandbox/promotion gate, CRDT layer, model-lane surfaces, typed-event conventions, build commands, and the exact extension points the cloth module attaches to. Key finding: single handshake_core crate, zero wgpu/GPU today, atelier module is the extension pattern."
+    subtopics: [worktree-layout, appstate, storage-backend, eventledger, kernel-event-types, kernel-actors, model-adapter, llm-client, model-runtime, sandbox, promotion-gate, crdt, kb003-storage-tables, atelier-pattern, api-layer, migrations, build-commands, extension-points, no-gpu-today, risks, sources]
+  - id: T-MD-FEATURES
+    title: "Marvelous Designer Full Feature Map"
+    file: "02-md-feature-map.md"
+    status: draft
+    depends_on: []
+    summary: "Complete taxonomy of MD 2025.x/2026.0 features in 11 groups (~129 features) with difficulty ratings and moat flags — the requirements baseline. CANONICAL feature/moat source for the paper."
+    subtopics: [group-1-pattern-authoring, group-2-sewing, group-3-fabric-physics, group-4-simulation-engine, group-5-avatar-body-fitting, group-6-animation-dynamics, group-7-trims-accessories, group-8-uv-texturing-rendering, group-9-garment-library-assets, group-10-import-export-interop, group-11-ai-model-steerability, moat-summary, difficulty-distribution, sources]
+  - id: T-GARMENT-AUTHORING
+    title: "Garment Authoring: Patterns, Sewing, Parametric/Model-First Definition"
+    file: "03-garment-authoring.md"
+    status: draft
+    depends_on: [T-MD-FEATURES, T-CODEBASE]
+    summary: "2D pattern/seam authoring, parametric garment representation, LLM-steerable JSON schema, CRDT-editable Rust types, and kernel bindings for garment authority, sandbox, and promotion."
+    subtopics: [md-feature-map, oss-pattern-representations, garment-schema, llm-emit-surface, crdt-collaborative-editing, sandbox-promotion-flow, pattern-to-mesh-pipeline, bidirectional-2d-3d-loop, module-layout, seam-constraint-encoding, garmentcode-interop, risks-open-questions, sources]
+  - id: T-CLOTH-SOLVER
+    title: "Cloth Solver: XPBD on wgpu/WGSL"
+    file: "04-cloth-solver.md"
+    status: draft
+    depends_on: [T-CODEBASE]
+    summary: "The standalone tailor-solver Rust crate: XPBD algorithm, substepping, GPU constraint projection in WGSL via wgpu, data layout, parallelism, self-collision, determinism, and the Handshake integration boundary (ClothSolver trait)."
+    subtopics: [overview, xpbd-algorithm, constraint-types, gpu-architecture, self-collision, determinism, crate-design, handshake-binding, risks, sources]
+  - id: T-COLLISION
+    title: "Collision: Cloth-vs-Body, Self, Multi-Layer, Exaggerated Proportions"
+    file: "05-collision.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER]
+    summary: "GPU collision detection/response: cloth-vs-avatar (SDF + capsule proxy), self-collision (spatial hash), multi-layer garments, and the exaggerated-proportion robustness case (large-bust inter-collider overlap)."
+    subtopics: [overview, cloth-vs-body-approaches, capsule-proxy-spec, self-collision-spatial-hash, multi-layer, exaggerated-proportions, parry-rigid-proxy, wgsl-self-collision-shader, kernel-binding, risks, sources]
+  - id: T-FABRIC-MODELS
+    title: "Fabric and Material Models"
+    file: "06-fabric-models.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER, T-MD-FEATURES]
+    summary: "Anisotropic fabric properties (density, stretch weft/warp/shear, bend, buckling, friction, damping, pressure) mapped to XPBD compliance, with a typed Postgres-authority preset library."
+    subtopics: [md-feature-map, xpbd-compliance-mapping, oss-reference, rust-design, preset-library, kernel-binding, model-first-api, risks, sources]
+  - id: T-AUTOFIT
+    title: "Auto-Fit and Retargeting Across Body Morphs"
+    file: "07-autofit-retargeting.md"
+    status: draft
+    depends_on: [T-GARMENT-AUTHORING, T-COLLISION]
+    summary: "Auto-fitting a garment authored on one body onto a different avatar: pattern grading, body-shape transfer, re-draping, UV/texture preservation, and the model-first refit API. The reuse moat."
+    subtopics: [md-features, oss-approaches, design, model-first-api, risks, sources]
+  - id: T-RENDER-VIEWPORT
+    title: "Viewport, Visual Debugging, and Render/Export Handoff"
+    file: "08-render-viewport-export.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER, T-CODEBASE]
+    summary: "Throwaway Bevy testbed viewport, Handshake-native wgpu viewport panel, model-readable visual capture, and geometry-cache export (glTF/USD/OBJ-sequence) to Blender/UE for photoreal render."
+    subtopics: [md-mapping, bevy-testbed, native-viewport, model-capture, export-handoff, kernel-bindings, model-api, risks, sources]
+  - id: T-MODEL-FIRST-API
+    title: "Model-First API and LLM Steering"
+    file: "09-model-first-api.md"
+    status: draft
+    depends_on: [T-GARMENT-AUTHORING, T-KERNEL-INTEGRATION]
+    summary: "Primitives, API surfaces, and self-correction harness so an LLM drives garment/cloth/avatar creation directly — the crate public API equals the model API. THE DIFFERENTIATOR. CANONICAL model-first/TailorModelAdapter source."
+    subtopics: [design-principle, field-survey, garment-spec-schema, simulation-receipt, mcp-tools, self-correction-loop, cloth-model-adapter, context-bundle-design, fabric-estimation, crdt-collab, llm-steerability-system-prompt, kernel-binding-summary, risks, sources]
+  - id: T-KERNEL-INTEGRATION
+    title: "Handshake Kernel Integration (Sandbox, Promotion, EventLedger, CRDT, Model Lanes)"
+    file: "10-kernel-integration.md"
+    status: draft
+    depends_on: [T-CODEBASE]
+    summary: "How the module binds to every kernel primitive: garment/wardrobe assets as Postgres/EventLedger authority, collaborative pattern editing via CRDT, sandbox+validation+promotion for model-authored garments, model lanes, and the full typed-event/contract inventory. CANONICAL event-taxonomy source."
+    subtopics: [overview, postgres-authority, event-taxonomy, actors, sandbox, validation, promotion, crdt, model-lanes, api, full-lifecycle, no-sqlite-tripwire, portability, marvelous-designer-mapping, risks, sources]
+  - id: T-OSS-REFERENCES
+    title: "Open-Source References and Adaptation Map"
+    file: "11-oss-references.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER, T-COLLISION]
+    summary: "Consolidated inventory of every OSS project studied (repo URL, language, license, adapt-vs-avoid, Handshake-native adaptation note). CANONICAL OSS reference list."
+    subtopics: [gpu-wgpu, gpu-cubecl, gpu-rust-gpu, gpu-wgsl-bindgen, xpbd-ccincotti3, xpbd-jspdown, xpbd-velvet, xpbd-xpbdrs, xpbd-softy, collision-rapier, collision-parry, bevy-avian, bevy-silk, garment-garmentcode, garment-chatgarment, garment-garmentdiffusion, garment-dresscode, garment-ngl, garment-dress123, wgsparkl, adapt-summary, risks, sources]
+  - id: T-ROADMAP
+    title: "Kernel-Gated Build Roadmap"
+    file: "12-roadmap.md"
+    status: draft
+    depends_on: [T-CLOTH-SOLVER, T-COLLISION, T-KERNEL-INTEGRATION]
+    summary: "Six-slice kernel-gated build plan: slice 1 GPU substrate (sphere drape), slice 2 the production go/no-go (cloth+jiggle on exaggerated-proportion capsules, full collision, model-first API), then garment authoring, fabric, kernel-authority integration, and export."
+    subtopics: [overview, slice1, slice2, slice3, slice4, slice5, slice6, dependencies, risks, timeline, sources]
+
+planned_topics:   # named in 00-overview's feature-scope map but NOT yet authored (coherence gap)
+  - id: T-TRIM-RIGID
+    title: "Trims, Accessories, and Cloth-Rigid Coupling"
+    status: planned
+    reason: "MD 2026.0 headline + MOAT-5 (mixed cloth-rigid sim graph, zippers/buttons/tacks, pattern-to-rigid-body). No file yet; only flagged in 02. Largest single feature-coverage hole."
+  - id: T-UV-TEXTURE
+    title: "UV-from-Pattern, Texturing, and PBR Maps"
+    status: planned
+    reason: "MOAT-6. Currently scattered + contradictory fragments across 03/07/12 (LSCM/ABF++ vs ARAP unreconciled). Needs one consolidated topic + texture/material authority schema."
+  - id: T-ANIMATION
+    title: "Animation, Keyframe Timeline, and Dynamics"
+    status: planned
+    reason: "MOAT-4. No home topic; keyframe authority model (EventLedger vs JSONB), wind/pose/avatar-motion keyframing, MTN/FBX import, animation-range export, CRDT-of-timeline undefined."
+  - id: T-CONTRACTS
+    title: "Canonical Cloth Authority Contracts (reconciliation)"
+    status: planned
+    reason: "Single source of truth resolving the drift: ONE GarmentSpec schema (units/gather/fabric), ONE KernelEventType additions list, ONE body-proxy/avatar schema incl. the missing tailor_avatars table, ONE dated migration-naming convention (0334 already taken), ONE consolidated ValidationDescriptor check catalog. Also applies the canonical 'Tailor' feature naming (module tailor, crate tailor-solver, event prefix Tailor*, tables tailor_*) across 00-12."
+
+known_issues:   # from the workflow coherence/adversarial review; load-bearing claims verified against the codebase
+  - id: KI-MISSING-TOPICS
+    severity: high
+    detail: "T-TRIM-RIGID, T-UV-TEXTURE, T-ANIMATION (all MD moat features named in 00) are not authored. See planned_topics."
+  - id: KI-CONTRACTS-DRIFT
+    severity: high
+    detail: "GarmentSpec defined 4x (cm vs mm; gather_ratio float vs M:N ints; fabric normalized [0,1] vs raw compliance) across 03/09/10/12; KernelEventType additions named inconsistently (Garment* vs Cloth* prefixes); body-proxy/avatar triple-defined with FKs to an undefined tailor_avatars table. Fix in T-CONTRACTS."
+  - id: KI-MIGRATION-COLLISION
+    severity: high
+    detail: "Proposed 0334_tailor_garments.sql COLLIDES — 0334_loom_canvas_boards.sql already exists (verified). Four naming schemes used across files. Standardize on the codebase's dated convention (e.g. 2026_05_18_*)."
+  - id: KI-DETERMINISM-VS-PROMOTION
+    severity: high
+    detail: "Solver determinism is scoped per-backend (04) but the promotion ValidationRunner (10) compares EXACT content hashes — spurious failures across GPU backends/drivers/sandbox containers. Resolve with tolerance-based mesh comparison, not exact hash."
+  - id: KI-MISSING-OSS-REFS
+    severity: medium
+    detail: "NVIDIA Warp and XRTailor are load-bearing in the roadmap (07/12) but absent from the OSS inventory (11). Add them. Loro/yrs not evaluated vs the kernel's existing yjs_bridge for the geometry-merge risk."
+  - id: KI-PRODUCTION-BRIDGE
+    severity: medium
+    detail: "No topic bridges the operator's real avatar pipeline (Avatar1 / ComfyUI 2D avatar / SMPL-X) to a 3D body proxy the solver can drape on — the missing first-mile input."
+  - id: KI-STALE-COUNT
+    severity: low
+    detail: "01 says KernelEventType has 54 variants; actual is 66 (verified). Refresh."
+  - id: KI-NAMING
+    severity: medium
+    detail: "Feature named 'Tailor' (operator, 2026-06-17) — see research_paper.naming. Tailor rename APPLIED across 00-12 (module/crate/tables/events/feature-prose -> Tailor; physics 'cloth', Garment* domain types, external project names, and T-* IDs preserved). Remaining for T-CONTRACTS: canonicalize event-variant + schema NAMES cross-file (each file is internally consistent but files still differ from each other); decide whether stable file_ids (e.g. cloth-engine-overview) get refreshed."
+
+review:
+  verdict: "Strong, publish-worthy landscape+architecture foundation; load-bearing claims verified accurate to wtc-kernel-009. Four structural fixes (3 missing moat topics + a canonical-contracts reconciliation) plus the determinism note are needed before it can gate an implementation WP. Solver-crate R&D (roadmap slices 1-2) has no kernel dependency and can proceed in parallel now."
+  reviewer: "workflow coherence agent (phase 3), codebase-verified"
+  updated_at: "2026-06-17"
