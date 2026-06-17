@@ -42,6 +42,21 @@
     "spec_status": "SECTION_13_TAILOR_ACTIVE_IN_MASTER_SPEC_v02.194 (own module + TOC, sub-sections 13.1-13.15; signed ilja170620261750; all spec checks pass)",
     "next_in_build_order_after": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 (start after WP-009 passes tests + validation)"
   },
+  "microtasks": {
+    "status": "PRE_CREATED_AND_COMMITTED",
+    "total": 448,
+    "range": "MT-001..MT-448",
+    "location": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/ (each MT-NNN.json is a per-task hsk.microtask_contract@1 contract)",
+    "authoritative_index": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json -- lists EVERY one of the 448 MTs (mt_id, group, depends_on, summary) so none is forgotten",
+    "parity_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_PARITY_REVIEW.json -- Marvelous Designer parity workflow result (per-area covered/partial/gap counts + 70 reshuffle notes)",
+    "composition": {
+      "core_section_13": "MT-001..MT-332 (13 build groups: SolverCore 40, KernelIntegration 40, Collision 34, GarmentAuthoring 26, ValidationHBR 26, TrimRigid 24, Fabric 22, UvTexture 22, RenderViewportExport 22, ModelFirstApi 22, Animation 20, AutoFit 18, ProductionBridge 16)",
+      "md_parity_additions": "MT-333..MT-448 (116 Marvelous-Designer parity gaps closed, clustered by target_group)"
+    },
+    "shape": "template-exact hsk.microtask_contract@1 (lifecycle PENDING; hbr_obligations [] -> hydrate into the packet acceptance matrix at activation; linear depends_on chain; per-MT build-rules evidence in scope.proof_targets)",
+    "verified": "448/448 valid JSON, correct schema_id + scope shape, no numbering gaps/dupes, intact depends_on chain",
+    "reconciliation": "Refinement MUST reconcile all 448 MTs against the signed clause-closure matrix and apply the _PARITY_REVIEW.json reshuffle notes when generating the final MT order via create-task-packet.mjs. This block SUPERSEDES the refinement_ready.mt_group_plan estimate below (which was the pre-authoring plan)."
+  },
   "refinement_ready": {
     "spec_authority": "Section 13 (Tailor) is ACTIVE in Master Spec v02.194 (spec-modules/13-tailor-cloth-garment-engine.md), sub-sections 13.1-13.15 including 13.11 Kernel Integration (model lanes), 13.12 Viewport/Visual-Debug, 13.13 Model-First API & LLM Steering, 13.14 Canonical Authority Contracts, 13.15 Validation & HBR. Refinement derives SPEC_ANCHOR / DONE_MEANS from the relevant 13.x sub-section; the research package (.GOV/reference/cloth_engine_research/, 17 topics) is non-normative provenance.",
     "gaps_status": "CLOSED -- the coherence-review gaps (3 missing moat topics + GarmentSpec/event/migration drift + determinism-vs-promotion) were resolved in the gap-closure pass and canonicalized in 16-contracts.md / 13.14.",
