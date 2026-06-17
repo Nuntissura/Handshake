@@ -16,7 +16,7 @@ const appDir = path.join(repoRoot, "app");
 const distHarness = path.join(appDir, "dist-harness");
 const artifactRoot =
   process.env.HANDSHAKE_ARTIFACT_ROOT ??
-  path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+  path.resolve(repoRoot, "..", "Handshake_Artifacts");
 const cargoTargetDir = path.join(artifactRoot, "handshake-cargo-target");
 
 const CONTENT_TYPES: Record<string, string> = {

@@ -59,7 +59,7 @@ function repoRoot(): string {
 function artifactRoot(): string {
   return (
     process.env.HANDSHAKE_ARTIFACT_ROOT
-    ?? path.resolve(repoRoot(), "..", "..", "Handshake_Artifacts")
+    ?? path.resolve(repoRoot(), "..", "Handshake_Artifacts")
   );
 }
 

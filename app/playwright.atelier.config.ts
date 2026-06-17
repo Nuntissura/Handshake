@@ -10,7 +10,7 @@ import path from "node:path";
 const here = import.meta.dirname;
 const artifactRoot =
   process.env.HANDSHAKE_ARTIFACT_ROOT ??
-  path.join(here, "..", "..", "..", "Handshake_Artifacts");
+  path.resolve(path.resolve(here, ".."), "..", "Handshake_Artifacts");
 
 export default defineConfig({
   testDir: path.join(here, "tests", "atelier"),

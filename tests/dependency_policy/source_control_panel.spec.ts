@@ -20,7 +20,7 @@ const repoRoot = path.resolve(__dirname, "..", "..");
 const appDir = path.join(repoRoot, "app");
 const distHarness = path.join(appDir, "dist-harness");
 const artifactRoot =
-  process.env.HANDSHAKE_ARTIFACT_ROOT ?? path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+  process.env.HANDSHAKE_ARTIFACT_ROOT ?? path.resolve(repoRoot, "..", "Handshake_Artifacts");
 const cargoTargetDir = path.join(artifactRoot, "handshake-cargo-target");
 
 // The panel (lib/api BASE_URL) targets this fixed host; we rewrite to fixture.

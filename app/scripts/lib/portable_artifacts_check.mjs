@@ -158,5 +158,39 @@ export function checkPortableArtifactBoundaries({ repoRoot }) {
     });
   }
 
+  // 8. No TS/JS file may resolve the artifact root one level too high — the
+  //    recurring "outer Handshake_Artifacts" bug. Canonical root is exactly ONE
+  //    ".." from the worktree root; two consecutive parent-hops before
+  //    Handshake_Artifacts climb out of the worktrees dir entirely. This guard
+  //    fails closed so a future spec/config cannot silently reintroduce it.
+  const ARTIFACT_OVERREACH = [
+    /"\.\.",\s*"\.\.",\s*("\.\.",\s*)?"Handshake_Artifacts"/,
+    /\.\.[\\/]\.\.[\\/][^"']*Handshake_Artifacts/,
+  ];
+  const SELF_SKIP = new Set(["portable_artifacts_check.mjs", "portable_build_artifacts.test.ts"]);
+  const overreach = [];
+  const walk = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      if (["node_modules", "dist", "dist-harness", ".git"].includes(ent.name)) continue;
+      const full = join(dir, ent.name);
+      if (ent.isDirectory()) { walk(full); continue; }
+      if (!/\.(ts|mjs|cjs|js)$/.test(ent.name) || SELF_SKIP.has(ent.name)) continue;
+      const text = readText(full);
+      if (ARTIFACT_OVERREACH.some((re) => re.test(text))) overreach.push(full);
+    }
+  };
+  walk(join(repoRoot, "tests"));
+  walk(appDir);
+  facts.artifact_root_overreach = overreach.map((f) => f.replace(repoRoot, "").replace(/^[\\/]/, ""));
+  if (overreach.length > 0) {
+    violations.push({
+      check: "artifact_root_overreach",
+      problem:
+        `resolve(s) Handshake_Artifacts one level too high (use a single ".." from the worktree root): ` +
+        facts.artifact_root_overreach.join(", "),
+    });
+  }
+
   return { violations, facts };
 }

@@ -11,7 +11,7 @@ import { buildDebugSessionHarness } from "./build_debug_session_harness";
 const apiBaseUrl = "http://127.0.0.1:37501";
 const repoRoot = path.resolve(__dirname, "..", "..");
 const artifactRoot =
-  process.env.HANDSHAKE_ARTIFACT_ROOT ?? path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+  process.env.HANDSHAKE_ARTIFACT_ROOT ?? path.resolve(repoRoot, "..", "Handshake_Artifacts");
 const cargoTargetDir = path.join(artifactRoot, "handshake-cargo-target");
 
 const PAGE_SHELL = (css: string) => `<!doctype html>

@@ -177,7 +177,7 @@ const test = base.extend({
 function defaultConsoleScanArtifactRoot(): string {
   const repoRoot = path.resolve(__dirname, "..", "..");
   return process.env.HANDSHAKE_ARTIFACT_ROOT
-    ?? path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+    ?? path.resolve(repoRoot, "..", "Handshake_Artifacts");
 }
 
 type RuntimeConsoleApiCalledPayload = {

@@ -7,7 +7,7 @@ const appDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(appDir, "..");
 const artifactRoot =
   process.env.HANDSHAKE_ARTIFACT_ROOT
-  ?? path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+  ?? path.resolve(repoRoot, "..", "Handshake_Artifacts");
 const bootstrapBaselineHash = "0".repeat(64);
 
 const visualMatrixProjects = [
