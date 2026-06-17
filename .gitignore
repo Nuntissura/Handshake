@@ -9,6 +9,13 @@ handshake-cargo-target/
 wp-kernel-*-test-runs/
 **/wp-kernel-*-test-runs/
 
+# Test / Playwright outputs (artifacts, not committed)
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
+**/dist-harness/
+
 # Build artifacts (Node)
 node_modules/
 */node_modules/
