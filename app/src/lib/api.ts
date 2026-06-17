@@ -1504,6 +1504,248 @@ export async function getLoomBlock(workspaceId: string, blockId: string): Promis
   );
 }
 
+// -- MT-261 CanvasBoard (Loom canvas-class) -------------------------------
+
+export const LOOM_CANVAS_BOARD_SCHEMA_ID = "hsk.loom_canvas_board@1";
+
+export type LoomCanvasBoardState = {
+  schema_id: string;
+  pan_x: number;
+  pan_y: number;
+  zoom: number;
+};
+
+export type LoomCanvasBoard = {
+  block_id: string;
+  workspace_id: string;
+  board_state: LoomCanvasBoardState;
+  created_at: string;
+  updated_at: string;
+  event_ledger_event_id: string;
+};
+
+export type LoomCanvasPlacement = {
+  placement_id: string;
+  canvas_block_id: string;
+  workspace_id: string;
+  /** FK to a LoomBlock — the live source of truth, NEVER a content copy. */
+  placed_block_id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z_index: number;
+  group_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** A board-local visual-only edge. EXPLICITLY NOT a Loom (semantic) edge. */
+export type LoomCanvasVisualEdge = {
+  visual_edge_id: string;
+  canvas_block_id: string;
+  workspace_id: string;
+  from_placement_id: string;
+  to_placement_id: string;
+  label?: string | null;
+  created_at: string;
+};
+
+export type LoomCanvasBoardView = {
+  board: LoomCanvasBoard;
+  placements: LoomCanvasPlacement[];
+  visual_edges: LoomCanvasVisualEdge[];
+};
+
+export function defaultLoomCanvasBoardState(): LoomCanvasBoardState {
+  return { schema_id: LOOM_CANVAS_BOARD_SCHEMA_ID, pan_x: 0, pan_y: 0, zoom: 1 };
+}
+
+export async function createCanvasBoard(
+  workspaceId: string,
+  title?: string,
+  boardState?: LoomCanvasBoardState,
+): Promise<LoomCanvasBoard> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards`, {
+    method: "POST",
+    body: { title, board_state: boardState },
+  });
+}
+
+export async function getCanvasBoard(
+  workspaceId: string,
+  blockId: string,
+): Promise<LoomCanvasBoardView> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards/${encodeURIComponent(blockId)}`,
+  );
+}
+
+export async function updateCanvasBoardViewport(
+  workspaceId: string,
+  blockId: string,
+  boardState: LoomCanvasBoardState,
+): Promise<LoomCanvasBoard> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards/${encodeURIComponent(
+      blockId,
+    )}/viewport`,
+    { method: "PUT", body: { board_state: boardState } },
+  );
+}
+
+export async function placeBlockOnCanvas(
+  workspaceId: string,
+  blockId: string,
+  placed: { placedBlockId: string; x: number; y: number; w: number; h: number; zIndex?: number },
+): Promise<LoomCanvasPlacement> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards/${encodeURIComponent(
+      blockId,
+    )}/placements`,
+    {
+      method: "POST",
+      body: {
+        placed_block_id: placed.placedBlockId,
+        x: placed.x,
+        y: placed.y,
+        w: placed.w,
+        h: placed.h,
+        z_index: placed.zIndex,
+      },
+    },
+  );
+}
+
+export type CreateCanvasCardResponse = {
+  block: LoomBlock;
+  rich_document_id: string;
+  placement: LoomCanvasPlacement;
+};
+
+export async function createCanvasCard(
+  workspaceId: string,
+  blockId: string,
+  card: { title: string; body?: string; x: number; y: number; w: number; h: number },
+): Promise<CreateCanvasCardResponse> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards/${encodeURIComponent(
+      blockId,
+    )}/cards`,
+    { method: "POST", body: card },
+  );
+}
+
+export async function updateCanvasPlacement(
+  workspaceId: string,
+  placementId: string,
+  update: {
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
+    zIndex?: number;
+    groupId?: string;
+    clearGroup?: boolean;
+  },
+): Promise<LoomCanvasPlacement> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-placements/${encodeURIComponent(
+      placementId,
+    )}`,
+    {
+      method: "PATCH",
+      body: {
+        x: update.x,
+        y: update.y,
+        w: update.w,
+        h: update.h,
+        z_index: update.zIndex,
+        group_id: update.groupId,
+        clear_group: update.clearGroup,
+      },
+    },
+  );
+}
+
+export async function removeCanvasPlacement(
+  workspaceId: string,
+  placementId: string,
+): Promise<void> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-placements/${encodeURIComponent(
+      placementId,
+    )}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function addCanvasVisualEdge(
+  workspaceId: string,
+  blockId: string,
+  edge: { fromPlacementId: string; toPlacementId: string; label?: string },
+): Promise<LoomCanvasVisualEdge> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-boards/${encodeURIComponent(
+      blockId,
+    )}/visual-edges`,
+    {
+      method: "POST",
+      body: {
+        from_placement_id: edge.fromPlacementId,
+        to_placement_id: edge.toPlacementId,
+        label: edge.label,
+      },
+    },
+  );
+}
+
+export async function removeCanvasVisualEdge(
+  workspaceId: string,
+  visualEdgeId: string,
+): Promise<void> {
+  return request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/loom/canvas-visual-edges/${encodeURIComponent(
+      visualEdgeId,
+    )}`,
+    { method: "DELETE" },
+  );
+}
+
+export type LoomEdge = {
+  edge_id: string;
+  workspace_id: string;
+  source_block_id: string;
+  target_block_id: string;
+  edge_type: string;
+  created_by: string;
+  created_at: string;
+};
+
+/**
+ * Create a SEMANTIC Loom edge (real graph authority). The canvas board delegates
+ * to this for semantic connections; visual-only connections use
+ * `addCanvasVisualEdge` instead.
+ */
+export async function createLoomEdge(
+  workspaceId: string,
+  edge: {
+    sourceBlockId: string;
+    targetBlockId: string;
+    edgeType?: "mention" | "tag" | "sub_tag" | "parent" | "ai_suggested";
+  },
+): Promise<LoomEdge> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/loom/edges`, {
+    method: "POST",
+    body: {
+      source_block_id: edge.sourceBlockId,
+      target_block_id: edge.targetBlockId,
+      edge_type: edge.edgeType ?? "mention",
+      created_by: "user",
+    },
+  });
+}
+
 export async function getLoomBlockTransclusion(
   workspaceId: string,
   blockId: string,

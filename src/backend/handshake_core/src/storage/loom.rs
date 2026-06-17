@@ -44,6 +44,9 @@ pub enum LoomBlockContentType {
     AnnotatedFile,
     TagHub,
     Journal,
+    /// MT-261 CanvasBoard: an Obsidian-canvas-class board. The board itself is a
+    /// typed LoomBlock; placed items are block-id references (never copies).
+    Canvas,
 }
 
 impl LoomBlockContentType {
@@ -54,6 +57,7 @@ impl LoomBlockContentType {
             LoomBlockContentType::AnnotatedFile => "annotated_file",
             LoomBlockContentType::TagHub => "tag_hub",
             LoomBlockContentType::Journal => "journal",
+            LoomBlockContentType::Canvas => "canvas",
         }
     }
 }
@@ -68,6 +72,7 @@ impl FromStr for LoomBlockContentType {
             "annotated_file" => Ok(LoomBlockContentType::AnnotatedFile),
             "tag_hub" => Ok(LoomBlockContentType::TagHub),
             "journal" => Ok(LoomBlockContentType::Journal),
+            "canvas" => Ok(LoomBlockContentType::Canvas),
             _ => Err(crate::storage::StorageError::Validation(
                 "invalid loom block content_type",
             )),
@@ -1254,6 +1259,116 @@ pub struct LoomMarkdownImport {
     /// Import warnings (e.g. unsupported markdown features), human-readable.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// MT-261 CanvasBoard (Loom canvas-class)
+//
+// Master Spec §7.1.4.3 / §10.12: an Obsidian-canvas-class surface over LoomBlock
+// authority. The board IS a typed `LoomBlock(content_type=canvas)`; placed items
+// are block-id REFERENCES (FK, never content copies); semantic edges are real
+// `loom_edges` (via create_loom_edge); visual-only edges are board-local
+// decoration that is EXPLICITLY NOT graph authority. Board state (viewport) is
+// JSONB on the canvas row, mirroring the 0323 workbench-layout-state precedent.
+// Authority = PostgreSQL + EventLedger; the React canvas is a projection only.
+//
+// TRAP GUARD: this is the NEW LoomBoard, NOT the legacy Excalidraw sketch canvas
+// (`canvas_nodes`/`canvas_edges`, migration 0005), which stores content COPIES.
+// ---------------------------------------------------------------------------
+
+/// The board-state (viewport) JSONB schema id (CHECK on `loom_canvas_boards`).
+pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
+
+/// A canvas board: the typed LoomBlock plus its viewport state and the
+/// EventLedger receipt for the last board-state write.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LoomCanvasBoard {
+    /// The canvas LoomBlock id (content_type=`canvas`). Board row PK == block_id.
+    pub block_id: String,
+    pub workspace_id: String,
+    /// Viewport / board-level state JSONB
+    /// (`{schema_id, pan_x, pan_y, zoom}`).
+    pub board_state: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub event_ledger_event_id: String,
+}
+
+/// A placement: a block-id REFERENCE positioned on a canvas. Never a content
+/// copy — the referenced block's content is read live through `placed_block_id`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LoomCanvasPlacement {
+    pub placement_id: String,
+    pub canvas_block_id: String,
+    pub workspace_id: String,
+    /// FK to `loom_blocks.block_id` — the live source of truth (not a copy).
+    pub placed_block_id: String,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub z_index: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Create payload for a placement (reference, never a copy).
+#[derive(Clone, Debug)]
+pub struct NewLoomCanvasPlacement {
+    pub canvas_block_id: String,
+    pub workspace_id: String,
+    pub placed_block_id: String,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub z_index: i32,
+    pub group_id: Option<String>,
+}
+
+/// Partial update for a placement (move / resize / group). `None` leaves a field
+/// unchanged.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct LoomCanvasPlacementUpdate {
+    #[serde(default)]
+    pub x: Option<f64>,
+    #[serde(default)]
+    pub y: Option<f64>,
+    #[serde(default)]
+    pub w: Option<f64>,
+    #[serde(default)]
+    pub h: Option<f64>,
+    #[serde(default)]
+    pub z_index: Option<i32>,
+    /// `Some(Some(id))` sets a group; `Some(None)` clears it; `None` leaves it.
+    #[serde(default)]
+    pub group_id: Option<Option<String>>,
+}
+
+/// A visual-only edge between two placements. EXPLICITLY NOT graph authority: it
+/// never becomes a `loom_edge` and never appears in the Loom graph.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LoomCanvasVisualEdge {
+    pub visual_edge_id: String,
+    pub canvas_block_id: String,
+    pub workspace_id: String,
+    pub from_placement_id: String,
+    pub to_placement_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// The full canvas projection: board + placements + visual-only edges. Semantic
+/// edges are NOT included here — they live in the Loom graph (loom_edges) and
+/// are fetched through the existing graph APIs.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomCanvasBoardView {
+    pub board: LoomCanvasBoard,
+    pub placements: Vec<LoomCanvasPlacement>,
+    pub visual_edges: Vec<LoomCanvasVisualEdge>,
 }
 
 #[cfg(test)]

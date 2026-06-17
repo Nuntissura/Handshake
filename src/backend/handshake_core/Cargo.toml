@@ -128,6 +128,12 @@ required-features = ["runtime-full", "duckdb-flight-recorder"]
 test = false
 
 [[bin]]
+name = "mt261_loom_canvas_fixture"
+path = "src/bin/mt261_loom_canvas_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]
@@ -723,4 +729,12 @@ required-features = ["test-utils"]
 [[test]]
 name = "debug_adapter_breakpoint_persistence"
 path = "tests/debug_adapter_breakpoint_persistence.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 MT-261 CanvasBoard: real-PostgreSQL + EventLedger proof that the
+# canvas IS a typed LoomBlock, placements are references (never copies), visual
+# edges are not graph authority, and the board state round-trips.
+[[test]]
+name = "loom_canvas_board_tests"
+path = "tests/loom_canvas_board_tests.rs"
 required-features = ["test-utils"]

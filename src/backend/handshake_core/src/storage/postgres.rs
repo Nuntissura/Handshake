@@ -7,7 +7,9 @@ use super::{
     DebugBreakpointInput, DefaultStorageGuard,
     Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
-    LoomBlockUpdate, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers, LoomEdge,
+    LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement,
+    LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember,
+    LoomCollectionWithMembers, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
     LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSourceAnchor,
     MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert,
@@ -23,7 +25,9 @@ use super::{
     StorageGuard, StorageResult, WorkbenchLayoutState, WorkbenchLayoutStateInput,
     WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSearchBookmarkState,
     WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState, WorkspaceSettingsStateInput,
-    WriteContext, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
+    NewLoomCanvasPlacement,
+    WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_VISUAL_DEBUG_SCHEMA_ID,
+    WORKBENCH_LAYOUT_SCHEMA_ID,
     WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
 use crate::kernel::{
@@ -1989,6 +1993,77 @@ fn map_workbench_layout_state(row: &PgRow) -> StorageResult<WorkbenchLayoutState
     })
 }
 
+/// Validate the MT-261 canvas board-state (viewport) JSONB shape. Requires the
+/// schema id plus numeric pan_x/pan_y and a positive finite zoom so the DB CHECK
+/// (schema id) and the application invariants stay aligned.
+fn validate_loom_canvas_board_state(board_state: &Value) -> StorageResult<()> {
+    let Some(obj) = board_state.as_object() else {
+        return Err(StorageError::Validation(
+            "loom canvas board_state must be a JSON object",
+        ));
+    };
+    if obj.get("schema_id").and_then(Value::as_str) != Some(LOOM_CANVAS_BOARD_SCHEMA_ID) {
+        return Err(StorageError::Validation(
+            "loom canvas board_state schema_id must be hsk.loom_canvas_board@1",
+        ));
+    }
+    let num = |key: &str| obj.get(key).and_then(Value::as_f64);
+    let pan_x = num("pan_x");
+    let pan_y = num("pan_y");
+    let zoom = num("zoom");
+    let (Some(pan_x), Some(pan_y), Some(zoom)) = (pan_x, pan_y, zoom) else {
+        return Err(StorageError::Validation(
+            "loom canvas board_state requires numeric pan_x, pan_y, zoom",
+        ));
+    };
+    if !pan_x.is_finite() || !pan_y.is_finite() || !zoom.is_finite() || zoom <= 0.0 {
+        return Err(StorageError::Validation(
+            "loom canvas board_state pan/zoom must be finite and zoom > 0",
+        ));
+    }
+    Ok(())
+}
+
+fn map_loom_canvas_board(row: &PgRow) -> StorageResult<LoomCanvasBoard> {
+    Ok(LoomCanvasBoard {
+        block_id: row.get("block_id"),
+        workspace_id: row.get("workspace_id"),
+        board_state: row.get("board_state"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    })
+}
+
+fn map_loom_canvas_placement(row: &PgRow) -> StorageResult<LoomCanvasPlacement> {
+    Ok(LoomCanvasPlacement {
+        placement_id: row.get("placement_id"),
+        canvas_block_id: row.get("canvas_block_id"),
+        workspace_id: row.get("workspace_id"),
+        placed_block_id: row.get("placed_block_id"),
+        x: row.get("x"),
+        y: row.get("y"),
+        w: row.get("w"),
+        h: row.get("h"),
+        z_index: row.get("z_index"),
+        group_id: row.get("group_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn map_loom_canvas_visual_edge(row: &PgRow) -> StorageResult<LoomCanvasVisualEdge> {
+    Ok(LoomCanvasVisualEdge {
+        visual_edge_id: row.get("visual_edge_id"),
+        canvas_block_id: row.get("canvas_block_id"),
+        workspace_id: row.get("workspace_id"),
+        from_placement_id: row.get("from_placement_id"),
+        to_placement_id: row.get("to_placement_id"),
+        label: row.get("label"),
+        created_at: row.get("created_at"),
+    })
+}
+
 fn map_workspace_settings_state(row: &PgRow) -> StorageResult<WorkspaceSettingsState> {
     Ok(WorkspaceSettingsState {
         workspace_id: row.get("workspace_id"),
@@ -2995,9 +3070,9 @@ fn loom_block_graph_source_kind(content_type: &LoomBlockContentType) -> LoomSear
             LoomSearchSourceKind::File
         }
         LoomBlockContentType::TagHub => LoomSearchSourceKind::TagHub,
-        LoomBlockContentType::Note | LoomBlockContentType::Journal => {
-            LoomSearchSourceKind::LoomBlock
-        }
+        LoomBlockContentType::Note
+        | LoomBlockContentType::Journal
+        | LoomBlockContentType::Canvas => LoomSearchSourceKind::LoomBlock,
     }
 }
 
@@ -7647,6 +7722,403 @@ impl super::Database for PostgresDatabase {
         .fetch_all(&self.pool)
         .await?;
         rows.iter().map(map_quick_switcher_recent).collect()
+    }
+
+    // -- MT-261 CanvasBoard ----------------------------------------------------
+
+    async fn create_canvas_board(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        board_state: Value,
+    ) -> StorageResult<LoomCanvasBoard> {
+        validate_loom_canvas_board_state(&board_state)?;
+        self.guard.validate_write(ctx, block_id).await?;
+
+        // The canvas block must exist, belong to the workspace, and be a canvas.
+        let block = self.get_loom_block(workspace_id, block_id).await?;
+        if !matches!(block.content_type, LoomBlockContentType::Canvas) {
+            return Err(StorageError::Validation(
+                "canvas board block must be content_type=canvas",
+            ));
+        }
+
+        let run_id = format!("LOOM-CANVAS-BOARD-{block_id}");
+        let payload = json!({
+            "type": "knowledge_loom_canvas_board_recorded",
+            "op": "create",
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "board_state": board_state.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeLoomCanvasBoardRecorded,
+            KernelActor::System("loom-canvas-board".to_string()),
+        )
+        .aggregate("loom_canvas_board", block_id.to_string())
+        .source_component("loom_canvas_board")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_canvas_boards (
+                block_id, workspace_id, board_state, created_at, updated_at,
+                event_ledger_event_id
+            )
+            VALUES ($1, $2, $3::jsonb, NOW(), NOW(), $4)
+            ON CONFLICT (block_id) DO UPDATE SET
+                board_state = EXCLUDED.board_state,
+                updated_at = NOW(),
+                event_ledger_event_id = EXCLUDED.event_ledger_event_id
+            RETURNING block_id, workspace_id, board_state, created_at, updated_at,
+                      event_ledger_event_id
+            "#,
+        )
+        .bind(block_id)
+        .bind(workspace_id)
+        .bind(&board_state)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let board = map_loom_canvas_board(&row)?;
+        tx.commit().await?;
+        Ok(board)
+    }
+
+    async fn get_canvas_board(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<LoomCanvasBoardView> {
+        let board_row = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, board_state, created_at, updated_at,
+                   event_ledger_event_id
+            FROM loom_canvas_boards
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let board = match board_row {
+            Some(row) => map_loom_canvas_board(&row)?,
+            None => return Err(StorageError::NotFound("loom_canvas_board")),
+        };
+
+        let placement_rows = sqlx::query(
+            r#"
+            SELECT placement_id, canvas_block_id, workspace_id, placed_block_id,
+                   x, y, w, h, z_index, group_id, created_at, updated_at
+            FROM loom_canvas_placements
+            WHERE workspace_id = $1 AND canvas_block_id = $2
+            ORDER BY z_index ASC, created_at ASC, placement_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let placements = placement_rows
+            .iter()
+            .map(map_loom_canvas_placement)
+            .collect::<StorageResult<Vec<_>>>()?;
+
+        let visual_edge_rows = sqlx::query(
+            r#"
+            SELECT visual_edge_id, canvas_block_id, workspace_id,
+                   from_placement_id, to_placement_id, label, created_at
+            FROM loom_canvas_visual_edges
+            WHERE workspace_id = $1 AND canvas_block_id = $2
+            ORDER BY created_at ASC, visual_edge_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let visual_edges = visual_edge_rows
+            .iter()
+            .map(map_loom_canvas_visual_edge)
+            .collect::<StorageResult<Vec<_>>>()?;
+
+        Ok(LoomCanvasBoardView {
+            board,
+            placements,
+            visual_edges,
+        })
+    }
+
+    async fn update_canvas_board_state(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        board_state: Value,
+    ) -> StorageResult<LoomCanvasBoard> {
+        validate_loom_canvas_board_state(&board_state)?;
+        self.guard.validate_write(ctx, block_id).await?;
+
+        let run_id = format!("LOOM-CANVAS-BOARD-{block_id}");
+        let payload = json!({
+            "type": "knowledge_loom_canvas_board_recorded",
+            "op": "viewport",
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "board_state": board_state.clone(),
+        });
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeLoomCanvasBoardRecorded,
+            KernelActor::System("loom-canvas-board".to_string()),
+        )
+        .aggregate("loom_canvas_board", block_id.to_string())
+        .source_component("loom_canvas_board")
+        .payload(payload)
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+
+        let mut tx = self.pool.begin().await?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            UPDATE loom_canvas_boards
+            SET board_state = $3::jsonb, updated_at = NOW(),
+                event_ledger_event_id = $4
+            WHERE workspace_id = $1 AND block_id = $2
+            RETURNING block_id, workspace_id, board_state, created_at, updated_at,
+                      event_ledger_event_id
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .bind(&board_state)
+        .bind(&stored_event.event_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let row = row.ok_or(StorageError::NotFound("loom_canvas_board"))?;
+        let board = map_loom_canvas_board(&row)?;
+        tx.commit().await?;
+        Ok(board)
+    }
+
+    async fn place_block_on_canvas(
+        &self,
+        ctx: &WriteContext,
+        placement: NewLoomCanvasPlacement,
+    ) -> StorageResult<LoomCanvasPlacement> {
+        if placement.w <= 0.0 || placement.h <= 0.0 {
+            return Err(StorageError::Validation(
+                "canvas placement w/h must be positive",
+            ));
+        }
+        let placement_id = format!("LCP-{}", Uuid::now_v7().simple());
+        self.guard.validate_write(ctx, &placement_id).await?;
+
+        // Both the canvas board and the placed block must exist in the same
+        // workspace. The placed block is referenced (FK) — never copied.
+        let board = self
+            .get_canvas_board(&placement.workspace_id, &placement.canvas_block_id)
+            .await?;
+        let placed = self
+            .get_loom_block(&placement.workspace_id, &placement.placed_block_id)
+            .await?;
+        if board.board.workspace_id != placement.workspace_id
+            || placed.workspace_id != placement.workspace_id
+        {
+            return Err(StorageError::Validation(
+                "canvas placement requires same-workspace board and block",
+            ));
+        }
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_canvas_placements (
+                placement_id, canvas_block_id, workspace_id, placed_block_id,
+                x, y, w, h, z_index, group_id, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+            RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
+                      x, y, w, h, z_index, group_id, created_at, updated_at
+            "#,
+        )
+        .bind(&placement_id)
+        .bind(&placement.canvas_block_id)
+        .bind(&placement.workspace_id)
+        .bind(&placement.placed_block_id)
+        .bind(placement.x)
+        .bind(placement.y)
+        .bind(placement.w)
+        .bind(placement.h)
+        .bind(placement.z_index)
+        .bind(&placement.group_id)
+        .fetch_one(&self.pool)
+        .await?;
+        map_loom_canvas_placement(&row)
+    }
+
+    async fn update_canvas_placement(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        placement_id: &str,
+        update: LoomCanvasPlacementUpdate,
+    ) -> StorageResult<LoomCanvasPlacement> {
+        if matches!(update.w, Some(w) if w <= 0.0) || matches!(update.h, Some(h) if h <= 0.0) {
+            return Err(StorageError::Validation(
+                "canvas placement w/h must be positive",
+            ));
+        }
+        self.guard.validate_write(ctx, placement_id).await?;
+        let row = sqlx::query(
+            r#"
+            UPDATE loom_canvas_placements
+            SET x = COALESCE($3, x),
+                y = COALESCE($4, y),
+                w = COALESCE($5, w),
+                h = COALESCE($6, h),
+                z_index = COALESCE($7, z_index),
+                group_id = CASE WHEN $8 THEN $9 ELSE group_id END,
+                updated_at = NOW()
+            WHERE workspace_id = $1 AND placement_id = $2
+            RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
+                      x, y, w, h, z_index, group_id, created_at, updated_at
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(placement_id)
+        .bind(update.x)
+        .bind(update.y)
+        .bind(update.w)
+        .bind(update.h)
+        .bind(update.z_index)
+        .bind(update.group_id.is_some())
+        .bind(update.group_id.flatten())
+        .fetch_optional(&self.pool)
+        .await?;
+        let row = row.ok_or(StorageError::NotFound("loom_canvas_placement"))?;
+        map_loom_canvas_placement(&row)
+    }
+
+    async fn remove_canvas_placement(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        placement_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, placement_id).await?;
+        // Deletes ONLY the placement row. The referenced LoomBlock is never
+        // touched (reference-not-copy). Visual edges touching this placement
+        // CASCADE via the FK; semantic loom_edges are unaffected.
+        let res = sqlx::query(
+            r#"
+            DELETE FROM loom_canvas_placements
+            WHERE workspace_id = $1 AND placement_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(placement_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_canvas_placement"));
+        }
+        Ok(())
+    }
+
+    async fn add_canvas_visual_edge(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        from_placement_id: &str,
+        to_placement_id: &str,
+        label: Option<String>,
+    ) -> StorageResult<LoomCanvasVisualEdge> {
+        if from_placement_id == to_placement_id {
+            return Err(StorageError::Validation(
+                "canvas visual edge endpoints must differ",
+            ));
+        }
+        let visual_edge_id = format!("LCV-{}", Uuid::now_v7().simple());
+        self.guard.validate_write(ctx, &visual_edge_id).await?;
+
+        // Both placements must belong to the same canvas + workspace. This is a
+        // board-local decoration: it is NOT graph authority and never becomes a
+        // loom_edge.
+        let endpoint_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM loom_canvas_placements
+            WHERE workspace_id = $1
+              AND canvas_block_id = $2
+              AND placement_id IN ($3, $4)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(canvas_block_id)
+        .bind(from_placement_id)
+        .bind(to_placement_id)
+        .fetch_one(&self.pool)
+        .await?;
+        if endpoint_count != 2 {
+            return Err(StorageError::Validation(
+                "canvas visual edge endpoints must be placements on this canvas",
+            ));
+        }
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_canvas_visual_edges (
+                visual_edge_id, canvas_block_id, workspace_id,
+                from_placement_id, to_placement_id, label, created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            RETURNING visual_edge_id, canvas_block_id, workspace_id,
+                      from_placement_id, to_placement_id, label, created_at
+            "#,
+        )
+        .bind(&visual_edge_id)
+        .bind(canvas_block_id)
+        .bind(workspace_id)
+        .bind(from_placement_id)
+        .bind(to_placement_id)
+        .bind(&label)
+        .fetch_one(&self.pool)
+        .await?;
+        map_loom_canvas_visual_edge(&row)
+    }
+
+    async fn remove_canvas_visual_edge(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        visual_edge_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, visual_edge_id).await?;
+        let res = sqlx::query(
+            r#"
+            DELETE FROM loom_canvas_visual_edges
+            WHERE workspace_id = $1 AND visual_edge_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(visual_edge_id)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_canvas_visual_edge"));
+        }
+        Ok(())
     }
 
     async fn get_workbench_layout_state(

@@ -2261,6 +2261,98 @@ pub trait Database: Send + Sync {
         ))
     }
 
+    // -- MT-261 CanvasBoard ----------------------------------------------------
+    /// Create a canvas board: a typed `LoomBlock(content_type=canvas)` plus its
+    /// board-state (viewport) row. The block must already exist (created via
+    /// `create_loom_block` + bridge). Idempotent on the block id (re-create
+    /// returns the existing board / refreshes the viewport receipt).
+    async fn create_canvas_board(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _board_state: Value,
+    ) -> StorageResult<LoomCanvasBoard> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Read a canvas board projection: board + placements + visual-only edges.
+    async fn get_canvas_board(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<LoomCanvasBoardView> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Persist a new viewport (pan/zoom) for a board, leaving an EventLedger
+    /// receipt. Authority is PostgreSQL, never localStorage.
+    async fn update_canvas_board_state(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+        _board_state: Value,
+    ) -> StorageResult<LoomCanvasBoard> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Place an existing block on a canvas as a REFERENCE (never a copy).
+    /// Validates same-workspace and that the placed block exists (FK only).
+    async fn place_block_on_canvas(
+        &self,
+        _ctx: &WriteContext,
+        _placement: NewLoomCanvasPlacement,
+    ) -> StorageResult<LoomCanvasPlacement> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Move / resize / (re)group a placement.
+    async fn update_canvas_placement(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _placement_id: &str,
+        _update: LoomCanvasPlacementUpdate,
+    ) -> StorageResult<LoomCanvasPlacement> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Remove a placement. Deletes ONLY the placement row; the referenced
+    /// LoomBlock is never touched (reference-not-copy negative proof).
+    async fn remove_canvas_placement(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _placement_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Add a visual-only (board-local) edge between two placements. This is NOT
+    /// graph authority and never becomes a `loom_edge`.
+    async fn add_canvas_visual_edge(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _canvas_block_id: &str,
+        _from_placement_id: &str,
+        _to_placement_id: &str,
+        _label: Option<String>,
+    ) -> StorageResult<LoomCanvasVisualEdge> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Delete a visual-only edge (board decoration only).
+    async fn remove_canvas_visual_edge(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _visual_edge_id: &str,
+    ) -> StorageResult<()> {
+        Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
     /// MT-254 DebugAdapterCore: list the durable breakpoints for a RichDocument.
     async fn list_debug_breakpoints(
         &self,

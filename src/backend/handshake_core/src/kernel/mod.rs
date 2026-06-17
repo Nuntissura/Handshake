@@ -280,6 +280,7 @@ pub enum KernelEventType {
     KnowledgeWorkbenchLayoutStateRecorded,
     KnowledgeWorkspaceSettingsStateRecorded,
     KnowledgeWorkspaceSearchBookmarkStateRecorded,
+    KnowledgeLoomCanvasBoardRecorded,
     SourceControlOperationRecorded,
 }
 
@@ -363,6 +364,7 @@ impl KernelEventType {
             Self::KnowledgeWorkspaceSearchBookmarkStateRecorded => {
                 "KNOWLEDGE_WORKSPACE_SEARCH_BOOKMARK_STATE_RECORDED"
             }
+            Self::KnowledgeLoomCanvasBoardRecorded => "KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED",
             Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
         }
     }
@@ -434,6 +436,7 @@ impl KernelEventType {
             KernelEventType::KnowledgeWorkbenchLayoutStateRecorded,
             KernelEventType::KnowledgeWorkspaceSettingsStateRecorded,
             KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
+            KernelEventType::KnowledgeLoomCanvasBoardRecorded,
             KernelEventType::SourceControlOperationRecorded,
         ]
     }

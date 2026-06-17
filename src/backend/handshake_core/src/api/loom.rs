@@ -2,10 +2,12 @@ use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRec
 use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
-    artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdge,
+    artifacts, Asset, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
+    LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
+    LoomCanvasVisualEdge, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
     LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
-    NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus, QuickSwitcherRecent,
+    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, PreviewStatus, QuickSwitcherRecent,
     QuickSwitcherRecentInput, StorageCapabilityStore, StorageError, WriteContext,
 };
 use crate::AppState;
@@ -13,7 +15,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderValue, StatusCode},
     response::Response,
-    routing::{delete, get, post, put},
+    routing::{delete, get, patch, post, put},
     Json, Router,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -309,6 +311,39 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/loom/ai-suggestions/:suggestion_id/reject",
             post(reject_loom_ai_suggestion),
+        )
+        // -- MT-261 CanvasBoard --------------------------------------------
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards",
+            post(create_canvas_board),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id",
+            get(get_canvas_board),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id/viewport",
+            put(update_canvas_board_state),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id/placements",
+            post(place_block_on_canvas),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id/cards",
+            post(create_canvas_card),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-placements/:placement_id",
+            patch(update_canvas_placement).delete(remove_canvas_placement),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id/visual-edges",
+            post(add_canvas_visual_edge),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/canvas-visual-edges/:visual_edge_id",
+            delete(remove_canvas_visual_edge),
         )
         .with_state(state)
 }
@@ -3439,6 +3474,342 @@ async fn record_quick_switcher_recent(
         .await
         .map_err(map_storage_error)?;
     Ok(Json(recent))
+}
+
+// -- MT-261 CanvasBoard handlers ------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct CreateCanvasBoardRequest {
+    #[serde(default)]
+    title: Option<String>,
+    /// Optional initial viewport. Defaults to centered, zoom 1.
+    #[serde(default)]
+    board_state: Option<serde_json::Value>,
+}
+
+fn default_board_state() -> serde_json::Value {
+    json!({
+        "schema_id": crate::storage::LOOM_CANVAS_BOARD_SCHEMA_ID,
+        "pan_x": 0.0,
+        "pan_y": 0.0,
+        "zoom": 1.0,
+    })
+}
+
+/// Create a canvas: a typed LoomBlock(content_type=canvas), bridged to the
+/// ProjectKnowledgeIndex (so it is authority-resolved like any block), plus its
+/// board-state row.
+async fn create_canvas_board(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Json(payload): Json<CreateCanvasBoardRequest>,
+) -> ApiResult<Json<LoomCanvasBoard>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+
+    let block = state
+        .storage
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace_id.clone(),
+                content_type: LoomBlockContentType::Canvas,
+                document_id: None,
+                asset_id: None,
+                title: payload.title.clone(),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: LoomBlockDerived::default(),
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    state
+        .storage
+        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let board_state = payload.board_state.unwrap_or_else(default_board_state);
+    let board = state
+        .storage
+        .create_canvas_board(&ctx, &workspace_id, &block.block_id, board_state)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockCreated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_canvas_board_created",
+            "workspace_id": workspace_id,
+            "block_id": board.block_id,
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(board))
+}
+
+async fn get_canvas_board(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<LoomCanvasBoardView>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let view = state
+        .storage
+        .get_canvas_board(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(view))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateBoardViewportRequest {
+    board_state: serde_json::Value,
+}
+
+async fn update_canvas_board_state(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<UpdateBoardViewportRequest>,
+) -> ApiResult<Json<LoomCanvasBoard>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let board = state
+        .storage
+        .update_canvas_board_state(
+            &WriteContext::human(None),
+            &workspace_id,
+            &block_id,
+            payload.board_state,
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(board))
+}
+
+#[derive(Debug, Deserialize)]
+struct PlaceBlockRequest {
+    placed_block_id: String,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    #[serde(default)]
+    z_index: Option<i32>,
+    #[serde(default)]
+    group_id: Option<String>,
+}
+
+async fn place_block_on_canvas(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<PlaceBlockRequest>,
+) -> ApiResult<Json<LoomCanvasPlacement>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let placement = state
+        .storage
+        .place_block_on_canvas(
+            &WriteContext::human(None),
+            NewLoomCanvasPlacement {
+                canvas_block_id: block_id,
+                workspace_id: workspace_id.clone(),
+                placed_block_id: payload.placed_block_id,
+                x: payload.x,
+                y: payload.y,
+                w: payload.w,
+                h: payload.h,
+                z_index: payload.z_index.unwrap_or(0),
+                group_id: payload.group_id,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(placement))
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateCanvasCardRequest {
+    title: String,
+    /// Free-text card body (markdown). Becomes a real note LoomBlock backed by a
+    /// RichDocument — never a board-local content copy.
+    #[serde(default)]
+    body: Option<String>,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    #[serde(default)]
+    z_index: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateCanvasCardResponse {
+    block: LoomBlock,
+    rich_document_id: String,
+    placement: LoomCanvasPlacement,
+}
+
+/// Create a free-text card: a REAL note LoomBlock (content_type=note) backed by
+/// a RichDocument and bridged to knowledge, then placed on the canvas as a
+/// reference. The card is authority, never a board-only copy.
+async fn create_canvas_card(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<CreateCanvasCardRequest>,
+) -> ApiResult<Json<CreateCanvasCardResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+
+    let imported = state
+        .storage
+        .import_markdown_to_loom(
+            &ctx,
+            &workspace_id,
+            &payload.title,
+            payload.body.as_deref().unwrap_or(""),
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    let placement = state
+        .storage
+        .place_block_on_canvas(
+            &ctx,
+            NewLoomCanvasPlacement {
+                canvas_block_id: block_id,
+                workspace_id: workspace_id.clone(),
+                placed_block_id: imported.block.block_id.clone(),
+                x: payload.x,
+                y: payload.y,
+                w: payload.w,
+                h: payload.h,
+                z_index: payload.z_index.unwrap_or(0),
+                group_id: None,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+
+    Ok(Json(CreateCanvasCardResponse {
+        block: imported.block,
+        rich_document_id: imported.rich_document_id,
+        placement,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdatePlacementRequest {
+    #[serde(default)]
+    x: Option<f64>,
+    #[serde(default)]
+    y: Option<f64>,
+    #[serde(default)]
+    w: Option<f64>,
+    #[serde(default)]
+    h: Option<f64>,
+    #[serde(default)]
+    z_index: Option<i32>,
+    /// `Some("g1")` sets a group; `Some(null)` (deserialized as present-but-null
+    /// via `group_id_set`) clears it. To keep the wire simple we treat any
+    /// provided `group_id` as set, and `clear_group=true` as clear.
+    #[serde(default)]
+    group_id: Option<String>,
+    #[serde(default)]
+    clear_group: bool,
+}
+
+async fn update_canvas_placement(
+    State(state): State<AppState>,
+    Path((workspace_id, placement_id)): Path<(String, String)>,
+    Json(payload): Json<UpdatePlacementRequest>,
+) -> ApiResult<Json<LoomCanvasPlacement>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let group_id = if payload.clear_group {
+        Some(None)
+    } else {
+        payload.group_id.map(Some)
+    };
+    let placement = state
+        .storage
+        .update_canvas_placement(
+            &WriteContext::human(None),
+            &workspace_id,
+            &placement_id,
+            LoomCanvasPlacementUpdate {
+                x: payload.x,
+                y: payload.y,
+                w: payload.w,
+                h: payload.h,
+                z_index: payload.z_index,
+                group_id,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(placement))
+}
+
+async fn remove_canvas_placement(
+    State(state): State<AppState>,
+    Path((workspace_id, placement_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .remove_canvas_placement(&WriteContext::human(None), &workspace_id, &placement_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+struct AddVisualEdgeRequest {
+    from_placement_id: String,
+    to_placement_id: String,
+    #[serde(default)]
+    label: Option<String>,
+}
+
+async fn add_canvas_visual_edge(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    Json(payload): Json<AddVisualEdgeRequest>,
+) -> ApiResult<Json<LoomCanvasVisualEdge>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let edge = state
+        .storage
+        .add_canvas_visual_edge(
+            &WriteContext::human(None),
+            &workspace_id,
+            &block_id,
+            &payload.from_placement_id,
+            &payload.to_placement_id,
+            payload.label,
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(edge))
+}
+
+async fn remove_canvas_visual_edge(
+    State(state): State<AppState>,
+    Path((workspace_id, visual_edge_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    state
+        .storage
+        .remove_canvas_visual_edge(&WriteContext::human(None), &workspace_id, &visual_edge_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
