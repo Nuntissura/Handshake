@@ -51,6 +51,8 @@ export default defineConfig({
         "loom-transclusion": resolve(appDir, "harness", "loom-transclusion.html"),
         // MT-258: search-operator UI filtering proof (tag:/path:/kind:/mention:).
         "loom-search-operators": resolve(appDir, "harness", "loom-search-operators.html"),
+        // MT-253: source-control panel real-backend proof (status/diff/stage/commit/branch/log/blame).
+        "source-control": resolve(appDir, "harness", "source-control.html"),
       },
     },
   },

@@ -22,6 +22,7 @@ const requiredHarnesses = [
   "rich-document-diff.html",
   "editor-draft-recovery.html",
   "mt249-code-intelligence.html",
+  "source-control.html",
 ].map((fileName) => path.join(harnessDir, fileName));
 
 function allHarnessesExist(): boolean {

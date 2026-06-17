@@ -1,4 +1,7 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { createConfiguredDiffEditor, monaco } from "../lib/monaco/setup";
+import { parseUnifiedPatchSides } from "../lib/source_control/unified_patch";
+import "monaco-editor/min/vs/editor/editor.main.css";
 import {
   commitSourceControl,
   createSourceControlBranch,
@@ -54,6 +57,94 @@ function receiptLabel(receipt: SourceControlReceipt): string {
 function selectedEntry(status: SourceControlStatus | null, path: string | null): SourceControlStatusEntry | null {
   if (!status || !path) return null;
   return status.entries.find((entry) => entry.path === path) ?? null;
+}
+
+const MONACO_LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  ts: "typescript",
+  tsx: "typescript",
+  js: "javascript",
+  jsx: "javascript",
+  rs: "rust",
+  json: "json",
+  css: "css",
+  html: "html",
+  md: "markdown",
+  py: "python",
+  toml: "ini",
+  yml: "yaml",
+  yaml: "yaml",
+  sql: "sql",
+  sh: "shell",
+};
+
+function monacoLanguageForPath(path: string | null): string {
+  if (!path) return "plaintext";
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return MONACO_LANGUAGE_BY_EXTENSION[ext] ?? "plaintext";
+}
+
+type MonacoDiffViewProps = {
+  patch: string;
+  language: string;
+};
+
+/**
+ * Renders a per-file git patch in a REAL Monaco diff editor (the MT-247 diff
+ * seam, `createConfiguredDiffEditor`). The unified patch is reconstructed into
+ * original/modified sides; the editor is read-only. An accessible `<pre>`
+ * fallback always carries the raw patch text alongside (see the panel body).
+ */
+function MonacoDiffView({ patch, language }: MonacoDiffViewProps) {
+  const host = useRef<HTMLDivElement>(null);
+  const [degraded, setDegraded] = useState(false);
+
+  useEffect(() => {
+    if (!host.current) return;
+    const sides = parseUnifiedPatchSides(patch);
+    let original: monaco.editor.ITextModel | null = null;
+    let modified: monaco.editor.ITextModel | null = null;
+    let editor: monaco.editor.IStandaloneDiffEditor | null = null;
+    try {
+      original = monaco.editor.createModel(sides.original, language);
+      modified = monaco.editor.createModel(sides.modified, language);
+      editor = createConfiguredDiffEditor({
+        container: host.current,
+        renderSideBySide: true,
+        originalEditable: false,
+        readOnly: true,
+        minimap: { enabled: false },
+        fontSize: 12,
+      });
+      editor.setModel({ original, modified });
+    } catch {
+      // createConfiguredDiffEditor already reported a typed dependency failure
+      // (and headless/no-canvas environments cannot mount Monaco). Degrade to
+      // the always-present raw-patch <pre> fallback rather than crashing. The
+      // flip is deferred off the effect body so it never cascades a render
+      // synchronously (react-hooks/set-state-in-effect).
+      editor?.dispose();
+      original?.dispose();
+      modified?.dispose();
+      queueMicrotask(() => setDegraded(true));
+      return;
+    }
+    return () => {
+      editor?.dispose();
+      original?.dispose();
+      modified?.dispose();
+    };
+    // Re-create on patch/language change so the diff always reflects selection.
+  }, [patch, language]);
+
+  return (
+    <div
+      ref={host}
+      className="source-control-panel__diff-monaco"
+      data-testid="source-control.diff-monaco"
+      data-degraded={degraded ? "true" : "false"}
+      style={{ height: 320 }}
+    />
+  );
 }
 
 export function SourceControlPanel({ initialRepoPath = "", initialHistoryDocumentId = "" }: Props) {
@@ -464,9 +555,23 @@ export function SourceControlPanel({ initialRepoPath = "", initialHistoryDocumen
             </div>
           </form>
 
-          <pre className="source-control-panel__diff" data-testid="source-control.diff">
-            {diffLoading ? "Loading diff..." : diff?.patch || "No diff loaded."}
-          </pre>
+          <div className="source-control-panel__diff-region" data-testid="source-control.diff-region">
+            {diffLoading ? (
+              <p className="muted" data-testid="source-control.diff-loading">
+                Loading diff...
+              </p>
+            ) : diff?.patch ? (
+              <MonacoDiffView patch={diff.patch} language={monacoLanguageForPath(selectedPath)} />
+            ) : (
+              <p className="muted">No diff loaded.</p>
+            )}
+            <details className="source-control-panel__diff-raw">
+              <summary>Raw patch</summary>
+              <pre className="source-control-panel__diff" data-testid="source-control.diff">
+                {diffLoading ? "Loading diff..." : diff?.patch || "No diff loaded."}
+              </pre>
+            </details>
+          </div>
 
           {blame ? (
             <section className="source-control-panel__blame" aria-label="Line blame" data-testid="source-control.blame">

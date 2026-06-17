@@ -116,6 +116,12 @@ required-features = ["runtime-full", "duckdb-flight-recorder"]
 test = false
 
 [[bin]]
+name = "mt253_source_control_fixture"
+path = "src/bin/mt253_source_control_fixture.rs"
+required-features = ["runtime-full", "duckdb-flight-recorder"]
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]

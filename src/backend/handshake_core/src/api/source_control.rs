@@ -112,9 +112,18 @@ impl SourceControlEventRecorder for KernelSourceControlEventRecorder {
 }
 
 pub fn routes(state: AppState) -> Router {
-    routes_with_event_recorder(Arc::new(KernelSourceControlEventRecorder {
-        storage: state.storage.clone(),
-    }))
+    routes_with_event_recorder(kernel_event_recorder(state.storage.clone()))
+}
+
+/// Builds the real PostgreSQL/EventLedger-backed source-control event recorder.
+///
+/// Exposed so real-PG tests can drive write ops through the SAME recorder the
+/// product uses (instead of a recording test double) and then read the appended
+/// kernel event back from the EventLedger.
+pub fn kernel_event_recorder(
+    storage: Arc<dyn Database>,
+) -> Arc<dyn SourceControlEventRecorder> {
+    Arc::new(KernelSourceControlEventRecorder { storage })
 }
 
 pub fn routes_with_event_recorder(event_recorder: Arc<dyn SourceControlEventRecorder>) -> Router {
