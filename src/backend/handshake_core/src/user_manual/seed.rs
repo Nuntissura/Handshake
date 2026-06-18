@@ -417,8 +417,9 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                  The server binds `127.0.0.1:37501` and mounts every API both at `/` and under \
                  `/api` (e.g. `/usermanual/pages` and `/api/usermanual/pages` are the same \
                  surface). On startup Handshake ensures its own managed PostgreSQL cluster is \
-                 running (default port 5544, data dir `Handshake_Artifacts/managed_pgdata` under \
-                 the repo root) — no Docker, no external daemon. Quiet by design: no foreground \
+                 running (default port 5544, data dir `Handshake_Artifacts/managed_pgdata` in the \
+                 shared `Handshake_Artifacts` root beside the repo — the worktrees' sibling, not \
+                 inside the worktree) — no Docker, no external daemon. Quiet by design: no foreground \
                  window is popped.",
                 json!({
                     "run_command": "cargo run -p handshake_core --bin handshake_core --features app-runtime",

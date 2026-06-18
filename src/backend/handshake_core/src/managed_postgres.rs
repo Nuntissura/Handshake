@@ -160,7 +160,16 @@ fn default_data_dir() -> PathBuf {
         .and_then(Path::parent)
         .map(Path::to_path_buf);
     match root_dir {
-        Some(root) => root.join("Handshake_Artifacts").join("managed_pgdata"),
+        // The shared `Handshake_Artifacts/` root is a SIBLING of the repo root
+        // (it lives in the worktrees container, `root.parent()`), never inside
+        // the worktree. Climbing only to `root` placed `managed_pgdata` inside
+        // the worktree; go one level further up to reach the sibling.
+        Some(root) => {
+            let base = root.parent().map(Path::to_path_buf);
+            base.unwrap_or(root)
+                .join("Handshake_Artifacts")
+                .join("managed_pgdata")
+        }
         None => manifest_dir
             .join("Handshake_Artifacts")
             .join("managed_pgdata"),
