@@ -1,0 +1,219 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-090",
+  "title": "SourceIngestionAndEvidence-090-OperatorResearchNoteIngestion",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-090.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Ingest operator-created research notes as context with explicit non-normative authority labels unless promoted by spec enrichment. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "OperatorResearchNoteIngestion leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "OperatorResearchNoteIngestion is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "d0393ffc",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 d0393ffc; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:29:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Authority labelling correct: engine.rs stamps provenance.authority = 'non_normative_context' for OperatorResearchNote kind (verified pipeline test asserts it). Notes are context, not authority, until a spec enrichment promotes them — matches MT-090 contract and [GLOBAL-GOVARTIFACTS-028].",
+        "Fenced code blocks (``` ... ```) stay single spans and a heading-looking line INSIDE a fence ('# not a heading') never enters the heading path — guards against markdown-injection of fake section structure. Heading stack pop logic is level-correct.",
+        "Wikilinks recorded as CANDIDATES only (never resolved at ingestion) — link_candidates ride along as JSONB for later graph work. detect_wikilinks handles malformed/unclosed/nested [[ without panic (spans.rs).",
+        "Notes pass redact_spans (secret_scan=true): a credential pasted into a research note is redacted/blocked. Empty/whitespace-only note yields zero spans (no empty rows)."
+      ],
+      "evasion_probes": [
+        "heading path tracking across #/## levels CONFIRMED (pipeline mt085_mt090 + notes unit tests).",
+        "fenced code block with fake heading stays one block, fake heading excluded from path CONFIRMED.",
+        "wikilink [[target]] and [[target|label]] -> candidates with target/label CONFIRMED.",
+        "malformed [[unclosed / [[Nested[[x]] handled without panic CONFIRMED (spans.rs wikilink test).",
+        "one-based ordered line anchors CONFIRMED.",
+        "provenance authority=non_normative_context CONFIRMED (pipeline assert)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/notes.rs (full, incl. 5 unit tests)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs detect_wikilinks (+ test)",
+        "engine.rs:367-371 provenance authority stamp; engine.rs:1038-1053 note branch",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt085_mt090 + fixture mt096 overview.md"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:32:04.773Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
+    ],
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-090 is READY_FOR_VALIDATION but declares MT-081 as a dependency, and MT-081 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-090.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json"
+          ],
+          "required_remediation": "Do not resubmit MT-090 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-090 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:16:10.973Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
+      "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-090 requires ingesting operator research notes as non-normative context: split markdown/text into heading-path-anchored paragraph spans, record [[wikilink]] candidates per span (never resolved at ingestion), and stamp provenance authority=non_normative_context, with durable PostgreSQL/EventLedger proof. The code (notes.rs parser + engine.rs integration) implements exactly this and is proven by a real Handshake-managed PostgreSQL pipeline test asserting persisted spans, heading paths, wikilink candidates, the non_normative_context stamp, and a replayable ledger event.",
+      "findings": [
+        "notes.rs:52-174 parse_note() is a real, complete parser: paragraph blocks split on blank lines, fenced code blocks (```) kept as single spans with in_fence tracking, heading stack with correct level-pop semantics (l>=level pop), 1-based line anchors, heading_path carried per span. No placeholders/todo!/unimplemented! anywhere (grep clean).",
+        "Heading-injection guard verified: notes.rs:84-103 routes fence lines so a '# not a heading' line inside a fence never reaches heading_level(); unit test fenced_code_blocks_stay_single_spans (notes.rs:236-257) and line 109 heading path both assert the fake heading is excluded.",
+        "engine.rs:1071-1086 wires OperatorResearchNote (and MarkdownText) kind to parse_note() in the real extraction path, producing persisted spans + error_detail rollup (headings_seen/link_candidates). engine.rs:369-372 stamps provenance['authority']=non_normative_context for OperatorResearchNote kind, satisfying the context-not-authority requirement and [GLOBAL-GOVARTIFACTS-028].",
+        "sub_rule_2 (real resource touch) PASS: tests/knowledge_ingestion_support.rs:1-39 builds on knowledge_pg() = real Handshake-managed PostgreSQL with per-test isolated schema and full migration chain, explicitly 'no SQLite, no mocks'; PostgresDatabase::connect feeds IngestionEngine::from_database. The MT-090 test (knowledge_ingestion_pipeline_tests.rs:110-196) ingests a note through the real engine and asserts durable spans, heading_path=['Research'], 2 wikilink candidates (target/label) read from persisted JSONB, provenance authority=non_normative_context, and a real kernel_event_ledger row queried via sqlx carrying actor/session/correlation + extraction_receipt payload, plus per-source rollup (last_index_receipt_event_id). This is real-PG end-to-end proof, not implementer-authored mocks.",
+        "sub_rule_1 (no deferred-live escape) PASS: grep of notes.rs and the engine note branch for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow'/'pending MT'/Unavailable returns no hits on the live path.",
+        "Wikilink robustness: spans.rs detect_wikilinks handles malformed/empty/nested/newline cases ([[]], [[a\\nb]] -> none) per its tests; candidates are recorded only, never resolved at ingestion, matching MT scope and the link_candidates JSONB serialization the PG test reads.",
+        "Prior FAIL_V1 (wp_validator_review_v1) was UPSTREAM_DEPENDENCY_NOT_READY (MT-081 still CLAIMED at validation time) — a sequencing/paperwork concern, not a code defect; remediation_v2 records MT-081 now READY_FOR_VALIDATION (commit 5876feaf). Per ground rules this dependency-ordering issue is not a code failing reason and the implementation itself was never faulted.",
+        "Aside (non-blocking, paperwork): MT contract cites spec bundle v02.192 anchors; current is v02.194 with the same section numbers (2.3.13.11). Stale spec pointer is expected and not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/notes.rs (full, incl. 5 unit tests)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs (lines 360-372 provenance stamp; 1071-1086 note extraction branch; mod import line 34)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (mt085_mt090 test, lines 107-196)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs (ingestion_pg real-PG harness, lines 1-75)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs (ExtractedSpan/link_candidates/detect_wikilinks)",
+        "git show --stat d0393ffc + commit message",
+        "MT-090.json contract + packet.json constraints",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

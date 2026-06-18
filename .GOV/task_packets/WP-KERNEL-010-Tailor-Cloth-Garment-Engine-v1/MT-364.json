@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-364",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-364.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-364.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-364.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-364.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-363"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the kernel-side trim Glue/Tack placement handler that accepts a panel UV anchor, resolves the nearest cloth particle, constructs a TackDefinitionV1 array (length 1 = Glue; length >= 2 = Tack), writes to tailor_trim_placements, and emits TailorTrimPlaced",
+    "allowed_paths": [
+      "tailor-solver/src/trim/placement.rs",
+      "src/backend/handshake_core/src/tailor/trim_authoring.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/migrations/",
+      "app/src/components/tailor/TrimPlacementGizmo.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A single-click Glue placement produces a tailor_trim_placements row whose tacks_json is a TackDefinitionV1 array of exactly length 1, per TR-6.3.2",
+      "A multi-point Tack placement produces a TackDefinitionV1 array of length >= 2",
+      "Panel UV coordinates are resolved to the nearest GpuParticle index at load time; particle_uv stored verbatim on TackDefinitionV1",
+      "TailorTrimPlaced EventLedger event is emitted on every successful placement write",
+      "Placement rows are loadable by the solver as GpuTackConstraint entries without any additional round-trip",
+      "Placement is rejected (400-class API error) if trim_id does not exist in tailor_trims"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::trim_authoring::test_glue_produces_single_tack_array",
+      "cargo test -p handshake_core tailor::trim_authoring::test_tack_produces_multi_tack_array",
+      "cargo test -p handshake_core tailor::trim_authoring::test_tack_placement_emits_event_ledger_entry"
+    ],
+    "risk_if_missed": "Models calling place_trim MCP tool (MT-263) get a placement row that the solver cannot consume correctly because the Glue vs Tack count distinction is never enforced; TR-6.3.2 compliance is broken silently"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-180",
+  "title": "LoomObsidianNavigation-180-GlobalGraphApi",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-180.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Expose project-level graph views with performance limits and hub suppression. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "GlobalGraphApi leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "GlobalGraphApi is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "cd944110",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "implementation",
+        "summary": "Project-level global graph API with performance limits + hub suppression over loom_edges + loom_blocks (+ MT-177 bridge for citations). Read projection; no parallel store.",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - shared LoomGraph types + LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT(500)/MAX(5000)/DEFAULT_HUB_DEGREE(50) consts",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::global_graph",
+          "src/backend/handshake_core/src/storage/postgres.rs - global_graph (per-node degree across filtered edges; hub suppression drops degree>threshold nodes + lists them; node_limit -> truncated) reusing assemble_loom_graph",
+          "src/backend/handshake_core/src/api/loom.rs - GET /loom/graph/global (edge_types, node_limit, hub_degree_threshold)",
+          "src/backend/handshake_core/tests/loom_graph_tests.rs (shared MT-179+180)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_graph_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real PostgreSQL) [shared MT-179+180 suite]",
+        "tests": [
+          "global_graph_returns_all_and_suppresses_hubs - threshold 0 disables suppression (hub present, degree 6 counted); threshold 5 suppresses the degree-6 hub (dropped + in suppressed_hub_ids); unrelated X-Y pair unaffected; no edges to a suppressed hub",
+          "global_graph_node_limit_sets_truncated - node_limit 3 over 5 blocks -> 3 nodes + truncated=true"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): cd944110."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T06:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "cd944110",
+      "findings": [
+        "HUB-SUPPRESSION GUARD (handled+tested): hub_degree_threshold>0 required, so threshold 0 disables suppression deterministically.",
+        "INDUCED SUBGRAPH (handled+tested): edges require BOTH endpoints in the surviving node set, so a suppressed hub's edges are excluded.",
+        "DOS (mitigated): node_limit.clamp(1,5000) bounds the expensive block/edge fetches; degree is one aggregate query.",
+        "ALL-IDS FETCH (accepted): the candidate id list is the full workspace block id set (cheap id-only fetch) filtered+capped in Rust; the heavy block/edge fetches use only the capped node set.",
+        "EDGE-TYPE INJECTION (clear): LoomEdgeType enum parse; ids bound as TEXT[].",
+        "DETERMINISM (clear): blocks ordered updated_at DESC, block_id ASC; suppressed_hub_ids sorted."
+      ],
+      "fixes": [
+        "No code change required; findings are handled-by-design (and tested) or accepted with rationale."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-180 requires a project-level global Loom graph API with performance node limits and hub suppression as a PostgreSQL projection over loom_edges + loom_blocks. The code delivers exactly that: a real storage trait method, PostgreSQL implementation, wired HTTP route, and two real-PostgreSQL integration tests proving hub suppression and node-limit truncation. No placeholders, no SQLite/mock fallback, aligned with current Master Spec [LM-NOTES-002].",
+      "findings": [
+        "storage/postgres.rs:9797-9884 global_graph: real PostgreSQL aggregation — per-node degree via UNION ALL of source/target over filtered loom_edges (9814-9832), hub suppression drops degree>threshold nodes (threshold 0 disables) and lists them in suppressed_hub_ids (9840-9846), candidate ids capped via node_limit.clamp(1,5000) with truncated set when full set exceeds cap (9868-9869).",
+        "storage/postgres.rs:71-246 assemble_loom_graph builds induced subgraph (edges require BOTH endpoints in surviving node set, 9 lines of real SQL at ~187-204), so a suppressed hub's edges are excluded — matches the test assertion.",
+        "api/loom.rs:269-272 route /workspaces/:workspace_id/loom/graph/global registered; handler 3284-3305 parses edge_types, applies LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT(500)/MAX(5000)/DEFAULT_HUB_DEGREE(50) consts (loom.rs:1009-1013) and calls storage.global_graph.",
+        "storage/mod.rs:2581-2584 declares Database::global_graph at the trait boundary with doc describing truncated + suppressed_hub_ids; LoomGraph struct (loom.rs:776-778,996) carries truncated + suppressed_hub_ids fields.",
+        "tests/loom_graph_tests.rs:181-237 two global-graph tests run against real PostgreSQL: global_graph_returns_all_and_suppresses_hubs proves threshold 0 keeps hub (degree 6 counted), threshold 5 drops the degree-6 hub + lists it + excludes its edges + leaves unrelated X-Y pair intact; global_graph_node_limit_sets_truncated proves node_limit 3 over 5 blocks -> 3 nodes + truncated=true.",
+        "knowledge_pg_support.rs:21,40 confirms NO SQLite/in-memory/mock fallback — tests resolve POSTGRES_TEST_URL/DATABASE_URL against isolated migrated schemas and skip (not mock) if PG unavailable; sub_rule_2 real-resource touch satisfied.",
+        "Placeholder scan of global/graph/assemble/hub/suppress paths in postgres.rs returned zero hits (no todo!/unimplemented!/Unavailable/stub).",
+        "No forbidden deps: pure PostgreSQL projection, no markdown vault, no external search/graph engine, no SQLite. Aside: lifecycle paperwork (claimed_by/completed_by null, self-review sub-agent) is non-blocking per ground rules."
+      ],
+      "evidence_checked": [
+        "commit cd944110 (git show --stat + diff)",
+        "src/backend/handshake_core/src/storage/postgres.rs:71-320 (assemble_loom_graph), :9797-9884 (global_graph)",
+        "src/backend/handshake_core/src/storage/mod.rs:2566-2590 (trait decl)",
+        "src/backend/handshake_core/src/storage/loom.rs:776-1013 (LoomGraph types + consts)",
+        "src/backend/handshake_core/src/api/loom.rs:266-3305 (route + handler)",
+        "src/backend/handshake_core/tests/loom_graph_tests.rs:1-249 (global graph tests)",
+        "tests/knowledge_pg_support.rs (real-PG, no mock fallback)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md:954 [LM-NOTES-002]",
+        "MT-180.json + packet.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

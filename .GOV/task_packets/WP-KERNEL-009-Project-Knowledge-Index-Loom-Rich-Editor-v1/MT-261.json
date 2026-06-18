@@ -1,0 +1,162 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-261",
+  "title": "UnifiedWorkSurface-261-CanvasBoard",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-261.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close the canvas gap (Obsidian canvas-class on Loom): infinite-canvas board where existing LoomBlocks/notes/files are PLACED (references, never copies - drag from Loom views/quick switcher), free text cards (which ARE new note blocks), edges between placed items (which ARE Loom edges where semantic, visual-only where not - distinguished explicitly), pan/zoom/select/group, canvas itself stored as a typed block (board state in Postgres, projection rules apply).",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Placing a block on a canvas creates a reference, NEVER a content copy (negative test).",
+      "Canvas state is a typed LoomBlock; deleting a canvas never deletes the blocks placed on it (negative test)."
+    ],
+    "expected_behavior": "Operator arranges real blocks spatially, draws connections, and the canvas persists - an Obsidian-canvas-class surface over LoomBlock authority.",
+    "acceptance_criteria": [
+      "Place/move/connect/persist/reload runtime-proven.",
+      "Reference-not-copy negative proof.",
+      "Canvas-delete leaves placed blocks intact (proven).",
+      "Text card becomes a real note block (proven).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177",
+      "MT-183"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "ff9295fe",
+    "evidence": [
+      "commit ff9295fe on feat/WP-KERNEL-009 (16 files, migration 0334_loom_canvas_board), zero .GOV",
+      "runtime proof: 7 real-PG tests PASS (227s); vitest 6 (live-preview reference-not-copy, remove-placement keeps source block, free-text-card IS a real note block, semantic edge appears in loom graph vs visual-only edge does NOT); tsc/eslint clean; offline Playwright 1 PASS (2.1m, real backend fixture mt261_loom_canvas_fixture on isolated PG schema)",
+      "canvas IS a typed LoomBlock(content_type=canvas); placements are FK block-id references (never content copies — proven by remove-placement + edit-source-reflects); semantic edges are real loom_edges (graph authority); visual-only edges are board-local decoration explicitly NOT graph authority; board viewport JSONB carries an EventLedger receipt; not conflated with the legacy Excalidraw sketch canvas",
+      "remaining_gaps: none"
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-261 requires an Obsidian-canvas-class board surface over LoomBlock authority: place existing blocks as references (never copies), free-text cards as real note blocks, semantic edges as real loom_edges vs visual-only board decoration, pan/zoom/group/persist, with the canvas itself a typed LoomBlock and board state in PostgreSQL+EventLedger. The implementation delivers exactly this with real schema, real sqlx storage, and real runtime proof at all three layers (real-PG cargo tests, vitest, offline real-backend Playwright).",
+      "findings": [
+        "Migration 0334_loom_canvas_boards.sql: canvas IS a loom_blocks(content_type='canvas') row (block_id PK -> loom_blocks FK); placements FK placed_block_id ON DELETE RESTRICT + UNIQUE(canvas_block_id, placed_block_id) enforce reference-not-copy at the DB level; board CASCADE deletes only board/placements/visual_edges, never referenced loom_blocks. Pure PostgreSQL, no SQLite/external engine (DEC-008 honored).",
+        "storage/postgres.rs:7914 place_block_on_canvas is real sqlx INSERT with same-workspace validation, UUID v7 placement_id (LCP-...), FK reference to placed block; create/get/update/remove/visual-edge/viewport methods at :7729-8090 are all real SQL. No placeholders/todo!/unimplemented!/Unavailable on the canvas path (the only 'stub' grep hits at :485-510 are pre-existing unrelated WorkPacketStatus/TaskBoardStatus enum string mappings).",
+        "tests/loom_canvas_board_tests.rs: 7 real-PG tests against the migrated knowledge_pg schema cover every acceptance criterion: canvas-is-loom-block+EventLedger-receipt (:120), place/move/group/visual-edge/viewport round-trip (:154), remove-placement-keeps-source negative (:261), delete-canvas-keeps-placed-blocks negative (:300), edit-source-reflects-through-placement live-reference (:350), semantic-edge-in-graph vs visual-only-not-in-graph (:399), free-text-card-is-real-note-block (:501).",
+        "app/src/components/LoomCanvasBoard.test.tsx: 6 vitest cases assert FE wiring matches the reference semantics: live previews via getLoomBlock (reference not copy) (:109), removeCanvasPlacement without touching source (:119), createCanvasCard -> content_type=note (:126), SEMANTIC connection -> createLoomEdge and NOT addCanvasVisualEdge (:136), VISUAL-ONLY -> addCanvasVisualEdge and NOT createLoomEdge (:153), pan/zoom persisted via viewport endpoint (:169).",
+        "tests/visual/mt261-loom-canvas-real-backend.spec.ts: spawns the real mt261_loom_canvas_fixture backend binary on an isolated PG schema, routes/aborts and records any request, and asserts externalRequests == [] (:281) — genuine offline real-backend proof, zero external network.",
+        "Self-certification present (lifecycle.claimed_by=KERNEL_BUILDER also signed completion), but per Spec-Realism sub-rule-3 self-cert alone is not a fail when the proof is real and independently meaningful, which it is here.",
+        "Aside (non-blocking): packet cites v02.192 spec anchors while current is v02.194; the canvas surface concept (Docs & Canvas / canvas-based planning boards in product-surfaces module) resolves in current spec. Paperwork-only, not a code defect."
+      ],
+      "evidence_checked": [
+        "commit ff9295fe (git show --stat + full diff)",
+        "src/backend/handshake_core/migrations/0334_loom_canvas_boards.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs (canvas methods 7729-8090, placeholder grep)",
+        "src/backend/handshake_core/src/api/loom.rs (placeholder grep)",
+        "src/backend/handshake_core/tests/loom_canvas_board_tests.rs (full)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (existence)",
+        "app/src/components/LoomCanvasBoard.tsx (capabilities grep)",
+        "app/src/components/LoomCanvasBoard.test.tsx (test cases)",
+        "tests/visual/mt261-loom-canvas-real-backend.spec.ts (fixture spawn + external-request guard)",
+        ".GOV/task_packets/WP-KERNEL-009.../MT-261.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (canvas anchors)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

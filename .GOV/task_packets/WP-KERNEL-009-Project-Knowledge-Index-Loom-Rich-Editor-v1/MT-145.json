@@ -1,0 +1,167 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-145",
+  "title": "RichDocumentCore-145-RichDocumentIdentityModel",
+  "group": "RichDocumentCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-145.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define document IDs, titles, project/folder membership, authority labels, owner actors, and schema versions. This MT belongs to RichDocumentCore. Build the canonical structured document model backing the editor, Loom, UserManual, and projections.",
+    "relevant_files": [
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/commands/",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Rich documents are PostgreSQL/EventLedger/CRDT-backed structured block documents, not Markdown vault authority.",
+      "All rich document state must preserve Raw/Derived/Display separation and stable entity IDs."
+    ],
+    "expected_behavior": "RichDocumentIdentityModel leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "RichDocumentIdentityModel is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-049",
+      "MT-065",
+      "MT-017"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "Identity validation solid: DB CHECK closed vocab for authority_label + owner_actor_kind, owner-pair all-or-nothing, project_ref/folder_ref reject absolute/drive-letter paths (0280.sql:41-84). owner_actor_kind is self-asserted via header but that exposure is owned by MT-158."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-145 (RichDocumentIdentityModel) requires document IDs, titles, project/folder membership, authority labels, owner actors, and schema versions backed by PostgreSQL/EventLedger authority. The code delivers this via migration 0280 (additive identity columns with fail-closed CHECK constraints), real PostgreSQL storage ops (create/rename/move/set_authority_label/list), API wiring that stamps owner identity from actor context and leaves EventLedger receipts, and real Handshake-managed-PostgreSQL integration tests including a fail-closed negative case.",
+      "findings": [
+        "Migration src/backend/handshake_core/migrations/0280_knowledge_document_identity.sql:34-90 EXTENDS the MT-059 knowledge_rich_documents table with project_ref, folder_ref, authority_label (NOT NULL DEFAULT 'promoted'), owner_actor_kind, owner_actor_id; all additive/safe. Closed-vocab CHECKs on authority_label (draft|promoted|archived, line 45-46) and owner_actor_kind (line 52-55), all-or-nothing owner pair CHECK (line 61-63), and path-rejecting CHECKs on project_ref/folder_ref (no leading '/', no drive-letter, trimmed non-empty, line 70-84). Membership indexes added (line 87-90). Fail-closed identity, matches spec 2.3.13.11 PG/EventLedger authority requirement.",
+        "Storage authority is real PostgreSQL: src/backend/handshake_core/src/storage/knowledge.rs:4882 create_knowledge_rich_document binds the 5 identity columns, validates authority_label vocab (line 4907) and owner all-or-nothing (line 4912) in Rust before insert, generates KRD- ids, and lands revision 1 in append-only history. rename (5322), move (5349), set_authority_label (5373), list with NULL-safe optional project/folder scoping (5400) are all genuine sqlx UPDATE/SELECT against the real table, returning typed rows.",
+        "API layer src/backend/handshake_core/src/api/knowledge_documents.rs wires identity end-to-end: create_document (line 659) routes owner_actor_kind/owner_actor_id from the actor context (ctx.actor, line 671-672), move_document (1464-1500) and the batch SetAuthorityLabel/move ops (1553-1580) call the real storage methods, and saves leave KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipts (header comment line 8, append helper line 424). Module header explicitly states 'EventLedger authority (NO mocks, no SQLite)'.",
+        "Runtime proof is real Handshake-managed PostgreSQL, not a mock: tests/knowledge_pg_support.rs resolves POSTGRES_TEST_URL/DATABASE_URL or falls back to managed_postgres::ManagedPostgres::ensure_running (default port 5544, Handshake_Artifacts/managed_pgdata), creates an isolated schema, runs migrations, and connects a real PostgresDatabase (line 153). tests/knowledge_document_model_tests.rs exercises MT-145 identity: end_to_end (line 82-93) asserts project_ref/folder_ref/authority_label/owner round-trip; identity_validation_fails_closed (line 688-715) asserts a bad authority_label ('published') and a half-owner both return typed StorageError::Validation; import_markdown_then_batch_rename_and_move (596-661) proves rename does not bump version and move updates project/folder with membership listing.",
+        "No placeholders or deferred-live escapes: grep for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow-on'/'pending MT-'/Unavailable across src/backend/handshake_core/src/knowledge_document/ and migration 0280 returned zero hits. Aside (non-blocking, paperwork): packet cites v02.192 spec anchors while current is v02.194; the same section 2.3.13.11 / 7.1.1.8 content exists in v02.194 so alignment holds. The adversarial note that owner_actor_kind is self-asserted via header is explicitly owned by MT-158, out of MT-145 scope."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/migrations/0280_knowledge_document_identity.sql",
+        "src/backend/handshake_core/src/storage/knowledge.rs:1831-1993,4882-4973,5322-5423",
+        "src/backend/handshake_core/src/knowledge_document/mod.rs",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs:1-1580 (identity ops + receipts)",
+        "src/backend/handshake_core/tests/knowledge_document_model_tests.rs:1-100,596-715",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:1-163",
+        "git show --stat b506d832 (backend core) + bf0c62a5 (integration tests)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2725 (2.3.13.11)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md:251 (7.1.1.x)",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        "MT-145.json contract + packet.json boundaries"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

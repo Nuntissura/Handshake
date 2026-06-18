@@ -1,0 +1,273 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-165",
+  "title": "TiptapMonacoIntegration-165-MonacoEmbeddedCodeBlock",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-165.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Embed Monaco in code block nodes for language-aware editing without launching an external editor. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "MonacoEmbeddedCodeBlock leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "MonacoEmbeddedCodeBlock is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "bc476ece",
+    "evidence": [
+      "Built+verified bc476ece: monaco_code_block_node.test.ts 5/5 + MonacoCodeBlockView.test.tsx 2/2 - embedded Monaco code-block node. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T08:20:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H4 stale-closure language in Monaco onDidChangeContent (hash minted against mount-time language after a switch)",
+        "fix": "languageRef feeds the persistent change listener the CURRENT language; all attr writes (Monaco listener, language picker, degraded textarea) mint through makeCodeBlockAttrs",
+        "commit": "92c484be",
+        "tests": [
+          "MonacoCodeBlockView.language.test.tsx: hashes keystrokes against the CURRENT language after a language switch (RED on pre-fix code via stash-run: ts-hash 38e53d7c vs expected json-hash 5f6dfc9b)",
+          "MonacoCodeBlockView.language.test.tsx: hashes keystrokes against the mount language when never switched",
+          "MonacoCodeBlockView.language.test.tsx: language switch alone re-mints the hash for the existing code"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T10:56:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M6 keyboard trap: no keyboard path out of the embedded Monaco editor (WCAG 2.1.2)",
+        "fix": "Escape exits to prose with caret placed after the block: Monaco addCommand keybinding context-guarded for find/suggest/rename popups + identical exit on the degraded textarea; aria-label + data-keyboard-exit document the affordance",
+        "commit": "ddab11ee",
+        "tests": [
+          "RichTextEditor.a11y.test.tsx: exits the embedded code block to the prose document with Escape (degraded path)",
+          "rich_editor_typing.spec.ts: M6/M17 (browser) Escape exits the embedded Monaco editor back to prose typing (13/13 lane green)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T11:20:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M5 setValue destroys Monaco undo/caret/view state + M7 dual undo stacks diverge",
+        "fix": "external reconciles apply via model.pushEditOperations wrapped in saveViewState/restoreViewState; M7 undo-ownership contract documented at the reconcile site (PM owns document-level history, Monaco owns intra-block text history; PM undo flows through the reconcile as a Monaco edit)",
+        "commit": "5c34e798",
+        "tests": [
+          "MonacoCodeBlockView.language.test.tsx: reconciles EXTERNAL code changes via pushEditOperations with view-state preserve, never setValue",
+          "rich_editor_typing.spec.ts: EXT-UNDO smoke (Mod-z reverts typed text in the browser)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T15:05:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "L7 no lazy mount (every block boots Monaco at parse) + L6 disposition",
+        "fix": "IntersectionObserver-gated mount (600px rootMargin; immediate without IO; find-reveal force-mounts and replays); static code preview while unmounted (never blank). L6 deferred with design rationale (attr writes are the persistence bridge).",
+        "commit": "679c8d4a",
+        "tests": [
+          "MonacoCodeBlockView.language.test.tsx: mounts Monaco lazily on viewport intersection, showing a code preview meanwhile",
+          "playwright dependency lane 13/13 green against rebuilt harness (real IO mounts)"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:14:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "monaco_code_block_node.test.ts 5/5 + MonacoCodeBlockView.test.tsx PASS; playwright offline mount PASS (data-monaco-mounted=true)",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Stale-closure language in onDidChangeContent corrupts the round-trip hash after a language switch",
+          "evidence": "MonacoCodeBlockView.tsx:52-95 mounts once and captures `language` from the FIRST render inside the model.onDidChangeContent closure (line 73: codeBlockHash(language, next)). After the operator changes the language picker (updateAttributes language+hash, lines 121-126), every subsequent keystroke recomputes contentHash with the OLD language -> persisted attrs where contentHash != codeBlockHash(attrs.language, attrs.code). The MT-168 integrity invariant is silently broken at the source.",
+          "fix": "Keep a languageRef updated by the language effect (or read the current node attrs at write time) so the hash is always computed from the current language; add a test: mount -> change language -> type -> verifyCodeBlockIntegrity(attrs) === true.",
+          "status": "FIXED",
+          "fixed_commit": "92c484be"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "External reconcile uses model.setValue -> Monaco undo stack, caret, scroll and folds destroyed on every external code change",
+          "evidence": "MonacoCodeBlockView.tsx:99-107 - any externally-driven attrs.code change (prose-side undo/redo of code edits, future collab updates, document reload) runs instance.setValue(code), which resets the model: undo history cleared, cursor to 0:0, view state lost.",
+          "fix": "Replace setValue with model.pushEditOperations(minimal diff) and save/restore editor view state around external updates (the standard Monaco reconcile pattern).",
+          "status": "FIXED",
+          "fixed_commit": "5c34e798"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Keyboard trap: no keyboard path out of the embedded Monaco editor",
+          "evidence": "monaco_code_block_node.ts is an atom node with no addKeyboardShortcuts; MonacoCodeBlockView wires no boundary handling. Once focus is inside Monaco, Tab indents (Monaco), arrows never exit at first/last line, and Escape does nothing -> a keyboard-only user cannot leave the code block (WCAG 2.1.2 No Keyboard Trap).",
+          "fix": "Implement the standard code-block NodeView escape pattern: ArrowDown on last line / ArrowUp on first line moves selection to the adjacent prose block (creating a trailing paragraph if the block is last); Escape selects the node; consider Monaco tabFocusMode toggle.",
+          "status": "FIXED",
+          "fixed_commit": "ddab11ee"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Dual undo stacks (Monaco internal vs ProseMirror attr history) diverge across the boundary",
+          "evidence": "Every Monaco keystroke emits a PM attr-update transaction (updateAttributes, MonacoCodeBlockView.tsx:73) entering StarterKit history; Monaco keeps its own model undo. Prose-side Ctrl+Z undoes an attr step -> effect setValue resets the Monaco stack; Monaco-side Ctrl+Z afterwards mutates code and creates NEW PM steps. Mixed sequences produce surprising states; no test covers cross-boundary undo.",
+          "fix": "Pick one owner: suppress PM history for code-attr transactions (setMeta addToHistory false + explicit commit points) or disable Monaco internal undo and route Ctrl+Z to PM. Document the chosen semantics and test prose-edit -> code-edit -> undo -> undo.",
+          "status": "FIXED",
+          "fixed_commit": "5c34e798"
+        },
+        {
+          "severity": "LOW",
+          "title": "Code text serialized twice in HTML rendering and full code re-pushed through attrs each keystroke",
+          "evidence": "monaco_code_block_node.ts:95-108 renderHTML emits a data-code attribute AND the code text inside <code> (2x payload for copy/export); every keystroke ships the FULL code string through updateAttributes -> editor.getJSON() upstream (O(code length) per keystroke).",
+          "fix": "Drop data-code and parse from <code> textContent (parseAttrsFromElement already falls back to it); consider debouncing attr writes (e.g. 150ms idle) with flush-on-blur/save.",
+          "status": "DEFERRED",
+          "residual": "deliberate design: the <pre data-code>+<code> double serialization is the round-trip safety net for non-NodeView renders, and per-keystroke attr writes ARE the MT-168 single-authority-record persistence bridge; debouncing them risks losing trailing keystrokes on an immediate save. Revisit only with a flush-on-save contract (workbench shell lane MT-245+)."
+        },
+        {
+          "severity": "LOW",
+          "title": "No lazy mount: every code block boots a full Monaco instance at parse time",
+          "evidence": "Each monacoCodeBlock NodeView constructs an IStandaloneCodeEditor immediately; a document with dozens of code blocks mounts dozens of Monaco instances up front (memory + startup cost).",
+          "fix": "Mount Monaco on first interaction or via IntersectionObserver; render the serialized <pre><code> until visible.",
+          "status": "FIXED",
+          "fixed_commit": "679c8d4a"
+        }
+      ],
+      "parity_gaps": [
+        "ED-CODE-INT-006 folding/bracket matching: Monaco defaults active inside the embed but unconfigured/unverified (no test)",
+        "ED-CODE-INT-009 minimap explicitly disabled, sticky scroll/inlay hints unconfigured (accepted as P2)",
+        "Monaco theme hardcoded vs-dark; no app-theme sync (ED-WB-009 adjacency)"
+      ],
+      "missing_tests": [
+        "language change then edit keeps verifyCodeBlockIntegrity true",
+        "external attrs.code update preserves Monaco caret/undo (after pushEditOperations fix)",
+        "keyboard-only enter/exit of the code block (boundary arrows + Escape)",
+        "cross-boundary undo sequence (prose edit -> code edit -> Ctrl+Z x2)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-165 requires embedding a real bundled Monaco editor inside a Tiptap code-block node for language-aware in-document editing without an external editor. The code delivers a real monacoCodeBlock atom node + React NodeView that mounts the lockfile-governed, offline-bundled Monaco (no CDN), is language-aware over the curated registry, bridges code+language+round-trip hash into node attrs, degrades gracefully to an editable textarea, and is proven by both vitest and a real-browser offline Playwright suite. All prior adversarial-review HIGH/MEDIUM findings (H4 stale-closure hash, M5 setValue, M6 keyboard trap, M7 undo) are fixed in current code with backing tests.",
+      "findings": [
+        "app/src/lib/tiptap/monaco_code_block_node.ts:57-157 — real Tiptap atom Node 'monacoCodeBlock' (matching MT-161 inventory): addAttributes for language/code/contentHash, parseHTML/renderHTML round-trip through <pre data-*><code> (priority 100 to outrank StarterKit's generic pre), renderText emits a fenced block for markdown projection, addCommands(insertMonacoCodeBlock/setMonacoCodeBlockLanguage) mint through makeCodeBlockAttrs (MT-168 single-minting-point). No placeholders.",
+        "app/src/components/MonacoCodeBlockView.tsx:192-283 — mounts a REAL bundled Monaco via createConfiguredEditor (the single product entry point), language-aware, writes attrs on every model change reading the CURRENT language via languageRef (H4 fix, lines 77-80,229-237), graceful degrade to an editable textarea on mount failure with a typed dependency-failure report (lines 262-273, never blank/lost). M6 keyboard-trap exit on Escape (lines 89-99,241-245) context-guarded for Monaco popups.",
+        "app/src/lib/monaco/setup.ts:1-67,134-166 — Monaco is the lockfile npm package with Vite-bundled `?worker` chunks (same-origin, offline, CSP-safe); the CDN @monaco-editor/loader is explicitly forbidden and not imported. createConfiguredEditor is the single mount entry point routing worker/failure policy through the typed dependency-failure surface. Satisfies the packet 'no CDN editor workers' forbiddance and MT 'no external network' constraint.",
+        "tests/dependency_policy/rich_editor_typing.spec.ts:160-499 — REAL-browser proof against the BUILT dist-harness over a loopback static server with ALL non-loopback requests aborted and asserted empty (lines 178-195). It mounts real Monaco (data-monaco-mounted=true), types into Monaco, switches language ts->js, independently recomputes the FNV round-trip hash (lines 290-327, H4 browser proof), and proves Escape exits the code island back to prose (lines 483-499, M6/M17). This is the offline/bundled-worker runtime touch of the real Handshake-native implementation, not a mock.",
+        "tests/dependency_policy/offline_editor_load.spec.ts:1-19 — proves Monaco mounts from bundled assets with a REAL TypeScript-worker round-trip while the network is cut and the request ledger is empty, confirming the bundled-worker boot rather than a CDN.",
+        "app/src/components/MonacoCodeBlockView.language.test.tsx + monaco_code_block_node.test.ts — vitest schema/round-trip/integrity coverage: insert mints normalized language + verifyCodeBlockIntegrity hash, ProseMirror JSON load->reload round-trip, language switch keeps the hash, H4 current-language hashing, M5 pushEditOperations-not-setValue with view-state preserve, L7 lazy IntersectionObserver mount with a non-blank preview.",
+        "Aside (non-blocking, paperwork): the MT-165 lifecycle.evidence cites a follow-on `gov(WP-KERNEL-005) MT-165,170,188 V2 (proven on live PG)` commit (ca38ded7) and v02.192 spec anchors; spec/governance pointer drift is expected during repo-governance winddown and is not a code defect. The MT-165 code deliverable itself is a UI/editor surface whose durable persistence is content_json via the rich-doc save API owned by sibling MTs, so no MT-165-local PostgreSQL row is required."
+      ],
+      "evidence_checked": [
+        "git show --stat bc476ece + git log --grep MT-165 (commits bc476ece, ca38ded7)",
+        "app/src/lib/tiptap/monaco_code_block_node.ts (current state)",
+        "app/src/components/MonacoCodeBlockView.tsx (current state)",
+        "app/src/lib/monaco/setup.ts",
+        "app/src/lib/tiptap/monaco_code_block_node.test.ts",
+        "app/src/components/MonacoCodeBlockView.test.tsx",
+        "app/src/components/MonacoCodeBlockView.language.test.tsx",
+        "tests/dependency_policy/rich_editor_typing.spec.ts",
+        "tests/dependency_policy/offline_editor_load.spec.ts (head)",
+        "app/playwright.dependency.config.ts",
+        "MT-165.json contract (scope/acceptance/constraints/red_team/lifecycle.evidence/adversarial_review_v2)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "grep for CDN/sqlite/external-search/deferred-live escapes across app/src monaco surface (no matches)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

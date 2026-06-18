@@ -1,0 +1,199 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-107",
+  "title": "CodeIndexingAndNavigation-107-CodeIndexStalenessDetector",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-107.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Mark code symbols stale when hashes, parser versions, or source spans change. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "CodeIndexStalenessDetector leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "CodeIndexStalenessDetector is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:08:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Caller-supplied live hash = trust boundary: evaluate_staleness compares indexed_content_hash against a current_content_hash that the SERVER does NOT compute - it is passed in by the caller (lens/context-bundle query param, or the editor buffer hash). If a caller passes the INDEXED hash (or any matching value) the verdict is Fresh even when the on-disk file changed. The detector cannot detect staleness the caller lies about; nothing re-reads the source to recompute the hash server-side. The MT proves the comparison logic, not an end-to-end 'the file really changed -> flagged' guarantee.",
+        "Detection is pull-only, never pushed on real edits: there is no wiring that, on a file write/ingestion update, calls mark_knowledge_code_file_stale. The `stale` flag flips TRUE only if some external lifecycle calls it (none shown in the code-index group), and clears to FALSE on re-index (knowledge.rs:5028). So between an edit and the next explicit re-index/lens-query-with-fresh-hash, the index reports Fresh. The 'never serve stale silently' guarantee depends on consumers always supplying a correct live hash - and 5/6 nav routes don't even call the detector (see MT-106).",
+        "The mtime/size race the attack posits does NOT apply (the detector keys on sha256 content hash, not mtime/size) - that is a strength, noted to refute the probe."
+      ],
+      "evasion_probes": [
+        "Verified precedence: MarkedStale > SourceChanged > ParserChanged > Fresh (staleness.rs:76-93). A content change AND a parser change reports source_changed (stronger), correct. Delegate tests cover all four branches incl precedence (source_change_detected_and_precedes_parser_change).",
+        "Tried the 'same size/mtime, changed content' race: not reproducible - hash differs so SourceChanged fires. Refuted.",
+        "Verified upsert_knowledge_code_file CLEARS stale=FALSE on re-index (knowledge.rs:5020,5028) and mark_knowledge_code_file_stale sets TRUE idempotently (knowledge.rs:5090); a file with no code_file row is treated MarkedStale by both consumers (monaco_bridge.rs:104, context_bridge.rs:331) - fail-safe direction.",
+        "No hash-collision concern: sha256 preimage resistance is sufficient for a change detector."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/staleness.rs:76-93 evaluate_staleness",
+        "src/backend/handshake_core/src/storage/knowledge.rs:4998-5104 upsert_knowledge_code_file + mark_knowledge_code_file_stale",
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:91-105 + context_bridge.rs:319-332 staleness wiring",
+        "consumers: only file_lens/context-bundle compute it; symbol nav routes do not (cross-ref MT-106)"
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "reviewer": "Bacon / 019ec472-525b-75e3-a385-abc74d9dd3b5",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "EventLedger JSONB-normalization idempotency blocker fixed; prior medium concerns classified as non-blocking follow-up for readiness.",
+      "evidence": [
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests -- --test-threads=1: PASS, 22 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils knowledge_code_index:: --lib: PASS, 82 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests -- --test-threads=1: PASS, 2 passed",
+        "MT-109 exact prior blocker stress: PASS 25/25 consecutive runs"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-14T08:16:29.280Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "commit": "working-tree",
+      "note": "Closed for READY_FOR_VALIDATION. Prior HARDEN_RECOMMENDED concerns remain recorded in adversarial_code_review and are non-blocking follow-up."
+    },
+    "evidence": [
+      "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
+      "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
+      "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-107 (CodeIndexStalenessDetector) requires marking code files stale when source content hashes or parser versions change, with PostgreSQL/EventLedger authority and validator-readable runtime proof. The implementation delivers a precedence-correct staleness evaluator backed by a real PostgreSQL knowledge_code_files table (migration 0170), wired into real consumers (monaco_bridge/context_bridge) and proven end-to-end against managed PostgreSQL.",
+      "findings": [
+        "staleness.rs:76-93 evaluate_staleness implements correct precedence MarkedStale > SourceChanged > ParserChanged > Fresh; content change takes precedence over parser change with a documented rationale. Pure-logic, no placeholders.",
+        "Durable authority is real PostgreSQL: migration 0170_knowledge_code_files.sql defines the knowledge_code_files table with stale BOOLEAN, indexed_content_hash (sha256 CHECK), parser_version, plus an idx on (workspace_id, stale). Not SQLite, not mock.",
+        "storage/knowledge.rs:6513 upsert_knowledge_code_file writes/clears stale=FALSE on (re)index; :6605 mark_knowledge_code_file_stale sets stale=TRUE idempotently via real sqlx UPDATE returning the row. These satisfy the MT 'mark stale' requirement against managed PG.",
+        "Real consumer wiring: monaco_bridge.rs:96-110 reads the persisted PG row via get_knowledge_code_file_by_source and calls evaluate_staleness, fail-safe to MarkedStale when no row exists (never silently 'fresh'). Matches spec 2.3.13.11 'mark stale, never serve stale silently'.",
+        "Real-PG runtime proof: tests/knowledge_code_index_tests.rs:1249-1303 mt107_staleness_detected_on_content_change registers + indexes a source through the engine (persisting a PG row), asserts Fresh on matching hash and SourceChanged on a changed buffer hash via build_monaco_payload. Uses knowledge_pg() managed-PG harness, SKIPs loudly without PG (no mock-only substitution).",
+        "Spec alignment confirmed: SPEC_CURRENT resolves to v02.194; section 2.3.13.11 (02-system-architecture.md:2694) defines ProjectKnowledgeIndex as a PostgreSQL/EventLedger authority surface, not a markdown vault. Implementation respects this (packet forbids SQLite/markdown-as-authority).",
+        "Aside (non-blocking, paperwork): commit message line-number references in adversarial_code_review (e.g. knowledge.rs:5020/5090) are stale after file growth; the actual functions are at 6513/6605. Detector is pull-only and trusts a caller-supplied live hash, recorded as HARDEN_RECOMMENDED follow-up in lifecycle.adversarial_code_review; the MT acceptance criteria do not require server-side re-hashing, so this is not an MT-107 code defect."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/staleness.rs",
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:80-118",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6513-6619",
+        "src/backend/handshake_core/migrations/0170_knowledge_code_files.sql",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1249-1303,528-551",
+        "git show --stat 5d6490b0 and 79e1a7e4",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694 (2.3.13.11)",
+        "MT-107.json contract",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

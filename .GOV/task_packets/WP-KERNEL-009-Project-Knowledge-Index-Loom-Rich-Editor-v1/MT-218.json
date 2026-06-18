@@ -1,0 +1,194 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-218",
+  "title": "ParallelSwarmStateRecovery-218-ValidatorLaneIsolation",
+  "group": "ParallelSwarmStateRecovery",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-218.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Ensure WP Validator and Integration Validator can inspect evidence without mutating product state. This MT belongs to ParallelSwarmStateRecovery. Make WP-009 safe for local/cloud swarm work, backend navigation, and repeated session recovery.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/api/role_mailbox.rs",
+      "src/backend/handshake_core/src/inspector_read/",
+      "app/src/components/swarm/",
+      "app/src-tauri/src/swarm.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Local and cloud swarm lanes must be observable, attributable, bounded, recoverable, and safe for parallel agents.",
+      "Every MT must leave enough receipts, state markers, and next-step context for session-limit recovery by a no-context model."
+    ],
+    "expected_behavior": "ValidatorLaneIsolation leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ValidatorLaneIsolation is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "8fafc848",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T19:15:26.131Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "8fafc848",
+            "slice": "MT-218 validator and integration-validator lane isolation"
+          }
+        ],
+        "summary": "MT-218 adds explicit IntegrationValidator and InspectEvidence lane semantics, narrows Validator and IntegrationValidator capabilities to read-only evidence inspection plus backend navigation, adds a bounded PostgreSQL-backed inspect_swarm_evidence read path, and gates checkpoint/recovery receipt mutation paths before side effects so validator lanes cannot claim, write mailbox handoffs, create checkpoints, or recover checkpoints."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T19:15:26.131Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests validator_lanes_inspect_swarm_evidence_without_mutating_state -- --nocapture",
+            "result": "RED before implementation: compile failed for missing IntegrationValidator/InspectEvidence/SwarmEvidenceInspectionRequest/inspect_swarm_evidence; RED after adversarial hardening: validator recover_from_checkpoint still succeeded without RecordCheckpoint gate; GREEN after hardening: PASS 1/1"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests -- --nocapture",
+            "result": "PASS; 20/20 parallel swarm state recovery PostgreSQL/EventLedger tests passed"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T19:15:26.131Z",
+        "reviewer": "multi_agent:019ebd29-9e5c-7bb3-9dbe-6e1717d6e47e",
+        "result": "PASS_AFTER_HARDENING",
+        "summary": "Reviewer initially failed the patch because validators could still mutate product state via recover_from_checkpoint and the evidence-count helper did not count recovery receipts/events. Hardened by requiring RecordCheckpoint before checkpoint fetch or recovery receipt writes, adding negative recovery assertions for Validator and IntegrationValidator, and counting joined knowledge_agent_recovery_receipts plus parallel_swarm_recovery ledger rows. Re-review passed; residual semantic note is that RecordCheckpoint is broad but behaviorally sufficient for validator isolation."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T19:15:26.131Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-218 requires WP Validator and Integration Validator swarm lanes to inspect evidence read-only without mutating product state, with PostgreSQL/EventLedger authority. The diff adds a real capability-gated read path (inspect_swarm_evidence) over PostgreSQL, narrows Validator/IntegrationValidator capabilities to InspectEvidence+NavigateBackend, and gates checkpoint/recovery mutation paths; the test proves both lanes can read and are denied every mutation against real PG tables.",
+      "findings": [
+        "state_recovery.rs adds AgentLaneKind::IntegrationValidator and AgentCapability::InspectEvidence; the Validator|IntegrationValidator capability set is narrowed to vec![InspectEvidence, NavigateBackend], removing prior ClaimWorkspace/WriteMailbox/RecordCheckpoint (commit 8fafc848 diff, capabilities() match arm).",
+        "New inspect_swarm_evidence (state_recovery.rs:898+ in diff) is capability-gated via require_capability(InspectEvidence), token-validated, bounded by bounded_inspection_limit (1..=500), and runs SELECT-only queries against real PostgreSQL tables (knowledge_agent_worktree_claims, knowledge_agent_state_recovery_checkpoints, knowledge_agent_recovery_receipts joined on checkpoint, knowledge_parallel_indexing_lease_queue) over PgPool.",
+        "record_checkpoint and recover_from_checkpoint (diff lines ~1121 and ~1204) now both call require_capability(AgentCapability::RecordCheckpoint) before any side effect, closing the adversarial-review gap where validators could recover checkpoints without a gate.",
+        "require_capability (state_recovery.rs ~line 2014, full body read) returns StateRecoveryError::InvalidInput naming the missing capability and lane kind; it is a real runtime gate over lane.capabilities(), not a stub.",
+        "Test validator_lanes_inspect_swarm_evidence_without_mutating_state (parallel_swarm_state_recovery_tests.rs:1052+) seeds claim/lease/checkpoint with a Local lane, then for both Validator and IntegrationValidator asserts InspectEvidence+NavigateBackend present and all 7 mutation capabilities absent, asserts inspect returns the seeded rows, asserts swarm_evidence_counts() (raw SQL COUNTs over the real tables) are unchanged before/after, and asserts claim/mailbox-handoff/checkpoint/recover all fail with InvalidInput naming the missing capability plus zero false ledger receipts.",
+        "Proof is real PostgreSQL, not mock: recovery_store() connects via knowledge_pg() shared managed-PG harness to an isolated schema (PgPoolOptions::connect), PostgresDatabase event ledger; no SQLite, no in-memory store, no implementer-authored mock substitutes for the durable resource. Test SKIPs only when no PG is provisioned (standard harness guard); evidence block records GREEN 20/20 + targeted RED->GREEN history.",
+        "No deferred-live escapes: grep of state_recovery.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to'/'pending MT-'/Unavailable returns nothing on the changed paths.",
+        "Aside (non-blocking, paperwork): contract cites v02.192 anchors while current spec is v02.194; HBR rows are referenced by id only. Per review ground rules this is not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-218.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 8fafc848 (state_recovery.rs + parallel_swarm_state_recovery_tests.rs diffs)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (require_capability body, pool type PgPool, inspect_swarm_evidence)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (recovery_store, assert_invalid_input_contains, validator isolation test, swarm_evidence_counts)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT218",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

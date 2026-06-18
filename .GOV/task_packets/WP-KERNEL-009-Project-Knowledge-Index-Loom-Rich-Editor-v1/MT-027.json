@@ -1,0 +1,161 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-027",
+  "title": "NativeDependencyAndPackaging-027-FrontendWorkerBundling",
+  "group": "NativeDependencyAndPackaging",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-027.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define how Monaco workers, parser workers, and visual-debug assets are served by Handshake without external CDNs or manually launched servers. This MT belongs to NativeDependencyAndPackaging. Make WP-009 native-by-default and fully packaged inside Handshake.",
+    "relevant_files": [
+      "app/package.json",
+      "app/package-lock.json",
+      "src/backend/handshake_core/Cargo.toml",
+      "app/src-tauri/Cargo.toml",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "No proof may require manually launched external services or tools except explicitly allowed model/GGUF/tensor/CUI-portable surfaces.",
+      "Bundled frontend/editor libraries must be lockfile-governed, license-reviewed, and callable through Handshake UI/runtime surfaces."
+    ],
+    "expected_behavior": "FrontendWorkerBundling leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "FrontendWorkerBundling is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "CX-503S",
+      "CX-503P"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-017"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "implementation_commit": "77284b0a",
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 77284b0a; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "check-worker-bundling runs the REAL pnpm build + build:harness and scans the actual dist trees (not synthetic fixtures): app/dist (files scanned), app/dist-harness (5 monaco worker chunks, MonacoEnvironment marker detected). Zero external worker refs, zero unexempted CDN hits. This is genuine built-artifact evidence, NOT tautological.",
+        "The Excalidraw esm.sh exception is LOAD-BEARING in the shipped MAIN app: app/dist shows cdn_exceptions_applied:1 (exactly 1 esm.sh occurrence near ASSETS_FALLBACK_URL). The fallback string ships in the production bundle (dormant - fonts bundled as .woff2).",
+        "WEAKNESS: the 400-char proximity window is SYMMETRIC (+-400) and suppresses ANY esm.sh within it. An attacker who could influence the bundle near the ASSETS_FALLBACK_URL marker could hide a SECOND, live esm.sh reference within 400 chars and it would be silently exempted. The window is keyed to a string marker, not to the specific Excalidraw fallback occurrence."
+      ],
+      "evasion_probes": [
+        "PROBE C (confirmed exploit): content with ASSETS_FALLBACK_URL + esm.sh/a, then 200 filler chars, then import('https://esm.sh/EVIL') -> partitionCdnHits returns violations:0 exempted:2. BOTH esm.sh refs suppressed because EVIL is within 400 chars of the marker.",
+        "PROBE C2 (control): same with 500 filler chars -> violations:1 exempted:1 (EVIL beyond 400 correctly flagged). Confirms the hole is exactly the proximity radius.",
+        "Real bundle has only 1 esm.sh occurrence today, so the exception is correct in the current build; the weakness is latent."
+      ],
+      "evidence_checked": [
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. worker-bundling pass, built:true, app/dist cdn_exceptions_applied:1, dist-harness 5 worker chunks.",
+        "grep: exactly 1 'esm.sh' in app/dist (index-*.js) adjacent to ASSETS_FALLBACK_URL.",
+        "vitest 56/56 green across app/src/lib/dependency_policy/*, DependencyFailureBanner.test.tsx, worker_map.test.ts, extension_set.test.ts. frontend_worker_bundling.test.ts both-ways exception fixture."
+      ],
+      "parent_recorded_verdict": "HARDEN_RECOMMENDED",
+      "hardening_dispatched": true
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit 77284b0a on feat/WP-KERNEL-009; adversarial code review verdict HARDEN_RECOMMENDED -> remediated in commit 0bfcceb2, exploits independently re-run by reviewer and confirmed CLOSED; runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

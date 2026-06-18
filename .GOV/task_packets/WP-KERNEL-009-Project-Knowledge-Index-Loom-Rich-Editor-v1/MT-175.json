@@ -1,0 +1,191 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-175",
+  "title": "TiptapMonacoIntegration-175-EditorNoExternalAppProof",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-175.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Prove the editor, code blocks, workers, and tests run from Handshake build/runtime without external editor/server prerequisites. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "EditorNoExternalAppProof leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "EditorNoExternalAppProof is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "6b84266e",
+    "evidence": [
+      "Built+verified 6b84266e: pnpm run build:harness + check-worker-bundling.mjs clean - no external app, deps bundled/lockfile-governed only. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "HARDENED_OK",
+      "suites_observed": "RERUN 2026-06-12: playwright dependency lane 2/2 PASS (offline_editor_load + rich_editor_roundtrip), zero external requests recorded, worker chunks loopback-only; check-worker-bundling green per recorded evidence",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Kill-switch scope: WebSockets and service-worker fetches are outside page.route interception",
+          "evidence": "tests/dependency_policy/rich_editor_roundtrip.spec.ts:120-129 routes request interception only; a regression introducing a ws:// or service-worker-mediated fetch would not land in the external-request ledger. No current dependency opens such channels.",
+          "fix": "Add context websocket/serviceworker listeners to the ledger and assert empty."
+        },
+        {
+          "severity": "LOW",
+          "title": "Proof covers the harness build, not the Tauri-packaged app",
+          "evidence": "The offline proof serves dist-harness over loopback http; the Tauri packaging path (asset protocol) is exercised elsewhere but not under the network kill-switch.",
+          "fix": "When a packaged-app smoke lane exists, repeat the zero-external assertion against the tauri:// asset serving."
+        }
+      ],
+      "parity_gaps": [
+        "ED-RUN-001 no-external-app: PRESENT (verified live this review)"
+      ],
+      "missing_tests": [
+        "zero-external assertion including websocket channels",
+        "packaged (Tauri) offline boot equivalence"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-175 requires proof that the integrated Tiptap+Monaco rich editor, code blocks, and workers run from the Handshake build/runtime with no external editor, server, or CDN prerequisite. The implementation delivers a real product harness that mounts the genuine integrated RichTextEditor with a real embedded Monaco code block and locally-bundled (?worker) Monaco workers, and an offline Playwright spec over the BUILT dist-harness proves boot + round-trip with a network kill-switch yielding zero external requests. This is real, runtime-proven, spec-aligned code.",
+      "findings": [
+        "Commit 6b84266e adds app/src/harness/rich_editor_harness.tsx (real harness mounting the integrated RichTextEditor with an embedded Monaco code block + typed hsLink wikilinks from lockfile-governed packages), app/harness/rich-editor.html, and a second build entry in app/vite.harness.config.ts:34 — no external editor app, no server, no CDN.",
+        "Monaco integration is real, not mocked: app/src/components/MonacoCodeBlockView.tsx:24/372-433 hosts a true Monaco editor; app/src/lib/monaco/setup.ts:134-152 createConfiguredEditor calls monaco.editor.create, and setup.ts:79-87 installs MonacoEnvironment.getWorker returning LOCALLY bundled Vite ?worker chunks (setup.ts:14-38) — the CDN @monaco-editor/loader is explicitly forbidden.",
+        "Runtime proof is real and offline: tests/dependency_policy/rich_editor_roundtrip.spec.ts:45-67 serves the BUILT app/dist-harness over 127.0.0.1 only; lines 123-132 install a page.route network kill-switch that aborts and records any non-loopback URL; lines 137-151 assert the editor + Monaco DOM (.monaco-editor) actually mount with data-monaco-mounted=true; lines 192-199 assert worker chunks were fetched loopback-only AND externalRequests===[] (the MT-175 guarantee).",
+        "tests/dependency_policy/global_setup.ts:33-64 builds the harness from the real source tree + lockfile before specs run (no dev server, no mocks); app/scripts/check-worker-bundling.mjs content-scans the BUILT dist for any external/CDN worker origin and emits a clean JSON summary per the recorded evidence.",
+        "Spec-Realism: no placeholder/escape/stub/mock hits on any MT-175-touched surface (grep clean); the durable-storage path is correctly out of scope for this offline 'no-external-app' MT and is explicitly delegated to the RichDocumentView vitest backend suite — not a deferred-live escape.",
+        "Aside (non-blocking, expected): packet cites v02.192 anchors while current is v02.194; the same anchors (7.1.1.8 Rich Editor Lock, locking Tiptap/Monaco; 2.3.13.11 RichDocument authority) exist in master-spec-v02.194 and the implementation aligns with them. The adversarial_review_v2 LOW notes (websocket/service-worker not in the kill-switch ledger; harness build vs Tauri-packaged path) are real but minor hardening ideas, not failures — no current dependency opens those channels.",
+        "dist-harness is correctly a gitignored build artifact (git ls-files returns nothing under app/dist-harness), so no build output is committed."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-175.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "git show --stat/show 6b84266e (feat/WP-KERNEL-009)",
+        "wtc-kernel-009/app/src/harness/rich_editor_harness.tsx",
+        "wtc-kernel-009/app/harness/rich-editor.html",
+        "wtc-kernel-009/app/vite.harness.config.ts",
+        "wtc-kernel-009/tests/dependency_policy/rich_editor_roundtrip.spec.ts",
+        "wtc-kernel-009/tests/dependency_policy/global_setup.ts",
+        "wtc-kernel-009/app/src/components/MonacoCodeBlockView.tsx",
+        "wtc-kernel-009/app/src/lib/monaco/setup.ts",
+        "wtc-kernel-009/app/src/lib/monaco/worker_bundling.ts",
+        "wtc-kernel-009/app/scripts/check-worker-bundling.mjs (header)",
+        "wtc-kernel-009/app/playwright.dependency.config.ts",
+        "wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (7.1.1.8)",
+        "wp_validator protocol Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

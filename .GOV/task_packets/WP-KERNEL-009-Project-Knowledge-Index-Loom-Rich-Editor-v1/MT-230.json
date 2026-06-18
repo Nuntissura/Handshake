@@ -1,0 +1,220 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-230",
+  "title": "SecurityPortabilityValidation-230-PartialPdfExtractionFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-230.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify weak/missing PDF text layers produce extraction receipts and repair queue entries. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "PartialPdfExtractionFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "PartialPdfExtractionFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "183300fe",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "183300fe",
+            "slice": "MT-230 weak PDF extraction receipts"
+          }
+        ],
+        "summary": "MT-230 distinguishes visible sub-minimum PDF text layers from missing text operators during partial extraction and proves the weak-page failure reason propagates through real PostgreSQL receipt rows, repair queue rows, and EventLedger receipt events. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real negative fixture/runtime proof; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable -- --nocapture",
+            "result": "PASS; MT-230 real-Postgres weak PDF fixture produced partial NO_TEXT_LAYER receipt, durable repair queue row, durable receipt row, and EventLedger row with aggregate/source/payload identity assertions"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt087_mixed_pdf_extracts_partially_with_explicit_page_failures -- --nocapture",
+            "result": "PASS; existing mixed PDF partial extraction regression still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt086_image_only_pdf_yields_typed_no_text_layer_and_repair_entry -- --nocapture",
+            "result": "PASS; image-only missing text-layer repair path still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests mt086_mt087_pdf_text_layer_extracts_page_spans -- --nocapture",
+            "result": "PASS; successful PDF page-span extraction still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib tiny_text_below_minimum_is_not_a_text_layer -- --nocapture",
+            "result": "PASS; weak/tiny text-layer classifier unit test still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib mixed_pdf_extracts_partially_with_explicit_page_failures -- --nocapture",
+            "result": "PASS; lower-level mixed PDF extraction producer still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_ingestion_pipeline_tests --no-run",
+            "result": "PASS; full knowledge_ingestion_pipeline_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/knowledge_ingestion/pdf.rs src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_ingestion/pdf.rs src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "post-commit hook cargo check on handshake_core manifest",
+            "result": "PASS; mechanical review request helper did not send because it could not locate the official packet for WP-KERNEL-009"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T04:34:01.875Z",
+        "reviewer": "multi_agent:019ebf39-ffd9-7dc1-9135-bf83ae7142b2",
+        "result": "PASS",
+        "summary": "Reviewer assigned HIGH risk and attacked weak-vs-missing classification, PDF extraction to ingestion boundary, durable receipt rows, durable repair queue rows, EventLedger identity/payload binding, no SQLite/mock/Docker/external-runtime escape, and image-only/mixed/successful PDF regressions. Their non-blocking EventLedger assertion hardening was added and re-reviewed PASS."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T04:34:01.875Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-230 requires weak/missing PDF text layers to produce extraction receipts and repair-queue entries with real PostgreSQL/EventLedger authority, specifically distinguishing a visible sub-minimum text layer from a missing-text-operators page. The diff adds a genuine classification branch in pdf.rs and proves the weak-page reason propagates through real Postgres receipt rows, repair queue rows, and EventLedger events. The code implements the required behavior, aligns with the current Master Spec, and is backed by real (non-mock) PostgreSQL proof.",
+      "findings": [
+        "pdf.rs:393-398 adds a real classification branch: when analysis.has_text_operators is true but analysis.extracted_chars < MIN_TEXT_LAYER_CHARS (=3 at pdf.rs:114), the page-failure reason is now 'weak_text_layer_below_minimum (extracted_chars=N, minimum_required=3)' instead of the prior incorrect 'page has no text operators' else-branch. This is genuine logic, consistent with has_text_layer() at pdf.rs:52-54 which gates on the same threshold.",
+        "Test mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable (knowledge_ingestion_pipeline_tests.rs ~333-480) builds a real 2-page lopdf PDF via pdf_fixtures::build_pdf (page1 readable anchor, page2 single char 'a') and drives the real IngestionEngine.ingest_file_bytes; it asserts the weak reason contains 'weak_text_layer_below_minimum' and is NOT reported as missing operators.",
+        "Proof touches REAL PostgreSQL, not mocks: env.pg.raw_connection() (knowledge_pg_support.rs:81-84 via sqlx::PgConnection::connect to an isolated migrated schema; support header explicitly states 'no SQLite, in-memory, or mock fallback'). Asserts durable rows in knowledge_ingestion_repair_queue (state=queued, reason_class=NO_TEXT_LAYER, receipt_id binding), knowledge_ingestion_receipts (status=partial, error_class=NO_TEXT_LAYER, persisted error_detail), and kernel_event_ledger (actor_id/session_run_id/correlation_id/aggregate_type=knowledge_ingestion_receipt/aggregate_id/source_component/payload identity).",
+        "Fixtures (pdf.rs:425-494) build genuine PDFs through lopdf (the same lib the detector parses), so the weak-layer fixture exercises real PDF structure, not an opaque mock binary.",
+        "Sub-rule 1: grep of pdf.rs + test for todo!/unimplemented!/unreachable!/pending MT-/Live*Unavailable/stub/placeholder returned zero hits on the proof path.",
+        "Boundary/scope clean: diff touches only src/backend/handshake_core/src/knowledge_ingestion/pdf.rs and src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (both in allowed_paths); no /.GOV/ files; no forbidden tech (no sqlite/elasticsearch/docker) in diff.",
+        "Non-blocking aside: the mt230 test early-returns ('SKIP ... no PostgreSQL') when POSTGRES_TEST_URL/DATABASE_URL is unset, so the real-PG proof is conditional on PG availability — standard for this harness, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-230.json",
+        "git commit 183300fe (feat: MT-230 harden weak PDF receipts) full diff + --stat",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/pdf.rs (lines 38-114, 230-420, 425-494)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (lines 1-120, MT-230 test block)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs + knowledge_pg_support.rs (real-PG connection harness)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (PostgreSQL/EventLedger authority, Pillar 4 real-PG testing CX-DBP-013, OCR mechanical tools)",
+        "packet.json spec_anchors + MT-086/087 finding #6 (per-page min extracted_chars / Tr3 invisible-text)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT230",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

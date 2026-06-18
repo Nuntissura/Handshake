@@ -1,0 +1,203 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-162",
+  "title": "TiptapMonacoIntegration-162-TiptapSchemaVersioning",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-162.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define schema version migrations and compatibility handling for persisted Tiptap/ProseMirror JSON. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "TiptapSchemaVersioning leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "TiptapSchemaVersioning is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "5f1b0939",
+    "evidence": [
+      "Built+verified 5f1b0939: schema_versioning.test.ts 5/5 - assertEditorSchema pass-through/migrate/refuse-newer/typed-unknown wired into RichDocumentView load. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T07:45:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H2 schema fail-open (newer/unknown-schema docs editable + saveable; one save persists the ProseMirror-stripped doc)",
+        "fix": "RichDocumentView fail-closed: schemaBlocked state -> editor mounted READ-ONLY (data-schema-blocked), Save disabled, onSave refuses with typed schemaSaveBlockedError; schemaMismatchError hint states the read-only/save-blocked contract",
+        "commit": "6e48aa6b",
+        "tests": [
+          "RichDocumentView.test.tsx: fails CLOSED on a newer-schema document: read-only editor, save blocked, typed banner (incl. destructive-save negative: forced edit + Save click never reaches saveRichDocument)",
+          "backend_error.test.ts: builds a typed save-blocked error for schema-blocked documents"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:10:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "schema_versioning.test.ts 5/5 PASS in current tree (within vitest 62/468)",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Fail-open on schema mismatch: newer/unknown-schema documents stay editable and saveable -> silent data loss",
+          "evidence": "RichDocumentView.tsx:74-79 - when assertEditorSchema returns ok:false the view STILL setEditorContent(response.document.content_json) and leaves the editor editable with Save enabled. schema_versioning.ts:54-57 states a non-ok result \"must be surfaced (MT-174) rather than loaded\". ProseMirror (enableContentCheck default false) silently DROPS unknown node types on parse, so one Save persists a stripped document over the newer-schema head (versions table keeps history, head is degraded).",
+          "fix": "On ok:false: keep the typed banner, render read-only (editable:false) or a raw-JSON preview, and hard-disable Save until reload under a compatible editor. Add a regression test: load newer_than_editor doc -> editor readOnly -> save blocked.",
+          "status": "FIXED",
+          "fixed_commit": "6e48aa6b"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Migrated content is never persisted until a manual edit; migration ladder unexercised end-to-end",
+          "evidence": "RichDocumentView.tsx:74-75 loads assertion.content for compatibility \"migrated\" but isDirty stays false, so the migrated JSON + new schema_version are not saved; every load re-migrates. SCHEMA_MIGRATIONS is empty (schema_versioning.ts:46) and no integration test covers migrate->save->reload stamping.",
+          "fix": "After a successful migration either mark dirty with an explicit \"migrated - save to upgrade\" notice or auto-save a migration version; add an end-to-end test with a synthetic v0->v1 migration through RichDocumentView.",
+          "status": "DEFERRED",
+          "residual": "auto-persisting migrated content is a WRITE the operator did not request - it needs an explicit auto-migration-save policy decision (and the migration ladder is still empty: no production migration exists). The migration walk itself is unit-proven; H2 fail-closed (6e48aa6b) guarantees a mismatched doc can never be silently overwritten meanwhile. Revisit when the first real schema migration is registered."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CORE-004 schema versioning: module PRESENT, consumer fail-open -> PARTIAL at the surface"
+      ],
+      "missing_tests": [
+        "load newer_than_editor schema -> editor is read-only and save is blocked",
+        "load unknown_version schema -> unknown nodes are NOT silently dropped into a saveable doc",
+        "migrated document -> save stamps current schema_version (end-to-end through RichDocumentView)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-162 requires editor-side schema-version assertion + forward migration + typed compatibility handling for persisted Tiptap/ProseMirror JSON, wired into the load path. The code (app/src/lib/editor/schema_versioning.ts + RichDocumentView wiring) implements all four cases, aligns with Master Spec 7.1.1.8 (\"deterministic save/load/round-trip ... across schema migration\"), and the prior adversarial HIGH fail-open data-loss finding is genuinely fixed (fail-closed read-only + save-blocked) with a real destructive-save negative test.",
+      "findings": [
+        "schema_versioning.ts:105-170 — assertEditorSchema implements all four compatibility outcomes: current pass-through (110-119), forward-migration walk with a cycle guard (122-144), newer-than-editor typed refusal via versionRank comparison without down-conversion (147-159), and typed unknown_version mismatch (161-169). Pure, deterministic, no network — matches the MT's required behavior.",
+        "RichDocumentView.tsx:464-496 — the guard is wired into the REAL load path: reload() runs assertEditorSchema over response.document.schema_version + content_json from the live /knowledge/documents backend. Not isolated/dead code. ok:true sets editor content; ok:false sets schemaBlocked + typed schemaMismatchError banner.",
+        "Prior adversarial HIGH (fail-open: newer/unknown-schema docs stayed editable+saveable -> ProseMirror silently drops unknown nodes -> one save overwrites authority) is genuinely FIXED in commit 6e48aa6b: editor mounts read-only (RichDocumentView.tsx:914 readOnly={schemaBlocked!==null}), Save disabled (880), and onSave refuses any path with typed schemaSaveBlockedError defense-in-depth (598-609).",
+        "RichDocumentView.test.tsx:1002-1044 — destructive-save negative test: load rich_document_v999 -> data-schema-blocked=true, editor data-readonly=true, schema-kind banner, and forced edit + Save click asserts saveRichDocument call count is unchanged (the stripped doc can never reach the backend authority).",
+        "schema_versioning.ts:46 SCHEMA_MIGRATIONS is empty, which is CORRECT (rich_document_v1 is the first schema; no production migration exists yet). The forward-migration walk is not a placeholder escape — it is exercised end-to-end by a synthetic v0->current chain (schema_versioning.test.ts:52-82) proving the mechanics before a real migration ships. No todo!/unimplemented/pending-MT/*Unavailable escape reachable from the load path.",
+        "backend RichDocument.schema_version is real and backend-stamped (src/backend/handshake_core/src/api/knowledge_documents.rs); the editor module is pure client reconciliation over that real field — PostgreSQL/EventLedger authority unchanged, consistent with the MT constraint that the backend stays canonical.",
+        "Aside (non-blocking): the adversarial MEDIUM 'migrated content never auto-persisted' is honestly DEFERRED — auto-saving a migration is an unrequested write and the empty ladder means no production migration is unexercised; fail-closed guard prevents any silent overwrite meanwhile. Not a defect.",
+        "Aside (paperwork, non-blocking per ground rules): packet cites v02.192 spec anchors while current is v02.194; same section numbers resolve and 7.1.1.8 carries the schema-migration requirement in both."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-162.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/schema_versioning.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/schema_versioning.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.test.tsx",
+        "git show --stat 5f1b0939 / 6e48aa6b in wtc-kernel-009",
+        "app/src/lib/tiptap/extension_set.ts (WP009_RICH_DOCUMENT_SCHEMA_VERSION=rich_document_v1)",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (schema_version stamping)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md#7.1.1.8"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

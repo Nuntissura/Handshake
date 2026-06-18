@@ -1,0 +1,192 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-198",
+  "title": "UserManualAndNoContextOps-198-UserManualFailureRecoveryPages",
+  "group": "UserManualAndNoContextOps",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-198.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Document common failures, diagnostics, recovery steps, repair queues, stale state, and missing Postgres behavior. This MT belongs to UserManualAndNoContextOps. Make UserManual a built-in product surface that enables no-context model and future user operation.",
+    "relevant_files": [
+      "app/MODEL_MANUAL.md",
+      "app/src-tauri/src/manual.rs",
+      "src/backend/handshake_core/src/model_manual/",
+      "src/backend/handshake_core/src/kernel/model_manual.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/tests/model_manual_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "The canonical stuck-together product term is UserManual; legacy ModelManual, Model Manual, and model_manual may remain only as declared deprecated shims with migration tests.",
+      "UserManual updates are build deliverables for every touched feature/tool/primitive/surface, not optional docs."
+    ],
+    "expected_behavior": "UserManualFailureRecoveryPages leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "UserManualFailureRecoveryPages is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-MAN-001",
+      "HBR-MAN-002",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-193"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_for_validation_at_utc": "2026-06-14T18:22:30Z",
+    "ready_for_validation_reason": "UserManual failure recovery pages refreshed for non-page freshness drift; targeted and full UserManual proof suites pass against real PostgreSQL; adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "implementation",
+        "summary": "Seeded UserManual recovery wording now documents freshness resync for changed pages, tool entries, feature entries, and legacy aliases; stale 'only changed pages' wording removed from the seeded recovery surface.",
+        "files_changed": [
+          "src/backend/handshake_core/src/user_manual/seed.rs",
+          "src/backend/handshake_core/tests/user_manual_content_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "test_proof",
+        "summary": "Targeted freshness-doc regression plus full UserManual content/API/storage suites passed against real PostgreSQL; cargo check passed with preexisting warnings only.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt204-freshness-docs-verdicts.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-storage-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:21:27.611Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-198@2026-06-14T18:21:27.611Z"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:22:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Hubble adversarial review returned PASS; no blocking findings, with one non-blocking future hardening idea to count read receipts on the missing-link path.",
+        "evidence_refs": [
+          "subagent:019ec752-383a-7bc3-aee6-26749c59fef6"
+        ]
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-198 requires the UserManual to document common failure modes, diagnostics, recovery steps, repair queues, stale state, and missing-Postgres behavior as a built-in no-context product surface. The code seeds three real PostgreSQL-backed manual pages with accurate, route-anchored content, and a test proves the documented error vocabulary matches live runtime behavior against a real managed PostgreSQL cluster.",
+      "findings": [
+        "seed.rs:1014-1119 defines page_failure_modes_and_recovery, page_repair_queues_and_staleness, and page_missing_postgres_behavior with concrete accurate content: typed error-envelope vocabulary per surface (documents/ingestion/code-nav/retrieval/memory/loom/crdt/usermanual), the four failure families, a recovery map keyed to real repair routes, repair-queue listing routes, and a correct fail-closed missing-Postgres section (no SQLite/mock fallback, managed cluster 127.0.0.1:5544, never delete managed_pgdata).",
+        "seed.rs:182-184 registers all three failure-recovery pages into the seed corpus, so they are seeded into PostgreSQL and not orphaned functions.",
+        "Real durable authority: migrations/0310_user_manual.sql creates user_manual_pages tables; tests/user_manual_support.rs connects a real PostgresDatabase + PgPool to an isolated schema with the full migration chain and serves the actual Axum routers; the skip_if_no_pg! macro PANICS rather than skipping when PG is absent (spec-realism compliant).",
+        "content_tests.rs:164 mt198_documented_failure_modes_match_runtime loads the seeded failure page from PostgreSQL, then drives live endpoints (code-nav 400 bad_request, cloud_model save 403 forbidden) and asserts the manual's documented error codes match what the runtime actually returns - documentation proven against the real native runtime, not a self-authored mock.",
+        "Prior v1 freshness-wording concern is fixed and regression-guarded: content_tests.rs:662-669 asserts the recovery guidance says resync covers 'changed pages, tool entries, feature entries, and legacy aliases' and forbids the stale 'only changed pages are written' wording; seed.rs:1000-1007 carries the corrected text.",
+        "Green evidence logs exist and show real runs: green-user-manual-content-after-review-fix.log (12 passed incl. mt198), green-user-manual-storage-after-review-fix.log (11 passed incl. migration_0310_creates_user_manual_tables), green-mt204-freshness-docs-verdicts.log (1 passed). No deferred-live escapes or placeholders in seed.rs (grep for todo!/unimplemented!/pending MT-/stub returned zero).",
+        "Spec alignment confirmed: master-spec-v02.194 module 10 sections 10.15 and 10.15.8 mandate the no-context UserManual surface covering purpose/workflows/startup/commands/IO/navigation/safety/failure-modes/recovery; MT-198 implements exactly the failure-modes/recovery/repair-queue/missing-postgres slice. Spec anchors used in the pages (10.15.8, 2.3.13.11, 12.7) resolve in the current bundle.",
+        "Aside (non-blocking, paperwork): lifecycle.handoff fields and wp_validator_session are null and the adversarial review is a self-run subagent; per ground rules this is not a failing reason and the proof is independently real."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-198.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/user_manual/seed.rs (lines 1-200, 960-1160)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/user_manual_content_tests.rs (lines 164-239, 620-670)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/user_manual_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0310_user_manual.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/user_manual_storage_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/ (green logs: content, storage, mt204-freshness)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (10.15, 10.15.8)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

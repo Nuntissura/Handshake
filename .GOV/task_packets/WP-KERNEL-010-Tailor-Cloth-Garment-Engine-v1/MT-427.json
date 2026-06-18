@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-427",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-427.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-427.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-427.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-427.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-426"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement blend-shape avatar import that stores multiple body-proxy states keyed by morph-target weight and exposes a BlendShapeRefitRequest API (blend_t interpolation) that warm-starts the XPBD solver from the cached prior equilibrium for interactive body-shape exploration",
+    "allowed_paths": [
+      "tailor-solver/src/body/blend_shape.rs",
+      "tailor-solver/src/refit/drape_init.rs",
+      "src/backend/handshake_core/src/tailor/refit.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_avatar_blend_shapes.sql"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "BlendShapeAvatar type stores a Vec<(blend_key: String, weight: f32, body_proxy_id: String)> interpolation table in a JSONB column on tailor_avatars",
+      "BlendShapeRefitRequest (blend_t in [0,1], warm_start: bool) is accepted by POST /api/tailor/refit/blend and dispatched as a sandbox refit run",
+      "When warm_start=true and a prior equilibrium cache exists, the solver initializes particle positions from the cached state and skips the three-pass drape init, completing in <= 50% of a cold-start run time",
+      "When warm_start=true but no cache exists, the engine falls back to three-pass init and logs a warning (not an error)",
+      "Refit validation gate (REFIT_INTERSECTION_FREE, REFIT_SEAM_CLOSURE, UV_VALIDITY, MESH_TOPOLOGY) runs regardless of warm_start",
+      "cargo test blend_shape::test_warm_start_faster_than_cold and blend_shape::test_warm_start_fallback both pass"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::blend_shape::test_interpolate_proxy",
+      "cargo test -p handshake_core tailor::refit::test_blend_shape_warm_start"
+    ],
+    "risk_if_missed": "MD 2026.0 Blend Shape Avatar is a key feature for MetaHuman and character-creator workflows where the operator adjusts sliders continuously. Without warm-start refit, every slider increment requires a full cold drape, making interactive body-shape exploration prohibitively slow."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

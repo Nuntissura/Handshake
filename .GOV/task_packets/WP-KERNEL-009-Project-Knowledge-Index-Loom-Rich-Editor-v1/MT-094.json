@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-094",
+  "title": "SourceIngestionAndEvidence-094-SourceRepairQueue",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-094.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Create backend-visible repair queue for failed extraction, missing assets, denied paths, and stale hashes. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "SourceRepairQueue leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SourceRepairQueue is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "e3e154b4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 e3e154b4; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:42:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "BUDGET BOUNDED, NO INFINITE LOOP: begin_repair_attempt only claims when attempts < max_attempts (default 3); on exhaustion it dead-letters and returns a typed Conflict (no 4th attempt). Terminal states (resolved, dead_letter) refuse further transitions (is_terminal guard + optimistic WHERE state='retrying'/state IN open). Verified by lifecycle mt094 (3 attempts -> dead_letter -> 'terminal' conflict) and resolve path. TERMINAL STAYS TERMINAL: CONFIRMED.",
+        "DEAD-LETTER ROW-GROWTH (the across-pass gap, not refuted by tests): the partial unique index uq_*_repair_open_source covers only state IN (queued, retrying), so it guarantees at most ONE OPEN entry per source — but a DEAD-LETTERED entry is NOT covered. enqueue_repair's UPDATE matches only open states, so once an entry dead-letters, the NEXT ingestion pass over the same still-failing file INSERTs a FRESH queued entry (attempts=0). Across N passes of a permanently-failing-and-dead-lettered file you accumulate N repair rows (1 dead_letter + new queued each cycle). The test mt094_refailing_source...multiplying_rows proves the OPEN-entry dedup (3 passes -> 1 open) but does NOT exercise pass-after-dead-letter, so the growth is real though bounded per pass. HARDENING: on enqueue, if a dead_letter entry exists for the source with the same reason_class, refresh/reopen it under operator control rather than inserting a new row, or require explicit operator reopen.",
+        "MISSING-ASSET handling: a vanished file during retry settles FailedAgain/MISSING_ASSET and requeues (attempts counted) rather than panicking — verified mt094 dlq test. Partial retry RESOLVES (residual loss documented) to avoid looping forever on identical content — sensible.",
+        "is_repairable() correctly EXCLUDES SecretBlocked and UnsupportedFormat, so a blocked secret file and an unsupported binary never enter the retry queue (verified fixture mt096: secret + blob NOT queued)."
+      ],
+      "evasion_probes": [
+        "attempts exhaust -> dead_letter -> typed 'terminal' conflict, never a 4th attempt CONFIRMED.",
+        "resolved/dead_letter entries refuse retry (terminal) CONFIRMED.",
+        "3 passes over a perma-failing file -> exactly 1 OPEN entry (UPDATE-in-place) CONFIRMED.",
+        "missing asset on retry -> requeue + MISSING_ASSET reason, no panic CONFIRMED.",
+        "resolved entry must name resolved_receipt_id (DB chk_*_resolved_shape) CONFIRMED.",
+        "PASS-AFTER-DEAD-LETTER -> new queued row inserted (row growth) — NOT covered by any test; flagged above.",
+        "reason vocabulary superset (extraction classes + MISSING_ASSET/DENIED_PATH/STALE_HASH) round-trips CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/repair.rs (full)",
+        "store.rs:415-634 enqueue_repair (UPDATE-open-first then INSERT), begin_repair_attempt (budget guard + dead-letter), settle_repair_attempt, dead_letter_repair",
+        "engine.rs:731-838 retry_repair (missing-asset, partial-resolves, terminal)",
+        "migrations/0164_knowledge_ingestion_repair_queue.sql (partial unique index on open states only; max_attempts>=1; resolved-shape CHECK)",
+        "tests/knowledge_ingestion_lifecycle_tests.rs mt094 resolve/dead-letter/dedupe + fixture mt096 queue population"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-094 requires a backend-visible, durable SourceRepairQueue for failed extraction, missing assets, denied paths, and stale hashes with PostgreSQL/EventLedger authority and real runtime proof. The implementation delivers exactly that: a PG table (migration 0164) with EventLedger FK, typed reason classes, attempt budget, terminal-safe lifecycle, plus engine retry/settle paths, all proven against the real Handshake-managed PostgreSQL cluster.",
+      "findings": [
+        "repair.rs:18-128 — typed RepairState (queued/retrying/resolved/dead_letter, is_terminal/is_open) and RepairReason (MT-085 extraction error vocabulary superset + queue-specific MISSING_ASSET/DENIED_PATH/STALE_HASH); round-trip + terminality unit-tested at repair.rs:146-181. Matches the MT scope 'failed extraction, missing assets, denied paths, stale hashes'.",
+        "migrations/0164_knowledge_ingestion_repair_queue.sql — real PostgreSQL authority table: FKs to workspaces/knowledge_sources/knowledge_ingestion_receipts/kernel_event_ledger (enqueue_event_id), reason_class CHECK, attempt budget (max_attempts>=1 default 3), terminal-safe states, partial unique index uq_*_repair_open_source on (queued,retrying) enforcing one OPEN entry per source, chk_*_resolved_shape forcing resolved entries to name resolved_receipt_id, and schema_registry row authority_class='authority'. No SQLite — spec 2.3.13.11 satisfied.",
+        "store.rs:430-512 enqueue_repair — 3-step UPDATE-open / REOPEN-dead-letter / INSERT; store.rs:567-603 begin_repair_attempt is budget-bounded (WHERE attempts<max_attempts, dead-letters on exhaustion via typed Conflict, never a 4th attempt); store.rs:606-685 settle/dead_letter use optimistic WHERE state='retrying'/open guards so terminal stays terminal. Real SQL against the pool, no placeholders.",
+        "engine.rs:736-840 retry_repair — claims attempt, re-runs ingest from disk under a request-scoped fs anchor, settles resolved/requeue/dead-letter; vanished file settles MISSING_ASSET without panic (engine.rs:773-793); Success|Partial both resolve to avoid infinite loop on identical content. Complete, no deferred-live escape (grep of repair.rs/store.rs/engine.rs found zero todo!/unimplemented!/*Unavailable/'not yet wired'/'pending MT-').",
+        "Proof is REAL PostgreSQL: tests/knowledge_pg_support.rs connects to POSTGRES_TEST_URL/DATABASE_URL or the product's managed cluster (port 5544, managed_pgdata, no Docker/external daemon), runs the full sqlx::migrate! chain incl 0164/0210/0211 (postgres.rs:4354 run_migrations). MT-094 lifecycle tests (knowledge_ingestion_lifecycle_tests.rs:253-454) drive engine+store on that cluster: failure->queue->fix->retry->resolved->terminal-refuse; missing-asset requeue + budget-exhaust->dead_letter->typed conflict; 3 passes -> exactly 1 OPEN row. Not implementer-authored mocks.",
+        "Adversarial dead-letter row-growth concern is genuinely fixed and proven: store.rs:455-488 reopens the matching dead_letter row (reset to queued, fresh budget) scoped to same source+reason; knowledge_ingestion_hardening_tests.rs:619-714 asserts re-fail-after-dead-letter reopens the SAME repair_id with total rows staying at exactly 1 (no growth). 0211 NOT NULL guard on enqueue_event_id real-PG-proven at hardening_tests.rs:442-452.",
+        "Self-cert: lifecycle.claimed_by=KERNEL_BUILDER-...071323, completed_by=null, status=READY_FOR_VALIDATION — implementer correctly handed off rather than signing COMPLETED. Spec-Realism sub-rule 3 satisfied.",
+        "Aside (non-blocking, paperwork): packet cites v02.192 anchors; section 2.3.13.11 resolves cleanly in current v02.194 — expected during wind-down, not a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "MT-094.json (full contract incl adversarial_code_review + hardening_closed)",
+        "packet.json allowed/forbidden paths (referenced)",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2719 (sec 2.3.13.11)",
+        "git show --stat e3e154b4 + 5876feaf",
+        "src/backend/handshake_core/src/knowledge_ingestion/repair.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/store.rs:400-718 (enqueue/begin/settle/dead_letter/list)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:733-840 (retry_repair)",
+        "src/backend/handshake_core/migrations/0164_knowledge_ingestion_repair_queue.sql",
+        "tests/knowledge_ingestion_lifecycle_tests.rs:249-454 (MT-094 real-PG lifecycle)",
+        "tests/knowledge_ingestion_hardening_tests.rs:392-452, 615-714 (dead-letter reopen + ledger NOT NULL)",
+        "tests/knowledge_pg_support.rs + knowledge_ingestion_support.rs (real managed-PG harness)",
+        "src/storage/postgres.rs:4354 run_migrations (sqlx::migrate!)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

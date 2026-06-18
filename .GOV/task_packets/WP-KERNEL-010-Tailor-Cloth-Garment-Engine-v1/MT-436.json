@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-436",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-436.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-436.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-436.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-436.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-435"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a round-trip Handshake Garment Archive (.hgz) export and import that bundles GarmentSpec, material presets, UV sets, trim definitions, and animation cache into one portable file transferable between Handshake instances",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/garment_archive.rs",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "app/src/components/tailor/GarmentArchiveControls.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "GET /tailor/garments/:id/archive produces a .hgz archive (gzip-compressed tar or zip) containing: garment_spec.json (hsk.tailor.garment_spec@1), materials/ with all referenced MAT- preset JSON rows, uv/ with atlas references resolved to embedded texture data, trims/ with all tailor_trims rows, animation/ with cached frame data if present, and a manifest.json with content hashes and format_version",
+      "POST /tailor/garments/import accepts a .hgz archive and reconstructs a draft garment in the target workspace, re-minting all IDs (GAR-, MAT-, BLK-, etc.) so the import does not collide with existing rows",
+      "An archive exported from workspace A can be imported into workspace B on a different Handshake instance and produces a garment that passes PANEL_CLOSED + SEAM_LENGTH_MATCH + FABRIC_PRESET_VALID validators on the target instance",
+      "tailor_garment_archive_export and tailor_garment_archive_import MCP tools are registered and documented in ModelManual",
+      "TailorGarmentArchiveExported and TailorGarmentArchiveImported KernelEventType variants are emitted and replayable",
+      "A garment archived before a GarmentSpec schema bump loads correctly after forward migration (reuses MT-139 migration logic)",
+      "The archive manifest.json includes format_version, source_workspace_id (anonymised), garment_id, and content_hash per asset for integrity verification on import"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::garment_archive::tests::round_trip_multi_panel",
+      "cargo test -p handshake_core tailor::garment_archive::tests::import_id_remap_no_collision",
+      "cargo test -p handshake_core tailor::garment_archive::tests::forward_migration_compat",
+      "HBR-INT: EventLedger replay reconstructs archive export and import from durable state"
+    ],
+    "risk_if_missed": "Without a portable garment archive, promoted garments cannot be shared between Handshake instances, backed up independently of the database, or handed off to collaborators; MT-317 produces a production export package (mesh + textures for Blender/UE) but not a round-trippable garment source archive that preserves the authoring data for further editing."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

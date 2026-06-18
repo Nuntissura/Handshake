@@ -1,0 +1,206 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-161",
+  "title": "TiptapMonacoIntegration-161-TiptapExtensionInventory",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-161.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Inventory required Tiptap extensions and custom nodes for Handshake rich documents. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "TiptapExtensionInventory leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "TiptapExtensionInventory is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-145",
+      "MT-017"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "feceb392",
+    "evidence": [
+      "Built+verified feceb392: extension_inventory.test.ts 7/7 - typed Tiptap extension inventory. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T12:41:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M1 mention/tag nodes uncreatable from the UI (commands inserted bare @/# text)",
+        "fix": "mention.at / mention.tag commands take an arg-prompted value and insert REAL mention/tagMention nodes (id+label) + trailing space; empty values decline; reachable from palette and the new overflow menu (ED-LINK-002 creation path)",
+        "commit": "2949bc87",
+        "tests": [
+          "editor_commands.test.ts: M1 mention/tag commands create REAL mention and tagMention nodes",
+          "RichTextEditor.test.tsx: overflow menu runs mention.at -> arg prompt -> debug nodeCounts.mention === 1"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:10:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "vitest 62 files/468 tests PASS (2 uncaught jsdom getClientRects errors from RichTextEditor.test.tsx command dispatch); playwright dependency lane 2/2 PASS, zero external requests",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Mention/tag nodes exist in schema but cannot be created from the editor UI",
+          "evidence": "extension_set.ts:127-146 configures Mention/tagMention suggestion with items only - no render UI, so typing @/# shows no popup and never inserts a node; editor_commands.ts:269-281 mention.at/mention.tag merely insertContent(\"@\")/(\"#\") literal text. ED-LINK-002 is marked BUILT in the capability inventory but the surface cannot mint a mention/tagMention node.",
+          "fix": "Configure suggestion.render (popup listbox over a real items source) or add direct insert commands with an arg prompt that insert {type:\"mention\"/\"tagMention\", attrs:{id,label}} nodes.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
+        },
+        {
+          "severity": "LOW",
+          "title": "Inventory advertises primitives with no instantiation-path test",
+          "evidence": "extension_inventory.ts declares every primitive incl. mention/tagMention; extension_inventory.test.ts asserts catalog shape only - no test builds the full editor and creates each primitive through a user-reachable path.",
+          "fix": "Add a per-primitive creation test over buildHandshakeEditorExtensions: for each inventory node, assert at least one command/input-rule/paste-rule can create it."
+        },
+        {
+          "severity": "LOW",
+          "title": "StarterKit v3 marks (underline, strike) in schema but absent from command catalog/toolbar",
+          "evidence": "extension_set.ts uses StarterKit (v3 bundles Underline+Link); editor_commands.ts has no underline/strike/link-mark commands, so schema capabilities are unreachable.",
+          "fix": "Add format.underline/format.strike (and a plain-URL link.set/unset) commands to EDITOR_COMMANDS."
+        }
+      ],
+      "parity_gaps": [
+        "ED-LINK-002 mentions/tags: downgrade BUILT -> PARTIAL (no creation UI)",
+        "Plain external URL hyperlink: schema mark present, no UI to set/unset/open (unowned)"
+      ],
+      "missing_tests": [
+        "creates a mention node through the @ suggestion popup (real editor)",
+        "creates a tagMention node through the # suggestion popup",
+        "every inventory primitive reachable via at least one command/rule"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-161 requires a concrete, restartable, machine-readable inventory of the Tiptap extensions, custom nodes/marks, typed wikilink kinds, and embedded Monaco surfaces the Handshake rich-document editor must ship, with each primitive mapped to its backend block kind and owning MT, rejecting sidecar-paper authority. The committed inventory (extension_inventory.ts) delivers exactly that as a typed product constant and cross-checks itself against the real MT-021 extension_set required-node contract so the two cannot drift; 7 tests pass.",
+      "findings": [
+        "Commit feceb392 adds exactly two files: app/src/lib/editor/extension_inventory.ts (177 lines) and extension_inventory.test.ts (67 lines, 7 tests). Scope is clean: app/ only, no /.GOV/, no src/backend, no artifact dirs.",
+        "The inventory is a real typed constant, not a stub: WP009_EDITOR_PRIMITIVES (extension_inventory.ts:104-133) enumerates 22 concrete primitives (prose, table/task families, mention/tagMention, collaboration, hsLink typed wikilink, monacoCodeBlock, two monaco_surface entries), each with engine/kind/purpose/backendBlockKind/implementedBy. WP009_WIKILINK_KINDS (lines 80-92) enumerates the 11-prefix [[kind:value]] family with backend ref kinds. This satisfies acceptance_criteria 'names exact ... constraints, failure modes' (degradesGracefully flag, WP009_FATAL_PRIMITIVE_NAMES).",
+        "The anti-drift cross-check is non-vacuous: inventoryMissingRequiredNodes() (lines 168-171) filters the real WP009_REQUIRED_NODE_NAMES imported from ../tiptap/extension_set (the MT-021 file, confirmed present at app/src/lib/tiptap/extension_set.ts:76-85 listing table/tableRow/tableHeader/tableCell/taskList/taskItem/mention/tagMention) and the test (extension_inventory.test.ts:27-29) asserts it equals []. All 8 required nodes are present in the inventory, so the check truly couples the inventory to the implemented extension set rather than asserting against a self-authored constant.",
+        "Authority is correctly disclaimed: extension_inventory.ts:11-18 states durable authority is the versioned RichDocument JSON in PostgreSQL/EventLedger loaded/saved via /knowledge/documents, and this file is a typed product constant carrying NO sidecar research-paper authority. This satisfies the MT criterion 'rejects sidecar research-paper authority and outside-runtime proof.' Because this MT claims no durable resource of its own, Spec-Realism sub_rule_2 (real managed-resource touch) is NA for an inventory MT.",
+        "Spec alignment confirmed against CURRENT bundle v02.194: 02-system-architecture.md:2694 (2.3.13.11 Project Knowledge Index and Rich Document Authority), :2707 (RichDocument = versioned ProseMirror/Tiptap JSON authority record), and :1583 (LM-LINK-002 inline @mentions as interactive links) match the inventory's node set, mention nodes, and Postgres/EventLedger authority note.",
+        "No deferred-live escape (sub_rule_1 PASS): grep/read of the impl and test shows no todo!/unimplemented!/'not yet wired'/'deferred to follow-on'/'pending MT-' on any reachable path; the file is pure data + pure functions, fully exercised by the unit tests.",
+        "The MT contract's adversarial_review_v2 MEDIUM finding (mention/tag nodes uncreatable from UI) targets editor_commands.ts / extension_set.ts (downstream MT-163 creation UI), not the MT-161 inventory deliverable, and is marked FIXED in commit 2949bc87. It does not impugn the inventory, whose job is to declare which primitives must ship; the inventory correctly lists mention and tagMention. Aside (non-blocking, expected per winding-down governance): the MT contract evidence references commit 2949bc87 and iteration-3 hardening for sibling MTs, but the MT-161 file itself was untouched after feceb392.",
+        "Aside (non-blocking): MT lifecycle.status is READY_FOR_VALIDATION and the validator_verdict is unset (no prior FAIL_V1 to re-verify), so this is a first-pass per-MT review."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-161.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat feceb392 (wtc-kernel-009): exactly extension_inventory.ts + extension_inventory.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/extension_inventory.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/extension_inventory.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/tiptap/extension_set.ts (lines 54-104: WP009_REQUIRED_NODE_NAMES, WP009_COLLABORATION_EXTENSION_NAME, WP009_RICH_DOCUMENT_SCHEMA_VERSION)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11 + LM-LINK-002)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

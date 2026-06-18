@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-434",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-434.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-434.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-434.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-434.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-433"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement fabric-aware strain map computation that weights the per-vertex strain values by the panel's warp/weft anisotropic compliance, distinguishing directional strain (warp-direction over-stretch vs weft-direction over-stretch) and producing separate warp-strain and weft-strain heatmap channels",
+    "allowed_paths": [
+      "tailor-solver/src/analysis/anisotropic_strain.rs",
+      "tailor-solver/src/analysis/fit_heatmap.rs",
+      "src/backend/handshake_core/src/tailor/refit.rs",
+      "app/src/components/tailor/FitHeatmapOverlay.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AnisotropicStrainMap type stores per-vertex warp_strain and weft_strain f32 arrays in addition to the scalar strain",
+      "compute_anisotropic_strain(mesh, material_frame, stretch_lambdas) decomposes strain along each grain axis using the MaterialFrameParams warp/weft directions",
+      "The heatmap overlay mode accepts warp_strain and weft_strain as additional mode options alongside stress/strain/pressure",
+      "A silk panel (high weft compliance, low warp compliance) produces visibly different warp vs weft strain patterns compared to a denim panel under identical forces",
+      "cargo test anisotropic_strain::test_silk_vs_denim_strain_difference passes: max warp_strain for denim panel >= 2x max warp_strain for silk panel under the same applied force"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver analysis::anisotropic_strain::test_silk_vs_denim_pattern",
+      "cargo test -p tailor-solver analysis::anisotropic_strain::test_warp_weft_strain_decomposition"
+    ],
+    "risk_if_missed": "Isotropic strain maps mislead the pattern maker: a denim panel and a silk panel with the same scalar strain value require completely different pattern corrections because their stiffness is directional. Without anisotropic decomposition, fit correction guidance is systematically wrong for structured fabrics."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

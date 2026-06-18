@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-389",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-389.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-389.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-389.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-389.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-388"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a garment/trim isolate-selection toggle in the Tailor viewport renderer: when active, only the selected garment or trim body is rendered (all others hidden); toggling off restores the full scene; exposed as a stable front-end control for parallel-model interaction and as a capture_view named-camera variant",
+    "allowed_paths": [
+      "tailor-solver/src/render/scene_filter.rs",
+      "src/backend/handshake_core/src/tailor/viewport.rs",
+      "app/src/components/tailor/TailorViewport.tsx",
+      "app/src/components/tailor/ViewportToolbar.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A toggle or named-camera option isolate_selection=true causes the renderer to draw only meshes whose garment_id or trim_id is in the current selection set",
+      "All other garments and trims receive draw_call=false (not removed from scene graph); toggling back restores all draw calls",
+      "The isolate state is reflected in capture_view (MT-264): passing isolate_selection=true in the camera spec isolates the named garment in the headless render",
+      "The isolate control has a stable HTML data-testid so parallel-model sessions can toggle it without screen-scraping",
+      "Isolate does not affect simulation state: all garment particles continue to simulate while isolated (display-only filter)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::viewport::test_isolate_selection_filters_draw_calls",
+      "cargo test -p handshake_core api::tailor::test_capture_view_with_isolate_flag_returns_single_garment_image"
+    ],
+    "risk_if_missed": "Complex scenes with multiple layered garments and many trims become visually unnavigable; models using capture_view to inspect trim placement cannot isolate the target garment from background noise, degrading the autonomous quality loop for multi-garment outfits"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

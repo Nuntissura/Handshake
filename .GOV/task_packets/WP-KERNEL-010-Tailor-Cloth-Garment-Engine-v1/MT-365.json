@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-365",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-365.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-365.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-365.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-365.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-364"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Extend the Glue/Tack placement handler to validate and store multi-point tack arrays, enforce per-tack r_local derivation from tack_anchor_json defaults when tack positions are unspecified, and expose the multi-anchor authoring path in the operator UI and MCP tool input schema",
+    "allowed_paths": [
+      "tailor-solver/src/trim/placement.rs",
+      "src/backend/handshake_core/src/tailor/trim_authoring.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "app/src/components/tailor/TrimPlacementGizmo.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "When tack anchor positions are omitted, the handler reads tack_anchor_json from tailor_trims and uses those body-local offsets as the default r_local for each GpuTackConstraint per TR-6.1.5",
+      "Multi-point tack placements (e.g., 4-hole button with 4 tacks) generate exactly N GpuTackConstraint entries where N = length of tacks_json array",
+      "TACK_SEAM_CLOSURE validation check (TR-11.1) correctly evaluates all N tack distances at end of draping",
+      "TailorTrimTackUpdated event is emitted when an existing placement's tacks_json is modified",
+      "The place_trim MCP tool (MT-263) input schema accepts an optional tack_anchors field as a list of panel-local UV positions"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::trim_authoring::test_four_hole_button_generates_four_tack_constraints",
+      "cargo test -p handshake_core tailor::trim_authoring::test_default_anchor_fallback_from_tack_anchor_json",
+      "cargo test -p tailor-solver trim::test_tack_seam_closure_validation_passes_after_drape"
+    ],
+    "risk_if_missed": "Four-hole buttons, rivets, and any trim with multiple attachment points will silently use a single default tack, producing physically incorrect simulation (trim rotates freely instead of being pinned at all holes); TACK_SEAM_CLOSURE check cannot be meaningful with only one constraint per multi-anchor trim"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

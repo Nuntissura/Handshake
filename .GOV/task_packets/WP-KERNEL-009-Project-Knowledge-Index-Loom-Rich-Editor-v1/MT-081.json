@@ -1,0 +1,186 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-081",
+  "title": "SourceIngestionAndEvidence-081-ProjectRootAllowlist",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define allowlist rules for project roots, worktrees, external docs, media folders, and denied machine-local paths. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "ProjectRootAllowlist leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ProjectRootAllowlist is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-049",
+      "MT-033"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "c61465c2",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c61465c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:10:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Default deny patterns (allowlist.rs DEFAULT_DENY_PATTERNS) cover .git/.ssh/secrets/node_modules/target/managed_pgdata but NOT common secret-bearing files like **/.env*, **/*.pem, **/id_rsa, **/.aws/**, **/.npmrc — defense-in-depth gap; relies on the MT-091 file-level secret preflight as the backstop (which is sound but pattern-limited, see MT-091).",
+        "register_root persists the policy DECISION row and EventLedger receipt BEFORE checking is_allowed() and returning PolicyDenied — correct (denials are durable evidence), but the source root row is only created on allow; verified no Ok-path leak."
+      ],
+      "evasion_probes": [
+        "empty allow_patterns -> DeniedNotAllowlisted (fail-closed) CONFIRMED via allowlist.rs test empty_allow_list_fails_closed and code path evaluate().",
+        "deny-wins-over-allow CONFIRMED (deny matches checked first in evaluate()).",
+        "malformed glob -> typed Validation error, never silent-allow CONFIRMED (CompiledRootPolicy::compile).",
+        "operator-gated kinds (ExternalImport/OperatorFolder) always require operator_approved CONFIRMED.",
+        "candidate path normalized via storage::knowledge::normalize_repo_relative_path before evaluation — drive-letter/UNC/traversal rejected upstream (see MT-083)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/allowlist.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:145-229 register_root",
+        "src/backend/handshake_core/src/api/knowledge_ingestion.rs:300-341 register_root handler (403 typed denial w/ decision_id)",
+        "src/backend/handshake_core/migrations/0160_knowledge_ingestion_policies.sql (referenced)",
+        "tests/knowledge_ingestion_policy_tests.rs (referenced)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-081 requires a workspace-level project-root registration allowlist (deny-wins, fail-closed empty allow list, operator-approval gate, secret-aware default deny patterns) with PostgreSQL/EventLedger durable authority for every allow/deny decision. The code implements this fully: a typed compiled glob policy, runtime enforcement in the ingestion engine that persists a durable decision row plus an EventLedger receipt before returning a typed PolicyDenied, and real-PostgreSQL integration tests proving the allow path, typed denial with durable receipt, deny-wins, operator gates, and DB constraints.",
+      "findings": [
+        "allowlist.rs:31-48 DEFAULT_DENY_PATTERNS denies .git/.ssh/secrets/node_modules/target/managed_pgdata AND the hardening item #10 secret-file shapes (**/.env*, **/*.pem, **/id_rsa*, **/.aws/**, **/.npmrc) - the prior adversarial concern (ingestion_hardening #10, commit 5876feaf) is fixed in code.",
+        "allowlist.rs:187-230 evaluate() enforces correct order: deny patterns first (deny-wins), then allow-or-fail-closed (empty allow list -> DeniedNotAllowlisted), then operator approval (policy flag OR operator-gated root kind ExternalImport/OperatorFolder). No placeholders, todo!(), or deferred-live escapes anywhere in the module (grep clean).",
+        "engine.rs:145-229 register_root persists a durable knowledge_ingestion_policy_decisions row AND an EventLedger receipt (append_receipt_event -> kernel_event_ledger) for EVERY evaluation (allow and deny) BEFORE returning a typed IngestionError::PolicyDenied carrying decision_id; allow path creates the source root only after Allowed verdict. This satisfies sub-rule 2 (real Handshake-owned PostgreSQL/EventLedger touch).",
+        "migrations/0160_knowledge_ingestion_policies.sql:26-95 defines knowledge_ingestion_root_policies (single-ACTIVE partial unique index, retained superseded rows) + knowledge_ingestion_policy_decisions with portable-path CHECK, id-format CHECK, and a real FK to kernel_event_ledger(event_id) - durable, replayable authority, not prose.",
+        "tests/knowledge_ingestion_policy_tests.rs:42-343 are real isolated-schema PostgreSQL integration tests: allowed_registration_persists_root_decision_and_ledger_receipt asserts the kernel_event_ledger row payload; unallowlisted_root_is_rejected_with_typed_error_and_durable_receipt asserts typed PolicyDenied + durable FK'd denial decision + receipt; deny_patterns_and_operator_approval_gates_enforce and the DB-constraint probes (partial unique index, id CHECK, portable-path CHECK) all touch the real cluster. Tests skip gracefully when PG absent but packet recovery_snapshot + commit 58b2af10 record them green on the Handshake-managed cluster.",
+        "store.rs:210-258 record_policy_decision / list_policy_decisions are real parameterized SQL against the pool - no mock/in-memory stand-in. Aside (non-blocking, paperwork only): MT-081.json spec_anchors and the migration comment cite bundle v02.192; current bundle is v02.194 - the same section 2.3.13.11 (KnowledgeSource with permission scope/redaction state) exists and supports the allowlist, so this is stale-pointer drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "wtc-kernel-009 git commits c61465c2 (MT-081), 58b2af10 (MT-093 shared runtime+tests), 5876feaf (hardening)",
+        "src/backend/handshake_core/src/knowledge_ingestion/allowlist.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:120-260 register_root + append_receipt_event",
+        "src/backend/handshake_core/src/knowledge_ingestion/store.rs:210-258 record/list_policy_decision",
+        "src/backend/handshake_core/migrations/0160_knowledge_ingestion_policies.sql (full)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_policy_tests.rs (full)",
+        "src/backend/handshake_core/src/api/knowledge_ingestion.rs (register_root handler + PolicyDenied wire)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2701 (2.3.13.11 KnowledgeSource)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

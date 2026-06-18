@@ -1,0 +1,171 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-254",
+  "title": "UnifiedWorkSurface-254-DebugAdapterCore",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-254.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close ED-WB-011 (DEC-007 reverses descope) HONESTLY: a Debug Adapter Protocol (DAP) client core in Handshake (sessions, breakpoints, stack/scopes/variables, step/continue/pause, debug console) + FIRST concrete adapter: Node.js via its built-in inspector protocol (no external adapter binary). Adapter registry is extensible (future: Python debugpy, lldb) - registry entries beyond Node are configuration, NOT stub UI; ship ONLY what runs. UI: breakpoint gutter in Monaco blocks + debug side panel + console.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "NO mock debug sessions: every shipped adapter must drive a real process.",
+      "Breakpoint hit, variable inspection, stepping must be real-runtime proven on a real Node script.",
+      "Adapters not yet implemented must be absent from the UI (no dead dropdown entries)."
+    ],
+    "expected_behavior": "Operator sets a breakpoint in a Node script, launches, hits it, inspects variables, steps, continues - all inside Handshake.",
+    "acceptance_criteria": [
+      "End-to-end Node debug session runtime-proven (launch -> breakpoint hit -> variables -> step -> continue -> exit).",
+      "Breakpoint persistence per doc proven.",
+      "Debug console eval in paused frame proven.",
+      "No non-functional adapter entries visible (negative check).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-252"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "03f76dcf",
+    "evidence": [
+      "commit 03f76dcf on feat/WP-KERNEL-009 (live Node DAP debug session + GUI), zero .GOV",
+      "runtime proof: real node child under --inspect-brk breakpoint test PASS (15.12s, breakpoint verified by CDP, real Stopped/variables/step); durable per-doc breakpoints round-trip on real PG with KE- EventLedger receipts PASS (23.74s, migration 0331); live-session HTTP surface driven via curl (GET /debug/adapters -> node only [honesty gate], POST /debug/sessions -> paused, set breakpoint); offline Playwright PASS (1.2m) with REAL browser + REAL Monaco breakpoint gutter + REAL node debuggee + REAL PG; vitest 8 PASS; tsc + eslint clean",
+      "adversarial review caught a FICTIONAL claim (implement asserted 'driven through IPC kernel_dap_*' but those commands did not exist); harden then built the real IPC layer + DebugSidePanel + live session and proved it end-to-end",
+      "VALIDATION CAVEAT: breakpoint gutter ships in DebugSidePanel's own Monaco editor (operator-usable, runtime-proven); NOT yet wired into in-document MonacoCodeBlockView code blocks inside RichTextEditor (follow-up: thread breakpoint/session state through the Tiptap NodeView)",
+      "registry honesty gate proven: only Node adapter listable; no disabled/python/lldb stub entries"
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-254 requires a real Node.js Debug Adapter (DAP) core inside Handshake — set breakpoint, launch a real node child, hit it, inspect variables, evaluate, step, continue, plus durable per-document breakpoint persistence and a no-dead-adapter honesty gate. Commit 03f76dcf delivers all of this with real CDP/V8-inspector process control, real PostgreSQL+EventLedger breakpoint persistence, and offline Playwright + real-PG runtime proof. The code is genuine, not scaffolding.",
+      "findings": [
+        "node_inspector.rs:161-428 launch_node_session spawns a REAL `node --inspect-brk=127.0.0.1:0` child, discovers the inspector ws url from stderr, holds a persistent websocket, and demultiplexes CDP responses/events — a genuine V8 Inspector client, no mock, no external adapter binary.",
+        "node_inspector.rs:534-823 implements the full DebugAdapter trait against real CDP: setBreakpointByUrl with verified=locations-nonempty (line 567), real Debugger.paused stack/scopes, Runtime.getProperties for real variable values, evaluateOnCallFrame, stepOver/Into/Out, resume, pause, terminate with real exit-code reaping.",
+        "tests/debug_adapter_node_session.rs:40-135 is a real end-to-end runtime proof: launches real node, asserts breakpoint binds (verified==true via CDP), stops at line 2, reads REAL a=2/b=40, evaluates a+b==42, steps to line 3, continues to real exit 0; panics ENVIRONMENT_BLOCKED if node absent (no false green).",
+        "tests/debug_adapter_breakpoint_persistence.rs:32-157 proves durable per-doc breakpoint round-trip on REAL Handshake-managed PostgreSQL; line 37-40 the test fails loudly (no silent skip) when PG is absent, satisfying the DEC-007 real-PG mandate.",
+        "postgres.rs:9199-9286 set_debug_breakpoints runs a real transaction: appends a real kernel event via append_kernel_event_with_executor and persists breakpoints with FK event_ledger_event_id; the KE- receipt id is produced by the ledger, not fabricated — migration 0331 (line 29) enforces the FK so a fake receipt would fail insert.",
+        "migrations/0331_debug_breakpoints.sql creates knowledge_debug_breakpoints with real FKs to knowledge_rich_documents, workspaces, and kernel_event_ledger plus a unique (doc,source_url,line) constraint — durable PostgreSQL authority, no SQLite.",
+        "registry.rs:27-34 listable_adapters() returns ONLY Node (runnable), and api/debug_adapter.rs:151-157 GET /debug/adapters returns exactly that list — the negative honesty-gate check; no python/lldb/disabled stub entries. Playwright spec lines 193-195 assert exactly one adapter option.",
+        "tests/visual/mt254-node-debug-session-real-backend.spec.ts is a genuine offline E2E: starts the real cargo mt254_debug_session_fixture backend, blocks all external network (line 163-178, asserts externalRequests==[] at 282), drives a REAL Monaco breakpoint gutter, hits a REAL node breakpoint, reads real vars, evals 42, steps, continues to exit 0, and PUTs breakpoints proven back from real PG with a KE- receipt (lines 271-279).",
+        "The prior FAIL (adversarial review) was a FICTIONAL 'driven through IPC kernel_dap_*' claim; grep confirms kernel_dap_ no longer exists and the comments were corrected to the real HTTP surface — the prior failure is genuinely fixed.",
+        "Honestly-documented caveat (MT evidence line): the breakpoint gutter ships in DebugSidePanel's own Monaco editor, not yet wired into in-document MonacoCodeBlockView code blocks. This does not contradict the MT acceptance criteria (operator-usable gutter + panel + console + E2E Node debug are all proven); it is a disclosed follow-on, not a deferred-live escape on the required path.",
+        "Aside (non-blocking, paperwork): MT cites spec v02.193/v02.192 anchors while current is v02.194; section numbers resolve identically. Not a failing reason per review ground rules."
+      ],
+      "evidence_checked": [
+        "MT-254.json (contract, acceptance_criteria, constraints, evidence, FAIL_V1 history)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "git show --stat 03f76dcf",
+        "src/backend/handshake_core/src/debug_adapter/node_inspector.rs",
+        "src/backend/handshake_core/src/debug_adapter/registry.rs",
+        "src/backend/handshake_core/src/api/debug_adapter.rs",
+        "src/backend/handshake_core/migrations/0331_debug_breakpoints.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs:9180-9286",
+        "src/backend/handshake_core/src/storage/mod.rs (default guard returns NotImplemented)",
+        "tests/debug_adapter_node_session.rs",
+        "tests/debug_adapter_breakpoint_persistence.rs",
+        "tests/visual/mt254-node-debug-session-real-backend.spec.ts",
+        "grep for deferred-live/mock/stub/sqlite/docker/kernel_dap_ across debug_adapter module",
+        "spec module 06/11 grep for ED-WB-011/DEC-007/debug adapter"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

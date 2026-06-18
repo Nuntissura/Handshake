@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-377",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-377.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-377.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-377.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-377.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-376"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a dedicated UV editor viewport panel in the Tailor front-end showing all island placements in atlas space with per-island selection, zoom/pan, and island highlight synced to the 2D pattern editor selection",
+    "allowed_paths": [
+      "app/src/components/tailor/UvEditorPanel.tsx",
+      "app/src/components/tailor/UvIslandLayer.tsx",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "tailor-solver/src/uv/packing.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A dedicated UV editor panel renders all UvIslandPlacement rows for the active garment in normalized atlas [0,1]^2 space",
+      "Selecting a panel in the 2D pattern editor highlights the corresponding UV island in the UV editor panel and vice versa (bidirectional selection sync)",
+      "The UV editor panel supports zoom and pan independently of the main viewport",
+      "Island outlines are drawn at their exact boundary shape (not only their bounding box rectangle)",
+      "The tailor_uv_inspect MCP tool response includes island boundary polygon vertices so a model can inspect island shapes programmatically",
+      "UV editor panel is visible and usable without an active simulation run (authoring-time packing preview is sufficient)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::uv::editor -- --include-ignored",
+      "cargo test -p handshake_core tailor::mcp::tailor_uv_inspect_includes_boundary_vertices",
+      "HBR-VIS: visual capture of UV editor panel with a 3-panel garment shows 3 distinct non-overlapping island outlines in atlas space"
+    ],
+    "risk_if_missed": "Without a UV editor panel, operators and models cannot inspect or diagnose UV layout defects (overlap, low fill ratio, misaligned grain) on a per-island basis. Texture seam issues will not be caught until downstream DCC import, increasing rework."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

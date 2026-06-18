@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-437",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-437.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-437.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-437.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-437.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-436"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement OBJ + .mtl static mesh importer for avatar, prop, and trim source geometry into tailor_avatars / tailor_body_proxies / tailor_trims authority tables",
+    "allowed_paths": [
+      "tailor-solver/src/mesh.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /tailor/avatars/import with a multipart OBJ + MTL payload inserts a row in tailor_avatars with source_kind='custom_obj' and emits TailorAvatarCreated",
+      "Imported mesh positions are stored in centimetres; if OBJ units are unknown, a unit-hint field in the request body overrides",
+      "MTL material names are stored in tailor_body_proxies mesh_json and forwarded to the trim import path without loss",
+      "OBJ with multiple named groups imports each group as a separate sub-mesh (tagged by group name) suitable for per-region capsule decomposition",
+      "guard_authority_write(AuthorityMode::Postgres) is called before any INSERT on tailor_avatars or tailor_body_proxies",
+      "Round-trip: export the imported avatar as OBJ sequence (MT-251 path) and assert vertex count matches within tolerance"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::avatar::tests::obj_import_roundtrip",
+      "cargo test -p handshake_core tailor::avatar::tests::obj_import_unit_hint",
+      "cargo test -p handshake_core tailor::avatar::tests::obj_import_multi_group"
+    ],
+    "risk_if_missed": "Operators and models cannot bring external body meshes (Daz, CC4, custom scans) into Tailor without a separate out-of-band pipeline step. Every avatar has to enter via the parametric system only, blocking real-world character pipelines."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-260",
+  "title": "UnifiedWorkSurface-260-AILoomJobs",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-260.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close GAP-LM-011: AI Loom jobs - auto-tag, auto-caption, and batch link-suggestion jobs over LoomBlocks using the operator's local/configured models via existing model-runtime surfaces; ALL suggestions land as PENDING proposals (kernel-event-backed) requiring confirm-to-promote (operator or authorized model) before becoming real edges/fields; batch review UI (accept/reject per item + accept-all-of-kind); full receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/",
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "NO auto-promotion: suggestions never silently become authority (negative test).",
+      "Job runs are EventLedger-receipted with model attribution.",
+      "If no model is configured, the job declines loudly (typed error) - no fake suggestions."
+    ],
+    "expected_behavior": "Operator runs auto-tag over an untagged library, reviews proposals, confirms; tags appear as real edges with provenance.",
+    "acceptance_criteria": [
+      "Suggestion -> pending -> confirm -> edge flow real-PG proven end-to-end.",
+      "Reject leaves authority untouched (proven).",
+      "Attribution receipts proven.",
+      "No-model configured -> typed decline (proven).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177",
+      "MT-182"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "bdb688eb",
+    "evidence": [
+      "commit bdb688eb on feat/WP-KERNEL-009 (17 files, +3505, migration 0333_loom_ai_suggestions), zero .GOV",
+      "runtime proof: 8 real-PG tests PASS (344s) — auto-tag/auto-caption/link-suggest jobs land ALL suggestions as PENDING kernel-event-backed proposals; accept promotes to a real loom_edge/derived field + receipt; reject discards leaving authority untouched; no-model declines typed (no fabrication); vitest 5; tsc/eslint clean; offline Playwright 4 PASS (pending->accept promotes; reject removes pending authority untouched)",
+      "confirm-to-promote enforced end-to-end (operator/validator gate; accept-all runs per-item authority, no bulk bypass)",
+      "adversarial review caught 7 blockers incl. a migration-0333 schema-registry prefix-constraint violation that was failing ALL real-PG tests at setup; harden fixed every one; remaining_gaps: none"
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-260 requires AI Loom jobs (auto-tag/auto-caption/link-suggest) that land every model suggestion as a PENDING kernel-event-backed proposal, requiring operator/validator confirm-to-promote before becoming real edges/derived fields, with full attribution receipts, durable denials, a typed no-model decline, and accept-all that preserves per-item authority. The committed code (commit bdb688eb) implements all of this with genuine PostgreSQL+EventLedger storage and 8 executed real-PG tests plus offline Playwright, fully aligned with current Master Spec 2.3.13.11 and LM-TAG-005.",
+      "findings": [
+        "src/backend/handshake_core/src/loom_ai/mod.rs:221-345 run_loom_ai_job calls the real LlmClient::completion trait per block, records each suggestion as a PENDING row + AI_EDIT_PROPOSAL_RECORDED event with model attribution; writes nothing to authority. No test-only branch inside the runner.",
+        "src/backend/handshake_core/src/loom_ai/mod.rs:245-255 + parse_output:167-212: model decline short-circuits whole job with typed LoomAiJobError::NoModel and zero rows; unusable model text yields None (no fabrication). Real fail-closed behavior, not a placeholder escape.",
+        "src/backend/handshake_core/src/loom_ai/promotion.rs:104-109 reviewer_allowed restricts confirm/promote to Operator|Validator; non-operator confirm writes a durable loom_ai_promotion_denied receipt + PROMOTION_REJECTED (deny() 576-640). accept_loom_ai_suggestion:177-324 does decide->atomic PROMOTION_REQUESTED+PROMOTION_ACCEPTED pair->real artifact->mark promoted->knowledge bridge.",
+        "promotion.rs:346-396 accept_all_loom_ai_suggestions lists the canonical PENDING set from PG (list_loom_ai_suggestions) and runs the SAME per-item flow, so a non-operator accept-all promotes nothing — no bulk-authority bypass.",
+        "migrations/0333_loom_ai_suggestions.sql: real table with FK refs to kernel_event_ledger, CHECK constraints enforcing pending/accepted/rejected/promoted lifecycle invariants and link_suggest-target rule, idempotency unique index; widens denial-receipt allow-list with loom_ai_promotion_denied. No SQLite/in-memory.",
+        "src/backend/handshake_core/src/storage/loom_ai.rs:142+ uses genuine sqlx INSERT/UPDATE over PgPool; module doc states no in-memory/SQLite fallback, fails closed with typed StorageError.",
+        "tests/loom_ai_suggestions_api_tests.rs: 8 real-PG tests (postgres_backend_with_pool_from_env) assert pending->accept->real Tag/AiSuggested edge created_by=ai, reject leaves authority untouched, non-operator denial receipt + PROMOTION_REJECTED, no-model zero rows, auto_caption derived field + generated_by provenance, idempotency, and adversarial accept-all per-item authority. Event counts queried directly from kernel_event_ledger.",
+        "InMemoryLlmClient substitute is a pre-existing production-trait impl in src/llm/ollama.rs:551 (commit 974e689b, predates MT-260); DisabledLlmClient (real no-provider startup path) at src/llm/mod.rs:312. Neither is an implementer-authored mock for this MT.",
+        "Current Master Spec v02.194 02-system-architecture.md:2715 requires AI auto-linking/auto-tagging to leave actor/denial/promotion receipts; LM-TAG-005:1593 requires AI tags as AI_SUGGESTED until confirmed. Code matches both.",
+        "Boundary/scope clean: all 17 changed files within allowed_paths (src/backend/handshake_core, app/src, tests/visual); zero .GOV changes; no forbidden SQLite/external-search/Docker. Non-blocking aside: packet cites v02.192/v02.193 spec anchors (paperwork drift), resolved against current v02.194 — not a code defect."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-260.json",
+        ".GOV/task_packets/WP-KERNEL-009-.../packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat bdb688eb",
+        "src/backend/handshake_core/migrations/0333_loom_ai_suggestions.sql",
+        "src/backend/handshake_core/src/loom_ai/mod.rs",
+        "src/backend/handshake_core/src/loom_ai/promotion.rs",
+        "src/backend/handshake_core/src/storage/loom_ai.rs",
+        "src/backend/handshake_core/tests/loom_ai_suggestions_api_tests.rs",
+        "src/backend/handshake_core/src/llm/ollama.rs (InMemoryLlmClient provenance)",
+        "src/backend/handshake_core/src/llm/mod.rs (DisabledLlmClient)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11, LM-TAG-005, line 2715)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

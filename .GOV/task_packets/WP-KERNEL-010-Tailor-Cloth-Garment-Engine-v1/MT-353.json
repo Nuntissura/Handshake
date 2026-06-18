@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-353",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-353.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-353.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-353.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-353.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-352"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement topstitch as exported 3D polygon geometry: extrude internal guide lines (MT-132) into a thin ribbon mesh offset above the garment surface, apply smooth-corner beveling at path joints, and include the ribbon mesh in the glTF/USD production export package alongside the main garment mesh",
+    "allowed_paths": [
+      "tailor-solver/src/mesh.rs",
+      "src/backend/handshake_core/src/tailor/uv_texture.rs",
+      "app/src/components/tailor/viewport.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Internal guide lines tagged as topstitch in PanelSpec (via a TopstitchLine struct with width_mm and thread_color) generate a ribbon mesh with configurable width (default 1.5 mm) offset 0.1 mm above the garment surface normal",
+      "Corner joints in topstitch paths are beveled (smooth corner) rather than miter-clipped, matching MD 2025.0 Smooth Corner for Topstitch behavior",
+      "The topstitch ribbon mesh is included as a named child mesh in the glTF export (MT-249) and the USD export (MT-250) with its own PBR material slot (thread color + roughness)",
+      "Polygon count around topstitch geometry is bounded (polygon optimization pass): no topstitch ribbon exceeds 6 quads per centimeter of path length",
+      "The render viewport (MT-236) displays topstitch ribbon geometry in the standard PBR pass, togglable via the visual-debug overlay system (MT-245)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::uv_texture::topstitch_ribbon_mesh_generation",
+      "cargo test -p handshake_core -- tailor::export::gltf_includes_topstitch_child_mesh"
+    ],
+    "risk_if_missed": "Topstitch is a primary visual quality marker in fashion garments — visible stitching lines on jeans, outerwear, and sportswear are the difference between a production-quality garment and a smooth toy model. Texture-only topstitch (MT-226) looks flat and baked; geometry topstitch catches lighting and reads as real stitching in renders and real-time engines. Missing this makes exported garments visually inadequate for production review and game-engine use."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-396",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-396.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-396.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-396.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-396.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-395"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a reverse_seam authoring operation that swaps SeamSpec.from and SeamSpec.to endpoints on an existing draft seam, correcting inside/outside face orientation without re-authoring the full GarmentSpec",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/rest_api.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The edit_seam MCP tool (or a dedicated reverse_seam variant) accepts (garment_id, seam_id, reverse: true) and swaps SeamSpec.from <-> SeamSpec.to, emitting a TailorPanelCrdtUpdateRecorded seam-mutation event",
+      "Reversing a seam with gather_ratio != 1.0 inverts the ratio (new_ratio = 1.0 / old_ratio) so the gather amount is preserved relative to the correct edge direction",
+      "The SimulationReceipt includes a seam_direction_hint field when the validator detects likely inside/outside inversion (cloth clumping at seam point), enabling the model self-correction loop to suggest a reverse_seam action",
+      "Round-trip test confirms reverse then reverse returns to original SeamSpec",
+      "The ModelManual documents reverse seam as the remedy for inside-out collar, sleeve, and pocket seam failures"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::model_adapter::reverse_seam_orientation",
+      "cargo test -p handshake_core -- tailor::model_adapter::reverse_seam_gather_ratio_inversion"
+    ],
+    "risk_if_missed": "Seam orientation errors are the most common authoring mistake in MD — a collar appears on the wrong side of the neckline, a pocket bag folds outward, or a sleeve cap inverts. In MD this is a one-click fix. Without reverse_seam the only recourse is to re-author the affected SeamSpec from scratch, which breaks the iterative quality loop (MT-268) and makes model-authored garments fragile against orientation errors."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

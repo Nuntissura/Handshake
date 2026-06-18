@@ -1,0 +1,205 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-225",
+  "title": "SecurityPortabilityValidation-225-SecretLeakNegativeFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-225.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify source ingestion blocks or redacts secrets and never emits them into bundles, wiki pages, logs, or UserManual. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "SecretLeakNegativeFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SecretLeakNegativeFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-017",
+      "MT-049",
+      "MT-065",
+      "MT-113",
+      "MT-129",
+      "MT-161",
+      "MT-177",
+      "MT-193",
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "9915fcfa",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "9915fcfa",
+            "slice": "Security/Portability MT-225..229 hardening"
+          }
+        ],
+        "summary": "MT-225..229 add real secret/path leakage negative fixtures, portable path redaction/validation including wrappers and Windows drive roots, Postgres-only storage fail-closed behavior, Node/Rust forbidden-source tripwires, actual allowlist authority, and fail-closed scanner read-error handling."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test security_portability_validation_tests --features runtime-full,test-utils -- --nocapture",
+            "result": "PASS; 13/13 Security/Portability integration tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib dependency_policy::source_tripwires --features runtime-full,test-utils -- --nocapture",
+            "result": "PASS; 3/3 source tripwire unit tests passed"
+          },
+          {
+            "command": "node scripts/check-dependency-policy.mjs --skip-build",
+            "result": "PASS; 9/9 dependency policy checks passed, forbidden-source-tripwire clean"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check touched Rust files",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "reviewer": "multi_agent:019ebce6-f3fa-7c10-bc7b-2a39a11c4f7e",
+        "result": "PASS",
+        "summary": "Reviewer attacked detector drift, wrapper/delimiter path leaks, bare drive roots, UNC/POSIX paths, Node/Rust tripwire split-brain, broad source exceptions, read-error skipping, path-only probes, SQLite fallback/default behavior, and mock-only proof; no blockers found."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-225 (SecretLeakNegativeFixture) requires a negative fixture proving source ingestion blocks/redacts secrets so they never leak into bundles, wiki pages, logs, or UserManual projections. The committed test exercises the real production SecretRedactor and the live knowledge_ingestion secrets scanner/redactor against shaped secret fixtures across all four payload surfaces and asserts no raw secret byte survives; the implementation is real, native, and wired into the ingestion engine.",
+      "findings": [
+        "Test mt_225_redacts_secrets_from_bundle_wiki_log_and_usermanual_payloads (tests/security_portability_validation_tests.rs:25-85) builds a payload with secrets located under debug_bundle.trace_jsonl, generated_wiki_page, log_like_output, and user_manual_projection, runs the REAL SecretRedactor::redact_value, and asserts none of GitHub PAT, Slack app token, postgres credential URL ('superpostgrespass'), or a 32-char high-entropy password survive in the rendered output. This directly proves the MT's bundle/wiki/log/UserManual leak-blocking requirement.",
+        "Redactor implementation is real, not placeholder: redactor.rs diff adds concrete new regex patterns secret_github_pat, secret_slack_app_token, secret_slack_token, secret_google_api_key (redactor.rs ~lines 45-66) and a per-capture replacement that preserves path delimiters (redactor.rs:184-204). redact_value recurses with location paths location/key (redactor.rs:128-152), so the asserted log locations (debug_bundle, user_manual_projection) are genuinely produced.",
+        "Source-ingestion preflight side of the test uses the REAL knowledge_ingestion::secrets::{scan_text, redact_text} (secrets.rs:342, :401) which are substantive (entropy threshold, placeholder filter, overlap merge, single-pass redaction) and are wired into live ingestion via knowledge_ingestion/engine.rs:41 (use super::secrets). Not test-only scaffolding.",
+        "sub_rule_1: git show 9915fcfa grep for todo!()/unimplemented!()/unreachable!()/'not yet wired'/'deferred to follow'/'pending MT-'/Unavailable returns zero hits on the reachable proof path.",
+        "sub_rule_2: native-resource touch satisfied — secret redaction is a code-path behavior exercised against real product code; the same suite's MT-227 test (lines 376-402) proves Postgres-only fail-closed with NO SQLite fallback through real ControlPlaneStorageConfig::resolve, and MT-228 tripwires reject sqlite/external-daemon sources. No mock-only or SQLite proof stands in for required native behavior.",
+        "sub_rule_3: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER, status=READY_FOR_VALIDATION (not a self-signed COMPLETED) — no self-certification defect. Adversarial self-review verdicts carry no authority and were independently re-checked here.",
+        "Aside (non-blocking, paperwork): packet cites v02.192 spec anchors vs current v02.194; redaction/security behavior is covered by spec module 05-security-and-observability.md. Stale pointer is expected during wind-down and is not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-225.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 git show --stat 9915fcfa (12 files, 1707 insertions)",
+        "src/backend/handshake_core/tests/security_portability_validation_tests.rs:25-85 (MT-225 test) + full file",
+        "src/backend/handshake_core/src/bundles/redactor.rs (diff: new secret patterns + path capture replacement + redact_value location recursion)",
+        "src/backend/handshake_core/src/knowledge_ingestion/secrets.rs:342-414 (real scan_text/redact_text)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:41 (secrets module wired into ingestion)",
+        "grep of commit diff for placeholders/escapes (zero hits)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/05-security-and-observability.md (redaction anchor present)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

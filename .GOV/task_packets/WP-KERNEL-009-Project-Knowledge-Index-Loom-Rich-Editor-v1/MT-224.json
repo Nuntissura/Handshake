@@ -1,0 +1,214 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-224",
+  "title": "ParallelSwarmStateRecovery-224-ParallelSwarmUserManualPatch",
+  "group": "ParallelSwarmStateRecovery",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-224.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Add UserManual pages for parallel agent operation, backend navigation, claims, receipts, and recovery. This MT belongs to ParallelSwarmStateRecovery. Make WP-009 safe for local/cloud swarm work, backend navigation, and repeated session recovery.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/api/role_mailbox.rs",
+      "src/backend/handshake_core/src/inspector_read/",
+      "app/src/components/swarm/",
+      "app/src-tauri/src/swarm.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Local and cloud swarm lanes must be observable, attributable, bounded, recoverable, and safe for parallel agents.",
+      "Every MT must leave enough receipts, state markers, and next-step context for session-limit recovery by a no-context model."
+    ],
+    "expected_behavior": "ParallelSwarmUserManualPatch leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ParallelSwarmUserManualPatch is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "93bb6c5e",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "93bb6c5ed3a8434528f1cfe5eb0b6b270eb5a256",
+            "slice": "MT-224 parallel swarm UserManual patch"
+          }
+        ],
+        "summary": "MT-224 adds a DB-seeded UserManual section to state-recovery-guide for parallel swarm operation and recovery. The section names live state_recovery.rs symbols for lane identity, claims, handoffs, quiet backend navigation, checkpoints, recovery receipts, indexing leases, dashboard projection, and handoff compression. It stores machine-readable runtime_symbols/negative_case_tests JSON, links existing backend-navigation-and-identity and quickstart-state-recovery pages, and cites live MT-223 negative recovery proofs instead of doc-only or mock authority."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols -- --nocapture",
+            "result": "PASS; MT-224 real-Postgres seeded manual test passed after RED/GREEN hardening for try_acquire_indexing_lease runtime_symbols coverage"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests mt206_state_recovery_guide_covers_contract_scenarios -- --nocapture",
+            "result": "PASS; existing state-recovery guide contract still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests mt194_seed_is_idempotent_and_receipted -- --nocapture",
+            "result": "PASS; seed idempotence and receipts still pass"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests mt195_every_registry_surface_has_db_coverage -- --nocapture",
+            "result": "PASS; registry surface DB coverage still passes"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests --no-run",
+            "result": "PASS; full user_manual_content_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/tests/user_manual_content_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only, including foreign dirty visual-debugger files"
+          },
+          {
+            "command": "post-commit hook cargo check on handshake_core manifest",
+            "result": "PASS; mechanical review request helper did not send because it could not locate the official packet for WP-KERNEL-009"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T04:06:02.251Z",
+        "reviewer": "multi_agent:019ebf1a-7cf4-7f20-ab16-504f78cdc876",
+        "result": "PASS",
+        "summary": "Reviewer assigned MEDIUM risk, ran independent page-link and MT-223 rollback proofs, verified no invented anchors or stale checked symbols, and confirmed the manual reads from real seeded DB content. Their non-blocking gap that try_acquire_indexing_lease was prose-only was hardened with RED/GREEN coverage and re-reviewed PASS."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T04:06:02.251Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-224 adds a parallel-swarm operation/recovery section to the PostgreSQL-seeded state-recovery-guide UserManual page, naming live state_recovery.rs runtime symbols and live MT-223 negative-recovery proofs, with a test that reads the page back from real Postgres and cross-checks every named symbol/test against actual source. The code implements exactly what the MT requires with real DB-backed proof; PASS.",
+      "findings": [
+        "seed.rs (commit 93bb6c5e, ~lines 1183-1245): new section_with_json 'Parallel swarm operation and recovery' added to page_state_recovery_guide, carrying body_md naming 11 live symbols + 4 negative tests and body_json with runtime_symbols/negative_case_tests/authority arrays. Real change; rest of diff is rustfmt reformatting (non-load-bearing).",
+        "All 11 named runtime symbols are real pub definitions in src/swarm_orchestration/state_recovery.rs: AgentLaneIdentity (struct L180), claim_work_surface (L1340), project_swarm_dashboard (L1598), record_quiet_background_work (L2201), resolve_backend_navigation_quiet (L2286), record_role_mailbox_handoff (L2400), record_checkpoint (L2851), recover_from_checkpoint (L2932), build_handoff_compression_template (L3009), enqueue_indexing_lease (L3065), try_acquire_indexing_lease (L3114). No invented anchors.",
+        "All 4 cited negative-recovery proofs exist in tests/parallel_swarm_state_recovery_tests.rs (mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts, mt223_quiet_receipt_failure_rolls_back_index_run_and_lease, mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer, mt223_restart_after_crash_reconstructs_swarm_state_from_postgres).",
+        "New test mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols (user_manual_content_tests.rs L483+) uses skip_if_no_pg! + knowledge_pg() which builds a real isolated PostgreSQL schema and runs migrations (knowledge_pg_support.rs L104-145), ensure_seeded() seeds real DB, then get_page_by_slug() reads the authority row back including persisted body_json column (store.rs L57/146/497). Real Handshake-owned PostgreSQL resource touch, not a mock the implementer authored.",
+        "Code-truth binding: the test greps the actual state_recovery.rs source and parallel_swarm_state_recovery_tests.rs for every named symbol/test, so manual<->runtime drift fails the test rather than rotting silently.",
+        "Both linked pages resolve: backend-navigation-and-identity is an explicit slug; quickstart-state-recovery is generated via format!(\"quickstart-{area}\") with 'state-recovery' in the areas list (seed.rs L1392/1402/1502). No orphan/dangling page link.",
+        "sub_rule_1: no todo!/unimplemented!/unreachable!/*Unavailable/'pending MT-'/'deferred' placeholders in seed.rs or the test on the required path.",
+        "sub_rule_3: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260613 -> no implementer/signer collision, and proof is real regardless.",
+        "Aside (non-blocking, expected): post-commit auto-relay hook could not locate the official packet for WP-KERNEL-009 (evidence note) - paperwork/runtime-route concern only, not a code defect."
+      ],
+      "evidence_checked": [
+        "git show --stat / git show 93bb6c5e (impl commit)",
+        "src/backend/handshake_core/src/user_manual/seed.rs (MT-224 section, page_link helper, all_slugs, quickstart_pages format! slug)",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (11 symbol definitions via grep -nE)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (4 negative tests present)",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs (mt224 test, PathBuf import)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (real isolated-schema PostgreSQL fixture)",
+        "src/backend/handshake_core/src/user_manual/store.rs (get_page_by_slug, body_json persisted column)",
+        "MT-224.json contract + WP_VALIDATOR_PROTOCOL Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT224",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

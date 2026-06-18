@@ -1,0 +1,209 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-249",
+  "title": "UnifiedWorkSurface-249-CodeIntelligenceBridge",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-249.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close GAP-ED-005 + ED-CODE-INT-001..005 + ED-CODE-INT-009: wire the BUILT backend code index (knowledge_code_nav symbols/references/file-lens, staleness verdicts from MT-106) into embedded Monaco as real providers: completion, hover (symbol info + doc passages), go-to-definition/references (in-app navigation), diagnostics/problems surface, document formatting, minimap + sticky scroll + inlay hints enablement. Staleness verdicts must surface on served intel (never silently stale). This is the single biggest VS Code-parity lever; backend exists, only the bridge is missing.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Providers consume the real /knowledge/code/* routes; no fake/static suggestion lists.",
+      "Stale code-intel results carry the staleness verdict into the UI."
+    ],
+    "expected_behavior": "Typing in an embedded code block gives real completions/hover/def/refs/diagnostics backed by the project's own code index.",
+    "acceptance_criteria": [
+      "Each provider runtime-proven against the real backend on a real indexed file (Playwright + API integration).",
+      "Go-to-def navigates in-app to the target file lens.",
+      "Staleness badge proven on a stale fixture.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-244",
+      "MT-106"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER",
+    "ready_for_validation_at_utc": "2026-06-16T02:40:39.720Z",
+    "implementation_commit": null,
+    "evidence": [
+      "Implemented real backend-backed Monaco code intelligence bridge: app/src/lib/monaco/code_intelligence.ts registers completion, hover, definition, references, formatting, code lens, inlay hints, stale markers, and stale diagnostics over app/src/lib/api.ts /knowledge/code/* and /api/diagnostics routes.",
+      "Implemented product mounting and navigation surfaces: app/src/lib/monaco/setup.ts enables minimap/stickyScroll/inlayHints and installs providers; app/src/components/MonacoCodeBlockView.tsx installs code-symbol editor actions and stale-marker refresh; app/src/App.tsx configures active workspace + opens code-symbol panel; app/src/components/CodeSymbolPanel.tsx loads symbol detail and target file lens.",
+      "Backend route/storage bridge: src/backend/handshake_core/src/api/knowledge_code_nav.rs accepts name/prefix/path lookup, src/backend/handshake_core/src/storage/knowledge.rs pushes prefix filtering into bounded SQL, and src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs exposes truncated file-lens payloads.",
+      "Runtime fixture/proof added: src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs seeds an isolated real-PostgreSQL code index through CodeIndexEngine, marks the indexed file stale, serves the real API routes, and tests/dependency_policy/mt249_code_intelligence.spec.ts drives app/harness/mt249-code-intelligence.html against that fixture.",
+      "Playwright runtime proof PASS: `pnpm exec playwright test --config playwright.dependency.config.ts ../tests/dependency_policy/mt249_code_intelligence.spec.ts` from app/ passed 1/1; the proof exercised completion prefix lookup, hover documentation + marked_stale verdict, definition symbol lookup, references provider lookup, formatting, stale Monaco markers, diagnostics problem group, symbol detail, file lens, and diagnostics POST/list routes against the real fixture backend.",
+      "Frontend verification PASS: `pnpm exec vitest run src/lib/monaco/code_intelligence.test.ts --reporter=dot` passed 5 tests; focused suite `pnpm exec vitest run src/lib/api.test.ts src/lib/monaco/code_intelligence.test.ts src/components/MonacoCodeBlockView.language.test.tsx src/components/CodeSymbolPanel.test.tsx --reporter=dot` passed 4 files / 38 tests; `pnpm exec vitest run src/App.test.tsx -t \"code symbol\" --reporter=verbose` passed 1 targeted test.",
+      "Type/lint/build verification PASS: `pnpm exec tsc --noEmit`; `pnpm exec eslint src/harness/mt249_code_intelligence_harness.tsx`; `pnpm exec eslint src/lib/monaco/code_intelligence.ts src/components/CodeSymbolPanel.tsx`; `pnpm run build:harness`.",
+      "Backend verification PASS: `rustfmt --edition 2021 --check src\\backend\\handshake_core\\src\\bin\\mt249_code_intelligence_fixture.rs`; `cargo test --manifest-path src\\backend\\handshake_core\\Cargo.toml --features runtime-full,duckdb-flight-recorder,test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test knowledge_code_nav_api_tests -- --nocapture` passed 2 tests; `cargo check --manifest-path src\\backend\\handshake_core\\Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --bin mt249_code_intelligence_fixture` passed with existing warning noise only.",
+      "Mechanical hygiene PASS: `git diff --check` exited 0; output contained only existing CRLF-normalization warnings.",
+      "EventLedger/PostgreSQL evidence: Playwright fixture used an isolated PostgreSQL schema, real migrations, real CodeIndexEngine source registration/indexing, real /knowledge/code/* route receipts, and /api/diagnostics problem-group persistence through the app state's diagnostics recorder. Literal dynamic receipt IDs were not persisted outside the runtime proof object."
+    ],
+    "evidence_basis": "REAL_BACKEND_POSTGRES_FIXTURE_PLUS_MONACO_RUNTIME_PROOF_AND_TARGETED_UNIT_INTEGRATION_TESTS",
+    "adversarial_review": {
+      "verdict": "KEEP_READY",
+      "reviewed_at_utc": "2026-06-16T02:40:39.720Z",
+      "reviewer": "KERNEL_BUILDER",
+      "risk_tier": "HIGH",
+      "DIFF_ATTACK_SURFACES": [
+        "API/client producer-consumer drift between lookupCodeSymbols prefix query, knowledge_code_nav LookupParams, and Postgres lookup_code_symbols SQL filtering.",
+        "Monaco provider registration can appear installed while active workspace config remains null, causing silent no-op providers.",
+        "Reference-provider proof can pass direct API calls while not exercising Monaco's registered provider path.",
+        "Stale code-intelligence verdicts can be shown in hover/completion but fail to reach diagnostics/problems.",
+        "Fixture can fake the contract if it bypasses CodeIndexEngine or uses static suggestions instead of real /knowledge/code/* routes."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "`pnpm exec eslint src/lib/monaco/code_intelligence.ts src/components/CodeSymbolPanel.tsx` PASS.",
+        "`rg -n --no-heading \"prefix|lookupCodeSymbols|lookup_code_symbols|HSK-CODE-INTEL-STALE|createDiagnostic\" app/src/lib/api.ts app/src/lib/monaco/code_intelligence.ts src/backend/handshake_core/src/api/knowledge_code_nav.rs src/backend/handshake_core/src/storage/knowledge.rs` confirmed prefix and stale-diagnostic propagation across client/provider/API/storage.",
+        "`pnpm exec vitest run src/lib/monaco/code_intelligence.test.ts -t \"does not query code navigation when no active workspace exists\" --reporter=dot` PASS 1 test / 4 skipped.",
+        "`cargo check --manifest-path src\\backend\\handshake_core\\Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --bin mt249_code_intelligence_fixture` PASS."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "If app/src/lib/monaco/code_intelligence.ts stopped calling lookupCodeSymbols with prefix in provideCompletionItems, the Playwright proof would lose the /knowledge/code/symbols?prefix=ad route and completion widget assertion.",
+        "If app/src/lib/monaco/code_intelligence.ts stopped calling getCodeSymbolReferences in provideReferences, the Playwright proof would lose the /knowledge/code/symbols/{symbol_entity_id}/references route.",
+        "If src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs bypassed CodeIndexEngine seeding, the fixture could not return the real indexed add symbol, file lens documentation, or marked_stale verdict from backend routes."
+      ],
+      "BOUNDARY_PROBES": [
+        "Client/API/storage prefix boundary checked statically and by backend API test: frontend sends prefix=ad; API accepts prefix; storage pushes prefix through bounded SQL; API refines symbol/display prefix before serving.",
+        "Monaco/reference-provider boundary checked by the Playwright harness through Monaco's _executeReferenceProvider command service, not by a direct getCodeSymbolReferences API call.",
+        "Diagnostics writer/reader boundary checked by Playwright: stale marker refresh posts /api/diagnostics and waitForProblem reads /api/diagnostics/problems with code HSK-CODE-INTEL-STALE."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "No-active-workspace provider path passed: completion provider returns no suggestions and does not call lookupCodeSymbols.",
+        "lookup_symbols rejects empty name/prefix/path with a bad request path; reviewed in src/backend/handshake_core/src/api/knowledge_code_nav.rs."
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "No blocking findings discovered for MT-249 first-submission readiness.",
+        "Non-blocking residual: the Playwright pass did not leave a retained passed-screenshot artifact under the checked artifact directories; runtime verdict and route assertions are the primary proof.",
+        "Non-blocking residual: Monaco references currently map returned reference ranges onto the active editor model URI; cross-file reference navigation may need a richer source-id to URI mapping in later hardening if references leave the current file.",
+        "Non-blocking residual: stale-marker diagnostics scan a bounded identifier set for UI performance; served hover/completion still carries staleness directly."
+      ],
+      "RESIDUAL_UNCERTAINTY": "The MT is ready for external validation, not marked PASS. Remaining uncertainty is limited to broader cross-file reference UX and full-WP dirty-worktree interactions outside MT-249; the core contract named in MT-249 is covered by real PostgreSQL, real backend routes, Monaco runtime proof, targeted unit tests, and independent boundary checks."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-249 requires wiring the built backend code index into embedded Monaco as real providers (completion, hover, def/refs, diagnostics, formatting, minimap/stickyScroll/inlayHints) with staleness surfaced and real runtime proof. The code delivers all of this with genuine PostgreSQL/EventLedger-backed routes, real Monaco provider registration consuming those routes, and a real-PG Playwright fixture that drives the actual Monaco editor — not mocks or static lists.",
+      "findings": [
+        "app/src/lib/monaco/code_intelligence.ts:268-432 registers real completion, hover, definition, reference, formatting, codeLens, and inlayHints providers; each calls the real API client (lookupCodeSymbols/getCodeSymbolReferences/getCodeFileLens) — no static/fake suggestion lists. Completion uses prefix (line 281-285); hover injects file-lens doc + staleness (line 309-313).",
+        "app/src/lib/monaco/setup.ts:144-146 (and 184-186 for diff editor) enables minimap/stickyScroll/inlayHints; line 139/177 installs ensureHandshakeCodeIntelligenceProviders in the single product editor entry point createConfiguredEditor — satisfies the minimap/sticky/inlay enablement requirement.",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:325-352 served_staleness fails closed (anything not provably fresh -> not fresh), implementing spec 2.3.13.11 never-serve-stale-silently; routes are real PostgreSQL+EventLedger with retrieval receipts (record_nav_receipt line 204-234). prefix param accepted and pushed (line 413-417, 435-444).",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6837-6889 lookup_code_symbols pushes name/path/prefix into bounded SQL (prefix LIKE binds at 6883-6886), avoiding the 100k-symbol DoS; real Postgres query.",
+        "Runtime proof is real, not mock: src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs uses ManagedPostgres/PostgresDatabase (line 92-93), run_migrations, real CodeIndexEngine register+index (line 210-222), marks file stale (line 104), and serves real api::routes (line 251-256). tests/dependency_policy/mt249_code_intelligence.spec.ts boots it and asserts real route hits (prefix=ad, references, file lens, /api/diagnostics).",
+        "app/src/harness/mt249_code_intelligence_harness.tsx drives the REAL Monaco editor via createConfiguredEditor and real Monaco actions (triggerSuggest, showHover, revealDefinition, _executeReferenceProvider, formatDocument); fetch rewrite only redirects the hardcoded test base URL to the loopback fixture — providers and API client are unchanged product code.",
+        "Backend integration test src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs:218-293 boots a real PG-backed HTTP server (skips only when no PG available) and asserts the prefix=ad completion route returns the add symbol — closes the producer/consumer prefix-drift risk over real PG.",
+        "No deferred-live escapes or placeholders: grep for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-'/static suggestion across the impl + bridge + route returned no hits.",
+        "Aside (non-blocking, paperwork): MT-249.json lifecycle.implementation_commit is null though the code is committed on feat/WP-KERNEL-009; this is a contract-bookkeeping gap, not a code defect, and is not a failing reason."
+      ],
+      "evidence_checked": [
+        "app/src/lib/monaco/code_intelligence.ts",
+        "app/src/lib/monaco/setup.ts",
+        "app/src/harness/mt249_code_intelligence_harness.tsx",
+        "tests/dependency_policy/mt249_code_intelligence.spec.ts",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs",
+        "src/backend/handshake_core/src/storage/knowledge.rs (lookup_code_symbols)",
+        "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+        "src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs",
+        ".GOV/task_packets/WP-KERNEL-009-...-v1/MT-249.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (anchor 2.3.13.11 present)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-403",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-403.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-403.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-403.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-403.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-402"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement estimate_fabric_params MCP tool with DiffXPBD differentiable XPBD gradient-descent backend: accepts a target drape image artifact, runs forward-backward passes to optimise FabricProperties to match the observed drape, returns a suggested edit_garment patch",
+    "allowed_paths": [
+      "tailor-solver/src/lib.rs",
+      "tailor-solver/src/solver.rs",
+      "tailor-solver/src/material.rs",
+      "src/backend/handshake_core/src/tailor/solver_binding.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "ClothSolver trait gains an optional diff_estimate_fabric method (default impl returns ClothSolverError::NoAdapter when the diff-xpbd feature flag is disabled)",
+      "When diff-xpbd feature is enabled, the solver runs gradient descent on normalized FabricProperties fields; the non-linear map to raw XPBD compliance is applied at mesh-build time inside the solver, not exposed to the optimiser",
+      "estimate_fabric_params MCP tool accepts draft_id and target_image_artifact_id; the tool fetches the image from ArtifactStore, renders a simulated drape, computes pixel-space or feature-space loss against the target image, and backpropagates through the solver",
+      "The tool returns a SuggestedFabricParams receipt containing a JSON Merge Patch fragment targeting /fabric, directly usable in an edit_garment call",
+      "The gradient descent loop is bounded by max_iterations (default 50) and a convergence threshold; it returns the best-found params even if not fully converged",
+      "The estimate_fabric_params run is dispatched through TailorSandboxAdapter (SandboxRunV1 lifecycle) and emits TailorSimRunRequested -> TailorSimRunCompleted events",
+      "The tool is gated behind the diff-xpbd Cargo feature and returns a typed error (RunFailed with message 'diff-xpbd feature not enabled') when the feature is absent"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver --features diff-xpbd diff_xpbd::fabric_gradient (gradient descent reduces drape loss on a synthetic silk vs denim discrimination test)",
+      "cargo test -p handshake_core tailor::mcp_tools::estimate_fabric_params_dispatch (tool dispatches through sandbox and emits correct event sequence)",
+      "cargo test -p handshake_core tailor::mcp_tools::estimate_fabric_params_feature_off (returns typed error when diff-xpbd disabled)"
+    ],
+    "risk_if_missed": "The inverse fabric parameter path is absent. When preset-based forward simulation produces visually wrong drape and no NL description is adequate, there is no data-driven way to find the correct FabricProperties. The Dress-1-to-3 differentiable-XPBD moat — which makes Handshake the only tool where a model can match observed real-world cloth behavior from an image — is lost. This is the highest-value differentiator for production garment matching."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

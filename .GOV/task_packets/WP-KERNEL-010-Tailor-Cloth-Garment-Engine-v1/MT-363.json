@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-363",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-363.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-363.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-363.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-363.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-362"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement GPU-resident rigid trim simulation by defining `GpuTrimBody` (position, quaternion, inv_mass, inertia_inv) as a WGSL buffer type and authoring a `rigid_integrate.wgsl` compute shader for the trim integration pass, replacing the CPU-only `parry3d` rigid step (MT-169) for the main production path",
+    "allowed_paths": [
+      "tailor-solver/src/types.rs",
+      "tailor-solver/src/trim_gpu.rs",
+      "tailor-solver/shaders/rigid_integrate.wgsl",
+      "tailor-solver/shaders/trim_cloth_collide.wgsl",
+      "tailor-solver/src/solver.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "`GpuTrimBody` repr(C)/bytemuck::Pod is defined with fields: `pos: [f32; 4]`, `quat: [f32; 4]`, `vel: [f32; 4]`, `ang_vel: [f32; 4]`, `inv_mass: f32`, `inertia_inv: [f32; 9]`, `_pad: [f32; 3]`; it is layout-validated at compile time by `wgsl_to_wgpu`",
+      "A `rigid_integrate.wgsl` compute shader integrates trim body forces (gravity + tack-constraint reactions) into trim position/orientation each substep; dispatched in the 8-pass sequence between the tack-constraint pass and the collision-hook pass",
+      "Trim-cloth tack constraint correction (MT-168) reads trim body positions from the GPU buffer, not from a CPU-roundtrip; no CPU readback occurs per substep in the GPU path",
+      "The trim integration test (MT-190: zip a jacket, fasten buttons, assert TRIM_ATTACHED twice) passes on the GPU path; a fallback to CPU parry3d is allowed only when no GPU adapter is available (matching the existing ClothSolverCpu fallback contract)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- gpu_trim_body_layout",
+      "cargo test -p tailor-solver -- rigid_integrate_shader",
+      "cargo test -p tailor-solver -- trim_attached_gpu_path",
+      "cargo test -p handshake_core -- tailor_trim_gpu_integration"
+    ],
+    "risk_if_missed": "Scenes with many trims (buckled armor, fully buttoned coat, laced corset) are bottlenecked by the CPU rigid step; simulation cannot scale to the accessory complexity that MD 2026.0 handles on GPU. This is a D4 moat feature gap."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

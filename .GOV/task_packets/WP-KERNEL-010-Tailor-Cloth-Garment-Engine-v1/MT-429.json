@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-429",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-429.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-429.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-429.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-429.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-428"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement MetaHuman .dna format import: parse the binary DNA file to extract skeleton joint positions and head/body mesh bind poses, generate a ClothBodyProxy capsule chain via joint mapping, store the AVT- + BPX- rows, and flag the garment for MetaHuman-compatible export sizing on promotion",
+    "allowed_paths": [
+      "tailor-solver/src/body/metahuman_dna.rs",
+      "tailor-solver/src/body/joint_mapper.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/api/tailor.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "POST /api/tailor/avatars/import/dna accepts a .dna binary file and returns AVT- id",
+      "Joint positions from the neutral pose in the DNA file are extracted and passed through JointMapper with the MetaHuman joint-name convention",
+      "A valid ClothBodyProxy is produced covering at least the torso, arms, and legs; head is optional",
+      "The AVT- row carries source_kind='metahuman_dna' and the DNA file hash for traceability",
+      "TailorAvatarCreated + TailorBodyProxyCreated events are emitted; an INFO-level note records that MetaHuman export resizing is the operator's responsibility",
+      "cargo test metahuman_dna::test_neutral_pose_joint_extraction passes with a reference .dna fixture"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::metahuman_dna::test_dna_joint_extraction",
+      "cargo test -p handshake_core tailor::avatar::test_metahuman_import_emits_events"
+    ],
+    "risk_if_missed": "MetaHuman is the dominant photorealistic character pipeline for Unreal Engine. Without .dna import, every UE/MetaHuman workflow requires an intermediate FBX export step, breaking the native MD 2025.2 parity that the target audience expects."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

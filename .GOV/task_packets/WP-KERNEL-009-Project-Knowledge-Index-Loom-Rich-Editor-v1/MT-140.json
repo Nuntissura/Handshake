@@ -1,0 +1,189 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-140",
+  "title": "RetrievalContextAndRanking-140-SemanticCatalogBridge",
+  "group": "RetrievalContextAndRanking",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-140.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Implement Semantic Catalog as backend-indexed routing contracts, not prompt-only helper text. This MT belongs to RetrievalContextAndRanking. Retrieve project knowledge through explainable direct, graph, hybrid, and passage fallback modes.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Retrieval must choose explicit modes: none, direct_load, exact_lookup, graph_traversal, hybrid_rag, or passage_fallback, with non_hybrid_reason where applicable.",
+      "Context bundles must be bounded, cited, explainable, restartable, and inspectable through backend and visual-debug surfaces."
+    ],
+    "expected_behavior": "SemanticCatalogBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SemanticCatalogBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-129"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
+    "implementation_commit": "1d1f949d",
+    "evidence": [
+      "Built+verified 1d1f949d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "hardening_v2",
+        "finding": "QueryPlan routes hardcoded; the unit-tested catalog->RouteStep bridge (routing_for/route_steps_from_entry) was never called by the planner (spec MUST violation)",
+        "fix": "RetrievalRequest.catalog_entry (+ builder); planner resolves routing_for for graph-traversal and hybrid branches - resolvable contracts DERIVE plan.route (steps cite entry+version), unknown/empty entries fall back to defaults (spec C)",
+        "commit": "06bb2cec",
+        "tests": "knowledge_retrieval_pipeline_tests 10 passed incl. planner_derives_route_from_semantic_catalog_entry (hybrid + graph catalog-derived routes, unknown-entry default fallback)"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "QueryPlan routes are not derived from the SemanticCatalog",
+          "evidence": "The bridge docstring (semantic_catalog.rs:7-8) cites spec MUST: QueryPlan.route[] derived from the SemanticCatalog when present. But CheapestAuthoritativePathPlanner builds hardcoded routes (planner.rs steps 3 and 5) and never calls routing_for / route_steps_from_entry. The catalog is queryable + listed in the debug API, but no plan derives its route from it.",
+          "fix": "Have the planner resolve routing_for(workspace, target) and use route_steps_from_entry to populate plan.route when a catalog entry exists; fall back to defaults otherwise.",
+          "status": "FIXED",
+          "fixed_commit": "06bb2cec"
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "QueryPlan.route[] MUST be derived from the SemanticCatalog when present",
+          "reality": "the catalog->RouteStep bridge exists and is unit-tested, but the planner ignores it and emits fixed routes"
+        }
+      ],
+      "missing_tests": [
+        "test: a planned query whose target has a catalog entry derives its route from the catalog"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-140 requires the SemanticCatalog implemented as a backend-indexed routing contract whose entries derive QueryPlan.route[] when present (spec 2.6.6.7.14.6 A). The code implements this end-to-end against real Handshake-managed PostgreSQL: the planner resolves a named catalog entry and derives the route, falling back to spec-C defaults otherwise, with real-PG test proof.",
+      "findings": [
+        "Prior adversarial-v2 MEDIUM finding (planner emitted hardcoded routes, never called the catalog bridge) is now actually fixed in commit 06bb2cec.",
+        "planner.rs:317-339 adds async catalog_route() which calls semantic_catalog::routing_for(pool, workspace_id, name, max_candidates); both the graph-neighborhood branch (planner.rs ~235-260) and the hybrid_rag branch (~281-310) now derive plan.route from the catalog entry when resolvable, falling back to defaults when the entry is None/unknown/empty.",
+        "semantic_catalog.rs:68-83 routing_for resolves via storage::resolve_semantic_catalog_entry against real PostgreSQL table knowledge_semantic_catalog_entries; route_steps_from_entry (lines 38-55) maps catalog query_routes to RetrievalStore steps that cite the catalog entry name+version, satisfying explainability.",
+        "Real authority backing: migration 0260_knowledge_semantic_catalog.sql creates knowledge_semantic_catalog_entries with FK to workspaces, JSONB query_routes/selectors, lifecycle_state, and registers it as authority-class in knowledge_schema_registry (MT-140). storage/knowledge_retrieval.rs:793-814 resolve_semantic_catalog_entry runs real SQL (WHERE workspace_id/name/lifecycle='active' ORDER BY version DESC).",
+        "Spec MUST confirmed in CURRENT Master Spec v02.194 02-system-architecture.md:11514-11521 (A: QueryPlan.route[] MUST be derived from SemanticCatalog if present) and default policy at line 11544 (spec C) - implementation matches both branches exactly.",
+        "Real-PG proof: tests/knowledge_retrieval_pipeline_tests.rs:459-539 planner_derives_route_from_semantic_catalog_entry uses MemoryFixture::setup against Handshake-managed PostgreSQL (knowledge_memory_fixtures.rs pool_for -> PgPoolOptions::connect(schema_url)), upserts a real catalog entry, asserts the hybrid route IS the 2-step catalog contract citing 'loom_neighborhood', graph mode also catalog-derived, and an unknown entry falls back to the 4-step default hybrid route. skip_if_no_pg! only SKIPS when PG is unavailable; it does not substitute a mock.",
+        "No placeholder/deferred escapes (todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-') in semantic_catalog.rs or planner.rs. Planner is wired into the live execution path at executor.rs:102-103 (planner.plan(request)), so the catalog-derived route reaches runtime candidate generation, not orphaned code.",
+        "Aside (non-blocking, paperwork): MT-140 also appears in an unrelated WP-KERNEL-005 commit d2ad663c; not relevant to this WP-009 acceptance."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-140.json",
+        "git show 06bb2cec (feat/WP-KERNEL-009 in wtc-kernel-009)",
+        "src/backend/handshake_core/src/knowledge_retrieval/semantic_catalog.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/planner.rs (diff)",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs:41,102-103",
+        "src/backend/handshake_core/src/storage/knowledge_retrieval.rs:742-839",
+        "src/backend/handshake_core/migrations/0260_knowledge_semantic_catalog.sql",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs:455-539",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:43,146-149",
+        "D:/.../master-spec-v02.194/spec-modules/02-system-architecture.md:11512-11556"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

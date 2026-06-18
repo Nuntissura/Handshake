@@ -1,0 +1,199 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-203",
+  "title": "UserManualAndNoContextOps-203-LegacyManualShimTests",
+  "group": "UserManualAndNoContextOps",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-203.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Test that legacy names route to UserManual or are explicitly deprecated without silent split-brain docs. This MT belongs to UserManualAndNoContextOps. Make UserManual a built-in product surface that enables no-context model and future user operation.",
+    "relevant_files": [
+      "app/MODEL_MANUAL.md",
+      "app/src-tauri/src/manual.rs",
+      "src/backend/handshake_core/src/model_manual/",
+      "src/backend/handshake_core/src/kernel/model_manual.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/tests/model_manual_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "The canonical stuck-together product term is UserManual; legacy ModelManual, Model Manual, and model_manual may remain only as declared deprecated shims with migration tests.",
+      "UserManual updates are build deliverables for every touched feature/tool/primitive/surface, not optional docs."
+    ],
+    "expected_behavior": "LegacyManualShimTests leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "LegacyManualShimTests is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-MAN-001",
+      "HBR-MAN-002",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-193"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
+    "ready_for_validation_reason": "Legacy manual bridge maps deprecated ModelManual route to canonical UserManual payload and emits compatibility receipt; proof and adversarial review PASS.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "implementation",
+        "summary": "Legacy manual route returns deprecated/canonical bridge payload and records compatibility receipt while alias resolution keeps old names mapped to canonical UserManual pages.",
+        "files_changed": [
+          "src/backend/handshake_core/src/api/user_manual.rs",
+          "src/backend/handshake_core/src/user_manual/migration_plan.rs",
+          "src/backend/handshake_core/tests/user_manual_api_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "test_proof",
+        "summary": "MT-203 targeted API test passed against real PostgreSQL: legacy bridge returns deprecated/canonical payload and persists compatibility receipt; alias negative checks are covered by the suite.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt203-legacy-bridge-proof.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-content-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-cargo-check-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:36:41.000Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-203"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T18:37:30Z",
+        "kind": "adversarial_code_review",
+        "summary": "Heisenberg read-only adversarial review returned PASS for MT-203 with no MT-blocking findings.",
+        "evidence_refs": [
+          "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
+        ]
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-203 requires legacy ModelManual names to route to canonical UserManual or be explicitly deprecated without silent split-brain docs, delivering the spec 10.15.8 legacy shim bridge: a legacy path may exist only if it maps deterministically to a UserManualRecord authority entry and emits a compatibility receipt when used. The code implements exactly this with a real legacy bridge route, a PostgreSQL-seeded deterministic alias mapping, a filesystem split-brain gate, and a real-PostgreSQL test that verifies the compatibility receipt is persisted in kernel_event_ledger.",
+      "findings": [
+        "Spec 10.15.8 (current bundle, 10-product-surfaces.md:8151, [ADD v02.192], unchanged in v02.194): a legacy ModelManual path may remain ONLY if it (a) maps deterministically to a UserManualRecord authority entry and (b) emits a compatibility receipt when used. The implementation satisfies both halves.",
+        "Legacy bridge route src/backend/handshake_core/src/api/user_manual.rs:64-65,514-557: GET /usermanual/legacy/model-manual returns deprecated:true, a deprecation_note pointing to canonical /usermanual routes, the canonical mapping (route_namespace=/usermanual, pages, aliases), and a compatibility_receipt_event_id. GET /usermanual/legacy/aliases returns the mapping set.",
+        "Compatibility receipt is a REAL EventLedger write: api emits store.append_manual_receipt(\"legacy_bridge_used\",\"model_manual\",...) (user_manual.rs:522-534), which at store.rs:288-297 calls self.db.append_kernel_event(event) into the real kernel_event_ledger (event_type KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED). Not a mock.",
+        "Deterministic mapping is PostgreSQL-backed: 8 typed LEGACY_ALIASES (migration_plan.rs, alias count 8 >= test floor of 6) seeded via upsert_legacy_alias (seed.rs:1837) into table user_manual_legacy_aliases created by migration 0310_user_manual.sql:176. list_legacy_aliases (store.rs:927) reads them back.",
+        "Split-brain prevention gate is real: tests/user_manual_storage_tests.rs:54 mt193_every_legacy_model_manual_file_is_plan_covered scans the filesystem for any model_manual source/test file and fails if it lacks a typed PlanRow, enforcing the MT's 'no silent split-brain docs' requirement.",
+        "Real runtime proof: tests/user_manual_api_tests.rs:466 mt203_legacy_bridge_route_maps_and_emits_compat_receipt drives a live axum server over real PostgreSQL, asserts deprecated/canonical mapping, then at line 480-484 calls receipt_exists() which runs a direct SQL EXISTS query against kernel_event_ledger for the returned event_id. skip_if_no_pg! (user_manual_support.rs:133-143) PANICS when PG is absent rather than silently skipping, so PG proof is mandatory.",
+        "Green evidence log ../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt203-legacy-bridge-proof.log exists and shows 'mt203_legacy_bridge_route_maps_and_emits_compat_receipt ... ok' in 4.49s against PostgreSQL at 127.0.0.1:5544 — non-trivial runtime, not a no-op.",
+        "Sub-rule-1: grep of api/user_manual.rs, migration_plan.rs, store.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow'/'pending MT-'/*Unavailable/placeholder/FIXME/stub returned NO hits on the legacy-bridge path.",
+        "Scope/boundary: commit fcf9bce3 touches only src/backend/handshake_core/** and tests/** (all within packet allowed_paths). No SQLite, no Docker, no external search engine, no markdown-vault-as-authority — authority is PostgreSQL/EventLedger.",
+        "Aside (non-blocking, expected): commit subject is prefixed 'gov(WP-KERNEL-009)' and packet/MT cite spec bundle v02.192/v02.193 while current is v02.194; per validation ground rules these paperwork/pointer notes are not failing reasons and the spec section resolves identically in the current bundle."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-203.json",
+        "packet.json (scope, allowed_paths, forbidden_paths, DEC-008)",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md#10.15 / #10.15.8",
+        "git show --stat fcf9bce3",
+        "src/backend/handshake_core/src/api/user_manual.rs:64-65,490-557",
+        "src/backend/handshake_core/src/user_manual/store.rs:288-297,875-933",
+        "src/backend/handshake_core/src/user_manual/migration_plan.rs:1-175",
+        "src/backend/handshake_core/src/user_manual/seed.rs:1837",
+        "src/backend/handshake_core/migrations/0310_user_manual.sql:176",
+        "tests/user_manual_api_tests.rs:52-60,463-508",
+        "tests/user_manual_storage_tests.rs:54-74",
+        "tests/user_manual_support.rs:125-143",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt203-legacy-bridge-proof.log"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

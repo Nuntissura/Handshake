@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-339",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-339.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-339.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-339.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-339.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-338"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement edge-split operation on Panel EdgeShape outlines (subdivide a Line or Bezier edge at a parametric t-value, inserting a new vertex into the GarmentSpec panel outline)",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/edge_ops.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/PatternEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "split_edge(panel_id, edge_index, t: f32) splits the edge at parameter t, producing two edges that share the new vertex; the panel outline remains closed and PANEL_CLOSED passes",
+      "Split is CRDT-safe: emits TailorPanelCrdtUpdateRecorded with the diff; concurrent splits on different edges merge without conflict",
+      "The new vertex coordinates in cm are stored in tailor_panels spec_json",
+      "Model-accessible via edit_panel MCP tool with operation=split_edge",
+      "Bezier edge split follows de Casteljau algorithm preserving the original curve shape within eps_mm=0.1"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::edge_ops::test_split_line_edge",
+      "cargo test -p tailor-solver authoring::edge_ops::test_split_bezier_edge",
+      "cargo test -p handshake_core tailor::authoring::test_split_crdt_safe"
+    ],
+    "risk_if_missed": "Without edge subdivision, panel outlines can only be shaped at construction time. Adding a dart apex, notch, or seam attachment point to an existing edge is impossible — a core MD workflow step (Add Point) is blocked. All downstream dart, pleat, and seam-length-match operations that depend on split points fail."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

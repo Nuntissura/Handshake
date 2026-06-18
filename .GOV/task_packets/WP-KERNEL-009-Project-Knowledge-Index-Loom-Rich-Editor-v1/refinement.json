@@ -1,0 +1,451 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "created_at_utc": "2026-06-11T06:12:25.7369090Z",
+  "updated_at_utc": "2026-06-11T06:53:52.277Z",
+  "authority_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+    "spec_enrichment_proposal": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json",
+    "packet_contract": "PENDING_POST_ENRICHMENT_SIGNATURE_AND_PACKET_HYDRATION",
+    "refinement_projection": "NOT_GENERATED_BY_DEFAULT"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "PENDING_DEMAND",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON refinement is authority. Markdown projection is on-demand only and must not become an authority sidecar."
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "SPEC_ENRICHMENT_APPLIED_REFINEMENT_REFRESHED",
+    "readiness_status": "PENDING_OPERATOR_POST_ENRICHMENT_REFINEMENT_SIGNATURE",
+    "workflow_mode": "NO_ACP_COMBINED_ORCHESTRATOR_ACTIVATION_MANAGER",
+    "session_id": "ACTIVATION_MANAGER-20260611-064120",
+    "kernel_builder_session_id": "KERNEL_BUILDER-20260611-045924",
+    "handoff_summary": {
+      "REFINEMENT_PATH": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+      "REFINEMENT_CHECK": "PASS_TARGETED_AND_SPEC: refinement.json parse ok; spec-enrichment-proposal.json parse ok; SPEC_CURRENT ok; spec-bundle-check ok; validator-spec-regression ok; spec-eof-appendices-check ok; signature token not persisted. REPO_WIDE_PACKET_PROJECTION_CHECK_BLOCKED_BY_PRE_EXISTING_WP-KERNEL-005_DRIFT.",
+      "ENRICHMENT_NEEDED": "NO",
+      "NEW_STUBS_CREATED_OR_UPDATED": "NONE",
+      "NEW_FEATURES_OR_CAPABILITIES_DISCOVERED": [
+        "ProjectKnowledgeIndex as the PostgreSQL/EventLedger-canonical source/entity/edge/span/claim/passage substrate",
+        "Handshake-native memory claim lifecycle and retrieval trace surfaces",
+        "Integrated Tiptap/ProseMirror rich document editor with Monaco code-node subsystem",
+        "Loom/Obsidian projection over canonical knowledge records",
+        "UserManual migration from legacy ModelManual naming",
+        "Backend navigation APIs and visual-debug surfaces for no-context model operation"
+      ],
+      "MAJOR_TECH_UPGRADE_ADVICE": [
+        "Promote WP-KERNEL-009 only after v02.192 reconciles stale SQLite-era Loom/search/workflow text with the active PostgreSQL/EventLedger no-SQLite law.",
+        "Keep Tiptap/ProseMirror and Monaco as bundled product libraries, not outside application dependencies.",
+        "Keep generated wiki pages, markdown, HTML, context bundles, and debug reports as projections over typed PostgreSQL/EventLedger records."
+      ],
+      "REVIEW_FOCUS": [
+        "Confirm post-enrichment refinement approval before packet.json hydration, MT promotion, worktree creation, or coder launch.",
+        "Confirm the one-time signature token is consumed only at the final post-enrichment signature step.",
+        "Confirm the 240 draft microtasks are promoted as typed MT-*.json contracts only after the signed packet is hydrated.",
+        "Confirm no ACP will be used for this WP unless the operator explicitly changes that later."
+      ],
+      "NEXT_ORCHESTRATOR_ACTION": "Present refreshed refinement status to the operator and wait for post-enrichment refinement approval/signature before packet hydration."
+    }
+  },
+  "refinement": {
+    "operator_request": "Start activation of WP-KERNEL-009 Project Knowledge Index Loom Rich Editor, refinement and enrichment phase; combined Orchestrator and Activation Manager; no ACP.",
+    "operator_signature_status": "SIGNATURE_LIKE_TOKEN_PROVIDED_IN_CHAT_BUT_NOT_CONSUMED_OR_WRITTEN_TO_REPO_TO_PRESERVE_ONE_TIME_USE",
+    "operator_signature_uniqueness_prewrite_check": "PASS: rg -n exact token under .GOV returned no matches before this refinement was written.",
+    "user_signature": null,
+    "user_approval_evidence": "SPEC_PROPOSAL_APPROVED_BY_OPERATOR_CHAT_ON_2026-06-11_FOR_WP-KERNEL-009_v02.192; POST_ENRICHMENT_REFINEMENT_SIGNATURE_PENDING",
+    "user_review_status": "SPEC_PROPOSAL_APPROVED_REFINEMENT_REFRESH_READY_FOR_OPERATOR_SIGNATURE",
+    "enrichment_needed": "NO",
+    "clearly_covers_verdict": "PASS_AFTER_SPEC_ENRICHMENT_APPLIED_AND_SPEC_CHECKS_PASS",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "current_spec": {
+      "entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+      "version": "v02.192",
+      "manifest": ".GOV/spec/master-spec-v02.192/indexed-spec-manifest.json",
+      "resolver": ".GOV/spec/master-spec-v02.192/INDEX.json",
+      "sha1": "4795dd5e11addaa347c89ca052c9b78a4b83c888",
+      "sha256": "f95e3ed9e0354b537b3465df8e429709a4d28d82a276a5d84daf588f5cec27e8"
+    },
+    "scope_split": {
+      "handshake_product": "Define the product requirements for a Handshake-native ProjectKnowledgeIndex, memory claim lifecycle, Loom/Obsidian projection, rich editor, UserManual, backend navigation, visual debug, and validation evidence. No product code is edited in this phase.",
+      "repo_governance": "Move the active WP-KERNEL-009 stub into refinement/enrichment readiness while preserving JSON-first authority, no-ACP execution, signature one-time-use, and CX-405/CX-406 Master Spec proposal gates."
+    },
+    "base_scope": [
+      "Build a ProjectKnowledgeIndex that indexes selected project roots into canonical PostgreSQL/EventLedger records for sources, spans, entities, relationships, passages, claims, UserManual entries, retrieval traces, validation receipts, rich documents, and Loom blocks.",
+      "Replace sidecar project-brain/wiki authority with typed product records; generated markdown, wiki, HTML, debug, context-bundle, and export artifacts remain projections.",
+      "Integrate Tiptap/ProseMirror as the rich document model and Monaco as the embedded code-node subsystem inside Handshake, with CRDT/EventLedger promotion semantics.",
+      "Extend Loom into an Obsidian-like navigation and backlink surface over canonical records, not a separate vault.",
+      "Migrate legacy ModelManual naming and code paths to UserManual or mark compatibility shims explicitly.",
+      "Preserve folded legacy stub intent inside the WP-KERNEL-009 packet rather than reactivating older stubs separately."
+    ],
+    "existing_project_reuse": [
+      "../wtc-kernel-005/src/backend/handshake_core/migrations/0012_ai_ready_data_arch.sql",
+      "../wtc-kernel-005/src/backend/handshake_core/migrations/0013_loom_mvp.sql",
+      "../wtc-kernel-005/src/backend/handshake_core/src/api/loom.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/storage/loom.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/ai_ready_data/indexing.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/ai_ready_data/retrieval.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/memory/trace_export_postgres.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/kernel/crdt/",
+      "../wtc-kernel-005/src/backend/handshake_core/src/managed_postgres.rs",
+      "../wtc-kernel-005/app/src/components/TiptapEditor.tsx",
+      "../wtc-kernel-005/app/src/components/DocumentView.tsx",
+      "../wtc-kernel-005/app/src/components/WorkspaceSidebar.tsx",
+      "../wtc-kernel-005/app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "../wtc-kernel-005/app/src-tauri/src/visual_debug.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/src/model_manual/",
+      "../wtc-kernel-005/src/backend/handshake_core/tests/manual_no_context_harness.rs",
+      "../wtc-kernel-005/src/backend/handshake_core/tests/model_manual_tests.rs",
+      "../wtc-kernel-005/tests/visual/"
+    ],
+    "gaps_closed_against_current_behavior": [
+      "Avoids a Markdown/wiki sidecar becoming the hidden project-brain authority.",
+      "Prevents stale SQLite dual-backend assumptions from leaking into a new kernel product surface.",
+      "Turns scattered Loom, AI-ready, retrieval-mode, relationship_id, ContextPack recorder, and manual-surface ideas into one packet boundary.",
+      "Gives no-context local/cloud agents stable backend navigation, UserManual, trace, and receipt paths instead of relying on chat history.",
+      "Forces editor/schema/graph mutations through CRDT/EventLedger promotion instead of browser state or direct DB writes."
+    ],
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11 Project Knowledge Index and Rich Document Authority [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/07-user-experience-and-development.md#7.1.1.8 WP-KERNEL-009 Rich Editor Lock [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.15.8 UserManual migration bridge [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.20 Project Knowledge Index and Rich Editor Surface [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/11-shared-dev-platform-and-oss-foundations.md#9.1.1 WP-KERNEL-009 authority supersession [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 WP-KERNEL-009 Primitive and Interaction Addendum [ADD v02.192]"
+    ],
+    "spec_conflicts_requiring_enrichment": [
+      {
+        "id": "SPEC-CONFLICT-001",
+        "summary": "v02.191 contains current PostgreSQL/EventLedger no-SQLite law but still carries older SQLite-index/cache/local-first language in touched Loom, search, workflow, and Shadow Workspace areas.",
+        "examples": [
+          ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md#L1158",
+          ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md#L1266",
+          ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md#L1498",
+          ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md#L2811",
+          ".GOV/spec/master-spec-v02.191/spec-modules/11-shared-dev-platform-and-oss-foundations.md#L510",
+          ".GOV/spec/master-spec-v02.191/spec-modules/11-shared-dev-platform-and-oss-foundations.md#L545"
+        ],
+        "enrichment_need": "Add or update Master Spec clauses that make PostgreSQL/EventLedger the WP-KERNEL-009 authority path and classify SQLite mentions as stale legacy product debt where they intersect kernel authority."
+      },
+      {
+        "id": "SPEC-CONFLICT-002",
+        "summary": "The product still has ModelManual naming while current operator/global build policy requires UserManual as the no-context model and operator manual surface.",
+        "examples": [
+          "../wtc-kernel-005/src/backend/handshake_core/src/model_manual/",
+          "../wtc-kernel-005/src/backend/handshake_core/src/bin/model_manual_md_gen.rs",
+          "../wtc-kernel-005/app/src-tauri/src/manual.rs"
+        ],
+        "enrichment_need": "Specify UserManual as the canonical product surface and require explicit compatibility shims or migration rows for legacy ModelManual paths."
+      }
+    ],
+    "approved_spec_enrichment": [
+      {
+        "module": ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md",
+        "anchors": [
+          "2.3.13.11 Project Knowledge Index and Rich Document Authority [ADD v02.192]"
+        ],
+        "result": "ProjectKnowledgeIndex authority record family added; PostgreSQL/EventLedger authority and projection-only generated artifacts locked for WP-KERNEL-009."
+      },
+      {
+        "module": ".GOV/spec/master-spec-v02.192/spec-modules/07-user-experience-and-development.md",
+        "anchors": [
+          "7.1.1.8 WP-KERNEL-009 Rich Editor Lock [ADD v02.192]"
+        ],
+        "result": "Tiptap/ProseMirror plus Monaco rich editor stack locked as bundled Handshake product libraries with visual-debug and backend-navigation requirements."
+      },
+      {
+        "module": ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md",
+        "anchors": [
+          "10.15.8 UserManual migration bridge [ADD v02.192]",
+          "10.20 Project Knowledge Index and Rich Editor Surface [ADD v02.192]"
+        ],
+        "result": "UserManual migration bridge and Project Knowledge Index/Rich Editor operator-model surface added."
+      },
+      {
+        "module": ".GOV/spec/master-spec-v02.192/spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+        "anchors": [
+          "9.1.1 WP-KERNEL-009 authority supersession [ADD v02.192]"
+        ],
+        "result": "Imported Loom SQLite compatibility/fallback language superseded for WP-KERNEL-009 authority paths."
+      },
+      {
+        "module": ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md",
+        "anchors": [
+          "12.7 WP-KERNEL-009 Primitive and Interaction Addendum [ADD v02.192]"
+        ],
+        "result": "Primitive and interaction appendix rows registered for knowledge, retrieval, rich document, backend navigation, visual debug, and UserManual surfaces."
+      }
+    ],
+    "proposed_spec_enrichment": [
+      "Create copy-first bundle master-spec-v02.192 after CX-405/CX-406 confirmation.",
+      "Patch 02-system-architecture to define ProjectKnowledgeIndex, KnowledgeSource, KnowledgeSpan, KnowledgeEntity, KnowledgeEdge, KnowledgeClaim, MemoryPassage, RetrievalTrace, and UserManualRecord as PostgreSQL/EventLedger authority records.",
+      "Patch 02-system-architecture and 11-shared-dev-platform-and-oss-foundations so Loom storage/search/graph text no longer implies SQLite compatibility or fallback for WP-KERNEL-009 authority.",
+      "Patch 07-user-experience-and-development and 10-product-surfaces to lock Tiptap/ProseMirror plus Monaco as the built-in Handshake rich editor stack and to define the UserManual operator/model surface.",
+      "Patch 12-end-of-file-appendices to add primitive registry and interaction-matrix entries for ProjectKnowledgeIndex, KnowledgeSource, KnowledgeSpan, KnowledgeEntity, KnowledgeEdge, KnowledgeClaim, MemoryPassage, RichDocument, EditorCodeNode, UserManual, BackendNavigation, RetrievalTrace, and VisualDebugEvidence."
+    ],
+    "spec_enrichment_target_bundle": "master-spec-v02.192",
+    "spec_enrichment_bump_path": "APPLIED_COPY_FIRST_INDEXED_BUNDLE_AFTER_OPERATOR_CONFIRMATION_PER_CX-405_CX-406",
+    "stub_wp_ids": "WP-1-Project-Brain-Runtime-Backfill-v1, WP-1-Semantic-Catalog-v2, WP-1-AIReady-Index-Evidence-Export-v1, WP-1-AIReady-RelationshipIds-GraphRetrieval-v1, WP-1-RAG-Retrieval-Mode-Policy-v1, WP-1-ContextPack-Recorder-Visibility-v1",
+    "folded_legacy_stubs": [
+      "WP-1-Project-Brain-Runtime-Backfill-v1",
+      "WP-1-Semantic-Catalog-v2",
+      "WP-1-AIReady-Index-Evidence-Export-v1",
+      "WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
+      "WP-1-RAG-Retrieval-Mode-Policy-v1",
+      "WP-1-ContextPack-Recorder-Visibility-v1"
+    ],
+    "microtask_plan": {
+      "status": "DRAFT_FROM_STUB_NOT_PROMOTED",
+      "source_field": "microtask_plan_draft",
+      "source_count": 240,
+      "promotion_rule": "Promote to official MT-*.json contracts only after the Master Spec enrichment is applied, the refreshed refinement declares ENRICHMENT_NEEDED=NO, and packet.json is hydrated.",
+      "required_contract_shape": [
+        "scope",
+        "relevant_files",
+        "dependencies",
+        "constraints",
+        "expected_behavior",
+        "acceptance_criteria",
+        "verification",
+        "handoff_requirements",
+        "hbr_focus"
+      ]
+    },
+    "high_roi_additions": [
+      {
+        "id": "ROI-001",
+        "what": "Add a stale-spec tripwire for SQLite-era wording in WP-KERNEL-009 touched modules.",
+        "why_high_roi": "The area is already blocked on spec enrichment, and this prevents future MTs from reintroducing obsolete storage assumptions.",
+        "gap_or_risk_addressed": "SQLite fallback or test-fixture authority could silently undercut PostgreSQL/EventLedger proof.",
+        "reuse": "Existing no-SQLite tripwire, validator-spec-regression, and grep-based checks.",
+        "validation": "A negative fixture containing SQLite authority language in touched WP-KERNEL-009 sections must fail the enrichment check."
+      },
+      {
+        "id": "ROI-002",
+        "what": "Add UserManual self-consistency rows for every new backend navigation, rich editor, Loom, and retrieval trace command.",
+        "why_high_roi": "The WP already changes model-facing navigation; same-pass manual wiring avoids later no-context recovery drift.",
+        "gap_or_risk_addressed": "Local/cloud agents cannot recover work after compaction if the manual trails product routes.",
+        "reuse": "Existing model_manual Rust source, manual_no_context_harness, model_manual_tests, and HBR-MAN rules.",
+        "validation": "Manual self-consistency test proves every named command/API/schema field resolves to product code."
+      },
+      {
+        "id": "ROI-003",
+        "what": "Add visual-debug evidence fixtures for editor schema, graph navigation, retrieval trace, UserManual, and error states.",
+        "why_high_roi": "WP-KERNEL-009 is UI-heavy; visual checks added now reduce downstream reviewer ambiguity.",
+        "gap_or_risk_addressed": "Unit tests could pass while the rich editor, graph, or manual is unreadable or undiscoverable.",
+        "reuse": "Existing VisualDebuggerPanel, tauri visual_debug command paths, tests/visual, and HBR-VIS rules.",
+        "validation": "Headless visual run captures screenshots and structured state for each new operator-facing surface."
+      },
+      {
+        "id": "ROI-004",
+        "what": "Add typed BackendNavigation receipts for model actions in the knowledge index and rich editor.",
+        "why_high_roi": "The WP explicitly supports parallel local/cloud models; typed receipts are cheap while API contracts are being defined.",
+        "gap_or_risk_addressed": "Parallel models could collide, lose attribution, or require screen-reading to coordinate.",
+        "reuse": "Existing inspector_read, trace_projection, replay_drive, EventLedger, and role mailbox patterns.",
+        "validation": "Two-session test proves actions carry actor/session/correlation IDs and can be replayed without prose parsing."
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-REFINE-001",
+        "text": "WP-KERNEL-009 stayed blocked from packet/signature/worktree/coder launch while ENRICHMENT_NEEDED=YES; after v02.192 enrichment, packet hydration remains blocked until post-enrichment refinement signature."
+      },
+      {
+        "id": "AC-REFINE-002",
+        "text": "The copy-first v02.192 indexed bundle exists with manifest hashes, changelog, SPEC_CURRENT update, BUILD_ORDER sync, and passing spec validation commands."
+      },
+      {
+        "id": "AC-REFINE-003",
+        "text": "The exact one-time signature token is not stored before the valid post-enrichment signature step."
+      },
+      {
+        "id": "AC-REFINE-004",
+        "text": "The six folded legacy stubs remain preserved in WP-KERNEL-009 and are not reactivated directly."
+      },
+      {
+        "id": "AC-REFINE-005",
+        "text": "The 240 draft microtasks are treated as source input until promoted to official typed MT contracts after enrichment refresh."
+      },
+      {
+        "id": "AC-REFINE-006",
+        "text": "Post-enrichment packet hydration, MT promotion, worktree creation, and coder launch require a final operator refinement approval/signature and remain unstarted in this phase."
+      }
+    ],
+    "risks_and_hardening": [
+      {
+        "risk": "Generated wiki or markdown becomes hidden authority.",
+        "failure_scenarios": [
+          "A model edits exported markdown instead of canonical records.",
+          "Validator checks a context bundle but not the EventLedger source."
+        ],
+        "mitigations": [
+          "Declare all generated wiki/markdown/context/debug artifacts as projections.",
+          "Require EventLedger/PostgreSQL source links and replay tests for every authority claim."
+        ],
+        "verification": [
+          "Projection edit negative test fails to mutate canonical knowledge records.",
+          "Replay reconstructs the same knowledge graph from EventLedger state."
+        ]
+      },
+      {
+        "risk": "Rich editor schema churn corrupts documents or code blocks.",
+        "failure_scenarios": [
+          "Tiptap schema migration drops Monaco code-node metadata.",
+          "AI edit proposal writes directly to a document without promotion."
+        ],
+        "mitigations": [
+          "Version rich document schema and code-node payloads.",
+          "Route AI edit proposals through CRDT/EventLedger promotion and review."
+        ],
+        "verification": [
+          "Round-trip fixture covers rich text, embeds, links, code nodes, and AI proposal rejection.",
+          "Promotion negative test blocks direct document mutation."
+        ]
+      },
+      {
+        "risk": "Knowledge graph relationships are invented or unstable.",
+        "failure_scenarios": [
+          "Extractor creates relationship edges without source spans.",
+          "relationship_id changes between re-index runs and breaks retrieval traces."
+        ],
+        "mitigations": [
+          "Every edge requires source span, extractor version, confidence, and lifecycle.",
+          "Stable relationship_id derivation is a packet acceptance row."
+        ],
+        "verification": [
+          "Re-index fixture proves relationship_id stability.",
+          "Unsupported inferred edge emits a blocked/proposed claim, not authority."
+        ]
+      },
+      {
+        "risk": "Spec enrichment expands beyond the activation closure unit.",
+        "failure_scenarios": [
+          "v02.192 becomes a broad cleanup of all SQLite text instead of WP-KERNEL-009 touched areas.",
+          "Spec proposal edits unrelated product domains."
+        ],
+        "mitigations": [
+          "Patch only modules and clauses listed in spec-enrichment-proposal.json.",
+          "Leave unrelated legacy SQLite surfaces as classified debt unless they intersect WP-KERNEL-009 authority."
+        ],
+        "verification": [
+          "Changelog lists only touched modules and before/after hashes.",
+          "Diff review confirms no unrelated roadmap or product-surface rewrite."
+        ]
+      }
+    ],
+    "verification_plan": [
+      "Parse refinement.json and spec-enrichment-proposal.json as JSON.",
+      "Run packet-contract-projection-check to prove JSON-first projection opt-out is accepted.",
+      "Run validator-spec-regression and spec-eof-appendices-check after the v02.192 enrichment is approved and applied.",
+      "Run hbr-matrix-check after packet hydration emits HBR rows.",
+      "Run product tests and visual-debug checks only after a product implementation packet/worktree exists."
+    ],
+    "next_action": "Await post-enrichment refinement approval/signature. After approval, hydrate packet.json and promote MT-*.json contracts from the 240 draft microtasks; ACP remains disabled by operator request.",
+    "spec_enrichment_result": {
+      "status": "APPROVED_AND_APPLIED",
+      "approved_at_utc": "2026-06-11T06:53:52.277Z",
+      "approval_evidence": "Operator chat approval: APPROVE SPEC PROPOSAL WP-KERNEL-009 v02.192",
+      "target_bundle": ".GOV/spec/master-spec-v02.192",
+      "manifest": ".GOV/spec/master-spec-v02.192/indexed-spec-manifest.json",
+      "resolver": ".GOV/spec/master-spec-v02.192/INDEX.json",
+      "reconstructed_sha1": "4795dd5e11addaa347c89ca052c9b78a4b83c888",
+      "reconstructed_sha256": "f95e3ed9e0354b537b3465df8e429709a4d28d82a276a5d84daf588f5cec27e8",
+      "validation_results": [
+        {
+          "command": "node .GOV/roles_shared/scripts/spec-current-check.mjs",
+          "status": "PASS",
+          "notes": "SPEC_CURRENT resolves to .GOV/spec/master-spec-v02.192/indexed-spec-manifest.json."
+        },
+        {
+          "command": "node .GOV/roles_shared/checks/spec-bundle-check.mjs",
+          "status": "PASS",
+          "notes": "spec-debt-registry, spec-eof-appendices, spec-growth-discipline, and spec-governance-reference checks passed."
+        },
+        {
+          "command": "just validator-spec-regression",
+          "status": "PASS",
+          "notes": "Required validator anchors resolve against v02.192."
+        },
+        {
+          "command": "just spec-eof-appendices-check",
+          "status": "PASS",
+          "notes": "Appendix machine-readable spec_version/path projections resolve against v02.192."
+        },
+        {
+          "command": "node .GOV/roles_shared/checks/packet-contract-projection-check.mjs",
+          "status": "BLOCKED_PRE_EXISTING",
+          "notes": "Repo-wide generated projection drift remains in WP-KERNEL-005 MT/packet/refinement projections; no WP-KERNEL-009 packet or MT projections exist yet."
+        }
+      ]
+    },
+    "verification_results": [
+      {
+        "command": "node .GOV/roles_shared/scripts/spec-current-check.mjs",
+        "status": "PASS",
+        "notes": "SPEC_CURRENT resolves to .GOV/spec/master-spec-v02.192/indexed-spec-manifest.json."
+      },
+      {
+        "command": "node .GOV/roles_shared/checks/spec-bundle-check.mjs",
+        "status": "PASS",
+        "notes": "spec-debt-registry, spec-eof-appendices, spec-growth-discipline, and spec-governance-reference checks passed."
+      },
+      {
+        "command": "just validator-spec-regression",
+        "status": "PASS",
+        "notes": "Required validator anchors resolve against v02.192."
+      },
+      {
+        "command": "just spec-eof-appendices-check",
+        "status": "PASS",
+        "notes": "Appendix machine-readable spec_version/path projections resolve against v02.192."
+      },
+      {
+        "command": "node .GOV/roles_shared/checks/packet-contract-projection-check.mjs",
+        "status": "BLOCKED_PRE_EXISTING",
+        "notes": "Repo-wide generated projection drift remains in WP-KERNEL-005 MT/packet/refinement projections; no WP-KERNEL-009 packet or MT projections exist yet."
+      }
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_REFINEMENT_V1",
+    "risks": [
+      "ProjectKnowledgeIndex becomes a second database instead of an authority schema inside PostgreSQL/EventLedger.",
+      "Loom/Obsidian projection becomes a markdown vault by accident.",
+      "Tiptap and Monaco integration ships UI affordances without replayable product authority.",
+      "UserManual migration breaks existing model_manual routes without compatibility receipts.",
+      "The signature-like token is consumed before enrichment refresh makes signature capture valid."
+    ],
+    "minimum_controls": [
+      "ENRICHMENT_NEEDED may be NO only because v02.192 is applied and checked; final packet hydration still requires post-enrichment refinement signature.",
+      "Do not write the exact signature token to repo files before the final signature gate.",
+      "Require typed PostgreSQL/EventLedger source records for all knowledge authority.",
+      "Require visual-debug and UserManual evidence for all operator/model-facing surfaces.",
+      "Keep folded legacy stubs inactive and preserved inside WP-KERNEL-009."
+    ]
+  }
+}

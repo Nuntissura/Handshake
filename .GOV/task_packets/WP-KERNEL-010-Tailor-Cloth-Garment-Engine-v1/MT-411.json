@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-411",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-411.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-411.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-411.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-411.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-410"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Enumerate and wire the six MD-parity keyframeable fabric-property slots (Shrinkage Weft, Shrinkage Warp, Solidify, Pressure, Tack Strength, Trim Weight) as named Track<T> variants in the animation property registry, with per-substep GPU uniform upload for each.",
+    "allowed_paths": [
+      "tailor-solver/src/animation/material_keyframe.rs",
+      "tailor-solver/src/animation/property_registry.rs",
+      "tailor-solver/src/solver/params.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "MaterialKeyframe enum has named variants: ShrinkageWeft(f32), ShrinkageWarp(f32), Solidify(f32), Pressure(f32), TackStrength(f32), TrimWeight(f32), each carrying a normalized [0,1] value.",
+      "Property registry (MT-281) lists all six as distinct entries with their Track<f32> resolved type.",
+      "Per-substep GPU uniform upload path uploads the interpolated value of each active track slot to the WGSL uniform buffer before the constraint solve for that substep.",
+      "A garment spec or animation JSON referencing any of the six named slots round-trips through tailor_animations without name loss.",
+      "The ANIMATION_STABLE descriptor (MT-297) catches NaN injection from an out-of-range keyframe value on any of the six slots.",
+      "cargo test animation::material_keyframe::six_slots_registered passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver animation::material_keyframe::six_slots_registered",
+      "cargo test -p tailor-solver animation::material_keyframe::pressure_inflates_across_frames",
+      "cargo test -p tailor-solver animation::material_keyframe::shrinkage_weft_animates_per_substep"
+    ],
+    "risk_if_missed": "MOAT-4 (keyframeable physical properties) ships as a structural skeleton with no named per-property contract. Models and operators cannot target MD-equivalent animated inflatables, wet-drape drying, or dynamic stiffening because the six slots are not addressable by name. The MD-parity claim for keyframeable fabric dynamics is false."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

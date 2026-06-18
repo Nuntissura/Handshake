@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-407",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-407.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-407.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-407.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-407.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-406"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement keyframeable Trim Weight (trim_weight_scale track) in MaterialAnimationTracks and wire it through MaterialFrameParams per-frame upload to match MD 2025.2 keyframeable Trim Weight",
+    "allowed_paths": [
+      "tailor-solver/src/params.rs",
+      "tailor-solver/src/gpu/sim_params.rs",
+      "tailor-solver/src/trim/",
+      "src/backend/handshake_core/src/tailor/animation.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "MaterialFrameParams struct in tailor-solver/src/params.rs MUST include trim_weight_scale: f32 (multiplier on GpuTrimBody inv_mass; 1.0 = nominal) matching the canonical extension in spec TR-7.3",
+      "MaterialAnimationTracks struct MUST include a trim_weight_scale: KeyframeTrack<f32> field alongside the existing pressure/solidify/shrink tracks",
+      "The animation sim-over-timeline loop MUST compute trim_weight_scale from the keyframe track at each frame and include it in the MaterialFrameParams uploaded per substep",
+      "GpuSimParams or equivalent per-frame uniform MUST carry trim_weight_scale so the WGSL trim-rigid pass can scale GpuTrimBody inv_mass without a full buffer re-upload",
+      "TailorSimRunCompleted EventLedger payload MUST include the MaterialFrameParams array (including trim_weight_scale values) for full animation reproducibility per TR-7.4",
+      "The tailor_animations.animation_json column MUST persist trim_weight_scale track data so it survives session boundaries",
+      "The ANIMATION_STABLE ValidationDescriptor MUST check for NaN/Inf in trim_weight_scale values across the frame range",
+      "A drape-plus-animation integration test MUST assert that a button with trim_weight_scale animated from 1.0 to 3.0 over 30 frames produces measurably different cloth displacement compared to a static trim_weight_scale=1.0 run"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- trim_weight_keyframe_dispatch",
+      "cargo test -p handshake_core -- tailor::animation::trim_weight_track_persists_and_replays",
+      "cargo test -p handshake_core -- tailor::animation::animation_stable_validates_trim_weight_nan"
+    ],
+    "risk_if_missed": "MD 2025.2 trim weight keyframing enables animated physics effects like a coat getting heavier as it fills with water or a weighted hem swinging. Without it Tailor cannot reproduce this MD interaction mode, breaking parity with a 2025.2 release feature that real production workflows use. The spec (TR-7.3) explicitly requires trim_weight_scale in MaterialFrameParams; leaving MT-183 as the sole coverage means static-mass-only trim simulation and a gap the ModelManual cannot paper over."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

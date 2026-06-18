@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-374",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-374.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-374.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-374.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-374.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-373"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement washed denim preset variants (stonewashed, acid-washed, bleach-washed) as seeded tailor_material_presets forks of the base denim preset with calibrated compliance, physics, and PBR albedo color diffs to match MD 2025.1 washed denim parity",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/",
+      "tailor-solver/src/material.rs",
+      "src/backend/handshake_core/src/tailor/material.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Three additional is_system_preset=true rows MUST be seeded: slug='denim-stonewashed', slug='denim-acid-washed', slug='denim-bleach-washed', each forked from the base 'denim' preset row",
+      "Stonewashed variant MUST have slightly higher compliance (softer) than base denim (stretch_weft approx 1e-7 vs 5e-8) and lower buckling_stiffness (more worn, drapes more softly)",
+      "Acid washed and bleach washed variants MUST differ in their physics_json internal_damping and friction from base denim to reflect the different finishing treatments (acid wash: reduced friction; bleach wash: stiffer, closer to base)",
+      "Each washed denim preset MUST carry a display_color hint (RGB) in an optional metadata_json column or equivalent so the UvTexture group can generate a correct base albedo tone without a separate texture asset",
+      "All three variants MUST pass PRESET_NO_NAN, PRESET_STRETCH_NONZERO, and PRESET_DENSITY_POS drape validation",
+      "The tailor_fabric_preset_fork MCP tool MUST be the canonical mechanism for creating user-authored washed denim variants beyond the three seeded ones; the seeded rows demonstrate the fork pattern",
+      "ModelManual MUST list the three washed denim slugs as available preset archetypes so a model authoring a washed denim garment can select the correct archetype without inventing values"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::material::washed_denim_variants_seed_and_validate",
+      "cargo test -p tailor-solver -- material::stonewashed_softer_than_base_denim_drape",
+      "cargo test -p handshake_core -- tailor::mcp::washed_denim_slugs_resolve_via_preset_fork_tool"
+    ],
+    "risk_if_missed": "MD 2025.1 washed denim presets are a visible production feature used by fashion design workflows to distinguish garment handle without manual parameter tuning. Without them the Tailor preset library under-delivers for denim-heavy workflows, and models authoring denim garments will default to base denim compliance for all denim types, producing physically incorrect drape for stonewashed vs raw denim. This is a user-visible parity gap against MD 2025.1 in a high-frequency production material."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

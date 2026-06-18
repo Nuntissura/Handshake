@@ -1,0 +1,159 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-120",
+  "title": "MemoryGraphAndClaims-120-StableSchemaPromotionRule",
+  "group": "MemoryGraphAndClaims",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-120.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define frequency/evidence/operator-acceptance rules for promoting recurring schema patterns into stable ontology. This MT belongs to MemoryGraphAndClaims. Implement the Handshake-native memory system translated from research into product contracts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/tests/memory_persistence_postgres_tests.rs",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Paper-derived memory architecture must be expressed as Handshake-native MemoryOntology, MemoryFact, MemoryPassage, ClaimLifecycle, ConflictResolution, and EvidenceSpan contracts.",
+      "Probationary claims cannot become stable retrieval facts without evidence, conflict checks, and EventLedger promotion."
+    ],
+    "expected_behavior": "StableSchemaPromotionRule leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "StableSchemaPromotionRule is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-003",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-113"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
+    "implementation_commit": "98beb6d7",
+    "evidence": [
+      "Built+verified 98beb6d7; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-120 requires a StableSchemaPromotionRule: probationary ontology terms may only become stable retrieval ontology via a frequency/evidence threshold OR operator approval, backed by an EventLedger promotion receipt. The code implements this at schema, storage, and DB-trigger layers and proves it with real Handshake-managed PostgreSQL integration tests including the under-threshold and raw-SQL-attack negatives.",
+      "findings": [
+        "migrations/0240_knowledge_memory_ontology.sql:69-79 adds the MT-120 promotion accounting columns: observation_count, promotion_threshold (DEFAULT 3, CHECK >=1), operator_approved, and promotion_receipt_event_id (FK into kernel_event_ledger).",
+        "migrations/0240...sql:145-160 defines trigger knowledge_memory_ontology_stable_requires_receipt(): any INSERT/UPDATE setting lifecycle_state='stable' with NULL promotion_receipt_event_id raises a check_violation. This is the DB-level fail-closed enforcement of the receipt requirement.",
+        "storage/knowledge_memory.rs:178-181 is_promotable() encodes the exact MT-120 gate: term is probationary AND (operator_approved OR observation_count >= promotion_threshold) — frequency-threshold OR operator-approval, matching the commit message and contract.",
+        "storage/knowledge_memory.rs:333-367 promote_memory_ontology_term() fails closed: Conflict if not probationary, Validation if !is_promotable(), and only then UPDATEs to stable with the receipt id. Three independent layers (read gate, app gate, DB trigger).",
+        "storage/knowledge_memory.rs:260-264 upsert increments observation_count on re-derivation and ORs operator_approved, so the frequency path accrues correctly across index runs.",
+        "tests/knowledge_memory_ontology_tests.rs:56-118 proves the frequency path on real PG: 3 upserts -> observation_count==3 -> is_promotable -> promote with a real append_kernel_event receipt -> lifecycle Stable with promotion_receipt_event_id set.",
+        "tests/...:122-174 proves the negative: under-threshold promotion rejected as StorageError::Validation, AND a raw-SQL UPDATE to stable is refused by the DB trigger ('MUST carry a promotion_receipt_event_id').",
+        "tests/...:180-252 proves operator-approval bypass (threshold ignored) and the transition guard rejecting stable->probationary and retired->stable via raw SQL.",
+        "tests/knowledge_pg_support.rs:1-60 confirms proof runs against REAL Handshake-managed PostgreSQL (managed_postgres::ensure_running, default 5544) with NO SQLite/in-memory/mock fallback; absent binaries -> SKIP, all other failures panic.",
+        "All committed files are under the allowed path src/backend/handshake_core; the only 'sqlite' token is a comment asserting no SQLite fallback. lifecycle.claimed_by/completed_by are null (left at READY_FOR_VALIDATION), so no self-certification. Aside: the commit bundles MT-113/119/120 and packet/MT paperwork cites spec v02.192/v02.193 pointers — paperwork-only, non-blocking."
+      ],
+      "evidence_checked": [
+        "/.GOV/task_packets/WP-KERNEL-009.../MT-120.json",
+        "/.GOV/task_packets/WP-KERNEL-009.../packet.json (scope, allowed/forbidden paths, DEC-008)",
+        "/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 98beb6d7",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0240_knowledge_memory_ontology.sql",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0240_knowledge_memory_ontology.down.sql",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_memory.rs (promotion logic)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_ontology_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md sec 2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

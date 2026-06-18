@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-151",
+  "title": "RichDocumentCore-151-DocumentProjectionImport",
+  "group": "RichDocumentCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-151.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Import markdown/plain text/HTML snippets as rich documents with unsupported feature warnings and repairable nodes. This MT belongs to RichDocumentCore. Build the canonical structured document model backing the editor, Loom, UserManual, and projections.",
+    "relevant_files": [
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/commands/",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Rich documents are PostgreSQL/EventLedger/CRDT-backed structured block documents, not Markdown vault authority.",
+      "All rich document state must preserve Raw/Derived/Display separation and stable entity IDs."
+    ],
+    "expected_behavior": "DocumentProjectionImport leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "DocumentProjectionImport is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T06:25:00Z",
+        "kind": "hardening_v2",
+        "finding": "import -> load broken: importedRaw nodes (HTML/table imports) had no BlockKind arm, so imported documents 400'd on load/blocks/projection",
+        "fix": "Added ImportedRaw BlockKind (importedRaw node type) with verbatim round-trip; projections render the captured source INERT (markdown fence / escaped pre[data-hsk-imported-raw]); import unit tests now assert loadability",
+        "commit": "22d7ee77",
+        "tests": "knowledge_documents_api_tests 4 passed incl. mt151_imported_html_document_roundtrips_load_save_export + mt151_imported_markdown_table_document_roundtrips_load_save_export (real-PG import->load->blocks->save->export cycles); lib knowledge_document 38 passed incl. imported_raw_nodes_parse_and_roundtrip + imported_raw_blocks_render_inert_in_markdown_and_html"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "import -> load is broken for HTML and markdown-table inputs: importedRaw is not a known BlockKind",
+          "evidence": "import.rs:87-93 emits importedRaw nodes for HTML (line 117) and markdown tables (line 230). BlockKind::from_node_type (block_tree.rs:110-131) has NO importedRaw arm, so BlockTree::from_document_json returns UnsupportedBlockType. import_document (api:595) stores the doc without parsing, but load_document/load_blocks/export_projection all call BlockTree::from_document_json -> every read of an imported HTML/table doc 400s. The import tests only round-trip the markdown happy path through BlockTree (import.rs:328-345); the HTML/table tests assert raw JSON only (349-375), never re-parsing.",
+          "fix": "Add ImportedRaw to BlockKind (and as_node_type/from_node_type) so imported docs are loadable/repairable, or have the importer emit a supported placeholder block. Add an import->load->project round-trip test for HTML and table inputs.",
+          "status": "FIXED",
+          "fixed_commit": "22d7ee77"
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Import markdown/plain text/HTML snippets with repairable nodes",
+          "reality": "a repairable importedRaw node makes the entire document unloadable through the typed API (load/blocks/projection all 400), defeating repairability"
+        }
+      ],
+      "missing_tests": [
+        "test: import_snippet HTML -> BlockTree::from_document_json on the result must succeed (currently fails)",
+        "test: import a markdown table -> load_blocks succeeds"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-151 requires importing markdown/plain-text/HTML snippets as rich documents with typed unsupported-feature warnings and repairable nodes, persisted to PostgreSQL/EventLedger with verifiable round-trip. The code delivers a real deterministic importer, captures unconvertible content as a repairable importedRaw block, renders it inert in projections, and proves the full import->load->save->export cycle on real PostgreSQL. The prior HIGH adversarial finding (importedRaw making documents unloadable / 400) is genuinely fixed in commit 22d7ee77.",
+      "findings": [
+        "import.rs:57-123 — import_snippet dispatches real, deterministic parsers (markdown block parser covering ATX headings, blockquotes, fenced code, bullet/ordered lists, table-detection, paragraphs; plain-text paragraph splitter; HTML capture). No stub/placeholder.",
+        "import.rs:38-46,118-122,162-167,231-234 — typed ImportWarning emitted (html_captured_as_raw, table_captured_as_raw, unterminated_code_fence) instead of silently dropping content; satisfies the 'unsupported feature warnings' requirement.",
+        "import.rs:87-93 — imported_raw() produces a repairable node (attrs.repairable=true, source_format) carrying the original source text verbatim; satisfies 'repairable nodes', nothing lost.",
+        "block_tree.rs:88,119,146 — BlockKind::ImportedRaw is a real arm of from_node_type/as_node_type. This is the genuine fix for the prior adversarial-v2 HIGH finding: previously imported HTML/table docs hit UnsupportedBlockType (block_tree.rs:359-364) and 400'd on every load/blocks/projection read. Now they parse and round-trip.",
+        "projection.rs:138-144,196-200 — importedRaw renders INERT: fenced code block in markdown and escaped <pre data-hsk-imported-raw><code> in HTML (text via escape_html), so captured raw HTML never executes as markup.",
+        "api/knowledge_documents.rs:71,1221-1269 — /knowledge/documents/import endpoint is real: parses format, runs import_snippet, persists via create_knowledge_rich_document (PostgreSQL) and emits a KnowledgeRichDocumentSaved EventLedger receipt. Not a mock.",
+        "tests/knowledge_documents_api_tests.rs:369-504,1167+ — mt151 HTML and markdown-table tests drive the full import->load->blocks->save(v1->v2)->markdown+html export cycle over a live loopback HTTP server, asserting 200 at each step and inert fenced export; this directly reproduces and disproves the prior 400.",
+        "tests/knowledge_pg_support.rs:40,108-155 — knowledge_pg() connects to REAL PostgreSQL (ManagedPostgres or POSTGRES_TEST_URL/DATABASE_URL) on an isolated schema via PostgresDatabase::connect; no SQLite / in-memory substitute. Tests SKIP (not pass) when PG absent.",
+        "Grep of import.rs/block_tree.rs/knowledge_documents.rs found no todo!()/unimplemented!()/unreachable!()/deferred-live/Unavailable placeholders on the required path.",
+        "Aside (non-blocking, expected): packet cites spec bundle v02.192/v02.193 while SPEC_CURRENT is v02.194; resolver/paperwork drift only, not a code defect."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-151.json",
+        ".GOV/task_packets/WP-KERNEL-009-.../packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat 22d7ee77",
+        "src/backend/handshake_core/src/knowledge_document/import.rs",
+        "src/backend/handshake_core/src/knowledge_document/block_tree.rs",
+        "src/backend/handshake_core/src/knowledge_document/projection.rs",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

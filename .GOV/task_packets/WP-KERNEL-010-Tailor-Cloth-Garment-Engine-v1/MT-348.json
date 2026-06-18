@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-348",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-348.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-348.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-348.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-348.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-347"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the bidirectional 2D-to-3D authority feedback loop: after each solver run, extract per-edge simulated arc-lengths from SolverResult and write them back to the GarmentSpec seam length annotations in tailor_panels, enabling the 2D editor to display actual draped edge lengths alongside authored lengths",
+    "allowed_paths": [
+      "tailor-solver/src/solver_result.rs",
+      "src/backend/handshake_core/src/tailor/solver_binding.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/PatternEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "SolverResult carries a per-seam-edge simulated_arc_length_cm: Vec<f32> field for each seam id",
+      "After simulate() completes, solver_binding.rs writes simulated arc-lengths to tailor_panels as a non-authoritative annotation field (not altering the authored EdgeShape geometry)",
+      "The 2D editor displays both authored length and simulated length per seam edge; discrepancy triggers an advisory SEAM_LENGTH_DRIFT warning when delta > 5%",
+      "A model can read simulated arc-lengths from the SimulationReceipt to self-correct gather_ratio values",
+      "The write-back does not alter the authoritative EdgeShape coordinates (it is a read-only annotation on the authority row)",
+      "TailorSimRunCompleted event includes the arc-length annotation so EventLedger replay reconstructs it"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver solver_result::test_arc_length_extraction",
+      "cargo test -p handshake_core tailor::solver_binding::test_arc_length_writeback",
+      "cargo test -p handshake_core tailor::authoring::test_seam_length_drift_advisory"
+    ],
+    "risk_if_missed": "MOAT-1 is explicitly identified in the MD feature map as the core authoring moat. Without solver-to-2D arc-length feedback, a model cannot know whether its authored seam lengths match the actual draped geometry. Gather ratios are set blind, leading to over-gathered or under-gathered seams that require manual iteration. The SimulationReceipt self-correction loop (MT-268) becomes structurally incomplete: it can detect NO_INTERPENETRATION and DRAPE_CONVERGED failures but cannot guide seam-length corrections."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

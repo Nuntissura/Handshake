@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-401",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-401.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-401.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-401.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-401.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-400"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement NGL-structured garment planning tool that transforms a natural-language operator brief into a NGL intermediate description (garment category, neckline, sleeve length, fit, ease, layer count) before panel shape generation, and inject it into ContextBundle.ngl_description",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/ngl_planner.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "tailor-solver/src/spec.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A NglGarmentDescription struct is defined capturing: garment_category, neckline, collar, sleeve_length, sleeve_type, length, fit (tight/regular/oversized), ease_cm, layer_count, material_hint",
+      "TailorModelAdapter invokes an NGL planning pass (via LlmClient) before panel-shape generation: operator_brief -> NglGarmentDescription -> GarmentSpec panels",
+      "NglGarmentDescription is serializable and is stored in ContextBundle.ngl_description and in GarmentSpec.natural_description for session handoff",
+      "When reference_spec_id is non-null in ContextBundle, the NGL planning pass produces a delta description (what changes from the reference, not a full re-plan)",
+      "Multi-layer outfits (layer_count > 1) produce a GarmentSpec with panels grouped by layer, enabling the multi-layer collision ordering required by the Collision group",
+      "The NGL intermediate is emitted as a TailorPanelAiEditProposalRecorded event before panels are finalized so the operator can inspect the plan"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::ngl_planner::brief_to_ngl (operator brief produces valid NglGarmentDescription)",
+      "cargo test -p handshake_core tailor::model_adapter::ngl_to_spec_roundtrip (NGL description + template produces panels passing PANEL_CLOSURE)",
+      "cargo test -p handshake_core tailor::model_adapter::multilayer_ngl (layer_count=2 produces correctly grouped panels)"
+    ],
+    "risk_if_missed": "Without the NGL planning intermediate, models jump directly from free-text operator brief to vertex coordinates. This produces noisy, geometrically inconsistent panels requiring many more self-correction iterations. The NGL step is what makes multi-layer outfits and complex garment categories feasible via a single author_garment call. Skipping it eliminates the no-training NGL-Prompter advantage that distinguishes Handshake from vanilla ChatGarment fine-tuning."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

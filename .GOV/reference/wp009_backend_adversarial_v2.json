@@ -1,0 +1,691 @@
+{
+  "schema": "wp009.backend_adversarial@1",
+  "generated_at_utc": "2026-06-12T00:00:00Z",
+  "reviewer": "adversarial-backend-reviewer",
+  "scope": "READ-ONLY second-eyes review of READY_FOR_VALIDATION backend groups RichDocumentCore (MT-145..160), RetrievalContextAndRanking (MT-129..144), and a spot-check of hardened CodeIndexing (MT-097/098/099/100/104/105/106/108). Zero cargo invocations, zero product-code edits. Evidence is code-reading: source, migrations, tests-as-text, MT contracts, recorded evidence.",
+  "mts_reviewed": [
+    "MT-129",
+    "MT-130",
+    "MT-131",
+    "MT-132",
+    "MT-133",
+    "MT-134",
+    "MT-135",
+    "MT-136",
+    "MT-137",
+    "MT-138",
+    "MT-139",
+    "MT-140",
+    "MT-141",
+    "MT-142",
+    "MT-143",
+    "MT-144",
+    "MT-145",
+    "MT-146",
+    "MT-147",
+    "MT-148",
+    "MT-149",
+    "MT-150",
+    "MT-151",
+    "MT-152",
+    "MT-153",
+    "MT-154",
+    "MT-155",
+    "MT-156",
+    "MT-157",
+    "MT-158",
+    "MT-159",
+    "MT-160",
+    "MT-097",
+    "MT-098",
+    "MT-099",
+    "MT-100",
+    "MT-104",
+    "MT-105",
+    "MT-106",
+    "MT-108"
+  ],
+  "verdict_summary": {
+    "RichDocumentCore_145_160": {
+      "HARDENED_OK": [
+        "MT-145",
+        "MT-146",
+        "MT-147",
+        "MT-153",
+        "MT-155",
+        "MT-160"
+      ],
+      "FINDINGS": [
+        "MT-148",
+        "MT-149",
+        "MT-150",
+        "MT-151",
+        "MT-152",
+        "MT-154",
+        "MT-156",
+        "MT-157",
+        "MT-158",
+        "MT-159"
+      ]
+    },
+    "RetrievalContextAndRanking_129_144": {
+      "HARDENED_OK": [
+        "MT-129",
+        "MT-132",
+        "MT-135",
+        "MT-136",
+        "MT-137",
+        "MT-138",
+        "MT-141",
+        "MT-142"
+      ],
+      "FINDINGS": [
+        "MT-130",
+        "MT-131",
+        "MT-133",
+        "MT-134",
+        "MT-139",
+        "MT-140",
+        "MT-143",
+        "MT-144"
+      ]
+    },
+    "CodeIndexing_spotcheck": {
+      "HARDENED_OK": [
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-108"
+      ],
+      "FINDINGS": [
+        "MT-097"
+      ],
+      "note": "spot-check confirms V1 HARDEN_RECOMMENDED concerns landed real fixes except MT-097 unbounded-parse."
+    }
+  },
+  "findings_by_severity": {
+    "HIGH": [
+      {
+        "mt": "MT-158",
+        "title": "Document permission boundary fails open to 'system' and trusts a client-supplied actor-kind header",
+        "evidence": "api/knowledge_documents.rs:183 (default 'system'); permission.rs:120-126 (system/operator/local_model full access)",
+        "fix": "Derive actor_kind from an authenticated principal; default to least-privileged on absence; reject kind mismatch."
+      },
+      {
+        "mt": "MT-150",
+        "title": "HTML projection does not sanitize URL schemes - javascript:/data: href survives into <a href> (stored XSS on click)",
+        "evidence": "projection.rs:151-158 (href=escape_html(target)); escape_html (226-239) escapes quotes/angle but not scheme",
+        "fix": "Allowlist href/src schemes (http,https,mailto,internal refs); neutralize javascript:/data:/vbscript:."
+      },
+      {
+        "mt": "MT-151",
+        "title": "import -> load is broken for HTML and markdown-table inputs (importedRaw is not a known BlockKind)",
+        "evidence": "import.rs:117,230 emit importedRaw; block_tree.rs:110-131 has no importedRaw arm -> load/blocks/projection 400 on any imported HTML/table doc",
+        "fix": "Add ImportedRaw to BlockKind (or emit a supported placeholder); add an import->load round-trip test."
+      }
+    ],
+    "MEDIUM": [
+      {
+        "mt": "MT-148",
+        "title": "Derived block id churns on structural edits; stability depends on the frontend persisting attrs.block_id (unverified)",
+        "evidence": "block_tree.rs:318-325,278-285"
+      },
+      {
+        "mt": "MT-149",
+        "title": "Non-atomic save+index: post-commit error path returns 400/500 for an already-committed save",
+        "evidence": "api/knowledge_documents.rs:441-496"
+      },
+      {
+        "mt": "MT-150",
+        "title": "Projection reads embed targets from raw content_json attrs, bypassing MT-152 typed validation",
+        "evidence": "projection.rs:210-224"
+      },
+      {
+        "mt": "MT-152",
+        "title": "Embed typed-reference validation never enforced on the document save path (only the side table)",
+        "evidence": "knowledge.rs:4532 save; api:466-496 backlinks-only; upsert_knowledge_document_embed (4801) separate"
+      },
+      {
+        "mt": "MT-154",
+        "title": "Block/title/embed content indexing into the Project Knowledge Index is not implemented (links/tags only)",
+        "evidence": "backlink.rs persists edges/tags; no search-index write"
+      },
+      {
+        "mt": "MT-156",
+        "title": "History endpoint unbounded; returns full content_json of every version (response-size DoS)",
+        "evidence": "knowledge.rs:4601 no LIMIT; api:532-559 returns all bodies"
+      },
+      {
+        "mt": "MT-157",
+        "title": "Batch operations and most named ops (tag/folder-color/projection-rebuild/stale-repair) unimplemented; only per-doc rename/move; empty-body move clears membership",
+        "evidence": "api:786-853; knowledge.rs:4660"
+      },
+      {
+        "mt": "MT-159",
+        "title": "Crash-recovery proof covers only promoted (committed) state; unsaved/draft recovery (the hard half) untested",
+        "evidence": "knowledge_document_model_tests.rs:454-499"
+      },
+      {
+        "mt": "MT-130",
+        "title": "Dangling-handle degrade holds only for entity/source; WP/MT/relationship handles never confirm (unsatisfiable plan, no degrade)",
+        "evidence": "planner.rs:286-311; test covers only EntityId (pipeline_tests:124)"
+      },
+      {
+        "mt": "MT-131",
+        "title": "Schema scope applied post-hoc over a capped unordered fact load (recall gap); not invoked by the planner before widening",
+        "evidence": "schema_filter.rs:144-146; planner.rs never calls schema_first_filter"
+      },
+      {
+        "mt": "MT-133",
+        "title": "Passage fallback is a correct pure decision but unwired/unexecuted and has no integration test",
+        "evidence": "passage_fallback.rs:87 unit-only; compiler injects pre-built candidates"
+      },
+      {
+        "mt": "MT-134",
+        "title": "Ranking has no integration coverage; integrated graph/passage->rank->compile path unproven",
+        "evidence": "ranking.rs unit-only; pipeline_tests:253 injects candidates"
+      },
+      {
+        "mt": "MT-140",
+        "title": "QueryPlan routes are not derived from the SemanticCatalog (spec MUST) - planner emits hardcoded routes",
+        "evidence": "planner.rs steps 3/5 hardcoded; routing_for/route_steps_from_entry never called"
+      },
+      {
+        "mt": "MT-143",
+        "title": "Repair-actions endpoint (and dedicated stale/missing-evidence surfaces) named by the contract not implemented",
+        "evidence": "api/knowledge_retrieval.rs: explain/export/catalog only"
+      },
+      {
+        "mt": "MT-144",
+        "title": "Named scenarios exist as labels; only ranking/budget fixtures realized (hybrid/passage-fallback/stale-graph/bad-citation/no-result absent)",
+        "evidence": "fixtures.rs RetrievalScenario enum + rank/budget tests only"
+      },
+      {
+        "mt": "MT-097",
+        "title": "Unbounded tree-sitter parse: no input-size or node-count guard (V1 concern not closed; catch_unwind added but no cap)",
+        "evidence": "parser.rs:246-263 no cap; engine.rs:258 parses unconditionally"
+      }
+    ],
+    "LOW": [
+      {
+        "mt": "MT-146",
+        "title": "Derived block ids not written back into authority JSON (frontend must persist attrs.block_id)"
+      },
+      {
+        "mt": "MT-149",
+        "title": "Schema-version inconsistency between pre-save validate (DOCUMENT_SCHEMA_VERSION) and post-save re-parse (saved.schema_version)"
+      },
+      {
+        "mt": "MT-153",
+        "title": "Broken-embed queue not reconciled against document content"
+      },
+      {
+        "mt": "MT-155",
+        "title": "block_id in relationship_id => backlink ids inherit MT-148 derived-id churn"
+      },
+      {
+        "mt": "MT-160",
+        "title": "Fixtures miss importedRaw round-trip + album/slideshow/video embed render + explicit conflict case"
+      },
+      {
+        "mt": "MT-129",
+        "title": "passage_fallback/blocked collapse to hybrid_rag/none in the durable mode column (distinction only in reason/decisions)"
+      },
+      {
+        "mt": "MT-132",
+        "title": "N+1 DB round-trips per traversal (<=2*max_nodes) and uncapped edge vector"
+      },
+      {
+        "mt": "MT-134",
+        "title": "trace trust_adjust sentinel (-1.0) misreports the actual hub penalty (-0.25)"
+      },
+      {
+        "mt": "MT-135",
+        "title": "A span with a deleted source is still marked supported=true"
+      },
+      {
+        "mt": "MT-136",
+        "title": "Per-source/snippet-cap drops coarsened to excluded_budget in the bundle items table (precise reason only in trace)"
+      },
+      {
+        "mt": "MT-137",
+        "title": "Only token+snippet caps enforced; candidate/read/tool/rerank caps are advisory"
+      },
+      {
+        "mt": "MT-138",
+        "title": "build_plan does not call validate() despite the comment; invariant enforced only at persistence"
+      },
+      {
+        "mt": "MT-139",
+        "title": "prefer_context_pack_reuse is a passthrough with no effect on the produced plan"
+      },
+      {
+        "mt": "MT-142",
+        "title": "Pack decisions reuse ContextBundleRecorded event type, distinguished only by payload.kind"
+      },
+      {
+        "mt": "MT-098",
+        "title": "Collision ordinal is positional => entity_key/relationship_id churns when impls/dups added or reordered (shared 099/100)"
+      },
+      {
+        "mt": "MT-100",
+        "title": "Re-confirm multi-declarator const extraction with a regression test"
+      }
+    ]
+  },
+  "claim_mismatches": [
+    {
+      "mt": "MT-150/152",
+      "claim": "embeds (absolute paths DB-CHECK rejected)",
+      "reality": "DB CHECK guards only the side table knowledge_document_embeds; content_json embed blocks are saved unvalidated and are what projections render"
+    },
+    {
+      "mt": "MT-151",
+      "claim": "import HTML/snippets with repairable nodes",
+      "reality": "an importedRaw 'repairable' node makes the whole document unloadable via the typed API (load/blocks/projection 400)"
+    },
+    {
+      "mt": "MT-154",
+      "claim": "Index rich document blocks, titles, links, tags, and embeds into Project Knowledge Index",
+      "reality": "only links and tags persisted, as backlink edges; blocks/titles/embeds not indexed"
+    },
+    {
+      "mt": "MT-157",
+      "claim": "safe batch rename, move, tag, folder color label, projection rebuild, stale repair",
+      "reality": "only per-document rename and move exist"
+    },
+    {
+      "mt": "MT-158",
+      "claim": "server-enforced permission boundary, not a UI hint",
+      "reality": "decision is server-side but its input (actor_kind) is a free header that fails open to system"
+    },
+    {
+      "mt": "MT-159",
+      "claim": "Prove unsaved/draft/promoted recovery",
+      "reality": "only promoted (committed) recovery is proven"
+    },
+    {
+      "mt": "MT-130",
+      "claim": "a dangling handle degrades to a broader mode",
+      "reality": "true only for entity/source handles; WP/MT/relationship produce an unsatisfiable plan with no degrade"
+    },
+    {
+      "mt": "MT-139",
+      "claim": "prefer fresh ContextPack reuse where appropriate",
+      "reality": "passthrough boolean with no effect on the QueryPlan"
+    },
+    {
+      "mt": "MT-140",
+      "claim": "QueryPlan.route[] MUST be derived from the SemanticCatalog when present",
+      "reality": "catalog->RouteStep bridge exists and is unit-tested, but the planner ignores it and emits fixed routes"
+    },
+    {
+      "mt": "MT-143",
+      "claim": "APIs for ... stale reason, missing evidence, and repair actions",
+      "reality": "explanation/reproduction/catalog implemented; repair actions absent; stale/missing only implicit in the trace"
+    },
+    {
+      "mt": "MT-144",
+      "claim": "fixtures for exact lookup, graph traversal, hybrid, passage fallback, stale graph, bad citation, no-result recovery",
+      "reality": "the 7 names exist; only exact-lookup/graph + ranking/budget inputs are realized"
+    }
+  ],
+  "proven_genuine": [
+    "MT-150/156 projection-delete leaves authority byte-identical: GENUINE (knowledge_document_model_tests.rs:371-445 compares the full RichDocument struct before/after deleting a projection rendered FROM it).",
+    "MT-159 promoted crash recovery: GENUINE for committed state (model_tests:454-499 reconnects a fresh PG handle, asserts version/content/sha/history/tree).",
+    "MT-138 trace replay: GENUINE (pipeline_tests:66 round-trips decisions[query_plan][plan_id] + retrieval_mode).",
+    "MT-155 relationship_id length-prefix injective: GENUINE (backlink.rs:324-332 separator-collision test).",
+    "CodeIndexing hardening (098/099/100/104/105/106/108): VERIFIED LANDED via code-read (ordinals, _v2 relationship_id, SCIP caps+segment rejection, staleness on 6 routes fail-closed, durable repair-queue enqueue)."
+  ],
+  "security_notes": {
+    "sql_injection": "None found. All storage writes/reads in knowledge.rs + knowledge_retrieval.rs bind values; format! only injects compile-time column-constant strings.",
+    "path_traversal": "Embed targets: Rust constructor + DB CHECK reject absolute/UNC/file:/drive-letter (but NOT enforced on content_json save path - see MT-152). SCIP import: '..'/'.' segments rejected (scip.rs:187).",
+    "xss": "HTML projection escapes text but NOT URL schemes in href/src - javascript:/data: survives (MT-150 HIGH).",
+    "authz": "Document permission boundary fails open to system on missing header + trusts client actor-kind (MT-158 HIGH).",
+    "dos_unbounded": "History endpoint returns all version bodies (MT-156); tree-sitter parse uncapped (MT-097); graph traversal N+1 but bounded by max_nodes (MT-132)."
+  },
+  "proposed_hardening_fixlist": [
+    {
+      "order": 1,
+      "severity": "HIGH",
+      "effort": "S",
+      "owner_mt": "MT-158",
+      "fix": "Bind actor_kind to an authenticated principal; default to least-privileged on missing x-hsk-actor-kind; reject asserted-kind != principal."
+    },
+    {
+      "order": 2,
+      "severity": "HIGH",
+      "effort": "S",
+      "owner_mt": "MT-150",
+      "fix": "Allowlist href/src URL schemes in the HTML (and markdown) projection; neutralize javascript:/data:/vbscript:; route embed targets through EmbedTarget."
+    },
+    {
+      "order": 3,
+      "severity": "HIGH",
+      "effort": "S",
+      "owner_mt": "MT-151",
+      "fix": "Add ImportedRaw to BlockKind (as_node_type/from_node_type) so imported HTML/table docs are loadable/repairable; add an import->load->project round-trip test."
+    },
+    {
+      "order": 4,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-152",
+      "fix": "On save, project content_json embed blocks through EmbedTarget::new + upsert into knowledge_document_embeds (or reject); makes the typed-reference + path law govern real content and removes the projection bypass."
+    },
+    {
+      "order": 5,
+      "severity": "MEDIUM",
+      "effort": "S",
+      "owner_mt": "MT-149",
+      "fix": "Fold backlink rebuild into the save transaction (or treat index-step failures as non-fatal like the permission-denial path) so a committed save never returns an error."
+    },
+    {
+      "order": 6,
+      "severity": "MEDIUM",
+      "effort": "S",
+      "owner_mt": "MT-156",
+      "fix": "Paginate history and omit content_json from the version list (return metadata + sha; lazy-load a single version body)."
+    },
+    {
+      "order": 7,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-130",
+      "fix": "Confirm WP/MT against the packet/MT store and relationship_id against knowledge_edges; degrade + record reason when absent."
+    },
+    {
+      "order": 8,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-140",
+      "fix": "Have the planner resolve routing_for(target) and populate plan.route from route_steps_from_entry when a catalog entry exists; fall back to defaults otherwise."
+    },
+    {
+      "order": 9,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-133/MT-134",
+      "fix": "Wire graph-result -> passage_fallback -> rank_candidates -> compile into one executed path; add a PG test that drives fallback + ranking end-to-end."
+    },
+    {
+      "order": 10,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-159",
+      "fix": "Add a draft/unsaved (write-box / draft-label) recovery test - the non-trivial half of the contract."
+    },
+    {
+      "order": 11,
+      "severity": "MEDIUM",
+      "effort": "S",
+      "owner_mt": "MT-097",
+      "fix": "Add a byte/node cap before tree-sitter parse (skip+repair-queue oversized files), mirroring the SCIP caps."
+    },
+    {
+      "order": 12,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-157",
+      "fix": "Implement batch endpoints with per-item receipts + partial-failure reporting; distinguish absent vs explicit-null in move; or descope the unbuilt ops."
+    },
+    {
+      "order": 13,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-154",
+      "fix": "Wire document block text/title/tags/embeds into the Project Knowledge Index on save, or descope MT-154 to link/tag edges explicitly."
+    },
+    {
+      "order": 14,
+      "severity": "MEDIUM",
+      "effort": "S",
+      "owner_mt": "MT-131",
+      "fix": "Push schema scope into the fact SQL (WHERE predicate_term_id IN ...) and invoke schema_first_filter in the planner before widening."
+    },
+    {
+      "order": 15,
+      "severity": "MEDIUM",
+      "effort": "M",
+      "owner_mt": "MT-143",
+      "fix": "Add a retrieval repair-action endpoint (refresh stale bundle / re-extract missing evidence) and surface stale/missing evidence explicitly."
+    },
+    {
+      "order": 16,
+      "severity": "LOW",
+      "effort": "M",
+      "owner_mt": "MT-098/099/100",
+      "fix": "Make the collision discriminator edit-stable (signature/content hash) instead of positional ordinal, so entity_key/relationship_id do not churn on impl/duplicate add/reorder."
+    },
+    {
+      "order": 17,
+      "severity": "LOW",
+      "effort": "S",
+      "owner_mt": "MT-148",
+      "fix": "Inject derived block_id into attrs.block_id on save so ids survive structural edits without relying on the frontend."
+    },
+    {
+      "order": 18,
+      "severity": "LOW",
+      "effort": "S",
+      "owner_mt": "MT-137",
+      "fix": "Enforce candidate/read/tool/rerank caps in an executor or document them as planner hints only."
+    }
+  ],
+  "hardening_closure": {
+    "at_utc": "2026-06-12T16:50:00Z",
+    "owner": "KERNEL_BUILDER backend-hardening delegate",
+    "branch": "feat/WP-KERNEL-009",
+    "rule": "every fix committed separately with scoped real-PG/lib tests; per-MT JSONs updated per fix (lifecycle.evidence hardening_v2 entries + findings[].status=FIXED); lifecycle.status untouched (READY_FOR_VALIDATION)",
+    "fixlist_status": [
+      {
+        "order": 1,
+        "mt": "MT-158",
+        "severity": "HIGH",
+        "status": "FIXED",
+        "commit": "5674367c",
+        "proof": "knowledge_documents_api_tests 2 negative route tests + 4 permission unit tests"
+      },
+      {
+        "order": 2,
+        "mt": "MT-150",
+        "severity": "HIGH",
+        "status": "FIXED",
+        "commit": "9527758c",
+        "proof": "lib knowledge_document 36 incl. 12 obfuscated href payloads + embed-validation negatives"
+      },
+      {
+        "order": 3,
+        "mt": "MT-151",
+        "severity": "HIGH",
+        "status": "FIXED",
+        "commit": "22d7ee77",
+        "proof": "2 real-PG import->load->save->export round-trips (HTML + md table)"
+      },
+      {
+        "order": 4,
+        "mt": "MT-152",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "aa0ce3f6",
+        "proof": "mt152 save-path test: 6 dangerous targets reject pre-commit; side table syncs incl. delete"
+      },
+      {
+        "order": 5,
+        "mt": "MT-149",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "aa0ce3f6",
+        "proof": "mt149 test drops backlink/embed/ledger tables for real; committed save returns 200 with all 3 failures recorded"
+      },
+      {
+        "order": 6,
+        "mt": "MT-156",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "bde6d28f",
+        "proof": "pagination + body omission + clamp + lazy single-version + 404"
+      },
+      {
+        "order": 7,
+        "mt": "MT-130",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "fb71d0f6",
+        "proof": "WP/MT/relationship existence checks + recorded dangles (2 new real-PG tests)"
+      },
+      {
+        "order": 8,
+        "mt": "MT-140",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "06bb2cec",
+        "proof": "planner derives routes from resolvable catalog entries; default fallback proven"
+      },
+      {
+        "order": 9,
+        "mt": "MT-133/MT-134",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "136c5e9a",
+        "proof": "executor.rs one executed plan->schema->graph->fallback->rank->snippet->compile path; 2 end-to-end real-PG tests (fallback + graph)"
+      },
+      {
+        "order": 10,
+        "mt": "MT-159",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "b8093659",
+        "proof": "draft write-box recovery over fresh PG connection; crash never silently promotes"
+      },
+      {
+        "order": 11,
+        "mt": "MT-097",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "f09d7a38",
+        "proof": "2MiB byte cap before parse + 400k node ceiling; typed failures; at-cap boundary"
+      },
+      {
+        "order": 12,
+        "mt": "MT-157",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "c8f54538",
+        "proof": "absent!=null move semantics + bounded batch endpoint with per-item receipts/partial failure; tag/folder-color/projection-rebuild/stale-repair explicitly NOT in this surface (tag edges via MT-155, rebuild via MT-058) - recorded in MT JSON"
+      },
+      {
+        "order": 13,
+        "mt": "MT-154",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "1ec93d61",
+        "proof": "documents indexed as first-class sources (stale on change) + title entities (planner-confirmable); provenance-keyed (schema document_id FKs legacy documents)"
+      },
+      {
+        "order": 14,
+        "mt": "MT-131",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "e5180a83",
+        "proof": "scope predicate pushed into fact SQL; recall-gap proof (in-scope fact under newer noise with tight cap); executor invokes schema_first_filter"
+      },
+      {
+        "order": 15,
+        "mt": "MT-143",
+        "severity": "MEDIUM",
+        "status": "FIXED",
+        "commit": "572bfe42",
+        "proof": "staleness surface (per-item missing_evidence/source_stale) + repair re-execution endpoint, route-level real-PG test"
+      },
+      {
+        "order": 16,
+        "mt": "MT-098/099/100",
+        "severity": "LOW",
+        "status": "DEFERRED",
+        "rationale": "edit-stable (hash) collision discriminator changes entity_key/relationship_id derivations pinned by frozen READY_FOR_VALIDATION proofs and persisted ids; an id-vocabulary migration is a validation-cycle decision, not a pre-validation hardening"
+      },
+      {
+        "order": 17,
+        "mt": "MT-148",
+        "severity": "LOW",
+        "status": "DEFERRED",
+        "rationale": "server-side injection of attrs.block_id rewrites authority bytes on save (verbatim-save + sha + optimistic-concurrency semantics); frontend persistence of block ids is the active mechanism; needs operator design decision"
+      },
+      {
+        "order": 18,
+        "mt": "MT-137",
+        "severity": "LOW",
+        "status": "FIXED",
+        "commit": "a46b9e6b",
+        "proof": "enforcement map documented on RetrievalBudgets (hard vs hint vs advisory) + executor load bounds"
+      }
+    ],
+    "additional_low_closures": [
+      {
+        "mt": "MT-144",
+        "status": "FIXED",
+        "commit": "e457c2a4",
+        "proof": "all 7 named scenarios driven on real PG incl. stale-graph/no-result/bad-citation + FK unconstructability proof"
+      },
+      {
+        "mt": "MT-134 LOW trust_adjust",
+        "status": "FIXED",
+        "commit": "6050afca"
+      },
+      {
+        "mt": "MT-135 LOW",
+        "status": "FIXED",
+        "commit": "a46b9e6b"
+      },
+      {
+        "mt": "MT-138 LOW",
+        "status": "FIXED",
+        "commit": "a46b9e6b"
+      },
+      {
+        "mt": "MT-149 LOW schema-version inconsistency",
+        "status": "FIXED",
+        "commit": "aa0ce3f6"
+      },
+      {
+        "mt": "MT-129 LOW mode collapse",
+        "status": "IMPROVED",
+        "commit": "136c5e9a",
+        "note": "durable mode_reason now carries the passage-fallback rationale; decisions JSONB keeps the precise passage_fallback posture; the mode COLUMN vocabulary itself is unchanged (DB CHECK)"
+      }
+    ],
+    "remaining_open_lows": [
+      {
+        "mt": "MT-130 LOW",
+        "note": "freshness staleness now downgrades GRAPH paths via the executor signals; a stale-but-confirmed DIRECT-LOAD entity still only records the reason"
+      },
+      {
+        "mt": "MT-132 LOW (N+1 traversal reads)"
+      },
+      {
+        "mt": "MT-136 LOW (coarsened excluded_budget)"
+      },
+      {
+        "mt": "MT-139 LOW (prefer_context_pack_reuse passthrough)"
+      },
+      {
+        "mt": "MT-142 LOW (event-type reuse)"
+      },
+      {
+        "mt": "MT-146 LOW / MT-155 LOW (block-id churn family, same design decision as order 17)"
+      },
+      {
+        "mt": "MT-153 LOW (broken-embed queue reconcile)"
+      },
+      {
+        "mt": "MT-160 LOW",
+        "note": "importedRaw round-trip fixtures now exist via MT-151 tests; album/slideshow render + explicit conflict case remain"
+      }
+    ],
+    "constraints_honored": "zero edits to src/storage/loom.rs, src/api/loom.rs, app/**; one cargo invocation at a time; no full-suite runs - every run scoped to a named test target or lib module filter"
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-373",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-373.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-373.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-373.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-373.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-372"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Seed the missing Satin, Linen, and Spandex system presets into tailor_material_presets so every FabricPreset enum variant has a calibrated is_system_preset=true row, closing the gap between the enum declaration and the seeded library",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/",
+      "tailor-solver/src/material.rs",
+      "tailor-solver/src/spec.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The tailor_material_presets migration MUST seed Satin (slug='satin'), Linen (slug='linen'), and Spandex (slug='spandex') as is_system_preset=true rows alongside the existing 9 presets",
+      "Satin compliance_json MUST reflect low bending stiffness (softer than silk in bending, higher shear than silk), low friction, and buckling_ratio >= 0.85 to match the smooth lustrous drape of satin weave",
+      "Linen compliance_json MUST reflect moderate-to-high stretch stiffness (stiffer than cotton, less stiff than canvas), moderate bending stiffness, moderate buckling, and relatively high density (200-300 g/m²)",
+      "Spandex physics_json MUST reflect very high stretch compliance (1e-3 range, highest of all presets), very low bending stiffness, and high friction (0.7+ cloth-avatar) matching knit elastic behavior; density approx 130-170 g/m²",
+      "All three presets MUST pass the PRESET_NO_NAN, PRESET_STRETCH_NONZERO, PRESET_DENSITY_POS, and PRESET_BBOX_PLAUSIBLE validation checks in the drape test (0.5m x 0.5m panel, 1 second)",
+      "FabricPreset::Satin, FabricPreset::Linen, FabricPreset::Spandex MUST each resolve to their system preset row via FabricPreset -> tailor_material_presets slug lookup in the decoder",
+      "The fabric integration test MUST assert that silk, satin, and spandex produce measurably different fold-count and bounding-box height at the end of the same 1-second drape test"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::material::satin_linen_spandex_presets_seed_and_validate",
+      "cargo test -p tailor-solver -- material::all_fabric_preset_variants_resolve",
+      "cargo test -p handshake_core -- tailor::validation::preset_bbox_plausible_satin_linen_spandex"
+    ],
+    "risk_if_missed": "The ContextBundle already advertises satin, linen, spandex as available_presets (spec line ~8600). If the model calls tailor_fabric_preset_create with fabric_archetype='satin' and no system row exists, the decoder will fail or silently fall back to an undefined default, causing an unexplained runtime error that the self-correction loop cannot recover from. The FabricPreset enum and ContextBundle create a false contract with the model that is violated by the missing rows."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

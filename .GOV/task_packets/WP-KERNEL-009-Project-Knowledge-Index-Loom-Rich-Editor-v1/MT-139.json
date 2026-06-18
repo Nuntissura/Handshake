@@ -1,0 +1,178 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-139",
+  "title": "RetrievalContextAndRanking-139-ProjectBrainBridge",
+  "group": "RetrievalContextAndRanking",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-139.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Fold Project Brain query/runtime mapping, citation, context compaction, discovery vs lookup, and QueryPlan into WP-009 paths. This MT belongs to RetrievalContextAndRanking. Retrieve project knowledge through explainable direct, graph, hybrid, and passage fallback modes.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Retrieval must choose explicit modes: none, direct_load, exact_lookup, graph_traversal, hybrid_rag, or passage_fallback, with non_hybrid_reason where applicable.",
+      "Context bundles must be bounded, cited, explainable, restartable, and inspectable through backend and visual-debug surfaces."
+    ],
+    "expected_behavior": "ProjectBrainBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ProjectBrainBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-129"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
+    "implementation_commit": "ac666fe3",
+    "evidence": [
+      "Built+verified ac666fe3; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "prefer_context_pack_reuse is a passthrough with no effect on the produced plan",
+          "evidence": "project_brain.rs:70-103 returns prefer_context_pack_reuse in ProjectBrainPlanInputs but does NOT inject it into RetrievalRequest, and the planner has no context-pack-reuse field/branch (the hybrid route always includes a ContextPacks step regardless). The folded prefer-fresh-ContextPack-reuse intent does not change planning.",
+          "fix": "Thread the reuse preference into the request/plan so the planner can prefer/skip the ContextPack step, or document it as caller-only metadata."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "prefer fresh ContextPack reuse where appropriate",
+          "reality": "represented as a passthrough boolean that does not influence the QueryPlan"
+        }
+      ],
+      "missing_tests": []
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-139 ProjectBrainBridge requires a deterministic backend contract that maps a Project Brain query into the WP-009 retrieval pipeline, distinguishing authoritative lookup (a stable handle present) from discovery/synthesis, and signaling fresh-ContextPack reuse. The committed code implements exactly this: presence of an AuthoritativeHandle yields AuthoritativeLookup/FactLookup, absence yields DiscoverySynthesis/Summarize with hybrid allowed, feeding the real CheapestAuthoritativePathPlanner whose QueryPlan/RetrievalTrace persist to PostgreSQL (migration 0141) and the EventLedger. It aligns precisely with current Master Spec v02.194 02-system-architecture.md lines 7316/7318 and 2817.",
+      "findings": [
+        "src/backend/handshake_core/src/knowledge_retrieval/project_brain.rs:70-106 map_query is real deterministic logic: has_handle -> AuthoritativeLookup + QueryKind::FactLookup; no handle -> DiscoverySynthesis + QueryKind::Summarize + HybridPosture::Allowed. This implements the spec-required discovery-vs-authoritative-lookup distinction.",
+        "Spec alignment confirmed against CURRENT v02.194: .GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:7318 ([ADD v02.178] Project Brain MUST distinguish discovery from authoritative lookup; known WorkPacket/identifier -> prefer direct/bounded; hybrid reserved for discovery) and :7316 (QueryPlan/RetrievalTrace/fresh ContextPack reuse MUST be backend contracts, not UI-only) and :2817 (cheapest-authoritative rule with recorded skip reason). The bridge satisfies these.",
+        "sub_rule_1 PASS: grep of project_brain.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred'/'pending MT-'/Unavailable returns no matches (exit 1). No deferred-live escape on the required behavior path.",
+        "sub_rule_2 PASS: the bridge produces the real planner::RetrievalRequest type (planner.rs:75); all fields resolve including the post-MT-140 catalog_entry: None (project_brain.rs:98), confirming the working-tree code compiles against the current substrate and is genuinely wired, not isolated. Durable authority is PG-backed downstream: storage/knowledge_retrieval.rs record_retrieval_trace writes knowledge_retrieval_traces (migration 0141) and emits an EventLedger aggregate (lines 93-148). The suite's real-PG proof is in tests/knowledge_retrieval_bridges_tests.rs with MemoryFixture/skip_if_no_pg. The MT-139 unit test itself is a pure-mapping assertion, which is correct because the bridge is pure glue with no storage of its own; the managed-resource proof lives in the planner/compiler substrate it feeds.",
+        "Imported types verified to exist: memory/retrieval_mode.rs:288 QueryKind::FactLookup/Summarize; planner.rs:41 AuthoritativeHandle::WorkPacketId/EntityIdentity; plan.rs RetrievalBudgets::default_bounded, DeterminismMode, RetrievalFilters. The bridge is exported via knowledge_retrieval/mod.rs:45.",
+        "Non-blocking (LOW, matches the recorded adversarial-review-v2 finding): project_brain.rs:96-104 prefer_context_pack_reuse is a passthrough boolean surfaced in ProjectBrainPlanInputs but not branched into the QueryPlan. This is NOT a code-falsity or spec violation: the actual fresh-ContextPack-reuse backend contract (build/reuse/refresh/freshness decisions + EventLedger receipts) is implemented in the sibling recorder context_pack_recorder.rs (MT-142, ContextPackDecision::Reuse etc.), so the spec 7316 'explicit backend contract' requirement is satisfied at the WP level. The boolean is caller-supplied preference metadata, consistent with the MT acceptance ('signal whether a fresh ContextPack should be preferred'), not a falsified plan branch.",
+        "Paperwork aside (non-blocking per ground rules): packet cites v02.192 anchors but the same section numbers resolve in current v02.194; lifecycle.handoff session fields are null. Neither affects code correctness."
+      ],
+      "evidence_checked": [
+        "git show ac666fe3 (MT-139 implementation commit, 1 file +157)",
+        "src/backend/handshake_core/src/knowledge_retrieval/project_brain.rs (committed + current working tree)",
+        "src/backend/handshake_core/src/knowledge_retrieval/mod.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/planner.rs (RetrievalRequest struct, AuthoritativeHandle)",
+        "src/backend/handshake_core/src/knowledge_retrieval/plan.rs (budgets/filters/determinism types)",
+        "src/backend/handshake_core/src/knowledge_retrieval/context_pack_recorder.rs (ContextPack reuse contract)",
+        "src/backend/handshake_core/src/storage/knowledge_retrieval.rs (record_retrieval_trace PG persistence + EventLedger)",
+        "src/backend/handshake_core/src/memory/retrieval_mode.rs (QueryKind)",
+        "src/backend/handshake_core/tests/knowledge_retrieval_bridges_tests.rs (real-PG bridges test + MT-139 mapping test)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2817,7294-7318",
+        "MT-139.json contract; packet.json constraints",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

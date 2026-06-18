@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-395",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-395.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-395.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-395.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-395.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-394"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a seam mutation operation (edit_seam MCP tool and CRDT delta) that updates gather_ratio and SeamEndpoint::range on an existing SeamSpec in a draft GarmentSpec without re-authoring the entire garment",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/rest_api.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The edit_seam MCP tool accepts (garment_id, seam_id, patch: { gather_ratio?, range_from?, range_to? }) and applies the patch to the draft SeamSpec in tailor_garments, emitting a TailorPanelCrdtUpdateRecorded (seam-mutation tombstone + new entry) event",
+      "The GATHER_RATIO_RANGE blocking check fires at patch time and rejects out-of-range values with a structured error including field_path",
+      "The CRDT conflict rule for concurrent seam edits is last-writer-wins per seam_id (seam_id is stable within a garment version, per MT-135 CRDT discipline)",
+      "The edited gather_ratio takes effect in the next sandbox simulation run without requiring full garment re-draft",
+      "The ModelManual entry for edit_seam lists the legal patch fields, error taxonomy (InvalidSpec, GATHER_RATIO_RANGE), and self-correction pattern (SimulationReceipt -> suggested patch -> rerun)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core -- tailor::model_adapter::edit_seam_gather_ratio",
+      "cargo test -p handshake_core -- tailor::model_adapter::edit_seam_crdt_conflict_resolution"
+    ],
+    "risk_if_missed": "Gather ratio tuning is the primary iterative control for ruffles, pleats, and ease. In MD a designer adjusts sewing line length numerically after observing the draped result, re-sims, and repeats. Without edit_seam a model must re-author the entire GarmentSpec from scratch to change a single gather value — destroying the self-correction loop (MT-268) and making iterative garment refinement 10x more expensive. This blocks the arousal-engineering equivalent of 'adjust gather until the ruffle looks right'."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

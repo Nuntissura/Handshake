@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-415",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-415.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-415.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-415.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-415.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-414"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Extend Alembic export (MT-252) to write named morph-weight channel tracks as AbcGeom::IFloatGeomParam channels alongside the cloth mesh cache, and implement Alembic morph-channel import so avatar morph animation can drive cloth re-drape over the timeline.",
+    "allowed_paths": [
+      "tailor-solver/src/export/alembic.rs",
+      "tailor-solver/src/animation/morph_track.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Alembic export writes one named float channel per active morph target weight track alongside the cloth mesh OPoints sample.",
+      "Alembic import reads named float channels from an imported .abc file and constructs a MorphTrack in the animation timeline.",
+      "A round-trip (export with morph channels, re-import) preserves channel names and sampled values within float32 tolerance.",
+      "The sim-over-timeline pass (MT-289) reads the interpolated morph weight at each frame and applies it to the avatar body shape before the cloth solve step.",
+      "cargo test animation::alembic_morph::roundtrip_named_channels passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver animation::alembic_morph::roundtrip_named_channels",
+      "cargo test -p tailor-solver animation::alembic_morph::morph_weight_drives_cloth_frame"
+    ],
+    "risk_if_missed": "Alembic export is point-cache only, losing morph channel animation. Downstream DCC tools (Maya, Houdini) cannot reconstruct the morph-driven cloth sequence. MD 2026.0 Alembic carries morph channel data; Tailor's Alembic would be a degraded format for any pipeline using blend shapes."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

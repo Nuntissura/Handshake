@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-418",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-418.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-418.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-418.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-418.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-417"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Add frame-range parameters (start_frame: u32, end_frame: u32) to the glTF and Alembic export paths so operators and models can export a named sub-range of the cached animation, with optional marker-name resolution for start/end anchors.",
+    "allowed_paths": [
+      "tailor-solver/src/export/gltf.rs",
+      "tailor-solver/src/export/alembic.rs",
+      "tailor-solver/src/export/obj_sequence.rs",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "glTF export (MT-249) accepts optional start_frame and end_frame; when provided, only samples in [start_frame, end_frame] inclusive are written to the animation clips.",
+      "Alembic export (MT-252) accepts the same range parameters and writes only the specified frame window.",
+      "OBJ-sequence export (MT-251) accepts the same range parameters and writes only files for frames in the window.",
+      "Range endpoints may be specified as either frame indices or marker names (resolved via the proposed timeline markers MT).",
+      "The export manifest (MT-320) records the exported frame range in its metadata.",
+      "cargo test export::range::gltf_subrange_correct_frame_count passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver export::range::gltf_subrange_correct_frame_count",
+      "cargo test -p tailor-solver export::range::alembic_subrange_preserves_sample_times",
+      "cargo test -p tailor-solver export::range::obj_sequence_subrange_file_count"
+    ],
+    "risk_if_missed": "Every export writes the full cached animation. Hero clip extraction requires external video/3D editing tools. MD 2026.0 users expect named-range export; without it the Tailor export API is demonstrably less capable than the tool it replaces for animation production pipelines."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-337",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-337.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-337.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-337.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-337.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-336"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a `SolverMode::PreciseCollision` variant (or a `precise_self_collision: bool` flag in `SimRunParams`) that doubles the self-collision narrow-phase solve iterations per substep and tightens the repulsion alpha, mirroring MD's Precise Self-Collision mode for tight multi-layer garments",
+    "allowed_paths": [
+      "tailor-solver/src/types.rs",
+      "tailor-solver/src/self_collision.rs",
+      "tailor-solver/shaders/self_collide.wgsl",
+      "tailor-solver/src/solver.rs",
+      "src/backend/handshake_core/src/tailor/solver_binding.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "`SimRunParams` gains `precise_self_collision: bool` (default `false`); when `true`, the self-collision narrow phase (COL-SELF-006) runs a second correction pass per substep with a tighter alpha value (e.g. half the standard `alpha_self_collision`)",
+      "The `SELF_INTERSECTION` ValidationDescriptor (MT-112) uses a stricter residual threshold when `precise_self_collision = true` (pair-count ceiling tightened by at least 50%)",
+      "An integration test drapes a two-layer jacket over a bodice and asserts `SELF_INTERSECTION` passes with `precise_self_collision = true` but fails or produces a higher pair-count with `false`",
+      "Precise mode does not break the determinism envelope contract (MT-038): same seed, same backend, same params -> same result"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- precise_self_collision",
+      "cargo test -p tailor-solver -- self_intersection_multilayer",
+      "cargo test -p handshake_core -- tailor_precise_collision_integration"
+    ],
+    "risk_if_missed": "Multi-layer garment stacking (coat over jacket over shirt) produces visible inter-layer penetrations that the standard self-collision pass cannot fully resolve; operators cannot match MD-quality tight-fit stacking for hero garments."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

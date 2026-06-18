@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-433",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-433.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-433.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-433.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-433.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-432"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement fit map projection from 3D fitted garment vertices back onto the 2D pattern panel UV space, producing a texture-resolution heatmap image per panel that can be displayed in the 2D pattern editor view alongside the original panel outline",
+    "allowed_paths": [
+      "tailor-solver/src/analysis/fit_map_2d.rs",
+      "src/backend/handshake_core/src/tailor/refit.rs",
+      "app/src/components/tailor/PatternFitMapOverlay.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "fit_map_to_2d_pattern(panel_3d: &Panel3D, uv_islands: &[UvIsland], heatmap_values: &[f32]) produces an RGBA texture in UV space (512x512 minimum) with per-texel interpolated heatmap values",
+      "The 2D panel view in the Tailor frontend shows a toggle for fit map overlay (stress | strain | pressure | off)",
+      "When enabled, the heatmap texture is composited over the panel outline in the 2D editor",
+      "A model can request the raw heatmap image via GET /api/tailor/garments/{gar_id}/panels/{panel_id}/fit-map?mode=stress returning an image/png ArtifactStore ref",
+      "cargo test fit_map_2d::test_projection_covers_panel_uv_area passes (>= 90% texel coverage)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver analysis::fit_map_2d::test_projection_coverage",
+      "cargo test -p handshake_core tailor::refit::test_fit_map_api_returns_image"
+    ],
+    "risk_if_missed": "Without 2D fit map projection, an operator must mentally correlate a 3D heatmap region to a specific pattern panel location. The 2D projection is the actionable view that tells the pattern maker exactly which seam, dart, or panel edge to adjust. Its absence significantly slows pattern correction cycles."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

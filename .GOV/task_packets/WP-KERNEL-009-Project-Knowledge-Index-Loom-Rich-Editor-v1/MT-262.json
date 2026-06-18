@@ -1,0 +1,161 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-262",
+  "title": "UnifiedWorkSurface-262-BlockCollectionViews",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-262.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close the block-as-app gap: saved block-collection views over Loom queries - table view (sortable typed columns from block fields/tags), Kanban (group by tag/field, drag = real field/tag mutation with receipt), calendar (by journal_date/created), each saved as a typed view definition block; all reads from real Loom query backend; mutations route through normal block update paths.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Kanban drag mutates the REAL underlying field/tag with receipt (proven), never view-local state.",
+      "View definitions are blocks (no parallel store)."
+    ],
+    "expected_behavior": "Operator turns any tag/query into a table/Kanban/calendar that reads and writes real blocks.",
+    "acceptance_criteria": [
+      "Each view type renders real query results (proven).",
+      "Kanban drag -> real tag/field change + receipt (proven).",
+      "Saved view reload proven.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-183",
+      "MT-182"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "045929c5",
+    "evidence": [
+      "commit 045929c5 on feat/WP-KERNEL-009 (migration 0335_loom_block_collection_views), zero .GOV; adversarial review 3/3 PASS, no blockers",
+      "runtime proof: 5 real-PG tests PASS — view_def block round-trips (content_type='view_def' + bridge row + EventLedger receipt); table sort correct across a PAGE BOUNDARY (proves SQL-side, not client-side over a partial page); Kanban drag performs a REAL field/tag mutation persisted to PG with LoomEdgeCreated/Deleted/LoomBlockUpdated receipts + fresh backend read; calendar buckets by real journal_date with date filter applied in SQL",
+      "vitest 3 (header-click sort persists via updateBlockView + re-queries the backend /results, not client state); offline Playwright 3 projects PASS (1280-light/390-dark/1024-nl) against a real PG-backed fixture; tsc + eslint clean",
+      "saved view IS a typed LoomBlock(content_type='view_def') with a dedicated view_definition_json column (migration 0335 + paired replay-safe .down + CHECK tying the column to view_def blocks); all reads from the real Loom query backend; mutations route through normal block update paths",
+      "remaining_gaps: none"
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-262 requires saved block-collection views (table/Kanban/calendar) over the real Loom query backend, where the view is itself a typed LoomBlock, all reads are SQL-side, and Kanban drag mutates real tag edges with receipts. The implementation delivers all of this against real PostgreSQL + EventLedger with offline Playwright and cargo real-PG proof; no placeholders, no parallel store, no forbidden surfaces.",
+      "findings": [
+        "Migration 0335_loom_block_collection_views.sql adds dedicated view_definition_json TEXT column + CHECK tying presence to content_type='view_def' (additive allow-list widening); paired replay-safe .down restores the 0334 set — real durable schema, not a mock.",
+        "A saved view IS a typed LoomBlock(ViewDef) (loom.rs:55); create_block_view (postgres.rs:8712) flips an already-bridged block to view_def with its definition in the dedicated column and emits a loom_block_view_created EventLedger event — no parallel/localStorage store.",
+        "All reads are SQL-side: query_block_view_results (postgres.rs:8867) -> select_block_view_page (1530). ORDER BY uses order_col/order_dir typed as &'static str sourced from BlockViewField::order_column() (loom.rs:1513-1522) and BlockViewSortDirection::sql() — injection-safe; filters/limit/offset all push_bind, stable b.block_id tiebreak for page-boundary determinism.",
+        "Kanban drag = real mutation: partition_blocks_by_tag (postgres.rs:1663) buckets an already-SQL-sorted page by real loom_edges; the cargo test (tests lines 264-345) deletes the old tag edge + creates the new one via delete_loom_edge/create_loom_edge, re-queries, and does a fresh PG read of loom_edges to confirm authority moved — not view-local state.",
+        "Real-PG proof: loom_block_collection_views_tests.rs — 5 tokio tests against an isolated PG schema run through the full migration chain: view_def round-trip + derived_json-leak guard (188-200), table sort across a page boundary (204-262), Kanban real-tag move (264-345), calendar SQL date_from filter + ascending order (347-416), re-sort persisted into definition (418-460).",
+        "HTTP wiring is real: api/loom.rs adds routes for create/get/update(patch)/query block views (diff lines 50-70, handlers 90-250), each emitting EventLedger events; offline Playwright spec spawns a real cargo-run PG-backed fixture binary (mt262_block_collection_views_fixture.rs).",
+        "Job 1/2/4 clean: diff confined to app/, src/, tests/ (packet allowed_paths); zero .GOV/ touches; no SQLite, external search engine, CDN, or markdown-vault authority — bundled React components only.",
+        "Non-blocking aside: constraint text cites Master Spec bundle v02.193 while current is v02.194 — expected paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/migrations/0335_loom_block_collection_views.sql",
+        "src/backend/handshake_core/migrations/0335_loom_block_collection_views.down.sql",
+        "src/backend/handshake_core/tests/loom_block_collection_views_tests.rs",
+        "src/backend/handshake_core/src/storage/loom.rs (BlockView types, order_column, BLOCK_VIEW_UNTAGGED_LANE)",
+        "src/backend/handshake_core/src/storage/postgres.rs:1530 select_block_view_page, :1663 partition_blocks_by_tag, :8712-8918 create/get/update/query_block_view_results",
+        "src/backend/handshake_core/src/api/loom.rs (block view routes + handlers, via git show)",
+        "tests/visual/mt262-block-collection-views.spec.ts",
+        "git show --stat 045929c5 (file confinement)",
+        "spec-modules/10-product-surfaces.md (projection-over-authority principle, lines 2979/6160/6644)",
+        "MT-262.json, packet.json, WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

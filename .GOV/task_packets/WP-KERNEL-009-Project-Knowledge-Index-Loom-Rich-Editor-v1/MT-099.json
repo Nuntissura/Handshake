@@ -1,0 +1,198 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-099",
+  "title": "CodeIndexingAndNavigation-099-TypeScriptSymbolExtractor",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-099.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Extract TypeScript/TSX modules, components, hooks, functions, types, imports, tests, and JSX element IDs. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "TypeScriptSymbolExtractor leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "TypeScriptSymbolExtractor is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:24:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "TS overload signatures collide: `function f(a:number):void; function f(a:string):void { }` produces multiple function_declaration nodes all named `f` -> same symbol_path `f` -> same entity_key -> merge in upsert (knowledge.rs:3336). Same for overloaded method_definition inside a class (`Service.run` x2). The delegate only proved the struct/impl Rust collision; the TS overload shape is unproven and silently merges.",
+        "Same-name across declaration kinds: TS legally allows `interface Foo {}` and `function Foo(){}` AND `class Foo{}` AND `namespace Foo{}` to coexist (declaration merging). All map to symbol_path `Foo`, same entity_kind=symbol, same entity_key -> merge. The index cannot represent a merged interface+namespace; one overwrites the other.",
+        "ts_const_binding only inspects the FIRST function-valued declarator (symbols.rs:389 'return Some' on first hit); `const a = () => {}, b = () => {}` (multiple declarators in one lexical_declaration) drops `b`. Under-extraction, not a crash.",
+        "Component/Hook heuristic is name-shape only (is_component_name = first char uppercase, symbols.rs:370): a PascalCase const that is NOT a React component (e.g. `const Config = () => ({...})` a factory) is mislabeled Component. Provenance noise, low severity."
+      ],
+      "evasion_probes": [
+        "Read extract_typescript (symbols.rs:298-347): each declaration node independently emits a symbol keyed on decl_name; no dedup/merge-awareness, so two same-named decls collide. TS scope kinds (class_declaration, internal_module, module) DO scope methods under their class so Service.run is distinct from a free run - that part is sound.",
+        "Confirmed .d.ts routed to TypeScript grammar (parser.rs:94) and TSX is a distinct grammar (Tsx) so JSX-bearing .tsx parses; .ts with JSX would error but that is user error.",
+        "Verified empty-name guard (symbols.rs:330) skips anonymous decls."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/symbols.rs:298-418 extract_typescript + ts_const_binding + ts_function_kind",
+        "src/backend/handshake_core/src/storage/knowledge.rs:3310-3378 upsert merge semantics",
+        "delegate test typescript_extracts_functions_classes_interfaces_components_hooks (single decl per name only)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T20:45:29.357Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "commit": "b0266f35",
+      "note": "Adversarial finding fixed + real-PG/unit test green (knowledge_code_index_tests 13 + nav_api 2 + 59 unit, 0 fail)."
+    },
+    "evidence": [
+      "Hardened b0266f35: TS declaration-merging (interface/function/class/namespace) + overloads disambiguated by kind; all const declarators extracted."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Same positional-ordinal churn as MT-098 applies to TS overloads / declaration-merging discriminated by kind tag + ordinal",
+          "evidence": "TS symbols carry ts_js_kind_tag disambiguators (symbols.rs:460,601); same-(path,kind) duplicates (overloads, merged declarations) fall through to assign_collision_ordinals positional dup ordinals.",
+          "fix": "Same as MT-098: make the discriminator edit-stable (signature/content hash) rather than extraction-order positional."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (b0266f35): TS interface/function/class/namespace declaration-merging + overloads no longer collapse (kind-tag disambiguator + ordinal). Residual: positional-ordinal churn."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-099 requires a TypeScript/TSX symbol extractor (functions, components, hooks, classes, interfaces, types, methods, tests) that stores spans/entity-keys in PostgreSQL via Handshake-managed tree-sitter parsers. The implementation does exactly this, the prior V1 adversarial collision findings are genuinely fixed, and the disambiguated keys round-trip through real managed PostgreSQL.",
+      "findings": [
+        "extract_typescript (src/backend/handshake_core/src/knowledge_code_index/symbols.rs:408-480) is a real tree-sitter traversal: emits Function/Component/Hook (ts_function_kind, :502), Class/Interface/TypeAlias/Enum, method_definition, const/arrow bindings, and test-runner calls. No placeholders/escapes anywhere in the TS path (grep for todo!/unimplemented!/deferred/pending MT clean).",
+        "V1 adversarial finding #1 (TS declaration-merging interface/class/function Foo collapse) is fixed: every top-level decl carries a kind-tag disambiguator via ts_js_kind_tag (symbols.rs:485) appended to entity_key as ~{tag} (symbols.rs:116-132). Proven by unit test typescript_declaration_merging_same_name_do_not_collide (symbols.rs:1064) asserting unique keys Foo~interface/Foo~class/Foo~component.",
+        "V1 finding #3 (ts_const_binding only took first declarator) is fixed: ts_const_bindings (symbols.rs:543-574) iterates ALL variable_declarator children; `const a=()=>{}, b=()=>{}` yields both, non-function consts become Constant. Proven by typescript_multi_declarator_const_extracts_all (symbols.rs:1086).",
+        "Residual overload/duplicate collisions handled by assign_collision_ordinals (symbols.rs:140-165): same (path,disambiguator) groups get stable document-ordered dupN suffix so the PG upsert ON CONFLICT(entity_key) never silently merges distinct symbols. Proven by duplicate_same_kind_declarations_get_ordinal (symbols.rs:1107).",
+        "Sub-rule 2 (real PG touch): mt112_indexes_mixed_tree_with_symbols_spans_edges (tests/knowledge_code_index_tests.rs:311) indexes app/service.ts + app/widget.tsx through eng.index_code_source then reads symbols back via list_knowledge_entities_by_kind and asserts disambiguated TS keys typescript:app/service.ts#Service~class (:394) and #useThing~hook (:399) and tsx:app/widget.tsx#Widget~component (:406). knowledge_pg() (tests/knowledge_pg_support.rs:108) connects a real PostgreSQL cluster, creates an isolated schema, and runs the full migration chain on PostgresDatabase — not SQLite/in-memory; skips loudly when PG binaries absent. MT evidence records 13 integration + 2 nav tests green on real managed PostgreSQL.",
+        "Name-lookup correctness preserved: symbol_simple_name in src/backend/handshake_core/src/api/knowledge_code_nav.rs strips the ~discriminator before parsing the simple name, so the collision tag does not break navigation by name.",
+        "Residual adversarial_review_v2 LOW finding (positional-ordinal churn across edits on invalid duplicate-decl code) is a stability nit on an edge case, not a failure of required behavior; non-blocking.",
+        "Aside (non-blocking, paperwork): packet cites v02.192 anchors while current is v02.194; same section numbers resolve. lifecycle.completed_by is null and claimed_by==KERNEL_BUILDER (self-cert not triggered since not signed COMPLETED)."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-099.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/symbols.rs (extract_typescript, ts_const_bindings, ts_js_kind_tag, assign_collision_ordinals, entity_key, unit tests 847-1150)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_index_tests.rs (mt112 + mt102 TS assertions 294-836)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:108 knowledge_pg real-PG harness",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_code_nav.rs symbol_simple_name discriminator strip",
+        "git show b0266f35 (hardening commit) in wtc-kernel-009",
+        "src/backend/handshake_core/src/storage/knowledge.rs upsert ON CONFLICT(workspace_id, entity_kind, entity_key) path",
+        ".GOV/spec/master-spec-v02.194/spec-modules/ (tree-sitter / code-navigation anchors)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

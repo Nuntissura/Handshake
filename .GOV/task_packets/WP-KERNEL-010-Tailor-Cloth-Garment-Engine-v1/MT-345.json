@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-345",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-345.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-345.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-345.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-345.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-344"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement internal-line authoring on Panel geometry: add named internal edge records (InternalLine type with role: FoldLine | PleatLine | DartLine | StressSeam | Baseline) to GarmentSpec panels, distinct from the outer outline and seam edges, carried into UV/texture and solver constraint generation",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/internal_lines.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_internal_lines.sql",
+      "app/src/components/tailor/InternalLineEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "InternalLine type carries: id, panel_id, role (FoldLine | PleatLine | DartLine | StressSeam | Baseline | TopstichLine), start_cm: [f32;2], end_cm: [f32;2] or Bezier shape",
+      "add_internal_line(panel_id, role, geometry) stores the line in tailor_panels spec_json and emits TailorPanelCrdtUpdateRecorded",
+      "Internal lines with role=FoldLine generate a fold seam constraint in the solver (distinct from seam join constraints), controlling fold angle",
+      "Internal lines with role=TopstitchLine are carried into the UV/texture renderer (MT-226 topstitch rendering feeds from these)",
+      "Internal lines do not affect PANEL_CLOSED (they are interior, not outline edges)",
+      "Model-accessible via edit_panel MCP tool with operation=add_internal_line"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::internal_lines::test_fold_line_constraint_generated",
+      "cargo test -p tailor-solver authoring::internal_lines::test_topstitch_line_uv_feed",
+      "cargo test -p handshake_core tailor::authoring::test_internal_line_crdt"
+    ],
+    "risk_if_missed": "MT-132 covers guide lines for topstitch/texture rendering only. Without a general InternalLine authoring API, fold lines (MD Fold Seam Line), dart lines with tip convergence, pleat fold indicators, and stress-seam lines cannot be authored as named, typed geometry. Dart handling (MT-122) and pleat handling (MT-123) depend on this substrate — without it they operate on implicit coordinates rather than authorable line records, making model-driven editing of darts and pleats fragile."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

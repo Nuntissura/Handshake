@@ -1,0 +1,192 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-091",
+  "title": "SourceIngestionAndEvidence-091-SecretRedactionPreflight",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-091.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Scan candidate source text for secrets/tokens/credentials and block or redact per policy before indexing. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "SecretRedactionPreflight leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SecretRedactionPreflight is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "1c52a45e",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 1c52a45e; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:34:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "ARCHITECTURE (sound where it applies): HIGH severity (private key block, AWS access key id, aws_secret assignment, credential-bearing connection URL) -> the FILE is BLOCKED: status=blocked/SECRET_BLOCKED, source redaction_state=redacted, ZERO spans stored. MEDIUM (github/slack/google tokens, JWT, generic high-entropy assignment) -> REDACT: spans extracted over raw text then span content rewritten to [REDACTED:<kind>] markers, source redaction_state=partial. The HIGH/block path is verified leak-free by a real cross-table probe in pipeline test mt091_high_severity_secrets_block_the_file_and_store_no_raw_bytes (probes knowledge_ingestion_spans.content, receipts.error_detail, sources.provenance, kernel_event_ledger.payload for the raw key -> count 0). Findings carry NO excerpt (kind/line/len only); serialized findings asserted not to contain the secret.",
+        "TOP LEAK FINDING (MEDIUM secret, cross-span split): redaction is enforced by redact_spans() which re-runs scan_text() INDEPENDENTLY PER SPAN. The whole-file scan at engine.rs:1010 is consulted ONLY for must_block() (HIGH); its MEDIUM findings are DISCARDED. For code files, code_spans() cuts NON-OVERLAPPING 120-line windows. A MEDIUM secret whose structure straddles a 120-line window boundary (e.g. a JWT 'eyJ...\\n.payload\\n.sig' where the dot-delimited segments fall on different windows, or a generic 'api_key =' whose key wraps to the next window) is NOT matched by either half -> RAW secret bytes are written to knowledge_ingestion_spans.content. The DB column is `content TEXT NOT NULL` with NO redaction constraint, so the leak is durable and unguarded. The MEDIUM test only covers a single-line secret in one span, so this path is UNEXERCISED. Real risk for multi-line PEM-less keys, wrapped connection strings, and base64 blobs split across windows.",
+        "PATTERN-MISS leaks (secrets the regex/entropy set does NOT catch -> stored raw because not even flagged): (1) JWT split across lines/spans (above). (2) base64-encoded private key WITHOUT a -----BEGIN----- header (DER/PKCS8 base64 blob) — no pattern, entropy gate only fires inside a `key=value` assignment, so a bare base64 blob on its own line is stored raw. (3) GitHub FINE-GRAINED tokens 'github_pat_...' — GITHUB_TOKEN regex is gh[pousr]_ only, so github_pat_ prefix is MISSED (stored raw unless it happens to be in an assignment with high entropy). (4) Generic bearer/opaque API tokens NOT in a key=value assignment and not matching a vendor prefix (e.g. a raw 40-hex or base64 token on a markdown line) — no assignment context -> GENERIC_ASSIGNMENT does not fire -> stored raw. (5) Slack app-level 'xapp-' tokens — SLACK regex is xox[baprs] only. (6) Secrets in FILENAMES/PATHS (e.g. a file literally named with a token) — scanner only sees file CONTENT, never the path; such a token persists in knowledge_sources.relative_path. (7) Private key blocks with non-standard PEM labels (e.g. 'BEGIN PRIVATE KEY BLOCK' variants beyond the enumerated RSA/EC/DSA/OPENSSH/PGP/ENCRYPTED set).",
+        "RECEIPT/PROVENANCE leak check (asked by prompt): secret_block_detail() emits ONLY kind/line/matched_len (no value) — verified no secret bytes in the block receipt; mt091 test asserts !detail.contains(fake_key). Provenance JSON carries hashes + run_token, no raw content. Error messages in extractors quote PATHS and parser errors, not secret content. PASS on this axis for the patterns that ARE detected; the gap is purely the UNDETECTED secrets above, which flow into span content untouched.",
+        "ENTROPY-GATE availability risk (not a leak): GENERIC_ASSIGNMENT requires shannon_entropy >= 3.5 bits/char AND not a placeholder. A genuinely secret but low-entropy password (dictionary-word passphrase) in `password = correcthorsebatterystaple` is BELOW 3.5 -> NOT redacted -> stored raw. This is a real miss for weak-but-real credentials.",
+        "MERGE/redact_text correctness: overlapping findings are sorted and merged (first kind wins, byte_end extended) so redact_text never double-splices; the defensive 'finding.byte_start < cursor' continue handles residual overlaps. redact_text byte-slices on regex match boundaries which are guaranteed UTF-8 char boundaries (regex crate). Sound."
+      ],
+      "evasion_probes": [
+        "PROVEN BLOCKED (leak-free): AWS access key id (AKIA...), RSA private key block (even truncated/no-END marker -> blocks to end of text), credential-bearing postgres:// URL -> file BLOCKED, no spans, raw bytes absent from all 4 durable tables. CONFIRMED by code + pipeline test.",
+        "PROVEN REDACTED (single-span): github ghp_, slack xoxb-, google AIza..., JWT eyJ..., generic high-entropy api_key= -> [REDACTED:kind], raw absent from span content. CONFIRMED.",
+        "LEAKS (constructed, NOT caught -> raw bytes stored): github_pat_<...> fine-grained token; xapp-<...> Slack app token; bare base64 PKCS8 key blob with no PEM header on its own line; opaque 40-hex bearer token on a markdown line (no assignment); a JWT or connection string split across a 120-line code-window boundary; a low-entropy dictionary passphrase in password=; a token embedded in a FILE PATH (persists in relative_path). Each bypasses both the whole-file must_block scan and the per-span redact_spans.",
+        "NUL-smuggling BLOCKED: a file with an embedded NUL byte is is_text=false -> text-required kind returns Failed/ParseError, no spans (cannot smuggle a secret past the scanner as 'binary'). CONFIRMED.",
+        "PDF text-layer secret BLOCKED: HIGH secret in a PDF text layer is caught by the preflight over concatenated extracted text (engine.rs:1159). CONFIRMED.",
+        "must_block discards MEDIUM findings at whole-file stage -> redaction depends entirely on per-span re-scan -> the cross-span split is the systemic hole."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/secrets.rs (full: patterns, entropy gate, placeholder filter, scan_text merge, redact_text, 7 unit tests)",
+        "engine.rs:933-946 redact_spans (per-span independent re-scan); engine.rs:1008-1023 whole-file must_block; engine.rs:1219-1227 span redaction pass; engine.rs:894-931 code_spans 120-line non-overlapping windows",
+        "engine.rs:1230-1243 secret_block_detail (kind/line/len only, no value)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs (ExtractedSpan.content, SpanRedaction)",
+        "store.rs:340-393 replace_source_spans (binds span.content verbatim, content_hash=sha256 of stored content)",
+        "migrations/0163_knowledge_ingestion_spans.sql (content TEXT NOT NULL, redaction_state CHECK none|redacted — NO DB-level redaction enforcement)",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt091_high_severity (4-table raw-secret probe) + mt091_medium_severity (single-line span only) + fixture mt096 ops/leaked_key.md"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-091 (SecretRedactionPreflight) requires scanning candidate source text for secrets/credentials before any span content persists, blocking HIGH-severity files and redacting MEDIUM findings, with no raw secret bytes reaching durable PostgreSQL rows. The committed code implements this faithfully, the prior adversarial cross-span/pattern-miss findings are genuinely fixed and backstopped by a DB CHECK guard, and the proof exercises the real Handshake-managed PostgreSQL contract (isolated schema, raw cross-table probes, real check_violation), not implementer mocks.",
+      "findings": [
+        "secrets.rs:342-397 scan_text runs all literal patterns (AWS AKIA, private-key blocks incl unterminated-to-EOF, credential connection URLs, GitHub classic+fine-grained PAT, Slack xoxb/xapp, Google, JWT) + Shannon-entropy gate (3.5 bits/char) on generic assignments with placeholder suppression, then sorts+merges overlapping findings so redaction never double-splices. Matches current Master Spec 10-product-surfaces.md:4156-4173 Secret Redactor category table and [REDACTED:...] output format.",
+        "Prior adversarial cross-span-split leak (MT-091 #1) is genuinely fixed: secrets.rs:446-487 redact_span_with_whole_file_findings clips whole-file findings onto each span's original byte range, so a secret straddling a 120-line code window is excised from every partial-overlap span. Wired in engine.rs:943-971 redact_spans (byte-anchored spans use whole-file findings; PDF/transcript/JSON spans without byte offset fall back to per-span scan) and engine.rs:1038-1056/1256-1266 (single whole-file scan reused for must_block + redaction).",
+        "Pattern-miss findings from the adversarial review are closed: secrets.rs adds GithubFineGrainedPat (github_pat_), SlackAppToken (xapp-), HeaderlessKeyBlob (standalone high-entropy base64, BLOB_MIN_LEN 64 + 4.8 bits/char), and NonPemLabelKeyBlock (vendor PEM labels). secrets.rs:96-105 SecretFinding carries kind/line/byte offsets/len ONLY, no matched value; engine.rs:1270-1283 secret_block_detail emits kind/line/matched_len only, no secret bytes.",
+        "DB-level backstop is real: migrations/0210_knowledge_ingestion_redaction_guard.sql:48-53 adds CHECK (redaction_state<>'redacted' OR position('[REDACTED:' IN content)>0), enforcing the no-raw-bytes invariant on EVERY writer, not just the engine. One-directional so legitimate content literally containing the marker is not rejected.",
+        "Proof is real PostgreSQL, not implementer mock: tests/knowledge_pg_support.rs:7-13/26-120 uses managed_postgres::ManagedPostgres::ensure_running (or POSTGRES_TEST_URL/DATABASE_URL) with per-test isolated schema + full migration chain, explicitly no SQLite/no mocks. hardening_tests.rs:73-82 count_like probes the durable tables via a raw PG connection with real LIKE SQL; mt091_mt096_boundary_seam (102-205) asserts the raw JWT is absent from every span content row and each contiguous third across 4 durable tables; mt091_db_guard_refuses_redacted_span_without_marker (306-365) does a raw INSERT and asserts a real check_violation on chk_knowledge_ingestion_spans_redaction_marker.",
+        "No deferred-live escapes: grep of engine.rs/secrets.rs/store.rs/kinds.rs/spans.rs/mod.rs found no todo!()/unimplemented!()/unreachable!()/'not yet wired'/'pending MT-'/*Unavailable stand-ins on the required behavior path (the only 'placeholder' hits are looks_like_placeholder, the legitimate documentation-placeholder suppressor).",
+        "Note (non-blocking): the residual entropy-gate miss for low-entropy real passwords (e.g. dictionary passphrases below 3.5 bits/char) remains a known limitation acknowledged in the adversarial review; it is inherent to entropy-based detection, matches field tools (gitleaks/trufflehog), and is not required by the MT or spec to be caught. Aside (non-blocking): packet cites v02.192 spec anchors; resolved against current v02.194 where the same sections exist."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-091.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 1c52a45e and 5876feaf in wtc-kernel-009",
+        "src/backend/handshake_core/src/knowledge_ingestion/secrets.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:933-1070,1248-1283 (redact_spans, whole-file preflight, must_block, secret_block_detail)",
+        "src/backend/handshake_core/migrations/0210_knowledge_ingestion_redaction_guard.sql",
+        "src/backend/handshake_core/tests/knowledge_ingestion_hardening_tests.rs:48-365",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs / knowledge_ingestion_support.rs (real managed PG infra)",
+        "Master Spec v02.194 spec-modules: 10-product-surfaces.md:4155-4173 (Secret Redactor categories+format), 06-mechanical-integrations.md:7098/7233, 02-system-architecture.md:953-1138 (export-only redaction scope = diary content, distinct surface)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

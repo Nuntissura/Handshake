@@ -1,0 +1,163 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-054",
+  "title": "PostgresEventLedgerCore-054-KnowledgeEdgeTables",
+  "group": "PostgresEventLedgerCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-054.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Persist typed relationships with deterministic relationship_id, source/target IDs, evidence spans, confidence, status, and conflict markers. This MT belongs to PostgresEventLedgerCore. Build the durable canonical storage and event foundation for project knowledge, editor state, and memory.",
+    "relevant_files": [
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/managed_postgres.rs",
+      "src/backend/handshake_core/src/kernel/event_ledger.rs",
+      "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "All storage MTs must fail closed if PostgreSQL/EventLedger authority is unavailable.",
+      "No in-memory, SQLite, markdown, fixture-only, or UI-state authority may satisfy closeout."
+    ],
+    "expected_behavior": "KnowledgeEdgeTables leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "KnowledgeEdgeTables is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "CX-503R",
+      "HBR-SWARM-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-049"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "implementation_commit": "0a9ae31e",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0a9ae31e; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "SEPARATOR-INJECTION COLLISION in derive_knowledge_relationship_id (storage/knowledge.rs:1109-1128 / migrations/0136_knowledge_edges.sql:9-12). Canonical string 'knowledge_edge_relationship_v1|{edge_type}|{source_kind}:{source_key}|{target_kind}:{target_key}' concatenates with UNESCAPED | and : over free-text entity_key. edge_type/entity_kind are closed enums but entity_key is unconstrained (only btrim/non-empty per 0135). Constructed collision: Edge A source=(file,key=p) target=(folder,key=x|folder:y) and Edge B source=(file,key=p|folder:x) target=(folder,key=y) both hash v1|references|file:p|folder:x|folder:y -> identical relationship_id -> UNIQUE(workspace_id,relationship_id) merges two distinct logical edges (silent overwrite of confidence/extractor + span merge). Entity keys are file path/symbol FQN/spec anchor; Windows paths, Rust FQNs (mod::item) and section paths legitimately contain : and can contain |, so reachable not theoretical.",
+        "No test exercises keys containing | or : delimiters; the determinism test proves stability for only one clean key pair, so the collision is unprobed by the suite."
+      ],
+      "evasion_probes": [
+        "Tried to break determinism via caller-supplied relationship_id: NOT possible - NewKnowledgeEdge has no relationship_id field, always derived (good).",
+        "Re-index stability: ON CONFLICT (workspace_id,relationship_id) DO UPDATE keeps edge_id stable and merges spans/last_seen_in_run - genuinely stable for non-colliding keys (tests:461-533).",
+        "DB-level REQUIRED-span: deferred constraint trigger trg_knowledge_edge_requires_span fires at COMMIT, proven via raw-SQL bypass; delete-guard blocks stripping the last span. Span MUST robustly enforced.",
+        "conflict-marker shape chk_knowledge_edges_conflict_shape proven in Rust AND via raw UPDATE."
+      ],
+      "evidence_checked": [
+        "storage/knowledge.rs(@eb856e06):1099-1128 (derivation), 3478-3552 (upsert ON CONFLICT, span insert)",
+        "migrations/0136_knowledge_edges.sql:9-135 (derivation doc, UNIQUE, deferred trigger, delete guard)",
+        "knowledge_graph_tests.rs:381-656 (relationship stability, span-required, lifecycle/conflict)",
+        "migrations/0135_knowledge_entities.sql:45-46 (entity_key CHECK = btrim/non-empty only, no separator exclusion)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T17:29:19.644Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T17:29:19.644Z",
+      "commit": "1f87bf33",
+      "note": "Adversarial finding fixed + real-PG negative test green under runtime-full,test-utils."
+    },
+    "evidence": [
+      "Hardened 1f87bf33: relationship_id v2 length-prefix derivation; separator-injection collision test green on real PG"
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-359",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-359.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-358"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a unified Tailor Library browser panel (operator and model accessible) listing local garments, fabric presets, trim catalog, and starter templates by category with search and stable element IDs",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "app/src/components/tailor/LibraryBrowserPanel.tsx",
+      "app/src/components/tailor/LibrarySearchBar.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "GET /tailor/library/browse accepts ?kind=garment|preset|trim|template and ?q= search string and returns a structured list with stable IDs, name, kind, preview_ref, and status",
+      "The frontend LibraryBrowserPanel renders four tabs (Garments, Fabrics, Trims, Templates) populated from the browse endpoint",
+      "Every item in the panel has a stable data-testid element ID for parallel-model interaction (HBR-VIS)",
+      "A model can call tailor_library_browse MCP tool with kind filter and receive the same structured list without a GUI session",
+      "Selecting a garment from the panel loads it into the active GarmentSpec authoring context",
+      "Selecting a preset from the panel assigns it to the currently selected panel in the authoring view",
+      "The panel renders correctly in the capture matrix (MT-244) including in the empty and populated states",
+      "No window focus change occurs when the panel is opened or a library item is selected (HBR-QUIET compliance)"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::api::tests::library_browse_kinds",
+      "cargo test -p handshake_core tailor::api::tests::library_browse_search",
+      "HBR-VIS: headless capture of LibraryBrowserPanel in all four tab states passes screenshot gate",
+      "HBR-QUIET: opening the panel produces no foreground window or focus change"
+    ],
+    "risk_if_missed": "Without a browsable library panel, operators and models cannot discover or reuse local assets without constructing ID-based API queries by hand; the gap degrades the authoring workflow to a code-only experience and eliminates the operator-visible library surface that MD users expect as the entry point for garment reuse."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-361",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-361.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-361.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-361.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-361.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-360"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement per-panel draft snapshots (PSN-{uuid_v7}) within an in-progress garment draft so individual panel states can be checkpointed and restored without affecting other panels or triggering a full garment version promotion",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/panel_snapshot.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_panel_snapshots.sql",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_panel_snapshots.down.sql",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "app/src/components/tailor/PanelSnapshotHistory.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "tailor_panel_snapshots migration creates table with PK PSN-{uuid_v7}, garment_id FK, panel_id FK, snapshot_name, panel_spec_json JSONB, created_at, and event_ledger_event_id FK",
+      "POST /tailor/garments/:gid/panels/:pid/snapshots captures the current panel_spec_json under an optional name and returns PSN- id",
+      "POST /tailor/garments/:gid/panels/:pid/snapshots/:sid/restore replaces the live panel_spec_json with the snapshot content and emits TailorPanelCrdtUpdateRecorded",
+      "Restoring a snapshot on panel P does not affect any other panel in the same garment",
+      "GET /tailor/garments/:gid/panels/:pid/snapshots lists all snapshots for that panel with id, name, and created_at in reverse chronological order",
+      "tailor_panel_snapshot_create and tailor_panel_snapshot_restore MCP tools are registered; a model can checkpoint and restore a panel without operator intervention",
+      "TailorPanelSnapshotRecorded and TailorPanelSnapshotRestored KernelEventType variants are emitted and replayable from EventLedger",
+      "The PanelSnapshotHistory UI panel shows the snapshot list and restore buttons with stable element IDs"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::panel_snapshot::tests::snapshot_restore_isolated",
+      "cargo test -p handshake_core tailor::panel_snapshot::tests::snapshot_list_chronological",
+      "HBR-INT: EventLedger replay reconstructs panel snapshot list from durable state"
+    ],
+    "risk_if_missed": "Without panel-level snapshots, any risky pattern edit (dart repositioning, Bezier curvature change) requires the operator or model to manually copy panel geometry before editing; MT-077 only versions at the full-garment-promotion level, so in-draft panel mistakes cannot be rolled back without discarding all in-progress work on the garment."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

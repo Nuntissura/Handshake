@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-335",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-335.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-335.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-335.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-335.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-334"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement `SoftBodySpec` (closed volumetric mesh + volume constraint parameters) and wire it through the XPBD solver alongside cloth panels using the existing volume/pressure constraint (MT-020), so arbitrary imported OBJ/FBX meshes can be simulated as deformable soft-body props in the same solver pass as garments",
+    "allowed_paths": [
+      "tailor-solver/src/types.rs",
+      "tailor-solver/src/mesh.rs",
+      "tailor-solver/src/solver.rs",
+      "tailor-solver/shaders/volume_constraint.wgsl",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/migrations/",
+      "app/src/components/tailor/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "`SoftBodySpec` is defined with fields: `mesh_obj_ref: String` (path to uploaded OBJ/FBX), `fabric_preset: Option<String>` (MAT- id), `pressure: f32`, `collision_thickness_mm: f32`; it is embedded as `soft_bodies: Vec<SoftBodySpec>` in `GarmentSpec`",
+      "The `GarmentSpec`-to-`SolverMesh` pipeline tessellates a `SoftBodySpec` mesh into particles and emits: stretch constraints on surface edges, dihedral bend constraints on surface interior edges, and one volume constraint per closed mesh region (reusing the MT-020 volume/pressure constraint)",
+      "Soft-body particles are included in the same 8-pass compute dispatch as cloth particles; cloth-vs-soft-body collision uses the same capsule/sphere collision hook (MT-086/MT-087) treating soft-body surface particles as collision targets",
+      "An integration test creates a closed sphere mesh as a `SoftBodySpec` with `pressure = 1.0`, drapes a cloth panel over it, and asserts: the sphere inflates to the target volume (volume constraint passes), the cloth does not penetrate the sphere surface (NO_INTERPENETRATION passes), and the simulation is deterministic (MeshComparator passes twice)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- soft_body_volume_constraint",
+      "cargo test -p tailor-solver -- soft_body_cloth_collision",
+      "cargo test -p handshake_core -- tailor_soft_body_integration"
+    ],
+    "risk_if_missed": "Props like bags, pillows, foam collars, stuffed accessories, and inflatable garments cannot be simulated inside Tailor; these must be faked with rigid trims or handled externally, breaking the Handshake-native end-to-end pipeline for soft-prop-heavy fashion scenes."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

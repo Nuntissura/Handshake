@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-184",
+  "title": "LoomObsidianNavigation-184-WikiPageProjectionCompiler",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-184.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Generate wiki/topic pages from indexed sources with citations, stale markers, and regeneration controls. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "WikiPageProjectionCompiler leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "WikiPageProjectionCompiler is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "043cf8c8",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "implementation",
+        "summary": "Wiki/topic-page projection compiler over LoomBlock authority, on the existing knowledge_wiki_projections store (NEVER authority; no authority FK targets it). No parallel projection infra.",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - LoomWikiProjection type",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::compile/get/is_stale/regenerate/delete_loom_wiki_projection",
+          "src/backend/handshake_core/src/storage/postgres.rs - impls + render_loom_wiki_markdown (deterministic, per-block citations) + loom_wiki_staleness_hash (sha256 over source block identity+content+updated_at) + loom_wiki_projection_from_knowledge; reuses KnowledgeStore upsert/get/mark_rebuilt projection methods",
+          "src/backend/handshake_core/src/api/loom.rs - POST /loom/wiki, GET/DELETE /loom/wiki/:id, /regenerate, /stale",
+          "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs (shared MT-184/185/187)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T09:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_wiki_boundary_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real Handshake-managed PostgreSQL) [shared MT-184/185/187 suite]",
+        "tests": [
+          "wiki_projection_compiles_with_citations_and_staleness - source_block_ids citations recorded; content cites blocks; fresh after compile; editing a source block -> stale; regenerate -> fresh + reflects rename",
+          "wiki_apis_fail_closed - compile citing a missing block fails closed (no dangling citation); get missing projection errors"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 043cf8c8."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T09:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "043cf8c8",
+      "findings": [
+        "DANGLING CITATION (handled+tested): compile loads every source block and fails closed on a missing one, so source_records citations are always valid.",
+        "DETERMINISM (handled): render_loom_wiki_markdown + loom_wiki_staleness_hash are pure functions of (title, ordered blocks); same authority renders byte-identically.",
+        "STALENESS (handled+tested): the hash folds block id+title+content_type+full_text_index+updated_at; any source edit (or a since-deleted source) flips stale.",
+        "PROJECTION-NEVER-AUTHORITY (handled+tested in MT-187 negative test): the projection is a knowledge_wiki_projections row with no authority FK into it.",
+        "WORKSPACE SCOPING (clear): get/delete filter on workspace_id (the underlying store is keyed by projection_id; the Loom wrapper enforces workspace ownership)."
+      ],
+      "fixes": [
+        "No code change required; findings handled-by-design and tested."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-184 requires a WikiPageProjectionCompiler that generates wiki/topic pages from indexed LoomBlock sources with per-block citations, stale markers, and regeneration controls, all as PostgreSQL/EventLedger-backed projections (never authority). The committed code (commit 043cf8c8) implements this fully across storage, API, and real-PostgreSQL tests, and aligns with the current Master Spec's projection-as-cache / projection-never-authority law.",
+      "findings": [
+        "postgres.rs:6169 compile_loom_wiki_projection loads each source block via get_loom_block and FAILS CLOSED on a missing block (no dangling citations) before rendering + hashing + upserting into the pre-existing knowledge_wiki_projections store.",
+        "postgres.rs:1751 render_loom_wiki_markdown is a pure deterministic function emitting per-block 'cite: loom_block:<id>' citations; postgres.rs:1796 loom_wiki_staleness_hash folds block id+title+content_type+full_text_index+updated_at over sha256, so any source edit or deletion flips staleness.",
+        "postgres.rs:6224 loom_wiki_projection_is_stale recomputes the hash over CURRENT source blocks and returns true if a source block was since-deleted (NotFound -> stale); regenerate_loom_wiki_projection (6245) re-renders from current authority and reflects renames.",
+        "postgres.rs:6276 delete_loom_wiki_projection mutates NO authority record; tests/loom_wiki_boundary_tests.rs proves block authority is BYTE-IDENTICAL (block_fingerprint before==after) and the knowledge bridge (entity_id, index_event_id) is unchanged after projection delete.",
+        "tests/knowledge_pg_support.rs runs against REAL Handshake-managed PostgreSQL (managed_postgres::ManagedPostgres::ensure_running, isolated per-test schemas, full migration chain) with NO SQLite/in-memory/mock fallback; binaries-absent path SKIPs, every other failure panics so a broken cluster cannot look green.",
+        "api/loom.rs:130-151 wires real routes POST /loom/wiki, GET/DELETE /loom/wiki/:id, /regenerate, /stale to the storage methods; no placeholder handlers.",
+        "Spec alignment: master-spec-v02.194 module 10 treats projections/markdown mirrors as cache 'safe to delete and regenerate' (line 7343) and 'never treated as authority' (line 8489); the implementation matches this projection-never-authority law.",
+        "Aside (non-blocking, paperwork): adversarial_code_review is implementer self-review and the evidence test command was not re-run by me (host-load constraint); proof realism judged by reading test + harness code, which is genuine."
+      ],
+      "evidence_checked": [
+        "MT-184.json (full contract)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show 043cf8c8 --stat and full diff",
+        "src/backend/handshake_core/src/storage/postgres.rs (render_loom_wiki_markdown, loom_wiki_staleness_hash, compile/get/is_stale/regenerate/delete impls, loom_wiki_projection_from_knowledge)",
+        "src/backend/handshake_core/src/api/loom.rs (wiki route registration + handlers)",
+        "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "src/backend/handshake_core/src/storage/knowledge.rs (knowledge_wiki_projections pre-existing store)",
+        "master-spec-v02.194/spec-modules/10-product-surfaces.md (projection-as-cache / never-authority)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

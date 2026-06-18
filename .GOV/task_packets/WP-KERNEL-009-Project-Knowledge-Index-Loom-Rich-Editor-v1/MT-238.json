@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-238",
+  "title": "SecurityPortabilityValidation-238-RetrievalTraceReplayFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-238.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify a context bundle can be reconstructed from QueryPlan, RetrievalTrace, sources, spans, and EventLedger events. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "RetrievalTraceReplayFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "RetrievalTraceReplayFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": null,
+    "implementation_worktree": "wtc-kernel-009",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-14T02:56:03.330Z",
+        "by": "KERNEL_BUILDER-20260614",
+        "files": [
+          "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs",
+          "src/backend/handshake_core/src/storage/knowledge_retrieval.rs",
+          "src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs"
+        ],
+        "summary": "MT-238 now replays persisted RetrievalTrace -> ContextBundle rows from durable PostgreSQL/EventLedger authority with fail-closed receipt validation, selected-vs-included validation, required selected candidate rows, workspace/run/aggregate checks, and evidence reconstruction for span/source/passage/claim/entity plus executor graph entity_ref rows whose ref_id is a knowledge_edges.relationship_id. ContextBundleCompilerV2 now records candidate rows for admitted compiler candidates when the executor did not already provide them, while avoiding duplicate candidates."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-14T02:56:03.330Z",
+        "commands": [
+          {
+            "command": "$env:CARGO_PROFILE_DEV_DEBUG='0'; $env:CARGO_PROFILE_TEST_DEBUG='0'; cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_replay_tests -- --nocapture",
+            "result": "PASS; 7/7 real PostgreSQL replay tests passed, 0 failed, 0 ignored, 0 filtered. Covers receipt validation, selected-item mismatch, missing selected candidate rejection, executor passage anchors, and executor graph-edge relationship_id replay."
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/knowledge_retrieval/compiler.rs src/backend/handshake_core/src/storage/knowledge_retrieval.rs src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_retrieval/compiler.rs src/backend/handshake_core/src/storage/knowledge_retrieval.rs src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs",
+            "result": "PASS; CRLF notices only"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-14T02:56:03.330Z",
+        "reviewer": "multi_agent:019ec403-eaa1-7542-a7eb-30762b0759b9",
+        "result": "PASS",
+        "summary": "Re-review found no blocking findings. It verified the previous selected-candidate validation and PostgreSQL false-green blockers were fixed, confirmed compiler candidate recording/deduplication, and confirmed executor graph-edge replay resolves relationship_id through knowledge_edges plus knowledge_edge_spans rather than fake entity lookup. Residual non-blocking concern: default parallel test execution may be environmentally flaky on cold managed-PostgreSQL startup; controlled proof used the focused real-PostgreSQL target."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260614",
+    "ready_for_validation_at_utc": "2026-06-14T02:56:03.330Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-238 (RetrievalTraceReplayFixture) requires proving a ContextBundle can be reconstructed from a persisted RetrievalTrace, QueryPlan, sources, spans, and EventLedger receipts on durable PostgreSQL authority, with negative fixtures. The code delivers a real, fully-implemented replay function plus a 7-test suite against Handshake-managed real PostgreSQL with fail-closed negative cases; it aligns with current Master Spec 2.3.13.11.",
+      "findings": [
+        "storage/knowledge_retrieval.rs:177-325 replay_context_bundle_from_trace is a real implementation: loads the durable knowledge_retrieval_traces row (get_trace_by_id, raw SQL :327-355), the bundle+items, deserializes typed QueryPlan/RetrievalTrace from decisions JSONB, validates query_plan_id linkage and bundle.allowed_context query_plan_id (:215-224), enforces selected==included set equality and candidate-kind matching (:226-274), reconstructs span/source/passage/entity/claim evidence from committed rows (:357-574), and loads two EventLedger receipts with strict event_type/aggregate_type/aggregate_id/run-context validation (get_receipt_event :587-646). Fails closed (StorageError::Validation) on every mismatch.",
+        "Evidence reconstruction is genuinely durable-backed: replay_span_evidence (:401) reads knowledge_spans + knowledge_sources; replay_entity_evidence (:481) resolves graph-edge relationship_id via get_knowledge_edge_by_relationship_id then list_knowledge_edge_span_ids (real knowledge_edges/knowledge_edge_spans), not a fake entity lookup — confirms the evidence summary's graph-edge claim.",
+        "tests/knowledge_retrieval_replay_tests.rs (538 lines, 7 #[tokio::test]) run against Handshake-managed real PostgreSQL: knowledge_memory_fixtures.rs + knowledge_pg_support.rs use ManagedPostgres::ensure_running (port 5544, data dir under Handshake_Artifacts) and db.run_migrations(); header states 'Real PostgreSQL only. No SQLite, no mocks.' skip_if_no_pg! (:36-48) PANICS if PG absent — no silent green.",
+        "Negative fixtures are real and corrupt actual rows via sqlx on a live pool: wrong receipt event_type (:217), trace/bundle workspace drift (:237), missing build_receipt_event_id (:260) and trace_receipt_event_id (:278), aggregate_id mismatch (:311), empty selected (:333), missing ranked candidate (:361) — each asserts expect_err with a specific message. Covers the MT's required negative cases (false PASS, stale state, missing receipts, parallel-write/workspace conflicts).",
+        "compiler.rs:250-282 records RetrievalCandidate rows for admitted candidates when the executor did not already provide them, with .any() dedup guard (:256-258) — matches the evidence summary fixing the prior selected-candidate false-green.",
+        "No placeholders/escapes: grep for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-' across the three files returned zero hits. No forbidden deps (sqlite/elasticsearch/opensearch/meilisearch/typesense/docker/redis/valkey) present.",
+        "Current Master Spec v02.194 section 2.3.13.11 (02-system-architecture.md:2694-2706) requires RetrievalTrace as 'a replayable record' on PostgreSQL/EventLedger authority — the MT proof exercises exactly this.",
+        "Non-blocking paperwork aside: lifecycle.implementation_commit is null; work is folded into broad checkpoint commit c49afb7f rather than an MT-238-named commit. Expected during governance wind-down; not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-238.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_retrieval.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/compiler.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (grep)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-MT238",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

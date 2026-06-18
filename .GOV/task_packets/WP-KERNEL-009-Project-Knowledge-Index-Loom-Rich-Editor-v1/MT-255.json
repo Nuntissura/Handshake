@@ -1,0 +1,255 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-255",
+  "title": "UnifiedWorkSurface-255-EditorDraftRecovery",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-255.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close ED-REC-001 (+ MT-159 descoped half): editor-side crash/draft recovery - unsaved keystrokes survive a tab/app crash via periodic draft persistence to the backend write-box (NOT localStorage-only); on reopen, a recovery banner offers diff (reuse MT-247) + restore/discard; draft cleared on successful save. Closes the loop with backend MT-159 promoted-recovery.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Draft persistence uses the existing write-box/CRDT surfaces; recovery NEVER auto-overwrites the saved head without explicit choice."
+    ],
+    "expected_behavior": "Pull the plug mid-typing; reopen; Handshake offers the unsaved draft with a diff; restore brings every keystroke back.",
+    "acceptance_criteria": [
+      "Simulated crash (kill page mid-edit) -> reopen -> draft offered + restored, byte-exact (Playwright).",
+      "Draft cleared after clean save (proven).",
+      "Decline-restore leaves saved head untouched (negative test).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-244",
+      "MT-159"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": null,
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T16:25:21Z",
+        "by": "KERNEL_BUILDER",
+        "status": "READY_FOR_VALIDATION",
+        "summary": "Implemented MT-255 backend-backed RichDocument draft recovery. Unsaved editor changes debounce to a PostgreSQL draft slot, reopen offers a recovery banner with MT-247 merge/diff reuse, restore rehydrates the editor byte-exact for the typed draft text, explicit discard deletes only the draft, and successful save clears the draft server-side.",
+        "product_files_touched": [
+          "src/backend/handshake_core/migrations/0328_rich_document_draft_recovery.sql",
+          "src/backend/handshake_core/migrations/0328_rich_document_draft_recovery.down.sql",
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/api/knowledge_documents.rs",
+          "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+          "app/src/lib/api.ts",
+          "app/src/components/RichDocumentView.tsx",
+          "app/src/components/RichDocumentView.test.tsx",
+          "app/harness/editor-draft-recovery.html",
+          "app/src/harness/editor_draft_recovery_harness.tsx",
+          "app/vite.harness.config.ts",
+          "tests/dependency_policy/global_setup.ts",
+          "tests/dependency_policy/editor_draft_recovery.spec.ts"
+        ],
+        "verification": [
+          {
+            "command": "pnpm exec vitest run src/components/RichDocumentView.test.tsx",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "27 tests passed, including MT-255 debounce persistence, backend recovery restore, save-clear UI, and discard-without-save cases."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir \"D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target\" --test knowledge_documents_api_tests mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard -- --nocapture",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "1 real-PG route test passed. It proves draft upsert/get, EventLedger receipt ids for save/discard, save clears draft, discard leaves saved head untouched."
+          },
+          {
+            "command": "pnpm exec playwright test --config playwright.dependency.config.ts ../tests/dependency_policy/editor_draft_recovery.spec.ts",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "1 Chromium offline dependency-policy test passed. It built editor-draft-recovery.html and proved crash/reopen offer, restore exact typed draft text, save clears draft, and discard leaves saved head untouched with no external requests."
+          },
+          {
+            "command": "rustfmt --edition 2021 src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/api/knowledge_documents.rs src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wt-gov-kernel",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          }
+        ],
+        "eventledger_postgres_evidence": [
+          "Migration 0328 adds knowledge_rich_document_drafts keyed by rich_document_id with base version/hash, draft JSON/hash, actor/session attribution, and timestamps.",
+          "PUT /knowledge/documents/:id/draft records KnowledgeCrdtRecoveryReceiptRecorded via draft_receipt_event_id.",
+          "DELETE /knowledge/documents/:id/draft records KnowledgeCrdtRecoveryReceiptRecorded via clear_receipt_event_id.",
+          "save_knowledge_rich_document_version deletes knowledge_rich_document_drafts in the same transaction as the promoted save."
+        ],
+        "adversarial_review": {
+          "DIFF_ATTACK_SURFACES": [
+            "Draft resurrects after clean save.",
+            "Discard accidentally overwrites or mutates saved head.",
+            "Malformed or unsafe draft content bypasses save validation.",
+            "Debounced draft write races with clean save.",
+            "CRDT update log alone lacks an explicit clear/consume operation."
+          ],
+          "INDEPENDENT_CHECKS_RUN": [
+            "Frontend unit test validates debounced backend draft writes and restore/discard UI behavior.",
+            "Real-PG backend route test validates durable draft slot and receipts.",
+            "Offline Playwright proof validates crash/reopen through built UI."
+          ],
+          "COUNTERFACTUAL_CHECKS": [
+            "If saved content equals draft content, GET /draft suppresses the recovery offer.",
+            "If the draft is explicitly discarded, saveRichDocument is not called and the editor remains on saved head.",
+            "If save succeeds, the draft row is deleted server-side, not merely hidden in UI."
+          ],
+          "BOUNDARY_PROBES": [
+            "Draft PUT requires DocumentAction::Write and GET requires DocumentAction::Read.",
+            "Draft content is parsed through BlockTree and validate_block_embeds before persistence.",
+            "Base version newer than saved head and same-version hash mismatch fail closed with conflict."
+          ],
+          "NEGATIVE_PATH_CHECKS": [
+            "Decline/discard recovery leaves saved head untouched in backend route test and Playwright proof.",
+            "Pending draft debounce is cancelled at save start to avoid stale post-save draft writes."
+          ],
+          "FINDINGS_FIXED": [
+            "Rejected CRDT-log-only approach because it had no clear-on-save primitive; implemented a narrow PostgreSQL draft slot with explicit clear/discard.",
+            "Initial frontend discard assertion checked the wrong fixture text; fixed to assert no draft content was applied and no save occurred."
+          ],
+          "RESIDUAL_UNCERTAINTY": [
+            "Playwright proof uses route-mocked loopback backend for the browser flow; real PostgreSQL/EventLedger persistence is covered by the route-level backend test.",
+            "Full packaged Tauri runtime was not launched for this MT."
+          ]
+        }
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-255 requires editor-side crash/draft recovery where unsaved keystrokes survive a tab/app crash via periodic draft persistence to the backend write-box (not localStorage), a reopen recovery banner with MT-247 diff offering restore/discard, and the draft cleared on successful save. The code delivers all of this with real Handshake-native PostgreSQL persistence, EventLedger receipts, and genuine runtime proofs (real-PG Rust route test plus offline Playwright through the real built UI).",
+      "findings": [
+        "Migration 0328_rich_document_draft_recovery.sql:5-38 creates a real PostgreSQL table knowledge_rich_document_drafts (PK on rich_document_id, FK to knowledge_rich_documents and workspaces ON DELETE CASCADE, sha256 CHECK constraints, actor/session attribution) and registers it in knowledge_schema_registry with mt_id MT-255 — durable backend write-box, not localStorage.",
+        "api/knowledge_documents.rs:74-76 wires GET/PUT/DELETE /knowledge/documents/:id/draft; load_document_draft (773-805) suppresses the recovery offer when draft hash/content equals saved head; upsert_document_draft (809-905) validates base version/hash fail-closed, parses through BlockTree + validate_block_embeds, and records a KnowledgeCrdtRecoveryReceiptRecorded EventLedger receipt; clear_document_draft (909-942) explicit discard with its own receipt.",
+        "storage/knowledge.rs:5201-5205 deletes the draft row in the SAME transaction (&mut *tx) as the version INSERT before tx.commit() — clean save atomically clears the draft server-side, satisfying the 'draft cleared after clean save (proven)' acceptance criterion and closing the debounce-vs-save race.",
+        "RichDocumentView.tsx:339-398 implements debounced backend draft persistence (scheduleDraftPersist -> upsertRichDocumentDraft), 501-525 loads the backend draft on open and offers a draft_recovery snapshot with a merge/diff panel (MT-247 reuse), 682-712 restore rehydrates editor content, 702-712 discard calls clearRichDocumentDraft; save path (618) cancels the pending debounce and (650) drops the recovery snapshot on success.",
+        "Real-PG proof: tests/knowledge_documents_api_tests.rs:1185-1344 boots the actual axum docs routes against real PostgreSQL via knowledge_pg_support (PostgresDatabase::connect to an isolated schema on Handshake-managed PG; the support module explicitly documents NO SQLite/in-memory/mock fallback) and asserts draft upsert, EventLedger receipt id presence, clean-save clears draft, and discard leaves saved head byte-equal ('crash sentinel draft').",
+        "Offline Playwright proof: tests/dependency_policy/editor_draft_recovery.spec.ts builds the harness, mounts the REAL RichDocumentView (harness/editor_draft_recovery_harness.tsx:8,33), types into a real ProseMirror editor, simulates crash via page.close, reopens a new page, verifies the recovery banner + merge panel, restores byte-exact, saves (asserts draft cleared), discards (asserts saved head untouched = firstDraft), and asserts externalRequests == [] (zero external network).",
+        "No placeholders or deferred-live escapes: grep across impl + harness found no todo!/unimplemented!/unreachable!/stub/FIXME/'deferred to follow-on'/'pending MT-' reachable from the required behavior.",
+        "Aside (non-blocking, paperwork): lifecycle.implementation_commit is null and the files landed inside a multi-MT checkpoint commit c49afb7f; the three proof commands are self-reported PASS in the evidence block and were not re-run here due to the host-load constraint — realism was judged by reading the genuine test code. Self-cert (claimed_by==completed_by==KERNEL_BUILDER) is present but status is correctly READY_FOR_VALIDATION and the proof is independently real."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-255.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0328_rich_document_draft_recovery.sql",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (lines 74-76, 773-942)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (lines 1902-2012, 5009-5110, 5184-5206)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (lines 90-160, 1185-1344)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (lines 1-60)",
+        "wtc-kernel-009/app/src/components/RichDocumentView.tsx (lines 339-525, 610-712, 900-990)",
+        "wtc-kernel-009/app/src/harness/editor_draft_recovery_harness.tsx",
+        "wtc-kernel-009/tests/dependency_policy/editor_draft_recovery.spec.ts",
+        "git log/status on feat/WP-KERNEL-009 (commit c49afb7f)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

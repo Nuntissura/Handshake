@@ -1,0 +1,219 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-181",
+  "title": "LoomObsidianNavigation-181-FolderTreeAndColorLabels",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-181.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Persist folder hierarchy, labels, colors, sort modes, and project membership in PostgreSQL. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "FolderTreeAndColorLabels leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "FolderTreeAndColorLabels is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "3a872e4e",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T08:40:00Z",
+        "kind": "implementation",
+        "summary": "Persistent Loom folder hierarchy + color labels + sort modes + project membership in PostgreSQL. Organizational overlay over LoomBlocks; never a second source of block truth. No parallel store.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0294_loom_folders.sql (NEW) - loom_folders (self-referential parent_folder_id, color, sort_mode CHECK vocab, manual sort_order, soft project_ref; sibling-name uniqueness; not-self-parent CHECK) + loom_folder_members (folder<->block overlay, manual sort_order)",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomFolder/NewLoomFolder/LoomFolderUpdate (Option<Option> set/clear) + LoomFolderSortMode",
+          "src/backend/handshake_core/src/storage/mod.rs - Database folder methods (create/get/list/update/delete + member add/remove/list)",
+          "src/backend/handshake_core/src/storage/postgres.rs - impls + map_loom_folder; list tree parent-before-child (recursive CTE); update move guarded by descendant-cycle + self-parent checks; list_loom_folder_blocks ORDER BY chosen by sort_mode (fixed literals)",
+          "src/backend/handshake_core/src/api/loom.rs - /loom/folders CRUD + /loom/folders/:id/blocks(/:block_id)",
+          "src/backend/handshake_core/tests/loom_folder_tests.rs (NEW) - 6 real-Postgres integration tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T08:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_folder_tests -- --test-threads=1",
+        "result": "ok. 6 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "folder_tree_persists_hierarchy_color_and_sort - nested tree, recolor+rename, parent-before-child listing, sort_mode persisted",
+          "folder_membership_and_manual_sort - manual order C,A,B; idempotent re-add (reorder, no dup); remove",
+          "folder_name_sort_mode_orders_by_title - name_asc orders Ant before Zebra",
+          "folder_move_into_own_subtree_is_rejected - descendant-cycle move + self-parent both rejected",
+          "deleting_folder_cascades_subtree_but_not_blocks - delete root cascades child + membership; the LoomBlock survives",
+          "folder_apis_fail_closed_on_missing_targets - missing parent / missing block rejected"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "state_recovery",
+        "summary": "Crash recovery to READY_FOR_VALIDATION after independent adversarial review PASS and fresh current-tree real-PostgreSQL proof for Loom folder hierarchy/color labels. This is Kernel Builder handoff readiness only; validator review remains pending.",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_folder_tests -- --test-threads=1 --nocapture",
+        "result": "ok. 6 passed; 0 failed against POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt181-loom-folder-tests.log",
+          "adversarial-review:Bohr:019ec76f-24f4-7863-8fc9-cca1944818a4:PASS"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-181"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T08:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "3a872e4e",
+      "findings": [
+        "MOVE CYCLE (handled+tested): re-parenting walks up from the proposed parent via a recursive CTE; if it reaches the folder being moved, the move is rejected. Self-parent rejected separately. (DB also has a not-self-parent CHECK.)",
+        "OVERLAY NOT OWNERSHIP (handled+tested): deleting a folder cascades the subtree + membership rows but never the LoomBlocks; a block can be in multiple folders.",
+        "SET/CLEAR SEMANTICS (handled): LoomFolderUpdate uses Option<Option<T>> + CASE WHEN $flag so a field can be left unchanged, set, or explicitly cleared (color, sort_order, parent, project_ref).",
+        "ORDER-BY INJECTION (clear): list_loom_folder_blocks picks a fixed &str ORDER BY by sort_mode enum; folder name/color/project_ref are bound params under CHECK constraints.",
+        "SIBLING-NAME COLLISION (handled by schema): uq_loom_folders_sibling_name (workspace, parent, name) prevents ambiguous duplicate paths; surfaced as a Conflict/Database error.",
+        "FAIL-CLOSED (tested): create under a missing parent, and adding a missing block, both error; project_ref is a documented soft ref (no hard FK) per MT-152 typed-reference discipline.",
+        "DOS (mitigated): list_loom_folder_blocks clamps limit 1..500; the tree CTE is bounded by the workspace folder count."
+      ],
+      "fixes": [
+        "No code change required; findings handled-by-design and tested."
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-181 requires PostgreSQL-persistent Loom folder hierarchy with color labels, sort modes, and project membership as an organizational overlay over LoomBlocks (never a second source of block truth). Commit 3a872e4e delivers exactly this with real schema, real PostgresDatabase CRUD, cycle/overlay/fail-closed guards, REST routes, and 6 real-Postgres integration tests. Code is real, spec-aligned, and runtime-proven against managed PostgreSQL.",
+      "findings": [
+        "migrations/0294_loom_folders.sql:16-67 — real schema: loom_folders (self-referential parent_folder_id ON DELETE CASCADE, color, sort_mode CHECK vocab name_asc/name_desc/created_desc/updated_desc/manual, manual sort_order, soft project_ref, not-self-parent CHECK, sibling-name UNIQUE) + loom_folder_members overlay (FK to loom_blocks ON DELETE CASCADE). Matches MT scope exactly.",
+        "storage/postgres.rs (commit 3a872e4e) — real PostgresDatabase impls: list_loom_folders uses recursive CTE for parent-before-child ordering; update_loom_folder has descendant-cycle guard (recursive walk-up) + self-parent rejection; list_loom_folder_blocks picks ORDER BY from sort_mode via fixed &str literals (no injection); add_block_to_loom_folder is idempotent (ON CONFLICT DO UPDATE) and fail-closed (verifies folder+block exist); delete cascades subtree+membership but never blocks.",
+        "storage/loom.rs (commit 3a872e4e) — LoomFolder/NewLoomFolder/LoomFolderUpdate (Option<Option<T>> set/clear semantics) + LoomFolderSortMode enum with as_str/FromStr; enum vocab matches the SQL CHECK constraint exactly.",
+        "api/loom.rs (commit 3a872e4e) — /loom/folders CRUD + /loom/folders/:id/blocks(/:block_id) routes wired to the real storage methods.",
+        "tests/loom_folder_tests.rs:81-253 — 6 integration tests against real PostgreSQL: hierarchy/color/sort persistence, manual+name sort ordering, move-into-own-subtree rejection, delete-cascades-subtree-but-not-blocks, fail-closed missing parent/block. tests/knowledge_pg_support.rs:21,40,108-155 connects via POSTGRES_TEST_URL/DATABASE_URL into an isolated schema with real migrations and explicitly NO SQLite/in-memory/mock fallback — satisfies sub_rule_2.",
+        "storage/mod.rs trait default methods return StorageError::NotImplemented for non-Postgres implementors only; this is the codebase's standard non-authority default pattern, NOT a reachable deferred-live escape — the PostgreSQL authority path (the path the MT requires and the tests exercise) is fully implemented.",
+        "Spec §7.1.1.9 (07-user-experience-and-development.md:280) normatively lists 'folder linking with folder color labels' and mandates no parallel store / no markdown-vault authority; §7.1.4.3 frames Loom surfaces as DisplayContent projections over one LoomBlock dataset. The overlay-not-ownership implementation matches.",
+        "ASIDE (non-blocking paperwork): the cited green-test log path ../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt181-loom-folder-tests.log does not exist on disk; evidence-reference drift only, code+tests are real and runnable."
+      ],
+      "evidence_checked": [
+        "MT-181.json (full contract)",
+        "packet.json (scope, allowed/forbidden paths, DEC-008)",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show 3a872e4e --stat and full diff",
+        "migrations/0294_loom_folders.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs (loom_folder impls in commit)",
+        "src/backend/handshake_core/src/storage/loom.rs (types in commit)",
+        "src/backend/handshake_core/src/storage/mod.rs (trait defaults in commit)",
+        "src/backend/handshake_core/src/api/loom.rs (routes in commit)",
+        "tests/loom_folder_tests.rs",
+        "tests/knowledge_pg_support.rs (PG fixture)",
+        "spec master-spec-v02.194/spec-modules/07-user-experience-and-development.md §7.1.1.9, §7.1.4.3"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

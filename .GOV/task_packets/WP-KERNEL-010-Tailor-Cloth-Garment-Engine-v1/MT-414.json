@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-414",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-414.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-413"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a recording session mode on the animation API: begin_recording()/end_recording() bracket a live playback pass during which wind and avatar-pose parameter changes are auto-written as keyframes at their current frame, producing a keyframe track from real-time operator/model interaction.",
+    "allowed_paths": [
+      "tailor-solver/src/animation/recorder.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "app/src/components/tailor/AnimationTimeline.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AnimationRecorder struct implements begin_recording(timeline) and end_recording() -> Vec<KeyframeEvent>.",
+      "During a recording session, any wind or avatar-pose parameter write via the animation API is auto-converted to a Keyframe at the current simulation frame and inserted into the corresponding Track.",
+      "end_recording() persists the captured keyframes into the tailor_animations row and emits TailorAnimationRecordingCompleted event.",
+      "A model can call begin_recording, issue a sequence of set_wind_strength(frame, val) calls, then call end_recording and receive a fully-populated wind Track without separately constructing keyframes.",
+      "cargo test animation::recorder::wind_recording_produces_track passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver animation::recorder::wind_recording_produces_track",
+      "cargo test -p handshake_core tailor::animation::recording_session_event_emitted"
+    ],
+    "risk_if_missed": "The MD creative recording workflow is absent. Operators and models must manually author every keyframe rather than making live adjustments during playback, which eliminates the primary exploratory animation authoring path that MD users rely on for organic drape results."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-108",
+  "title": "CodeIndexingAndNavigation-108-CodeIndexPartialFailureHandling",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-108.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Keep indexing useful when a single file/parser fails and record precise failure receipts. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "CodeIndexPartialFailureHandling leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "CodeIndexPartialFailureHandling is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:18:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "REPAIR-QUEUE NOT IMPLEMENTED but presented as delivered. mod.rs:38/54/59 and engine.rs:24 describe MT-108 as 'partial receipts + repair-queue integration' and 'a repair-queue entry holds it (MT-108)'. The actual record_parse_failure (engine.rs:757-827) writes a `failed` source receipt + a `failed` knowledge_code_files row, and NOTHING ELSE - the comment at engine.rs:754 hedges '(when a repair hook is wired)', i.e. it is NOT wired. No enqueue to any ingestion repair queue occurs. The failure-recovery surface the contract claims (repairable files held for re-processing) does not exist; only a status flag + receipt are written. This is a prose-vs-code gap, not just a polish item.",
+        "Only CodeParseError is caught, not Io: index_code_file matches adapter.parse() Err -> record_parse_failure (engine.rs:251). But a binary / non-UTF-8 file never reaches the parser - std::fs::read_to_string in read_and_index (engine.rs:1101) returns CodeIndexError::Io, which propagates as a hard error. There is NO directory-runner in this module that catches Io per-file, so the 'one bad file never fails the run' guarantee covers grammar failures only; a single non-UTF-8/unreadable file aborts a `?`-propagating batch caller. mod.rs lists 'binary/invalid-UTF-8 input' as a handled failure mode, which is inaccurate for the read path.",
+        "No std::panic::catch_unwind around the tree-sitter FFI parse: parse() relies on tree-sitter never panicking. tree-sitter is C via FFI; an internal abort/panic is not a typed CodeParseError and would unwind past record_parse_failure, taking down the run. The 'never a panic' claim (parser.rs:27) is the grammar's behavior, not an enforced boundary."
+      ],
+      "evasion_probes": [
+        "Verified the parse-error partial path IS real: a grammar init / no-tree failure is captured and the outcome carries failed=true with a receipt + code_file row (parse_status=failed); a tree WITH syntax errors that still yields symbols -> parse_status=partial and the run continues (engine.rs:276-280). This half of the contract works.",
+        "Tried to find a panic in the extractors on malformed input: extractors are pure Rust over the flattened node stream with Option-guarded text slicing; the delegate's malformed_source test shows a broken file returns root_has_error rather than erroring. No extractor panic found.",
+        "Confirmed record_parse_failure for CONFIG files reuses the same path with a placeholder language tag (engine.rs:857 maps to JavaScript) - the language tag in a config failure receipt is therefore WRONG (says javascript for a failed .toml), a minor receipt-accuracy bug."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:236-268 parse-failure capture",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:753-827 record_parse_failure (no repair enqueue)",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:1091-1115 read_and_index (Io not caught by MT-108)",
+        "src/backend/handshake_core/src/knowledge_code_index/mod.rs:36-65 (claims repair-queue + binary/UTF-8 handling)",
+        "grep repair_queue across knowledge_code_index/** -> only docstrings, zero implementation"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T20:45:29.357Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "commit": "cf1b690d",
+      "note": "Adversarial finding fixed + real-PG/unit test green (knowledge_code_index_tests 13 + nav_api 2 + 59 unit, 0 fail)."
+    },
+    "evidence": [
+      "Hardened cf1b690d: Real durable knowledge_code_repair_queue (migration 0230) with enqueue/refresh/reopen/resolve; Io/non-UTF-8 + tree-sitter panic recorded not aborting; false repair-queue claim now true."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (cf1b690d): a durable knowledge_code_repair_queue (migration 0230) now exists, and record_parse_failure ACTUALLY enqueues into it - engine.rs:858 enqueue_knowledge_code_repair(NewKnowledgeCodeRepairEntry{...}) -> storage enqueue_knowledge_code_repair (knowledge.rs:5876) UPSERT with a unique-open-per-source index (uq_knowledge_code_repair_open_source) + lifecycle CHECK (queued/retrying/resolved/dead_letter) + FK to the event ledger. The repair-queue-not-implemented-but-claimed finding the V1 reviewer flagged is closed; the prose-vs-code gap is now code-true."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-108 requires code indexing to survive a single file/parser failure, emit a precise typed receipt, and hold the failed file on a durable Handshake-native repair surface. The hardening commit cf1b690d implements a real PostgreSQL knowledge_code_repair_queue (migration 0230) that record_parse_failure actually enqueues into, catches Io/non-UTF-8 reads and tree-sitter FFI panics as typed failures, and proves it end-to-end against real managed PostgreSQL.",
+      "findings": [
+        "Durable repair surface is real, not a flag: migration src/backend/handshake_core/migrations/0230_knowledge_code_repair_queue.sql defines knowledge_code_repair_queue with typed reason_class CHECK (PARSE_ERROR/READ_ERROR/PANIC/CONFIG_PARSE_ERROR), partial unique index uq_knowledge_code_repair_open_source (one open entry per source), state lifecycle CHECK, FK to kernel_event_ledger, and a knowledge_schema_registry insert.",
+        "engine.rs:1091-1104 record_parse_failure now ACTUALLY calls db.enqueue_knowledge_code_repair(NewKnowledgeCodeRepairEntry{...}); storage knowledge.rs:6691-6767 implements real refresh -> reopen-dead-letter -> insert UPSERT logic. This closes the V1 'repair-queue claimed but not implemented' finding.",
+        "Io/binary path fixed: engine.rs:1494-1550 read_and_index reads raw bytes first; an OS read error or non-UTF-8 decode routes to record_read_failure (engine.rs:1313, reason_class READ_ERROR) returning a failed outcome instead of propagating CodeIndexError::Io. A bad file no longer aborts a ?-propagating directory run.",
+        "Tree-sitter FFI panic boundary added: parser.rs:284-297 wraps parse_inner in std::panic::catch_unwind(AssertUnwindSafe) and converts a caught unwind into a typed CodeParseError; engine.rs:457-461 classifies a 'panicked' reason as KnowledgeCodeRepairReason::Panic. Plus MT-097 source-byte and node caps (parser.rs:205-206, 274, 345) degrade pathological input to a typed failure.",
+        "V1 receipt-accuracy bug fixed: language flows as Option<CodeLanguage>; config and read failures pass None so the failure receipt carries language:null (engine.rs:1043, 1099) instead of falsely tagging a failed .toml as javascript. The storage code-file row still uses a neutral default but the receipt + repair entry carry the true cause.",
+        "Runtime proof is real and Handshake-native: tests/knowledge_code_index_tests.rs:1109 mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful and :1032 mt108_partial_failure_keeps_run_useful run against real managed PostgreSQL via PostgresDatabase::connect(&pg.schema_url) (no SQLite/in-memory fallback). The binary test asserts: binary file does not abort, failed outcome with language None, READ_ERROR repair entry enqueued, re-fail refreshes to exactly 1 row (not N), good sibling symbol rust:ok.rs#ok still indexed, and resolve is terminal.",
+        "Spec alignment: anchor 2.3.13.11 resolves in current v02.194 (02-system-architecture.md:2694) and mandates durable PostgreSQL/EventLedger authority records with no SQLite/Docker/external-daemon proof and typed receipts for KnowledgeSource failures; the implementation matches exactly.",
+        "Spec-Realism grep across knowledge_code_index/** for todo!/unimplemented!/unreachable!/'not yet wired'/'when a repair hook is wired'/*Unavailable returns ZERO hits; the V1 hedge comment is gone and docstrings (mod.rs:36-66) are code-true.",
+        "Aside (non-blocking, paperwork): the inline adversarial_review_v2 in the MT contract already records HARDENED_OK; that governance note carries no validator authority and did not factor into this verdict."
+      ],
+      "evidence_checked": [
+        "MT-108.json contract (acceptance_criteria, constraints, lifecycle.adversarial_code_review V1 findings, hardening_closed cf1b690d)",
+        "git show --stat cf1b690d; git log --grep MT-108 (commits 5d6490b0, 79e1a7e4, cf1b690d)",
+        "src/backend/handshake_core/migrations/0230_knowledge_code_repair_queue.sql",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:433-540, 1019-1119, 1313-1336, 1494-1550",
+        "src/backend/handshake_core/src/knowledge_code_index/parser.rs (catch_unwind, caps, full file)",
+        "src/backend/handshake_core/src/knowledge_code_index/mod.rs:30-69 docstrings",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6415-6500, 6691-6826 (enqueue/get/list/resolve + types + pg mapper)",
+        "tests/knowledge_code_index_tests.rs:1032-1243 (mt108 partial + binary tests) and :150-200 real-PG harness",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2719 (section 2.3.13.11)",
+        "grep for placeholder/deferred-live escapes across knowledge_code_index/** -> none"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

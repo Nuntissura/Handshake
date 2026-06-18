@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-369",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-369.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-369.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-369.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-369.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-368"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Seed the canonical default trim library: author and run a migration (or seeder) that inserts a minimum set of is_library_item=TRUE rows in tailor_trims covering every trim_category value in the CHECK domain (button, zipper, eyelet, rivet, hook_eye, snap, buckle, strap_segment, armor_plate, accessory), each with valid mesh_json, inertia_tensor_json, and tack_anchor_json",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/",
+      "tailor-solver/src/trim/library_meshes.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "After running migrations, tailor_trims contains at least one row with is_library_item=TRUE for each trim_category CHECK value defined in TR-6.1.2",
+      "Every library row has non-null mesh_json (TrimMeshV1), non-null inertia_tensor_json, and non-null tack_anchor_json with at least one anchor position",
+      "The sandbox adapter can resolve a library item for every trim_category without an explicit trim_id per TR-9.3: passing trim_category='button' returns the seeded button row",
+      "Library rows are idempotent: re-running the migration or seeder does not produce duplicate rows (ON CONFLICT DO NOTHING or equivalent)",
+      "Seeded inertia tensors are positive-definite (det(I) > 0) for all library items"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::trim_library::test_all_categories_have_library_item_after_migration",
+      "cargo test -p handshake_core tailor::trim_library::test_sandbox_adapter_resolves_default_button",
+      "cargo test -p handshake_core tailor::trim_library::test_library_inertia_tensors_positive_definite"
+    ],
+    "risk_if_missed": "TR-9.3 is a hard requirement: every model-authored GarmentSpec that references a trim_category without a trim_id will fail at sandbox time with a missing-row error; the place_trim MCP tool (MT-263) becomes unusable in the primary model authoring path since models cannot be expected to know internal TRIM- UUIDs"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-131",
+  "title": "RetrievalContextAndRanking-131-SchemaFirstFiltering",
+  "group": "RetrievalContextAndRanking",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-131.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Use MemoryOntology/schema matches to narrow candidate facts and reduce off-topic graph expansion. This MT belongs to RetrievalContextAndRanking. Retrieve project knowledge through explainable direct, graph, hybrid, and passage fallback modes.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Retrieval must choose explicit modes: none, direct_load, exact_lookup, graph_traversal, hybrid_rag, or passage_fallback, with non_hybrid_reason where applicable.",
+      "Context bundles must be bounded, cited, explainable, restartable, and inspectable through backend and visual-debug surfaces."
+    ],
+    "expected_behavior": "SchemaFirstFiltering leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SchemaFirstFiltering is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-129"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
+    "implementation_commit": "91b6df48",
+    "evidence": [
+      "Built+verified 91b6df48; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T14:30:00Z",
+        "kind": "hardening_v2",
+        "finding": "Schema scope applied post-hoc over a capped unordered fact load (recall gap); never invoked by the planner before widening",
+        "fix": "Scope predicate pushed into the fact SQL (list_memory_facts_in_schema_scope, ANY(scope)); schema_first_filter routes through it when scope resolves; the executed pipeline (executor.rs) invokes schema_first_filter before graph widening",
+        "commit": "e5180a83",
+        "tests": "knowledge_retrieval_bridges_tests 3 passed incl. recall-gap proof (in-scope fact buried under 5 newer off-topic facts, cap 3, still returned)"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "schema scope is applied post-hoc over a capped, unordered fact load (recall gap)",
+          "evidence": "schema_first_filter (schema_filter.rs:138-152) loads up to fact_limit facts via list_memory_facts then filters in memory by in-scope terms; the scope is NOT pushed into SQL. For a large fact base the in-scope facts can fall outside the first fact_limit rows and be silently missed.",
+          "fix": "Push the resolved term scope into the SQL (WHERE predicate_term_id IN (...) OR object_entity_id IN (...)) so the limit bounds in-scope facts, not an arbitrary prefix.",
+          "status": "FIXED",
+          "fixed_commit": "e5180a83"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "schema-first filtering is not invoked by the planner before widening",
+          "evidence": "CheapestAuthoritativePathPlanner (planner.rs) never calls schema_first_filter; the graph/hybrid widen (steps 3 and 5) run without narrowing to schema scope. The primitive is unit-tested but unwired, so the spec use-schema-first-before-widening is unrealized in the plan path.",
+          "fix": "Invoke schema_first_filter to seed graph_neighborhood / candidate sets before the planner emits a graph/hybrid route.",
+          "status": "FIXED",
+          "fixed_commit": "e5180a83"
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: planner narrows graph seeds via schema scope before widening"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-131 SchemaFirstFiltering requires using MemoryOntology/schema matches to narrow candidate facts before graph/hybrid widening, PG-backed, invoked on the executed retrieval path. The code delivers this with a real sqlx scope pushdown over knowledge_memory_facts, wired into the live executor before graph traversal, and proven by a managed-PostgreSQL recall-gap test. Both prior adversarial-v2 MEDIUM findings (post-hoc recall gap; unwired filter) are genuinely fixed.",
+      "findings": [
+        "schema_filter.rs:168-196 schema_first_filter resolves query tokens to ontology terms (resolve_query_schema) then, when scope resolves, routes through the SQL pushdown list_memory_facts_in_schema_scope; empty scope keeps recent facts as advisory and signals caller-must-widen via has_schema_scope()==false. Correct narrow-before-widen semantics.",
+        "knowledge_memory.rs:774-796 list_memory_facts_in_schema_scope is a real sqlx PG query: WHERE workspace_id=$1 AND (predicate_term_id = ANY($2) OR object_entity_id = ANY($2)) ORDER BY created_at DESC LIMIT $3. Scope predicate is pushed into SQL so the row cap bounds in-scope facts, not an arbitrary newest-N prefix. This is the exact fix for prior adversarial finding #1 (post-hoc recall gap).",
+        "executor.rs:110-138 the EXECUTED retrieval pipeline calls schema_first_filter before graph traversal, seeds GraphTraversalPlanner from schema.seed_entity_ids(), and narrows traversal via schema_scoped_graph_policy(graph_policy, &schema.edge_type_allowlist). This wires the filter into the live plan path, fixing prior adversarial finding #2 (filter was unit-tested but never invoked by the planner).",
+        "tests/knowledge_retrieval_bridges_tests.rs:44-177 schema_first_filter_narrows_to_query_scope runs on real PostgreSQL (skip_if_no_pg!, MemoryFixture::setup, pool_for over isolated schema). It creates a real ontology term+alias, an in-scope fact and an off-topic fact, then buries the in-scope fact under 5 NEWER off-topic facts with cap=3 and proves the in-scope fact is still returned (candidate_facts.len()==1). This is genuine runtime proof of the recall-gap fix against managed PG, not a mock.",
+        "tests/knowledge_memory_fixtures.rs:1-9,43-152 fixture is managed-PG auto-discovery with full migration chain, documented 'Real PostgreSQL only. No SQLite, no mocks.' Columns predicate_term_id/object_entity_id are real, defined in migration 0241_knowledge_memory_facts.sql:45. Sub-rule 2 satisfied.",
+        "Sub-rule 1: grep of schema_filter.rs, executor.rs, knowledge_memory.rs for todo!/unimplemented!/unreachable!/Unavailable/stub/placeholder/'not yet wired'/'pending MT-' returned zero hits on the MT-131 path.",
+        "Spec alignment: current Master Spec (v02.194) 02-system-architecture.md:1516 'Graph queries narrow candidate sets before vector search' and section 2.3.14.1.4 (rich metadata enables filtering) directly support the schema-first narrow-before-widen behavior MT-131 implements.",
+        "Aside (non-blocking, paperwork): the lifecycle.evidence note mentions 'migration 0260' for the original MT-131 commit; the recall-gap hardening (e5180a83) correctly required no new migration since it queries existing 0241 columns. Not a code defect."
+      ],
+      "evidence_checked": [
+        "MT-131.json contract (scope, acceptance_criteria, lifecycle.evidence, adversarial_review_v2)",
+        "packet.json allowed/forbidden paths (read via task brief)",
+        "git show 91b6df48, e5180a83, 136c5e9a (--stat + messages)",
+        "src/backend/handshake_core/src/knowledge_retrieval/schema_filter.rs (full)",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs:100-160",
+        "src/backend/handshake_core/src/storage/knowledge_memory.rs:748-796",
+        "src/backend/handshake_core/tests/knowledge_retrieval_bridges_tests.rs:44-177",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:1-152",
+        "src/backend/handshake_core/migrations/0241_knowledge_memory_facts.sql:45",
+        "Master Spec v02.194 02-system-architecture.md:1516, 2804-2811 (2.3.14.1.4)",
+        "grep for deferred-live escapes across MT-131 source paths (zero hits)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

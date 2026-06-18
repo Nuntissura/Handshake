@@ -1,0 +1,201 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-109",
+  "title": "CodeIndexingAndNavigation-109-MonacoCodeLensBridge",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Feed code navigation and diagnostics into embedded Monaco without requiring external editor services. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "MonacoCodeLensBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "MonacoCodeLensBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:24:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Scalability/N+1: build_monaco_payload loads ALL workspace symbol entities (monaco_bridge.rs:128 list_knowledge_entities_by_kind) and filters by the four `{lang}:{path}#` prefixes in Rust; then for EACH matching symbol it runs list_knowledge_entity_span_ids + list_knowledge_edges_for_entity + (per documents edge) get_knowledge_entity. For one file this is bounded by file symbol count, but the initial load is O(workspace_symbols), so rendering a lens in a 100k-symbol workspace transfers the whole symbol table per request. No SQL pushdown on the file prefix.",
+        "Prefix filter relies on entity_key shape: matches `rust:{path}#` / `typescript:{path}#` / `tsx:{path}#` / `javascript:{path}#`. The trailing '#' prevents a sibling-path false match (rust:src/foo# vs rust:src/foobar#), verified - so this is safe, not a bug, but it is a hard-coded language list: a 5th language added later silently drops from the lens until this list is updated.",
+        "caller_count counts incoming references edges across the WHOLE workspace (monaco_bridge.rs:163) but the `references` ranges shown are only those whose evidence spans live in this file (filtered via span_by_id, monaco_bridge.rs:167); so caller_count can exceed the number of reference ranges displayed - a consumer reconciling the two will see a mismatch (count > shown). Cosmetic but unexplained in the payload."
+      ],
+      "evasion_probes": [
+        "VERIFIED staleness IS attached here (MonacoCodeLensPayload.staleness, monaco_bridge.rs:91-105) via evaluate_staleness against the caller's content_hash/parser_version; no-code_file-row -> MarkedStale. This route is the ONE place the 'never serve stale silently' guarantee is honored (cf. MT-106 where the symbol routes omit it). Integration test asserts staleness.state == 'fresh' on a freshly-indexed file.",
+        "Confirmed this is BACKEND SHAPE only (typed payload + query); no React/Monaco runtime wiring, matching the contract's explicit 'not the React wiring (that lands in a later GUI group)'. No GUI surface to visually debug for this MT - correctly scoped.",
+        "Confirmed deterministic ordering (entries sorted by definition.start_line then symbol_key, references sorted+dedup) - stable payload across runs.",
+        "No panic: all span/edge lookups Option/Result-guarded; missing definition span -> LineRange{0,0} default."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:71-221 build_monaco_payload",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:535-573 file_lens (calls the bridge + receipt)",
+        "tests/knowledge_code_nav_api_tests.rs:338-362 lens assertion incl staleness 'fresh'"
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "reviewer": "Bacon / 019ec472-525b-75e3-a385-abc74d9dd3b5",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "EventLedger JSONB-normalization idempotency blocker fixed; prior medium concerns classified as non-blocking follow-up for readiness.",
+      "evidence": [
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests -- --test-threads=1: PASS, 22 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils knowledge_code_index:: --lib: PASS, 82 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests -- --test-threads=1: PASS, 2 passed",
+        "MT-109 exact prior blocker stress: PASS 25/25 consecutive runs"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-14T08:16:29.280Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "commit": "working-tree",
+      "note": "Closed for READY_FOR_VALIDATION. Prior HARDEN_RECOMMENDED concerns remain recorded in adversarial_code_review and are non-blocking follow-up."
+    },
+    "evidence": [
+      "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
+      "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
+      "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-109 requires a backend MonacoCodeLensBridge payload that feeds code navigation/diagnostics into embedded Monaco from PostgreSQL/EventLedger authority (no external editor service), with staleness flagging and validator-readable real-PG proof. The code delivers a complete, real implementation: a typed payload built from the Postgres knowledge graph with attached staleness, a receipted nav API route with path-traversal guard, DB-side path pushdown after hardening, and runtime tests plus a frontend Playwright spec that exercise it against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "monaco_bridge.rs:76-245 build_monaco_payload reads entities/spans/edges from PostgreSQL via KnowledgeStore and never re-parses; emits typed MonacoCodeLensPayload {workspace_id, relative_path, staleness, truncated, entries} - a derived projection over Postgres authority, matching Master Spec v02.194 2.3.13.11 (EditorCodeNode/Monaco-backed; projections-only; backend nav APIs).",
+        "monaco_bridge.rs:96-110 attaches StalenessVerdict via evaluate_staleness against the caller content_hash/parser_version; a missing knowledge_code_files row defaults to MarkedStale - the 'never serve a stale lens as authoritative' guarantee is honored here.",
+        "api/knowledge_code_nav.rs:699-751 file_lens exposes GET /knowledge/code/files/:path/lens with is_safe_relative_path traversal rejection (line 712/829) and typed nav + quiet receipts (record_nav_receipt/record_quiet_nav_receipt).",
+        "MT-109 hardening commit b63c1e84 replaces the load-all-workspace-symbols DoS with DB-side path pushdown: lookup_code_symbols (storage/knowledge.rs:6837-6890) uses a parameterized, LIKE-escaped %:{path}#% segment match (escape_like, line 6896); monaco_bridge.rs:134-157 re-checks the exact {lang}:{path}# prefix in Rust to keep the language boundary tight.",
+        "Real-PG proof: tests/knowledge_pg_support.rs header + resolver mandate REAL PostgreSQL only (POSTGRES_TEST_URL/DATABASE_URL/managed ManagedPostgres::ensure_running; explicit 'NO SQLite, in-memory, or mock fallback', SKIP loudly when PG binaries absent). knowledge_code_index_tests.rs:1277-1503 (mt109_monaco_payload_has_entries_with_ranges, mt107 staleness fresh/SourceChanged, mt107 reindex) drive build_monaco_payload end-to-end; knowledge_code_nav_api_tests.rs:397-422 drives the /lens API and asserts staleness 'fresh' + entries + receipt; tests/dependency_policy/mt249_code_intelligence.spec.ts:219 confirms the /lens route is consumed by real embedded Monaco offline.",
+        "No placeholder/deferred-live escape: grep for todo!/unimplemented!/unreachable!/Unavailable/'deferred to follow-on'/'pending MT-'/stub across monaco_bridge.rs and knowledge_code_nav.rs returned nothing on the required path. All span/edge lookups are Option/Result-guarded (no panic).",
+        "Non-blocking quality follow-ups (recorded under hardening_pending, do NOT affect verdict): residual per-symbol N+1 span/edge fetch inside the loop; whole-workspace caller_count vs file-filtered reference-range cosmetic mismatch; hard-coded 4-language prefix list (rust/typescript/tsx/javascript) silently drops a future 5th language until updated.",
+        "Aside (paperwork, non-blocking): packet spec_anchors cite v02.192; current bundle is v02.194 - same section numbers resolve and align."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009.../MT-109.json",
+        ".GOV/task_packets/WP-KERNEL-009.../packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat b63c1e84 (MT-109 hardening commit)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:1-246",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_code_nav.rs:699-751,829",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:6837-6901 (lookup_code_symbols + escape_like)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1-50,1255-1503",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs:397-437",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:1-60",
+        "wtc-kernel-009/tests/dependency_policy/mt249_code_intelligence.spec.ts:180-225",
+        "spec master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

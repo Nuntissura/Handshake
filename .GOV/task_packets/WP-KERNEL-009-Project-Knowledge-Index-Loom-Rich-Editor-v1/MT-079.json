@@ -1,0 +1,165 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-079",
+  "title": "CRDTAndConcurrencyCore-079-CrdtRecoveryReceiptFormat",
+  "group": "CRDTAndConcurrencyCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-079.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define receipts another model needs to resume after compaction or crash. This MT belongs to CRDTAndConcurrencyCore. Make rich document, graph mutation, and agent proposal state conflict-aware and recoverable.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/kernel/write_boxes.rs",
+      "src/backend/handshake_core/src/kernel/crdt_workspace.rs",
+      "src/backend/handshake_core/src/kernel/crdt_promotion_bridge.rs",
+      "src/backend/handshake_core/tests/kernel_crdt_persistence_tests.rs",
+      "app/src/components/TiptapEditor.tsx"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "CRDT requirements apply to human plus agent concurrent draft state, rich document block state, graph mutation proposals, and EventLedger promotion, even when realtime multi-user UI is deferred.",
+      "AI/agent actions must carry stable actor/site IDs, leases, idempotency keys, and recovery receipts."
+    ],
+    "expected_behavior": "CrdtRecoveryReceiptFormat leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "CrdtRecoveryReceiptFormat is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-065"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "implementation_commit": "bac0570d",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 bac0570d; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "CHANGES_REQUESTED",
+      "reviewed_at_utc": "2026-06-11T19:54:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "RECOVERY SCOPE GAP (high) -- CONFIRMED the implementer's own honest-risk note. recover_from_checkpoint (recovery_receipt.rs:161-261) verifies only that the new lease EXISTS: 'if get_lease(new_lease_id).is_none() -> NewLeaseNotFound' (line 190-197). It does NOT check that the new lease's scope_ref covers checkpoint.scope_ref. A new lease scoped to document:OTHER (or workspace:X) successfully recovers a checkpoint scoped to document:TARGET, and a durable recovery receipt is written authorizing cross-scope resumption. This is a real authorization hole: recovery is supposed to re-establish work under a lease that legitimately covers the checkpointed scope.",
+        "WIDER THAN SCOPE ALONE (high): get_lease returns the row even when the lease is EXPIRED or RELEASED (is_expired / released_at_utc are just fields, not filters). recover_from_checkpoint never inspects them. So recovery proceeds under an expired or released lease -- the recovering session is authorized to resume work it can no longer legitimately hold. Combined with the scope gap, recovery accepts (a) any-scope, (b) expired, (c) released, and (d) foreign-actor leases: there is no check that new_lease.actor_id == new_actor.canonical() either.",
+        "Checkpoint write path is sound: payload_sha256 over canonical JSON (recovery_receipt.rs:73-75), re-verified on recovery with PayloadHashMismatch (line 182-188). Tampered payload is caught. Unknown checkpoint -> CheckpointNotFound. Lineage walk reuses MT-076 lease_lineage. The HASH integrity and lineage parts are correct; the AUTHORIZATION parts are missing.",
+        "Checkpoint/receipt are two separate awaits (event append at line 233-236, row insert at 238-252) -- same crash-window class as MT-069 but lower severity: a recovery receipt is an audit record, not authority that gates truth. Replay would show RECOVERY_RECEIPT_RECORDED with no row; acceptable for an audit trail but worth a note."
+      ],
+      "evasion_probes": [
+        "Constructed cross-scope recovery: checkpoint.scope_ref='document:DOC-A'; claim a fresh lease with scope_kind=Document scope_id='DOC-B'; call recover_from_checkpoint(checkpoint_id, ..., new_lease_id=DOC-B lease). No scope comparison exists -> recovery SUCCEEDS and writes a receipt. Hole confirmed by static path analysis.",
+        "Constructed expired-lease recovery: lease past expires_at_utc; get_lease still returns Some(row) (is_expired=true but unused) -> recovery SUCCEEDS. Hole confirmed.",
+        "Checked whether insert_recovery_receipt or migration 0155 enforces scope coverage: storage just binds new_lease_id (knowledge_crdt.rs:1274-1301); the swarm_checkpoints/recovery_receipts schema (0155) has no scope-coverage constraint linking lease.scope to checkpoint.scope.",
+        "Tampered checkpoint payload: caught by sha256 re-hash (PayloadHashMismatch). This evasion is correctly blocked."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/recovery_receipt.rs:67-261 (write_swarm_checkpoint, recover_from_checkpoint)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs:1163-1318 (checkpoint + recovery receipt storage; lease_lineage at 539-558)",
+        "src/backend/handshake_core/migrations/0155_knowledge_crdt_swarm_checkpoints.sql (no scope-coverage constraint)",
+        "Cross-referenced AgentLaneLeaseRow.scope_ref() (knowledge_crdt.rs:231) which exists and could be compared but is not used in recovery"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:05:59.097Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:05:59.097Z",
+      "commit": "d6adf2dd",
+      "note": "Adversarial finding fixed + real-PG negative test green (33 CRDT tests pass under runtime-full,test-utils)."
+    },
+    "evidence": [
+      "Hardened d6adf2dd: Recovery authorization CLOSED: unreleased+unexpired(DB clock)+owner+scope-covering lease required, typed RecoveryFailureV1 variants (migration 0191 backstop); recovery_refuses_released_expired_foreign_or_wrong_scope_lease PASS."
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

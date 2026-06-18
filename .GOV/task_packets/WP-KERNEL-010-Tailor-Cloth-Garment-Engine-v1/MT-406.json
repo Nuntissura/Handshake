@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-406",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-406.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-406.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-406.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-406.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-405"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement GarmentModelAdapter trait extension point: a named adapter registry entry that routes TailorModelAdapter calls to a specialized garment foundation model (AIpparel-style) via a registered model_id, alongside the general LlmClient path, selectable per workspace or per call",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "TailorModelAdapter gains a model_id: Option<String> field in AuthorGarmentInput; when model_id is None the default workspace LlmClient is used",
+      "The kernel model-lane registry is extended with a GarmentFoundationModel variant alongside the existing LlmClient adapters; the variant carries a model_endpoint: String and a model_schema: String identifying the expected input/output format",
+      "When model_id resolves to a GarmentFoundationModel entry, TailorModelAdapter routes the CompletionRequest to that model's endpoint using the existing LlmClient trait interface (no new HTTP client)",
+      "The GarmentSpec output from any registered model must pass through the identical fast-validation and sandbox lifecycle regardless of which model produced it",
+      "A tailor_model_adapter_registry table (dated migration) stores registered garment model entries keyed by model_id, with fields: model_id TEXT PK, endpoint TEXT, schema_version TEXT, is_default BOOL, workspace_id TEXT",
+      "ModelManual documents how to register a specialized garment model and how model_id routing works"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::model_adapter::garment_model_registry_lookup (model_id resolves to a GarmentFoundationModel entry from tailor_model_adapter_registry)",
+      "cargo test -p handshake_core tailor::model_adapter::garment_foundation_model_output_validated (output from mocked garment foundation model passes fast validation before draft creation)",
+      "cargo test -p handshake_core tailor::model_adapter::default_llm_used_when_no_model_id (None model_id routes to default workspace LlmClient)"
+    ],
+    "risk_if_missed": "When specialized garment foundation models (AIpparel and successors) mature and outperform general LLMs for pattern generation, Tailor cannot adopt them without a code change to TailorModelAdapter. The parallel-swarm moat depends on being able to swap or combine model backends per workspace without changing the API surface. Without this registry, adopting a new garment model requires a Tailor release, breaking the model-agnostic design contract."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

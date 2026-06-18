@@ -1,0 +1,190 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-096",
+  "title": "SourceIngestionAndEvidence-096-SourceIngestionFixtures",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-096.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Create fixtures for text, code, JSON, malformed JSON, PDF missing text, media transcript, moved file, and denied secret file. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "SourceIngestionFixtures leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SourceIngestionFixtures is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "cc13ab3c",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 cc13ab3c; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:49:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "E2E IS NOT TAUTOLOGICAL (the prompt's core MT-096 concern): mt096_mixed_root_full_pass asserts BOTH per-file outcomes (each of 10 files: status, error_class, spans individually via outcome(&summary, path)) AND the rolled-up finish-event counts AND the repair-queue population BY EXACT source_id AND a raw-secret leak probe. The ledger count asserts CANNOT pass with broken per-file logic because (a) summary.outcomes.len()==10 with walk_errors.is_empty(), (b) each file's status is asserted before the count rollup, (c) the repair assert lists exact source_ids (broken.json/scanned.pdf/vtt queued; secret+blob NOT queued), not just a number. Strong.",
+        "FIXTURE HYGIENE / QUIET / PORTABILITY: committed corpus is small TEXT files only (src/main.rs, overview.md, contract.json, broken.json, clip.srt, clip_partial.vtt, ops/leaked_key.md, blobs/blob.bin). NO committed binary PDFs — both PDFs are GENERATED at test time via knowledge_ingestion::pdf::fixtures (real lopdf PDFs). NO absolute machine paths committed: fixture root via CARGO_MANIFEST_DIR, runtime root via tempfile::tempdir(). leaked_key.md uses the DOCUMENTED FAKE AWS example key + dummy PEM body, explicitly labelled FAKE — no real credential committed. Tests are headless (no foreground window). All clean.",
+        "COVERAGE GAP (inherited from MT-091): the e2e secret fixture ops/leaked_key.md exercises ONLY the HIGH/block path (raw-key probe over spans). NO fixture exercises a MEDIUM secret split across a 120-line code-window boundary, nor a pattern-missed secret (github_pat_/xapp_/bare base64 key/JWT split). The 'raw secret nowhere' probe in this e2e therefore does NOT cover the MT-091 cross-span leak. RECOMMEND adding a fixture: a code file >120 lines with a MEDIUM secret straddling the window boundary, asserting the secret is NOT present in any span content (this would currently FAIL, exposing the MT-091 hole).",
+        "COUNT LOCK: asserts success==5/partial==1/failed==2/blocked==1/skipped==1 — locks the corpus shape; any added fixture must update these. Acceptable for a fixed corpus."
+      ],
+      "evasion_probes": [
+        "every file gets a typed receipt; no walk_errors/invalid_paths CONFIRMED.",
+        "code/markdown/governance-json/srt/vtt/text-pdf -> success/partial with correct spans+anchors CONFIRMED.",
+        "image-only pdf -> NO_TEXT_LAYER failed, no spans CONFIRMED.",
+        "secret md -> BLOCKED, no spans, redaction_state=redacted, raw key absent from spans CONFIRMED.",
+        "unknown blob.bin -> UNSUPPORTED_FORMAT skipped CONFIRMED.",
+        "repair queue: exactly the 3 repairable failures queued by source_id; secret+blob excluded CONFIRMED.",
+        "finish event ingestion_run_finished with rolled-up counts CONFIRMED.",
+        "MEDIUM cross-span secret leak: NOT exercised by any fixture (gap)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/knowledge_ingestion_fixture_tests.rs (full)",
+        "src/backend/handshake_core/tests/fixtures/knowledge_ingestion/mixed_root/** (8 committed files inspected; leaked_key.md is FAKE; no binary PDFs; no absolute paths)",
+        "tests/knowledge_ingestion_support.rs harness (referenced)",
+        "engine.rs:532-729 run_ingestion_pass (drives the full corpus)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-096 requires a concrete, restartable mixed-root fixture corpus and an end-to-end ingestion proof that drives every source kind (code, markdown, JSON, malformed JSON, text PDF, image-only PDF, SRT, partial VTT, denied secret, unknown binary) through the Handshake-native ingestion engine into real PostgreSQL/EventLedger with typed per-file receipts, spans, redaction state, and a repair queue. The committed code delivers exactly this with real-PG runtime proof and no placeholders.",
+      "findings": [
+        "Implementation commit cc13ab3c adds the committed text-only corpus (tests/fixtures/knowledge_ingestion/mixed_root: src/main.rs, docs/overview.md, docs/contract.json, docs/broken.json, media/clip.srt, media/clip_partial.vtt, ops/leaked_key.md, blobs/blob.bin) plus the e2e test knowledge_ingestion_fixture_tests.rs (233 lines). All 8 fixture files confirmed present on disk; no opaque committed binaries (PDFs generated at test time via pdf_fixtures::text_pdf/image_only_pdf).",
+        "Real-PG proof confirmed: tests/knowledge_ingestion_support.rs:28-39 builds the engine via knowledge_pg_support (real Handshake-managed PostgreSQL, per-test isolated schema, full migration chain, header comment explicitly 'no SQLite, no mocks'); the engine handle and the raw assertion connection share one isolated schema. sub_rule_2 satisfied.",
+        "knowledge_ingestion_fixture_tests.rs:101-232 asserts BOTH per-file outcomes AND rolled-up EventLedger finish-event counts AND repair-queue population by exact source_id: status per file (success=5/partial=1/failed=2/blocked=1/skipped=1), broken.json PARSE_ERROR, scanned.pdf NO_TEXT_LAYER with no spans, leaked_key.md BLOCKED+SECRET_BLOCKED+redaction_state=redacted, blob.bin UNSUPPORTED_FORMAT skipped, repair queue holding exactly the 3 repairable failures (not the blocked/skipped). This is not tautological — counts cannot pass with broken per-file logic.",
+        "Secret-leak probe is real: line 200-207 runs a SQL LIKE '%AKIAIOSFODNN7EXAMPLE%' over knowledge_ingestion_spans on the raw PG connection asserting zero rows; finish-event payload read from kernel_event_ledger (line 210-222). leaked_key.md uses the documented FAKE AWS example key + dummy PEM (verified), no real credential committed.",
+        "engine.rs run_ingestion_pass (line 532+) is a fully-wired real implementation: validates ctx, loads root, appends ingestion_run_started/finished EventLedger events, walks files, ingests each, enqueues repairs, detects moved/deleted. No todo!()/unimplemented!()/deferred-live escapes anywhere under src/knowledge_ingestion/ (grep clean). sub_rule_1 satisfied.",
+        "The adversarial-review coverage gap (MEDIUM secret straddling the 120-line code-window seam) recorded in MT-096 lifecycle was actually closed by hardening commit 5876feaf: knowledge_ingestion_hardening_tests.rs adds mt091_mt096_boundary_seam_medium_secret_absent_from_all_spans (real PG, asserts the seam JWT is redacted and absent from all span content rows incl. each contiguous third), plus migration 0210 CHECK enforcing redaction-marker presence at the schema level. Gap is genuinely fixed, not paper-closed.",
+        "claimed_by KERNEL_BUILDER and the verdict signer differ (no implementer self-cert of COMPLETED at this review layer); sub_rule_3 NA-clean.",
+        "Aside (non-blocking, paperwork): packet cites v02.192 spec anchors while current is v02.194 — expected stale-pointer drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-096.json",
+        "git show --stat cc13ab3c and 5876feaf in wtc-kernel-009",
+        "src/backend/handshake_core/tests/knowledge_ingestion_fixture_tests.rs (full, 233 lines)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_support.rs (full)",
+        "src/backend/handshake_core/tests/fixtures/knowledge_ingestion/mixed_root/** (file listing + ops/leaked_key.md content)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_hardening_tests.rs (boundary-seam + new-pattern sections)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs run_ingestion_pass region (500-640)",
+        "grep for placeholder escapes across src/backend/handshake_core/src/knowledge_ingestion/ (clean)",
+        "WP_VALIDATOR_PROTOCOL Spec-Realism Gate section"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

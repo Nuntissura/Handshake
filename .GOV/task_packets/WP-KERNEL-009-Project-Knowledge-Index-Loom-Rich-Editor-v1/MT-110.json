@@ -1,0 +1,198 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-110",
+  "title": "CodeIndexingAndNavigation-110-CodeContextBundleBridge",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-110.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Feed code symbol neighborhoods into bounded context bundles with citations and token accounting. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "CodeContextBundleBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "CodeContextBundleBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:31:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "OUTPUT bounded, WORK unbounded: the token budget caps how many neighbors are EMITTED, but build_code_context_bundle first fetches ALL references edges of the focus (context_bridge.rs:119 list_knowledge_edges_for_entity, no cap) and does a get_knowledge_entity + first_ast_span round-trip for EVERY neighbor (context_bridge.rs:134-141) BEFORE the budget truncation runs (context_bridge.rs:190). A hot symbol called by 10k sites does 10k+ DB queries and builds 10k CitedNeighbor structs, then throws most away. The pathological symbol graph the attack posits DOES blow the WORK budget (DB + memory), even though the model's context window is protected. The budget is an output guardrail, not a work guardrail.",
+        "Focus always emitted in full regardless of budget: used = focus_tokens.min(budget) (context_bridge.rs:179) clamps the accounting, but the focus's display_name/key/doc are written into allowed_context unconditionally (context_bridge.rs:231-244). If focus_doc is large the bundle exceeds token_budget. Mitigated in practice because doc display_name is truncated to ~120 chars at ingestion (truncate_snippet), but the budget is not actually enforced on the focus.",
+        "Token estimate is chars/4 (context_bridge.rs:40) and counts only display_name + entity_key per neighbor, NOT the actual snippet/source text (the bundle carries no source text, only keys+line ranges). So 'estimated_tokens' undercounts what a consumer that later fetches the spans will spend - the budget protects the bundle JSON size, not the eventual hydrated context. Honest as a guardrail but the name overstates it.",
+        "Recursion: NONE - only direct calls/called_by neighbors are included; no transitive expansion. The unbounded-recursion probe is refuted."
+      ],
+      "evasion_probes": [
+        "Confirmed single-hop neighborhood only (context_bridge.rs:121-160): edges touching focus, relation calls/called_by, no recursive descent into neighbors. Cannot recurse unboundedly.",
+        "Confirmed deterministic packing: neighbors sorted, dedup by (relation,key), packed smallest-first within budget, truncated flag recorded in token_accounting (context_bridge.rs:247-254). A re-run yields the same bundle.",
+        "Confirmed staleness is attached (context_bridge.rs:105 file_staleness -> staleness_label in allowed_context) so a stale neighborhood is labeled.",
+        "Confirmed the bundle is the kernel's existing durable ContextBundle (ContextBundle::new) and the module writes no rows itself - matches the 'projection only' constraint."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/context_bridge.rs:85-259 build_code_context_bundle",
+        "src/backend/handshake_core/src/knowledge_code_index/context_bridge.rs:119-160 neighbor gather (uncapped fetch + N+1)",
+        "src/backend/handshake_core/src/knowledge_code_index/context_bridge.rs:172-204 token packing",
+        "delegate tests: token estimate determinism + cited-neighbor json (logic-only, no large-fanout test)"
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "reviewer": "Bacon / 019ec472-525b-75e3-a385-abc74d9dd3b5",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "EventLedger JSONB-normalization idempotency blocker fixed; prior medium concerns classified as non-blocking follow-up for readiness.",
+      "evidence": [
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests -- --test-threads=1: PASS, 22 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils knowledge_code_index:: --lib: PASS, 82 passed",
+        "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests -- --test-threads=1: PASS, 2 passed",
+        "MT-109 exact prior blocker stress: PASS 25/25 consecutive runs"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-14T08:16:29.280Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-14T08:16:29.280Z",
+      "commit": "working-tree",
+      "note": "Closed for READY_FOR_VALIDATION. Prior HARDEN_RECOMMENDED concerns remain recorded in adversarial_code_review and are non-blocking follow-up."
+    },
+    "evidence": [
+      "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
+      "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
+      "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-110 (CodeContextBundleBridge) requires projecting a code symbol's neighborhood into a bounded, cited, staleness-labeled context bundle wrapped in the kernel's durable ContextBundle, sourced from the PostgreSQL-backed knowledge index. The implementation in context_bridge.rs does exactly this with real PostgreSQL proof, deterministic token-budget packing, per-neighbor span citations, fail-closed staleness, and projection-only semantics; it aligns with Master Spec 2.3.13.11.",
+      "findings": [
+        "context_bridge.rs:85-271 build_code_context_bundle resolves the focus symbol, gathers single-hop calls/called_by neighbors from References edges through KnowledgeStore (real PostgresDatabase), and emits a bounded allowed_context JSON with per-neighbor span_id + line_start/line_end citations (context_bridge.rs:154-171, 217-226) and a token_accounting block (truncated flag, neighbors_total/included) (context_bridge.rs:259-266). Matches spec 2.3.13.11 bounded cited context requirement.",
+        "Staleness is fail-closed: file_staleness (context_bridge.rs:314-345) defaults to StalenessVerdict::MarkedStale when the file entity, primary_source_id, or code-file row is missing, and the label is stamped into allowed_context (context_bridge.rs:242). Matches spec 2.3.13.11.1 machine-readable staleness verdict, fail-closed.",
+        "Projection-only: the module writes no durable rows; it wraps the result in the kernel's real durable ContextBundle::new (kernel/context_bundle.rs:18-43, content-hash-addressed CTX- id). Matches the packet/MT constraint that context bundles are projections, not authority.",
+        "Real-resource proof: tests/knowledge_pg_support.rs:108-165 stands up genuine managed PostgreSQL (POSTGRES_TEST_URL/DATABASE_URL/ManagedPostgres), runs the full migration chain into an isolated schema, with NO SQLite/in-memory/mock fallback (SKIP only when PG binaries are truly absent). MT-110 tests (knowledge_code_index_tests.rs:1509-1661) index real Rust source through the engine, call build_code_context_bundle over eng.db(), and assert: cited called_by neighbor present, token usage <= budget, path-mismatch rejection, and over-budget focus-doc surfaced as truncated=true. Satisfies sub-rule 2.",
+        "Sub-rule 1: grep of context_bridge.rs and its test block found no todo!/unimplemented!/unreachable!/Unavailable/deferred/pending-MT escapes on the live path. Sub-rule 3: contract has claimed_by=KERNEL_BUILDER, completed_by=null, status READY_FOR_VALIDATION (no self-cert to COMPLETED).",
+        "Non-blocking (recorded adversarial_code_review HARDEN_RECOMMENDED, superseded by adversarial_review_v2 PASS): list_knowledge_edges_for_entity fetches all focus edges uncapped and does an N+1 get_knowledge_entity per neighbor before budget truncation (context_bridge.rs:131-172) — output is bounded but WORK is not, so a 10k-caller hot symbol does heavy DB work. This is an honest performance follow-up, not a correctness or spec violation, and does not affect MT-110 acceptance.",
+        "Aside (non-blocking, expected during governance wind-down): the contract cites v02.192 spec anchors; the same section numbers exist and resolve cleanly in current v02.194. Not a failing reason."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-110.json (full contract, lifecycle, adversarial reviews)",
+        "src/backend/handshake_core/src/knowledge_code_index/context_bridge.rs:1-408 (full impl + unit tests)",
+        "src/backend/handshake_core/src/kernel/context_bundle.rs:1-80 (ContextBundle::new real durable artifact)",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1505-1661 (MT-110 real-PG tests)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:1-166 (managed-PG harness, no SQLite/mock)",
+        "git show --stat 5d6490b0 and 79e1a7e4 (implementation + runtime-proof commits)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2728 (anchor 2.3.13.11 / .11.1)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

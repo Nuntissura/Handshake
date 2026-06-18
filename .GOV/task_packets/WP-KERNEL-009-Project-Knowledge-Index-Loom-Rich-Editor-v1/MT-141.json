@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-141",
+  "title": "RetrievalContextAndRanking-141-AIReadyEvidenceExportBridge",
+  "group": "RetrievalContextAndRanking",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-141.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Bound export evidence for index artifacts, rebuild/update events, manifests, retention, and reconstructability. This MT belongs to RetrievalContextAndRanking. Retrieve project knowledge through explainable direct, graph, hybrid, and passage fallback modes.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Retrieval must choose explicit modes: none, direct_load, exact_lookup, graph_traversal, hybrid_rag, or passage_fallback, with non_hybrid_reason where applicable.",
+      "Context bundles must be bounded, cited, explainable, restartable, and inspectable through backend and visual-debug surfaces."
+    ],
+    "expected_behavior": "AIReadyEvidenceExportBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "AIReadyEvidenceExportBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-129"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
+    "implementation_commit": "7aed606c",
+    "evidence": [
+      "Built+verified 7aed606c; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "Bounded manifest (handles + hashes, payload_bounded), reconstructable computed from bundle hash + trace binding, reuses canonical ai_ready_evidence_export@1 dialect; PG-proven reconstructable/unbound cases (pipeline_tests:317, ai_ready_export.rs:152-164)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-141 requires a bounded AI-ready evidence export bridge for compiled context bundles + retrieval traces, reusing the canonical AI-ready export dialect with PostgreSQL/EventLedger authority and real (non-mock) proof. The implementation delivers a bounded projection manifest (handles+hashes, no payload copy), wires it into a real DB-backed API endpoint, and proves reconstructability through a real-PostgreSQL integration test that round-trips the bundle and trace.",
+      "findings": [
+        "src/backend/handshake_core/src/knowledge_retrieval/ai_ready_export.rs:53-89 defines AiReadyEvidenceManifest + build_evidence_manifest: a BOUNDED projection (payload_bounded=true, only bundle_id/content_hash + trace_ids + provenance, never full payloads), reusing the canonical 'ai_ready_evidence_export@1' dialect with provenance/retention/reconstructable fields per the folded WP-1-AIReady intent. Implements the MT's manifest/retention/provenance/reconstructability scope.",
+        "ai_ready_export.rs:84-88 computes reconstructable deterministically: requires non-empty bundle.context_hash AND every trace bound back to the bundle (trace.bundle_id == bundle.bundle_id). This is the reconstructability semantic the MT requires, derived from real authority-row fields, not a hardcoded true.",
+        "Bridge is wired into a real product surface, not orphaned: src/backend/handshake_core/src/api/knowledge_retrieval.rs:286 (export_bundle_evidence GET endpoint) reads the bundle via db.get_knowledge_context_bundle and traces via db.list_knowledge_retrieval_traces_for_bundle (lines 276-285) from PostgreSQL, then builds the manifest and records a nav receipt. sub_rule_2 satisfied: manifest sources real PG authority rows.",
+        "Real-PG proof: tests/knowledge_retrieval_pipeline_tests.rs:382 compiler_persists_bounded_bundle_and_drops_over_budget uses skip_if_no_pg!/MemoryFixture (real PostgreSQL harness), persists a compiled bundle + trace, reads them back from PG (fx.pg.db.get_knowledge_context_bundle, traces_for_bundle), then at lines 469-471 calls build_evidence_manifest on the round-tripped rows and asserts manifest.reconstructable && dialect=='ai_ready_evidence_export@1'. Proof touches the Handshake-owned PG-managed bundle/trace tables, not implementer-authored mocks.",
+        "Negative case present: ai_ready_export.rs:153-159 not_reconstructable_when_trace_unbound asserts reconstructable=false when a trace has no bundle binding, exercising the failure branch. The in-file tests (152-164) are in-memory unit cases but the durable-authority claim is independently covered by the real-PG pipeline test above.",
+        "No reachable placeholders/escapes: grep of impl + API for todo!/unimplemented!/unreachable!/Unavailable/SQLite/'not yet wired'/'pending MT-' found only a doc-comment 'folded-stub requirement' reference and a positive 'no SQLite' assertion (api line 11). sub_rule_1 clean.",
+        "Spec alignment: §2.3.14 AI-Ready Data Architecture exists in current v02.194 (02-system-architecture.md:2730) and mandates provenance + hashes + retention fields (lines 589, 564); the impl reuses exactly that dialect as a bounded projection over PostgreSQL authority. No forbidden surfaces (no external search engine, no markdown-vault-as-authority, no SQLite). sub_rule_3: claimed_by/completed_by both null, status READY_FOR_VALIDATION — not a self-cert handoff.",
+        "Aside (non-blocking, paperwork): MT evidence string cites 'ai_ready_export.rs:152-164' for PG proof, but the actual real-PG proof lives in the pipeline test (line 469-471); the 152-164 cite points at the in-file unit tests. This is an imprecise evidence pointer, not a code defect — the required real-PG proof genuinely exists."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-141.json",
+        "git show 7aed606c (impl commit, full diff of ai_ready_export.rs)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/ai_ready_export.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_retrieval.rs (lines 260-320, export_bundle_evidence)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs (lines 382-472, compiler_persists_bounded_bundle real-PG test)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/mod.rs (module registration + authority notes)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (§2.3.14 AI-Ready Data Architecture)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate section"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

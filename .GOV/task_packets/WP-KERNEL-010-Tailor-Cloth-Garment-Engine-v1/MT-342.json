@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-342",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-342.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-342.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-342.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-342.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-341"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement 3D-sketch-to-pattern tool: accept a polyline/spline drawn on or around the avatar mesh surface (3D Pen mode), project it via SDF closest-point, and flatten the resulting 3D curve to a GarmentSpec Panel outline using ARAP-consistent unfolding",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/sketch_to_pattern.rs",
+      "tailor-solver/src/avatar/sdf.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/Viewport3D.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "sketch_on_avatar(avatar_id, stroke_3d: Vec<[f32;3]>) projects the stroke onto the avatar SDF surface via closest-point query, returns a flattened 2D Panel outline in cm",
+      "The flattened Panel passes PANEL_CLOSED ValidationDescriptor and has seam-compatible edge lengths within 2% of the geodesic arc length on the avatar surface",
+      "The resulting Panel is inserted into tailor_panels via TailorPanelCrdtUpdateRecorded",
+      "Model can supply a closed stroke to produce a single panel or an open stroke to produce a seam line on an existing panel",
+      "Flattening uses the same ARAP solver invoked by UV-from-pattern (MT-213) so the two paths are consistent"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::sketch_to_pattern::test_stroke_projection",
+      "cargo test -p tailor-solver authoring::sketch_to_pattern::test_arap_flatten_roundtrip",
+      "cargo test -p handshake_core tailor::authoring::test_sketch_panel_crdt"
+    ],
+    "risk_if_missed": "Without 3D Pen / 3D Pencil, designers cannot sketch garment shapes directly on the body — they must work entirely in abstract 2D coordinate space, a major MD workflow advantage Tailor fails to replicate. The sketch-to-pattern entry point is the fastest path for bespoke garment authoring and is also the primary input for LLM-driven pattern generation from image references (Dress-1-to-3, ChatGarment downstream paths)."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

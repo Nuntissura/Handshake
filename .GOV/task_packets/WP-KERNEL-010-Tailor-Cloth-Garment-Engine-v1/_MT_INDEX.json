@@ -1,0 +1,4058 @@
+{
+  "schema": "tailor.mt_index@1",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "generated_at_utc": "2026-06-17T18:30:00Z",
+  "total": 448,
+  "range": "MT-001..MT-448",
+  "core_section_13_range": "MT-001..MT-332",
+  "md_parity_additions_range": "MT-333..MT-448",
+  "by_group": {
+    "SolverCore": 44,
+    "KernelIntegration": 40,
+    "Collision": 35,
+    "GarmentAuthoring": 51,
+    "ValidationHBR": 26,
+    "TrimRigid": 34,
+    "Fabric": 26,
+    "UvTexture": 34,
+    "RenderViewportExport": 28,
+    "ModelFirstApi": 34,
+    "Animation": 35,
+    "AutoFit": 31,
+    "ProductionBridge": 30
+  },
+  "parity_review": "_PARITY_REVIEW.json",
+  "note": "Authoritative index of EVERY WP-KERNEL-010 microtask so none is forgotten. Each MT-NNN.json in this folder is the per-task contract (hsk.microtask_contract@1). group is derived from the MT number range (template-exact MTs carry no group field). 332 core Section-13 MTs + 116 Marvelous-Designer parity MTs.",
+  "microtasks": [
+    {
+      "mt_id": "MT-001",
+      "group": "SolverCore",
+      "depends_on": [],
+      "status": "PENDING",
+      "summary": "Scaffold the standalone `tailor-solver` Rust workspace crate (lib.rs, module tree) with NO dependency on handshake_core, sqlx, or tauri, per Section 13.2/13.3."
+    },
+    {
+      "mt_id": "MT-002",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-001"
+      ],
+      "status": "PENDING",
+      "summary": "Declare tailor-solver dependencies (wgpu, bytemuck, glam, parry3d/rapier3d, thiserror) behind a `cloth-solver` cargo feature so CI can skip GPU compilation."
+    },
+    {
+      "mt_id": "MT-003",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-002"
+      ],
+      "status": "PENDING",
+      "summary": "Define `ClothParticle` and the structure-of-arrays particle buffers (position, predicted, velocity, inv_mass) for the solver state."
+    },
+    {
+      "mt_id": "MT-004",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-003"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentMesh ingest (positions cm, edges, triangles, UVs, seam ids) into solver state from a GarmentSpec-derived mesh."
+    },
+    {
+      "mt_id": "MT-005",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-004"
+      ],
+      "status": "PENDING",
+      "summary": "Define the `ClothConstraint` enum (Stretch, Shear, Bend, Seam, Tack, Volume) as the solver constraint taxonomy."
+    },
+    {
+      "mt_id": "MT-006",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-005"
+      ],
+      "status": "PENDING",
+      "summary": "Define `SimRunParams` (substeps, iterations, dt, gravity, SolverMode) and bind it to schema id `hsk.cloth.solver_request@1`."
+    },
+    {
+      "mt_id": "MT-007",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-006"
+      ],
+      "status": "PENDING",
+      "summary": "Define `SolverResult` (final positions, per-substep residual, converged flag, content_hash) bound to schema id `hsk.cloth.solver_result@1`."
+    },
+    {
+      "mt_id": "MT-008",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-007"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `SolverMode` enum (Fitting, Animation, ChebyshevGs) selecting iteration strategy per run."
+    },
+    {
+      "mt_id": "MT-009",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-008"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `MaterialFrameParams` carrying the per-triangle warp/weft anisotropy frame used by stretch/shear compliance."
+    },
+    {
+      "mt_id": "MT-010",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-009"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the XPBD predict step: integrate gravity/external forces into predicted positions before constraint projection."
+    },
+    {
+      "mt_id": "MT-011",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-010"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the XPBD substep loop skeleton (substeps x iterations) calling predict -> project constraints -> velocity update."
+    },
+    {
+      "mt_id": "MT-012",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-011"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-substep Lagrange-multiplier (lambda) reset so XPBD compliance accumulation is correct."
+    },
+    {
+      "mt_id": "MT-013",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-012"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the compliance->alpha mapping (alpha = compliance / dt^2) with rest-geometry normalization (alpha_eff = alpha / rest_len^2 or rest_area)."
+    },
+    {
+      "mt_id": "MT-014",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-013"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the anisotropic stretch constraint (independent warp and weft compliance) projection."
+    },
+    {
+      "mt_id": "MT-015",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-014"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the shear constraint (diagonal) coupling warp/weft to resist in-plane shear."
+    },
+    {
+      "mt_id": "MT-016",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-015"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the dihedral bending constraint over edge-adjacent triangle pairs."
+    },
+    {
+      "mt_id": "MT-017",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-016"
+      ],
+      "status": "PENDING",
+      "summary": "Add buckling handling to the bending constraint so compressed cloth folds rather than spikes."
+    },
+    {
+      "mt_id": "MT-018",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-017"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the seam/gather constraint binding stitched panel edges with a `gather_ratio` (f32) ruffle factor."
+    },
+    {
+      "mt_id": "MT-019",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-018"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the tack constraint pinning a cloth particle to a moving rigid attachment point."
+    },
+    {
+      "mt_id": "MT-020",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-019"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the volume/pressure constraint for inflated/closed garment regions."
+    },
+    {
+      "mt_id": "MT-021",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-020"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the velocity update + damping at substep end (v = (x_pred - x)/dt with material damping)."
+    },
+    {
+      "mt_id": "MT-022",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-021"
+      ],
+      "status": "PENDING",
+      "summary": "Initialize wgpu Instance/Adapter/Device/Queue selection with a headless-capable backend matrix (Section 13.12 viewport reuse)."
+    },
+    {
+      "mt_id": "MT-023",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-022"
+      ],
+      "status": "PENDING",
+      "summary": "Define `GpuParticle` repr(C)/bytemuck::Pod matching the WGSL particle struct layout exactly."
+    },
+    {
+      "mt_id": "MT-024",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-023"
+      ],
+      "status": "PENDING",
+      "summary": "Define `GpuStretchConstraint` repr(C) struct for the stretch-solve compute pass."
+    },
+    {
+      "mt_id": "MT-025",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-024"
+      ],
+      "status": "PENDING",
+      "summary": "Define `GpuBendConstraint` repr(C) struct for the bending compute pass."
+    },
+    {
+      "mt_id": "MT-026",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-025"
+      ],
+      "status": "PENDING",
+      "summary": "Define `GpuSeamConstraint` repr(C) struct for the seam/gather compute pass."
+    },
+    {
+      "mt_id": "MT-027",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-026"
+      ],
+      "status": "PENDING",
+      "summary": "Define `GpuSimParams` uniform buffer (dt, substep, iteration, gravity, mode flags) shared by all passes."
+    },
+    {
+      "mt_id": "MT-028",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-027"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL integrate compute shader (predict positions) and wire its bind group."
+    },
+    {
+      "mt_id": "MT-029",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-028"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL solve-stretch compute shader and wire its bind group."
+    },
+    {
+      "mt_id": "MT-030",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-029"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL solve-bending compute shader and wire its bind group."
+    },
+    {
+      "mt_id": "MT-031",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-030"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL solve-seam compute shader and wire its bind group."
+    },
+    {
+      "mt_id": "MT-032",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-031"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL velocity/finalize compute shader (velocity update + damping + writeback)."
+    },
+    {
+      "mt_id": "MT-033",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-032"
+      ],
+      "status": "PENDING",
+      "summary": "Add compile-time WGSL<->Rust binding validation (wgsl_to_wgpu or equivalent) so struct/binding drift fails the build."
+    },
+    {
+      "mt_id": "MT-034",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-033"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the deterministic 8-pass compute dispatch sequence (integrate, stretch, shear, bend, seam, tack, collision-hook, finalize) per substep."
+    },
+    {
+      "mt_id": "MT-035",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-034"
+      ],
+      "status": "PENDING",
+      "summary": "Implement greedy graph coloring to partition constraints into conflict-free batches for Jacobi-style parallel solve."
+    },
+    {
+      "mt_id": "MT-036",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-035"
+      ],
+      "status": "PENDING",
+      "summary": "Lay out color-partition GPU buffers so each color dispatch writes disjoint particles (race-free by construction)."
+    },
+    {
+      "mt_id": "MT-037",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-036"
+      ],
+      "status": "PENDING",
+      "summary": "Implement Jacobi delta accumulation for constraint corrections without f32 atomics (accumulate then apply)."
+    },
+    {
+      "mt_id": "MT-038",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-037"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce the determinism contract: fixed iteration budget + stable color order + seeded noise + race-free writes, captured as a determinism envelope descriptor."
+    },
+    {
+      "mt_id": "MT-039",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-038"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `MeshComparator` (compare.rs) with eps_mm=0.1 tolerance: `compare()` and `compare_envelope()` for promotion equivalence."
+    },
+    {
+      "mt_id": "MT-040",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-039"
+      ],
+      "status": "PENDING",
+      "summary": "Define the `ClothSolver` trait (load_garment, simulate, update_params, unload, last_content_hash) as the crate public boundary and add the cross-substep determinism integration test."
+    },
+    {
+      "mt_id": "MT-041",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-040"
+      ],
+      "status": "PENDING",
+      "summary": "Scaffold the `handshake_core::tailor` kernel module mirroring the atelier module layout (mod.rs, AppState wiring)."
+    },
+    {
+      "mt_id": "MT-042",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-041"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `solver_binding.rs` as the SOLE import point from handshake_core::tailor into the tailor-solver crate (via the ClothSolver trait only)."
+    },
+    {
+      "mt_id": "MT-043",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-042"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `guard_authority_write()` tripwire invoked on every tailor authority write (asserts PromotionGate/EventLedger path)."
+    },
+    {
+      "mt_id": "MT-044",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-043"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration creating tailor_garments (GAR- TEXT PK, status CHECK domain draft|sandbox_pending|simulated|validated|promoted|rejected|archived)."
+    },
+    {
+      "mt_id": "MT-045",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-044"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_panels (panel geometry, parent garment FK)."
+    },
+    {
+      "mt_id": "MT-046",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-045"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_seams (seam topology, gather_ratio)."
+    },
+    {
+      "mt_id": "MT-047",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-046"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_avatars (AVT- TEXT PK) split from body proxies, with measurements JSONB."
+    },
+    {
+      "mt_id": "MT-048",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-047"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_body_proxies (BPX- TEXT PK, capsule/sphere/SDF proxy data)."
+    },
+    {
+      "mt_id": "MT-049",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-048"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_simulation_runs (SIM- TEXT PK, request/result hashes, backend, determinism envelope)."
+    },
+    {
+      "mt_id": "MT-050",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-049"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_material_presets (MAT- TEXT PK) with 9 bundled system presets."
+    },
+    {
+      "mt_id": "MT-051",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-050"
+      ],
+      "status": "PENDING",
+      "summary": "Author migrations for the remaining canonical tailor_* tables (garment_versions, wardrobe, trims, uv_sets, animations, validation_results, crdt link) per 16-contracts 16-table set."
+    },
+    {
+      "mt_id": "MT-052",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-051"
+      ],
+      "status": "PENDING",
+      "summary": "Implement TEXT prefixed-id minting (GAR-/AVT-/BPX-/SIM-/MAT-/...) with a UUID v7 suffix for time-ordering."
+    },
+    {
+      "mt_id": "MT-053",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-052"
+      ],
+      "status": "PENDING",
+      "summary": "Register the Tailor* KernelEventType variants (TailorGarmentDraftProposed, TailorPanelEdited, TailorSimRunStarted/Completed/Rejected, TailorGarmentValidated/Promoted/Rejected, TailorAvatarCreated, TailorBodyProxyCreated/Updated, TailorPanelCrdtUpdateRecorded, ...)."
+    },
+    {
+      "mt_id": "MT-054",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-053"
+      ],
+      "status": "PENDING",
+      "summary": "Map each Tailor* variant to its TAILOR_* wire string and event_family (TAILOR_SIMULATION, TAILOR_AUTHORING, TAILOR_PROMOTION)."
+    },
+    {
+      "mt_id": "MT-055",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-054"
+      ],
+      "status": "PENDING",
+      "summary": "Emit a typed EventLedger append for TailorSimRunStarted/Completed/Rejected from solver_binding."
+    },
+    {
+      "mt_id": "MT-056",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-055"
+      ],
+      "status": "PENDING",
+      "summary": "Prove EventLedger replay reconstructs a Tailor sim run from durable state alone."
+    },
+    {
+      "mt_id": "MT-057",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-056"
+      ],
+      "status": "PENDING",
+      "summary": "Bind Tailor pattern editing to the existing kernel CRDT surface (kernel_crdt_updates) and emit TailorPanelCrdtUpdateRecorded."
+    },
+    {
+      "mt_id": "MT-058",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-057"
+      ],
+      "status": "PENDING",
+      "summary": "Prove CRDT panel updates persist, replay after reconnect, and promote via ValidationRunner before authority."
+    },
+    {
+      "mt_id": "MT-059",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-058"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate the PromotionGate so a model-authored garment reaches validated/promoted authority ONLY via a promotion event."
+    },
+    {
+      "mt_id": "MT-060",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-059"
+      ],
+      "status": "PENDING",
+      "summary": "Add the negative guard test proving a direct authority mutation of a tailor_* row fails closed."
+    },
+    {
+      "mt_id": "MT-061",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-060"
+      ],
+      "status": "PENDING",
+      "summary": "Dispatch model-authored garment simulation through the kernel sandbox before validation."
+    },
+    {
+      "mt_id": "MT-062",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-061"
+      ],
+      "status": "PENDING",
+      "summary": "Bind Tailor model invocation through ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore (no bypass)."
+    },
+    {
+      "mt_id": "MT-063",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-062"
+      ],
+      "status": "PENDING",
+      "summary": "Normalize every Tailor model lane (local/CLI/BYOK/manual) into the same SessionRun event stream."
+    },
+    {
+      "mt_id": "MT-064",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-063"
+      ],
+      "status": "PENDING",
+      "summary": "Execute Tailor simulation/authoring/refit as Handshake JOBS via the AI Job Model + job profiles."
+    },
+    {
+      "mt_id": "MT-065",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-064"
+      ],
+      "status": "PENDING",
+      "summary": "Wire Tailor jobs to the scheduler with leases, backpressure, cancellation, and stale-session recovery."
+    },
+    {
+      "mt_id": "MT-066",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-065"
+      ],
+      "status": "PENDING",
+      "summary": "Emit Flight Recorder events for the full Tailor lifecycle (draft/sim-started/completed/rejected/validated/promoted/crdt-update)."
+    },
+    {
+      "mt_id": "MT-067",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-066"
+      ],
+      "status": "PENDING",
+      "summary": "Prove headless-parallel safety: 2+ concurrent agent sessions + simulated operator edits on shared tailor state with no last-writer-wins/starvation/deadlock."
+    },
+    {
+      "mt_id": "MT-068",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-067"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the REST API surface src/api/tailor.rs (CRUD garments/panels/avatars, trigger sim, fetch run/result)."
+    },
+    {
+      "mt_id": "MT-069",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-068"
+      ],
+      "status": "PENDING",
+      "summary": "Register Tailor MCP tools (author garment, edit panel, run sim, fetch trace, promote) for parallel swarm agents."
+    },
+    {
+      "mt_id": "MT-070",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-069"
+      ],
+      "status": "PENDING",
+      "summary": "Update the in-product ModelManual with the Tailor command/tool reference in the same change; bump MANUAL_VERSION."
+    },
+    {
+      "mt_id": "MT-071",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-070"
+      ],
+      "status": "PENDING",
+      "summary": "Build the Tailor TraceProjection (task/context/return/tool-calls/artifact/validation/promotion) reconstructable from durable state."
+    },
+    {
+      "mt_id": "MT-072",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-071"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the typed FEMS record for Tailor decisions/blockers/errors/session boundaries (source link + retrieval policy)."
+    },
+    {
+      "mt_id": "MT-073",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-072"
+      ],
+      "status": "PENDING",
+      "summary": "Persist GarmentSpec (cm units, gather_ratio:f32, typed EdgeShape) as the canonical authoring record and load it into the solver mesh."
+    },
+    {
+      "mt_id": "MT-074",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-073"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the SimulationReceipt typed feedback (schema hsk.tailor.simulation_receipt@1) returned to the model after a run."
+    },
+    {
+      "mt_id": "MT-075",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-074"
+      ],
+      "status": "PENDING",
+      "summary": "Wire the ValidationDescriptor catalog dispatch so each garment run produces typed validation results into tailor_validation_results."
+    },
+    {
+      "mt_id": "MT-076",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-075"
+      ],
+      "status": "PENDING",
+      "summary": "Implement model-lane fabric/measurement estimation API so a model can request a fabric preset or avatar measurements."
+    },
+    {
+      "mt_id": "MT-077",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-076"
+      ],
+      "status": "PENDING",
+      "summary": "Add the garment versioning chain (tailor_garment_versions) so promotions are immutable snapshots."
+    },
+    {
+      "mt_id": "MT-078",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-077"
+      ],
+      "status": "PENDING",
+      "summary": "Implement wardrobe membership (tailor_wardrobe) linking promoted garments to avatars for reuse."
+    },
+    {
+      "mt_id": "MT-079",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-078"
+      ],
+      "status": "PENDING",
+      "summary": "Add the HBR packet acceptance-matrix hook so applicable HBR rows hydrate for each Tailor MT at packet activation."
+    },
+    {
+      "mt_id": "MT-080",
+      "group": "KernelIntegration",
+      "depends_on": [
+        "MT-079"
+      ],
+      "status": "PENDING",
+      "summary": "Add the end-to-end kernel integration test: author garment (model) -> CRDT edit -> sandbox sim -> validate -> promote, proving the full wire."
+    },
+    {
+      "mt_id": "MT-081",
+      "group": "Collision",
+      "depends_on": [
+        "MT-080"
+      ],
+      "status": "PENDING",
+      "summary": "Define ClothBodyProxy (capsules + spheres + optional SDF handle) as the body collider representation."
+    },
+    {
+      "mt_id": "MT-082",
+      "group": "Collision",
+      "depends_on": [
+        "MT-081"
+      ],
+      "status": "PENDING",
+      "summary": "Define CollisionCapsule (a, b endpoints, radius) collider type."
+    },
+    {
+      "mt_id": "MT-083",
+      "group": "Collision",
+      "depends_on": [
+        "MT-082"
+      ],
+      "status": "PENDING",
+      "summary": "Define CollisionSphere (center, radius) collider type."
+    },
+    {
+      "mt_id": "MT-084",
+      "group": "Collision",
+      "depends_on": [
+        "MT-083"
+      ],
+      "status": "PENDING",
+      "summary": "Define GpuCapsule repr(C)/bytemuck matching the WGSL capsule struct."
+    },
+    {
+      "mt_id": "MT-085",
+      "group": "Collision",
+      "depends_on": [
+        "MT-084"
+      ],
+      "status": "PENDING",
+      "summary": "Define GpuSphere repr(C)/bytemuck matching the WGSL sphere struct."
+    },
+    {
+      "mt_id": "MT-086",
+      "group": "Collision",
+      "depends_on": [
+        "MT-085"
+      ],
+      "status": "PENDING",
+      "summary": "Implement cloth-vs-capsule collision projection (push particles out of capsules each substep)."
+    },
+    {
+      "mt_id": "MT-087",
+      "group": "Collision",
+      "depends_on": [
+        "MT-086"
+      ],
+      "status": "PENDING",
+      "summary": "Implement cloth-vs-sphere collision projection."
+    },
+    {
+      "mt_id": "MT-088",
+      "group": "Collision",
+      "depends_on": [
+        "MT-087"
+      ],
+      "status": "PENDING",
+      "summary": "Implement cloth-vs-SDF body collision (signed distance field sample + gradient pushout)."
+    },
+    {
+      "mt_id": "MT-089",
+      "group": "Collision",
+      "depends_on": [
+        "MT-088"
+      ],
+      "status": "PENDING",
+      "summary": "Implement SDF generation/bake from an avatar body mesh."
+    },
+    {
+      "mt_id": "MT-090",
+      "group": "Collision",
+      "depends_on": [
+        "MT-089"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the automatic SDF fallback trigger when capsule decomposition is insufficient (e.g., extreme proportions)."
+    },
+    {
+      "mt_id": "MT-091",
+      "group": "Collision",
+      "depends_on": [
+        "MT-090"
+      ],
+      "status": "PENDING",
+      "summary": "Use parry3d for CPU broadphase/pre-processing ONLY (no GPU collision in parry; results feed the GPU passes)."
+    },
+    {
+      "mt_id": "MT-092",
+      "group": "Collision",
+      "depends_on": [
+        "MT-091"
+      ],
+      "status": "PENDING",
+      "summary": "Generate the canonical capsule/sphere decomposition for a body region from parry primitives."
+    },
+    {
+      "mt_id": "MT-093",
+      "group": "Collision",
+      "depends_on": [
+        "MT-092"
+      ],
+      "status": "PENDING",
+      "summary": "Implement self-collision broadphase via a spatial hash over cloth particles."
+    },
+    {
+      "mt_id": "MT-094",
+      "group": "Collision",
+      "depends_on": [
+        "MT-093"
+      ],
+      "status": "PENDING",
+      "summary": "Add curvature/adjacency culling to self-collision so neighboring triangles are not treated as colliding."
+    },
+    {
+      "mt_id": "MT-095",
+      "group": "Collision",
+      "depends_on": [
+        "MT-094"
+      ],
+      "status": "PENDING",
+      "summary": "Implement self-collision response (repulsion + minimum separation)."
+    },
+    {
+      "mt_id": "MT-096",
+      "group": "Collision",
+      "depends_on": [
+        "MT-095"
+      ],
+      "status": "PENDING",
+      "summary": "Implement multi-layer cloth ordering so stacked garments resolve in a stable inner->outer order."
+    },
+    {
+      "mt_id": "MT-097",
+      "group": "Collision",
+      "depends_on": [
+        "MT-096"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce interlayer spacing so adjacent garment layers keep a minimum gap."
+    },
+    {
+      "mt_id": "MT-098",
+      "group": "Collision",
+      "depends_on": [
+        "MT-097"
+      ],
+      "status": "PENDING",
+      "summary": "Implement cloth-body Coulomb friction at contacts."
+    },
+    {
+      "mt_id": "MT-099",
+      "group": "Collision",
+      "depends_on": [
+        "MT-098"
+      ],
+      "status": "PENDING",
+      "summary": "Implement self-contact friction."
+    },
+    {
+      "mt_id": "MT-100",
+      "group": "Collision",
+      "depends_on": [
+        "MT-099"
+      ],
+      "status": "PENDING",
+      "summary": "Implement collision response velocity correction (no energy injection at contacts)."
+    },
+    {
+      "mt_id": "MT-101",
+      "group": "Collision",
+      "depends_on": [
+        "MT-100"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the canonical 3-sphere-per-side bust decomposition for exaggerated proportions."
+    },
+    {
+      "mt_id": "MT-102",
+      "group": "Collision",
+      "depends_on": [
+        "MT-101"
+      ],
+      "status": "PENDING",
+      "summary": "Add the sternum capsule between the bust spheres to prevent center-line penetration."
+    },
+    {
+      "mt_id": "MT-103",
+      "group": "Collision",
+      "depends_on": [
+        "MT-102"
+      ],
+      "status": "PENDING",
+      "summary": "Resolve inter-collider overlap jitter using maximum-magnitude correction (not summed) where colliders overlap."
+    },
+    {
+      "mt_id": "MT-104",
+      "group": "Collision",
+      "depends_on": [
+        "MT-103"
+      ],
+      "status": "PENDING",
+      "summary": "Resolve under-bust tunneling with a double collision pass per substep in the under-bust region."
+    },
+    {
+      "mt_id": "MT-105",
+      "group": "Collision",
+      "depends_on": [
+        "MT-104"
+      ],
+      "status": "PENDING",
+      "summary": "Resolve under-bust crease penetration by enforcing collision ordering (body before self) in the crease."
+    },
+    {
+      "mt_id": "MT-106",
+      "group": "Collision",
+      "depends_on": [
+        "MT-105"
+      ],
+      "status": "PENDING",
+      "summary": "Wire automatic SDF fallback specifically for extreme-proportion bust/hip regions exceeding capsule capacity."
+    },
+    {
+      "mt_id": "MT-107",
+      "group": "Collision",
+      "depends_on": [
+        "MT-106"
+      ],
+      "status": "PENDING",
+      "summary": "Author the WGSL collision compute pass (the collision-hook slot in the 8-pass pipeline) for capsules/spheres/SDF."
+    },
+    {
+      "mt_id": "MT-108",
+      "group": "Collision",
+      "depends_on": [
+        "MT-107"
+      ],
+      "status": "PENDING",
+      "summary": "Upload CollisionCapsule/Sphere/SDF colliders to GPU buffers each frame the body moves."
+    },
+    {
+      "mt_id": "MT-109",
+      "group": "Collision",
+      "depends_on": [
+        "MT-108"
+      ],
+      "status": "PENDING",
+      "summary": "Bind a ClothBodyProxy from tailor_avatars + tailor_body_proxies authority into a sim run."
+    },
+    {
+      "mt_id": "MT-110",
+      "group": "Collision",
+      "depends_on": [
+        "MT-109"
+      ],
+      "status": "PENDING",
+      "summary": "Emit TailorBodyProxyCreated/Updated + TailorAvatarCreated/MeasurementsExtracted events on proxy/avatar changes."
+    },
+    {
+      "mt_id": "MT-111",
+      "group": "Collision",
+      "depends_on": [
+        "MT-110"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the NO_INTERPENETRATION ValidationDescriptor (cloth not inside body beyond tolerance)."
+    },
+    {
+      "mt_id": "MT-112",
+      "group": "Collision",
+      "depends_on": [
+        "MT-111"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the SELF_INTERSECTION ValidationDescriptor (no residual self-intersection)."
+    },
+    {
+      "mt_id": "MT-113",
+      "group": "Collision",
+      "depends_on": [
+        "MT-112"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the INTERLAYER_SPACING ValidationDescriptor for multi-layer garments."
+    },
+    {
+      "mt_id": "MT-114",
+      "group": "Collision",
+      "depends_on": [
+        "MT-113"
+      ],
+      "status": "PENDING",
+      "summary": "Add the collision integration test: drape a fitted bodice on an exaggerated-proportion avatar and assert NO_INTERPENETRATION + SELF_INTERSECTION pass twice (determinism)."
+    },
+    {
+      "mt_id": "MT-115",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-114"
+      ],
+      "status": "PENDING",
+      "summary": "Define the canonical GarmentSpec type (cm units, gather_ratio:f32, typed EdgeShape, panels, seams) verbatim per 16-contracts §13.14."
+    },
+    {
+      "mt_id": "MT-116",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-115"
+      ],
+      "status": "PENDING",
+      "summary": "Define the typed EdgeShape enum (Line, Arc, Bezier, Dart, Notch) used by panel outlines."
+    },
+    {
+      "mt_id": "MT-117",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-116"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Panel type (closed ordered EdgeShape outline + grain direction + fabric ref)."
+    },
+    {
+      "mt_id": "MT-118",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-117"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Seam type binding edges of two panels with a gather_ratio and seam allowance."
+    },
+    {
+      "mt_id": "MT-119",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-118"
+      ],
+      "status": "PENDING",
+      "summary": "Implement 2D-pattern -> 3D initial arrangement (place flat panels around the avatar before sewing)."
+    },
+    {
+      "mt_id": "MT-120",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-119"
+      ],
+      "status": "PENDING",
+      "summary": "Implement avatar-relative panel placement anchors (front/back/sleeve regions)."
+    },
+    {
+      "mt_id": "MT-121",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-120"
+      ],
+      "status": "PENDING",
+      "summary": "Implement sewing resolution that pulls seam edges together over solver substeps."
+    },
+    {
+      "mt_id": "MT-122",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-121"
+      ],
+      "status": "PENDING",
+      "summary": "Implement dart handling (fold-and-stitch shaping wedges)."
+    },
+    {
+      "mt_id": "MT-123",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-122"
+      ],
+      "status": "PENDING",
+      "summary": "Implement pleat handling (parallel folds with retained direction)."
+    },
+    {
+      "mt_id": "MT-124",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-123"
+      ],
+      "status": "PENDING",
+      "summary": "Bind per-panel grain line / fabric direction to the solver material frame."
+    },
+    {
+      "mt_id": "MT-125",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-124"
+      ],
+      "status": "PENDING",
+      "summary": "Implement panel symmetry (mirror) so left/right pieces stay consistent."
+    },
+    {
+      "mt_id": "MT-126",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-125"
+      ],
+      "status": "PENDING",
+      "summary": "Define the parametric, LLM-emittable garment definition (named parameters -> GarmentSpec)."
+    },
+    {
+      "mt_id": "MT-127",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-126"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentSpec -> triangle mesh tessellation for the solver."
+    },
+    {
+      "mt_id": "MT-128",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-127"
+      ],
+      "status": "PENDING",
+      "summary": "Add per-panel mesh resolution control (coarse for preview, fine for final)."
+    },
+    {
+      "mt_id": "MT-129",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-128"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentCode-style import/export interop for the parametric garment format."
+    },
+    {
+      "mt_id": "MT-130",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-129"
+      ],
+      "status": "PENDING",
+      "summary": "Implement parametric sizing from avatar measurements (auto-grade panels to a body)."
+    },
+    {
+      "mt_id": "MT-131",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-130"
+      ],
+      "status": "PENDING",
+      "summary": "Implement notches / alignment marks for seam matching."
+    },
+    {
+      "mt_id": "MT-132",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-131"
+      ],
+      "status": "PENDING",
+      "summary": "Implement internal guide lines (topstitch/foldlines) carried into UV/texture."
+    },
+    {
+      "mt_id": "MT-133",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-132"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the PANEL_CLOSED ValidationDescriptor (outline closed, non-self-intersecting)."
+    },
+    {
+      "mt_id": "MT-134",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-133"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the SEAM_LENGTH_MATCH ValidationDescriptor (bound edges match length within gather tolerance)."
+    },
+    {
+      "mt_id": "MT-135",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-134"
+      ],
+      "status": "PENDING",
+      "summary": "Wire collaborative panel editing through the kernel CRDT surface (TailorPanelCrdtUpdateRecorded)."
+    },
+    {
+      "mt_id": "MT-136",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-135"
+      ],
+      "status": "PENDING",
+      "summary": "Expose the model-first garment emit API accepting a JSON GarmentSpec (validated against the canonical schema)."
+    },
+    {
+      "mt_id": "MT-137",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-136"
+      ],
+      "status": "PENDING",
+      "summary": "Seed a starter garment template library (tee, skirt, dress, trousers, bodice) as parametric GarmentSpecs."
+    },
+    {
+      "mt_id": "MT-138",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-137"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the garment-draft -> sandbox-sim handoff (emit TailorGarmentDraftProposed then dispatch)."
+    },
+    {
+      "mt_id": "MT-139",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-138"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentSpec versioning + forward migration so older specs load under the current schema."
+    },
+    {
+      "mt_id": "MT-140",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-139"
+      ],
+      "status": "PENDING",
+      "summary": "Add the authoring integration test: parametric params -> GarmentSpec -> tessellate -> sew -> sim-ready mesh, validated."
+    },
+    {
+      "mt_id": "MT-141",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-140"
+      ],
+      "status": "PENDING",
+      "summary": "Define the ValidationDescriptor type (id, title, severity Blocking|Advisory, run fn) per 16-contracts §13.14."
+    },
+    {
+      "mt_id": "MT-142",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-141"
+      ],
+      "status": "PENDING",
+      "summary": "Build the ValidationDescriptor catalog registry (the ~35-check set) with stable ids."
+    },
+    {
+      "mt_id": "MT-143",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-142"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the validation runner that executes the catalog against a SolverResult + GarmentSpec."
+    },
+    {
+      "mt_id": "MT-144",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-143"
+      ],
+      "status": "PENDING",
+      "summary": "Persist validation results into tailor_validation_results (per run, per descriptor)."
+    },
+    {
+      "mt_id": "MT-145",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-144"
+      ],
+      "status": "PENDING",
+      "summary": "Implement severity gating: any Blocking failure blocks promotion; Advisory records a warning only."
+    },
+    {
+      "mt_id": "MT-146",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-145"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the DRAPE_CONVERGED check (residual below threshold at run end)."
+    },
+    {
+      "mt_id": "MT-147",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-146"
+      ],
+      "status": "PENDING",
+      "summary": "Register NO_INTERPENETRATION + SELF_INTERSECTION (from Collision) into the catalog with correct severities."
+    },
+    {
+      "mt_id": "MT-148",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-147"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the SEAM_CLOSED check (all seams bound within tolerance at run end)."
+    },
+    {
+      "mt_id": "MT-149",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-148"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the STRETCH_WITHIN_LIMITS check (no triangle stretched beyond a fabric limit)."
+    },
+    {
+      "mt_id": "MT-150",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-149"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the FABRIC_PRESET_VALID check (run references an existing MAT- preset)."
+    },
+    {
+      "mt_id": "MT-151",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-150"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the MESH_MANIFOLD check (output mesh is manifold, no holes from tessellation/sew)."
+    },
+    {
+      "mt_id": "MT-152",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-151"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the GRAIN_CONSISTENT check (panel grain frames are well-defined everywhere)."
+    },
+    {
+      "mt_id": "MT-153",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-152"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the UV_VALID check hook (UV islands present + non-overlapping) deferring detail to the UvTexture group."
+    },
+    {
+      "mt_id": "MT-154",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-153"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the DETERMINISM_ENVELOPE check (run records backend + tolerances and is repeatable)."
+    },
+    {
+      "mt_id": "MT-155",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-154"
+      ],
+      "status": "PENDING",
+      "summary": "Bind promotion equivalence to MeshComparator (eps_mm=0.1) as the SOLE equivalence mechanism (not content_hash)."
+    },
+    {
+      "mt_id": "MT-156",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-155"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the promotion decision (all Blocking pass + equivalence satisfied -> promotable)."
+    },
+    {
+      "mt_id": "MT-157",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-156"
+      ],
+      "status": "PENDING",
+      "summary": "Emit the typed validation receipt summarizing pass/fail per descriptor for the model + operator."
+    },
+    {
+      "mt_id": "MT-158",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-157"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the HBR acceptance-matrix hydration for the Tailor packet (applicable HBR-* rules -> acceptance rows)."
+    },
+    {
+      "mt_id": "MT-159",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-158"
+      ],
+      "status": "PENDING",
+      "summary": "Bind HBR-INT evidence (EventLedger/replay, PromotionGate, CRDT, lane, TraceProjection, UUID v7) to acceptance rows."
+    },
+    {
+      "mt_id": "MT-160",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-159"
+      ],
+      "status": "PENDING",
+      "summary": "Bind HBR-SWARM evidence (concurrent sessions, scheduler, typed routing) to acceptance rows."
+    },
+    {
+      "mt_id": "MT-161",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-160"
+      ],
+      "status": "PENDING",
+      "summary": "Bind HBR-VIS evidence (TraceProjection for non-UI, GUI drive + screenshot for UI) to acceptance rows."
+    },
+    {
+      "mt_id": "MT-162",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-161"
+      ],
+      "status": "PENDING",
+      "summary": "Bind HBR-QUIET evidence (headless run, process ownership/reclaim) to acceptance rows."
+    },
+    {
+      "mt_id": "MT-163",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-162"
+      ],
+      "status": "PENDING",
+      "summary": "Bind HBR-MAN evidence (ModelManual entry + code-truthful self-consistency) to acceptance rows."
+    },
+    {
+      "mt_id": "MT-164",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-163"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate hbr-matrix-check into gov-check for the Tailor packet so PASS closure is illegal while any required HBR row is PENDING/STEER/BLOCKED."
+    },
+    {
+      "mt_id": "MT-165",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-164"
+      ],
+      "status": "PENDING",
+      "summary": "Emit HBR_VIOLATION typed receipts when a Tailor run violates a build rule at runtime."
+    },
+    {
+      "mt_id": "MT-166",
+      "group": "ValidationHBR",
+      "depends_on": [
+        "MT-165"
+      ],
+      "status": "PENDING",
+      "summary": "Add the validation+HBR integration test: run -> validate catalog -> hydrate matrix -> promotion decision, all asserted."
+    },
+    {
+      "mt_id": "MT-167",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-166"
+      ],
+      "status": "PENDING",
+      "summary": "Define RigidProxy (a parry3d rigid body wrapper) as the trim physics representation coupled to cloth."
+    },
+    {
+      "mt_id": "MT-168",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-167"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the cloth-rigid tack coupling (cloth particle <-> rigid attachment point) using the tack constraint."
+    },
+    {
+      "mt_id": "MT-169",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-168"
+      ],
+      "status": "PENDING",
+      "summary": "Integrate the parry3d rigid step (CPU) interleaved with the XPBD substeps."
+    },
+    {
+      "mt_id": "MT-170",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-169"
+      ],
+      "status": "PENDING",
+      "summary": "Implement two-way coupling: cloth tension pulls the rigid, rigid motion drags the cloth."
+    },
+    {
+      "mt_id": "MT-171",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-170"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Button trim type (rigid disc + thread anchor) and its placement."
+    },
+    {
+      "mt_id": "MT-172",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-171"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the buttonhole (slot constraint that a button passes through and holds)."
+    },
+    {
+      "mt_id": "MT-173",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-172"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Zipper trim type (two tapes + a slider with a progressive close parameter t in [0,1])."
+    },
+    {
+      "mt_id": "MT-174",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-173"
+      ],
+      "status": "PENDING",
+      "summary": "Implement zipper teeth coupling (bind opposing tape particles progressively as the slider advances)."
+    },
+    {
+      "mt_id": "MT-175",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-174"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the two-way zipper (two sliders, openable from both ends)."
+    },
+    {
+      "mt_id": "MT-176",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-175"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Eyelet trim (rigid ring constraint at a panel point)."
+    },
+    {
+      "mt_id": "MT-177",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-176"
+      ],
+      "status": "PENDING",
+      "summary": "Implement lacing (a 1D inextensible strand threaded through eyelets that cinches panels)."
+    },
+    {
+      "mt_id": "MT-178",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-177"
+      ],
+      "status": "PENDING",
+      "summary": "Persist trim attachment points (tack authority) on tailor_trims so runs are reproducible."
+    },
+    {
+      "mt_id": "MT-179",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-178"
+      ],
+      "status": "PENDING",
+      "summary": "Define snap/hook fasteners (point-pair constraints that engage above a proximity threshold)."
+    },
+    {
+      "mt_id": "MT-180",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-179"
+      ],
+      "status": "PENDING",
+      "summary": "Define belt/strap rigid segments (chained rigid links) for straps and belts."
+    },
+    {
+      "mt_id": "MT-181",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-180"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Buckle (rigid frame + tongue) constraining a strap to a length."
+    },
+    {
+      "mt_id": "MT-182",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-181"
+      ],
+      "status": "PENDING",
+      "summary": "Implement rigid-trim placement on a panel (anchor point + orientation from authoring)."
+    },
+    {
+      "mt_id": "MT-183",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-182"
+      ],
+      "status": "PENDING",
+      "summary": "Assign mass/inertia to rigid trims so heavy trims realistically drag cloth."
+    },
+    {
+      "mt_id": "MT-184",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-183"
+      ],
+      "status": "PENDING",
+      "summary": "Implement rigid-trim vs cloth collision (trims do not pass through cloth)."
+    },
+    {
+      "mt_id": "MT-185",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-184"
+      ],
+      "status": "PENDING",
+      "summary": "Implement rigid-trim vs body collision (trims rest on the body)."
+    },
+    {
+      "mt_id": "MT-186",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-185"
+      ],
+      "status": "PENDING",
+      "summary": "Expose a zipper/closure open-close keyframe hook for the Animation group to drive over time."
+    },
+    {
+      "mt_id": "MT-187",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-186"
+      ],
+      "status": "PENDING",
+      "summary": "Carry per-trim material/render references (metal/plastic) for the render/export group."
+    },
+    {
+      "mt_id": "MT-188",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-187"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_trims (trim type, placement, mass, material, attachment points)."
+    },
+    {
+      "mt_id": "MT-189",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-188"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the TRIM_ATTACHED ValidationDescriptor (every declared trim remains coupled at run end)."
+    },
+    {
+      "mt_id": "MT-190",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-189"
+      ],
+      "status": "PENDING",
+      "summary": "Add the trim integration test: zip a jacket closed + fasten buttons on a draped body, assert TRIM_ATTACHED twice (determinism)."
+    },
+    {
+      "mt_id": "MT-191",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-190"
+      ],
+      "status": "PENDING",
+      "summary": "Define ClothMaterialCompliance (6-scalar orthotropic: warp/weft stretch, shear, 2x bend, area) as the raw solver material per 16-contracts."
+    },
+    {
+      "mt_id": "MT-192",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-191"
+      ],
+      "status": "PENDING",
+      "summary": "Define the normalized [0,1] FabricProperties LLM surface + FabricPreset enum verbatim per 16-contracts §13.14."
+    },
+    {
+      "mt_id": "MT-193",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-192"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the logarithmic non-linear mapping from normalized [0,1] FabricProperties to raw ClothMaterialCompliance (required, not optional)."
+    },
+    {
+      "mt_id": "MT-194",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-193"
+      ],
+      "status": "PENDING",
+      "summary": "Apply rest-geometry normalization to alpha (alpha_eff = alpha_raw / rest_len^2 or rest_area) so presets are mesh-resolution-portable."
+    },
+    {
+      "mt_id": "MT-195",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-194"
+      ],
+      "status": "PENDING",
+      "summary": "Define ClothMaterialPhysics (density, friction, damping, air-drag) as the non-compliance physical params."
+    },
+    {
+      "mt_id": "MT-196",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-195"
+      ],
+      "status": "PENDING",
+      "summary": "Define MaterialParamsGpu repr(C)/bytemuck (wgpu binding(2)) packing compliance + physics for the GPU passes."
+    },
+    {
+      "mt_id": "MT-197",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-196"
+      ],
+      "status": "PENDING",
+      "summary": "Implement grain-direction tagging per panel feeding the material frame + UV grain."
+    },
+    {
+      "mt_id": "MT-198",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-197"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the FabricPreset -> FabricProperties resolution (named presets expand to normalized values)."
+    },
+    {
+      "mt_id": "MT-199",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-198"
+      ],
+      "status": "PENDING",
+      "summary": "Seed the 9 bundled system presets (cotton, silk, denim, leather, jersey, wool, chiffon, canvas, rubber) with calibrated values into tailor_material_presets."
+    },
+    {
+      "mt_id": "MT-200",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-199"
+      ],
+      "status": "PENDING",
+      "summary": "Calibrate stretch resistance mapping so denim is stiff and jersey is stretchy at the same slider position deltas."
+    },
+    {
+      "mt_id": "MT-201",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-200"
+      ],
+      "status": "PENDING",
+      "summary": "Calibrate shear resistance mapping (drape vs structure)."
+    },
+    {
+      "mt_id": "MT-202",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-201"
+      ],
+      "status": "PENDING",
+      "summary": "Calibrate bending stiffness mapping (crisp folds vs soft drape)."
+    },
+    {
+      "mt_id": "MT-203",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-202"
+      ],
+      "status": "PENDING",
+      "summary": "Map fabric density (gsm) to per-particle mass with area weighting."
+    },
+    {
+      "mt_id": "MT-204",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-203"
+      ],
+      "status": "PENDING",
+      "summary": "Calibrate the friction coefficient per preset (silk slides, rubber grips)."
+    },
+    {
+      "mt_id": "MT-205",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-204"
+      ],
+      "status": "PENDING",
+      "summary": "Calibrate damping per preset (settling speed) and prevent over-damping that kills motion."
+    },
+    {
+      "mt_id": "MT-206",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-205"
+      ],
+      "status": "PENDING",
+      "summary": "Implement aerodynamic air-drag so light fabrics (chiffon) flutter and heavy ones do not."
+    },
+    {
+      "mt_id": "MT-207",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-206"
+      ],
+      "status": "PENDING",
+      "summary": "Add a wetness/weight modifier (clings and hangs heavier when wet) for production realism."
+    },
+    {
+      "mt_id": "MT-208",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-207"
+      ],
+      "status": "PENDING",
+      "summary": "Carry sheerness/translucency + roughness render hints from fabric to the render/export group."
+    },
+    {
+      "mt_id": "MT-209",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-208"
+      ],
+      "status": "PENDING",
+      "summary": "Implement MaterialKeyframe so material properties can animate over time (e.g., drying, stiffening)."
+    },
+    {
+      "mt_id": "MT-210",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-209"
+      ],
+      "status": "PENDING",
+      "summary": "Expose the preset CRUD API (model/operator can read, clone, and create MAT- presets)."
+    },
+    {
+      "mt_id": "MT-211",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-210"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the FABRIC_PROPERTIES_IN_RANGE ValidationDescriptor (normalized props within [0,1], preset exists)."
+    },
+    {
+      "mt_id": "MT-212",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-211"
+      ],
+      "status": "PENDING",
+      "summary": "Add the fabric integration test: drape silk vs denim on the same panel and assert measurably different fold counts/drape height."
+    },
+    {
+      "mt_id": "MT-213",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-212"
+      ],
+      "status": "PENDING",
+      "summary": "Implement UV islands as directly-flattened 2D panels (panels ARE the UV layout) per Section 13.9 chosen method."
+    },
+    {
+      "mt_id": "MT-214",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-213"
+      ],
+      "status": "PENDING",
+      "summary": "Normalize panel coordinates into [0,1] UV space preserving real-world scale ratios."
+    },
+    {
+      "mt_id": "MT-215",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-214"
+      ],
+      "status": "PENDING",
+      "summary": "Implement UV island packing into a single atlas with padding to avoid bleed."
+    },
+    {
+      "mt_id": "MT-216",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-215"
+      ],
+      "status": "PENDING",
+      "summary": "Make UV island boundaries seam-aware (garment seams = UV cuts)."
+    },
+    {
+      "mt_id": "MT-217",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-216"
+      ],
+      "status": "PENDING",
+      "summary": "Align the UV V-axis to fabric grain so weave textures run with the grain."
+    },
+    {
+      "mt_id": "MT-218",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-217"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce consistent texel density across islands."
+    },
+    {
+      "mt_id": "MT-219",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-218"
+      ],
+      "status": "PENDING",
+      "summary": "Define the PBR material slot set (albedo, normal, roughness, metallic, opacity) for garments."
+    },
+    {
+      "mt_id": "MT-220",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-219"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_uv_sets + texture authority (atlas refs, material slots) keyed by garment."
+    },
+    {
+      "mt_id": "MT-221",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-220"
+      ],
+      "status": "PENDING",
+      "summary": "Generate a base albedo map from the fabric preset color + weave."
+    },
+    {
+      "mt_id": "MT-222",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-221"
+      ],
+      "status": "PENDING",
+      "summary": "Generate a normal map from the procedural fabric weave for surface detail."
+    },
+    {
+      "mt_id": "MT-223",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-222"
+      ],
+      "status": "PENDING",
+      "summary": "Generate a roughness map from fabric sheerness/roughness hints (Fabric MT-208)."
+    },
+    {
+      "mt_id": "MT-224",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-223"
+      ],
+      "status": "PENDING",
+      "summary": "Implement tileable fabric base-texture sampling so any garment size keeps weave scale."
+    },
+    {
+      "mt_id": "MT-225",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-224"
+      ],
+      "status": "PENDING",
+      "summary": "Implement positioned print/graphic placement (logos, patterns) in UV space."
+    },
+    {
+      "mt_id": "MT-226",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-225"
+      ],
+      "status": "PENDING",
+      "summary": "Render topstitch/foldlines from internal guide lines (Authoring MT-132) into the texture."
+    },
+    {
+      "mt_id": "MT-227",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-226"
+      ],
+      "status": "PENDING",
+      "summary": "Define trim texture slots + UV for rigid trims (buttons/zippers/buckles)."
+    },
+    {
+      "mt_id": "MT-228",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-227"
+      ],
+      "status": "PENDING",
+      "summary": "Implement procedural fabric weave texture generation (warp/weft pattern) as a reusable source."
+    },
+    {
+      "mt_id": "MT-229",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-228"
+      ],
+      "status": "PENDING",
+      "summary": "Export texture/material references in glTF/USD-compatible form (image refs + PBR slot mapping)."
+    },
+    {
+      "mt_id": "MT-230",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-229"
+      ],
+      "status": "PENDING",
+      "summary": "Bind collaborative UV/texture edits to the kernel CRDT surface."
+    },
+    {
+      "mt_id": "MT-231",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-230"
+      ],
+      "status": "PENDING",
+      "summary": "Expose the model-first texture API (assign preset, place print, generate maps)."
+    },
+    {
+      "mt_id": "MT-232",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-231"
+      ],
+      "status": "PENDING",
+      "summary": "Provide a UV/texture preview render hook for the visual-debug surface."
+    },
+    {
+      "mt_id": "MT-233",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-232"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the UV_VALID ValidationDescriptor (full coverage, no overlap, in-range, seam-aligned)."
+    },
+    {
+      "mt_id": "MT-234",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-233"
+      ],
+      "status": "PENDING",
+      "summary": "Add the UV/texture integration test: unwrap a multi-panel garment -> apply preset + print -> assert UV_VALID + export-ready material."
+    },
+    {
+      "mt_id": "MT-235",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-234"
+      ],
+      "status": "PENDING",
+      "summary": "Stand up a throwaway Bevy testbed (dev-only) for fast solver iteration; explicitly OUT of product scope."
+    },
+    {
+      "mt_id": "MT-236",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-235"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Handshake-native wgpu viewport renderer for cloth (reuses the kernel wgpu device)."
+    },
+    {
+      "mt_id": "MT-237",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-236"
+      ],
+      "status": "PENDING",
+      "summary": "Render the cloth mesh with the PBR material (albedo/normal/roughness from the UV group)."
+    },
+    {
+      "mt_id": "MT-238",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-237"
+      ],
+      "status": "PENDING",
+      "summary": "Update the viewport in real time during a simulation run (streaming positions)."
+    },
+    {
+      "mt_id": "MT-239",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-238"
+      ],
+      "status": "PENDING",
+      "summary": "Implement camera orbit/pan/zoom controls in the viewport."
+    },
+    {
+      "mt_id": "MT-240",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-239"
+      ],
+      "status": "PENDING",
+      "summary": "Embed the Tailor viewport panel in the front-end GUI (operator surface) with garment/run selection."
+    },
+    {
+      "mt_id": "MT-241",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-240"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the model-readable visual capture API (screenshot of the garment from a named camera)."
+    },
+    {
+      "mt_id": "MT-242",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-241"
+      ],
+      "status": "PENDING",
+      "summary": "Implement headless capture (offscreen render target, no window, no focus change)."
+    },
+    {
+      "mt_id": "MT-243",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-242"
+      ],
+      "status": "PENDING",
+      "summary": "Add a renderer console/runtime error scan to every capture (uncaught errors fail the gate)."
+    },
+    {
+      "mt_id": "MT-244",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-243"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a capture matrix (normal + constrained viewport + edge states: empty/loading/error/multi-garment)."
+    },
+    {
+      "mt_id": "MT-245",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-244"
+      ],
+      "status": "PENDING",
+      "summary": "Implement visual-debug overlays (constraints, collision contacts, pinned particles) toggleable in the viewport."
+    },
+    {
+      "mt_id": "MT-246",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-245"
+      ],
+      "status": "PENDING",
+      "summary": "Implement wireframe / UV-check / normal-direction debug render modes."
+    },
+    {
+      "mt_id": "MT-247",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-246"
+      ],
+      "status": "PENDING",
+      "summary": "Expose backend navigation routes to inspect a garment / run / proxy / validation by id (typed JSON)."
+    },
+    {
+      "mt_id": "MT-248",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-247"
+      ],
+      "status": "PENDING",
+      "summary": "Assign stable element ids / test hooks to front-end Tailor controls for parallel-model interaction."
+    },
+    {
+      "mt_id": "MT-249",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-248"
+      ],
+      "status": "PENDING",
+      "summary": "Implement glTF export (mesh + UV + PBR material + optional skeleton) of a promoted garment."
+    },
+    {
+      "mt_id": "MT-250",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-249"
+      ],
+      "status": "PENDING",
+      "summary": "Implement USD export of a promoted garment (mesh + UsdPreviewSurface material)."
+    },
+    {
+      "mt_id": "MT-251",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-250"
+      ],
+      "status": "PENDING",
+      "summary": "Implement OBJ-sequence export of an animated drape (one OBJ per frame)."
+    },
+    {
+      "mt_id": "MT-252",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-251"
+      ],
+      "status": "PENDING",
+      "summary": "Implement Alembic point-cache export of a simulated drape."
+    },
+    {
+      "mt_id": "MT-253",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-252"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Blender export bridge (write to a watched handoff folder + manifest)."
+    },
+    {
+      "mt_id": "MT-254",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-253"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the UE export bridge (USD/FBX to a watched UE handoff folder + manifest)."
+    },
+    {
+      "mt_id": "MT-255",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-254"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the EXPORT_VALID ValidationDescriptor (manifold mesh, valid UV, complete material before export)."
+    },
+    {
+      "mt_id": "MT-256",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-255"
+      ],
+      "status": "PENDING",
+      "summary": "Add the render/export integration test: sim -> headless capture (matrix) -> glTF export -> reimport-valid."
+    },
+    {
+      "mt_id": "MT-257",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-256"
+      ],
+      "status": "PENDING",
+      "summary": "Define ClothModelAdapter as the typed model-facing API surface (the crate public API IS the model API) per Section 13.13."
+    },
+    {
+      "mt_id": "MT-258",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-257"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the author_garment MCP tool (accepts a parametric/JSON GarmentSpec, returns GAR- id)."
+    },
+    {
+      "mt_id": "MT-259",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-258"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the edit_panel MCP tool (CRDT-safe panel edits by garment+panel id)."
+    },
+    {
+      "mt_id": "MT-260",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-259"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the run_simulation MCP tool (trigger a sandboxed sim job, return SIM- run id)."
+    },
+    {
+      "mt_id": "MT-261",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-260"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the fetch_simulation_receipt MCP tool returning the typed SimulationReceipt for a run."
+    },
+    {
+      "mt_id": "MT-262",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-261"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the assign_material MCP tool (assign a MAT- preset or normalized FabricProperties to panels)."
+    },
+    {
+      "mt_id": "MT-263",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-262"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the place_trim MCP tool (add buttons/zippers/eyelets at panel anchors)."
+    },
+    {
+      "mt_id": "MT-264",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-263"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the capture_view MCP tool (headless render capture from a named camera, returns ArtifactStore ref)."
+    },
+    {
+      "mt_id": "MT-265",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-264"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the promote_garment MCP tool (request promotion; only succeeds when validation gating passes)."
+    },
+    {
+      "mt_id": "MT-266",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-265"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the refit_garment MCP tool (retarget a promoted garment onto a different avatar)."
+    },
+    {
+      "mt_id": "MT-267",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-266"
+      ],
+      "status": "PENDING",
+      "summary": "Define the SimulationReceipt schema (hsk.tailor.simulation_receipt@1) as the typed self-correction feedback."
+    },
+    {
+      "mt_id": "MT-268",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-267"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the self-correction loop helper (receipt -> suggested GarmentSpec adjustment -> rerun) as a model-usable pattern."
+    },
+    {
+      "mt_id": "MT-269",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-268"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the fabric estimation tool (natural-language fabric description -> nearest MAT- preset + normalized props)."
+    },
+    {
+      "mt_id": "MT-270",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-269"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the measurement estimation tool (avatar description -> AVT- measurements)."
+    },
+    {
+      "mt_id": "MT-271",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-270"
+      ],
+      "status": "PENDING",
+      "summary": "Add typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for) to every Tailor MCP tool message."
+    },
+    {
+      "mt_id": "MT-272",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-271"
+      ],
+      "status": "PENDING",
+      "summary": "Prove parallel swarm authoring: 2+ agents author/edit different garments concurrently with lease isolation."
+    },
+    {
+      "mt_id": "MT-273",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-272"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-agent attribution (every authoring/sim action records the authoring session/agent)."
+    },
+    {
+      "mt_id": "MT-274",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-273"
+      ],
+      "status": "PENDING",
+      "summary": "Implement cancellation + restart of model authoring/sim runs (honored within bounded time)."
+    },
+    {
+      "mt_id": "MT-275",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-274"
+      ],
+      "status": "PENDING",
+      "summary": "Define the typed tool error taxonomy (InvalidSpec, MaterialOutOfRange, RunFailed, ValidationBlocked, NotPromotable) returned to models."
+    },
+    {
+      "mt_id": "MT-276",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-275"
+      ],
+      "status": "PENDING",
+      "summary": "Assemble the Tailor ContextBundle for model calls (garment state + receipts + manual excerpts) dispatched via ModelAdapter."
+    },
+    {
+      "mt_id": "MT-277",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-276"
+      ],
+      "status": "PENDING",
+      "summary": "Add ModelManual entries for every Tailor MCP tool (purpose, inputs, outputs, errors) and bump MANUAL_VERSION."
+    },
+    {
+      "mt_id": "MT-278",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-277"
+      ],
+      "status": "PENDING",
+      "summary": "Add the model-first integration test: a model authors a garment -> sims -> reads receipt -> self-corrects -> promotes, fully via the API."
+    },
+    {
+      "mt_id": "MT-279",
+      "group": "Animation",
+      "depends_on": [
+        "MT-278"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Timeline type (fps, frame_count, duration) as the animation time base."
+    },
+    {
+      "mt_id": "MT-280",
+      "group": "Animation",
+      "depends_on": [
+        "MT-279"
+      ],
+      "status": "PENDING",
+      "summary": "Define the Keyframe type (time, value, interpolation mode) and a generic Track<T>."
+    },
+    {
+      "mt_id": "MT-281",
+      "group": "Animation",
+      "depends_on": [
+        "MT-280"
+      ],
+      "status": "PENDING",
+      "summary": "Build the keyframeable-property registry (camera, wind, avatar pose, material props, closure t)."
+    },
+    {
+      "mt_id": "MT-282",
+      "group": "Animation",
+      "depends_on": [
+        "MT-281"
+      ],
+      "status": "PENDING",
+      "summary": "Implement interpolation modes (step, linear, bezier) for tracks."
+    },
+    {
+      "mt_id": "MT-283",
+      "group": "Animation",
+      "depends_on": [
+        "MT-282"
+      ],
+      "status": "PENDING",
+      "summary": "Implement avatar pose animation driving the body proxy each frame (cloth reacts to body motion)."
+    },
+    {
+      "mt_id": "MT-284",
+      "group": "Animation",
+      "depends_on": [
+        "MT-283"
+      ],
+      "status": "PENDING",
+      "summary": "Implement skeletal pose import (BVH / glTF animation -> avatar pose track)."
+    },
+    {
+      "mt_id": "MT-285",
+      "group": "Animation",
+      "depends_on": [
+        "MT-284"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a keyframeable wind field affecting cloth aerodynamics."
+    },
+    {
+      "mt_id": "MT-286",
+      "group": "Animation",
+      "depends_on": [
+        "MT-285"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a camera animation track for turntable/beauty shots."
+    },
+    {
+      "mt_id": "MT-287",
+      "group": "Animation",
+      "depends_on": [
+        "MT-286"
+      ],
+      "status": "PENDING",
+      "summary": "Wire material-property keyframes (Fabric MaterialKeyframe) into the timeline."
+    },
+    {
+      "mt_id": "MT-288",
+      "group": "Animation",
+      "depends_on": [
+        "MT-287"
+      ],
+      "status": "PENDING",
+      "summary": "Wire closure animation (zipper/button t from Trim MT-186) into the timeline."
+    },
+    {
+      "mt_id": "MT-289",
+      "group": "Animation",
+      "depends_on": [
+        "MT-288"
+      ],
+      "status": "PENDING",
+      "summary": "Implement sim-over-timeline (advance the solver across animated frames with continuity)."
+    },
+    {
+      "mt_id": "MT-290",
+      "group": "Animation",
+      "depends_on": [
+        "MT-289"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-frame mesh caching (store each frame to tailor_animations for export/scrub)."
+    },
+    {
+      "mt_id": "MT-291",
+      "group": "Animation",
+      "depends_on": [
+        "MT-290"
+      ],
+      "status": "PENDING",
+      "summary": "Implement adaptive sub-frame substepping at high body velocity for stability."
+    },
+    {
+      "mt_id": "MT-292",
+      "group": "Animation",
+      "depends_on": [
+        "MT-291"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce motion-read realism: cloth motion responds to body/wind, not decorative pre-baked wiggle."
+    },
+    {
+      "mt_id": "MT-293",
+      "group": "Animation",
+      "depends_on": [
+        "MT-292"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_animations (animation_json: tracks + keyframes + cache refs) keyed by garment."
+    },
+    {
+      "mt_id": "MT-294",
+      "group": "Animation",
+      "depends_on": [
+        "MT-293"
+      ],
+      "status": "PENDING",
+      "summary": "Expose the animation authoring API (model/operator keyframe properties, import pose)."
+    },
+    {
+      "mt_id": "MT-295",
+      "group": "Animation",
+      "depends_on": [
+        "MT-294"
+      ],
+      "status": "PENDING",
+      "summary": "Implement timeline scrub/preview in the viewport (play, pause, seek over cached frames)."
+    },
+    {
+      "mt_id": "MT-296",
+      "group": "Animation",
+      "depends_on": [
+        "MT-295"
+      ],
+      "status": "PENDING",
+      "summary": "Wire animation export to OBJ-sequence/Alembic (render group) for the full cached range."
+    },
+    {
+      "mt_id": "MT-297",
+      "group": "Animation",
+      "depends_on": [
+        "MT-296"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the ANIMATION_STABLE ValidationDescriptor (no explosion/NaN across the frame range)."
+    },
+    {
+      "mt_id": "MT-298",
+      "group": "Animation",
+      "depends_on": [
+        "MT-297"
+      ],
+      "status": "PENDING",
+      "summary": "Add the animation integration test: animate a walk cycle on an avatar, cloth follows, ANIMATION_STABLE passes twice (determinism)."
+    },
+    {
+      "mt_id": "MT-299",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-298"
+      ],
+      "status": "PENDING",
+      "summary": "Implement avatar morph correspondence (map a garment authored on a source avatar to a target avatar surface)."
+    },
+    {
+      "mt_id": "MT-300",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-299"
+      ],
+      "status": "PENDING",
+      "summary": "Implement body-shape transfer (deform the garment cage to the target body shape as a refit prior)."
+    },
+    {
+      "mt_id": "MT-301",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-300"
+      ],
+      "status": "PENDING",
+      "summary": "Re-grade panels to the target avatar measurements (Authoring grade MT-130 applied for refit)."
+    },
+    {
+      "mt_id": "MT-302",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-301"
+      ],
+      "status": "PENDING",
+      "summary": "Re-drape the graded garment on the target body via a solver run."
+    },
+    {
+      "mt_id": "MT-303",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-302"
+      ],
+      "status": "PENDING",
+      "summary": "Preserve UVs/textures across refit (same atlas; only positions change)."
+    },
+    {
+      "mt_id": "MT-304",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-303"
+      ],
+      "status": "PENDING",
+      "summary": "Re-place trims across refit (buttons/zippers track their panel anchors on the new body)."
+    },
+    {
+      "mt_id": "MT-305",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-304"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fit tension analysis (per-region stretch heatmap: too tight / too loose)."
+    },
+    {
+      "mt_id": "MT-306",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-305"
+      ],
+      "status": "PENDING",
+      "summary": "Implement auto-ease adjustment (add ease where tension exceeds a comfort threshold)."
+    },
+    {
+      "mt_id": "MT-307",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-306"
+      ],
+      "status": "PENDING",
+      "summary": "Implement standard size-run generation (grade one garment to S/M/L/XL)."
+    },
+    {
+      "mt_id": "MT-308",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-307"
+      ],
+      "status": "PENDING",
+      "summary": "Implement morph-target interpolation for continuous body shapes (blend between avatars)."
+    },
+    {
+      "mt_id": "MT-309",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-308"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a fit quality score (coverage + tension + silhouette deviation)."
+    },
+    {
+      "mt_id": "MT-310",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-309"
+      ],
+      "status": "PENDING",
+      "summary": "Implement refit caching keyed by (garment_version, avatar) so identical refits are not re-solved."
+    },
+    {
+      "mt_id": "MT-311",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-310"
+      ],
+      "status": "PENDING",
+      "summary": "Author migration for tailor_garment_fits (garment x avatar -> fitted mesh + score) authority."
+    },
+    {
+      "mt_id": "MT-312",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-311"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the refit pipeline orchestration (correspondence -> shape transfer -> regrade -> redrape -> preserve -> score) behind the refit API."
+    },
+    {
+      "mt_id": "MT-313",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-312"
+      ],
+      "status": "PENDING",
+      "summary": "Implement batch refit (one garment -> many avatars) as parallel Handshake jobs."
+    },
+    {
+      "mt_id": "MT-314",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-313"
+      ],
+      "status": "PENDING",
+      "summary": "Prove refit determinism (same garment+avatar -> MeshComparator-equivalent fit twice)."
+    },
+    {
+      "mt_id": "MT-315",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-314"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the FIT_VALID ValidationDescriptor (no over-tension, coverage preserved, score above threshold)."
+    },
+    {
+      "mt_id": "MT-316",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-315"
+      ],
+      "status": "PENDING",
+      "summary": "Add the auto-fit integration test: refit one promoted dress across 3 distinct body shapes; assert FIT_VALID on all 3."
+    },
+    {
+      "mt_id": "MT-317",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-316"
+      ],
+      "status": "PENDING",
+      "summary": "Define the production export package (mesh + UV/textures + materials + trims + animation cache + manifest) as the unit handed to Blender/UE."
+    },
+    {
+      "mt_id": "MT-318",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-317"
+      ],
+      "status": "PENDING",
+      "summary": "Execute production export as a Handshake JOB (not a bespoke thread), reusing the scheduler."
+    },
+    {
+      "mt_id": "MT-319",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-318"
+      ],
+      "status": "PENDING",
+      "summary": "Emit Flight Recorder events across the export lifecycle (started/packaged/written/failed/completed)."
+    },
+    {
+      "mt_id": "MT-320",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-319"
+      ],
+      "status": "PENDING",
+      "summary": "Generate the typed export manifest (asset list + hashes + target engine + version)."
+    },
+    {
+      "mt_id": "MT-321",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-320"
+      ],
+      "status": "PENDING",
+      "summary": "Run export headless-parallel (no window/focus change) so multiple exports proceed alongside operator work."
+    },
+    {
+      "mt_id": "MT-322",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-321"
+      ],
+      "status": "PENDING",
+      "summary": "Record process ownership for export jobs (owner_session/wp/role/started_at) and reclaim on close/failure/cancel."
+    },
+    {
+      "mt_id": "MT-323",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-322"
+      ],
+      "status": "PENDING",
+      "summary": "Generate a Blender import script (.py) that sets up the garment with materials + animation on import."
+    },
+    {
+      "mt_id": "MT-324",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-323"
+      ],
+      "status": "PENDING",
+      "summary": "Generate UE import (USD/Datasmith) with material mapping to UE materials."
+    },
+    {
+      "mt_id": "MT-325",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-324"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the render-pipeline handoff (export a reference plate/sequence for the downstream realism/render stack)."
+    },
+    {
+      "mt_id": "MT-326",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-325"
+      ],
+      "status": "PENDING",
+      "summary": "Stamp asset versioning into the package (garment version + fit + animation version) for reproducible re-export."
+    },
+    {
+      "mt_id": "MT-327",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-326"
+      ],
+      "status": "PENDING",
+      "summary": "Implement export retry/recovery (resume a failed export from the last completed asset)."
+    },
+    {
+      "mt_id": "MT-328",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-327"
+      ],
+      "status": "PENDING",
+      "summary": "Report export progress to the operator surface (per-asset progress + ETA-free status)."
+    },
+    {
+      "mt_id": "MT-329",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-328"
+      ],
+      "status": "PENDING",
+      "summary": "Implement batch export (a wardrobe of promoted garments -> the pipeline) as parallel jobs."
+    },
+    {
+      "mt_id": "MT-330",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-329"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the EXPORT_PACKAGE_COMPLETE ValidationDescriptor (all referenced assets present + hashes match before handoff)."
+    },
+    {
+      "mt_id": "MT-331",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-330"
+      ],
+      "status": "PENDING",
+      "summary": "Add ModelManual entries for the Tailor export/production commands (and bump MANUAL_VERSION)."
+    },
+    {
+      "mt_id": "MT-332",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-331"
+      ],
+      "status": "PENDING",
+      "summary": "Add the production-bridge integration test: promote garment -> export package as a job -> assert Blender-importable + complete + full FR trail."
+    },
+    {
+      "mt_id": "MT-333",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-332"
+      ],
+      "status": "PENDING",
+      "summary": "Implement SeamKind::Fold solver behavior: when a seam edge is marked Fold, emit a dihedral-angle constraint targeting fold_angle_deg instead of a zero-rest-length distance constraint, and wire fold_angle_deg from PanelSpec to the solver constraint buffer"
+    },
+    {
+      "mt_id": "MT-334",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-333"
+      ],
+      "status": "PENDING",
+      "summary": "Add `particle_distance_mm: f32` to `SimRunParams` and wire it through the `GarmentSpec`-to-`SolverMesh` tessellation pipeline so the operator/model can set mesh resolution per run, mirroring MD's Particle Distance parameter"
+    },
+    {
+      "mt_id": "MT-335",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-334"
+      ],
+      "status": "PENDING",
+      "summary": "Implement `SoftBodySpec` (closed volumetric mesh + volume constraint parameters) and wire it through the XPBD solver alongside cloth panels using the existing volume/pressure constraint (MT-020), so arbitrary imported OBJ/FBX meshes can be simulated as deformable soft-body props in the same solver pass as garments"
+    },
+    {
+      "mt_id": "MT-336",
+      "group": "SolverCore",
+      "depends_on": [
+        "MT-335"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a `PinConstraint` (per-particle positional lock, inv_mass = 0) and a `FreezeRegion` operator/model command that pins a named set of particles for the duration of a simulation run or until explicitly unpinned, mirroring MD's Pin and Freeze interactive tools"
+    },
+    {
+      "mt_id": "MT-337",
+      "group": "Collision",
+      "depends_on": [
+        "MT-336"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a `SolverMode::PreciseCollision` variant (or a `precise_self_collision: bool` flag in `SimRunParams`) that doubles the self-collision narrow-phase solve iterations per substep and tightens the repulsion alpha, mirroring MD's Precise Self-Collision mode for tight multi-layer garments"
+    },
+    {
+      "mt_id": "MT-338",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-337"
+      ],
+      "status": "PENDING",
+      "summary": "Implement primitive panel shape constructors (Rectangle, Circle/Ellipse, Polygon) that emit a closed EdgeShape outline into GarmentSpec as a new Panel"
+    },
+    {
+      "mt_id": "MT-339",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-338"
+      ],
+      "status": "PENDING",
+      "summary": "Implement edge-split operation on Panel EdgeShape outlines (subdivide a Line or Bezier edge at a parametric t-value, inserting a new vertex into the GarmentSpec panel outline)"
+    },
+    {
+      "mt_id": "MT-340",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-339"
+      ],
+      "status": "PENDING",
+      "summary": "Implement curvature editing operations on Panel EdgeShape outlines: promote a Line edge to Bezier, and expose control-handle drag (set_bezier_handles) as a CRDT-safe edit on the GarmentSpec panel"
+    },
+    {
+      "mt_id": "MT-341",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-340"
+      ],
+      "status": "PENDING",
+      "summary": "Implement reverse_seam_direction operation on Seam edges (flip the winding direction of a seam edge in the GarmentSpec, controlling which face is inside/outside after sewing)"
+    },
+    {
+      "mt_id": "MT-342",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-341"
+      ],
+      "status": "PENDING",
+      "summary": "Implement 3D-sketch-to-pattern tool: accept a polyline/spline drawn on or around the avatar mesh surface (3D Pen mode), project it via SDF closest-point, and flatten the resulting 3D curve to a GarmentSpec Panel outline using ARAP-consistent unfolding"
+    },
+    {
+      "mt_id": "MT-343",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-342"
+      ],
+      "status": "PENDING",
+      "summary": "Implement affine panel transform operations (scale_panel, rotate_panel, translate_panel) on the GarmentSpec Panel geometry as CRDT-safe edits, preserving cm units and grain direction through the transform"
+    },
+    {
+      "mt_id": "MT-344",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-343"
+      ],
+      "status": "PENDING",
+      "summary": "Implement auto_seal_panel operation that detects open endpoints in a Panel EdgeShape outline and closes them with a minimal bridging segment or arc, emitting the corrected outline via CRDT"
+    },
+    {
+      "mt_id": "MT-345",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-344"
+      ],
+      "status": "PENDING",
+      "summary": "Implement internal-line authoring on Panel geometry: add named internal edge records (InternalLine type with role: FoldLine | PleatLine | DartLine | StressSeam | Baseline) to GarmentSpec panels, distinct from the outer outline and seam edges, carried into UV/texture and solver constraint generation"
+    },
+    {
+      "mt_id": "MT-346",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-345"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fold seam line constraint generation from InternalLine records with role=FoldLine: derive a dihedral-angle constraint (target fold angle, fold direction normal) fed into the XPBD solver, distinct from seam join constraints"
+    },
+    {
+      "mt_id": "MT-347",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-346"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-panel snapshot/archive API (archive_panel_state, restore_panel_state) backed by tailor_garment_versions so individual pattern pieces can be snapshotted and restored independently of a full garment promotion"
+    },
+    {
+      "mt_id": "MT-348",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-347"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the bidirectional 2D-to-3D authority feedback loop: after each solver run, extract per-edge simulated arc-lengths from SolverResult and write them back to the GarmentSpec seam length annotations in tailor_panels, enabling the 2D editor to display actual draped edge lengths alongside authored lengths"
+    },
+    {
+      "mt_id": "MT-349",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-348"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fine-grained vertex and edge-segment translate operations on Panel EdgeShape outlines as CRDT-safe atomic edits (move_vertex, move_edge_segment) beyond the coarse replace-spec-json edit, enabling precise point-level authoring by models and operators"
+    },
+    {
+      "mt_id": "MT-350",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-349"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Free Sewing authoring operation exposing partial-edge sub-range [0,1] and numeric seam-length override on SeamEndpoint via the model-first API and CRDT edit surface"
+    },
+    {
+      "mt_id": "MT-351",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-350"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the 1:N segment sewing authoring pattern as a named SeamGroup type that maps one SeamEndpoint to an ordered list of N target SeamEndpoints with proportional gather distribution, validated as a composed SeamSpec chain"
+    },
+    {
+      "mt_id": "MT-352",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-351"
+      ],
+      "status": "PENDING",
+      "summary": "Extend the 1:N sewing authoring path to support partial-edge sub-range specification on each of the N target segments (combining Free Sewing range with 1:N distribution), producing proportionally distributed gather_ratio values at mesh generation"
+    },
+    {
+      "mt_id": "MT-353",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-352"
+      ],
+      "status": "PENDING",
+      "summary": "Implement topstitch as exported 3D polygon geometry: extrude internal guide lines (MT-132) into a thin ribbon mesh offset above the garment surface, apply smooth-corner beveling at path joints, and include the ribbon mesh in the glTF/USD production export package alongside the main garment mesh"
+    },
+    {
+      "mt_id": "MT-354",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-353"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a 3D-viewport seam authoring mode that enables spatial edge selection on draped panels in the 3D viewport and routes the selection to SeamSpec creation, supporting all sew variants (Segment, Free, 1:N, M:N) via the same SeamSpec authority surface used by the 2D authoring path"
+    },
+    {
+      "mt_id": "MT-355",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-354"
+      ],
+      "status": "PENDING",
+      "summary": "Implement an auto_sew authoring operation that analyzes placed panel edges in 3D (after initial arrangement MT-119) for proximity and matching arc length, proposes SeamSpec candidates, and presents them as a model-reviewable proposal batch via TailorPanelAiEditProposalRecorded before committing"
+    },
+    {
+      "mt_id": "MT-356",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-355"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a post-simulation garment sculpt tool that applies smooth brush-based displacement to the simulated mesh vertices (push/pull/smooth/relax), re-runs UV unfurl for affected panels, and stores the sculpt delta as an additive override layer on the garment authority row"
+    },
+    {
+      "mt_id": "MT-357",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-356"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentLibraryEntry and per-workspace library with Category/Style/Group hierarchy so garments, blocks, and templates are browsable, composable, and reusable across sessions"
+    },
+    {
+      "mt_id": "MT-358",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-357"
+      ],
+      "status": "PENDING",
+      "summary": "Define GarmentBlock and BlockBox type-contract so pattern groups sewn to a declared interface type are interchangeable across garments (MD Block system parity)"
+    },
+    {
+      "mt_id": "MT-359",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-358"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a unified Tailor Library browser panel (operator and model accessible) listing local garments, fabric presets, trim catalog, and starter templates by category with search and stable element IDs"
+    },
+    {
+      "mt_id": "MT-360",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-359"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a hierarchical Tailor Scene Object Browser panel listing all garments, avatars, trims, and layer ordering for a workspace session with per-item visibility toggle and stable element IDs"
+    },
+    {
+      "mt_id": "MT-361",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-360"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-panel draft snapshots (PSN-{uuid_v7}) within an in-progress garment draft so individual panel states can be checkpointed and restored without affecting other panels or triggering a full garment version promotion"
+    },
+    {
+      "mt_id": "MT-362",
+      "group": "GarmentAuthoring",
+      "depends_on": [
+        "MT-361"
+      ],
+      "status": "PENDING",
+      "summary": "Define a GarmentParticleView type as an alternative read-only projection of a simulated GarmentSpec: maps each panel to a set of 3D world-space particles from the SolverResult, enabling 3D-first editing commands (move particles, add pinch constraints) that propagate back to 2D panel vertices via an unfurl pass"
+    },
+    {
+      "mt_id": "MT-363",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-362"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GPU-resident rigid trim simulation by defining `GpuTrimBody` (position, quaternion, inv_mass, inertia_inv) as a WGSL buffer type and authoring a `rigid_integrate.wgsl` compute shader for the trim integration pass, replacing the CPU-only `parry3d` rigid step (MT-169) for the main production path"
+    },
+    {
+      "mt_id": "MT-364",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-363"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the kernel-side trim Glue/Tack placement handler that accepts a panel UV anchor, resolves the nearest cloth particle, constructs a TackDefinitionV1 array (length 1 = Glue; length >= 2 = Tack), writes to tailor_trim_placements, and emits TailorTrimPlaced"
+    },
+    {
+      "mt_id": "MT-365",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-364"
+      ],
+      "status": "PENDING",
+      "summary": "Extend the Glue/Tack placement handler to validate and store multi-point tack arrays, enforce per-tack r_local derivation from tack_anchor_json defaults when tack positions are unspecified, and expose the multi-anchor authoring path in the operator UI and MCP tool input schema"
+    },
+    {
+      "mt_id": "MT-366",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-365"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the trim OBJ/FBX mesh import pipeline: parse OBJ (and optionally FBX via tailor-fbx-import feature) into TrimMeshV1, compute area-weighted inertia tensor per TR-2.3, assign trim_category, write to tailor_trims with is_library_item flag, and emit TailorTrimImported"
+    },
+    {
+      "mt_id": "MT-367",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-366"
+      ],
+      "status": "PENDING",
+      "summary": "Author tack.wgsl (ball-joint cloth-rigid XPBD coupling per TR-4) and trim_contact.wgsl (one-sided trim-mesh-vs-cloth inequality constraint per TR-5) WGSL compute shaders, wire their bind groups and dispatch into the 8-pass substep sequence at the positions mandated by TR-3.1, and add WGSL/Rust binding validation per the pattern in MT-033"
+    },
+    {
+      "mt_id": "MT-368",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-367"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the pattern-to-rigid-body conversion algorithm (TR-8.1 nine-step sequence), its pre-simulation phase gate (TR-8.2), the Solidify keyframeable blend property (TR-8.3), the tailor_convert_panel_to_trim MCP tool, and the TailorPatternToTrimConverted EventLedger event"
+    },
+    {
+      "mt_id": "MT-369",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-368"
+      ],
+      "status": "PENDING",
+      "summary": "Seed the canonical default trim library: author and run a migration (or seeder) that inserts a minimum set of is_library_item=TRUE rows in tailor_trims covering every trim_category value in the CHECK domain (button, zipper, eyelet, rivet, hook_eye, snap, buckle, strap_segment, armor_plate, accessory), each with valid mesh_json, inertia_tensor_json, and tack_anchor_json"
+    },
+    {
+      "mt_id": "MT-370",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-369"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the register_trim_as_library_item MCP tool and kernel handler that marks an existing TRIM- row as is_library_item=TRUE with an operator-supplied display name, making it resolvable by name or category in subsequent GarmentSpec authoring sessions across the same workspace"
+    },
+    {
+      "mt_id": "MT-371",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-370"
+      ],
+      "status": "PENDING",
+      "summary": "Define ElasticInsert and BindingTape as specialized edge-bound trim types in GarmentSpec: ElasticInsert applies a stiffness-and-gather override to a seam edge (compliance + gather_ratio from a material preset); BindingTape adds a thin rigid strip mesh along a panel edge with its own mass and stiffness; author the corresponding tailor_edge_trims migration and wire both into the XPBD substep as tack+stiffness overrides on the edge particle range"
+    },
+    {
+      "mt_id": "MT-372",
+      "group": "TrimRigid",
+      "depends_on": [
+        "MT-371"
+      ],
+      "status": "PENDING",
+      "summary": "Implement topstitch-as-mesh-geometry generation: for each internal guide line marked as topstitch (MT-132), extrude a row of stitch loop geometry along the draped panel surface, apply polygon optimization (merge coplanar quads per MD pattern), smooth corner junctions at direction changes, and include the resulting stitch mesh in the promoted garment export package"
+    },
+    {
+      "mt_id": "MT-373",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-372"
+      ],
+      "status": "PENDING",
+      "summary": "Seed the missing Satin, Linen, and Spandex system presets into tailor_material_presets so every FabricPreset enum variant has a calibrated is_system_preset=true row, closing the gap between the enum declaration and the seeded library"
+    },
+    {
+      "mt_id": "MT-374",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-373"
+      ],
+      "status": "PENDING",
+      "summary": "Implement washed denim preset variants (stonewashed, acid-washed, bleach-washed) as seeded tailor_material_presets forks of the base denim preset with calibrated compliance, physics, and PBR albedo color diffs to match MD 2025.1 washed denim parity"
+    },
+    {
+      "mt_id": "MT-375",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-374"
+      ],
+      "status": "PENDING",
+      "summary": "Author tailor_material_assignments migration and implement per-panel material override: add PanelSpec.material_preset_id field, the tailor_material_assignments authority table, and the assignment-write path with guard_authority_write and TailorGarmentMaterialAssigned event"
+    },
+    {
+      "mt_id": "MT-376",
+      "group": "Fabric",
+      "depends_on": [
+        "MT-375"
+      ],
+      "status": "PENDING",
+      "summary": "Expose air_drag as a first-class field in FabricProperties LLM surface and MaterialParamsGpu so models can author flutter behavior and the WGSL aerodynamics pass reads it per-material rather than using a global constant"
+    },
+    {
+      "mt_id": "MT-377",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-376"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a dedicated UV editor viewport panel in the Tailor front-end showing all island placements in atlas space with per-island selection, zoom/pan, and island highlight synced to the 2D pattern editor selection"
+    },
+    {
+      "mt_id": "MT-378",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-377"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-garment UV atlas isolation so the UV editor panel and tailor_uv_inspect filter islands to the operator- or model-selected garment_id only"
+    },
+    {
+      "mt_id": "MT-379",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-378"
+      ],
+      "status": "PENDING",
+      "summary": "Add a UV coverage completeness check asserting all panels including back, side, sleeve, and lining panels receive a UV island in the packed atlas, and surface a blocking validation failure when any panel has no UV island"
+    },
+    {
+      "mt_id": "MT-380",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-379"
+      ],
+      "status": "PENDING",
+      "summary": "Implement UV-space texture bake that renders the 3D draped garment surface (albedo, normal, AO) into UV atlas texture space via an offscreen wgpu UV-space render pass and stores baked maps as artifact refs"
+    },
+    {
+      "mt_id": "MT-381",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-380"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a 2D graphic layer placement editor in the Tailor pattern panel showing the pattern piece outline with positioned graphic overlays and handles for translate/scale/rotate, writing changes via the CRDT ai_edit_proposal path"
+    },
+    {
+      "mt_id": "MT-382",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-381"
+      ],
+      "status": "PENDING",
+      "summary": "Implement all five GraphicBlendMode variants (Normal, Multiply, Screen, Overlay, Emboss) in the wgpu PBR fragment shader and validate each blend mode produces the correct compositing result against the base fabric texture"
+    },
+    {
+      "mt_id": "MT-383",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-382"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a base-color recolor pass in the PBR export pipeline that applies a hue/saturation/value transform to the albedo map at export time, producing a recolored colorway without modifying the source TailorPbrMaterial authority row"
+    },
+    {
+      "mt_id": "MT-384",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-383"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fur strand material as a post-MVP deferred feature: define the FurStrandMaterial type with strand density, length, and direction parameters, scaffold the tailor_fur_strands authority table, and document the deferred implementation path in the spec with a placeholder ValidationDescriptor stub"
+    },
+    {
+      "mt_id": "MT-385",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-384"
+      ],
+      "status": "PENDING",
+      "summary": "Implement post-simulation all-quad mesh re-topology using the isotropic remeshing approach (pair adjacent triangles to quads along shortest diagonal) in tailor-solver, producing a quad mesh that preserves UV island boundaries and grain direction, exported alongside the triangle mesh in glTF/USD"
+    },
+    {
+      "mt_id": "MT-386",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-385"
+      ],
+      "status": "PENDING",
+      "summary": "Implement topstitch polygon count optimization that collapses near-degenerate triangles generated by topstitch edge insertion before export, maintaining a maximum edge-length ratio threshold and emitting a TailorTopstitchOptimized event"
+    },
+    {
+      "mt_id": "MT-387",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-386"
+      ],
+      "status": "PENDING",
+      "summary": "Implement smooth corner geometry for topstitch paths by inserting arc-approximating segments at path vertices where the interior angle is less than 150 degrees, with a configurable bevel radius in mm"
+    },
+    {
+      "mt_id": "MT-388",
+      "group": "UvTexture",
+      "depends_on": [
+        "MT-387"
+      ],
+      "status": "PENDING",
+      "summary": "Implement generate_fabric_texture MCP tool: accepts a text prompt and optional reference image artifact_id, routes to a diffusion-capable LlmClient or image-generation backend, returns a texture artifact_id that can be assigned to a garment panel's albedo slot via assign_material or tailor_graphic_layer_add"
+    },
+    {
+      "mt_id": "MT-389",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-388"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a garment/trim isolate-selection toggle in the Tailor viewport renderer: when active, only the selected garment or trim body is rendered (all others hidden); toggling off restores the full scene; exposed as a stable front-end control for parallel-model interaction and as a capture_view named-camera variant"
+    },
+    {
+      "mt_id": "MT-390",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-389"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Toon wgpu render pipeline in ClothViewport with configurable shading bands, outline pass, rim lighting, emissive color, and MatCap material mode, gated behind a cargo feature toon-shader per the post-MVP deferral note in Section 13.9"
+    },
+    {
+      "mt_id": "MT-391",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-390"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a Schematic render mode in ClothViewport that renders the garment as a technical flat drawing with seam edges, topstitch lines, grain direction arrows, and optional measurement callouts, captured as a TailorVisualCapture with render_mode = 'schematic'"
+    },
+    {
+      "mt_id": "MT-392",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-391"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a turntable capture sequence that drives the camera animation track through a configurable 360-degree orbit, captures a frame at each step via ClothViewport::capture_frame, and packages the result as an ordered PNG sequence artifact with a manifest"
+    },
+    {
+      "mt_id": "MT-393",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-392"
+      ],
+      "status": "PENDING",
+      "summary": "Implement MatCap material mode in ClothViewport as a dedicated fragment shader path that samples a MatCap texture using view-space normal UV coordinates, selectable via RenderMode::MatCap with a matcap_texture_ref in ViewportConfig"
+    },
+    {
+      "mt_id": "MT-394",
+      "group": "RenderViewportExport",
+      "depends_on": [
+        "MT-393"
+      ],
+      "status": "PENDING",
+      "summary": "Extend the glTF morph-target export (MT-249) and the Alembic workaround path (MT-252) to carry blend-shape/morph channel animation weights as time-sampled data, matching MD 2026.0 morph animation capability"
+    },
+    {
+      "mt_id": "MT-395",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-394"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a seam mutation operation (edit_seam MCP tool and CRDT delta) that updates gather_ratio and SeamEndpoint::range on an existing SeamSpec in a draft GarmentSpec without re-authoring the entire garment"
+    },
+    {
+      "mt_id": "MT-396",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-395"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a reverse_seam authoring operation that swaps SeamSpec.from and SeamSpec.to endpoints on an existing draft seam, correcting inside/outside face orientation without re-authoring the full GarmentSpec"
+    },
+    {
+      "mt_id": "MT-397",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-396"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a delete_seam authoring operation that removes a SeamSpec entry from a draft GarmentSpec via a CRDT tombstone, emits a TailorPanelCrdtUpdateRecorded event, and allows the garment to be re-simmed with the panels decoupled"
+    },
+    {
+      "mt_id": "MT-398",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-397"
+      ],
+      "status": "PENDING",
+      "summary": "Implement FabricMaterialHint derivation from GarmentSpec.natural_description and inject it into the Tailor ContextBundle so models receive a pre-resolved archetype hint without reasoning about raw compliance values"
+    },
+    {
+      "mt_id": "MT-399",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-398"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a model-steerable avatar pose generation tool that accepts a natural-language pose description or a reference image ArtifactStore ref, invokes the kernel LlmClient with a pose-estimation prompt, and converts the output joint rotations to a PoseEditRequest sequence that drives the IK-mode avatar joint updater"
+    },
+    {
+      "mt_id": "MT-400",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-399"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentCodeRcDecoder with panel template factories for tshirt, shirt, dress, pants, skirt, jacket, hood, sleeve garment categories, decoding up to 76 normalized f32 params into a full cm GarmentSpec"
+    },
+    {
+      "mt_id": "MT-401",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-400"
+      ],
+      "status": "PENDING",
+      "summary": "Implement NGL-structured garment planning tool that transforms a natural-language operator brief into a NGL intermediate description (garment category, neckline, sleeve length, fit, ease, layer count) before panel shape generation, and inject it into ContextBundle.ngl_description"
+    },
+    {
+      "mt_id": "MT-402",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-401"
+      ],
+      "status": "PENDING",
+      "summary": "Implement image-input garment authoring path in TailorModelAdapter: accepts an image artifact_id (reference photo or sketch) alongside an optional text brief, passes both to a vision-capable LlmClient call, and produces a GarmentSpec from the visual decomposition"
+    },
+    {
+      "mt_id": "MT-403",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-402"
+      ],
+      "status": "PENDING",
+      "summary": "Implement estimate_fabric_params MCP tool with DiffXPBD differentiable XPBD gradient-descent backend: accepts a target drape image artifact, runs forward-backward passes to optimise FabricProperties to match the observed drape, returns a suggested edit_garment patch"
+    },
+    {
+      "mt_id": "MT-404",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-403"
+      ],
+      "status": "PENDING",
+      "summary": "Implement generate_avatar_pose MCP tool: accepts a text keyword description or reference image artifact_id, calls a vision-language LlmClient to produce a PoseSpec (joint angles in degrees), applies it to a tailor_avatars body proxy, and emits TailorAvatarPoseGenerated"
+    },
+    {
+      "mt_id": "MT-405",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-404"
+      ],
+      "status": "PENDING",
+      "summary": "Implement partial-pattern completion path in author_garment: when the submitted GarmentSpec contains incomplete panels (panels with vertices_cm empty or fewer than 3 vertices) alongside a completion_hint, route to a diffusion-decoder backend that fills in the missing panel shapes and seams"
+    },
+    {
+      "mt_id": "MT-406",
+      "group": "ModelFirstApi",
+      "depends_on": [
+        "MT-405"
+      ],
+      "status": "PENDING",
+      "summary": "Implement GarmentModelAdapter trait extension point: a named adapter registry entry that routes TailorModelAdapter calls to a specialized garment foundation model (AIpparel-style) via a registered model_id, alongside the general LlmClient path, selectable per workspace or per call"
+    },
+    {
+      "mt_id": "MT-407",
+      "group": "Animation",
+      "depends_on": [
+        "MT-406"
+      ],
+      "status": "PENDING",
+      "summary": "Implement keyframeable Trim Weight (trim_weight_scale track) in MaterialAnimationTracks and wire it through MaterialFrameParams per-frame upload to match MD 2025.2 keyframeable Trim Weight"
+    },
+    {
+      "mt_id": "MT-408",
+      "group": "Animation",
+      "depends_on": [
+        "MT-407"
+      ],
+      "status": "PENDING",
+      "summary": "Implement keyframeable Tack Strength (tack_strength and tack_compliance tracks) in MaterialAnimationTracks and expose tailor_keyframe_tack_strength MCP tool to match MD 2025.2 animatable tack constraints"
+    },
+    {
+      "mt_id": "MT-409",
+      "group": "Animation",
+      "depends_on": [
+        "MT-408"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the positioned wind source as a first-class `WindActor` scene object (position, direction, cone angle, strength, turbulence, radius falloff) fed into `WindAnimationTracks` and uploaded to `GpuSimParams.wind` each substep, mirroring MD's positioned Wind actor"
+    },
+    {
+      "mt_id": "MT-410",
+      "group": "Animation",
+      "depends_on": [
+        "MT-409"
+      ],
+      "status": "PENDING",
+      "summary": "Implement automatic motion conversion from imported FBX animation tracks to Tailor's canonical AnimationDraft (AvatarBonePoseTrack entries), including frame-rate normalization, joint-name re-mapping via JointMapper, and emission of a TailorAnimationImported event linking the resulting tailor_animations row"
+    },
+    {
+      "mt_id": "MT-411",
+      "group": "Animation",
+      "depends_on": [
+        "MT-410"
+      ],
+      "status": "PENDING",
+      "summary": "Enumerate and wire the six MD-parity keyframeable fabric-property slots (Shrinkage Weft, Shrinkage Warp, Solidify, Pressure, Tack Strength, Trim Weight) as named Track<T> variants in the animation property registry, with per-substep GPU uniform upload for each."
+    },
+    {
+      "mt_id": "MT-412",
+      "group": "Animation",
+      "depends_on": [
+        "MT-411"
+      ],
+      "status": "PENDING",
+      "summary": "Implement TackStrength as a keyframeable Track<f32> property animating the force scalar of each named tack constraint over the timeline, enabling progressive stitching/unstitching of trim-to-garment attachments."
+    },
+    {
+      "mt_id": "MT-413",
+      "group": "Animation",
+      "depends_on": [
+        "MT-412"
+      ],
+      "status": "PENDING",
+      "summary": "Implement named timeline markers as a Vec<TimelineMarker> on the Timeline type, exposed in the animation authoring API and stored in tailor_animations, enabling section labeling, named-range export anchors, and timeline navigation."
+    },
+    {
+      "mt_id": "MT-414",
+      "group": "Animation",
+      "depends_on": [
+        "MT-413"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a recording session mode on the animation API: begin_recording()/end_recording() bracket a live playback pass during which wind and avatar-pose parameter changes are auto-written as keyframes at their current frame, producing a keyframe track from real-time operator/model interaction."
+    },
+    {
+      "mt_id": "MT-415",
+      "group": "Animation",
+      "depends_on": [
+        "MT-414"
+      ],
+      "status": "PENDING",
+      "summary": "Extend Alembic export (MT-252) to write named morph-weight channel tracks as AbcGeom::IFloatGeomParam channels alongside the cloth mesh cache, and implement Alembic morph-channel import so avatar morph animation can drive cloth re-drape over the timeline."
+    },
+    {
+      "mt_id": "MT-416",
+      "group": "Animation",
+      "depends_on": [
+        "MT-415"
+      ],
+      "status": "PENDING",
+      "summary": "Explicitly wire the rigid trim simulation step (MT-169, parry3d rigid body step) into the sim-over-timeline loop (MT-289) so each animated frame advances both the cloth XPBD pass and the trim rigid-body pass, with two-way coupling preserved across frames."
+    },
+    {
+      "mt_id": "MT-417",
+      "group": "Animation",
+      "depends_on": [
+        "MT-416"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a reset_to_rest() API call on the ClothSolver trait that rewinds all particle positions and velocities to the initial panel arrangement (as computed by MT-119) without clearing the loaded garment, seams, or material params, enabling parameter-adjust-then-re-sim cycles without full reload."
+    },
+    {
+      "mt_id": "MT-418",
+      "group": "Animation",
+      "depends_on": [
+        "MT-417"
+      ],
+      "status": "PENDING",
+      "summary": "Add frame-range parameters (start_frame: u32, end_frame: u32) to the glTF and Alembic export paths so operators and models can export a named sub-range of the cached animation, with optional marker-name resolution for start/end anchors."
+    },
+    {
+      "mt_id": "MT-419",
+      "group": "Animation",
+      "depends_on": [
+        "MT-418"
+      ],
+      "status": "PENDING",
+      "summary": "Implement FBX animated garment export with joint-animation auto-key bake: for each frame in the export range, write a joint transform keyframe even on frames with no authored key, so the exported FBX is a fully-baked dense curve that downstream DCC tools can import without drift."
+    },
+    {
+      "mt_id": "MT-420",
+      "group": "Animation",
+      "depends_on": [
+        "MT-419"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a particle pin constraint (world-space position lock on selected cloth particles) and a simulation freeze command (halt solver advance and hold all particle positions fixed) as animation authoring tools, exposed in both the MCP tool surface and the viewport UI."
+    },
+    {
+      "mt_id": "MT-421",
+      "group": "Animation",
+      "depends_on": [
+        "MT-420"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the FBX joint-animation export bake pass (R-ANIM-039) that writes explicit keyframes at every frame in the export range to prevent interpolation drift when consuming FBX in third-party DCC tools"
+    },
+    {
+      "mt_id": "MT-422",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-421"
+      ],
+      "status": "PENDING",
+      "summary": "Add `body_friction_override: Option<f32>` to `tailor_avatars` (or `ClothBodyProxy`) so a per-avatar friction multiplier overrides the fabric-level `friction_coefficient` in the cloth-body Coulomb friction pass, mirroring MD's Avatar friction property"
+    },
+    {
+      "mt_id": "MT-423",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-422"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a parameterized built-in avatar library with seeded body-type archetypes (female/male, petite/standard/tall, straight/hourglass/athletic) driven by anthropometric measurement sliders that write to tailor_avatars + tailor_body_proxies authority rows"
+    },
+    {
+      "mt_id": "MT-424",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-423"
+      ],
+      "status": "PENDING",
+      "summary": "Implement IK-mode avatar pose editing that accepts end-effector joint targets, drives a chain IK solver (FABRIK or analytical 2-bone) over the tailor_avatars skeleton, and updates the linked ClothBodyProxy capsule positions for the next sim run"
+    },
+    {
+      "mt_id": "MT-425",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-424"
+      ],
+      "status": "PENDING",
+      "summary": "Implement automatic joint-mapping from imported FBX/glTF skeleton hierarchies (Daz 3D, Mixamo, MetaHuman, Character Creator naming conventions) to the canonical Tailor joint name set used by CollisionCapsule.joint_name, writing a normalized ClothBodyProxy from the imported rig"
+    },
+    {
+      "mt_id": "MT-426",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-425"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a first-class custom avatar import pipeline (OBJ/FBX input) that emits a tailor_avatars row, auto-extracts 25-field body measurements, generates a ClothBodyProxy capsule chain, and stores both as authority rows ready for garment simulation"
+    },
+    {
+      "mt_id": "MT-427",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-426"
+      ],
+      "status": "PENDING",
+      "summary": "Implement blend-shape avatar import that stores multiple body-proxy states keyed by morph-target weight and exposes a BlendShapeRefitRequest API (blend_t interpolation) that warm-starts the XPBD solver from the cached prior equilibrium for interactive body-shape exploration"
+    },
+    {
+      "mt_id": "MT-428",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-427"
+      ],
+      "status": "PENDING",
+      "summary": "Implement morph-target delta import for avatars: accept an OBJ morph-delta file (vertex displacements) against a registered base AVT- mesh, compute the displaced body proxy geometry, and persist the result as a secondary BPX- row linked to the same AVT-"
+    },
+    {
+      "mt_id": "MT-429",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-428"
+      ],
+      "status": "PENDING",
+      "summary": "Implement MetaHuman .dna format import: parse the binary DNA file to extract skeleton joint positions and head/body mesh bind poses, generate a ClothBodyProxy capsule chain via joint mapping, store the AVT- + BPX- rows, and flag the garment for MetaHuman-compatible export sizing on promotion"
+    },
+    {
+      "mt_id": "MT-430",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-429"
+      ],
+      "status": "PENDING",
+      "summary": "Implement glTF 2.0 and VRM 1.0 avatar import: parse the skeletal hierarchy and bind-pose joint transforms from a .glb or .vrm file, run joint mapping to the canonical Tailor joint name set, generate ClothBodyProxy, and persist AVT- + BPX- rows"
+    },
+    {
+      "mt_id": "MT-431",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-430"
+      ],
+      "status": "PENDING",
+      "summary": "Add a Preserve Topology refit option (RefitMode::RedrapeOnly with topology_lock=true) that explicitly prohibits panel subdivision or edge count change during the re-drape pass, matching MD 2025.1 Preserve Topology option, and expose this flag in the refit_garment MCP tool"
+    },
+    {
+      "mt_id": "MT-432",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-431"
+      ],
+      "status": "PENDING",
+      "summary": "Implement per-garment fit property controls (ease offsets per body region, tightness blend factor) stored on tailor_garment_fits rows, and expose real-time Stress, Strain, and Pressure heatmap visualization layers in the Tailor viewport for the fitted garment"
+    },
+    {
+      "mt_id": "MT-433",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-432"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fit map projection from 3D fitted garment vertices back onto the 2D pattern panel UV space, producing a texture-resolution heatmap image per panel that can be displayed in the 2D pattern editor view alongside the original panel outline"
+    },
+    {
+      "mt_id": "MT-434",
+      "group": "AutoFit",
+      "depends_on": [
+        "MT-433"
+      ],
+      "status": "PENDING",
+      "summary": "Implement fabric-aware strain map computation that weights the per-vertex strain values by the panel's warp/weft anisotropic compliance, distinguishing directional strain (warp-direction over-stretch vs weft-direction over-stretch) and producing separate warp-strain and weft-strain heatmap channels"
+    },
+    {
+      "mt_id": "MT-435",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-434"
+      ],
+      "status": "PENDING",
+      "summary": "Implement named ExportPreset records (EPR-{uuid_v7}) that bundle export format, option flags, and pipeline configuration so operators and models can save and reload repeatable export configurations"
+    },
+    {
+      "mt_id": "MT-436",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-435"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a round-trip Handshake Garment Archive (.hgz) export and import that bundles GarmentSpec, material presets, UV sets, trim definitions, and animation cache into one portable file transferable between Handshake instances"
+    },
+    {
+      "mt_id": "MT-437",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-436"
+      ],
+      "status": "PENDING",
+      "summary": "Implement OBJ + .mtl static mesh importer for avatar, prop, and trim source geometry into tailor_avatars / tailor_body_proxies / tailor_trims authority tables"
+    },
+    {
+      "mt_id": "MT-438",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-437"
+      ],
+      "status": "PENDING",
+      "summary": "Implement FBX static mesh import (rigged or unrigged avatar/prop) into tailor_avatars and tailor_body_proxies, gated behind the tailor-fbx-import Cargo feature, distinct from the FBX animation import path (MT-284)"
+    },
+    {
+      "mt_id": "MT-439",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-438"
+      ],
+      "status": "PENDING",
+      "summary": "Implement glTF 2.0 and VRM avatar static mesh import into tailor_avatars / tailor_body_proxies, reusing the gltf crate already present for animation import but targeting rest-pose geometry rather than animation tracks"
+    },
+    {
+      "mt_id": "MT-440",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-439"
+      ],
+      "status": "PENDING",
+      "summary": "Document and implement the Alembic import shim (Python/Blender-headless read + OBJ-sequence conversion) so Tailor can ingest pre-simulated cloth caches from Houdini and Maya as GarmentFrame sequences"
+    },
+    {
+      "mt_id": "MT-441",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-440"
+      ],
+      "status": "PENDING",
+      "summary": "Extend the USD garment export (MT-250) to embed Chaos Cloth simulation-property attributes on the UsdGeomMesh so Unreal Engine 5 Chaos Cloth can re-simulate the garment using Tailor's fabric parameters without manual re-setup"
+    },
+    {
+      "mt_id": "MT-442",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-441"
+      ],
+      "status": "PENDING",
+      "summary": "Implement MDD (Lightwave/Maya point-cache) and PC2 (3ds Max/Houdini geometry-cache) binary export of simulated garment frame sequences as fast lightweight alternatives to OBJ sequence for DCC pipelines that support these formats natively"
+    },
+    {
+      "mt_id": "MT-443",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-442"
+      ],
+      "status": "PENDING",
+      "summary": "Implement DXF R12 export of 2D pattern panel outlines from GarmentSpec (with seam allowances and grain lines) so physical-production operators can send patterns directly to flatbed cutters and plotters"
+    },
+    {
+      "mt_id": "MT-444",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-443"
+      ],
+      "status": "PENDING",
+      "summary": "Implement MetaHuman DNA import into tailor_avatars using the Epic Games MetaHuman DNA C library (via FFI or a pre-baked mesh export path), storing the neutral-pose mesh and bone hierarchy so garments auto-fit MetaHuman proportions"
+    },
+    {
+      "mt_id": "MT-445",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-444"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the MetaHuman garment export package that bundles the promoted garment mesh with MetaHuman-specific skeletal binding data so MetaHuman Creator can re-size the garment automatically when body sliders are adjusted"
+    },
+    {
+      "mt_id": "MT-446",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-445"
+      ],
+      "status": "PENDING",
+      "summary": "Document and stub the LiveSync / EveryWear-equivalent real-time engine link as explicitly deferred post-v1, implement a watched-folder live-sync bridge for UE that auto-pushes the latest promoted garment USD/glTF to a watched UE Content directory on promotion, and record the MOAT-7 deferred-requirement note in T-PIPELINE-INTEROP"
+    },
+    {
+      "mt_id": "MT-447",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-446"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a self-contained Tailor project archive export/import (.hsk-garment ZIP bundle: GarmentSpec JSON + material presets + UV atlas + trim meshes + animation cache refs + garment_version chain) as the portable session-restore and team-sharing artifact"
+    },
+    {
+      "mt_id": "MT-448",
+      "group": "ProductionBridge",
+      "depends_on": [
+        "MT-447"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a named export-configuration preset system so operators and models can save and recall repeatable import/export parameter sets (format, unit scale, feature flags, seam-allowance defaults, chaos-cloth flags, UE bridge path) as reusable presets"
+    }
+  ]
+}

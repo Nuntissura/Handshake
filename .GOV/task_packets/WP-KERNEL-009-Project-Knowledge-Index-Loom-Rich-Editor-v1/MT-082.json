@@ -1,0 +1,185 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-082",
+  "title": "SourceIngestionAndEvidence-082-SourceKindRegistry",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-082.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define source kinds for code, spec module, WP contract, MT contract, taskboard, changelog, workflow JSON, receipt, research note, PDF, media transcript, and UserManual. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "SourceKindRegistry leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SourceKindRegistry is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d8b4eee",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5d8b4eee; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:12:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "CRITICAL DEPENDENCY FOR MT-091: the secret_scan capability flag is defined here. ALL text-bearing kinds (code_file, markdown_text, rich_document, pdf, media_transcript, governance_artifact, operator_research_note) and external_import are secret_scan=true, so NO text kind bypasses the secret preflight. This is load-bearing: engine.rs gates BOTH the whole-file preflight and the span redaction pass on spec.capabilities.secret_scan. If a future kind sets secret_scan=false while span_extraction=true, raw secrets would skip redaction. Recommend a test invariant asserting (span_extraction && text-decodable) => secret_scan.",
+        "IngestionCapabilities (kinds.rs:107) had Deserialize removed by a cross-lane edit (static-str fields). DB projection knowledge_ingestion_kind_registry is Serialize/sync-only — acceptable, code is authority.",
+        "Dotfiles (.env/.gitignore) yield extension=None -> kind=None -> Skipped/UNSUPPORTED_FORMAT, so a .env is never read or secret-scanned (safe from leak, but also silently ignored; MT-081 allowlist also does not deny .env)."
+      ],
+      "evasion_probes": [
+        "md claimed by both markdown_text and operator_research_note resolved by root_kind in detect_kind CONFIRMED.",
+        "unknown binary -> None -> typed UNSUPPORTED_FORMAT skip, never guessed CONFIRMED (pipeline test unsupported_binary_is_skipped_typed_with_receipt).",
+        "*.transcript.json forced to MediaTranscript regardless of root CONFIRMED.",
+        "external_import bucket has span_extraction=false (hash+provenance only) — no span leak surface."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/kinds.rs (full)",
+        "src/backend/handshake_core/migrations/0161_knowledge_ingestion_kind_registry.sql (referenced)",
+        "engine.rs:1009,1220 secret_scan capability gating cross-checked"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-082 requires a typed, code-authoritative SourceKindRegistry (primary kinds + governance sub-kinds + per-kind capability matrix + root-kind-aware detection) projected into PostgreSQL as non-authoritative durable state. The implementation in kinds.rs delivers exactly this, is wired live into the ingestion engine, aligns with current Master Spec v02.194 section 2.3.13.11 projection law, and is proven against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "kinds.rs:33-42 defines the 8 primary IngestionSourceKind variants matching MT scope (code_file, markdown_text, rich_document, pdf, media_transcript, governance_artifact, operator_research_note, external_import); kinds.rs:76-85 defines the GovernanceSubKind contract vocabulary (spec_module/wp_contract/mt_contract/taskboard/changelog/workflow_json/receipt/user_manual) covering the MT's named source classes.",
+        "kinds.rs:107-120 per-kind IngestionCapabilities matrix (span_extraction, anchor_kinds, supports_partial_extraction, requires_text_layer_detection, secret_scan) satisfies the MT capability requirement; PDF correctly sets requires_text_layer_detection=true + supports_partial_extraction=true (kinds.rs:186-199).",
+        "detect_kind (kinds.rs:291-320) is root-kind-aware and returns None for unknown extensions = typed unsupported_format ('never guessed'), satisfying the constraint that PDF/media/unknown failures must be typed not silent. Live-wired in engine.rs:283 and engine.rs:982.",
+        "Registry is consumed by the real ingestion engine, not dead code: engine.rs:33 imports detect_kind/spec_for/detect_governance_sub_kind; engine.rs:367 records governance sub-kind in provenance; engine.rs:1001-1011 gates the secret preflight on the kind. Confirms sub_rule_1: no placeholder reachable from required behavior.",
+        "sub_rule_2 real-PG proof: knowledge_ingestion_policy_tests.rs:357-416 projection_sync_mirrors_code_registry_and_removes_stale_rows runs on real PostgreSQL via ingestion_pg(), plants a stale legacy_kind row, asserts sync_kind_projection purges it, projects exactly 8 rows, reads back the PDF capability JSONB matrix, and proves idempotent re-sync (count stays 8). Not implementer-authored mock.",
+        "migration 0161 (sql:15-38) creates knowledge_ingestion_kind_registry with CHECK constraints and registers authority_class='projection' in knowledge_schema_registry, matching Master Spec 2.3.13.11 'Generated ... projections only' law; deleting it loses nothing (code is authority).",
+        "Spec alignment: v02.194 section 2.3.13.11 (02-system-architecture.md:2700) defines KnowledgeSource as carrying 'source kind'; section 2711 fixes the projection-not-authority law; no SQLite/sidecar authority used. No DEC-008 forbidden external search engine, no Docker, no markdown-vault authority.",
+        "sub_rule_3: MT contract lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323, completed_by=null, status=READY_FOR_VALIDATION; implementer did not self-sign COMPLETED.",
+        "Prior adversarial concern (secret-scan bypass risk) is hardened: kinds.rs:442-503 every_span_extracting_text_kind_enables_secret_scan asserts (span_extraction && text-decodable) => secret_scan with a non-vacuous ==7 count guard, closing the load-bearing MT-091 dependency. Minor aside (not MT-082 defect): dotfiles like .env yield extension=None -> Skipped/UNSUPPORTED and are silently ignored by detection, which is an MT-081 allowlist note, not a kind-registry fault.",
+        "Governance paperwork aside (non-blocking per ground rules): packet cites v02.192 anchors that resolve cleanly to v02.194 same section numbers; no impact on code correctness."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-082.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/kinds.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0161_knowledge_ingestion_kind_registry.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_policy_tests.rs (mt_082_kind_registry mod, lines 347-417)",
+        "engine.rs wiring grep (detect_kind/spec_for/detect_governance_sub_kind/secret_scan gating)",
+        "git show --stat 5d8b4eee; git log --grep MT-082 (5d8b4eee impl, 5876feaf hardening)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md section 2.3.13.11",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-152",
+  "title": "RichDocumentCore-152-EmbedReferenceModel",
+  "group": "RichDocumentCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-152.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Store embeds as artifact/media/source IDs or typed URLs, never random absolute paths. This MT belongs to RichDocumentCore. Build the canonical structured document model backing the editor, Loom, UserManual, and projections.",
+    "relevant_files": [
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/commands/",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Rich documents are PostgreSQL/EventLedger/CRDT-backed structured block documents, not Markdown vault authority.",
+      "All rich document state must preserve Raw/Derived/Display separation and stable entity IDs."
+    ],
+    "expected_behavior": "EmbedReferenceModel leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "EmbedReferenceModel is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T07:35:00Z",
+        "kind": "hardening_v2",
+        "finding": "Embed typed-reference validation never enforced on the document save path (only the side table CHECK)",
+        "fix": "create/save validate every content_json embed block through EmbedTarget::parse_raw BEFORE commit (400 fail-closed) and sync knowledge_document_embeds AFTER commit via new replace_knowledge_document_embeds (delete-all+insert tx); block_embed_target_raw is the single canonical attrs reader shared with the projection renderer",
+        "commit": "aa0ce3f6",
+        "tests": "knowledge_documents_api_tests 6 passed incl. mt152_save_path_validates_and_persists_content_embeds (create+save sync, 6 dangerous targets reject pre-commit, no-embed save empties table); knowledge_document_model_tests 6 passed regression"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Embed typed-reference validation is never enforced on the document save path",
+          "evidence": "save_knowledge_rich_document_version (knowledge.rs:4532) stores content_json as-is and only re-extracts backlinks (api:466-496); it never extracts/validates embed blocks into knowledge_document_embeds. upsert_knowledge_document_embed (knowledge.rs:4801) is a separate API not called on save. So an image/video block with attrs.target=/abs/path or file:// is persisted unvalidated.",
+          "fix": "On save, project content_json embed blocks through EmbedTarget::new and upsert into knowledge_document_embeds (or reject the save), so the typed-reference law actually governs document content, not just the side table.",
+          "status": "FIXED",
+          "fixed_commit": "aa0ce3f6"
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "embeds are stored as artifact/media/source ids or typed URLs, never random absolute paths",
+          "reality": "true for rows in knowledge_document_embeds (Rust constructor + DB CHECK both proven), but the document own embed blocks in content_json are saved without that validation and are what projections render"
+        }
+      ],
+      "missing_tests": [
+        "test: saving a document whose image block carries an absolute-path src is rejected or sanitized (no test exercises content_json embed validation on save)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-152 EmbedReferenceModel requires rich-document embeds to be stored as typed artifact/media/source ids or typed http(s) URLs, never random absolute paths, with PostgreSQL/EventLedger authority. The code delivers a typed EmbedTarget law enforced both at the side-table DB CHECK and (after the adversarial-v2 fix) on the document content_json save path before commit, with real managed-PostgreSQL HTTP integration proof. The prior adversarial finding (save-path bypass) is genuinely closed.",
+      "findings": [
+        "embed.rs:75-100 EmbedTarget::new is the only public constructor and fail-closed rejects absolute paths (is_absolute_path covers POSIX /, Windows drive-letter, UNC \\\\, and file: URLs at embed.rs:293-310), non-http url-kind values, and scheme-bearing id values; url_scheme (embed.rs:191-219) defeats tab/newline/case obfuscation so javascript:/data: cannot hide in an id field.",
+        "embed.rs:154-182 validate_block_embeds walks every is_embed() block through EmbedTarget::parse_raw and returns the first (block_id,error) so a bad target rejects the whole write; block_embed_target_raw (embed.rs:122-134) is the single canonical attrs reader shared with projection.rs:41, so the same bytes are governed by the same law on both render and save.",
+        "Save-path enforcement is real and pre-commit: knowledge_documents.rs:977-979 (save) and :654 (create) call validate_block_embeds and 400 fail-closed before db.save_knowledge_rich_document_version; this closes the adversarial-v2 MEDIUM (embeds validated only in the side table). Post-commit the side table is resynced via replace_knowledge_document_embeds (knowledge_documents.rs:1049).",
+        "storage/knowledge.rs:5580-5633 replace_knowledge_document_embeds is a real transactional delete-all-for-document + insert into the knowledge_document_embeds PostgreSQL table (mirrors backlinks sync), so the table can never drift from content; migration 0281 adds DB-level CHECK constraints rejecting absolute/UNC/file:/drive-letter ref_value and enforcing http(s) for url kind, and registers the table as authority-class in knowledge_schema_registry.",
+        "Real-PG proof exists: tests/knowledge_documents_api_tests.rs:526 mt152_save_path_validates_and_persists_content_embeds spins a real Axum server over PostgresDatabase::connect(pg.schema_url) (test:114-115), creates+saves a doc with a media-id embed (embeds_persisted==1), resaves with media-id+https-url (==2), asserts 6 dangerous targets (javascript:/JaVa\\tScRiPt:/data:/C:\\/etc/passwd/file:) all 400 fail-closed with doc_version unchanged (test:608-651), and a no-embed save empties the table (test:653-676). This touches the real Handshake-owned PG resource, not an implementer mock.",
+        "Self-cert not present: lifecycle.claimed_by=null, completed_by=null, status=READY_FOR_VALIDATION. No deferred-live escapes (no todo!/unimplemented!/*Unavailable) reachable from the save path; the test SKIP guard is a managed-PG-availability skip, not a live-path placeholder.",
+        "Aside (non-blocking, paperwork): the MT cites spec anchor 2.3.13.11 (v02.192); exact-section resolution against current v02.194 is Integration Validator scope. Conceptual alignment with §2.3.13 storage traits + Raw/Derived/Display (CX-100) + local-first PostgreSQL authority is clear and uncontradicted."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-152.json",
+        "src/backend/handshake_core/src/knowledge_document/embed.rs",
+        "src/backend/handshake_core/migrations/0281_knowledge_document_embeds.sql",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (save/create embed validation lines 654,699,843,977,1049)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5580-5648 replace_knowledge_document_embeds",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:507-676 mt152_save_path_validates_and_persists_content_embeds",
+        "git commits b506d832, aa0ce3f6, bf0c62a5, dd3056f5 (show --stat)",
+        "spec module index grep in .GOV/spec/master-spec-v02.194/spec-modules/"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

@@ -1,0 +1,879 @@
+{
+  "schema": "wp009.adversarial_parity@1",
+  "generated_at_utc": "2026-06-12T04:30:00Z",
+  "reviewer": "adversarial-parity-reviewer",
+  "operator_order": "adversarial review of the BUILT editor surface (TiptapMonacoIntegration MT-161..176 + editor side of RichDocumentCore) against MT contracts, capability inventory, and original VS Code as parity bar; read-only on product code",
+  "review_basis": {
+    "code_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009 (feat/WP-KERNEL-009 @ 991985b9 + MT-244 uncommitted edits on disk)",
+    "mt244_lane_skipped": "embeds rendering (HsLinkView/embed_assets), save-to-format export, document-wide find/replace (find_decorations) - in flight, not judged",
+    "proof_probe": "headless node probe against bundled @tiptap/core 3.13.0: setContent(identical JSON) moves caret 6 -> 12/13 (doc end); confirms the echo-loop caret-teleport defect class",
+    "per_mt_reviews": "lifecycle.adversarial_review_v2 written into MT-161.json..MT-176.json (this WP packet dir)"
+  },
+  "suites_rerun": {
+    "vitest": "pnpm vitest run (full app suite) 2026-06-12: 62 files passed, 468 tests passed, 0 failed, 2 uncaught environment errors (jsdom getClientRects missing -> scrollIntoView throws escaping RichTextEditor.test.tsx command dispatch)",
+    "playwright": "pnpm exec playwright test -c playwright.dependency.config.ts 2026-06-12: 2 passed (offline_editor_load.spec.ts + rich_editor_roundtrip.spec.ts), zero external network requests, worker chunks loopback-only",
+    "result_counts": {
+      "vitest_files_passed": 62,
+      "vitest_tests_passed": 468,
+      "vitest_failed": 0,
+      "vitest_uncaught_errors": 2,
+      "playwright_passed": 2,
+      "playwright_failed": 0
+    },
+    "recorded_claim_delta": "MT evidence recorded \"60 files/442 tests\"; current tree has 62/468 because MT-244 in-flight files added tests. Recorded green claims HOLD on disk right now."
+  },
+  "parity": [
+    {
+      "capability": "ED-CORE-001 rich prose core (paragraph/heading/lists/quote/marks)",
+      "verdict": "PRESENT",
+      "owner": "MT-161",
+      "cite": "lib/tiptap/extension_set.ts + extension_set.test.ts"
+    },
+    {
+      "capability": "ED-CORE-002 tables",
+      "verdict": "PARTIAL",
+      "owner": "MT-169",
+      "note": "insert-only; no row/col/delete/header ops in any UI"
+    },
+    {
+      "capability": "ED-CORE-003 task lists / checkboxes",
+      "verdict": "PRESENT",
+      "owner": "MT-161,MT-169",
+      "cite": "extension_set.ts TaskList/TaskItem + list.task command"
+    },
+    {
+      "capability": "ED-CORE-004 schema versioning + migration",
+      "verdict": "PARTIAL",
+      "owner": "MT-162",
+      "note": "module sound + tested; consumer fail-open (loads non-ok content editable+saveable); ladder empty"
+    },
+    {
+      "capability": "ED-CORE-005 embedded Monaco code block",
+      "verdict": "PRESENT",
+      "owner": "MT-165",
+      "cite": "monaco_code_block_node.ts + MonacoCodeBlockView.tsx + playwright data-monaco-mounted proof",
+      "note": "with HIGH stale-language-hash finding"
+    },
+    {
+      "capability": "ED-CORE-006 Monaco language registration + detection",
+      "verdict": "PARTIAL",
+      "owner": "MT-166",
+      "note": "registry+picker built; themes/diagnostics/formatting hooks absent; ensureHandshakeLanguagesRegistered dead code"
+    },
+    {
+      "capability": "ED-CORE-007 Monaco worker bundling (offline, no CDN)",
+      "verdict": "PRESENT",
+      "owner": "MT-167",
+      "cite": "worker_bundling tests + playwright zero-external rerun PASS"
+    },
+    {
+      "capability": "ED-CORE-008 auto code-block rules (fence input/paste/reversible)",
+      "verdict": "PARTIAL",
+      "owner": "MT-164",
+      "note": "input rule wired; PASTE conversion unwired (handleCodeBlockPaste zero product callers); codeToProse missing"
+    },
+    {
+      "capability": "ED-NAV-001 command palette",
+      "verdict": "PARTIAL",
+      "owner": "MT-170",
+      "note": "full catalog wired in RichTextEditor (upgrade from inventory note) but no keyboard navigation/selection"
+    },
+    {
+      "capability": "ED-NAV-002 keyboard shortcuts / keymap",
+      "verdict": "PARTIAL",
+      "owner": "MT-170",
+      "note": "7 chords; no Mod-s; no isComposing guard; intercepts Monaco-origin keys (HIGH)"
+    },
+    {
+      "capability": "ED-NAV-003 editor toolbar / menus",
+      "verdict": "PARTIAL",
+      "owner": "MT-169",
+      "note": "canRun never populated; overflow menu is a hidden stub; no undo/redo buttons"
+    },
+    {
+      "capability": "ED-NAV-004 document outline (prose)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED"
+    },
+    {
+      "capability": "ED-NAV-005 breadcrumbs",
+      "verdict": "ABSENT",
+      "owner": "MT-188 (Loom lane)"
+    },
+    {
+      "capability": "ED-NAV-006 go-to-line (code block)",
+      "verdict": "PARTIAL",
+      "owner": "UNOWNED",
+      "note": "Monaco built-in, not surfaced as a Handshake command"
+    },
+    {
+      "capability": "ED-CODE-INT-001 completion / IntelliSense",
+      "verdict": "ABSENT",
+      "owner": "MT-166",
+      "note": "backend code-index ready, no provider bridge"
+    },
+    {
+      "capability": "ED-CODE-INT-002 hover / quick info",
+      "verdict": "ABSENT",
+      "owner": "MT-166"
+    },
+    {
+      "capability": "ED-CODE-INT-003 go-to-definition / references",
+      "verdict": "ABSENT",
+      "owner": "MT-166",
+      "note": "backend knowledge_code_nav.rs BUILT; editor bridge missing (GAP-ED-005)"
+    },
+    {
+      "capability": "ED-CODE-INT-004 diagnostics / problems",
+      "verdict": "ABSENT",
+      "owner": "MT-166,MT-174"
+    },
+    {
+      "capability": "ED-CODE-INT-005 code formatting",
+      "verdict": "ABSENT",
+      "owner": "MT-166"
+    },
+    {
+      "capability": "ED-CODE-INT-006 code folding + bracket matching",
+      "verdict": "PARTIAL",
+      "owner": "MT-165",
+      "note": "Monaco defaults active in embed; unconfigured/untested"
+    },
+    {
+      "capability": "ED-CODE-INT-007 syntax/semantic highlighting",
+      "verdict": "PARTIAL",
+      "owner": "MT-166",
+      "note": "syntax via Monaco built-ins (proven offline); semantic tokens absent"
+    },
+    {
+      "capability": "ED-CODE-INT-008 multi-cursor / column select (code)",
+      "verdict": "PARTIAL",
+      "owner": "UNOWNED",
+      "note": "Monaco-native inside block, unverified vs key interception; prose has none"
+    },
+    {
+      "capability": "ED-CODE-INT-009 minimap / sticky scroll / inlay hints",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "minimap explicitly disabled; accepted P2"
+    },
+    {
+      "capability": "ED-FIND-001 find & replace (document-wide)",
+      "verdict": "IN_FLIGHT",
+      "owner": "MT-244",
+      "note": "skipped per review charter"
+    },
+    {
+      "capability": "ED-FIND-002 find in files (workspace search UI)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (editor UI); MT-186 backend"
+    },
+    {
+      "capability": "ED-WB-001 save/load with conflict-aware revisions",
+      "verdict": "PRESENT",
+      "owner": "MT-149,MT-168,MT-174",
+      "cite": "RichDocumentView + api.ts + tests",
+      "note": "with HIGH dirty-race + conflict-hint findings"
+    },
+    {
+      "capability": "ED-WB-002 document history / revisions view",
+      "verdict": "PARTIAL",
+      "owner": "MT-156",
+      "note": "list render only; no diff/restore"
+    },
+    {
+      "capability": "ED-WB-003 split editors / groups",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED"
+    },
+    {
+      "capability": "ED-WB-004 editor tabs / open-doc management",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED"
+    },
+    {
+      "capability": "ED-WB-005 diff editor",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "monaco createDiffEditor available unwired; versions table ready"
+    },
+    {
+      "capability": "ED-WB-006 merge / conflict resolution UI",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED"
+    },
+    {
+      "capability": "ED-WB-007 status bar (cursor/language/save state)",
+      "verdict": "PARTIAL",
+      "owner": "UNOWNED",
+      "note": "selection_state lib exists; nothing rendered"
+    },
+    {
+      "capability": "ED-WB-008 zen / focus mode",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (P2)"
+    },
+    {
+      "capability": "ED-WB-009 settings / keybindings / themes UI",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "keymap code-defined; Monaco theme hardcoded vs-dark"
+    },
+    {
+      "capability": "ED-WB-010 integrated terminal",
+      "verdict": "ABSENT",
+      "owner": "OUT_OF_SCOPE (deliberate WP-009 decision)"
+    },
+    {
+      "capability": "ED-WB-011 debugging",
+      "verdict": "ABSENT",
+      "owner": "OUT_OF_SCOPE"
+    },
+    {
+      "capability": "ED-WB-012 source control panel",
+      "verdict": "ABSENT",
+      "owner": "OUT_OF_SCOPE (ledger/CRDT authority model)"
+    },
+    {
+      "capability": "ED-LINK-001 typed wikilink nodes [[kind:value]]",
+      "verdict": "PRESENT",
+      "owner": "MT-163",
+      "cite": "hs_link_node.ts + wikilink.ts + 10/10 tests",
+      "note": "resolved flag is syntax-level only; click-navigation absent"
+    },
+    {
+      "capability": "ED-LINK-002 inline @mentions and #tags",
+      "verdict": "PARTIAL",
+      "owner": "MT-161",
+      "note": "DOWNGRADE from inventory BUILT: schema nodes exist but no suggestion popup render and no insert path can create one"
+    },
+    {
+      "capability": "ED-LINK-003 broken embed / repair state",
+      "verdict": "PARTIAL",
+      "owner": "MT-152,MT-153 (+MT-244 render)",
+      "note": "backend model + counts; repair UI thin"
+    },
+    {
+      "capability": "ED-LINK-004 media embeds (image/video/album/slideshow)",
+      "verdict": "IN_FLIGHT",
+      "owner": "MT-244",
+      "note": "skipped per review charter"
+    },
+    {
+      "capability": "ED-PROJ-001 projection export (md/html/txt/wiki/context)",
+      "verdict": "PRESENT(backend)",
+      "owner": "MT-150; save-to-format UI = MT-244",
+      "note": "deterministic renderer tested backend-side"
+    },
+    {
+      "capability": "ED-PROJ-002 projection import",
+      "verdict": "PRESENT(backend)",
+      "owner": "MT-151,MT-187"
+    },
+    {
+      "capability": "ED-IDX-001 document search-index bridge",
+      "verdict": "PRESENT(backend)",
+      "owner": "MT-154,MT-155"
+    },
+    {
+      "capability": "ED-PERM-001 document permission boundary",
+      "verdict": "PRESENT(backend)",
+      "owner": "MT-158"
+    },
+    {
+      "capability": "ED-REC-001 crash / draft recovery (editor-side)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (MT-159 descoped)",
+      "note": "no draft persistence; conflict hint depends on it (MT-174 HIGH)"
+    },
+    {
+      "capability": "ED-SEL-001 selection / cursor state (multi-actor)",
+      "verdict": "PARTIAL",
+      "owner": "MT-171",
+      "note": "local snapshot only; no remote rendering; caret does NOT survive external setContent (HIGH)"
+    },
+    {
+      "capability": "ED-COLLAB-001 real-time collaboration (Yjs binding)",
+      "verdict": "PARTIAL",
+      "owner": "MT-161",
+      "note": "binding + undoRedo swap correct; no provider/transport; code-block code attr = whole-blob LWW under CRDT (no char-merge for code)"
+    },
+    {
+      "capability": "ED-DBG-001 visual-debug selectors + payload",
+      "verdict": "PRESENT",
+      "owner": "MT-172",
+      "cite": "visual_debug.ts + playwright reads __HS_EDITOR_DEBUG__",
+      "note": "ungated O(doc) per keystroke cost (MEDIUM)"
+    },
+    {
+      "capability": "ED-DBG-002 backend error states inline",
+      "verdict": "PRESENT",
+      "owner": "MT-174",
+      "cite": "backend_error.ts + banner tests",
+      "note": "substring classification brittle; conflict remediation data-lossy"
+    },
+    {
+      "capability": "ED-TEST-001 roundtrip + visual tests",
+      "verdict": "PARTIAL",
+      "owner": "MT-176",
+      "note": "boot+selectors+offline proven; round-trip tautological; zero real-typing coverage"
+    },
+    {
+      "capability": "ED-RUN-001 no-external-app proof",
+      "verdict": "PRESENT",
+      "owner": "MT-175",
+      "cite": "playwright 2/2 rerun, zero external requests"
+    },
+    {
+      "capability": "ED-A11Y-001 accessibility + readability",
+      "verdict": "PARTIAL",
+      "owner": "MT-173",
+      "note": "semantic structure proven; toolbar arrow-nav, focus traps, code-block exit, axe scan missing"
+    },
+    {
+      "capability": "EXT-IME-001 IME composition safety (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "no isComposing guards anywhere; echo-loop setContent destroys composition; zero IME tests"
+    },
+    {
+      "capability": "EXT-PERF-001 large-document performance 10k+ blocks (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "three O(doc)-per-keystroke paths (echo setContent parse, debug walk x2, selection prefix encode); no perf budget tests"
+    },
+    {
+      "capability": "EXT-UNDO-001 undo/redo integrity across prose+code (reviewer-added)",
+      "verdict": "PARTIAL",
+      "owner": "MT-165",
+      "note": "dual undo stacks diverge; echo-loop pollutes history grouping"
+    },
+    {
+      "capability": "EXT-CLIP-001 clipboard fidelity (reviewer-added)",
+      "verdict": "PARTIAL",
+      "owner": "MT-164,MT-163",
+      "note": "copy code -> fenced text good; paste fenced -> NOT converted (unwired); pasted HTML can mint spoofed hsLink chips"
+    },
+    {
+      "capability": "EXT-MC-001 prose multi-cursor (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (P2 vs VS Code)"
+    },
+    {
+      "capability": "EXT-SNIP-001 snippets (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (P2)"
+    },
+    {
+      "capability": "EXT-NAV-LINK-001 link click navigation/open (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED",
+      "note": "hsLink chips and Link marks have no click/navigation handler (openOnClick:false, nothing replaces it)"
+    },
+    {
+      "capability": "EXT-SAVE-001 Mod-s save shortcut + save command (reviewer-added)",
+      "verdict": "ABSENT",
+      "owner": "UNOWNED (MT-170 adjacency)"
+    }
+  ],
+  "findings_by_severity": {
+    "HIGH": [
+      {
+        "id": "H1",
+        "mt": "MT-171/MT-176 (+RichDocumentView wiring)",
+        "title": "initialContent echo -> setContent per keystroke teleports caret to document end, breaks IME, O(doc) parse per keystroke",
+        "evidence": "RichTextEditor.tsx:156-162 + RichDocumentView.tsx:204-209 + rich_editor_harness.tsx:100-105; tiptap 3.13 setContent = tr.replaceWith(0,size) no guard; headless probe: caret 6 -> 12/13 after identical setContent",
+        "fix": "lastEmitted ref guard in RichTextEditor; parent passes stable loaded doc, not the echo; mid-document typing caret test"
+      },
+      {
+        "id": "H2",
+        "mt": "MT-162",
+        "title": "Schema-mismatch fail-open: newer/unknown-schema docs load editable; ProseMirror drops unknown nodes; one Save persists the stripped doc",
+        "evidence": "RichDocumentView.tsx:74-79 violates schema_versioning.ts:54-57 contract",
+        "fix": "read-only + save-block on ok:false; regression test"
+      },
+      {
+        "id": "H3",
+        "mt": "MT-170",
+        "title": "Keymap handler intercepts keystrokes bubbling from embedded Monaco; chords typed in code can REPLACE the node-selected code block (insertContent over NodeSelection)",
+        "evidence": "RichTextEditor.tsx:225-241; Mod-Alt-c / Mod-k / Mod-p unbound in standalone Monaco -> bubble to prose handler",
+        "fix": "ignore events from inside [data-testid=monaco-code-block]; isolation test"
+      },
+      {
+        "id": "H4",
+        "mt": "MT-165 (corrupts MT-168 invariant)",
+        "title": "Stale-closure language in Monaco onDidChangeContent writes contentHash computed against the mount-time language after a language switch",
+        "evidence": "MonacoCodeBlockView.tsx:70-74 vs 121-126",
+        "fix": "languageRef / mint via makeCodeBlockAttrs; language-switch-then-type integrity test"
+      },
+      {
+        "id": "H5",
+        "mt": "MT-174",
+        "title": "Save/conflict surface loses data: dirty flag cleared over keystrokes typed during in-flight save; conflict hint instructs a Reload that discards local edits; no unload/doc-switch guard",
+        "evidence": "RichDocumentView.tsx:115-141 (setIsDirty(false) unconditional), backend_error.ts:44-48 hint, no beforeunload anywhere",
+        "fix": "save-generation counter; pre-reload local snapshot; dirty guard on switch/close"
+      },
+      {
+        "id": "H6",
+        "mt": "MT-164",
+        "title": "Claimed fenced/indented PASTE conversion is not wired into the integrated editor (helper has zero product callers)",
+        "evidence": "handleCodeBlockPaste only referenced by its test; no editorProps/addPasteRules; pasting ``` fences yields prose",
+        "fix": "wire editorProps.handlePaste; ClipboardEvent integration test"
+      },
+      {
+        "id": "H7",
+        "mt": "MT-176",
+        "title": "The recorded \"deterministic round-trip\" Playwright proof is a tautology (JSON deep-clone compared to itself; no fresh-editor re-hydration despite harness comment)",
+        "evidence": "rich_editor_harness.tsx:109-132",
+        "fix": "rebuild via schema parse / second Editor; compare structurally"
+      },
+      {
+        "id": "H8",
+        "mt": "MT-176",
+        "title": "Zero real-typing coverage in any lane (jsdom or browser) - the exact seam hiding H1; all tests append at end or drive commands",
+        "evidence": "rich_editor_roundtrip.spec.ts clicks one button; vitest uses commands/fireEvent",
+        "fix": "page.keyboard.type mid-paragraph + caret asserts; Monaco typing; undo; IME smoke"
+      }
+    ],
+    "MEDIUM": [
+      {
+        "id": "M1",
+        "mt": "MT-161",
+        "title": "Mention/tag nodes cannot be created from the UI (no suggestion render; commands insert bare @/# text)",
+        "evidence": "extension_set.ts:127-146; editor_commands.ts:269-281"
+      },
+      {
+        "id": "M2",
+        "mt": "MT-162",
+        "title": "Migrated content never persisted until manual edit; empty migration ladder unexercised end-to-end",
+        "evidence": "RichDocumentView.tsx:74-75; schema_versioning.ts:46"
+      },
+      {
+        "id": "M3",
+        "mt": "MT-163",
+        "title": "resolved=true minted from prefix recognition alone; broken targets render as confident resolved chips",
+        "evidence": "wikilink.ts:54-61"
+      },
+      {
+        "id": "M4",
+        "mt": "MT-164",
+        "title": "Reversibility one-way: codeToProse does not exist despite scope + module docs",
+        "evidence": "auto_code_block_rules.ts:10 vs 59-80"
+      },
+      {
+        "id": "M5",
+        "mt": "MT-165",
+        "title": "External reconcile model.setValue destroys Monaco undo/caret/view state",
+        "evidence": "MonacoCodeBlockView.tsx:99-107"
+      },
+      {
+        "id": "M6",
+        "mt": "MT-165",
+        "title": "Keyboard trap: no keyboard exit from embedded Monaco (WCAG 2.1.2)",
+        "evidence": "no boundary/Escape handling in node or view"
+      },
+      {
+        "id": "M7",
+        "mt": "MT-165",
+        "title": "Dual undo stacks (Monaco vs ProseMirror attr history) diverge across the boundary",
+        "evidence": "updateAttributes per keystroke + Monaco internal undo"
+      },
+      {
+        "id": "M8",
+        "mt": "MT-166",
+        "title": "MT scope ~40% built: themes/diagnostics/formatting/code-nav bridges absent while backend code-nav is ready",
+        "evidence": "language_registry.ts only; knowledge_code_nav.rs unbridged (GAP-ED-005)"
+      },
+      {
+        "id": "M9",
+        "mt": "MT-168",
+        "title": "verifyCodeBlockIntegrity never called in any product load path - integrity check dead in production",
+        "evidence": "grep: tests only; RichDocumentView load never verifies"
+      },
+      {
+        "id": "M10",
+        "mt": "MT-168",
+        "title": "Bridge single-minting-point invariant bypassed by its main writer (cross-ref H4)",
+        "evidence": "MonacoCodeBlockView.tsx:73 direct codeBlockHash call"
+      },
+      {
+        "id": "M11",
+        "mt": "MT-169",
+        "title": "canRun never populated; toolbar insert commands on a NodeSelection replace the selected code block",
+        "evidence": "editor_commands.ts:59 unused; RichTextEditor.tsx:300 disabled={readOnly} only"
+      },
+      {
+        "id": "M12",
+        "mt": "MT-170",
+        "title": "Palette has no keyboard navigation; invalid listbox/option semantics",
+        "evidence": "RichTextEditor.tsx:324-369"
+      },
+      {
+        "id": "M13",
+        "mt": "MT-170/MT-173",
+        "title": "aria-modal dialogs without focus trap/restore; Escape only on the input",
+        "evidence": "RichTextEditor.tsx:324-406"
+      },
+      {
+        "id": "M14",
+        "mt": "MT-171",
+        "title": "O(doc) selection snapshot (textBetween(0,from) + full-prefix TextEncoder) on every selection update",
+        "evidence": "RichTextEditor.tsx:177-189"
+      },
+      {
+        "id": "M15",
+        "mt": "MT-172",
+        "title": "Unconditional O(doc) debug walk on every transaction AND selection update + double re-render per keystroke",
+        "evidence": "RichTextEditor.tsx:166-206; visual_debug.ts:60-92"
+      },
+      {
+        "id": "M16",
+        "mt": "MT-173",
+        "title": "role=toolbar without ARIA toolbar keyboard pattern (no roving tabindex/arrow nav)",
+        "evidence": "RichTextEditor.tsx:283-316"
+      },
+      {
+        "id": "M17",
+        "mt": "MT-173",
+        "title": "Keyboard-only focus order broken at first code block (cross-ref M6)",
+        "evidence": "MonacoCodeBlockView keyboard trap"
+      },
+      {
+        "id": "M18",
+        "mt": "MT-174",
+        "title": "Substring-based error classification misroutes (any \"version\" -> conflict; \"schema\" wins over conflict)",
+        "evidence": "backend_error.ts:28-51"
+      },
+      {
+        "id": "M19",
+        "mt": "MT-176",
+        "title": "Visual lane covers boot only; save/load/conflict/code-edit/IME have no browser-context coverage",
+        "evidence": "rich_editor_roundtrip.spec.ts scope"
+      }
+    ],
+    "LOW": [
+      {
+        "id": "L1",
+        "mt": "MT-161",
+        "title": "No instantiation-path test per inventory primitive"
+      },
+      {
+        "id": "L2",
+        "mt": "MT-161",
+        "title": "Underline/strike marks in schema but unreachable (no commands)"
+      },
+      {
+        "id": "L3",
+        "mt": "MT-163",
+        "title": "Pasted HTML can mint spoofed trusted-looking hsLink chips (clamp refKind on parse)"
+      },
+      {
+        "id": "L4",
+        "mt": "MT-163",
+        "title": "No [[title]] shorthand and no feedback when typed"
+      },
+      {
+        "id": "L5",
+        "mt": "MT-164",
+        "title": "proseToCodeBlock converts selection not paragraph; empty selection inserts empty block mid-paragraph"
+      },
+      {
+        "id": "L6",
+        "mt": "MT-165",
+        "title": "Code text serialized twice in renderHTML (data-code + <code> text); full code re-pushed through attrs per keystroke"
+      },
+      {
+        "id": "L7",
+        "mt": "MT-165",
+        "title": "No lazy mount: every code block boots a full Monaco instance at parse"
+      },
+      {
+        "id": "L8",
+        "mt": "MT-166",
+        "title": "ensureHandshakeLanguagesRegistered dead code in product"
+      },
+      {
+        "id": "L9",
+        "mt": "MT-167",
+        "title": "Worker failure degrades language services with no per-block indicator"
+      },
+      {
+        "id": "L10",
+        "mt": "MT-167/MT-175",
+        "title": "Offline kill-switch does not cover websocket/service-worker channels"
+      },
+      {
+        "id": "L11",
+        "mt": "MT-168",
+        "title": "Hash input `lang code` concat has theoretical ambiguity (no-space invariant undocumented)"
+      },
+      {
+        "id": "L12",
+        "mt": "MT-169",
+        "title": "Tables insert-only (no structural edit commands)"
+      },
+      {
+        "id": "L13",
+        "mt": "MT-169",
+        "title": "Overflow commands rendered as hidden stub spans - not operator-reachable from toolbar"
+      },
+      {
+        "id": "L14",
+        "mt": "MT-169",
+        "title": "No undo/redo commands in catalog/toolbar"
+      },
+      {
+        "id": "L15",
+        "mt": "MT-170",
+        "title": "No isComposing guard in shortcut resolution (IME)"
+      },
+      {
+        "id": "L16",
+        "mt": "MT-170",
+        "title": "No Mod-s binding; save absent from command catalog"
+      },
+      {
+        "id": "L17",
+        "mt": "MT-171",
+        "title": "Multi-actor presence computed but never rendered"
+      },
+      {
+        "id": "L18",
+        "mt": "MT-171",
+        "title": "UTF-8 offsets ambiguous across atom nodes"
+      },
+      {
+        "id": "L19",
+        "mt": "MT-172",
+        "title": "Single global debug key: last-writer-wins across multiple editors (attribution)"
+      },
+      {
+        "id": "L20",
+        "mt": "MT-173",
+        "title": "Palette option semantics invalid; degraded textarea unlabeled"
+      },
+      {
+        "id": "L21",
+        "mt": "MT-173",
+        "title": "No axe-core/contrast/viewport automation in any lane"
+      },
+      {
+        "id": "L22",
+        "mt": "MT-174",
+        "title": "Blocks panel renders stale tree after save (doc_version advances, blocks do not)"
+      },
+      {
+        "id": "L23",
+        "mt": "MT-175",
+        "title": "Offline proof covers harness build, not Tauri-packaged asset path"
+      },
+      {
+        "id": "L24",
+        "mt": "MT-176",
+        "title": "Screenshot captured without assertions; single viewport"
+      },
+      {
+        "id": "L25",
+        "mt": "suite",
+        "title": "2 uncaught jsdom errors (getClientRects) escape RichTextEditor.test.tsx command dispatch - tests pass while dispatch throws; polyfill or assert"
+      },
+      {
+        "id": "L26",
+        "mt": "MT-165",
+        "title": "Monaco theme hardcoded vs-dark; no app-theme sync"
+      }
+    ]
+  },
+  "unowned_gaps": [
+    "Echo-loop fix itself: the RichTextEditor reload-effect contract (controlled vs uncontrolled doc) has no owning MT - the component spans MT-169..174; needs an explicit iteration item (H1)",
+    "Editor-side draft/crash recovery (MT-159 descoped) - conflict remediation depends on it (H5)",
+    "Prose document outline panel (ED-NAV-004)",
+    "Find-in-files editor UI over existing backend search (ED-FIND-002)",
+    "Split editors / tabs / diff / merge workbench shell (ED-WB-003..006)",
+    "Status bar rendering over selection_state (ED-WB-007)",
+    "Settings / keybindings / themes UI incl. Monaco theme sync (ED-WB-009)",
+    "IME composition guards + tests (EXT-IME-001)",
+    "Large-document performance budgets + fixes (EXT-PERF-001)",
+    "Link click navigation for hsLink chips and Link marks (EXT-NAV-LINK-001)",
+    "Mod-s save shortcut + save command surface (EXT-SAVE-001)",
+    "Go-to-line command surfacing; prose multi-cursor; snippets (P2 backlog)"
+  ],
+  "proposed_iteration3_fixlist": [
+    {
+      "order": 1,
+      "effort": "S",
+      "title": "Kill the echo loop: lastEmitted guard in RichTextEditor reload effect + RichDocumentView/harness stop feeding onChange back as initialContent (fixes H1: caret teleport, IME break, O(doc)/keystroke parse)"
+    },
+    {
+      "order": 2,
+      "effort": "S",
+      "title": "Monaco keystroke isolation: keymap handler ignores events originating inside the code-block host (H3)"
+    },
+    {
+      "order": 3,
+      "effort": "S",
+      "title": "Schema fail-closed: ok:false -> read-only editor + Save disabled + typed banner retained (H2)"
+    },
+    {
+      "order": 4,
+      "effort": "M",
+      "title": "Save integrity: dirty generation counter across in-flight saves; beforeunload/doc-switch dirty guard; conflict path snapshots local doc before reload and offers re-apply (H5)"
+    },
+    {
+      "order": 5,
+      "effort": "S",
+      "title": "Hash correctness: languageRef in MonacoCodeBlockView, all attr writes through makeCodeBlockAttrs (H4/M10); wire verifyCodeBlockIntegrity into document load with typed error (M9)"
+    },
+    {
+      "order": 6,
+      "effort": "S",
+      "title": "Wire handleCodeBlockPaste via editorProps.handlePaste + ClipboardEvent test (H6); add codeToProse command (M4)"
+    },
+    {
+      "order": 7,
+      "effort": "M",
+      "title": "Real round-trip + typing tests in offline lane: fresh-editor schema re-hydration, mid-document caret typing, Monaco typing + hash, undo sequence, IME smoke (H7/H8/M19)"
+    },
+    {
+      "order": 8,
+      "effort": "M",
+      "title": "Keyboard a11y bundle: code-block boundary exit + Escape (M6/M17), palette arrow-nav + valid option semantics (M12/L20), dialog focus trap/restore (M13), toolbar roving tabindex (M16), isComposing guard (L15), Mod-s + save command (L16)"
+    },
+    {
+      "order": 9,
+      "effort": "M",
+      "title": "Monaco reconcile: setValue -> pushEditOperations + view-state preserve; decide single undo owner and test cross-boundary undo (M5/M7)"
+    },
+    {
+      "order": 10,
+      "effort": "M",
+      "title": "Command correctness: populate canRun + disable in toolbar/palette, NodeSelection-replacement guard (M11), table edit family (L12), undo/redo commands (L14), real overflow menu (L13)"
+    },
+    {
+      "order": 11,
+      "effort": "M",
+      "title": "Mention/tag creation path: suggestion popup render + items source or arg-prompt insert commands (M1)"
+    },
+    {
+      "order": 12,
+      "effort": "S",
+      "title": "Debug payload gating: debug-flag/debounce for snapshot walks + per-document namespacing (M15/L19); polyfill getClientRects in vitest setup (L25)"
+    },
+    {
+      "order": 13,
+      "effort": "S",
+      "title": "Typed backend error codes replacing substring classification; truthful conflict hint (M18)"
+    },
+    {
+      "order": 14,
+      "effort": "L",
+      "title": "Code-intelligence bridge (GAP-ED-005): Monaco completion/hover/definition/references/diagnostics/formatting providers over /knowledge/code/* (M8) - promotes the embed toward IntelliSense-class"
+    },
+    {
+      "order": 15,
+      "effort": "M",
+      "title": "Link truthfulness + navigation: backend resolution pass for hsLink resolved flag (M3), refKind clamp on paste (L3), click-to-navigate handler (unowned gap)"
+    },
+    {
+      "order": 16,
+      "effort": "M",
+      "title": "Perf hardening: 10k-block perf budget test; debounced code-attr writes (L6); lazy Monaco mount (L7); incremental selection offsets (M14)"
+    },
+    {
+      "order": 17,
+      "effort": "L",
+      "title": "Workbench shell backlog (iteration 4 candidates): outline panel, status bar, split/tabs, diff view, settings/keybindings/themes UI, draft recovery surface"
+    }
+  ],
+  "zero_product_edits_confirmation": "Reviewer made NO edits, commits, or new files in the product worktree (wtc-kernel-009). Writes were limited to .GOV MT JSONs (lifecycle.adversarial_review_v2) and this reference artifact in the governance worktree.",
+  "iteration3_closure": {
+    "at_utc": "2026-06-12T15:40:00Z",
+    "executor": "KERNEL_BUILDER editor iteration-3 hardening delegate",
+    "branch": "feat/WP-KERNEL-009 (wtc-kernel-009)",
+    "suites_after": {
+      "vitest": "68 files / 570 tests PASS, ZERO unhandled errors (baseline at start of iteration-3: 65/513 green + 2 uncaught jsdom errors reproducible in directory-scoped runs)",
+      "playwright_dependency_lane": "13/13 PASS offline (was 6): +rich_editor_typing.spec.ts (6 real-typing cases incl. per-keystroke caret asserts, Monaco typing+language-switch hash with independent in-spec FNV, chord containment, real-ClipboardEvent paste, CDP IME composition, Escape exit) +schema re-hydration asserts in rich_editor_roundtrip"
+    },
+    "highs": {
+      "H1": {
+        "status": "FIXED",
+        "commit": "b4e95476",
+        "proof": "RED on HEAD (caret 6->13) then GREEN; browser per-keystroke caret test"
+      },
+      "H2": {
+        "status": "FIXED",
+        "commit": "6e48aa6b",
+        "proof": "read-only + save-block + destructive-save negative test"
+      },
+      "H3": {
+        "status": "FIXED",
+        "commit": "b4e95476",
+        "proof": "PM-level containment plugin + DOM guards; jsdom + real-Monaco browser tests"
+      },
+      "H4": {
+        "status": "FIXED",
+        "commit": "92c484be",
+        "proof": "RED via stash-run (ts-hash for json content) then GREEN; browser language-switch hash verified by independent FNV"
+      },
+      "H5": {
+        "status": "FIXED",
+        "commit": "9c7a19b3",
+        "proof": "dirty-generation + snapshot panel + beforeunload/doc-switch tests"
+      },
+      "H6": {
+        "status": "FIXED",
+        "commit": "3ae8ecdd",
+        "proof": "PM handlePaste plugin driven via view.someProp + real-ClipboardEvent browser paste; mixed prose preserved"
+      },
+      "H7": {
+        "status": "FIXED",
+        "commit": "7f8c9f34",
+        "proof": "getSchema->nodeFromJSON->check() re-hydration; immediately caught the harness's invalid inline-hsLink-under-doc content the tautology masked"
+      },
+      "H8": {
+        "status": "FIXED",
+        "commit": "7f8c9f34",
+        "proof": "rich_editor_typing.spec.ts; IME residue documented in-spec (multi-segment candidate windows not emulatable over CDP)"
+      }
+    },
+    "mediums": {
+      "M1": "FIXED 2949bc87",
+      "M2": "DEFERRED (auto-persist of migrated content is an unrequested write; ladder still empty; H2 fail-closed guards meanwhile)",
+      "M3": "PARTIALLY_FIXED 2949bc87+5ca8355d (commands classify via shared rules; unknown kinds can never claim resolved; backend verification pass -> MT-249)",
+      "M4": "FIXED 3ae8ecdd",
+      "M5": "FIXED 5c34e798",
+      "M6": "FIXED ddab11ee",
+      "M7": "FIXED 5c34e798 (ownership contract)",
+      "M8": "DEFERRED per orders (fixlist 14 skipped; MT-249 scope)",
+      "M9": "FIXED 92c484be",
+      "M10": "FIXED 92c484be",
+      "M11": "FIXED 2949bc87",
+      "M12": "FIXED ddab11ee",
+      "M13": "FIXED ddab11ee",
+      "M14": "MITIGATED 701904be (computes only for subscribers - none in product; coalesced; incremental offsets -> collab transport lane)",
+      "M15": "FIXED 701904be",
+      "M16": "FIXED ddab11ee",
+      "M17": "FIXED ddab11ee",
+      "M18": "FIXED ce5eb4d6",
+      "M19": "FIXED 7f8c9f34"
+    },
+    "lows_addressed": {
+      "L3": "FIXED 5ca8355d",
+      "L6": "DEFERRED with design rationale (attr writes are the persistence bridge)",
+      "L7": "FIXED 679c8d4a",
+      "L11": "FIXED 7f8c9f34 (root cause: the hash separator was a LITERAL NUL byte in source that every reader rendered as a space - now the explicit escape, hashes unchanged)",
+      "L12": "FIXED 2949bc87",
+      "L13": "FIXED 2949bc87",
+      "L14": "FIXED 2949bc87",
+      "L15": "FIXED b4e95476",
+      "L16": "FIXED ddab11ee",
+      "L25": "FIXED 296b8591 (jsdom Range rect polyfills; both uncaught errors gone)"
+    },
+    "extras_landed": "EXT-SAVE-001 Mod-s (global from code blocks) + palette save; EXT-NAV-LINK-001 hs:link-navigate intent contract; EXT-UNDO browser smoke; latent fixes found en route: Mod-b/i/e double-dispatch, StarterKit Mod-Alt-c chord conflict, invalid harness doc, NUL-separator landmine",
+    "skipped_per_orders": [
+      "fixlist 14 code-intel bridge (MT-249)",
+      "fixlist 17 workbench shell backlog (MT-245/246/248)"
+    ],
+    "lane_compliance": "14 commits, app/** + tests/dependency_policy/** only; zero cargo; zero src/backend edits"
+  }
+}

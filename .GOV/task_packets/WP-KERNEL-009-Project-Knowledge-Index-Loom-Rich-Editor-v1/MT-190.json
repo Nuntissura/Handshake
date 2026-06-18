@@ -1,0 +1,187 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-190",
+  "title": "LoomObsidianNavigation-190-LoomEventLedgerEvents",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-190.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Emit EventLedger/Flight Recorder events for view open, search, link create/delete, tag, pin, projection rebuild, and repair. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "LoomEventLedgerEvents leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "LoomEventLedgerEvents is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "89476e5c",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T10:20:00Z",
+        "kind": "implementation",
+        "summary": "Completed FR-EVT-LOOM event coverage for the Loom surface. Pre-existing Loom FR events: LoomBlockCreated/Updated/Deleted, LoomEdgeCreated/Deleted (link+tag), LoomViewQueried (view open), LoomSearchExecuted, LoomDedupHit, LoomPreviewGenerated, LoomAiTag{Suggested,Accepted,Rejected}. MT-177 binds block indexing (KNOWLEDGE_LOOM_BLOCK_INDEXED) to the EventLedger. This MT adds the missing projection-rebuild event.",
+        "files_changed": [
+          "src/backend/handshake_core/src/flight_recorder/mod.rs - new LoomProjectionRebuilt event type + Display (loom_projection_rebuilt) + validate_loom_projection_rebuilt_payload (exact keys: type/workspace_id/projection_id/operation{compile,regenerate}/source_block_count) wired into the validate dispatch; +2 unit tests",
+          "src/backend/handshake_core/src/api/loom.rs - compile + regenerate wiki projection now emit a VALID loom_projection_rebuilt FR event (the compile handler previously emitted a loom_view_queried-typed payload that the recorder validator would have REJECTED - a latent bug fixed here)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T10:20:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --lib flight_recorder::tests::flight_recorder_loom_projection",
+        "result": "ok. 2 passed; 0 failed",
+        "tests": [
+          "flight_recorder_loom_projection_rebuilt_valid - compile + regenerate payloads validate; Display == loom_projection_rebuilt",
+          "flight_recorder_loom_projection_rebuilt_rejects_bad_payload - bad operation value, missing projection_id, and wrong type string all rejected"
+        ]
+      },
+      "Status flip note (2026-06-12T06:25:27.785Z): Loom engine group backend-complete per delegate report - real-PG proven (isolated schemas, full migration chain), per-MT adversarial review recorded in this file. SQLite removed/unreachable (orphans git-rm'd, sqlx has no sqlite feature, source regression guard added). Markdown-vault-never-authority proven via projection-delete byte-identity negative test. Stable /workspaces/:ws/loom/* HTTP contracts documented for the Notes UI. Implementation commit(s): 89476e5c."
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T10:20:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "89476e5c",
+      "findings": [
+        "LATENT INVALID-EVENT (fixed): the MT-184 compile handler emitted a LoomViewQueried event whose payload (type=loom_wiki_projection_compiled, no view_type) would FAIL the loom_view_queried validator -> the event would silently drop (let _ = record). Replaced with a dedicated, validator-backed LoomProjectionRebuilt event.",
+        "EXHAUSTIVENESS (verified): the new enum variant is handled in Display + the validate dispatch; no category/severity mapping mis-buckets it (build is green, exhaustive matches updated).",
+        "PAYLOAD STRICTNESS (handled+tested): require_exact_keys + require_limited_choice(operation) + require_safe_id_string reject malformed payloads, matching the discipline of the other Loom validators.",
+        "COVERAGE (verified): view open/search/link create+delete/tag/pin(block updated)/dedup/preview already have FR event types; projection rebuild is now covered; 'repair' is a frontend/queue surface with no backend Loom op in this group."
+      ],
+      "fixes": [
+        "Add LoomProjectionRebuilt event type + validator; emit it (valid payload) from compile and regenerate instead of the invalid LoomViewQueried event."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-190 requires EventLedger/Flight Recorder event coverage for the Loom surface (view open, search, link create/delete, tag, pin, projection rebuild, repair). The implementation adds the one missing event type (LoomProjectionRebuilt) with a strict validator, fixes a real latent bug where the compile handler emitted an invalid LoomViewQueried-typed payload that the recorder would have silently dropped, and wires it into two live PostgreSQL-backed HTTP handlers. Proof exercises the real production validate() dispatch with valid and negative cases. Code implements the MT behavior with real resource touch and no placeholders.",
+      "findings": [
+        "commit 89476e5c adds FlightRecorderEventType::LoomProjectionRebuilt (flight_recorder/mod.rs:181), Display arm (mod.rs:392), validate dispatch arm (mod.rs:1007), and validator validate_loom_projection_rebuilt_payload (mod.rs:~2665) using real production helpers require_exact_keys / require_fixed_string / require_safe_id_string / require_limited_choice / require_number (all confirmed present at mod.rs 1194/4751/2387/2396/1309).",
+        "Real latent-bug fix verified: api/loom.rs compile_loom_wiki_projection (now line 850-877) previously emitted FlightRecorderEventType::LoomViewQueried with payload type=loom_wiki_projection_compiled, which would fail the loom_view_queried validator and silently drop via 'let _ = record_event'. It now emits a VALID LoomProjectionRebuilt event. regenerate_loom_wiki_projection (line 919-945) had no event at all and now emits one (operation=regenerate).",
+        "Both emission sites are on live HTTP routes: POST /workspaces/:workspace_id/loom/wiki -> compile (api/loom.rs:153-154) and the :projection_id regenerate route; both call real PostgreSQL-backed state.storage.compile/regenerate_loom_wiki_projection and record through the real state.flight_recorder. Not dead code.",
+        "sub_rule_2 satisfied: the durable resource (FlightRecorder/EventLedger event type + strict validator) is exercised through the real production event.validate() dispatch in tests flight_recorder_loom_projection_rebuilt_valid and _rejects_bad_payload (mod.rs:6987+), including 3 negative cases (bad operation, missing projection_id, wrong type string). No implementer-authored mock substitutes for the real validator.",
+        "sub_rule_1 satisfied: no todo!/unimplemented!/deferred-live escape reachable from the MT path in api/loom.rs or the new flight_recorder code. The 5 unreachable! hits (mod.rs:6344-6400) are test-setup as_object_mut() guards, unrelated to MT-190.",
+        "Spec alignment: the canonical FR-EVT-LOOM table (spec module 11, lines 856-867) enumerates 001-012 and does NOT list projection-rebuild; however spec module 02 line 2719 explicitly requires 'projection rebuild' + 'EventLedger replay' as a WP-KERNEL-009 vertical-slice proof. loom_projection_rebuilt is a Handshake-native extension event satisfying that requirement; it does not redefine or contradict any 001-012 event. ALIGNED.",
+        "Aside (non-blocking, paperwork): MT contract lifecycle.adversarial_code_review is a KERNEL_BUILDER self-review and carries no authority over this independent review; lifecycle.claimed_by is null so sub_rule_3 self-cert is NA."
+      ],
+      "evidence_checked": [
+        "git show 89476e5c (full diff + stat)",
+        "git log --grep MT-190",
+        "src/backend/handshake_core/src/api/loom.rs (compile/regenerate handlers 850-946, route table 149-170)",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs (enum 168-181, Display 380-392, validate dispatch 973-1007, validator ~2662, tests 6984+, helper fns 1194/1309/2387/2396/4751)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md (FR-EVT-LOOM table 856-867, authority lines 518-522)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (line 2719 vertical-slice proof, 2690 projection rebuild failure receipts)",
+        "MT-190.json contract",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

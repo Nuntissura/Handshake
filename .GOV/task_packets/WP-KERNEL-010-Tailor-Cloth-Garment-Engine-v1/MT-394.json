@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-394",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-394.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-394.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-394.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-394.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-393"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Extend the glTF morph-target export (MT-249) and the Alembic workaround path (MT-252) to carry blend-shape/morph channel animation weights as time-sampled data, matching MD 2026.0 morph animation capability",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/export/gltf_morph.rs",
+      "src/backend/handshake_core/src/tailor/export/obj_sequence.rs",
+      "src/backend/handshake_core/src/tailor/animation/",
+      "src/backend/handshake_core/src/tailor/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "The glTF morph export (MT-249 / gltf_morph.rs) writes a glTF animation object with weight tracks per morph target, sampled at the export fps, so the blend-shape weights animate correctly in Blender and Three.js",
+      "The animation weight track uses STEP or LINEAR interpolation mode (from the Track<f32> system, MT-282) rather than always being step-only",
+      "The Blender-Python Alembic conversion recipe (proposed in the Alembic import MT above) is extended to also bake morph-channel weights into the Alembic ICurves so Houdini and Maya can read them",
+      "An animation export range parameter (start_frame, end_frame) is respected in the weight track output, matching MD 2026.0 Animation Range Export feature"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::export::tests::gltf_morph_weight_track_frame_count",
+      "cargo test -p handshake_core tailor::export::tests::gltf_morph_weight_track_interpolation_mode"
+    ],
+    "risk_if_missed": "Without morph-weight animation in the export, blend-shape driven cloth deformation (avatar body-shape animation driving garment re-fit) cannot be communicated to downstream DCC tools, reducing Tailor's animation export to static cloth sim only."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

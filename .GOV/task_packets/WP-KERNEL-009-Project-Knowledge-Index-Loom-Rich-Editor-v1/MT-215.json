@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-215",
+  "title": "ParallelSwarmStateRecovery-215-LocalCloudAttribution",
+  "group": "ParallelSwarmStateRecovery",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-215.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Record model provider/lane/local-cloud metadata for actions without leaking secrets or depending on provider memory. This MT belongs to ParallelSwarmStateRecovery. Make WP-009 safe for local/cloud swarm work, backend navigation, and repeated session recovery.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/api/role_mailbox.rs",
+      "src/backend/handshake_core/src/inspector_read/",
+      "app/src/components/swarm/",
+      "app/src-tauri/src/swarm.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Local and cloud swarm lanes must be observable, attributable, bounded, recoverable, and safe for parallel agents.",
+      "Every MT must leave enough receipts, state markers, and next-step context for session-limit recovery by a no-context model."
+    ],
+    "expected_behavior": "LocalCloudAttribution leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "LocalCloudAttribution is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "e6aea0fc",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "e6aea0fc",
+            "slice": "Parallel swarm state recovery hardening for MT-209..216"
+          }
+        ],
+        "summary": "MT-209..216 implement lane/capability model, claim/lease receipts, mailbox/handoff/checkpoint/recovery atomicity, recovery/reclaim behavior, attribution scrub, and EventLedger-backed state recovery surfaces."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests -- --nocapture",
+            "result": "PASS; 16/16 parallel swarm state recovery tests passed"
+          },
+          {
+            "command": "cargo metadata --no-deps --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --format-version 1",
+            "result": "PASS; test target registered without duplicate names"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T17:48:02.005Z",
+        "reviewer": "multi_agent:019ebcaf-7abf-7d80-89c9-d6b0c0b45907",
+        "result": "PASS",
+        "summary": "Reviewer passed MT-209..216 after capability, lease, mailbox, receipt, handoff/checkpoint/recovery, and claim/release atomicity hardening."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-215 requires recording model provider/lane/local-cloud attribution metadata for swarm actions without leaking secrets and without depending on provider memory, with PostgreSQL/EventLedger authority. The code delivers this: a typed LocalCloudAttribution model, deterministic secret scrubbing applied on every persistence path, and JSONB attribution columns across five real migration tables, all proven against real Handshake-managed PostgreSQL with round-trip secret-leak assertions.",
+      "findings": [
+        "LocalCloudAttribution behavior is real: state_recovery.rs:133-177 defines mode (Local/Cloud/Operator/System), provider (OpenAi/Anthropic/LocalRuntime/OfficialCli/Other), runtime, model_label, credential_ref, provider_metadata. cloud() constructor scrubs metadata at construction (line 168) and scrubbed_for_persistence() (lines 172-176) re-scrubs before every DB write.",
+        "Secret scrubbing is deterministic and recursive: scrub_secret_metadata (state_recovery.rs:5235-5257) redacts keys containing secret/token/password/api_key or exactly 'key' to [REDACTED], recursing through objects and arrays. credential_ref stores only vault:// references, never raw secrets.",
+        "Every persistence path calls scrubbed_for_persistence() before serializing attribution to attribution_jsonb: claim (1364-1365), lease (2232-2233), handoff (2408/2569), checkpoint (2860/2886), recovery receipt (2956/2976), reclaim (3558). No raw-secret write path exists.",
+        "Real PostgreSQL/EventLedger authority: migration 0311_parallel_swarm_state_recovery.sql creates 5 tables each with attribution_jsonb JSONB NOT NULL and FK references to kernel_event_ledger(event_id); registers them in knowledge_schema_registry. This is Handshake-native PG, not SQLite (forbidden-tech grep on impl is clean).",
+        "Sub-rule 2 proof is real: tests use recovery_store() -> knowledge_pg() -> ManagedPostgres::ensure_running with isolated per-test schema, real migrations, pgcrypto (knowledge_pg_support.rs:108-128, base_database_url:39+). agent_lanes_and_work_claims_are_typed_attributable_and_exclusive (test:775) and mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgres (test:3815) round-trip through real PG and assert the serialized lane/recovery does NOT contain 'sk-test-secret' (lines 799-804, 3939-3944); receipt counts read back from DB (3946-3953).",
+        "Sub-rule 1 clean: no todo!/unimplemented!/unreachable!/Unavailable/placeholder/mock/'deferred to follow-on'/'pending MT-' hits in state_recovery.rs.",
+        "Sub-rule 3 clean: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260612, status READY_FOR_VALIDATION; not implementer self-cert, and proof is real independent of that.",
+        "Non-blocking paperwork asides only: implementation_commit e6aea0fc bundles MT-209..216 in one commit rather than an MT-215-isolated commit; packet cites v02.192 spec anchors vs current v02.194. Neither is a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-215.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (attribution model, scrub, persistence paths)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0311_parallel_swarm_state_recovery.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (recovery_store, attribution/secret tests at 775, 3815)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (knowledge_pg, base_database_url, ManagedPostgres)",
+        "git show --stat e6aea0fc",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        ".GOV/spec/master-spec-v02.194/spec-modules (05-security-and-observability, 02-system-architecture)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

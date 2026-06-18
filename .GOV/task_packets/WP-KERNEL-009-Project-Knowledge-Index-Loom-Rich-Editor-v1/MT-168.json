@@ -1,0 +1,222 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-168",
+  "title": "TiptapMonacoIntegration-168-CodeBlockPersistenceBridge",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-168.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Persist Monaco code block content, language, display options, diagnostics, and source links through rich document APIs. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "CodeBlockPersistenceBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "CodeBlockPersistenceBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "d7e2b397",
+    "evidence": [
+      "Built+verified d7e2b397: code_block_serialization.test.ts 5/5 - code-block persistence bridge (language+text+hash stable). TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T08:21:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M9 dead integrity check + M10 single-minting-point bypass",
+        "fix": "new pure verifyDocCodeBlockIntegrity walker runs on every RichDocumentView load -> typed 'integrity' banner (codeIntegrityError, new EditorBackendErrorKind); every writer (MonacoCodeBlockView listener/picker/fallback, setMonacoCodeBlockLanguage) now mints attrs via makeCodeBlockAttrs",
+        "commit": "92c484be",
+        "tests": [
+          "code_block_serialization.test.ts: walks a whole document and reports per-block integrity violations",
+          "code_block_serialization.test.ts: doc integrity walk passes clean docs, skips empty legacy blocks, never throws on junk",
+          "RichDocumentView.test.tsx: surfaces code-block hash violations on load as a typed integrity banner"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T09:56:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "L11 hash separator ambiguity - root-caused: the separator was a LITERAL NUL byte in source (rendered invisibly as a space to every reader incl. the review)",
+        "fix": "explicit \u0000 escape + documented SEPARATOR INVARIANT in codeBlockHash (language ids never contain NUL -> first NUL always delimits; hashes byte-identical, no migration); Playwright spec cross-checks with an independent FNV using the same separator",
+        "commit": "7f8c9f34",
+        "tests": [
+          "rich_editor_typing.spec.ts H4/H6 cases: independent FNV equals stored contentHash in the running browser"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:18:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "code_block_serialization.test.ts 5/5 PASS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "verifyCodeBlockIntegrity is never called by any product load path - the integrity check is dead in production",
+          "evidence": "grep across app/src: verifyCodeBlockIntegrity/deserializeCodeNode/serializeCodeNode appear ONLY in test files. code_block_serialization.ts:69-74 documents \"compared on load to detect silent corruption ... surfaced by the load path (MT-174)\", but RichDocumentView load (RichDocumentView.tsx:58-87) never verifies code-block hashes. Silent out-of-band corruption is NOT detected, contradicting the MT-168 stated purpose.",
+          "fix": "On document load, walk content_json monacoCodeBlock nodes and verifyCodeBlockIntegrity; surface a typed MT-174 error (kind index or a new integrity kind) listing the failing blocks; add the load-path test.",
+          "status": "FIXED",
+          "fixed_commit": "92c484be"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Upstream attr writes can mint hash/language mismatches (cross-ref MT-165 stale-closure bug)",
+          "evidence": "The single-minting-point claim (makeCodeBlockAttrs, code_block_serialization.ts:52-65) is bypassed by MonacoCodeBlockView.tsx:73 which computes codeBlockHash(staleLanguage, next) directly. The bridge invariant (hash always derived from current language+code) is violated by its main writer.",
+          "fix": "Route ALL attr writes through makeCodeBlockAttrs(currentLanguage, code) (no direct codeBlockHash calls in views); fix the stale closure per MT-165 review.",
+          "status": "FIXED",
+          "fixed_commit": "92c484be"
+        },
+        {
+          "severity": "LOW",
+          "title": "Hash input concatenation has a theoretical ambiguity",
+          "evidence": "codeBlockHash uses `${language} ${code}`; a language id containing a space would alias pairs. Registry ids contain no spaces today, so this is latent only.",
+          "fix": "Use a non-collidable separator (e.g. language.length prefix or \\u0000) or document the no-space invariant where ids are minted.",
+          "status": "FIXED",
+          "fixed_commit": "7f8c9f34"
+        }
+      ],
+      "parity_gaps": [
+        "Round-trip integrity: persisted but unverified on load -> the §7.1.1.8 deterministic round-trip assertion is not actually enforced at runtime"
+      ],
+      "missing_tests": [
+        "document load with a tampered code-block hash surfaces a typed integrity error (blocked: not wired)",
+        "NodeView edit after language switch keeps hash valid (cross-ref MT-165)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-168 (CodeBlockPersistenceBridge) requires persisting Monaco code-block language + code + a deterministic round-trip integrity hash through the rich-doc save API, with PostgreSQL content_sha256 as durable authority. The code implements this with a pure, unit-tested serialization bridge; all three prior adversarial findings (dead integrity check, minting-point bypass, separator ambiguity) are genuinely fixed in live product code, and a real-browser Playwright proof cross-checks the hash. Aligns with current Master Spec v02.194 EditorCodeNode round-trip-hash requirement.",
+      "findings": [
+        "app/src/lib/editor/code_block_serialization.ts: pure FNV-1a serialization bridge (makeCodeBlockAttrs, serializeCodeNode, deserializeCodeNode, verifyCodeBlockIntegrity, verifyDocCodeBlockIntegrity). Deserialization tolerates partial/legacy/camelCase shapes and repairs a missing hash so a load never throws. Real backend authority is PostgreSQL content_sha256 (knowledge_documents.rs:334/376) via existing /knowledge/documents/:id/save API; no new SQLite or forbidden tech introduced.",
+        "Prior MEDIUM M9 (integrity check dead in production) is FIXED: verifyDocCodeBlockIntegrity is called on every load at RichDocumentView.tsx:477 and surfaces a typed 'integrity' banner via codeIntegrityError (backend_error.ts:118, kind 'integrity'). Editing stays possible; backend content_sha256 remains durable authority.",
+        "Prior MEDIUM M10 (minting-point bypass) is FIXED: all MonacoCodeBlockView writers (lines 235, 351, 367) route through makeCodeBlockAttrs; node node-builder, editor_commands, auto_code_block_rules, document_diff_merge all use makeCodeBlockAttrs. The one remaining direct codeBlockHash call (find_replace.ts:249) re-mints from current language+code consistently with the invariant, so it is not a corruption bypass.",
+        "Prior LOW L11 (separator ambiguity) is FIXED: codeBlockHash uses explicit \u0000 separator with a documented SEPARATOR INVARIANT (code_block_serialization.ts:40-58); byte-identical hash output, no migration.",
+        "Sub-rule 1 clean: no todo!/unimplemented!/'deferred to follow-on'/'pending MT-'/Unavailable placeholders reachable from required behavior; the only 'scaffold' grep hit is a benign comment describing the offline static-server test harness.",
+        "Sub-rule 2 satisfied: real browser proof in tests/dependency_policy/rich_editor_typing.spec.ts H4 (line 290) drives real Monaco via page.keyboard, performs a language switch, and independently recomputes the product FNV hash (same \u0000 separator + 0x811c9dc5/0x01000193 constants, line 79-83) against the live contentHash in the running editor. Not a mock or tautology; H7 in commit 7f8c9f34 additionally re-hydrates through the real ProseMirror schema (node.check()).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2708 defines EditorCodeNode with a 'round-trip hash' and line 2719 requires 'RichDocument round-trip with EditorCodeNode' in the vertical slice. Implementation matches.",
+        "Aside (non-blocking, expected): contract cites v02.192 anchor 7.1.1.8 / lifecycle paperwork; resolved against current v02.194 with no behavioral discrepancy."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-168.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show d7e2b397 / 92c484be / 7f8c9f34 (stat + content)",
+        "wtc-kernel-009/app/src/lib/editor/code_block_serialization.ts",
+        "wtc-kernel-009/app/src/lib/editor/code_block_serialization.test.ts",
+        "wtc-kernel-009/app/src/components/RichDocumentView.tsx:460-499",
+        "wtc-kernel-009/app/src/components/MonacoCodeBlockView.tsx (makeCodeBlockAttrs call sites)",
+        "wtc-kernel-009/app/src/lib/editor/find_replace.ts:235-251",
+        "wtc-kernel-009/app/src/lib/editor/backend_error.ts:20,118-129",
+        "wtc-kernel-009/tests/dependency_policy/rich_editor_typing.spec.ts (H4 browser proof)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (content_sha256, list_knowledge_editor_code_nodes)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2708,2719"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

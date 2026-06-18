@@ -1,0 +1,202 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-243",
+  "title": "UnifiedWorkSurface-243-WikiIncrementalIngestFanOut",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-243.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Incremental ingest fan-out (Karpathy pattern: one source update regenerates the ~10-15 interlinked pages it affects, never a full recompile). One changed source (document/file/symbol) triggers regeneration of exactly the wiki pages whose MT-242 stamps cite it, and refreshes backlink/mention edges in the same pass. Fan-out is bounded by an explicit budget; truncation is logged loudly (no silent caps); each regenerated page gets an EventLedger receipt; re-running is idempotent.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/knowledge.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Regeneration set must equal the MT-242 stale set for that change (proven set equality).",
+      "Bounded fan-out with explicit budget; truncation recorded in EventLedger, never silent.",
+      "Idempotent: re-running the same fan-out produces no duplicate pages/edges/receipts."
+    ],
+    "expected_behavior": "Editing one cited source regenerates only the affected wiki pages and refreshes their backlinks in one pass, leaving the rest of the wiki untouched, with receipts proving what regenerated and why.",
+    "acceptance_criteria": [
+      "Single-source edit regenerates exactly the stale set (set equality vs MT-242), backlinks refreshed same pass.",
+      "EventLedger receipt per regenerated page; budget truncation visible when forced in test.",
+      "Idempotent re-run proven (no duplicates)."
+    ],
+    "verification": [
+      "Real-PG tests: fan-out exactness, budget truncation, idempotency.",
+      "cargo test -p handshake_core --features runtime-full,test-utils green."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests with results, receipts produced.",
+      "Document the trigger surface (what calls fan-out: save path, ingest path, manual)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-SWARM-001"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-242",
+      "MT-178"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "7a6326d9",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "8c9a1ef6",
+            "slice": "initial MT-243 wiki incremental fan-out implementation"
+          },
+          {
+            "sha": "7a6326d9",
+            "slice": "adversarial hardening: source-backed entity citation fan-out + stable decision projection identity"
+          }
+        ],
+        "summary": "MT-243 now expands source fan-out to pages with entity citations whose source_id matches the changed source, recomputes those entity hashes with the same resolver used by drift, and regenerates entity/decision pages by stable projection_id instead of title-keyed upsert. Decision page titles are stable on entity_key + entity-id suffix, with display_name rendered in page content, so display-name edits update the original projection instead of forking duplicate pages."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "commands": [
+          {
+            "command": "cargo test --features runtime-full,test-utils --test project_wiki_fanout_tests --no-run",
+            "result": "PASS; project_wiki_fanout_tests binary built successfully, warnings only"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe mt243_source_fanout_includes_source_backed_decision_pages --nocapture",
+            "result": "PASS; 1 passed; source edit marks source-backed decision stale, fan-out includes/regenerates it, drift closes to zero"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe mt243_entity_display_name_change_updates_decision_without_duplicate --nocapture",
+            "result": "PASS; 1 passed; entity display-name change updates the same projection_id, leaves one decision page, rerun is empty"
+          },
+          {
+            "command": "project_wiki_fanout_tests-*.exe --nocapture",
+            "result": "PASS; 6 passed, 0 failed"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_wiki/fanout.rs src/backend/handshake_core/src/knowledge_wiki/compiler.rs src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/tests/project_wiki_fanout_tests.rs",
+            "result": "PASS; clean (CRLF warnings only)"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T14:58:36.348Z",
+        "reviewer": "multi_agent:019ebc3c-848b-78e0-b924-f8d98a848cbc",
+        "result": "PASS",
+        "summary": "Reviewer found no blocking findings. Boundary probes confirmed producer/consumer JSONB citation shape, drift/fan-out parity through get_wiki_entity_states + entity_content_hash, and projection-id replacement avoiding duplicate pages. Residual non-blocking risk: future hostile/manual title mutation can still surface as DB uniqueness error under the table-level unique title constraint."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T14:58:36.348Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-243 requires a Karpathy-style incremental wiki fan-out: one changed source regenerates exactly the pages whose MT-242 stamps cite it (set equality with drift), refreshes backlinks/index same-pass, bounds fan-out by an explicit budget with LOUD truncation receipts, writes a per-page EventLedger receipt, and is idempotent. The code in src/backend/handshake_core/src/knowledge_wiki/fanout.rs implements all of this against real Handshake-managed PostgreSQL/EventLedger, and the test suite proves it on real PG (6 passed, executed not just compiled).",
+      "findings": [
+        "fanout.rs:182-236 computes the per-source stale set by querying list_knowledge_wiki_pages_citing + list_knowledge_wiki_pages_citing_entity_source (real JSONB @> SQL on knowledge_wiki_projections, knowledge.rs:7195), then filters by stamp-hash mismatch via citation_stale_for_request (fanout.rs:804-827) — exactly the MT-242 drift logic. No full recompile.",
+        "fanout.rs:265-270 splits the stale set by an explicit budget (clamped 1..=MAX_FANOUT_BUDGET, line 174); truncated pages get a wiki_fanout_truncated EventLedger receipt naming skipped pages AND are persistently marked rebuild_status=Stale (fanout.rs:300-343) — loud, never silent.",
+        "fanout.rs:549-566 writes a wiki_page_fanout_regenerated EventLedger receipt per regenerated page, and the page row references it via rebuild_receipt_event_id — satisfies LM-PWIKI-012 per-page receipt requirement.",
+        "Regeneration rebuilds from CURRENT authority via the compiler render_* + upsert_page/replace_page_by_projection_id (real methods, compiler.rs:587/618); entity/decision pages regenerate by stable projection_id (fanout.rs:656-707) so display-name edits update in place instead of forking duplicate pages.",
+        "Real-PG proof: tests/project_wiki_fanout_tests.rs indexes real handshake_core source files, computes an INDEPENDENT MT-242 stale set via WikiDriftChecker, and asserts set equality both directions (lines 282-289); queries kernel_event_ledger directly via raw sqlx for receipts (lines 332-356, 589-608); proves budget=1 truncation + resume (552-654) and idempotency by comparing ledger row counts before/after (657-748). PG is the Handshake-managed cluster (knowledge_pg_support.rs: managed_postgres, port 5544, no Docker/SQLite/mock; SKIP only if PG binaries absent, every other failure panics).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2726 mandates incremental, budget-bounded wiki regeneration with EventLedger receipts and staleness stamping — the implementation matches exactly.",
+        "Sub-rule 1: grep of knowledge_wiki for todo!/unimplemented!/Unavailable/placeholder/deferred returned only one comment in compiler.rs:22 stating the no-placeholder rule; no reachable escapes.",
+        "Sub-rule 3 NA: lifecycle.claimed_by is null and completed_by=KERNEL_BUILDER-20260612; no same-actor self-cert handoff malformation in play, and proof is real regardless.",
+        "Non-blocking aside (paperwork, not a fail reason): packet spec_anchors cite v02.192; resolved against current v02.194 with identical behavior. The pg_or_skip! macro could silently pass if PG were absent, but the recorded evidence shows the named tests actually executed and asserted (e.g. 'drift closes to zero', '6 passed, 0 failed')."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-243.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 8c9a1ef6 + 7a6326d9 (--stat)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/fanout.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/project_wiki_fanout_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "src/storage/knowledge.rs (list_knowledge_wiki_pages_citing_entity_source, set_knowledge_projection_rebuild_status)",
+        "src/knowledge_wiki/compiler.rs (upsert_page, replace_page_by_projection_id)",
+        "grep for placeholder/deferred escapes across src/knowledge_wiki/",
+        "Master Spec v02.194 02-system-architecture.md:2726 (wiki projection incremental regeneration contract)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260612-134940",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

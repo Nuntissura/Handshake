@@ -1,0 +1,188 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-144",
+  "title": "RetrievalContextAndRanking-144-RetrievalFixtures",
+  "group": "RetrievalContextAndRanking",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-144.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Create fixtures for exact lookup, graph traversal, hybrid retrieval, passage fallback, stale graph, bad citation, and no-result recovery. This MT belongs to RetrievalContextAndRanking. Retrieve project knowledge through explainable direct, graph, hybrid, and passage fallback modes.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Retrieval must choose explicit modes: none, direct_load, exact_lookup, graph_traversal, hybrid_rag, or passage_fallback, with non_hybrid_reason where applicable.",
+      "Context bundles must be bounded, cited, explainable, restartable, and inspectable through backend and visual-debug surfaces."
+    ],
+    "expected_behavior": "RetrievalFixtures leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "RetrievalFixtures is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-129"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
+    "implementation_commit": "00eb73b5",
+    "evidence": [
+      "Built+verified 00eb73b5; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T15:10:00Z",
+        "kind": "hardening_v2",
+        "finding": "Named scenarios existed as labels; only ranking/budget fixtures realized (hybrid/passage-fallback/stale-graph/bad-citation/no-result absent)",
+        "fix": "All 7 scenarios now DRIVEN on real PG: exact lookup (known_entity_plans_direct_load), graph traversal (graph_traversal_* + executed_pipeline_graph_path), hybrid discovery (dangling_handle_degrades_to_discovery), passage fallback (executed_pipeline_falls_back_to_passages), stale graph + no-result recovery + bad citation (new retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven incl. FK proof that dangling citations are unconstructable)",
+        "commit": "e457c2a4",
+        "tests": "knowledge_retrieval_pipeline_tests 13 passed"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "named scenarios exist as labels but only ranking/budget fixtures are realized",
+          "evidence": "fixtures.rs RetrievalScenario enumerates all 7 (exact_lookup..no_result_recovery) but the builders produce only candidate-feature + budget-item sets; tests are all-scenarios-named + rank + budget. No fixture actually drives hybrid retrieval, passage fallback, stale graph, bad citation, or no-result recovery as an exercisable path. The PG pipeline proves exact-lookup/graph/snippet/compile/catalog but not these.",
+          "fix": "Add fixtures (and PG tests) that realize hybrid, passage-fallback, stale-graph, bad-citation, and no-result-recovery as driven scenarios, not just enum labels.",
+          "status": "FIXED",
+          "fixed_commit": "e457c2a4"
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Create fixtures for exact lookup, graph traversal, hybrid retrieval, passage fallback, stale graph, bad citation, and no-result recovery",
+          "reality": "the 7 scenario NAMES exist; only exact-lookup/graph + ranking/budget inputs are realized; hybrid/passage-fallback/stale-graph/bad-citation/no-result fixtures that drive those paths are absent"
+        }
+      ],
+      "missing_tests": [
+        "fixtures + tests for: hybrid retrieval, passage fallback, stale graph, bad citation, no-result recovery (driven, not named)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-144 requires fixtures for seven retrieval scenarios (exact lookup, graph traversal, hybrid retrieval, passage fallback, stale graph, bad citation, no-result recovery) with PostgreSQL/EventLedger authority and validator-readable proof. The code delivers all seven as real, backend-derived, driven scenarios proven against managed PostgreSQL; the prior adversarial-v2 gap (scenarios as enum labels only) is genuinely closed in commit e457c2a4.",
+      "findings": [
+        "Commit 00eb73b5 adds knowledge_retrieval/fixtures.rs (RetrievalScenario enum + builders) and two real-PG test files; e457c2a4 adds the driven-scenario test retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven (tests/knowledge_retrieval_pipeline_tests.rs:758+).",
+        "All 7 scenarios are DRIVEN, not labels: exact-lookup/graph/hybrid/passage-fallback are exercised by executor.rs::execute_retrieval tests; stale-graph/no-result/bad-citation by the new hardening test. The prior adversarial-v2 MEDIUM finding (fixtures.rs only produced candidate-feature/budget sets) is correctly marked FIXED and is genuinely fixed.",
+        "stale_graph reason is real backend logic: passage_fallback.rs:94 (signals.freshness_uncertain && graph.has_candidates() -> GraphCandidatesStale='graph_candidates_stale'), surfaced via executor.rs:295 fallback_reason; the test asserts this exact value over a real upserted edge.",
+        "no_result_recovery is proven by a persisted, bounded, explainable EMPTY bundle (0 items, 0 tokens, 1 trace) fetched back via get_knowledge_context_bundle - recovery without hallucination, not a stub.",
+        "bad_citation: snippet.rs:72 returns supported=false/unsupported_reason for a missing span (KSP-0...0); the persisted bundle.allowed_context carries the supported=false marker; AND ON DELETE RESTRICT FKs on knowledge_spans (migrations 0135/0136/0137) make dangling citations unconstructable, proven by an expect_err on DELETE.",
+        "Spec-Realism sub-rule 1 PASS: no todo!/unimplemented!/unreachable!/'deferred to follow-on'/'pending MT-'/*Unavailable placeholders anywhere in knowledge_retrieval impl or the test.",
+        "Spec-Realism sub-rule 2 PASS: proof touches real Handshake-managed PostgreSQL (MemoryFixture/knowledge_pg_support, real edges/passages/spans, real FK constraints, real ContextBundleCompilerV2 persistence); tests SKIP loudly when PG is absent and explicitly use NO SQLite/NO mocks.",
+        "Boundary/scope clean: both commits touch only src/backend/handshake_core/{src/knowledge_retrieval,migrations,tests} - all within packet allowed_paths. No forbidden tech (only SQLite reference is a comment disclaiming it). Aside: contract lifecycle status is READY_FOR_VALIDATION with claimed_by/completed_by null, so self-cert sub-rule 3 is NA; this is a paperwork-state observation, not a blocker."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-144.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show e457c2a4 + 00eb73b5 (wtc-kernel-009)",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/passage_fallback.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/snippet.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/fixtures.rs",
+        "src/backend/handshake_core/migrations/0134-0137 knowledge_spans/entities/edges/claims FK constraints"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

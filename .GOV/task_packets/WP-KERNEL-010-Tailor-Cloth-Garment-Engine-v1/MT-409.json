@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-409",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-409.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-409.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-409.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-409.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-408"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the positioned wind source as a first-class `WindActor` scene object (position, direction, cone angle, strength, turbulence, radius falloff) fed into `WindAnimationTracks` and uploaded to `GpuSimParams.wind` each substep, mirroring MD's positioned Wind actor",
+    "allowed_paths": [
+      "tailor-solver/src/types.rs",
+      "tailor-solver/shaders/integrate.wgsl",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/tailor/solver_binding.rs",
+      "app/src/components/tailor/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A `WindActor` struct is defined with fields: `position: Vec3`, `direction: Vec3` (unit), `cone_half_angle_deg: f32`, `strength: f32`, `turbulence: f32`, `radius_m: f32`; it is serializable and stored in `AnimationSpec.wind_actors: Vec<WindActor>`",
+      "The WGSL `integrate.wgsl` shader computes a per-particle wind contribution by projecting the particle position into the wind actor cone and applying the falloff: particles outside `radius_m` or outside the cone receive zero wind force",
+      "`WindAnimationTracks.position` (already declared in the spec struct at line 6194) is wired to the `WindActor.position` field and keyframeable over the animation timeline",
+      "An integration test places a wind actor at a specific 3D position and asserts that cloth panels outside the actor radius are unaffected while panels within the cone deflect measurably more than with a global wind vector of equal strength"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- positioned_wind_actor",
+      "cargo test -p tailor-solver -- wind_cone_falloff",
+      "cargo test -p handshake_core -- tailor_animation_wind_actor_keyframe"
+    ],
+    "risk_if_missed": "Wind is only global directional; no localized wind sources are possible. Scene dynamics for animation shots (e.g. wind from a fan at a specific position, localized gust) cannot be authored. MD parity for animation wind is not achieved."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

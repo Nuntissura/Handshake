@@ -1,0 +1,214 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-242",
+  "title": "UnifiedWorkSurface-242-WikiProjectionDriftAndStaleness",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-242.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Drift/staleness tracking for compiled wiki pages - the native analog of codewiki's commit-vs-source_files drift check and the S9.1.1 guard that keeps 'query the wiki, not the raw' safe. Every compiled page is stamped with the EventLedger source-version and the exact cited-source set (entity/span/symbol ids + content hashes) it compiled from. A drift checker diffs current authority against stamps and flags exactly which pages are stale and why. Serving a wiki page attaches a staleness verdict fail-closed (reuse the MT-106 StalenessVerdict pattern); the Notes UI receives a machine-readable stale badge contract. Without this MT, MT-241's wiki silently goes stale; they ship together.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/knowledge.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Stamps live in PostgreSQL keyed to EventLedger versions; no wall-clock-based staleness heuristics.",
+      "Serving a stale page without its verdict is a contract violation (fail-closed).",
+      "No false-stale: unchanged sources must not flag pages (negative test required)."
+    ],
+    "expected_behavior": "Changing any cited source flags exactly the wiki pages that cited it as STALE with a concrete reason (which source, which version delta); unchanged pages stay FRESH; every served page carries its verdict.",
+    "acceptance_criteria": [
+      "Page stamps record EventLedger version + full cited-source set with content hashes.",
+      "Drift check after a real source edit returns exactly the affected page set (proven set equality in test).",
+      "Staleness verdict attached on every page-serve path; never silent.",
+      "Negative test: recompile with no source change yields zero stale pages."
+    ],
+    "verification": [
+      "Real-PG tests: edit-cited-source -> exact stale set; no-change -> no stale; verdict-on-serve.",
+      "cargo test -p handshake_core --features runtime-full,test-utils green."
+    ],
+    "handoff_requirements": [
+      "List files changed, migrations, tests with results.",
+      "Document the stale-badge contract (fields, values) for the Notes UI + retrieval."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-241",
+      "MT-106"
+    ],
+    "blocks": [
+      "MT-243"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "97c680a3",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T12:55:00Z",
+        "kind": "implementation",
+        "summary": "WikiProjectionDriftAndStaleness: every compiled page is stamped (compile_stamp JSONB) with the EventLedger source version (MAX(event_sequence) watermark) + the EXACT cited-source set (kind/id/content_hash, LM-PWIKI-006; no wall-clock heuristics anywhere). WikiDriftChecker batch-resolves CURRENT hashes (knowledge_sources.content_hash; entity hash = sha256 over kind|key|display|lifecycle|owning-source-hash; loom-block content-field hash; rich-document content_sha256 - the SAME functions used at stamp time, single source of truth) and flags exactly the pages whose cited sources changed with concrete WikiStaleReason {kind, id, stamped vs current hash, source_changed|source_deleted} + ledger version delta. check_workspace persists rebuild_status=stale marks and appends the staleness-verdict receipt (kind wiki_drift_check, LM-PWIKI-012). VERDICT-ON-SERVE fail-closed (LM-PWIKI-008): the api/loom.rs ServedWikiPage wrapper cannot be constructed without a WikiStalenessVerdict; list, single GET, POST compile, POST regenerate, and GET /stale all attach it; evaluation failure fails the serve; unstamped pages verdict 'unstamped' and are NEVER fresh. Ship-together guard live: 0300 CHECK + stamp-required upsert + MT-184 paths stamping.",
+        "files_changed": [
+          "src/backend/handshake_core/src/knowledge_wiki/drift.rs - WikiDriftChecker (evaluate_stamps/evaluate_pages/evaluate_stamp_value/check_workspace), WikiPageDrift, WikiDriftReport",
+          "src/backend/handshake_core/src/knowledge_wiki/mod.rs - WikiCompileStamp, WikiStaleReason, WikiStalenessVerdict (MT-106 StalenessVerdict pattern: tagged enum + machine label), hash derivations",
+          "src/backend/handshake_core/src/api/loom.rs - ServedWikiPage (serde-flattened page + REQUIRED staleness_verdict), POST /workspaces/:ws/loom/wiki/drift-check, verdict attach on every serve path",
+          "src/backend/handshake_core/tests/project_wiki_drift_tests.rs + Cargo.toml [[test]] entry"
+        ],
+        "stale_badge_contract": "staleness_verdict: {\"state\":\"fresh\",\"stamp_ledger_version\":int,\"current_ledger_version\":int} | {\"state\":\"stale\",\"stamp_ledger_version\":int,\"current_ledger_version\":int,\"reasons\":[{\"kind\":\"source|entity|loom_block|rich_document\",\"id\":str,\"stamped_content_hash\":sha256,\"current_content_hash\":sha256|null,\"change\":\"source_changed|source_deleted\"}]} | {\"state\":\"unstamped\"}. unstamped MUST NOT render as fresh. Carried on: GET /workspaces/:ws/loom/wiki (each pages[] entry), GET .../wiki/:id, POST .../wiki (compile), POST .../wiki/:id/regenerate, and GET .../wiki/:id/stale ({stale: bool = !fresh, verdict})."
+      },
+      {
+        "at_utc": "2026-06-12T12:55:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test project_wiki_drift_tests",
+        "result": "ok. 4 passed; 0 failed (real Handshake-managed PostgreSQL + real Axum loom routes over loopback)",
+        "tests": [
+          "mt242_stamps_record_ledger_version_and_cited_source_hashes - every page stamped; ledger_version in (0, current]; cited hashes are sha256 hex; index page's exact cited set is empty (derives from the catalog)",
+          "mt242_source_edit_flags_exactly_the_citing_pages_with_reasons - re-register+re-index REAL staleness.rs with an appended probe symbol; drift stale set == independently derived expected set (set equality both directions); reasons carry the changed source id + stamped vs CURRENT hash + entity-level reasons; unrelated module/entity/decision/index pages stay fresh; stale marks persisted; wiki_drift_check receipt in kernel_event_ledger",
+          "mt242_verdict_attached_on_every_serve_path_fail_closed - route-level: list serves EVERY page with a verdict; single GET fresh->stale flip after the real source edit with reasons naming the source; legacy UNSTAMPED row (old upsert path) serves state=unstamped + stale=true (never fresh); POST compile response carries verdict + stamped loom-block citations",
+          "mt242_no_change_recompile_yields_zero_stale - zero stale / zero unstamped / all fresh after a no-change recompile (negative test)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "state_recovery",
+        "summary": "Crash recovery to READY_FOR_VALIDATION after independent adversarial review PASS and fresh current-tree real-PostgreSQL proof for project wiki drift/staleness verdicts. This is Kernel Builder handoff readiness only; validator review remains pending.",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test project_wiki_drift_tests -- --test-threads=1 --nocapture",
+        "result": "ok. 4 passed; 0 failed against POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt242-project-wiki-drift-tests.log",
+          "adversarial-review:Popper:019ec770-19d5-7373-95cf-42ae59ae90d4:PASS"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:14:37.123Z",
+        "kind": "ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-242"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T12:55:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "97c680a3",
+      "findings": [
+        "STALE-SERVE BYPASS (handled+tested): ServedWikiPage makes a verdict-less serve unrepresentable at the type level; every wiki serve route goes through it or computes the verdict explicitly (/stale); verdict evaluation failure fails the request (fail-closed) - no silent-fresh path exists.",
+        "UNSTAMPED-AS-FRESH (handled+tested): missing/malformed stamps parse to None -> verdict Unstamped; the /stale route derives stale=true from !is_fresh, so unstamped can never read fresh (LM-PWIKI-008).",
+        "FALSE-STALE via wall-clock/touch (handled+tested): hash derivations exclude updated_at and run ids; re-indexing identical content does not flip hashes (no-change negative test green).",
+        "HASH-DERIVATION DRIFT between stamp and check (handled by construction): stamp-time and drift-time use the SAME functions (entity_content_hash / loom_block_state_content_hash / source+richdoc hashes); a divergence is impossible without changing both call sites.",
+        "VERDICT TRUST (handled): verdicts are computed server-side from authority at serve time; stamps are server-written only - no API surface accepts a stamp.",
+        "LEDGER BLOAT via drift receipts (accepted, bounded): the drift receipt embeds per-page stale detail; page list is capped at 2000 by the list query; payloads stay bounded by MAX page count.",
+        "STORAGE-LEVEL READS WITHOUT VERDICT (documented): Database::get_loom_wiki_projection is a storage accessor, not a serve path; all HTTP serve paths attach verdicts - consumers must use the API surface (documented in the badge contract)."
+      ],
+      "fixes": [
+        "No additional code change required beyond the 97c680a3 hardening (title-collision guard, receipt caps, depth cap) recorded under MT-241's review."
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-242 requires EventLedger-anchored drift/staleness for compiled project wiki pages: every compiled page stamped with ledger version + exact cited-source set (content hashes, no wall-clock), a drift check that flags exactly the citing pages with concrete reasons, and a fail-closed staleness verdict on every serve path with unstamped-never-fresh. The current tree on feat/WP-KERNEL-009 implements all of this with real PostgreSQL/EventLedger and real Axum-route proof, fully aligned with current Master Spec LM-PWIKI-006/007/008/012.",
+      "findings": [
+        "drift.rs:120-235 (evaluate_stamps) batch-resolves CURRENT content hashes for every cited source kind (source/entity/loom_block/rich_document) and emits per-page Fresh/Stale verdicts; Stale carries concrete WikiStaleReason {kind,id,stamped vs current hash, source_changed|source_deleted}. Matches LM-PWIKI-007.",
+        "mod.rs:178-294 defines WikiCompileStamp (ledger_version + sorted/deduped cited_sources), WikiStalenessVerdict tagged enum (fresh/stale/unstamped) with is_fresh()/label(); from_value() returns None for missing/malformed stamps -> Unstamped (never fresh). Matches LM-PWIKI-006/008.",
+        "mod.rs:313-365 entity_content_hash and loom_block_state_content_hash deliberately EXCLUDE updated_at and run ids; the SAME functions are reused at stamp time and drift time (drift.rs:156-173), so no false-stale and no stamp/check derivation drift. Satisfies the no-wall-clock and no-false-stale constraints.",
+        "api/loom.rs:766-769 ServedWikiPage makes a verdict-less serve unrepresentable; attach_wiki_verdict (828-841) propagates verdict-evaluation errors via map_err(...)? -> HTTP error, never silent fresh. list (966-998), single GET (880-893), compile (850-878), regenerate (919-946), and /stale (895-917) all attach the verdict; /stale derives stale = !is_fresh() so unstamped reads stale. Fail-closed per LM-PWIKI-008.",
+        "drift.rs:243-341 check_workspace persists rebuild_status='stale' marks for drifted pages and appends a KnowledgeProjectionRebuilt receipt with payload kind 'wiki_drift_check' (counts + per-page stale/unstamped detail). Satisfies LM-PWIKI-012 staleness-verdict receipt.",
+        "migrations/0300_knowledge_wiki_page_compile.sql:38-67 adds compile_stamp JSONB with a CHECK that typed pages MUST have a non-null compile_stamp (page_type IS NULL OR compile_stamp IS NOT NULL) plus structural-validity check and a GIN index on cited_sources -- a database-level ship-together / stamp-required guard.",
+        "tests/project_wiki_drift_tests.rs proves behavior against REAL PostgreSQL (PostgresDatabase::connect to managed/operator PG; knowledge_pg_support.rs documents NO SQLite/in-memory/mock fallback) and REAL Axum routes over a TCP loopback with reqwest. mt242_source_edit_flags_exactly_the_citing_pages_with_reasons re-registers+re-indexes a REAL handshake_core source via the real CodeIndexEngine and asserts set equality both directions against an independently derived expected set (303-306); mt242_no_change_recompile_yields_zero_stale is the negative test (388-402); mt242_verdict_attached_on_every_serve_path_fail_closed covers the fresh->stale flip and the legacy UNSTAMPED row reading state=unstamped/stale=true (628,651).",
+        "No deferred-live escapes/placeholders/stubs/todo!/unimplemented! anywhere in drift.rs, mod.rs, or api/loom.rs (grep clean). No forbidden tech (no SQLite, no external search/graph/RAG services).",
+        "Minor (non-blocking, attribution only): commit 97c680a3 labeled MT-242 contains only the test file + adversarial hardening (title-collision guard, receipt caps, prosemirror depth cap); the core drift/staleness machinery (drift.rs, ServedWikiPage, stamps) actually landed in the MT-241 commit 9cee7f0a. The required behavior exists and is proven in the current tree on this branch, so this does not affect the verdict."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-242.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/drift.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/mod.rs (170-369)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs (760-998)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/project_wiki_drift_tests.rs (40-193, 218-402, 481-706)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (1-163)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0300_knowledge_wiki_page_compile.sql",
+        "git show --stat 97c680a3; git log/-S history for drift.rs, ServedWikiPage, test file",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md (LM-PWIKI-005..013)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2726"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

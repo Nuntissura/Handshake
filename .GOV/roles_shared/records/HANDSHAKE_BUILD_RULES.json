@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-05-20T11:30:00Z",
+  "updated_at": "2026-06-18T00:00:00Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, visual + operator-GUI verification, quiet/non-intrusive operation, and in-product ModelManual currency. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -24,6 +24,30 @@
   "non_authority_surfaces": {
     "markdown_projection_policy": "ON_DEMAND_ONLY",
     "note": "No HANDSHAKE_BUILD_RULES.md projection exists by default. Markdown is generated only on explicit operator request, per CX-205L, [GLOBAL-GOVARTIFACTS-001/002/003], and operator feedback feedback_no_default_md_files."
+  },
+  "test_environment_prerequisites": {
+    "note": "Machine-local prerequisites the WP test suites require to run. EXPAND this list as new requirements appear, and INTEGRATE it into PostgreSQL provisioning / setup tooling / CI where needed so it does not stay prose-only (operator order 2026-06-18). A required extension that is absent MUST fail loud at migration/test time, never silently degrade a capability.",
+    "postgres_extensions": [
+      {
+        "name": "pgvector",
+        "min_version": "0.8.0",
+        "required_for": "WP-KERNEL-009 MT-264 LoomSearchV2 semantic + hybrid search (pgvector cosine HNSW kNN over 768-dim embeddings). Migration 0336 runs CREATE EXTENSION IF NOT EXISTS vector and FAILS LOUD if absent.",
+        "install_note": "NOT bundled with stock PostgreSQL. Built from source on this machine (MSVC BuildTools 2022, nmake /F Makefile.win against PGROOT) and installed as vector.dll + vector.control + vector--*.sql into C:/Program Files/PostgreSQL/16/{lib,share/extension}. Any other machine or CI runner executing the suite must provide pgvector >= 0.8.0.",
+        "added_at_utc": "2026-06-18",
+        "added_by": "OPERATOR"
+      },
+      {
+        "name": "pg_trgm",
+        "required_for": "WP-KERNEL-009 MT-264 fuzzy/typo/substring search (GIN trigram) and general fuzzy matching.",
+        "install_note": "Ships with PostgreSQL contrib; CREATE EXTENSION IF NOT EXISTS pg_trgm."
+      },
+      {
+        "name": "pgcrypto",
+        "required_for": "Pre-existing WP requirement (crypto/UUID helpers used by tests).",
+        "install_note": "Ships with PostgreSQL contrib; CREATE EXTENSION IF NOT EXISTS pgcrypto."
+      }
+    ],
+    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (DB extension, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the migration/test path and any PG provisioning/setup script — do not leave the requirement implicit."
   },
   "citation_kinds": {
     "codex": "rule ID in .GOV/codex/Handshake_Codex_v1.4.md (CX-*)",
@@ -1070,6 +1094,11 @@
       "version": "1.3.0",
       "at_utc": "2026-05-20T11:30:00Z",
       "change": "Added STOP pillar + 5 HBR-STOP-* rules (OPERATOR-authored 2026-05-20) forbidding capacity/token/throughput reasoning as stop justification, requiring runtime-proof for valid stops, requiring dependency-first work over BLOCKED exits, and requiring full-disclosure waiver requests for scope expansion. Origin: 27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004."
+    },
+    {
+      "version": "1.4.0",
+      "at_utc": "2026-06-18T00:00:00Z",
+      "change": "Added test_environment_prerequisites registry (OPERATOR order 2026-06-18): pgvector >= 0.8.0 is REQUIRED for the test suite (WP-KERNEL-009 MT-264 LoomSearchV2 semantic/hybrid search; migration 0336 fails loud if absent), alongside pg_trgm and pgcrypto. Includes an expansion_directive to grow the list and integrate ensure-present + fail-loud checks into migrations/test paths/PG provisioning where needed, rather than leaving prerequisites implicit."
     }
   ]
 }

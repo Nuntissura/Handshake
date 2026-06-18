@@ -1,0 +1,220 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-093",
+  "title": "SourceIngestionAndEvidence-093-DeletedMovedSourceHandling",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-093.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Mark moved/deleted sources stale without deleting history or breaking citations. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "DeletedMovedSourceHandling leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "DeletedMovedSourceHandling is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "58b2af10",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 58b2af10; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:39:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "NO HARD DELETE confirmed (spec: authority is never hard-deleted). mark_knowledge_source_stale only sets stale=TRUE; there is NO `DELETE FROM knowledge_sources` anywhere in the ingestion engine or store. A moved file marks the OLD path-row stale and the NEW path gets a fresh source row (new source_id, same content_hash) — history + receipts preserved and still citable. Verified by lifecycle mt093 (old row still exists, stale=true, receipts non-empty; stale-mark is EventLedger-backed; re-pass does not re-mark = idempotent).",
+        "STABLE-ID nuance: source_id is stable PER PATH (upsert ON CONFLICT (root_id, relative_path) keeps the existing row's id across re-index). A MOVE does NOT carry the id to the new path — the new path is a NEW source_id. So citations to the old source_id keep resolving (stale row retained) and the new path has its own id; there is no id continuity across a move. This matches 'mark stale without breaking citations' but means a citation does not auto-follow a move.",
+        "MOVED-vs-DELETED disposition heuristic is content-hash equality (engine.rs:636): if two DISTINCT files share identical content and one is deleted, the deleted one is mislabeled 'moved' (pointing at the surviving duplicate). Disposition-accuracy bug only — no authority loss, the row is still correctly marked stale with a (possibly wrong) moved_to hint.",
+        "MINOR: moved_to picks the FIRST outcome with matching content+different id; with N identical-content files the target is arbitrary among them."
+      ],
+      "evasion_probes": [
+        "move old_name.md->new_name.md: old row stale, disposition=moved, moved_to=new_name.md, ledger event source_stale_marked CONFIRMED.",
+        "delete gone.md: disposition=deleted, moved_to=None CONFIRMED.",
+        "re-pass with no changes: stale rows NOT re-marked (idempotent) CONFIRMED.",
+        "old source row + its receipts survive (no hard delete, history citable) CONFIRMED.",
+        "already-stale sources skipped in the detection loop (source.stale check) CONFIRMED.",
+        "sources with NULL relative_path skipped (non-file sources) CONFIRMED."
+      ],
+      "evidence_checked": [
+        "engine.rs:618-676 deleted/moved detection loop",
+        "storage/knowledge.rs:3060 mark_knowledge_source_stale (stale=TRUE only, no delete); :2966 upsert ON CONFLICT keeps source_id",
+        "tests/knowledge_ingestion_lifecycle_tests.rs mt093 (move+delete+re-pass idempotence, history retained)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:32:04.773Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
+    ],
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-093 is READY_FOR_VALIDATION but declares MT-081 as a dependency, and MT-081 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-093.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json"
+          ],
+          "required_remediation": "Do not resubmit MT-093 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-093 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:16:10.973Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
+      "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-093 requires re-index to mark moved/deleted knowledge sources stale without hard-deleting history or breaking citations, with EventLedger-receipted, idempotent stale marking against real PostgreSQL. The code (engine.rs:620-678 + storage/knowledge.rs:3624) implements exactly this: stale-only UPDATE (no DELETE), disposition moved/deleted with moved_to target, EventLedger receipt per mutation, proven by a real-PG lifecycle test. The prior FAIL_V1 was a dependency-block (MT-081 not yet validated), now resolved, not a code defect.",
+      "findings": [
+        "engine.rs:620-678 — deleted/moved detection loop: compares surviving relative paths (seen_paths) against list_knowledge_sources_for_root; vanished content => disposition 'deleted', identical content_hash at a new path (different source_id) => 'moved' with moved_to target. Skips already-stale and NULL-relative_path (non-file) sources. Marks stale then appends an EventLedger source_stale_marked receipt with actor/session/correlation ids.",
+        "storage/knowledge.rs:3624 mark_knowledge_source_stale is a real-PG `UPDATE knowledge_sources SET stale=TRUE, updated_at=NOW() ... RETURNING`; grep confirms NO `DELETE FROM knowledge_sources` anywhere in engine.rs/store.rs — history is never hard-deleted, satisfying the 'without deleting history or breaking citations' requirement.",
+        "Sub-rule 1 PASS: grep of engine.rs/store.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow-on'/'pending MT-'/Unavailable variants returns no hits on the required path.",
+        "Sub-rule 2 PASS: proof touches real Handshake-managed PostgreSQL. tests/knowledge_ingestion_support.rs:4-5 documents 'real Handshake-managed PostgreSQL, per-test isolated schema, full migration chain — no SQLite, no mocks'; mt093 test (knowledge_ingestion_lifecycle_tests.rs:127-246) runs two real ingestion passes, asserts moved/deleted dispositions, queries kernel_event_ledger directly (line 228-237) for the source_stale_marked event, confirms the old source row still exists with stale=true and non-empty extraction receipts (lines 211-225), and proves idempotence on pass 3 (line 245).",
+        "Sub-rule 3 PASS: claimed_by=KERNEL_BUILDER, validator verdict set by a distinct WP_VALIDATOR session; this independent review re-verified the proof is real, not self-certified.",
+        "Spec ALIGNED: spec module 02-system-architecture.md:2726 establishes authority is never hard-deleted ('deleting every compiled page MUST leave authority byte-identical') with first-class staleness verdicts; marking moved/deleted sources stale while retaining citable rows + receipts matches this.",
+        "Non-blocking nuance (already noted in adversarial review): moved-vs-deleted disposition uses content-hash equality (engine.rs:638-644), so two distinct files with identical bytes where one is deleted could be mislabeled 'moved'. This is a disposition-hint accuracy edge case only — the row is still correctly marked stale with no authority loss; not a fail.",
+        "Aside (non-blocking): the packet cites v02.192 anchors while current spec is v02.194 — expected paperwork drift, resolved against current spec, not a failing reason."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-093.json",
+        "git show --stat 58b2af10 + commit message",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:560-731 (detection loop + receipts)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:3609-3665 (list_knowledge_sources_for_root, mark_knowledge_source_stale)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_lifecycle_tests.rs:1-246 (mt093 real-PG test)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_support.rs:1-83 (real-PG, no-mocks harness)",
+        "grep for placeholders/escapes in engine.rs/store.rs (none)",
+        "grep for DELETE FROM knowledge_sources (none)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (staleness/no-hard-delete authority)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

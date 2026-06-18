@@ -1,0 +1,190 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-246",
+  "title": "UnifiedWorkSurface-246-SplitEditorsAndTabs",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-246.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close ED-WB-003 + ED-WB-004: editor groups with horizontal/vertical split, open-document tabs (open/close/reorder/pin/dirty-dot), per-group active doc, drag doc between groups, keyboard group navigation - VS Code-class workbench layout over the existing RichDocumentView. State restores after reload (Postgres-backed workspace layout state, projection-only).",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Layout state persists via existing backend state surfaces; no new parallel store."
+    ],
+    "expected_behavior": "Operator splits the work surface, opens multiple docs in tabs and groups, drags between groups, and the layout survives reload.",
+    "acceptance_criteria": [
+      "Split/tabs/drag/pin/dirty all runtime-proven (Playwright).",
+      "Two groups editing the SAME doc stay consistent (CRDT path) - proven.",
+      "Layout restore after reload proven.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-244"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260615-130809",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": null,
+    "evidence": [
+      "IMPLEMENTED_SLICE: durable workbench layout state foundation for MT-246 in app/src/App.tsx, app/src/lib/api.ts, src/backend/handshake_core/migrations/0323_workbench_layout_state.sql, src/backend/handshake_core/src/kernel/mod.rs, src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/workspaces.rs, and src/backend/handshake_core/tests/workbench_layout_state_tests.rs.",
+      "FRONTEND_RESTORE_SAVE_PROOF: pnpm exec vitest run src/App.test.tsx --reporter=verbose passed 31 tests, including durable layout restore, reset persistence, workspace-discovery ordering, Kernel DCC regression coverage, and latest-wins serialized layout saves.",
+      "API_CLIENT_PROOF: pnpm exec vitest run src/lib/api.test.ts --reporter=verbose passed 19 tests, including canonical hsk.workbench_layout_state@1 GET/PUT body/response coverage.",
+      "TYPECHECK_PROOF: pnpm exec tsc --noEmit passed.",
+      "TARGETED_LINT_PROOF: pnpm exec eslint src/App.tsx src/App.test.tsx src/lib/api.ts src/lib/api.test.ts passed.",
+      "BACKEND_EVENTLEDGER_PROOF: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test workbench_layout_state_tests -- --nocapture passed 3 tests, proving non-object rejection, wrong-schema rejection, PostgreSQL persistence, latest EventLedger FK retention, and typed KNOWLEDGE_WORKBENCH_LAYOUT_STATE_RECORDED emission.",
+      "RUSTFMT_PROOF: rustfmt --edition 2021 --check --config skip_children=true src/kernel/mod.rs src/storage/mod.rs src/storage/postgres.rs src/api/workspaces.rs tests/workbench_layout_state_tests.rs passed from src/backend/handshake_core.",
+      "ADVERSARIAL_REVIEW_INITIAL_FAIL: Noether reviewed the first durable layout-state foundation and found stale same-client save overwrite risk plus schema-shape mismatch between UI parser and backend/API tests.",
+      "ADVERSARIAL_REVIEW_FIX_PROOF: added failing regression tests for serialized latest-wins saves and wrong-schema backend rejection; both failed before implementation and passed after adding frontend save draining plus backend/table schema_id validation.",
+      "ADVERSARIAL_REVIEW_POST_FIX_PASS: Mendel reviewed the post-fix durable layout-state foundation and returned PASS for this foundation only, confirming same-client stale saves are serialized/latest-wins, canonical camelCase layout schema is used by UI/API/backend tests, wrong schema_id is rejected in Rust storage and SQL DDL, and MT-246 remains CLAIMED/not complete with blockers.",
+      "KNOWN_VERIFICATION_NOISE: App test run still emits existing jsdom act(...) warnings and an HTMLCanvasElement.getContext warning from unrelated mounted components, but the suite exits 0.",
+      "PRODUCT_SCOPE_PROOF_20260615_130809: split editor groups, open-document tabs (open/close/reorder/pin/dirty-dot), keyboard group navigation, same-document CRDT consistency, drag between groups, split weight changes, backend layout save, and reload restore are covered by tests/visual/workbench-split-editors.spec.ts against the real Vite app shell with backend API routes fulfilled and external network blocked.",
+      "DIRTY_HYDRATION_FIX_20260615_130809: app/src/components/RichTextEditor.tsx suppresses collaboration-hydration transactions until the Yjs document is seeded/adopted, preventing an unedited rich document from being marked dirty on open.",
+      "REGRESSION_PROOF_20260615_130809: pnpm --dir app exec vitest run src/components/RichTextEditor.test.tsx passed 14 tests, including the new 'does not report initial collaborative hydration as a user edit (MT-246)' regression and existing same-document collaboration/reset coverage.",
+      "APP_WORKBENCH_PLAYWRIGHT_PROOF_20260615_130809: pnpm --dir app exec playwright test ../tests/visual/workbench-split-editors.spec.ts --config playwright.config.ts --project visual-normal-1280-light-en-US passed 1 test; screenshots written to ../Handshake_Artifacts/playwright-results/tests-visual-workbench-spl-6993d--groups-and-restores-layout-visual-normal-1280-light-en-US/mt246-workbench-same-doc-clean.png and mt246-workbench-restored-layout.png.",
+      "OFFLINE_COLLABORATION_PROOF_20260615_130809: pnpm --dir app exec playwright test ../tests/dependency_policy/rich_editor_collaboration.spec.ts --config playwright.dependency.config.ts passed 1 test with zero external requests.",
+      "TYPECHECK_PROOF_20260615_130809: pnpm --dir app exec tsc --noEmit passed.",
+      "TARGETED_LINT_PROOF_20260615_130809: pnpm --dir app exec eslint src/components/RichTextEditor.tsx src/components/RichTextEditor.test.tsx passed.",
+      "FULL_LINT_BLOCKER_20260615_130809: pnpm --dir app exec eslint src --ext .ts,.tsx fails on unrelated existing files including AtelierPanel.tsx, DependencyFailureBanner.tsx, TiptapEditor.tsx, inference_lab files, swarm files, and third_party_notices.test.ts; no new RichTextEditor lint findings.",
+      "ADVERSARIAL_REVIEW_20260615_130809: reviewed the diff, boundary between RichTextEditor onUpdate and RichDocumentView dirty tabs, layout PUT/GET fixture assertions, screenshots, diff hygiene, and collaboration reset paths; no blocking MT-246 product-scope findings after the hydration fix.",
+      "REMAINING_LIFECYCLE_BLOCKER_20260615_130809: MT-246 remains CLAIMED because depends_on MT-244 is still not COMPLETED and repo-wide eslint is not clean, although the MT-246 product split-editor scope is now implemented and runtime-proven.",
+      "RECOVERY_REVALIDATION_FRONTEND_20260615_142144Z: HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts pnpm --dir app exec vitest run src/components/RichTextEditor.test.tsx --reporter=verbose passed 1 file / 14 tests; pnpm --dir app exec vitest run src/App.test.tsx src/lib/api.test.ts --reporter=verbose passed 2 files / 69 tests, with known jsdom canvas and act warnings only.",
+      "RECOVERY_REVALIDATION_BROWSER_20260615_142144Z: HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts PLAYWRIGHT_BROWSERS_PATH=../Handshake_Artifacts/playwright-browsers pnpm --dir app exec playwright test ../tests/visual/workbench-split-editors.spec.ts --config playwright.config.ts --project visual-normal-1280-light-en-US passed 1 test; pnpm --dir app exec playwright test ../tests/dependency_policy/rich_editor_collaboration.spec.ts --config playwright.dependency.config.ts passed 1 offline dependency proof test with zero external requests.",
+      "RECOVERY_REVALIDATION_BACKEND_20260615_142144Z: HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --target-dir ../Handshake_Artifacts/handshake-cargo-target --test workbench_layout_state_tests -- --nocapture passed 3 tests; rustfmt --edition 2021 --check --config skip_children=true src/kernel/mod.rs src/storage/mod.rs src/storage/postgres.rs src/api/workspaces.rs tests/workbench_layout_state_tests.rs passed from src/backend/handshake_core after mechanical rustfmt normalization of src/api/workspaces.rs and tests/workbench_layout_state_tests.rs.",
+      "RECOVERY_REVALIDATION_STATIC_20260615_142144Z: pnpm --dir app exec eslint src/App.tsx src/App.test.tsx src/lib/api.ts src/lib/api.test.ts src/components/RichTextEditor.tsx src/components/RichTextEditor.test.tsx src/components/RichDocumentView.tsx src/components/RichDocumentView.test.tsx src/components/WorkspaceSidebar.tsx src/components/WorkspaceSidebar.test.tsx passed; pnpm --dir app exec tsc --noEmit passed; git diff --check on the MT-246 touched product surfaces passed with only existing Git LF-to-CRLF warnings.",
+      "RECOVERY_REPO_WIDE_LINT_BLOCKER_20260615_142144Z: pnpm --dir app exec eslint src --ext .ts,.tsx still fails with 27 errors, all outside the MT-246 touched split-editor/workbench surface: AtelierPanel, DependencyFailureBanner, TiptapEditor, inference_lab, swarm, and third_party_notices.test.ts.",
+      "ADVERSARIAL_REVIEW_PASS_20260615_142144Z: independent adversarial review agent Rawls returned PASS for MT-246 product scope only after checking split pane/tab state, DocumentView rich routing, RichDocumentView CRDT lease, RichTextEditor hydration, layout API/storage boundary, negative paths, and producer/consumer shape; residual uncertainty is no full browser-to-real-Postgres reload E2E, while visual browser reload and real Postgres/EventLedger tests pass separately.",
+      "RECOVERY_LIFECYCLE_DECISION_20260615_142144Z: MT-246 stays CLAIMED, not READY_FOR_VALIDATION, because MT-244 remains READY_FOR_VALIDATION rather than COMPLETED and repo-wide eslint remains red on unrelated surfaces; no remaining MT-246 product-scope gap was found.",
+      "RECOVERY_FIX_20260615_184005Z: app/src/components/RichDocumentView.tsx now keeps duplicate same-document panes on one shared Yjs collaboration document and one shared monotonic RichDocument authority; reload and save responses must publish successfully before applying local version state or clearing dirty state, so stale reload/save responses and CRDT metadata downgrades cannot mark unsaved panes clean or downgrade shared v2 authority to v1.",
+      "RECOVERY_REGRESSION_PROOF_20260615_184005Z: pnpm --dir app exec vitest run src/components/RichDocumentView.test.tsx -t 'keeps a duplicate pane dirty' --reporter=verbose passed 1 test / 21 skipped; pnpm --dir app exec vitest run src/components/RichDocumentView.test.tsx src/components/RichTextEditor.test.tsx src/App.test.tsx src/lib/api.test.ts --reporter=dot passed 4 files / 113 tests, with known jsdom canvas and act warnings only.",
+      "RECOVERY_STATIC_PROOF_20260615_184005Z: pnpm --dir app exec tsc --noEmit passed; pnpm --dir app exec eslint src/components/RichDocumentView.tsx src/components/RichDocumentView.test.tsx src/components/RichTextEditor.test.tsx src/App.test.tsx src/lib/api.test.ts ../tests/visual/workbench-split-editors.spec.ts passed with one known warning that the visual spec is outside the app ESLint base path; git diff --check on RichDocumentView, RichDocumentView.test, and workbench-split-editors passed with only Git LF-to-CRLF warnings.",
+      "RECOVERY_BROWSER_PROOF_20260615_184005Z: HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts PLAYWRIGHT_BROWSERS_PATH=../Handshake_Artifacts/playwright-browsers pnpm --dir app exec playwright test ../tests/visual/workbench-split-editors.spec.ts --config playwright.config.ts --project visual-normal-1280-light-en-US passed 1 split-editor visual proof; pnpm --dir app exec playwright test ../tests/dependency_policy/rich_editor_collaboration.spec.ts --config playwright.dependency.config.ts passed 1 offline rich-editor same-document collaboration proof.",
+      "ADVERSARIAL_REVIEW_PASS_20260615_184005Z: independent adversarial review agent Pascal the 2nd returned PASS for the current MT-246 diff after checking shared authority monotonicity, stale reload rejection, stale save rejection, same-version CRDT metadata downgrade, duplicate-pane dirty clearing, and visual test masking; no blocker findings in the current filesystem state.",
+      "RECOVERY_LIFECYCLE_DECISION_20260615_184005Z: MT-246 stays CLAIMED, not READY_FOR_VALIDATION, because MT-244 remains READY_FOR_VALIDATION rather than COMPLETED and repo-wide eslint remains red on unrelated surfaces; scoped MT-246 product proof and adversarial review are green.",
+      "LIFECYCLE_UNBLOCK_20260615_202943Z: MT-244 is now COMPLETED by fresh revalidation in MT-244.json; repo-wide app ESLint is clean per MT-244 validation_recheck command `pnpm --dir app run lint`; MT-246 therefore advances to READY_FOR_VALIDATION without product-code changes in this governance update.",
+      "REVALIDATION_FIX_20260615_224504Z: app/src/App.tsx now surfaces non-null but non-renderable persisted workbench layouts as load-error instead of silently replacing them with defaults; src/backend/handshake_core/src/storage/postgres.rs validates the full hsk.workbench_layout_state@1 renderable shape before EventLedger append; tests/visual/workbench-split-editors.spec.ts now proves dirty tab close cancellation in Chromium and preserves stacked mobile expectations.",
+      "REVALIDATION_PROOF_20260615_224504Z: pnpm --dir app exec vitest run src/App.test.tsx src/components/RichTextEditor.test.tsx src/components/RichDocumentView.test.tsx src/components/KernelDccProjectionView.test.tsx src/lib/api.test.ts src/lib/editor/editor_keymap.test.ts --reporter=dot passed 6 files / 145 tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target --test workbench_layout_state_tests -- --nocapture passed 4 tests, including schema-correct malformed layout rejection before EventLedger append.",
+      "REVALIDATION_VISUAL_STATIC_PROOF_20260615_224504Z: HANDSHAKE_ARTIFACT_ROOT=D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts PLAYWRIGHT_BROWSERS_PATH=D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\playwright-browsers pnpm --dir app exec playwright test ../tests/visual/quick-switcher.spec.ts ../tests/visual/workbench-split-editors.spec.ts --config playwright.config.ts passed 6 tests across visual-normal-1280-light-en-US, visual-constrained-390-dark-en-US, and visual-edge-empty-1024-light-nl-NL; pnpm --dir app exec tsc --noEmit passed; scoped ESLint passed with only outside-base warnings for visual specs; rustfmt --edition 2024 --check on touched Rust files passed; scoped git diff --check passed with only Git LF-to-CRLF warnings.",
+      "ADVERSARIAL_REVIEW_PASS_20260615_224504Z: read-only reviewer Nash the 2nd returned PASS for the current MT-246 diff after checking malformed layout persistence, EventLedger false receipts, dirty-tab close guard, visual fixture masking, mobile stacked layout behavior, and rustfmt risk; residual caveat is that browser visual layout proof is fixture-backed while real PostgreSQL/EventLedger durability is proven by the Rust integration test.",
+      "NON_PASS_REVALIDATION_STATE_20260615_224504Z: operator allowed READY_FOR_VALIDATION items to be touched; MT-246 remains READY_FOR_VALIDATION and is deliberately not marked PASS after this revalidation."
+    ],
+    "ready_by": "KERNEL_BUILDER-20260615-MT246-MT256-REVALIDATION",
+    "ready_for_validation_at_utc": "2026-06-15T22:45:04.226Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-246 requires a VS Code-class split editor workbench (editor groups; open-document tabs with open/close/reorder/pin/dirty-dot; per-group active doc; drag-between-groups; keyboard group navigation; same-doc CRDT consistency) over RichDocumentView, with layout restoring after reload via a Postgres-backed projection. The code delivers all of this with a real frontend implementation, a real Playwright proof against the live Vite app shell, and a real PostgreSQL/EventLedger Rust integration test for the durable layout authority. Proof is genuine, not mock-only or self-certified.</summary>\n</invoke>\n",
+      "findings": [
+        "Frontend split workbench is real: app/src/App.tsx defines PaneId pane-a..pane-d, SplitWeights, OpenDocumentTab with pinned/dirty, keyboard group navigation helpers (App.tsx:332-341), drag handlers handleDocumentTabDragStart/handleDocumentTabDrop (App.tsx:1595,1615), closeDocumentInPane with dirty-guard/force (App.tsx:1159), and emits data-* test-ids the spec drives (data-split-weights App.tsx:1897, data-active-pane-id App.tsx:1891).",
+        "Durable layout authority is real PostgreSQL + EventLedger: migrations/0323_workbench_layout_state.sql creates knowledge_workbench_layout_states with FK to kernel_event_ledger plus a CHECK on schema_id; storage/postgres.rs save_workbench_layout_state (postgres.rs:8937) runs full renderable-shape validation via validate_workbench_layout_state_shape (postgres.rs:2495) BEFORE a transactional EventLedger append + upsert, with latest-wins and per-mutation receipt retention.",
+        "Real PG integration proof: tests/workbench_layout_state_tests.rs uses a real isolated PostgreSQL schema (panics if PG absent, line 23) and proves non-object rejection, wrong-schema rejection, schema-correct-but-malformed rejection BEFORE EventLedger append (event_count==0, lines 126-168), persistence with distinct receipts per mutation, latest-wins load, and an FK JOIN of stored row to kernel_event_ledger (lines 171-258). Satisfies sub_rule_2; the Playwright fixture mocking the layout route is acceptable because durable authority is independently proven in Rust.",
+        "Real browser runtime proof: tests/visual/workbench-split-editors.spec.ts boots the real Vite app shell on loopback, blocks all non-loopback network (asserts externalRequests==[], line 592), and drives the actual UI to prove split via keyboard splitters, open via file drawer, pin, reorder (move-left), keyboard group navigation (Control+Alt+ArrowRight), same-doc edit in pane-b reflecting live in pane-a (CRDT consistency, lines 511-523), dirty-dot, dirty-close cancellation dialog, save clearing dirty, drag tab between groups (lines 545-550), layout save, and reload restore of panes/pins/active-doc/split-weights.",
+        "sub_rule_1: no deferred-live escape on the layout path; placeholder grep across touched frontend files and the Rust test returned only unrelated UI search placeholders and comments stating features are no longer a stub.",
+        "sub_rule_3: not self-certified. lifecycle.status is READY_FOR_VALIDATION (not COMPLETED); claimed_by and proposed completed_by differ and no implementer-signed COMPLETED transition exists.",
+        "Aside (non-blocking): packet spec_anchors cite v02.192 and tokens ED-WB-003/ED-WB-004 are not literal in v02.194 modules (behavior traces to DEC-002); implementation_commit is null and work landed in bundled checkpoint commit c49afb7f. Neither is a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "MT-246.json",
+        "packet.json",
+        "WP_VALIDATOR_PROTOCOL.md",
+        "0323_workbench_layout_state.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs",
+        "tests/workbench_layout_state_tests.rs",
+        "tests/visual/workbench-split-editors.spec.ts",
+        "app/src/App.tsx"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260615-130809",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

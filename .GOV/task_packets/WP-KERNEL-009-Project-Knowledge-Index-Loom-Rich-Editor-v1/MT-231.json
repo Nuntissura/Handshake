@@ -1,0 +1,222 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-231",
+  "title": "SecurityPortabilityValidation-231-ContradictoryMemoryFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-231.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify contradictory claims remain probationary/conflicted until resolved with evidence. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "ContradictoryMemoryFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ContradictoryMemoryFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "bd468f5a",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "bd468f5a",
+            "slice": "MT-231 contradictory memory conflict hardening"
+          }
+        ],
+        "summary": "MT-231 now enforces contradictory KnowledgeClaim handling through PostgreSQL/EventLedger authority. Unresolved claim conflicts keep claims conflicted at the Rust API layer and direct-SQL layer; exiting conflicted to accepted or retired requires all conflicts resolved plus a matching knowledge_claim_conflict EventLedger receipt. Trusted fact projection excludes unresolved-conflict claims even if lifecycle state is stale. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real PostgreSQL negative fixtures and raw-SQL boundary tests; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts -- --nocapture",
+            "result": "RED before trigger/backstop; raw SQL conflict insert left accepted claims trusted. GREEN after 0320 unresolved-state trigger plus trusted projection unresolved-conflict backstop."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests -- --nocapture",
+            "result": "PASS; 5/5 including raw-SQL unresolved conflict fixture, trusted-only filter, graph projection, passage evidence, and visual debug payload composition"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_claims_tests -- --nocapture",
+            "result": "PASS; 7/7 including MT-231 conflict exit guards, raw SQL wrong-receipt aggregate rejection, unresolved conflicted->accepted rejection, and unresolved conflicted->retired rejection"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_conflict_tests -- --nocapture",
+            "result": "PASS; 3/3 conflict detection/resolution job regressions"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_fixtures_tests contradiction_and_resolution_fixtures -- --nocapture",
+            "result": "PASS; contradiction fixture resolves with real knowledge_claim_conflict EventLedger receipt, kept claim accepted, discarded claim retired"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture",
+            "result": "PASS; 0320 up/down migration applies, rolls back to zero knowledge_* routines, and reapplies exact routine set including MT-231 receipt and unresolved-state guards"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_claims_tests --test knowledge_memory_projection_tests --test knowledge_memory_fixtures_tests --test knowledge_migration_tests --no-run",
+            "result": "PASS; scoped test targets compile"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/knowledge_memory/projection.rs src/backend/handshake_core/src/knowledge_memory/fixtures.rs src/backend/handshake_core/tests/knowledge_claims_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_memory_fixtures_tests.rs src/backend/handshake_core/tests/knowledge_migration_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/knowledge_memory/projection.rs src/backend/handshake_core/src/knowledge_memory/fixtures.rs src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.sql src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.down.sql src/backend/handshake_core/tests/knowledge_claims_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_memory_fixtures_tests.rs src/backend/handshake_core/tests/knowledge_migration_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "post-commit hook",
+            "result": "Product commit succeeded; hook did not auto-send review request because commit subject was not an MT auto-relay subject. Explicit adversarial review was run in-session and returned PASS."
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T05:45:40.492Z",
+        "reviewer": "multi_agent:019ebf63-e220-7460-ad58-5d348fcce5ab",
+        "result": "PASS",
+        "summary": "Reviewer initially found blockers around legacy wrong EventLedger aggregate receipts, unresolved conflicted->retired exits, and raw-SQL conflict insertion leaving accepted claims trusted. Each blocker was hardened with tests and code. Final re-review found no blocking issues; non-blocking note was to ensure the new 0320 up/down migrations were included in the product commit, which bd468f5a includes."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T05:45:40.492Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-231 requires contradictory KnowledgeClaims to stay conflicted until resolved with a matching EventLedger receipt, proven by real PostgreSQL negative fixtures. Commit bd468f5a delivers this at the migration, Rust API, and trusted-projection layers with real managed-PostgreSQL proof and no placeholders.",
+      "findings": [
+        "migrations/0320_knowledge_claim_conflict_acceptance_guard.sql: real PG triggers/functions enforce that a conflicted claim cannot exit to accepted/retired while any knowledge_claim_conflicts row (claim_id or conflicting_claim_id) is unresolved, and requires a NEW.resolution_receipt_event_id that joins to kernel_event_ledger with aggregate_type='knowledge_claim_conflict' and aggregate_id=conflict_id (lines ~120-205). Also adds unordered-pair unique index and an unresolved-state guard that pushes involved claims back to 'conflicted'.",
+        "storage/knowledge.rs:4139-4360: Rust transition_knowledge_claim mirrors the same three checks (unresolved-count, matching-resolved-conflict, aggregate-authority join) for Conflicted->Accepted/Retired; record_knowledge_claim_conflict rejects reverse-order duplicate pairs; resolve path validates receipt aggregate_type/aggregate_id. Binds API writers and raw-SQL writers to identical authority.",
+        "knowledge_memory/projection.rs:171-256: build_fact_graph trusted_only now also requires the backing claim lifecycle_state == Accepted and excludes any claim with an unresolved conflict (claim_has_unresolved_conflict), closing the stale-lifecycle-state trusted-fact leak even when claim row state is stale (CX-503R).",
+        "tests/knowledge_pg_support.rs:1-66: proof harness is real-PostgreSQL-only (POSTGRES_TEST_URL/DATABASE_URL/managed_postgres ensure_running), per-test isolated schema with full migration chain, explicit 'NO SQLite, in-memory, or mock fallback' — absent binaries SKIP, all other failures panic so a broken cluster cannot look green.",
+        "tests/knowledge_claims_tests.rs:58-450: negative fixtures assert expect_err for unresolved conflicted->accepted and ->retired at BOTH the Rust API layer and the raw-SQL layer, a wrong/legacy EventLedger-aggregate receipt rejection, and a resolved-path positive case; conflict pair uses contradictory port assertions (5544 vs 5432).",
+        "migration round-trip: scratch_schema_apply_rollback_reapply test plus the real down.sql (restores prior 0200 guard shape) prove 0320 up/down/reapply; no placeholders, todo!, unimplemented!, or *Unavailable variants anywhere in the diff.",
+        "Non-blocking aside: spec section header carries an [ADD v02.192] label while current bundle is v02.194; section 2.3.13.11 content is present and aligned in v02.194. HBR-VIS-005 NOT_APPLICABLE is honest (no GUI surface changed in this MT)."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-...-v1/MT-231.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 commit bd468f5a (show --stat + full diff)",
+        "src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.sql",
+        "src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.down.sql",
+        "src/backend/handshake_core/src/storage/knowledge.rs",
+        "src/backend/handshake_core/src/knowledge_memory/projection.rs",
+        "src/backend/handshake_core/tests/knowledge_claims_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT231",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

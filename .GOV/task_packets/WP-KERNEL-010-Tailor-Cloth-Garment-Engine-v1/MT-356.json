@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-356",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-356.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-356.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-356.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-356.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-355"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a post-simulation garment sculpt tool that applies smooth brush-based displacement to the simulated mesh vertices (push/pull/smooth/relax), re-runs UV unfurl for affected panels, and stores the sculpt delta as an additive override layer on the garment authority row",
+    "allowed_paths": [
+      "tailor-solver/src/sculpt/brush.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/migrations/YYYY_MM_DD_tailor_garment_sculpt_deltas.sql",
+      "app/src/components/tailor/SculptBrushOverlay.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "SculptBrush type (mode: Push | Pull | Smooth | Relax, radius_mm: f32, strength: f32) is defined in tailor-solver/src/sculpt/brush.rs",
+      "apply_brush(brush, hit_point_mm, mesh) produces a per-vertex displacement delta and blends it with existing sculpt delta on the garment row",
+      "After sculpt, ARAP unfurl is re-run for panels whose vertices were displaced by > 0.5 mm",
+      "The sculpt delta is stored in tailor_garments.sculpt_delta_json as a sparse Vec<(vertex_idx, delta_mm: [f32;3])>",
+      "A TailorGarmentSculpted event (new KernelEventType variant) is emitted after each committed brush stroke",
+      "Sculpt deltas are excluded from MeshComparator promotion equivalence checks (they are additive post-sim overrides, not solver outputs)",
+      "cargo test sculpt::test_push_displaces_vertices and sculpt::test_smooth_reduces_curvature both pass"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver sculpt::brush::test_push_displaces_within_radius",
+      "cargo test -p tailor-solver sculpt::brush::test_smooth_reduces_local_curvature",
+      "cargo test -p handshake_core tailor::test_sculpt_emits_event_and_stores_delta"
+    ],
+    "risk_if_missed": "Post-simulation surface correction without re-running the full solver is the primary tool for hero-garment finessing in production. Without a sculpt tool, every surface imperfection requires a full parameter tweak, re-sim, and visual review cycle, multiplying iteration time by 5-10x for fine-detail work."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

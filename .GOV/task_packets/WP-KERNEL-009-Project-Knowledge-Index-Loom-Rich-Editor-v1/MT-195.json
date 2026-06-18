@@ -1,0 +1,189 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-195",
+  "title": "UserManualAndNoContextOps-195-UserManualBuildUpdateRule",
+  "group": "UserManualAndNoContextOps",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-195.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Require every WP-009 feature/tool/primitive/UI/backend API to update or validate UserManual content during build. This MT belongs to UserManualAndNoContextOps. Make UserManual a built-in product surface that enables no-context model and future user operation.",
+    "relevant_files": [
+      "app/MODEL_MANUAL.md",
+      "app/src-tauri/src/manual.rs",
+      "src/backend/handshake_core/src/model_manual/",
+      "src/backend/handshake_core/src/kernel/model_manual.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/tests/model_manual_tests.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "The canonical stuck-together product term is UserManual; legacy ModelManual, Model Manual, and model_manual may remain only as declared deprecated shims with migration tests.",
+      "UserManual updates are build deliverables for every touched feature/tool/primitive/surface, not optional docs."
+    ],
+    "expected_behavior": "UserManualBuildUpdateRule leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "UserManualBuildUpdateRule is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-MAN-001",
+      "HBR-MAN-002",
+      "HBR-MAN-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-193"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "fcf9bce3+working-tree-20260614",
+    "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Build-update rule implemented as a three-layer enforcement substrate over src/user_manual/registry.rs (99 typed SurfaceDescriptor rows = the declared WP-009 surface inventory: ingestion 6, code-nav 6, documents 16, retrieval 5, memory 5, crdt 3, Notes/Loom 43 incl. the POST /workspaces prerequisite, usermanual 16): (1) COMPILE-TIME gate - lib test user_manual::seed::tests::every_registry_surface_is_anchor_covered_in_the_corpus fails the build when a registry surface lacks an http_route anchor in the seed corpus (spec 10.15.8: coverage in the same implementation unit); (2) DB gate - user_manual_storage_tests::mt195_every_registry_surface_has_db_coverage proves every surface has anchor + tool-entry rows in seeded PostgreSQL; (3) RUNTIME gate - user_manual_api_tests::mtdoc_every_registry_surface_exists_on_the_real_router probes all 99 documented (method,route) pairs against the REAL full api::routes router (405 or bare router-404 fails). Negative proof the gate can fire: mt195_uncovered_surface_detection_fires (delete a route anchor -> freshness uncovered_surface verdict -> reseed heals). RED-then-GREEN evidence: the compile-time gate FAILED on first run (code-nav anchors missing from knowledge-index-surface) and was fixed by adding the anchors - the rule provably blocks uncovered surfaces. New-surface law documented in registry.rs module docs: a later group lands its SurfaceDescriptor + seed coverage in the same unit or the suite is RED.",
+    "adversarial_code_review": {
+      "verdict": "PASS_AFTER_FIXES",
+      "reviewed_at_utc": "2026-06-12T09:30:00Z",
+      "reviewer": "KERNEL_BUILDER-UserManual-delegate (self, adversarial pass)",
+      "concerns_found_and_fixed": [
+        "Gate fired RED on first run: /knowledge/code/* anchors missing from the knowledge-index page (sections documented them but anchors were not emitted) -> group_route_anchors(CodeNavigation) added; this is also the MT-112 closure path.",
+        "Direction-coverage gap: registry->anchor only catches uncovered surfaces; an anchor documenting a REMOVED surface needed the inverse check -> dangling_anchor verdict in freshness + the runtime router probe close it (caught the undeclared POST /workspaces anchor; fixed by declaring the prerequisite surface)."
+      ],
+      "residual_risks": [
+        "Axum routers cannot be introspected, so a route mounted but ABSENT from the registry is not auto-detected; mitigation: the registry is the declared build-rule surface (spec 10.15.8 makes the declaring MT responsible), and the parity gate (DEC-006) audits inventory externally."
+      ]
+    },
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "reviewer": "Mill / 019ec710-8c42-72f3-8f30-be819cc9a6ca",
+      "verdict": "PASS",
+      "blocking_findings": [],
+      "summary": "Follow-up adversarial review found no blocking findings after durable ModelManual-to-UserManual wording, USER_MANUAL_VERSION HBR-MAN-001 guidance, Loom route parity, full-row freshness, receipt atomicity, and fail-closed PostgreSQL test fixes."
+    },
+    "ready_by": "KERNEL_BUILDER-20260614-140628",
+    "ready_for_validation_at_utc": "2026-06-14T17:17:33.320Z",
+    "ready_evidence": [
+      "wtc-kernel-009 working tree after fcf9bce3 includes UserManual recovery fixes; validator must review working-tree diff, not only fcf9bce3.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture: PASS, 11 passed.",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture: PASS, 12 passed.",
+      "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests -- --nocapture: PASS, 11 passed.",
+      "git diff --check: PASS, line-ending warnings only; stale standalone HBR-MAN-001 MANUAL_VERSION source/artifact scan: no hits."
+    ],
+    "hardening_closed": {
+      "at_utc": "2026-06-14T17:17:33.320Z",
+      "commit": "working-tree",
+      "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-195 requires a build-update rule that forces every WP-009 surface to add/validate UserManual coverage in the same implementation unit, with real PostgreSQL/EventLedger authority and non-mock runtime proof (spec 10.15.8). The code delivers exactly this via a three-layer enforcement substrate (compile-time anchor-coverage test, real-PostgreSQL DB coverage test, and a real-router runtime probe over all registry surfaces) plus a negative test proving the gate can fire and heal.",
+      "findings": [
+        "Spec 10.15.8 in CURRENT v02.194 (10-product-surfaces.md:8151-8157) explicitly states a WP-KERNEL-009 surface without UserManual coverage 'is a build-rule defect' and coverage must land 'in the same implementation unit' — MT-195 implements precisely this rule.",
+        "Compile-time gate is real: seed.rs:1942 every_registry_surface_is_anchor_covered_in_the_corpus iterates the actual wp009_surface_registry() and asserts each (method,route) has an http_route anchor in the seed corpus; failure aborts the build.",
+        "DB gate is real PostgreSQL: tests/user_manual_storage_tests.rs:419 mt195_every_registry_surface_has_db_coverage seeds an isolated PG schema and asserts every registry surface has anchor + tool-entry rows; skip_if_no_pg! (user_manual_support.rs:133) PANICS when PG is absent, so the proof is fail-closed, not vacuously skipped.",
+        "Runtime gate is real: tests/user_manual_api_tests.rs:698 mtdoc_every_registry_surface_exists_on_the_real_router builds a real AppState (PostgresDatabase + real pool, user_manual_support.rs:95) and serves api::routes(state) on a loopback listener, then probes all registry surfaces; a bare router-404 (empty body) or 405 fails — genuine doc-vs-runtime proof against the real product router.",
+        "Negative/fire proof is real: storage_tests.rs:460 mt195_uncovered_surface_detection_fires DELETEs a route anchor via raw sqlx, asserts check_freshness() returns an UncoveredSurface verdict, then reseeds and asserts the verdict clears. The freshness logic (freshness.rs:273-290) genuinely diffs the registry against DB http_route anchors in both directions (uncovered + dangling).",
+        "Durable authority is real PostgreSQL: migration 0310_user_manual.sql creates user_manual_pages/sections/anchors/tool_entries/feature_entries/versions/legacy_aliases — no SQLite, no mock store. NoopRecorder/NoopLlmClient in the test harness are peripheral flight-recorder/LLM stand-ins, not the manual storage path.",
+        "No deferred-live escapes: grep of src/user_manual/ for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/*Unavailable returned zero hits.",
+        "No self-certification: lifecycle.completed_by is null, status READY_FOR_VALIDATION, hardening_closed note explicitly leaves PASS/COMPLETED to the validator.",
+        "Minor (non-blocking) aside: the MT narrative says 99 surfaces but registry.rs has 106 surface!() rows; the gate tests iterate the actual registry so coverage is enforced over the real set regardless — this is benign narrative-vs-code count drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-195.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (10.15.8)",
+        "wtc-kernel-009 git show --stat fcf9bce3 + git log --grep MT-195",
+        "src/backend/handshake_core/src/user_manual/registry.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs:1900-2009",
+        "src/backend/handshake_core/src/user_manual/freshness.rs:255-299",
+        "src/backend/handshake_core/tests/user_manual_storage_tests.rs:400-505",
+        "src/backend/handshake_core/tests/user_manual_api_tests.rs:690-743",
+        "src/backend/handshake_core/tests/user_manual_support.rs (skip_if_no_pg!, app_state_for)",
+        "src/backend/handshake_core/migrations/0310_user_manual.sql"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

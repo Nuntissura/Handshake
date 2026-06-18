@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-385",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-385.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-385.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-385.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-385.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-384"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement post-simulation all-quad mesh re-topology using the isotropic remeshing approach (pair adjacent triangles to quads along shortest diagonal) in tailor-solver, producing a quad mesh that preserves UV island boundaries and grain direction, exported alongside the triangle mesh in glTF/USD",
+    "allowed_paths": [
+      "tailor-solver/src/mesh.rs",
+      "tailor-solver/src/uv/packing.rs",
+      "src/backend/handshake_core/src/tailor/export/gltf_morph.rs",
+      "src/backend/handshake_core/src/tailor/export/usd_export.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A remesh_to_quads(mesh: &SolverMesh, options: QuadRemeshOptions) -> QuadMesh function is implemented in tailor-solver/src/mesh.rs",
+      "QuadMesh preserves all UV island boundaries: no quad spans across a seam cut",
+      "QuadMesh preserves grain direction: panel grain angle is not distorted by the re-topology pass",
+      "The resulting QuadMesh is exportable as a separate glTF mesh primitive with TRIANGLES topology derived from quad diagonal split (fallback for non-quad-native importers)",
+      "tailor_generate_quad_mesh MCP tool triggers quad re-topology for a given garment_id and simulation_run_id, stores the result as an artifact, and emits a TailorQuadMeshGenerated EventLedger event",
+      "An integration test: a 4-panel garment re-meshed to quads has zero quads crossing UV seam cuts"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor_solver mesh::quad_remesh_preserves_uv_seam_boundaries",
+      "cargo test -p tailor_solver mesh::quad_remesh_produces_valid_manifold",
+      "cargo test -p handshake_core tailor::export::gltf_quad_mesh_exports_as_separate_primitive"
+    ],
+    "risk_if_missed": "Without all-quad output, garments imported into Blender or ZBrush for subdivision or sculpting detail show triangle artifacts on curved surfaces (shoulders, bust, drape). Subdivision on triangles produces pinching; DCC artists must manually retopologize every exported garment, which is the single most time-consuming step in the cloth-to-game pipeline."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

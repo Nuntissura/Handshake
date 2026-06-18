@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-400",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-400.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-400.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-400.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-400.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-399"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement GarmentCodeRcDecoder with panel template factories for tshirt, shirt, dress, pants, skirt, jacket, hood, sleeve garment categories, decoding up to 76 normalized f32 params into a full cm GarmentSpec",
+    "allowed_paths": [
+      "tailor-solver/src/spec.rs",
+      "tailor-solver/src/decoder.rs",
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "GarmentCodeRcDecoder struct is defined in tailor-solver/src/decoder.rs with a factory registry keyed by garment_type string",
+      "GarmentSpec::from_garmentcode_rc(v, decoder) decodes a 76-float ChatGarment Tier-1 JSON payload into a valid cm GarmentSpec for all 8 required garment categories",
+      "Decoded GarmentSpec passes PANEL_CLOSURE, SEAM_EDGE_REF, MIN_PANEL_AREA, and FABRIC_RANGE fast-validation checks without modification for all 8 categories",
+      "Tier-1 decode path is wired as the first decode step in author_garment when spec.schema_id is the compact GarmentCodeRC schema id",
+      "GarmentSpec::to_garmentcode_json() round-trips through from_garmentcode_rc() and back with less than 0.5 cm deviation on panel vertex coordinates",
+      "No normalized [0,1] vertex coordinate survives into the authority tailor_garments.spec_json JSONB column"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver garmentcode_rc_decoder -- --nocapture (all 8 categories produce valid GarmentSpec)",
+      "cargo test -p tailor-solver garmentcode_roundtrip (round-trip cm deviation < 0.5 cm)",
+      "cargo test -p handshake_core tailor::model_adapter::tier1_decode_path (author_garment accepts compact input and emits TailorGarmentDraftProposed)"
+    ],
+    "risk_if_missed": "The ChatGarment 350-token interactive dialogue path — the primary LLM-friendly authoring mode and Handshake's key differentiator over MD's GUI-only authoring — is unusable. Models must emit full explicit GarmentSpec JSON, which is 10-30x more tokens per turn and breaks the interactive self-correction loop for complex garments."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-232",
+  "title": "SecurityPortabilityValidation-232-FragmentedGraphFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-232.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify isolated chunks do not create off-topic bridge edges or misleading graph retrieval. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "FragmentedGraphFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "FragmentedGraphFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "a3250073",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T06:45:58.727Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "a3250073",
+            "slice": "MT-232 fragmented graph retrieval hardening"
+          }
+        ],
+        "summary": "MT-232 now prevents fragmented graph retrieval from using misleading bridge evidence. Schema-first filtering carries ontology term maps_to_edge_type into executed graph traversal; schema and caller edge policies intersect, with an explicit deny_all_edges state for disjoint policies so empty intersections cannot widen. GraphTraversalPlanner now expands only active knowledge_edges, so proposed and retired bridge suggestions cannot become graph candidates, ranked evidence, or persisted bundle items. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real PostgreSQL negative fixtures; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T06:45:58.727Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_pipeline_tests fragmented_graph_schema_scope_blocks_off_topic_bridge_edges -- --nocapture",
+            "result": "RED before schema-edge policy hardening with graph_edge_count left 2 right 1; RED again after reviewer finding for disjoint schema/caller allowlists with graph_edge_count left 2 right 0; GREEN after edge_type_allowlist propagation plus explicit deny_all_edges intersection handling"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_pipeline_tests fragmented_graph_retrieval_ignores_proposed_and_retired_bridges -- --nocapture",
+            "result": "RED before active-edge traversal filtering with proposed bridge graph_edge_count left 1 right 0; GREEN after GraphTraversalPlanner filters active knowledge_edges before degree calculation and expansion"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_pipeline_tests -- --nocapture",
+            "result": "PASS; 15/15 retrieval pipeline tests including MT-232 off-topic bridge, disjoint policy, proposed bridge, retired bridge, graph, fallback, trace, ranking, and bundle persistence paths"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_bridges_tests -- --nocapture",
+            "result": "PASS; 3/3 schema-first, ProjectBrain, and ContextPack bridge tests"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_bridge_tests -- --nocapture",
+            "result": "PASS earlier in the MT-232 run; 2/2 bridge generator tests. A later rerun after the reviewer fix timed out at 5 minutes and is not claimed as passing; scoped no-run compile below passed afterward."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_pipeline_tests --test knowledge_retrieval_bridges_tests --test knowledge_memory_bridge_tests --no-run",
+            "result": "PASS; affected integration targets compile after reviewer fix and doc correction"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/knowledge_retrieval/schema_filter.rs src/backend/handshake_core/src/knowledge_retrieval/executor.rs src/backend/handshake_core/src/knowledge_retrieval/graph_planner.rs src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_retrieval/schema_filter.rs src/backend/handshake_core/src/knowledge_retrieval/executor.rs src/backend/handshake_core/src/knowledge_retrieval/graph_planner.rs src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "post-commit hook",
+            "result": "Product commit succeeded; hook did not auto-send review request because commit subject was not an MT auto-relay subject. Explicit adversarial review was run in-session and returned PASS."
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T06:45:58.727Z",
+        "reviewer": "multi_agent:019ebfa4-4073-74d0-89cb-bde129f179ee",
+        "result": "PASS",
+        "summary": "Reviewer initially found a blocker: schema/caller disjoint edge allowlists collapsed to empty and widened traversal because empty GraphTraversalPolicy allowlist meant unrestricted. The blocker was hardened with an explicit deny_all_edges state plus a real PostgreSQL disjoint-policy regression. Re-review found no blocking issues; the only non-blocking note was stale module-header wording about entity_edge_degree, corrected before product commit."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T06:45:58.727Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-232 (FragmentedGraphFixture) requires proving that isolated/fragmented chunks cannot create off-topic bridge edges or misleading graph retrieval. The commit a3250073 implements real schema-scoped edge-type narrowing plus active-only edge traversal so off-topic, proposed, and retired bridge edges cannot become graph candidates, ranked evidence, or persisted bundle items, and proves it with real Handshake-managed PostgreSQL negative fixtures. The code is substantive, spec-aligned, and not placeholder/mock.",
+      "findings": [
+        "executor.rs:302-329 schema_scoped_graph_policy() intersects schema-derived edge_type_allowlist with caller policy; disjoint allowlists set deny_all_edges=true rather than collapsing to empty-=-unrestricted. Real logic, no placeholder.",
+        "graph_planner.rs:39-44,67-76 adds explicit deny_all_edges flag distinct from empty allowlist; allows() returns false when deny_all_edges. Closes the widening hole the adversarial reviewer found.",
+        "graph_planner.rs:181-182 replaces entity_edge_degree(pool) with list_knowledge_edges_for_entity(...).retain(lifecycle_state==Active); the single filtered vec feeds both degree and expansion, so proposed/retired edges are excluded from traversal. Confirmed list_knowledge_edges_for_entity (knowledge.rs:4220) returns ALL lifecycle states unfiltered, so the retain filter is the real gate.",
+        "schema_filter.rs:104-122 resolve_schema_edge_type_allowlist() reads real ontology terms via get_memory_ontology_term (knowledge_memory.rs:289) and their maps_to_edge_type column (knowledge_memory.rs:157,214); carries them into SchemaFilterResult.edge_type_allowlist. Supporting infra verified real, not invented.",
+        "tests knowledge_retrieval_pipeline_tests.rs:692+ fragmented_graph_schema_scope_blocks_off_topic_bridge_edges and :998+ fragmented_graph_retrieval_ignores_proposed_and_retired_bridges use MemoryFixture::setup() -> knowledge_pg() real managed PostgreSQL (fixtures.rs:43), create real ontology terms, knowledge_edges (DependsOn vs Mentions), facts, and assert graph_edge_count==1 (off-topic excluded), ==0 for disjoint policy, ==0 for proposed/retired bridges, plus persisted-bundle ref_id assertions. Real negative-fixture proof, not mock.",
+        "Spec alignment confirmed: v02.194 02-system-architecture.md:2704 (edge lifecycle proposed/accepted/conflicted/retired), :2680-2688 (proposed CRDT/promotion-bridge state is not authority until promotion), :7318 (bounded graph traversal for authoritative lookup), :10931 (graph traversal MUST be bounded). Implementation enforces exactly this.",
+        "Lifecycle: claimed_by=null, completed_by=KERNEL_BUILDER-20260613, status READY_FOR_VALIDATION -> no implementer self-cert of COMPLETED. HBR-VIS-005 correctly marked NOT_APPLICABLE (no GUI surface touched). Aside: one cargo run timed out at 5min per evidence and a no-run compile was substituted; judged by reading code/tests per host-load instruction, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-232.json",
+        "git show a3250073 (executor.rs, graph_planner.rs, schema_filter.rs, knowledge_retrieval_pipeline_tests.rs)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/graph_planner.rs:160-230",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:1074-1102,1195,4220-4234,4248+",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_memory.rs:157,214,289",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:41-90",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2680-2704,7318,10931",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT232",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

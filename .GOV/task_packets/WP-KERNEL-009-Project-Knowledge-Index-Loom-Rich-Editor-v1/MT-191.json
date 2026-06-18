@@ -1,0 +1,205 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-191",
+  "title": "LoomObsidianNavigation-191-LoomVisualDebugViews",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-191.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Expose graph/backlink/folder/search state through visual-debug snapshots and backend debug payloads. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "LoomVisualDebugViews leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "LoomVisualDebugViews is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-214032",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_for_validation_at_utc": "2026-06-14T22:37:04.326Z",
+    "ready_for_validation_reason": "Loom visual-debug backend payload exposes bounded graph, backlink, folder, and search state over PostgreSQL/EventLedger-backed Loom authority; UserManual route coverage, real PostgreSQL proof, cargo check, rustfmt check, and local adversarial review passed.",
+    "evidence": [
+      {
+        "at_utc": "2026-06-14T22:37:04.326Z",
+        "kind": "implementation",
+        "summary": "Added hsk.loom_visual_debug@1 typed payload, storage trait method, Postgres snapshot projection, GET /workspaces/:workspace_id/loom/visual-debug route, UserManual registry entries, and a real-PostgreSQL proof test target.",
+        "files_changed": [
+          "src/backend/handshake_core/Cargo.toml",
+          "src/backend/handshake_core/src/storage/loom.rs",
+          "src/backend/handshake_core/src/storage/mod.rs",
+          "src/backend/handshake_core/src/storage/postgres.rs",
+          "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/src/user_manual/registry.rs",
+          "src/backend/handshake_core/tests/loom_visual_debug_views_tests.rs"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T22:37:04.326Z",
+        "kind": "test_proof",
+        "summary": "Real PostgreSQL MT-191 proof and adjacent regressions passed: loom_visual_debug_views_tests (2 passed), loom_graph_search_filters_tests (3 passed), loom_navigation_fixtures_tests (1 passed), user_manual_api_tests (13 passed), cargo check --features runtime-full,test-utils, targeted rustfmt check, and git diff --check for touched product files.",
+        "evidence_refs": [
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_visual_debug_views_tests -- --test-threads=1 --nocapture",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_graph_search_filters_tests -- --test-threads=1 --nocapture",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_navigation_fixtures_tests -- --test-threads=1 --nocapture",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test user_manual_api_tests -- --test-threads=1 --nocapture",
+          "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils",
+          "rustfmt --edition 2021 --check --config skip_children=true <touched Rust files>",
+          "git diff --check -- <touched product files>"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T22:36:54.148Z",
+        "kind": "kb_ready_checklist",
+        "summary": "KB_READY_CHECKLIST_RECEIPT emitted PASS before READY_FOR_VALIDATION transition.",
+        "evidence_refs": [
+          "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-191@2026-06-14T22:36:54.148Z"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T22:37:04.326Z",
+        "kind": "adversarial_code_review",
+        "summary": "Local read-only adversarial review found no MT-blocking product bug. Checked fail-closed workspace/start/query behavior, limit bounding, trimmed debug payloads, no sidecar/offline authority, UserManual route coverage, and real PostgreSQL proof. A delegated review agent stalled and was closed before returning a verdict, so this evidence records the local review only.",
+        "evidence_refs": [
+          "local-adversarial-review:MT-191:PASS-no-blocking-findings",
+          "subagent:019ec82e-90f3-7bf2-8d8f-b9a6338187c4:closed-stalled-no-verdict"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T22:37:04.326Z",
+        "kind": "visual_debug_note",
+        "summary": "No GUI visual-debug run was performed because this MT delivered the backend debug payload and route; no Loom front-end visual-debug surface exists in scope to inspect. The payload exposes stable route_ids and bounded navigation state for future GUI/model inspection."
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-191 requires a bounded backend visual-debug snapshot exposing Loom graph/backlink/folder/search navigation state as a PostgreSQL/EventLedger-backed projection (not a parallel store), with a wired route, UserManual coverage, and real-PG proof. The code delivers exactly that: a real composed Postgres implementation, a GET route registered in the router, matching UserManual registry entries, and a real-PostgreSQL test that fails closed (panics) without a live DB.",
+      "findings": [
+        "storage/postgres.rs:9288 loom_visual_debug_snapshot is a real implementation composing real authority-backed queries (loom_visual_debug_counts SQL COUNT over loom_blocks/loom_edges/loom_folders/loom_folder_members/loom_block_knowledge_bridge at postgres.rs:249, local_graph, get_backlinks_with_context, list_loom_folders, search_loom_graph, loom_folder_member_count). No stub/placeholder.",
+        "Snapshot is correctly typed as a projection: storage/loom.rs:836-848 LoomVisualDebugSnapshot carries authority_backend=PostgresEventLedger and authority_class=\"projection\" (postgres.rs:9379-9380), with bounded counts/graph/backlinks/folders/search — not a parallel graph/search store.",
+        "Route is wired: api/loom.rs:283-284 registers GET /workspaces/:workspace_id/loom/visual-debug -> loom_visual_debug_snapshot handler (api/loom.rs:3451), which fail-closes on missing start_block_id (HSK-400-LOOM-START-BLOCK-REQUIRED) and missing q (HSK-400-LOOM-QUERY-REQUIRED), clamps limit 1..100, and records a FlightRecorder EventLedger event.",
+        "Sub-rule 2 real-resource proof is genuine: tests/loom_visual_debug_views_tests.rs:17-26 pg_or_skip! PANICS (not silent skip) when real PostgreSQL is absent; the test inserts real loom blocks/edges/folder/bridge rows and asserts the snapshot reflects them (counts >=, graph node depth=1, mention edge, backlink context snippet, folder membership sample, graph-search hit, route_ids).",
+        "Sub-rule 1: grep of impl + test found no todo!/unimplemented!/placeholder/mock/deferred markers. The trait default at storage/mod.rs:2473 returns StorageError::NotImplemented(\"loom visual-debug backend\") but it is dead/unreachable — Postgres is the only Database backend (no sqlite module in src/storage/) and PostgresDatabase fully overrides the method; the live path never hits the default.",
+        "UserManual coverage present and matches test assertions: user_manual/registry.rs:568-573 registers loom.visual_debug (GET /workspaces/:workspace_id/loom/visual-debug, schema hsk.loom_visual_debug@1) and keeps loom.graph_search.",
+        "Self-cert: lifecycle.claimed_by=KERNEL_BUILDER-20260614-214032, completed_by=null (READY_FOR_VALIDATION, not self-signed COMPLETED); independent review confirms proof is real.",
+        "Aside (non-blocking, expected for winding-down governance): MT-191.json has no lifecycle.implementation_commit; the test/impl landed via a checkpoint commit (c49afb7f) on feat/WP-KERNEL-009. Packet cites v02.192 spec anchors while current is v02.194 — paperwork only, not a code/spec contradiction."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-191.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/loom.rs (lines 728-848)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/postgres.rs (lines 249-301, 2074-2162, 9288-9389)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/mod.rs (lines 2470-2482, module list)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs (lines 275-290, 3375-3500)",
+        "wtc-kernel-009/src/backend/handshake_core/src/user_manual/registry.rs (lines 568-573)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/loom_visual_debug_views_tests.rs (full)",
+        "git log on feat/WP-KERNEL-009 for MT-191/visual_debug commits"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-214032",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

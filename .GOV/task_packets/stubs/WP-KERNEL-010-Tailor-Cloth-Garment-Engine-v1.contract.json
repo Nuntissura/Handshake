@@ -1,0 +1,187 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "base_wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine",
+  "created_at_utc": "2026-06-17T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "markdown_projection": "NOT_GENERATED_JSON_AUTHORITY_ONLY"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "status": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "projection_sha256": "NOT_GENERATED",
+    "generated_by": "task-packet-stub-contracts.mjs",
+    "note": "JSON contract is authority. Per the KERNEL-006/007/008 convention and the operator no-.md directive, no Markdown projection is generated for this stub."
+  },
+  "lifecycle": {
+    "status": "READY_FOR_REFINEMENT",
+    "promoted_from_stub_at_utc": "2026-06-17T17:50:00Z",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": true,
+    "refinement_required_before_execution": true,
+    "spec_status": "SECTION_13_TAILOR_ACTIVE_IN_MASTER_SPEC_v02.194 (own module + TOC, sub-sections 13.1-13.15; signed ilja170620261750; all spec checks pass)",
+    "next_in_build_order_after": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 (start after WP-009 passes tests + validation)"
+  },
+  "microtasks": {
+    "status": "PRE_CREATED_AND_COMMITTED",
+    "total": 448,
+    "range": "MT-001..MT-448",
+    "location": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/ (each MT-NNN.json is a per-task hsk.microtask_contract@1 contract)",
+    "authoritative_index": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MT_INDEX.json -- lists EVERY one of the 448 MTs (mt_id, group, depends_on, summary) so none is forgotten",
+    "parity_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_PARITY_REVIEW.json -- Marvelous Designer parity workflow result (per-area covered/partial/gap counts + 70 reshuffle notes)",
+    "composition": {
+      "core_section_13": "MT-001..MT-332 (13 build groups: SolverCore 40, KernelIntegration 40, Collision 34, GarmentAuthoring 26, ValidationHBR 26, TrimRigid 24, Fabric 22, UvTexture 22, RenderViewportExport 22, ModelFirstApi 22, Animation 20, AutoFit 18, ProductionBridge 16)",
+      "md_parity_additions": "MT-333..MT-448 (116 Marvelous-Designer parity gaps closed, clustered by target_group)"
+    },
+    "shape": "template-exact hsk.microtask_contract@1 (lifecycle PENDING; hbr_obligations [] -> hydrate into the packet acceptance matrix at activation; linear depends_on chain; per-MT build-rules evidence in scope.proof_targets)",
+    "verified": "448/448 valid JSON, correct schema_id + scope shape, no numbering gaps/dupes, intact depends_on chain",
+    "reconciliation": "Refinement MUST reconcile all 448 MTs against the signed clause-closure matrix and apply the _PARITY_REVIEW.json reshuffle notes when generating the final MT order via create-task-packet.mjs. This block SUPERSEDES the refinement_ready.mt_group_plan estimate below (which was the pre-authoring plan)."
+  },
+  "refinement_ready": {
+    "spec_authority": "Section 13 (Tailor) is ACTIVE in Master Spec v02.194 (spec-modules/13-tailor-cloth-garment-engine.md), sub-sections 13.1-13.15 including 13.11 Kernel Integration (model lanes), 13.12 Viewport/Visual-Debug, 13.13 Model-First API & LLM Steering, 13.14 Canonical Authority Contracts, 13.15 Validation & HBR. Refinement derives SPEC_ANCHOR / DONE_MEANS from the relevant 13.x sub-section; the research package (.GOV/reference/cloth_engine_research/, 17 topics) is non-normative provenance.",
+    "gaps_status": "CLOSED -- the coherence-review gaps (3 missing moat topics + GarmentSpec/event/migration drift + determinism-vs-promotion) were resolved in the gap-closure pass and canonicalized in 16-contracts.md / 13.14.",
+    "hbr_directive_MUST": {
+      "summary": "Operator directive (post-HANDSHAKE_BUILD_RULES): Tailor is first-class for parallel LLM swarm work AND visually inspectable + navigable in BOTH the back end and the front-end GUI, so models can debug, test, self-correct, and make micro-adjustments through the visual tool while working with Tailor.",
+      "HBR_SWARM": "The model-first Tailor API/primitive (ClothModelAdapter + MCP tool surface, 13.13) MUST support multiple parallel swarm agents working with Tailor concurrently: typed events, leases, cancellation, conflict handling, restartable runtime state, per-agent attributable authoring, safe under concurrent model + operator activity (CRDT pattern editing, EventLedger authority, sandbox/promotion).",
+      "HBR_VIS": "Tailor MUST be visually inspectable for LLMs: the cloth/garment viewport + sim state exposed as model-readable visual capture (screenshots / typed render state) so a model can SEE what it built and make micro-adjustments; visual-debug is part of the default validation loop (13.12).",
+      "HBR_BACKEND_NAVIGATION": "Tailor MUST expose backend navigation/inspection paths (typed state, routes, stable ids, structured logs/receipts) so parallel models observe, attribute, and recover Tailor actions without screen-scraping.",
+      "HBR_FRONTEND_GUI": "Tailor MUST be navigable + inspectable in the front-end GUI (operator surface): garment/sim state, runs, promotions, validation visible + controllable -- the same surfaces a model uses for visual self-correction.",
+      "HBR_MAN": "Tailor's model-callable commands / MCP tools / IPC channels / config keys MUST be documented in the in-product UserManual in the same change.",
+      "HBR_TECH_STACK": "Tailor MUST run on Handshake's existing tech stack + workflow primitives, not bespoke parallels: (a) Tailor simulation / authoring / refit runs execute as Handshake JOBS (AI Job Model + job profiles, the scheduler with leases / backpressure / cancellation / stale-session recovery), reusing ModelSession orchestration; (b) every Tailor lifecycle event (TailorGarmentDraftProposed / TailorSimRunStarted / Completed / Rejected / Validated / Promoted / CrdtUpdateRecorded) emits FLIGHT RECORDER events (a dedicated FR event family) for audit, replay, and operator-surface visibility; (c) HEADLESS PARALLEL operation -- multiple swarm agents drive Tailor headless with no GUI focus-stealing (HBR-QUIET) while the visual + backend-navigation surfaces remain capturable for inspection and self-correction. Reuse the existing job/scheduler/Flight-Recorder/ModelSession infrastructure; do not fork it.",
+      "refinement_action": "Refinement MUST verify 13.11/13.12/13.13/13.15 fully specify the above and, if any gap, enrich Section 13 via a copy-first versioned bundle (next vNN, operator-signed) before activation. Every MT group carries its applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) per HANDSHAKE_BUILD_RULES; hbr-matrix-check must pass before handoff."
+    },
+    "mt_group_plan": {
+      "total_estimate": 350,
+      "groups": "SolverCore(40), KernelIntegration(40), Collision(34), GarmentAuthoring(26), Validation-HBR(26), TrimRigid(24), Fabric(22), UvTexture(22), RenderViewportExport(22), ModelFirstApi(22), Animation(20), AutoFit(18), ProductionBridge(16). (ResearchSpecTranslation is DONE -- Section 13 already authored + active.) Pre-create EVERY MT in full detail so a no-context / small local model can implement one MT at a time.",
+      "source": "gap-closure refinement basis; canonical contracts in 16-contracts.md / 13.14."
+    },
+    "next_session_steps": [
+      "1. Author refinement.json (typed) deriving scope + SPEC_ANCHOR/DONE_MEANS from Section 13.x; verify/enrich Section 13 for the HBR SWARM/VIS/backend-nav/FE-GUI/MAN directive above.",
+      "2. Obtain operator signature for the refinement (and for any Section 13 enrichment bump).",
+      "3. Create the WP-declared wtc-* product worktree on feat/WP-KERNEL-010 + .GOV junction + backup branch.",
+      "4. Pre-create the full-detail MT-*.json set (~350) in the WP packet folder, each carrying its applicable HBR rows.",
+      "5. Refresh Task Board / Build Order / traceability; hand to product implementation."
+    ],
+    "research": {
+      "package": ".GOV/reference/cloth_engine_research/ (17 topics, committed gov_kernel 084b4245)",
+      "canonical_contracts": "16-contracts.md and Master Spec 13.14"
+    }
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-001-Event-Ledger-Session-Broker",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "WP-KERNEL-003-Sandbox-Validation-Promotion",
+      "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory"
+    ],
+    "blocks": [],
+    "sequencing_note": "Tailor is a CREATIVE MODULE that attaches to kernel primitives (EventLedger, CRDT, sandbox, promotion gate, model lanes). Per the v2 kernel reset brief, creative modules attach AFTER the kernel can govern work. The standalone tailor-solver crate R&D (roadmap slices 1-2: GPU substrate + the exaggerated-proportion go/no-go) has NO kernel dependency and may proceed in parallel; the kernel-integration slices (3-6) gate on the dependencies above."
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "active_bundle_at_stub_time": ".GOV/spec/master-spec-v02.193",
+    "roadmap_pointer": "Forward creative-module research (NOT in the original reset-brief Week-1..6 build order). Operator-directed 2026-06-17. Full landscape + architecture in the committed research package .GOV/reference/cloth_engine_research/ (index.yaml; feature named 'Tailor'). Roadmap module T-ROADMAP defines six kernel-gated build slices.",
+    "roadmap_add_coverage": "Tailor: a fully-featured, Handshake-native, model-steerable cloth/garment authoring + simulation engine (a Marvelous-Designer-equivalent 'detailer') delivered as a creative module on the kernel. Standalone tailor-solver Rust crate (XPBD, GPU compute in WGSL via wgpu, parry rigid proxies) consumed by a handshake_core::tailor module that binds garments to PostgreSQL/EventLedger authority, CRDT collaborative pattern editing, and the sandbox->validation->promotion lifecycle for model-authored garments, driven by model lanes (LLM-steerable authoring). Outputs geometry caches (glTF/USD/OBJ-sequence) for photoreal render in Blender/UE. Differentiator vs Marvelous Designer: model-steerability (the crate public API is the model API), not human-UI-first."
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z / KERNEL_BUILDER folded implementation"
+  },
+  "research_basis": {
+    "normative_status": "non_normative_context_only",
+    "research_package": ".GOV/reference/cloth_engine_research/",
+    "research_index": ".GOV/reference/cloth_engine_research/index.yaml",
+    "research_commit": "gov_kernel 662e76d5",
+    "translation_rule": "The research package is landscape + architecture CONTEXT, not authority. Every accepted idea MUST be translated into Handshake-native normative requirements in the Master Spec (versioned bundle) and into MT contracts before activation. The research package remains as provenance; the spec sections are the law (mirrors the WP-KERNEL-009 ResearchSpecTranslation pattern).",
+    "topic_map": [
+      "T-OVERVIEW (00) vision/constraints/differentiator",
+      "T-CODEBASE (01) wtc-kernel-009 inventory + the 5 kernel extension points",
+      "T-MD-FEATURES (02) full MD 2026.0 feature taxonomy + moat flags",
+      "T-GARMENT-AUTHORING (03) pattern/seam + parametric/model-first garment schema",
+      "T-CLOTH-SOLVER (04) tailor-solver crate: XPBD on wgpu/WGSL",
+      "T-COLLISION (05) cloth-vs-body, self, multi-layer, exaggerated proportions",
+      "T-FABRIC-MODELS (06) anisotropic fabric -> XPBD compliance + preset library",
+      "T-AUTOFIT (07) retarget across body morphs (reuse moat)",
+      "T-RENDER-VIEWPORT (08) Bevy testbed -> native viewport + glTF/USD export",
+      "T-MODEL-FIRST-API (09) LLM-steerable garment authoring (the differentiator)",
+      "T-KERNEL-INTEGRATION (10) Postgres/EventLedger/CRDT/sandbox/promotion/model-lanes binding",
+      "T-OSS-REFERENCES (11) adaptation map (wgpu, CubeCL, webgpu_cloth, Velvet, GarmentCode, ChatGarment, parry, ...)",
+      "T-ROADMAP (12) six kernel-gated build slices"
+    ]
+  },
+  "draft_scope": {
+    "intent": "- What: Build 'Tailor' — a fully-featured, Handshake-native, model-steerable cloth/garment authoring + simulation engine (a Marvelous-Designer-equivalent 'detailer') as a creative module on the Handshake kernel, with no outside apps (Codex [CX-503S] Handshake-native runtime).\n- Why: The operator needs realistic, reusable garment authoring + drape for avatar production. Marvelous Designer is a recurring subscription and is human-UI-first. Tailor's differentiator is model-steerability: an LLM emits/parametrizes garments directly (the crate public API IS the model API). Building it native keeps the pipeline self-contained and reusable across avatars, and unifies the breast/ass jiggle soft-body solver.\n- Product goal: A standalone, UI-agnostic `tailor-solver` Rust crate (XPBD solver, GPU compute in WGSL via wgpu, parry for rigid collision proxies, CubeCL optional CUDA path) consumed by a `handshake_core::tailor` creative module. Garments/wardrobe are PostgreSQL/EventLedger authority; collaborative pattern editing rides the existing CRDT layer; model-authored garments run in the sandbox and reach authority only through the promotion gate after validation; model lanes drive LLM authoring. Outputs geometry caches (glTF/USD/OBJ-sequence) for photoreal render in Blender/UE (Tailor is not the renderer).\n- Operator goal: Describe a garment in natural language -> Tailor drapes/simulates it on a body proxy -> iterate via the self-correction loop -> promote -> reuse and auto-refit across avatars. All inside Handshake.\n- No-context goal: STUB-LEVEL ONLY. Refinement before activation is REQUIRED to (a) re-research the latest 2026 implementation methods, (b) close the coherence-review gaps (see KEY_OPEN_QUESTIONS), (c) lock the canonical contracts (one GarmentSpec, one KernelEventType additions set, one body-proxy/avatar schema, dated migration naming), (d) translate the research into Handshake-native normative Master Spec sections (new versioned bundle), and (e) author the full MT plan.",
+    "scope_sketch": "- IN_SCOPE (by roadmap slice / MT group):\n  - ResearchSpecTranslation: audit SPEC_CURRENT (active bundle at stub time v02.193); translate the Tailor research into Handshake-native normative spec sections; produce spec-enrichment-proposal.json and apply the copy-first versioned bundle (v02.193 -> next) updating manifest, INDEX.json, changelog, SPEC_CURRENT, previous_current_spec, archive, and internal references.\n  - SolverCore (tailor-solver crate): XPBD substepping + constraint projection (stretch/shear/bend/seam) as WGSL compute shaders via wgpu; data layout; graph-coloring or fixed-point atomic strategy; determinism scoping; the ClothSolver trait boundary; standalone crate with NO sqlx/tauri deps.\n  - Collision: cloth-vs-body (SDF + capsule proxy), self-collision (spatial hash), multi-layer garments, and the EXAGGERATED-proportion robustness case (large-bust inter-collider overlap); parry for rigid proxies.\n  - Fabric: anisotropic material properties (density, weft/warp/shear stretch, bend, buckling, friction, damping, pressure) -> XPBD compliance; typed Postgres-authority preset library.\n  - GarmentAuthoring: 2D pattern/seam representation + parametric, LLM-emittable garment schema; pattern-to-mesh; bidirectional 2D<->3D; GarmentCode interop.\n  - AutoFit: retarget a garment authored on one body onto a different avatar (pattern grading, body-shape transfer, re-drape, UV/texture preservation) -- the reuse moat.\n  - KernelIntegration: garment/wardrobe assets as Postgres/EventLedger authority; CRDT collaborative editing; sandbox->validation->promotion lifecycle; typed event taxonomy (Tailor* variants); model lanes; Axum API routes; no-SQLite enforcement.\n  - ModelFirstApi: the LLM-steerable garment authoring surface, MCP tool definitions, simulation receipt (typed feedback), the self-correction loop, fabric estimation, system-prompt/UserManual surface.\n  - RenderViewportExport: throwaway Bevy testbed viewport; Handshake-native wgpu viewport panel; model-readable visual capture; glTF/USD/OBJ-sequence export to Blender/UE.\n  - The three MOAT topics the research did NOT yet author and that refinement MUST add: TrimRigid (mixed cloth-rigid sim graph: zippers/buttons/tacks), UvTexture (UV-from-pattern + texture/material authority), Animation (keyframe timeline + dynamics).\n  - Validation/HBR: per-MT and whole-WP HBR matrix (INT/SWARM/VIS/QUIET/MAN/STOP); negative tests; Spec-Realism gate.\n- OUT_OF_SCOPE:\n  - Photoreal hero-frame rendering (stays in Blender Cycles / Unreal; Tailor exports geometry caches only).\n  - Avatar identity / body-proxy GENERATION (the 2D-avatar -> 3D-body-proxy bridge is a separate input; flagged as KI-PRODUCTION-BRIDGE; refinement decides whether a minimal proxy importer is in or out).\n  - The diffusion image/video + identity-LoRA pipeline (lives in comfyui-workbench / Avatar_workbench).\n  - Adult-production legal paperwork, consent records, performer records (operator-owned per [CX-123A], [CX-123B], [GLOBAL-PRODUCTION-010..017]).\n  - Marvelous Designer / GarmentCode Python port (GarmentCode JSON is interchange only).\n  - SQLite anything; Docker-default; outside-app proof.\n- KEY_OPEN_QUESTIONS (deferred to refinement; these are the coherence-review gaps + design forks that MUST be closed before the spec enrichment + MT authoring):\n  - Q1 (KI-MISSING-TOPICS): author the 3 missing moat designs -- TrimRigid (cloth-rigid coupling), UvTexture (UV-from-pattern), Animation (keyframe timeline) -- before they become spec law.\n  - Q2 (KI-CONTRACTS-DRIFT): lock ONE canonical GarmentSpec (units cm vs mm; gather single-float vs M:N; fabric normalized vs raw compliance); ONE KernelEventType additions list (the files currently differ on Tailor* event names); ONE body-proxy/avatar authority schema incl. the currently-undefined tailor_avatars table.\n  - Q3 (KI-MIGRATION-COLLISION): pick the dated migration-naming convention (e.g. 2026_06_*; 0334_* already collides with 0334_loom_canvas_boards.sql).\n  - Q4 (KI-DETERMINISM-VS-PROMOTION): resolve solver per-backend determinism vs the promotion gate's exact content-hash check (tolerance-based mesh compare, not exact hash).\n  - Q5 (KI-MISSING-OSS-REFS): fold NVIDIA Warp and XRTailor into the OSS adaptation map; evaluate Loro/yrs vs the existing yjs_bridge for the geometry-merge risk.\n  - Q6: GPU-in-sandbox capability/security posture -- the SandboxCapability set the tailor-solver adapter declares (wgpu device + filesystem) under the kernel's default-deny sandbox.\n  - Q7: body-proxy input -- minimal proxy importer in-scope, or strictly an external input (KI-PRODUCTION-BRIDGE)?\n  - Q8: latency/perf envelope -- interactive vs promotion-quality particle ceilings, VRAM budget, the 2D<->3D loop latency (currently unquantified).\n  - Q9: solver-crate naming consistency -- crate is tailor-solver; confirm internal physics types stay Cloth* (physics) while feature identifiers are Tailor*.",
+    "acceptance_criteria": "- AC-001: STUB-LEVEL ONLY -- full AC list deferred to refinement.\n- ACTIVATION-AC-001: Refinement re-researches current (2026) implementation methods (XPBD/wgpu/WGSL, GPU self-collision, garment-from-LLM, auto-fit) and records the research basis; confirms or revises the research package's selected approaches.\n- ACTIVATION-AC-002: Refinement closes KEY_OPEN_QUESTIONS Q1-Q9 (or records scoped deferrals with rationale).\n- ACTIVATION-AC-003: Refinement authors the 3 missing moat designs (TrimRigid, UvTexture, Animation) so they exist before spec enrichment.\n- ACTIVATION-AC-004: Refinement locks the ONE canonical GarmentSpec, KernelEventType additions, body-proxy/avatar schema, and dated migration convention (resolves KI-CONTRACTS-DRIFT + KI-MIGRATION-COLLISION).\n- ACTIVATION-AC-005: Refinement translates the research into Handshake-native NORMATIVE Master Spec sections in a new copy-first versioned bundle, updating manifest, INDEX.json, changelog, SPEC_CURRENT (+ previous_current_spec), archive, and internal references; validator-spec-regression + spec-bundle-check + spec-eof-appendices-check PASS.\n- ACTIVATION-AC-006: Refinement produces the full MT plan (groups + per-MT scope) sufficient for a no-context local model to implement, and pre-creates the MT contracts (expected 200-400+ MTs).\n- ACTIVATION-AC-007: Kernel dependencies (KERNEL-001..004) are activated/validated, or the refinement records which slices (solver-crate slices 1-2) may proceed without them.\n- ACTIVATION-AC-008: Operator signature obtained before packet creation and worktree preparation.",
+    "risks_unknowns": "- Risk (build order): Tailor is a forward creative module ahead of its reset-brief slot; a full spec enrichment + 200-400 MTs is a large governance investment. Mitigation: solver-crate slices 1-2 carry no kernel dependency and de-risk the core; kernel-integration slices gate on KERNEL-001..004; the operator has explicitly directed this scope.\n- Risk (spec authority of gappy research): embedding research with known gaps as spec law. Mitigation: ACTIVATION-AC-002/003/004 close the gaps in refinement BEFORE the bundle bump; research stays non_normative_context_only.\n- Risk (collision robustness long tail): self-collision + concave/exaggerated body under fast motion is where MD-class depth lives; AI coding speed does NOT fix it. Mitigation: roadmap slice 2 is the explicit go/no-go gate on exaggerated-proportion capsules before building real garments.\n- Risk (determinism vs promotion gate): per-backend solver determinism vs exact-hash promotion check -> spurious cross-GPU failures. Mitigation: Q4 resolves with tolerance-based mesh compare.\n- Risk (GPU-in-sandbox): wgpu device creation inside the default-deny sandbox needs GPU passthrough; security posture unclear. Mitigation: Q6 locks the SandboxCapability set + policy.\n- Risk (content/authoring != solver): a solver is necessary not sufficient; garment authoring + auto-fit (MD's moat) is a separate hard problem. Mitigation: dedicated GarmentAuthoring + AutoFit MT groups; model-first parametric authoring attacks it.\n- Risk (scale/state recovery): 200-400 MTs spanning many sessions; detail loss across sessions. Mitigation: every MT is a self-contained JSON contract restartable by a no-context local model (the operator's stated reason for full-detail pre-creation).\n- Risk (Master Spec resolution breakage): the bundle bump touches SPEC_CURRENT (every session's spec resolution). Mitigation: strict copy-first per [CX-105B/C]; validator-spec-regression + spec-bundle-check gates; archive the prior bundle.",
+    "governance_artifact_stance": "- Machine-readable JSON contracts are primary (stub.contract.json -> refinement.json -> spec-enrichment-proposal.json -> packet.json -> MT-*.json). No Markdown authority.\n- The committed research package (.GOV/reference/cloth_engine_research/) is non_normative_context_only provenance; normative authority lives in the Master Spec versioned bundle after translation.\n- This stub is not executable until it becomes an official signed packet with refinement, spec enrichment, packet contract, microtask contracts, and operator signature.\n- KERNEL-001..004 should be activated/validated, OR the refinement records the no-kernel-dependency solver slices that may proceed first."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "verify_kernel_dependencies_001_to_004_status",
+      "begin_refinement_and_re_research_current_methods",
+      "answer_or_defer_key_open_questions_Q1_to_Q9",
+      "author_missing_moat_designs_trim_rigid_uv_texture_animation",
+      "lock_canonical_contracts_garmentspec_events_bodyproxy_migrations",
+      "translate_research_into_normative_master_spec_sections_via_copy_first_versioned_bundle",
+      "update_spec_current_manifest_index_changelog_archive_internal_refs",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "pre_create_full_detail_microtask_contracts",
+      "prepare_packet_branch_and_wtc_worktree",
+      "refresh_task_board_build_order_traceability",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "The committed research package is non-normative context; only translated Master Spec sections are law.",
+      "Tailor is a creative module that binds to kernel primitives; it does not re-implement EventLedger/CRDT/sandbox/promotion.",
+      "The tailor-solver crate is standalone and UI-agnostic (no sqlx/tauri); the feature module handshake_core::tailor owns the kernel binding.",
+      "Physics keeps 'cloth' terminology (ClothSolver/ClothParticle); feature identifiers are Tailor* (module/crate/events/tables).",
+      "Hero-frame rendering stays in Blender/UE; Tailor exports geometry caches only.",
+      "No SQLite, no Docker-default, no outside-app proof.",
+      "The spec enrichment must use copy-first versioned bundle and must not break SPEC_CURRENT resolution."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB until a signed official packet exists.",
+      "Require refinement to close the coherence-review gaps (Q1-Q5) before spec enrichment.",
+      "Require validator-spec-regression + spec-bundle-check + spec-eof-appendices-check PASS on the new bundle before activation.",
+      "Require operator signature before packet creation and worktree preparation.",
+      "Every MT must be a self-contained contract restartable by a no-context local model with runtime PostgreSQL/EventLedger proof where durable state is named.",
+      "Solver-crate slices 1-2 (no kernel dependency) may proceed in parallel; kernel-integration slices gate on KERNEL-001..004."
+    ]
+  }
+}

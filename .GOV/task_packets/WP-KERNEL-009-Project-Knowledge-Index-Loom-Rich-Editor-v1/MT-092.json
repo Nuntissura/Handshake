@@ -1,0 +1,221 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-092",
+  "title": "SourceIngestionAndEvidence-092-LargeFileBackpressure",
+  "group": "SourceIngestionAndEvidence",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-092.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define size/time limits, chunking, cancellation, and resume behavior for large source ingestion. This MT belongs to SourceIngestionAndEvidence. Ingest project, governance, media, and research sources with evidence and failure receipts.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/artifacts/",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      ".GOV/task_packets/",
+      ".GOV/spec/master-spec-v02.192/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Source ingestion must be allowlisted, hash-based, restartable, and secret-aware.",
+      "PDF/media extraction failures must produce receipts and repairable metadata rather than silently indexing partial content."
+    ],
+    "expected_behavior": "LargeFileBackpressure leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "LargeFileBackpressure is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "f7f404c2",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f7f404c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:36:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "No-OOM guarantee honored: ingest_file_from_disk checks file METADATA size against the per-kind byte ceiling BEFORE std::fs::read; oversize files are stream-hashed in 64 KiB chunks (stream_sha256) and recorded as a typed Deferred/OVERSIZE receipt — the file is never loaded whole. Verified by lifecycle mt092 (3 MiB vs 2 MiB ceiling -> Deferred, streamed hash equals full-content hash, parser_status stays pending).",
+        "Per-kind ceilings: 2 MiB default text, 20 MiB PDF, 50k line ceiling (content-stage). Deferral is REPAIRABLE (raise the limit and retry) — correct, an oversize file is not a permanent skip.",
+        "GAP (bypass of the metadata pre-check): ingest_file_bytes (the in-memory entry used by the API-less direct path and tests) receives bytes ALREADY in memory and only calls limits.check_size on bytes.len() inside run_extraction — by then the bytes are resident. The no-OOM guarantee holds ONLY for the run_ingestion_pass disk path (which uses ingest_file_from_disk's metadata gate). A caller invoking ingest_file_bytes with a huge Vec has already paid the memory. Acceptable since the production walk path uses the disk gate, but worth noting the in-memory entrypoint does not itself bound input size.",
+        "No streaming chunked EXTRACTION/resume: 'chunking, cancellation, resume' from the MT scope is realized as defer+repair-retry rather than mid-file resume. The deferral receipt + repair queue provide the restart unit. Reasonable interpretation; full streaming extraction is not implemented (and not needed at these ceilings)."
+      ],
+      "evasion_probes": [
+        "3 MiB text file -> Deferred/OVERSIZE, streamed hash == full hash, no spans, repair queued, source pending CONFIRMED.",
+        "60k-line file under raised byte limit -> Deferred/oversize_lines (content-stage) CONFIRMED.",
+        "3 MiB PDF (under 20 MiB) -> allowed CONFIRMED.",
+        "limit overrides via API LimitOverrides.resolve() fall back to compiled defaults for unset fields CONFIRMED.",
+        "metadata size check precedes read in run_ingestion_pass disk path CONFIRMED (no whole-file load for oversize)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/backpressure.rs (full)",
+        "engine.rs:269-338 ingest_file_from_disk metadata gate + stream-hash deferral; engine.rs:1369-1389 stream_sha256",
+        "engine.rs:235-263 ingest_file_bytes (in-memory entry, no pre-read size bound)",
+        "api/knowledge_ingestion.rs LimitOverrides",
+        "tests/knowledge_ingestion_lifecycle_tests.rs mt092"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:32:04.773Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
+    ],
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-092 is READY_FOR_VALIDATION but declares MT-081 as a dependency, and MT-081 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-092.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json"
+          ],
+          "required_remediation": "Do not resubmit MT-092 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-092 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:16:10.973Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
+      "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-092 requires typed size/line backpressure for large-source ingestion: oversize files must be explicitly deferred (never OOM, never silently skipped), with PostgreSQL/EventLedger-authoritative receipts and repairable metadata. The code implements exactly this — a metadata-stage byte gate before any file read, 64 KiB streaming SHA-256 for oversize files, per-kind ceilings, content-stage line check, typed deferral receipts persisted to real PostgreSQL with a repair-queue entry — and the lifecycle test proves it against the Handshake-managed cluster.",
+      "findings": [
+        "backpressure.rs (committed in f7f404c2, src/backend/handshake_core/src/knowledge_ingestion/backpressure.rs) defines IngestionLimits with compiled defaults (2 MiB text / 20 MiB PDF / 50k lines), per-kind byte_limit_for, metadata-stage check_size, content-stage check_lines, and typed BackpressureDeferral with detail_json — real config surface, no placeholders.",
+        "engine.rs:288-324 implements the no-OOM guarantee: ingest_file_from_disk compares file METADATA size_bytes against the per-kind ceiling BEFORE std::fs::read; oversize files are stream-hashed via stream_sha256 (engine.rs:1409-1429, 64 KiB BufReader chunks) and recorded as a Deferred/Oversize ExtractionOutput. The whole file is never resident for oversize input.",
+        "engine.rs:992-999 (run_extraction) re-checks check_size and engine.rs:1022-1031 checks check_lines, returning typed Deferred outputs — the content-stage line ceiling is wired.",
+        "engine.rs:492-525 enqueues a real repair entry through the store for repairable Deferred outcomes; the deferred source row stays PENDING (not failed/extracted), so deferral is repairable, not a permanent skip — matches MT 'never a silent skip'.",
+        "Real-PG proof: tests/knowledge_ingestion_lifecycle_tests.rs:31-120 (mt092_oversize_files_defer_typed_with_streamed_hash_never_loaded) runs run_ingestion_pass over a runtime-generated 3 MiB fixture, asserts Deferred status, error_class Oversize, detail reason/limit/actual, zero spans, repair present, streamed content_hash == full-content SHA-256, source parser_status == pending, and a 60k-line case yields oversize_lines. Backed by ingestion_pg() -> knowledge_pg() which is real Handshake-managed PostgreSQL with full migration chain and isolated schema (knowledge_ingestion_support.rs:4-5,29-34) — no SQLite, no mocks.",
+        "Spec alignment: current Master Spec v02.194 §02-system-architecture:2642,2650 makes PostgreSQL/EventLedger canonical for backpressure/indexing-evidence records; the defer+repair-retry realization of MT scope ('size/time limits, chunking, cancellation, resume') is a reasonable Handshake-native interpretation and does not contradict the spec.",
+        "Prior FAIL_V1 (lifecycle.wp_validator_review_v1) was solely UPSTREAM_DEPENDENCY_NOT_READY (MT-081 unfinished at validation time, code never inspected). Per remediation_v2 MT-081 is now implemented (commit 5876feaf). This is a dependency-ordering artifact, not a code defect in MT-092.",
+        "Non-blocking aside (adversarial reviewer GAP, confirmed): the in-memory ingest_file_bytes entry (engine.rs:237-265) checks size only after bytes are resident; the no-OOM guarantee holds for the production run_ingestion_pass disk-walk path (engine.rs:1394-1401 reads metadata().len() during the walk). Acceptable because the production path is the disk gate; the in-memory entry serves already-resident test bytes.",
+        "Aside (paperwork, non-blocking): packet cites v02.192 spec anchors while current is v02.194 — section numbers resolve and content aligns; expected during governance wind-down."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-092.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat f7f404c2 and log --grep MT-092 (commits f7f404c2 backpressure.rs + mod.rs; engine/store/tests landed in 58b2af10)",
+        "src/backend/handshake_core/src/knowledge_ingestion/backpressure.rs (full, as committed)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs (237-340 disk gate/in-memory entry, 459-525 deferred+repair persistence, 975-1031 run_extraction size/line checks, 1380-1429 walk metadata size + stream_sha256)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_lifecycle_tests.rs:31-120 (mt092 real-PG test)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_support.rs:1-34 (ingestion_pg real PostgreSQL)",
+        "grep for todo!/unimplemented!/unreachable!/Unavailable/placeholder/stub across backpressure.rs+engine.rs (no hits)",
+        "Master Spec v02.194 spec-modules grep for backpressure/oversize/chunking (02-system-architecture.md:2642,2650; §2.3.14)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

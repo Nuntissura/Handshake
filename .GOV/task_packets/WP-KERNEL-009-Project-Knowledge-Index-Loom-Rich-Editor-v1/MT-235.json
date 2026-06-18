@@ -1,0 +1,234 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-235",
+  "title": "SecurityPortabilityValidation-235-MonacoWorkerOfflineFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-235.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify embedded Monaco workers load from Handshake packaging without CDN/external server. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "app/scripts/check-worker-bundling.mjs",
+      "app/scripts/lib/worker_bundling_scan.mjs",
+      "app/scripts/lib/worker_bundling_scan.d.mts",
+      "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+      "app/src/lib/monaco/setup.ts",
+      "app/src/harness/dependency_policy_harness.tsx",
+      "tests/dependency_policy/offline_editor_load.spec.ts",
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "MonacoWorkerOfflineFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "MonacoWorkerOfflineFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-235740",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_for_validation_at_utc": "2026-06-15T00:17:30.321Z",
+    "ready_for_validation_reason": "MT-235 Monaco worker offline fixture hardening implemented: missing-worker false-PASS fixture fails closed; real offline browser proof now proves editor, ts, json, css, and html Monaco worker chunks are loopback-served from built Handshake assets with no external requests; worker-bundling build scan and dependency-policy gate pass; adversarial product review found no blocking product-code issues.",
+    "evidence": [
+      {
+        "kind": "implementation_files_changed",
+        "files": [
+          "app/scripts/check-worker-bundling.mjs",
+          "app/scripts/lib/worker_bundling_scan.mjs",
+          "app/scripts/lib/worker_bundling_scan.d.mts",
+          "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+          "app/src/lib/monaco/setup.ts",
+          "app/src/harness/dependency_policy_harness.tsx",
+          "tests/dependency_policy/offline_editor_load.spec.ts"
+        ],
+        "summary": "Shared worker-bundling scanner helper with declaration file, missing-worker negative fixture, all-worker Monaco runtime proof helper, harness proof map, and Playwright request-ledger assertions for all five bundled worker chunks."
+      },
+      {
+        "kind": "test_proof",
+        "commands": [
+          {
+            "command": "pnpm run test -- src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+            "status": "RED",
+            "result": "exit 1 before implementation; failed resolving missing worker_bundling_scan.mjs helper, proving the new scanner seam was not implemented."
+          },
+          {
+            "command": "pnpm run test:dependency-policy -- offline_editor_load.spec.ts",
+            "status": "RED",
+            "result": "exit 1 before runtime proof implementation; monacoWorkerProofs was undefined while legacy ts-worker proof still passed."
+          },
+          {
+            "command": "pnpm run test -- src/lib/dependency_policy/frontend_worker_bundling.test.ts src/lib/monaco/worker_map.test.ts src/components/DependencyFailureBanner.test.tsx",
+            "status": "PASS",
+            "result": "exit 0; 3 files passed, 23 tests passed."
+          },
+          {
+            "command": "pnpm run test:dependency-policy -- offline_editor_load.spec.ts rich_editor_roundtrip.spec.ts",
+            "status": "PASS",
+            "result": "exit 0; 2 Playwright offline dependency-policy tests passed."
+          },
+          {
+            "command": "pnpm run check:worker-bundling",
+            "status": "PASS",
+            "result": "exit 0; tsc + vite build + build:harness succeeded; app/dist and app/dist-harness each had editor/ts/json/css/html worker chunks, no missing Monaco workers, no external worker refs, no CDN hits, and no stray writes."
+          },
+          {
+            "command": "pnpm run check:dependency-policy -- --skip-build",
+            "status": "PASS",
+            "result": "exit 0; dependency-policy summary passed, including worker-bundling over existing built artifacts."
+          },
+          {
+            "command": "pnpm exec eslint src/lib/monaco/setup.ts src/lib/dependency_policy/frontend_worker_bundling.test.ts src/harness/dependency_policy_harness.tsx",
+            "status": "PASS",
+            "result": "exit 0."
+          },
+          {
+            "command": "git diff --check -- app/scripts/check-worker-bundling.mjs app/scripts/lib/worker_bundling_scan.mjs app/scripts/lib/worker_bundling_scan.d.mts app/src/lib/dependency_policy/frontend_worker_bundling.test.ts app/src/lib/monaco/setup.ts app/src/harness/dependency_policy_harness.tsx tests/dependency_policy/offline_editor_load.spec.ts",
+            "status": "PASS",
+            "result": "exit 0; CRLF conversion notices only."
+          }
+        ]
+      },
+      {
+        "kind": "kb_ready_checklist",
+        "status": "PASS",
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+      },
+      {
+        "kind": "adversarial_code_review",
+        "reviewer": "multi_agent:019ec89c-91d1-7571-bdba-a7f58e97c5bd",
+        "product_verdict": "PASS",
+        "governance_note": "Reviewer product findings found no blocking product-code issues. Reviewer flagged governance closeout because MT-235 was still CLAIMED and exact files/evidence were not yet recorded; this READY_FOR_VALIDATION update addresses that state/evidence gap without setting completed_by."
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-235 requires proving embedded Monaco web workers load from Handshake's own bundled packaging with no CDN/external server, via negative fixtures plus real offline browser proof. The code delivers exactly that: a fail-closed missing-worker fixture, a loopback-only Playwright proof that boots all five Monaco worker chunks from local built assets with the network cut and an empty external-request ledger, and a real build-time scanner over actual dist artifacts. It aligns with current Master Spec v02.194 section 10.2.1.3 (route Monaco workers, no runtime network fetch for Monaco assets).",
+      "findings": [
+        "app/src/lib/monaco/setup.ts:265-284 proveBundledMonacoWorkers constructs every bundled Monaco worker kind (editor/ts/json/css/html) through the real MonacoEnvironment.getWorker route; ts gets a real language-service round-trip (proveTypescriptWorkerRoundTrip, 225-246). No placeholder/fake return.",
+        "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts:256-277 negative fixture FAILS CLOSED: a dist missing the html worker chunk yields missing_monaco_workers=['html'], proving the gate detects a missing local worker rather than passing falsely. Companion positive case (279-299) asserts zero external_worker_refs/cdn_hits.",
+        "tests/dependency_policy/offline_editor_load.spec.ts is a REAL Playwright browser proof: serves built app/dist-harness over loopback 127.0.0.1 (serveDistHarness, 42-65), aborts+records every non-loopback request (91-100), asserts each of editor/ts/json/css/html worker chunks was served from loopback (178-191), ts worker responded (114), and externalRequests===[] (194). This is the offline guarantee the MT demands.",
+        "app/scripts/check-worker-bundling.mjs:80-138 runs the REAL pnpm build + build:harness (no mocks/dev server) then scans built JS for external worker loads, CDN hits, split-host CDN evasion, single-occurrence caps, and required-chunk presence; exit 0 only when all assertions hold. MT-026 stray-write boundary proof included.",
+        "Current Master Spec v02.194 spec-modules/10-product-surfaces.md section 10.2.1.3 (lines 372-380) requires correctly routing Monaco web workers and avoiding runtime network fetches for Monaco assets; MT-235 proof maps directly to that requirement.",
+        "Sole deferred-escape grep hit is the word 'stubs' in setup.ts:212, an accurate comment about monaco-editor's own editor.api.d.ts type definitions, not a placeholder on a live path.",
+        "Aside (non-blocking, expected): MT contract carries WP-wide boilerplate constraints about PostgreSQL/EventLedger durable authority; this MT makes no durable-authority claim, so no PG proof is owed — frontend offline-bundling correctly proven via real build round-trip + loopback IPC."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-235.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/app/src/lib/monaco/setup.ts",
+        "wtc-kernel-009/app/src/lib/monaco/worker_map.ts",
+        "wtc-kernel-009/app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+        "wtc-kernel-009/app/src/harness/dependency_policy_harness.tsx",
+        "wtc-kernel-009/tests/dependency_policy/offline_editor_load.spec.ts",
+        "wtc-kernel-009/app/scripts/check-worker-bundling.mjs",
+        "wtc-kernel-009/app/scripts/lib/worker_bundling_scan.mjs",
+        "wtc-kernel-009/app/scripts/lib/worker_bundling_scan.d.mts",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (sections 10.2.1.3 Monaco bundling)",
+        "git log/status on feat/WP-KERNEL-009"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-235740",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

@@ -1,0 +1,228 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-103",
+  "title": "CodeIndexingAndNavigation-103-DocCommentTodoExtractor",
+  "group": "CodeIndexingAndNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Extract doc comments, TODOs, safety notes, and operator-facing strings as labeled searchable passages. This MT belongs to CodeIndexingAndNavigation. Index code structure and expose precise backend navigation for agents.",
+    "relevant_files": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ai_ready_data/",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "app/src/components/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Code navigation must use Handshake-managed parsers/adapters and store spans/citations in PostgreSQL.",
+      "Tree-sitter is the first parser family; LSP/SCIP-style precision is a Handshake-owned import/projection path, not an outside service requirement."
+    ],
+    "expected_behavior": "DocCommentTodoExtractor leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "DocCommentTodoExtractor is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-SWARM-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "5d6490b0+79e1a7e4",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T17:39:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Doc passage entity_key `doc:{path}#L{line}:{kind}` (docs_todo.rs:67) is line-anchored by design, so any edit that shifts lines orphans the old key and mints a new one - the delegate documents this as intended (stale old key). Acceptable but means doc-passage concept entities accumulate across edits (the old keys are not retired here; retirement depends on a staleness sweep that is not wired for concept entities).",
+        "Marker scan find_marker (docs_todo.rs:270) is O(MARKERS x text.len()) per comment with an inner find loop; cheap for comments but unbounded by comment size.",
+        "A doc comment that merely MENTIONS a marker word (e.g. '/// see the TODO list policy') is reclassified from DocComment to Todo (record_text_passage at docs_todo.rs:225 short-circuits to marker). This can mislabel legitimate doc text as an actionable TODO. Low severity (searchability), but the kind is presented authoritatively."
+      ],
+      "evasion_probes": [
+        "Verified word-boundary marker detection rejects TODOLIST/TODOs-substrings (is_word_byte, docs_todo.rs:293) - delegate test marker_word_boundary_avoids_false_positive confirms.",
+        "Verified block-comment state machine terminates: in_block cleared on '*/' (docs_todo.rs:101); a never-closed /* runs to EOF and is then never pushed (block_text dropped) - no infinite loop, no panic, just silent drop of an unterminated block.",
+        "byte_span uses offsets.get(...).unwrap_or(text.len()) (docs_todo.rs:314) so out-of-range lines do not panic.",
+        "Only DocComment passages produce `documents` edges (engine.rs:408); TODO/SAFETY remain searchable concept entities without edges - matches the contract and avoids polluting the call graph."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/docs_todo.rs:82-318 extract_doc_passages + find_marker + byte_span",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:361-423 doc-passage write path",
+        "delegate tests (6) incl block_doc_comment_extracted, safety_note_is_classified_safety"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T16:55:57.726Z",
+    "evidence": [
+      "Adversarial code review PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only minor intended-behavior notes."
+    ],
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-103 is READY_FOR_VALIDATION but declares MT-097 as a dependency, and MT-097 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-097.json"
+          ],
+          "required_remediation": "Do not resubmit MT-103 until MT-097 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        },
+        {
+          "code": "DOCS_TODO_OPERATOR_STRING_EXTRACTION_GAP",
+          "severity": "HIGH",
+          "summary": "The MT contract says doc comments, TODOs, safety notes, and operator-facing strings; implementation only extracts comments/markers. No string-literal/operator-facing extraction or test coverage was found.",
+          "evidence_paths": [
+            "src/backend/handshake_core/src/knowledge_code_index/docs_todo.rs",
+            "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+            "src/backend/handshake_core/tests/knowledge_code_index_tests.rs"
+          ],
+          "required_remediation": "After MT-097 is ready/completed, add operator-facing string literal extraction or explicitly narrow the MT contract. Include tests that prove operator-facing strings are indexed separately from TODO/doc-comment markers."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-103 until MT-097 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real.",
+        "After MT-097 is ready/completed, add operator-facing string literal extraction or explicitly narrow the MT contract. Include tests that prove operator-facing strings are indexed separately from TODO/doc-comment markers."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "commit": "1206793d",
+      "fail_verdict": "FAIL_V1: blocked on MT-097 (now done) + missing operator-facing string extraction coverage",
+      "remediation": "MT-097 dependency resolved (done). Added DocPassageKind::OperatorString + extract_operator_strings AST walk (println!/eprintln!/panic!/log + console.*/alert) indexed as own concept entity, never merged with doc/TODO. Tests operator_strings_are_separate_from_doc_and_todo_passages + mt103_operator_strings_indexed_separately_from_markers green on real PG."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-103 requires extracting doc comments, TODO/safety markers, AND operator-facing strings as labeled, separately-searchable passages persisted as PostgreSQL/EventLedger KnowledgeEntity/KnowledgeSpan authority records. The remediation commit (1206793d) adds real operator-facing string extraction as a distinct passage kind, wired into the engine write path and proven end-to-end against real Handshake-managed PostgreSQL. Both prior FAIL_V1 findings are resolved (the MT-097 dependency is paperwork/now-done; the operator-string extraction gap is now implemented and tested).",
+      "findings": [
+        "docs_todo.rs:235-385 adds extract_operator_strings(): an AST walk over RUST_STRING_SINKS (println!/eprintln!/panic!/log/tracing macros, last path segment matched) and JS/TS console.*/alert/prompt/confirm call_expressions, pulling string-literal descendants only from output sinks. Non-sink string bindings are NOT captured (no false positives) — verified by tests at lines 654-658 (Rust) and 738 (JS).",
+        "DocPassageKind::OperatorString (docs_todo.rs:35-57) is a distinct kind with entity_key suffix ':operator_string' (entity_key, lines 80-87), so operator strings can never collide-merge with doc_comment/todo concept keys. Unit test operator_strings_are_separate_from_doc_and_todo_passages (docs_todo.rs:666-719) proves the same file's doc comment, TODO, and println! land in three separate kinds with distinct keys.",
+        "engine.rs:484-487 wires both extractors into index_code_source; operator strings flow through the same passage write path (engine.rs:594-655) as their own Concept KnowledgeEntity + Text KnowledgeSpan, with passage_kind recorded in detection_provenance. Doc comments get a Documents edge; TODO/SAFETY/OperatorString remain searchable concept entities without edges (engine.rs:640-653) — matches their non-API claim nature.",
+        "Sub-rule 2 (real resource touch) PASS: integration test mt103_operator_strings_indexed_separately_from_markers (tests/knowledge_code_index_tests.rs:923-1025) indexes a file into real PostgreSQL via knowledge_pg(), then reads back list_knowledge_entities_by_kind(Concept) and asserts an operator_string concept exists with a cited span, distinct from doc_comment/todo concepts, with no key collision. knowledge_pg_support.rs:49-64 uses ManagedPostgres::ensure_running (Handshake-native managed PG, port 5544); SKIPs loudly only when PG binaries are genuinely absent and panics on any other startup error — never silently green. No SQLite/mock/in-memory (test file header lines 4-7 declares this contract).",
+        "Sub-rule 1 (no deferred-live escape) PASS: grep of docs_todo.rs + engine.rs for todo!()/unimplemented!()/unreachable!()/Unavailable/'not yet wired'/'pending MT-' returned no hits. The literals 'todo'/'unimplemented'/'panic'/'unreachable' at docs_todo.rs:197-217 are sink-NAME match-table strings used to identify macro invocations, not placeholder macro calls on a live path.",
+        "Spec alignment (current v02.194 §2.3.13.11, 02-system-architecture.md:2694-2719): passages map to the canonical KnowledgeEntity/KnowledgeSpan/KnowledgeEdge families with durable PostgreSQL/EventLedger authority; receipt emitted as KnowledgeValidationRecorded event (engine.rs:507-530). No markdown-vault-as-authority, no SQLite — consistent with the forbidden list.",
+        "Non-blocking aside (carried from adversarial review, not a FAIL): a doc comment that merely MENTIONS a marker word is reclassified DocComment->Todo (record_text_passage short-circuits to find_marker at docs_todo.rs:458); low-severity label noise on searchability, not a behavior or spec violation. Block comments never closed are silently dropped (no panic). entity_key is line-anchored so edits orphan old keys (documented intended behavior).",
+        "Paperwork aside (expected, non-blocking): packet cites v02.192 anchors while current is v02.194 — same section numbers resolve; not a code concern."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git commit 1206793d (show --stat + message)",
+        "src/backend/handshake_core/src/knowledge_code_index/docs_todo.rs (full)",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:475-700",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1-60,881-1025",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:1-163 (ManagedPostgres harness)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2719 (KnowledgeClaim/Entity/Span/Edge families)",
+        "grep for placeholder escapes (todo!/unimplemented!/Unavailable/pending MT) — clean"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

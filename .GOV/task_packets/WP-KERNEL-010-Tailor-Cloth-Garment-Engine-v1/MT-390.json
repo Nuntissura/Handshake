@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-390",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-390.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-389"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the Toon wgpu render pipeline in ClothViewport with configurable shading bands, outline pass, rim lighting, emissive color, and MatCap material mode, gated behind a cargo feature toon-shader per the post-MVP deferral note in Section 13.9",
+    "allowed_paths": [
+      "tailor-solver/src/viewport.rs",
+      "tailor-solver/src/shaders/toon_cloth.wgsl",
+      "tailor-solver/src/shaders/toon_outline.wgsl",
+      "app/src-tauri/src/commands/tailor.rs",
+      "app/src/components/tailor/ViewportControls.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A toon-shader Cargo feature gates the Toon pipeline; the crate compiles and passes all existing tests with the feature disabled",
+      "When enabled, RenderMode::Toon selects the toon_cloth.wgsl fragment shader which implements quantized shading bands (configurable band count 2–6), rim lighting, and emissive color addition",
+      "A separate outline render pass (toon_outline.wgsl) draws silhouette and crease edges as solid lines; outline width is a ViewportConfig parameter",
+      "MatCap material mode samples a MatCap texture (provided as a 256x256 PNG artifact ref) using the view-space normal as UV coordinates in place of the PBR shader",
+      "tailor_viewport_config accepts render_mode: 'toon' when the feature is enabled",
+      "Visual integration test: a denim jacket in Toon mode with 3 bands shows hard shading transitions; the captured PNG is assertable as non-PBR by absence of specular highlights"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor_solver --features toon-shader viewport::toon_pipeline_compiles_and_renders",
+      "cargo test -p tailor_solver --features toon-shader viewport::matcap_mode_samples_view_space_normal",
+      "HBR-VIS: capture a draped T-shirt in RenderMode::Toon; assert visual output shows banded shading (pixel value histogram shows discrete luminance clusters)"
+    ],
+    "risk_if_missed": "Without Toon/MatCap rendering, Tailor cannot produce stylized garment previews for anime, illustration, or game-engine cartoon pipelines. Clients targeting stylized renders must export and re-render in external tools, adding a full DCC roundtrip per preview iteration."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

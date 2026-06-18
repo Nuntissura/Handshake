@@ -1,0 +1,551 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-244",
+  "title": "UnifiedWorkSurface-244-EditorEmbedViewsSaveToFormatAndFindReplace",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Unified-work-surface editor iteration 2, per operator notes (2026-06-12): (1) CKC embed views - inline NodeViews rendering the typed hsLink/embed nodes built in MT-163: insert picture [[HS_images]], embed slideshow [[HS_slideshow]], embedded albums, embedded videos - resolving REAL backend assets fail-closed (unresolvable embed renders a typed, visible error state; never mock data; never blank). (2) save-to-format export: HTML is the PRIMARY file projection (operator decision DEC-003) with data-hs-* attributes carrying typed link/embed semantics for near-lossless round-trip; TWO export modes: self-contained (assets base64-inlined - operator-confirmed) and reference-linked; plus markdown extractor (deliberately lossy, interop), plain text, and ProseMirror JSON. Authority remains the Postgres rich document; an export file is never authority. (3) Document-wide find/replace across prose AND embedded Monaco code blocks (case/whole-word/regex), VS Code-class.",
+    "relevant_files": [
+      "app/src/components/RichTextEditor.tsx",
+      "app/src/components/RichDocumentView.tsx",
+      "app/src/lib/tiptap/",
+      "app/src/lib/editor/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Frontend-only lane: pnpm/vitest/Playwright; NO cargo builds; no src/backend changes (report any backend gap instead of mocking around it).",
+      "Bundled/lockfile-governed deps only (a markdown serializer such as prosemirror-markdown is acceptable); no CDN, no external apps.",
+      "Stable selectors + visual-debug surface for every new view; offline Playwright proof for embeds and export round-trip.",
+      "HTML import path (if implemented here) must sanitize: strip scripts/event handlers, fail-closed."
+    ],
+    "expected_behavior": "An operator (or model) inserts pictures, slideshows, albums, and videos inline and sees them render from real assets; exports the document to self-contained or reference-linked HTML (plus md/txt/json) via a save-to-format UI; and runs document-wide find/replace spanning prose and code blocks.",
+    "acceptance_criteria": [
+      "Embed NodeViews render real resolvable assets; unresolvable -> typed visible error state (tested), never blank or mocked.",
+      "HTML export: data-hs-* semantics round-trip (export -> import -> identical doc structure proven in test); both modes work; base64 self-contained file opens standalone in a browser (Playwright proof).",
+      "Markdown/text/JSON exports produced; markdown explicitly documented as lossy.",
+      "Find/replace: case/whole-word/regex across prose + code blocks with match count + replace-all (tested).",
+      "Full app vitest suite + offline Playwright lane green; tsc + eslint clean."
+    ],
+    "verification": [
+      "pnpm vitest run (full app suite) green; pnpm tsc --noEmit clean; eslint clean.",
+      "Offline Playwright: embed render + HTML export round-trip + standalone-open proof, zero external network requests."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests with counts, Playwright results.",
+      "Report any backend asset surface found missing (album/slideshow data source) as a precise gap - do not mock around it.",
+      "List stable selectors added for the visual-debug suite."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-163",
+      "MT-165",
+      "MT-169",
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "cbfc0c3b",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T04:50:00.000Z",
+        "by": "KERNEL_BUILDER frontend delegate (MT-244)",
+        "commits": [
+          {
+            "sha": "8e6de709",
+            "slice": "CKC embed NodeViews (deliverable 1)"
+          },
+          {
+            "sha": "0b055376",
+            "slice": "save-to-format exports + document-wide find/replace (deliverables 2+3)"
+          },
+          {
+            "sha": "47076ec5",
+            "slice": "offline Playwright proofs (embeds render, find/replace E2E, standalone export)"
+          },
+          {
+            "sha": "cbfc0c3b",
+            "slice": "adversarial hardening (sequence fan-out cap, pre-fetch inline size guard)"
+          }
+        ],
+        "deliverables": {
+          "embed_views": "hsLink NodeView (app/src/components/HsLinkView.tsx + app/src/lib/editor/embed_assets.ts): images/video/album/slideshow kinds resolve REAL workspace assets via GET /workspaces/:ws/assets/:id (+/content); img/video elements load real bytes; album/slideshow render sequenced viewers (prev/next + position) over ordered asset-id lists; non-media kinds keep the exact MT-163 chip. Fail-closed typed error states (role=alert, data-testid=hs-embed-error, data-error-kind in {no_workspace, empty_ref, absolute_path_rejected, traversal_rejected, scheme_rejected, invalid_ref, not_found, forbidden, server_error, network_error, kind_mismatch, media_load_failed}) - never blank, never mocked. Embed context flows RichDocumentView(workspace_id) -> RichTextEditor prop -> hsLink extension options; document model unchanged.",
+          "save_to_format": "app/src/lib/editor/export_formats.ts + export menu in RichTextEditor toolbar/palette. HTML primary projection (DEC-003) with data-hs-* typed semantics; export->import round-trip proven IDENTICAL doc structure incl. Monaco code block language/code/contentHash (monaco parse-rule priority fix). Modes: self_contained (real asset bytes base64-inlined; guards: videos NEVER inlined [documented size-blowup decision, visible data-hs-inline-skipped=video_size_guard notice, preload=none so a standalone file makes zero requests on open], 8MiB/image + 64MiB/doc caps with pre-fetch metadata guard) and reference_linked (backend asset content URLs). Markdown = deliberately lossy extractor (documented drops); plain text via renderText serializers; ProseMirror JSON envelope (schema_version + projection-only authority note). Import path sanitizes fail-closed (scripts/iframes/objects/forms removed, on* handlers stripped, javascript:/vbscript:/data:text-html/data:image-svg URLs removed, tab/control/U+FFFD scheme obfuscation normalized). Quiet blob download (no foreground window); outcome surfaced inline + machine-readable __HS_EDITOR_LAST_EXPORT__ global. Authority unchanged: exports are projections; save path untouched.",
+          "find_replace": "app/src/lib/editor/find_replace.ts + find_decorations.ts + code_block_find_registry.ts + FindReplacePanel.tsx. Document-wide scan across prose text AND monacoCodeBlock code attrs; case-sensitive/whole-word/regex toggles; live match count (n of m, truncation marker); next/prev wrap-around; ProseMirror decoration highlights (hs-find-match / --current; node-level hs-find-match-block for code blocks); in-Monaco range reveal+selection via NodeView registry (textarea fallback in degraded mode); replace one/all in ONE transaction (prose insertText + per-node setNodeMarkup with recomputed contentHash, descending-position order) = single undo step restoring the exact doc; selection preserved via mapping; typed invalid-regex error (role=alert); Mod-f/Mod-h keymap + toolbar Find button + palette commands."
+        }
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T04:50:00.000Z",
+        "vitest_full_suite": {
+          "files": 65,
+          "tests": 513,
+          "status": "ALL PASS (fresh run incl. concurrent-lane MT-183/MT-158 code)"
+        },
+        "tsc": "pnpm tsc --noEmit clean",
+        "eslint": "0 findings in every MT-244 file; repo baseline of pre-existing errors in out-of-scope files (App.tsx, AtelierPanel, inference_lab, swarm, TiptapEditor, api.ts overload false-positive, third_party_notices.test) went 32 -> 31 errors vs HEAD baseline (identical failures verified pre-existing on HEAD)",
+        "mt244_tests": [
+          {
+            "file": "app/src/lib/editor/embed_assets.test.ts",
+            "count": 18,
+            "names": [
+              "classifies exactly the media kinds as embeds",
+              "matches mime families per embed kind",
+              "accepts UUID-shaped and opaque ids",
+              "rejects absolute Windows paths as absolute_path_rejected",
+              "rejects leading-slash and UNC paths as absolute_path_rejected",
+              "rejects traversal and separators as traversal_rejected",
+              "rejects schemes (http/javascript/file) as scheme_rejected",
+              "rejects empty and malformed ids",
+              "resolves real metadata to a typed content URL",
+              "fails closed with no_workspace when no workspace context is bound",
+              "rejects invalid refs before any network call",
+              "maps 404 -> not_found, 403 -> forbidden, 500 -> server_error",
+              "maps fetch rejection -> network_error and bad JSON -> server_error",
+              "fails closed on mime/kind mismatch (video asset in an images embed)",
+              "parses ordered comma-separated asset refs",
+              "resolves members independently - a broken member is a typed per-item error",
+              "treats an empty sequence as a typed empty_ref error",
+              "fails closed on an oversized sequence without fanning out requests (DoS guard)"
+            ]
+          },
+          {
+            "file": "app/src/components/HsLinkView.test.tsx",
+            "count": 9,
+            "names": [
+              "renders a real <img> from the typed backend asset content URL",
+              "renders a real <video controls> for a video embed",
+              "renders the sequenced slideshow viewer with prev/next over resolved members",
+              "renders a broken album member as a typed per-item error while the rest resolves",
+              "renders the typed visible error state for an unresolvable embed (never blank)",
+              "fails closed on a kind mismatch (video asset inside an images embed)",
+              "rejects an absolute-path ref client-side (backend MT-152 mirror)",
+              "fails closed with no_workspace when the editor has no embed context",
+              "keeps the exact MT-163 chip for non-media kinds (selectors unchanged)"
+            ]
+          },
+          {
+            "file": "app/src/lib/editor/export_formats.test.ts",
+            "count": 19,
+            "names": [
+              "round-trips export -> import to the identical document structure",
+              "round-trips the embedded Monaco code block byte-identically (hash included)",
+              "stamps data-hs-* typed semantics on links, embeds, code blocks, and the document",
+              "self-contained mode inlines REAL asset bytes as data: URLs",
+              "reference-linked mode emits the backend asset content URL",
+              "never inlines videos in self-contained mode (documented size guard)",
+              "skips the content fetch entirely when metadata declares an over-cap size (pre-fetch guard)",
+              "falls back to reference-linking for an image over the per-image cap",
+              "exports an unresolvable embed fail-closed with a typed visible marker",
+              "exports album/slideshow sequences as ordered real image lists",
+              "strips script elements, on* handlers, and executable URLs",
+              "imports a malicious export without executing or preserving script content",
+              "survives a code block whose code embeds </pre><script> (attribute-escaped)",
+              "keeps structure: headings, marks, lists, tasks, quote, fence, wikilinks",
+              "is documented-lossy: the code-block round-trip hash does not survive",
+              "renders pipe tables",
+              "plain text keeps wikilink tokens and fenced code (renderText serializers)",
+              "JSON envelope round-trips and refuses non-doc payloads",
+              "slugs titles and never emits spaces"
+            ]
+          },
+          {
+            "file": "app/src/lib/editor/find_replace.test.ts",
+            "count": 15,
+            "names": [
+              "finds matches across prose AND code blocks in document order",
+              "honors case sensitivity",
+              "honors whole-word matching across prose and code",
+              "supports regex with capture groups",
+              "returns a typed error for an invalid regex (no throw)",
+              "guards zero-length regex matches (no infinite loop) and caps matches",
+              "rejects an over-long term with a typed error",
+              "expands $1..$9, $& and $$",
+              "replaces a prose match preserving the rest",
+              "replaces inside the code block and recomputes the round-trip hash",
+              "replace-all across prose + code is ONE undo step restoring the exact doc",
+              "expands regex groups during replace-all",
+              "keeps the selection in-document after replace-all (no selection loss)",
+              "indexAfterSelection wraps to the first match",
+              "selectMatch sets a text selection for prose and a node selection for code"
+            ]
+          },
+          {
+            "file": "app/src/components/FindReplacePanel.test.tsx",
+            "count": 9,
+            "names": [
+              "opens via the toolbar button and counts prose + code matches",
+              "opens find via Mod-f and replace via Mod-h on the editor surface",
+              "navigates next/prev with wrap-around and highlights the current match",
+              "applies case/whole-word toggles and shows a typed error for invalid regex",
+              "replace-all rewrites prose AND code-block text; one undo restores all",
+              "replaces a single match leaving the others",
+              "closes on Escape and clears highlights",
+              "lists every export format and exports markdown end to end",
+              "exports reference-linked HTML through the palette command"
+            ]
+          },
+          {
+            "file": "app/src/lib/editor/editor_keymap.test.ts",
+            "count": 1,
+            "names": [
+              "resolves the find/replace chords to their special actions (MT-244)"
+            ],
+            "note": "added to the existing MT-170 suite (7 tests total there)"
+          }
+        ],
+        "playwright_offline_lane": {
+          "command": "cd app && pnpm run test:dependency-policy (playwright.dependency.config.ts, loopback-only + network kill-switch)",
+          "result": "6 passed (4 new MT-244 + 2 pre-existing), zero external requests in every test",
+          "mt244_specs": [
+            "editor_embeds_export_find.spec.ts > embed NodeViews render real assets (img/video/slideshow) and fail closed on a broken ref [img naturalWidth=8 from pngjs-encoded PNG; <video> PLAYS a WebM recorded by Chromium itself via canvas captureStream+MediaRecorder (currentTime advances, videoWidth=64); slideshow 1/2 -> 2/2 navigation; typed not_found error visible]",
+            "editor_embeds_export_find.spec.ts > document-wide find/replace spans prose + Monaco code block in the real UI [4 matches (2 prose + 2 code), replace-all rewrites both, Monaco model length proof]",
+            "editor_embeds_export_find.spec.ts > self-contained HTML export downloads, inlines the image, and opens standalone from file:// with zero network [real download event, >=3 data:image/png;base64 srcs, video_size_guard notice, file:// open renders decoded img with ZERO network requests]",
+            "editor_embeds_export_find.spec.ts > HTML export round-trips through importHtml to the identical document (in-harness) [palette export path, data-hs-* semantics + workspace asset content URL]"
+          ],
+          "screenshots": [
+            "mt244-embeds-rendered.png",
+            "mt244-find-replace.png",
+            "mt244-export-standalone.png"
+          ]
+        }
+      },
+      {
+        "kind": "backend_gap_report",
+        "at_utc": "2026-06-12T04:50:00.000Z",
+        "gaps": [
+          {
+            "gap": "No backend album/slideshow LIST-SOURCE entity exists",
+            "detail": "Searched src/backend/handshake_core: no album/collection table, no /albums route, no endpoint enumerating member assets for an album or slideshow id (only knowledge_document/embed.rs mentions albums as a typed-ref concept). Per the MT-244 contract the NodeView therefore resolves the CLOSEST REAL surface: the hsLink refValue carries an ordered comma-separated list of REAL asset ids ([[HS_slideshow:id1,id2]]), each resolved through GET /workspaces/:ws/assets/:id. Single repoint seam when an album entity lands: parseAssetRefList in app/src/lib/editor/embed_assets.ts.",
+            "not_mocked": true
+          },
+          {
+            "gap": "Asset content endpoint has no HTTP Range support",
+            "detail": "GET /workspaces/:ws/assets/:id/content (src/backend/handshake_core/src/api/loom.rs get_asset_content) reads the full file and returns 200 without Accept-Ranges; browsers play small full-body videos but long-video seeking will need Range support backend-side. Frontend <video> works against the current surface; noting for the backend lane.",
+            "not_mocked": true
+          }
+        ]
+      },
+      {
+        "kind": "stable_selectors",
+        "at_utc": "2026-06-12T04:50:00.000Z",
+        "selectors": {
+          "embeds": [
+            "hs-embed-loading",
+            "hs-embed-image",
+            "hs-embed-video",
+            "hs-embed-sequence",
+            "hs-embed-sequence-image",
+            "hs-embed-sequence-prev",
+            "hs-embed-sequence-next",
+            "hs-embed-sequence-position",
+            "hs-embed-error (role=alert, data-error-kind, data-embed-kind)",
+            "hs-link (unchanged, + data-ref-kind/value/label/resolved)"
+          ],
+          "find_replace": [
+            "editor-open-find",
+            "find-panel (data-match-count, data-active-index, data-truncated, data-with-replace)",
+            "find-input",
+            "find-count",
+            "find-next",
+            "find-prev",
+            "find-close",
+            "find-toggle-case",
+            "find-toggle-word",
+            "find-toggle-regex",
+            "find-error (role=alert)",
+            "find-outcome",
+            "replace-input",
+            "replace-one",
+            "replace-all",
+            "css: hs-find-match / hs-find-match--current / hs-find-match-block / hs-find-match-block--current / [data-find-current] / [data-find-code-matches]"
+          ],
+          "export": [
+            "editor-open-export",
+            "editor-export-menu (data-export-busy)",
+            "export-format-html_self_contained",
+            "export-format-html_reference_linked",
+            "export-format-markdown",
+            "export-format-plain_text",
+            "export-format-prosemirror_json",
+            "editor-export-cancel",
+            "export-status (data-export-format/bytes/embed-errors/inline-skips)",
+            "export-error (role=alert)"
+          ],
+          "globals": [
+            "__HS_EDITOR_LAST_EXPORT__ (EDITOR_LAST_EXPORT_GLOBAL_KEY in visual_debug.ts)"
+          ],
+          "exported_html": [
+            "html[data-hs-export|data-hs-schema-version|data-hs-export-mode|data-hs-exported-at|data-hs-authority|data-hs-title]",
+            "main[data-hs-content]",
+            "span[data-hs-node='hsLink'][data-hs-ref-kind|data-hs-ref-value|data-hs-label|data-hs-resolved]",
+            "pre[data-hs-node='monacoCodeBlock'][data-hs-language|data-hs-rt-hash]",
+            "span[data-hs-sequence][data-hs-sequence-length]",
+            "[data-hs-export-error]",
+            "[data-hs-inline-skipped]",
+            "[data-hs-asset-id]"
+          ]
+        }
+      },
+      {
+        "kind": "validation_recheck",
+        "at_utc": "2026-06-15T20:29:43.899Z",
+        "by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
+        "status": "PASS",
+        "product_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009",
+        "summary": "MT-244 revalidated after export/import hardening and full app lint unblock. Self-contained guarded media now fails closed without backend content URLs; album/slideshow export caps sequence fan-out before asset resolution; hsLink and Monaco imports consume data-hs-* fallback semantics; dependency-policy no_sqlite scanner drift is closed through shared scanner helpers.",
+        "files_changed_for_revalidation": [
+          "app/src/lib/editor/export_formats.ts",
+          "app/src/lib/editor/export_formats.test.ts",
+          "app/src/lib/tiptap/hs_link_node.ts",
+          "app/src/lib/tiptap/monaco_code_block_node.ts",
+          "app/scripts/check-dependency-policy.mjs",
+          "app/scripts/lib/dependency_policy_scans.mjs",
+          "app/scripts/lib/dependency_policy_scans.d.mts",
+          "app/src/lib/dependency_policy/no_sqlite_regression.test.ts",
+          "app/src/components/AtelierPanel.tsx",
+          "app/src/components/DependencyFailureBanner.tsx",
+          "app/src/components/TiptapEditor.tsx",
+          "app/src/components/inference_lab/ABCompare.tsx",
+          "app/src/components/inference_lab/CaaWizard.tsx",
+          "app/src/components/inference_lab/LoraStackComposer.test.tsx",
+          "app/src/components/inference_lab/SteeringVectorEditor.tsx",
+          "app/src/components/swarm/SwarmBoard.tsx",
+          "app/src/components/swarm/SwarmControlRoom.test.tsx",
+          "app/src/components/swarm/SwarmOperatorSurface.tsx",
+          "app/src/components/swarm/swarm_board_visual_harness.tsx",
+          "app/src/lib/dependency_policy/dependency_failure.ts",
+          "app/src/lib/dependency_policy/third_party_notices.test.ts"
+        ],
+        "commands": [
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/export_formats.test.ts --reporter=dot",
+            "result": "PASS: 1 file, 21 tests"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/editor/embed_assets.test.ts src/components/HsLinkView.test.tsx src/lib/editor/export_formats.test.ts src/lib/editor/find_replace.test.ts src/components/FindReplacePanel.test.tsx src/lib/editor/editor_keymap.test.ts src/components/RichTextEditor.test.tsx --reporter=dot",
+            "result": "PASS: 7 files, 99 tests"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run src/lib/dependency_policy/no_sqlite_regression.test.ts --reporter=dot",
+            "result": "PASS: 1 file, 5 tests"
+          },
+          {
+            "command": "node --check app/scripts/lib/dependency_policy_scans.mjs; node --check app/scripts/check-dependency-policy.mjs",
+            "result": "PASS: exit 0"
+          },
+          {
+            "command": "pnpm --dir app run lint",
+            "result": "PASS: full app ESLint clean"
+          },
+          {
+            "command": "pnpm --dir app exec tsc --noEmit",
+            "result": "PASS: exit 0"
+          },
+          {
+            "command": "pnpm --dir app exec vitest run --reporter=dot",
+            "result": "PASS: 69 files, 665 tests"
+          },
+          {
+            "command": "HANDSHAKE_ARTIFACT_ROOT=../Handshake_Artifacts PLAYWRIGHT_BROWSERS_PATH=../Handshake_Artifacts/playwright-browsers pnpm --dir app exec playwright test ../tests/dependency_policy/editor_embeds_export_find.spec.ts --config playwright.dependency.config.ts",
+            "result": "PASS: 4 tests"
+          },
+          {
+            "command": "git diff --check -- <MT-244 revalidation touched files>",
+            "result": "PASS: whitespace clean; Git reported LF-to-CRLF warnings only"
+          }
+        ],
+        "adversarial_reviews": [
+          {
+            "reviewer": "multi_agent:Hilbert the 2nd:019eccda-dfe3-7272-a3be-24922b89a413",
+            "result": "PASS",
+            "summary": "No blocking MT-244 findings. Verified sequence cap before resolution, self-contained image/video fail-closed behavior, data-hs-* import fallbacks, and dependency-policy scanner refactor."
+          }
+        ],
+        "residual_risks": [
+          "Self-contained video exports now fail closed with a visible guard instead of emitting backend content URLs; this avoids URL leakage but means videos are not playable in standalone exports.",
+          "Full app ESLint was made clean by touching behavior-adjacent files outside the MT-244 surface; those edits were only to satisfy MT-244's full eslint acceptance gate."
+        ]
+      },
+      {
+        "kind": "lifecycle_decision",
+        "at_utc": "2026-06-15T20:29:43.899Z",
+        "by": "KERNEL_BUILDER-20260615",
+        "status_before": "READY_FOR_VALIDATION",
+        "status_after": "COMPLETED",
+        "decision": "MT-244 dependency is no longer blocking downstream MTs after fresh full-suite proof and independent adversarial PASS."
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T04:50:00.000Z",
+      "findings": [
+        {
+          "risk": "XSS via HTML export/import (script tags, on* handlers, javascript:/vbscript: URLs, svg data-URLs)",
+          "fix": "sanitizeImportedDom removes forbidden elements + on* attrs + executable URL schemes fail-closed BEFORE schema parse; all export assembly is DOM-API-only (serializer-escaped attrs/text, never string concat)",
+          "tested": "strips script elements/handlers/URLs; imports a malicious export without executing; </pre><script> inside code attr round-trips escaped"
+        },
+        {
+          "risk": "Scheme obfuscation defeating the URL filter (java\\tscript:, NUL -> U+FFFD through HTML parsing)",
+          "fix": "normalizer strips whitespace, control chars (U+0000-U+001F) AND U+FFFD before scheme matching (real finding hit during test authoring: HTML parsers replace NUL with U+FFFD)",
+          "tested": "tab-obfuscated javascript: anchor stripped"
+        },
+        {
+          "risk": "base64 size blowup inlining video into self-contained HTML",
+          "fix": "DOCUMENTED DECISION: videos are never inlined - reference-linked <video preload=none> + visible data-hs-inline-skipped=video_size_guard notice; images capped 8MiB each / 64MiB per doc; pre-fetch metadata size guard avoids pulling over-cap bytes into memory at all",
+          "tested": "vitest video guard + pre-fetch guard (content endpoint never hit) + Playwright standalone-open zero-network proof"
+        },
+        {
+          "risk": "Regex find DoS on huge docs (catastrophic backtracking, zero-length loops, unbounded match sets)",
+          "fix": "term length cap 1000, match cap 2000 with truncated flag surfaced in UI, 250ms scan time budget across segments, zero-length-match manual advance; RESIDUAL DOCUMENTED: one catastrophic exec on a single huge segment is uninterruptible in JS (same residual VS Code accepts)",
+          "tested": "zero-length guard, match cap truncation, over-long term typed error"
+        },
+        {
+          "risk": "Embed URL traversal / absolute path / scheme injection into asset URLs",
+          "fix": "validateAssetRef rejects drive letters, leading slash/UNC, path separators, .., schemes, oversize and non [A-Za-z0-9._-] ids CLIENT-SIDE before any request (mirror of backend MT-152 EmbedTarget rejection); asset ids are URL-encoded into typed endpoint URLs only",
+          "tested": "8 validation tests incl. zero-network-call proof"
+        },
+        {
+          "risk": "Sequence fan-out DoS ([[album:id1,...,id10000]] -> thousands of metadata requests)",
+          "fix": "MAX_SEQUENCE_ITEMS=100 cap, fail-closed typed invalid_ref error before ANY fetch",
+          "tested": "oversized sequence makes zero requests"
+        },
+        {
+          "risk": "Selection loss during replace-all",
+          "fix": "single transaction maps the selection head through tr.mapping and re-sets TextSelection.near(clamped) - caret stays in-document",
+          "tested": "selection bounds assertion after replace-all"
+        },
+        {
+          "risk": "Undo integrity after replace-all (mixed prose + code-attr rewrites)",
+          "fix": "ALL edits (prose insertText + per-node setNodeMarkup with recomputed contentHash) in ONE transaction applied in descending position order - exactly one undo step",
+          "tested": "undo restores byte-identical doc JSON incl. code hashes"
+        },
+        {
+          "risk": "Serialized Monaco block re-imported as plain codeBlock (silent loss of language/hash)",
+          "fix": "parse-rule priority 100 on monacoCodeBlock (outranks StarterKit generic pre rule) - found BY the round-trip test; also fixes the latent paste-path downgrade",
+          "tested": "code-block round-trip identity test"
+        },
+        {
+          "risk": "Stale find highlights pointing at wrong text after edits",
+          "fix": "DecorationSet.map on doc changes between recomputes; panel rescans on every editor update; highlights cleared on close",
+          "tested": "closes on Escape and clears highlights"
+        }
+      ],
+      "residual_risks_documented": [
+        "Catastrophic regex backtracking within ONE huge segment is uninterruptible from JS (worker offload out of MT scope).",
+        "Self-contained exports embed reference-linked videos that require the backend running for playback (operator-visible notice in the file).",
+        "data:image/svg is stripped on IMPORT (svg can carry script); an svg workspace asset exported self-contained therefore loses its img src on re-import - the typed hsLink node itself round-trips losslessly."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T04:52:08.439Z",
+    "validated_by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
+    "validated_at_utc": "2026-06-15T20:29:43.899Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-244 requires three frontend editor deliverables (CKC embed NodeViews rendering real backend assets fail-closed; save-to-format HTML/md/txt/json export with data-hs-* round-trip; document-wide find/replace across prose + Monaco code). The committed code implements all three as real, non-trivial, fail-closed logic wired into RichTextEditor, with offline Playwright proof against the real Handshake asset route contract. PASS.",
+      "findings": [
+        "app/src/lib/editor/embed_assets.ts:403-471 resolveEmbedAsset hits the REAL backend route GET /workspaces/:ws/assets/:id and returns a typed content URL; validateAssetRef (112-152) rejects absolute paths/traversal/schemes client-side before any fetch; every failure is a typed EmbedErrorKind, never a blank or mock.",
+        "app/src/components/HsLinkView.tsx:274-376 MediaEmbed renders real <img>/<video>/sequence elements from resolved bytes; EmbedError (623-644) is a visible role=alert with data-error-kind; non-media kinds keep the unchanged MT-163 chip (79-122).",
+        "app/src/lib/editor/export_formats.ts:371-418 exportHtml builds the primary HTML projection via real Tiptap generateHTML + DOM-API-only transforms; self_contained mode fetches and base64-inlines REAL asset bytes with documented 8MiB/64MiB size guards (216-238) and a pre-fetch metadata guard; videos fail closed with a visible data-hs-inline-skipped marker (311-323) so a standalone file makes zero requests.",
+        "export_formats.ts importHtml (480-490) sanitizes fail-closed (sanitizeImportedDom 452-469 removes script/iframe/form, strips on* handlers, filters javascript:/vbscript:/data:text-html/data:image-svg with scheme-obfuscation normalization 432-445) then re-parses with the REAL editor schema, giving the round-trip claimed in tests.",
+        "export_formats.ts provides markdown (exportMarkdown 603-609, deliberately lossy and documented), plain_text (612-619 via real renderText serializers), and a typed ProseMirror JSON envelope (630-639) with explicit projection-only authority note; authority correctly stays at the Postgres rich document.",
+        "app/src/lib/editor/find_replace.ts buildFindMatches (158-193) scans prose text runs AND monacoCodeBlock code attrs in document order; applyReplaceAll (264-322) does prose insertText + per-node setNodeMarkup with recomputed contentHash in ONE descending-ordered transaction = single undo step with selection preserved; case/whole-word/regex with $1..$9/$&/$$ expansion and typed invalid-regex error; DoS guards (term cap, match cap, 250ms budget, zero-length advance).",
+        "tests/dependency_policy/editor_embeds_export_find.spec.ts serves the REAL Handshake asset route shapes with a pngjs-encoded PNG and a browser-recorded WebM (MediaRecorder) under a network kill-switch; this is genuine offline proof against the real route contract, not implementer mocks standing in for the contract.",
+        "All MT-244 changes are confined to app/src (allowed product paths); no SQLite/Docker/external-search/CDN deps introduced; commit 0b055376 stat shows only app/src files. Backend gaps (no album/slideshow list-source entity; no HTTP Range on content endpoint) are honestly reported as gaps and resolved via the closest real surface, not mocked.",
+        "Aside (non-blocking, paperwork): the packet cites v02.192 anchors while current is v02.194; section numbers resolve identically and this does not affect code correctness."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/app/src/lib/editor/embed_assets.ts",
+        "wtc-kernel-009/app/src/components/HsLinkView.tsx",
+        "wtc-kernel-009/app/src/lib/editor/export_formats.ts",
+        "wtc-kernel-009/app/src/lib/editor/find_replace.ts",
+        "wtc-kernel-009/tests/dependency_policy/editor_embeds_export_find.spec.ts (head)",
+        "git log/show for MT-244 commits 8e6de709,0b055376,47076ec5,cbfc0c3b",
+        "grep for placeholder/escape/forbidden-dep patterns across MT-244 surface"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER frontend delegate session 2026-06-12 (MT-244)",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "multi_agent:Hilbert the 2nd:019eccda-dfe3-7272-a3be-24922b89a413"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

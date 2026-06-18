@@ -961,6 +961,12 @@
       "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling; preserves operator-requested kernel build 0007 intent without colliding with existing WP-KERNEL-007; folds Project Brain, Semantic Catalog, RAG retrieval-mode policy, AIReady evidence/export, relationship_id graph retrieval, and ContextPack recorder-visibility legacy stubs"
     },
     {
+      "base_wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; READY_FOR_REFINEMENT; Tailor cloth/garment engine (Handshake-native Marvelous-Designer-equivalent); Master Spec Section 13 ACTIVE in v02.194 (sub-sections 13.1-13.15); NEXT in build order after WP-KERNEL-009 passes tests+validation; HBR directive baked in (swarm-parallel model API + front-end AND back-end visual inspect/navigate + jobs/Flight-Recorder/headless-parallel, reuse-don't-fork); ~350-MT plan; research package .GOV/reference/cloth_engine_research (17 topics) + canonical contracts 16-contracts.md / 13.14"
+    },
+    {
       "base_wp_id": "WP-KERNEL-005",
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-005/packet.md",
       "task_board_projection": "Done: WP-KERNEL-005 [VALIDATED]",

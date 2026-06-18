@@ -1,0 +1,176 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-155",
+  "title": "RichDocumentCore-155-DocumentBacklinkBridge",
+  "group": "RichDocumentCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-155.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Emit and persist backlinks from inline links, wikilinks, mentions, tags, and references. This MT belongs to RichDocumentCore. Build the canonical structured document model backing the editor, Loom, UserManual, and projections.",
+    "relevant_files": [
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/commands/",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Rich documents are PostgreSQL/EventLedger/CRDT-backed structured block documents, not Markdown vault authority.",
+      "All rich document state must preserve Raw/Derived/Display separation and stable entity IDs."
+    ],
+    "expected_behavior": "DocumentBacklinkBridge leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "DocumentBacklinkBridge is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "block_id is part of relationship_id, so backlink ids inherit MT-148 derived-id churn",
+          "evidence": "backlink.rs:152-164 derive_document_link_relationship_id includes block_id; with derived (non-persisted) block ids, a structural edit re-keys backlinks for shifted blocks. replace_knowledge_document_backlinks deletes+reinserts atomically (knowledge.rs:4939) so no duplication, but stable across re-extraction holds only for unchanged content/positions.",
+          "fix": "Resolve MT-148 id persistence; then backlink ids are stable across edits."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "relationship_id derivation is length-prefix injective (separator-collision test backlink.rs:324-332); dedup by relationship_id proven (335-354); atomic delete+insert rebuild."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-155 DocumentBacklinkBridge requires extracting and persisting backlinks from inline links, wikilinks, mentions, tags, and typed link references with a stable relationship_id, backed by PostgreSQL/EventLedger. The code delivers this: backlink.rs extracts all required reference kinds with a deterministic length-prefixed-injective KDLNK- relationship_id, persisted to real PostgreSQL table knowledge_document_backlinks (migration 0282) with idempotent transactional rebuild plus forward and reverse lookups, wired into the save path and the frontend authority route, and proven against a real Handshake-managed PostgreSQL cluster.",
+      "findings": [
+        "backlink.rs:133-157 DocumentLinkReferences::extract walks the canonical BlockTree and emits typed link references for all 9 required kinds (file/folder/project/spec/wp/symbol typed blocks + inline wikilink/mention/tag), deduplicated by stable relationship_id; covers both plain-text scanning (scan_wikilinks/scan_prefixed, with word-boundary mention handling email@host vs @alice at lines 351-377/496-513) and structured Tiptap hsLink/mention/tagMention nodes (extract_structured_inline_references lines 242-290).",
+        "backlink.rs:164-176 derive_document_link_relationship_id produces a KDLNK-<sha256> id from a length-prefixed injective preimage over (source_document_id, kind, target, block_id) -- same discipline as knowledge_edges.relationship_id; injectivity proven by separator-collision unit test lines 462-471 and determinism test lines 448-460.",
+        "Migration 0282_knowledge_document_backlinks.sql:19-49 creates a real PostgreSQL authority table with FK CASCADE to knowledge_rich_documents/workspaces, CHECK regexes on id/relationship_id/link_kind/target/block_id, and UNIQUE(workspace_id, relationship_id) enforcing idempotent re-extraction; registered in knowledge_schema_registry as authority/KnowledgeEdge (lines 57-62). Forward and reverse-lookup indexes present (lines 51-55).",
+        "storage/knowledge.rs:5650-5756 implements upsert (ON CONFLICT (workspace_id, relationship_id) DO UPDATE), replace_knowledge_document_backlinks (transactional delete-all-for-source + reinsert, idempotent rebuild), list_from (forward) and list_to (reverse direction) -- all real sqlx against the PG pool.",
+        "api/knowledge_documents.rs:1006-1074 wires the save path to re-extract and persist backlinks (replace_knowledge_document_backlinks) after the durable write, gated by the Index permission and non-fatal on index error; GET/POST /knowledge/documents/:id/backlinks routes (lines 103-104, 1350-1411) expose forward listing and rebuild.",
+        "Real-PG proof: tests/knowledge_pg_support.rs:49-64 + 108-155 starts Handshake-managed PostgreSQL (ManagedPostgres::ensure_running) or honors POSTGRES_TEST_URL/DATABASE_URL, connects PostgresDatabase to an isolated schema with real migrations; tests/knowledge_document_model_tests.rs:198-253 persists backlinks, asserts wikilink/wp/tag rows landed, asserts the deterministic relationship_id matches derive_document_link_relationship_id, and asserts the reverse lookup list_knowledge_document_backlinks_to returns exactly the inbound edge. This is real Handshake-native PostgreSQL, not SQLite/in-memory/mock.",
+        "No deferred-live escapes: grep of backlink.rs, storage/knowledge.rs, api/knowledge_documents.rs for todo!/unimplemented!/unreachable!/Unavailable/pending MT-/not yet wired returns no live-path hits.",
+        "Frontend app/src/lib/api.ts targets the real /knowledge/documents/.../backlinks authority surface (no mocks); RichDocumentView wiring committed in dd3056f5.",
+        "Non-blocking concern for Integration Validator (whole-WP): knowledge_document_backlinks is registered record_family=KnowledgeEdge but is a thinner doc-scoped bridge lacking the span refs / extractor_version / confidence / lifecycle columns spec 2.3.13.11 requires of the full KnowledgeEdge family (those live in MT-054 knowledge_edges, knowledge.rs:1009+). MT-155's stated scope (emit+persist backlinks with stable relationship_id) is fully satisfied; the fuller edge-family fidelity is whole-WP judgment, not a per-MT failure. The adversarial-review LOW note (block_id-derived ids inherit MT-148 derived-id churn) is acknowledged and bounded by atomic delete+reinsert.",
+        "Aside (not blocking per ground rules): packet cites v02.192 anchors; resolved against current v02.194 spec module 02-system-architecture.md:2694+ which carries the same section numbers."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-155.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/backlink.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0282_knowledge_document_backlinks.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (lines 2102-2170, 5650-5756)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (lines 16-110, 1006-1074, 1350-1411)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_document_model_tests.rs (lines 25-67, 196-264)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/api.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (section 2.3.13.11)",
+        "git commits b506d832, 935e0482, bf0c62a5, dd3056f5"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

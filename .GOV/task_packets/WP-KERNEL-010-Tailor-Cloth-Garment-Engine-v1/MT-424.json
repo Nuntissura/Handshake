@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-424",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-424.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-423"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement IK-mode avatar pose editing that accepts end-effector joint targets, drives a chain IK solver (FABRIK or analytical 2-bone) over the tailor_avatars skeleton, and updates the linked ClothBodyProxy capsule positions for the next sim run",
+    "allowed_paths": [
+      "tailor-solver/src/body/ik_pose.rs",
+      "src/backend/handshake_core/src/tailor/avatar.rs",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "app/src/components/tailor/AvatarPoseEditor.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "A PoseEditRequest type (joint_name: String, target_position_mm: [f32;3]) is defined in tailor-solver/src/body/ik_pose.rs",
+      "The IK solver reaches the target end-effector within 5 mm in <= 20 iterations for a 2-bone chain (hip -> knee -> ankle)",
+      "The resulting joint transform chain is propagated to update all CollisionCapsule p0_mm/p1_mm values in the linked BPX- row",
+      "TailorBodyProxyUpdated is emitted after each successful pose edit commit",
+      "Existing garment sim runs on the same AVT- are not invalidated (prior sim results are historical; new runs pick up the updated proxy)",
+      "cargo test tailor_ik::test_two_bone_chain_reach and tailor_ik::test_ik_proxy_capsule_update both pass"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver body::ik_pose::test_two_bone_chain_reach",
+      "cargo test -p handshake_core tailor::avatar::test_ik_proxy_update_event"
+    ],
+    "risk_if_missed": "Operators and models cannot pose avatars without re-importing a full custom mesh. Pose variation for draping (seated, arms raised, A-pose vs T-pose) requires external tooling, breaking the self-contained workflow MD users expect."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

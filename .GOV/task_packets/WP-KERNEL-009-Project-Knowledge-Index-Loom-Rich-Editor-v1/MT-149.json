@@ -1,0 +1,191 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-149",
+  "title": "RichDocumentCore-149-DocumentSaveLoadApi",
+  "group": "RichDocumentCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-149.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Implement backend save/load APIs with EventLedger receipts and conflict-aware revision checks. This MT belongs to RichDocumentCore. Build the canonical structured document model backing the editor, Loom, UserManual, and projections.",
+    "relevant_files": [
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/commands/",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Rich documents are PostgreSQL/EventLedger/CRDT-backed structured block documents, not Markdown vault authority.",
+      "All rich document state must preserve Raw/Derived/Display separation and stable entity IDs."
+    ],
+    "expected_behavior": "DocumentSaveLoadApi leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "DocumentSaveLoadApi is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
+    "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
+    "evidence": [
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T07:35:00Z",
+        "kind": "hardening_v2",
+        "finding": "Non-atomic save+index: post-commit error path returned 400/500 for an already-committed save; pre/post-save schema-version parse inconsistency",
+        "fix": "All post-commit steps (receipt, backlink rebuild, embed sync) across save/create/import/repair/rename/move are best-effort and RECORDED (receipt_error/backlinks_error/embeds_error + tracing), never an error for a committed write; one pre-commit tree parse drives validation AND indexing (schema-version inconsistency removed)",
+        "commit": "aa0ce3f6",
+        "tests": "knowledge_documents_api_tests 6 passed incl. mt149_committed_save_never_errors_when_post_commit_steps_fail (drops backlink/embed/ledger tables for real; save commits 200 with all three failures recorded; durable v2 reload proven)"
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Non-atomic save+index: post-commit error path returns error for an already-committed save",
+          "evidence": "api/knowledge_documents.rs:441-449 save commits (UPDATE + version row + receipt), THEN 466-496 re-parses for backlinks; a parse failure returns 400 (line 473) and a backlink-persist failure returns 500 - both for a save that already persisted. Client retry then hits a stale expected_version -> 409.",
+          "fix": "Either fold backlink rebuild into the same storage transaction as the version bump, or never surface index-step failures as save failures (the code already treats Index permission denial as non-fatal at 493-495; extend that to parse/persist failures).",
+          "status": "FIXED",
+          "fixed_commit": "aa0ce3f6"
+        },
+        {
+          "severity": "LOW",
+          "title": "Schema-version inconsistency between pre-save validate and post-save re-parse",
+          "evidence": "line 436 validates tree with DOCUMENT_SCHEMA_VERSION; line 468 re-parses with saved.schema_version. Divergent docs would validate twice under two versions.",
+          "fix": "Use the stored schema_version consistently.",
+          "status": "FIXED",
+          "fixed_commit": "aa0ce3f6"
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: a save whose backlink-rebuild step fails must not report the save as failed (committed save + index error)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-149 (DocumentSaveLoadApi) requires backend save/load APIs with EventLedger receipts and conflict-aware revision checks on PostgreSQL authority. The code delivers a real Axum save/load surface backed by a single-transaction optimistic-concurrency UPDATE (stale expected_version -> 409 Conflict), append-only version history, EventLedger receipts, and a committed-save atomicity law, all proven by route-level integration tests against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "save_document handler (src/backend/handshake_core/src/api/knowledge_documents.rs:955-1088): validates block tree + embed targets fail-closed BEFORE commit, then save_knowledge_rich_document_version commits; all post-commit steps (receipt, backlinks, embeds, index) are best-effort and recorded, never erroring a committed write. This is exactly the MT-149 'save/load API w/ receipts' + 'conflict-aware revision checks' behavior.",
+        "Optimistic concurrency is genuinely PG-native (src/backend/handshake_core/src/storage/knowledge.rs:5128-5207): one tx, UPDATE ... SET doc_version = doc_version + 1 WHERE rich_document_id=$1 AND doc_version=$2; on zero rows it distinguishes stale-version (StorageError::Conflict -> 409) from missing doc (NotFound -> 404), inserts an append-only knowledge_rich_document_versions row, clears the draft, and tx.commit(). Real conflict-aware revision check.",
+        "EventLedger receipt path is real (knowledge_documents.rs:425-452): NewKernelEvent built with aggregate knowledge_rich_document and KnowledgeRichDocumentSaved type, persisted via db.append_kernel_event into the real kernel_event_ledger table. Matches current spec 2.3.13.11 (write/promotion leaves a receipt; backend-nav identity headers required).",
+        "Prior adversarial-v2 findings are actually fixed in commit aa0ce3f6: committed-save no longer returns 400/500 on post-commit index/parse/persist failure, and the pre/post-save schema-version parse inconsistency is removed (one pre-commit tree drives both validation and indexing, knowledge_documents.rs:968-1069).",
+        "Runtime proof is real, not mock: tests/knowledge_documents_api_tests.rs drives the actual routes over loopback against real Handshake-managed PostgreSQL (knowledge_pg_support.rs: managed_postgres cluster, isolated schema, full migration chain, explicit NO SQLite/in-memory/mock fallback). mt149_committed_save_never_errors_when_post_commit_steps_fail (lines 1077-1164) DROPs the real backlink/embed/kernel_event_ledger tables, then asserts the save commits 200, records all three errors, and the v2 write is durable on reload.",
+        "Migrations 0280-0282 (knowledge_document_identity/embeds/backlinks) are present in src/backend/handshake_core/migrations/. No SQLite, no Docker, no external daemon, no placeholder/todo!/unimplemented! reachable from the save/load path.",
+        "Aside (non-blocking, expected): packet cites spec bundle v02.193/anchors at v02.192 while current is v02.194; section 2.3.13.11 resolves identically in the current bundle. Pure paperwork pointer drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-149.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (save_knowledge_rich_document_version L5117-5207)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "git show --stat aa0ce3f6, b506d832; log --grep MT-149",
+        "migrations 0280-0282 present",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md + master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

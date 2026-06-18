@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-344",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-344.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-344.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-344.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-344.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-343"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement auto_seal_panel operation that detects open endpoints in a Panel EdgeShape outline and closes them with a minimal bridging segment or arc, emitting the corrected outline via CRDT",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/seal_ops.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "auto_seal_panel(panel_id) detects all open endpoints (distance > eps_mm between adjacent edge endpoints) and inserts bridging Line EdgeShape segments to close them",
+      "PANEL_CLOSED ValidationDescriptor passes after auto_seal on any panel with gaps <= 5 cm (panels with larger gaps are flagged as advisory rather than sealed)",
+      "The operation is idempotent: calling auto_seal on an already-closed panel is a no-op",
+      "Emits TailorPanelCrdtUpdateRecorded with the inserted segment diff",
+      "Model-accessible as a post-processing step in the author_garment MCP tool (auto_seal: true flag)"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::seal_ops::test_seal_small_gap",
+      "cargo test -p tailor-solver authoring::seal_ops::test_seal_idempotent",
+      "cargo test -p handshake_core tailor::authoring::test_seal_panel_closed_passes"
+    ],
+    "risk_if_missed": "Without Auto Seal, every model-authored or sketch-generated panel that has a small gap (due to floating-point coordinate mismatch at sketch endpoints or LLM numerical error) will fail PANEL_CLOSED and be rejected at validation. Models generating GarmentSpec JSON are likely to produce near-closed outlines with sub-mm gaps; without Auto Seal the self-correction loop would require exact coordinate repairs instead of a seal pass."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

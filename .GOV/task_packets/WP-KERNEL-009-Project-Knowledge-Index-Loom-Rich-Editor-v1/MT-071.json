@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-071",
+  "title": "CRDTAndConcurrencyCore-071-ConcurrentIndexRunSemantics",
+  "group": "CRDTAndConcurrencyCore",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-071.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define how parallel indexers coordinate leases, skip locked sources, resume partial runs, and avoid duplicate entities. This MT belongs to CRDTAndConcurrencyCore. Make rich document, graph mutation, and agent proposal state conflict-aware and recoverable.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/kernel/write_boxes.rs",
+      "src/backend/handshake_core/src/kernel/crdt_workspace.rs",
+      "src/backend/handshake_core/src/kernel/crdt_promotion_bridge.rs",
+      "src/backend/handshake_core/tests/kernel_crdt_persistence_tests.rs",
+      "app/src/components/TiptapEditor.tsx"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "CRDT requirements apply to human plus agent concurrent draft state, rich document block state, graph mutation proposals, and EventLedger promotion, even when realtime multi-user UI is deferred.",
+      "AI/agent actions must carry stable actor/site IDs, leases, idempotency keys, and recovery receipts."
+    ],
+    "expected_behavior": "ConcurrentIndexRunSemantics leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "ConcurrentIndexRunSemantics is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-065"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "implementation_commit": "923df085",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 923df085; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:20:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "AT-MOST-ONE-RUN-PER-ROOT is DB-enforced, not memory-coordinated. claim_index_run_slot delegates to claim_lease with scope_kind=SourceRoot (index_run_guard.rs:89-102); the partial unique index uq_knowledge_crdt_lease_active_scope (0151:46-48 WHERE released_at_utc IS NULL) is the mutual exclusion. Two indexers racing the same root resolve in PostgreSQL; the loser gets a typed index_run_slot_rejected denial + KNOWLEDGE_CRDT_LEASE_WRITE_DENIED event naming the holder, its expiry, and whether takeover is possible.",
+        "STRICTER THAN THE WRITE GUARD on expiry: because the unique index keys on released_at_utc IS NULL (NOT on expiry), an EXPIRED-but-unreleased holder still BLOCKS a new claim -> Rejected with holder_expired_takeover_possible=true. So a crashed indexer's stale lease does not silently free the slot; the claimant must explicitly takeover (MT-076). This eliminates any double-grant / overlapping-run window. Different roots claim independently (safe parallel partitioning).",
+        "Does NOT modify knowledge_index_runs (0133, MT-052 lane); only threads index_run_ref into receipts for correlation (index_run_guard.rs:15-20). Clean lane separation -- no foreign-table write.",
+        "MINOR: release_index_run_slot just calls release_lease (own-actor guarded). If an indexer crashes without releasing, the slot is held until expiry+takeover; relies on the sweep/takeover path for liveness. Acceptable; flagged for operational awareness."
+      ],
+      "evasion_probes": [
+        "Two concurrent claims on one source_root: second hits the partial unique index -> ScopeHeld -> Rejected (durable receipt). No two simultaneous holders.",
+        "Tried to claim over an expired holder without takeover: still Rejected (index keys on released, not expiry). No overlapping index run.",
+        "Different source roots in parallel: independent scope_ids -> both Claimed. Correct partitioning, no false contention."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/index_run_guard.rs:83-192 (claim/release index run slot)",
+        "src/backend/handshake_core/migrations/0151_knowledge_crdt_agent_lane_leases.sql:46-48 (partial unique index on released-null scope)",
+        "src/backend/handshake_core/src/kernel/crdt/agent_lease.rs:179-221 (claim_lease ScopeHeld path)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:27:06.182Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); core sound, only defense-in-depth notes."
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

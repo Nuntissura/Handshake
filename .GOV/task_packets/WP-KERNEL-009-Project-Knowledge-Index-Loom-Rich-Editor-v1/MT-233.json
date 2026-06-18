@@ -1,0 +1,218 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-233",
+  "title": "SecurityPortabilityValidation-233-BadCitationFixture",
+  "group": "SecurityPortabilityValidation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-233.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Verify unsupported summaries/claims are blocked or marked unsupported and cannot become stable facts. This MT belongs to SecurityPortabilityValidation. Prove WP-009 behavior with negative fixtures, visual debugging, portability checks, and validator-ready evidence.",
+    "relevant_files": [
+      "src/backend/handshake_core/tests/",
+      "tests/visual/",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx",
+      "app/src-tauri/src/visual_debug.rs",
+      "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+      ".GOV/roles_shared/checks/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Validation must include negative fixtures for false PASS, stale state, missing Postgres, missing assets, secret leakage, partial PDF extraction, parallel write conflicts, and UI overlap.",
+      "Portability checks must reject hardcoded machine paths and authority stored only in generated projections."
+    ],
+    "expected_behavior": "BadCitationFixture leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "BadCitationFixture is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-STOP-001",
+      "HBR-STOP-002",
+      "HBR-VIS-005",
+      "CX-503R"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-225"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "67c0b209",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T09:34:35.033Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "67c0b209",
+            "slice": "MT-233 unsupported citation and fact-authority hardening"
+          }
+        ],
+        "summary": "MT-233 now types unsupported bad-citation evidence in durable context bundle item rows, keeps emitted allowed_context JSON and persisted rows aligned, backfills legacy unsupported rows from allowed_context and @UNSUPPORTED citation markers, rejects contradictory support metadata through Rust storage validation and PostgreSQL CHECK constraints, and blocks unsupported memory facts from becoming source, derived, model_suggested, or operator_approved through both Rust transition logic and a PostgreSQL trigger. HBR-STOP-001/HBR-STOP-002 and CX-503R are proven by real PostgreSQL negative fixtures; HBR-VIS-005 is not applicable because this MT changes no GUI surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T09:34:35.033Z",
+        "commands": [
+          {
+            "command": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_documents_tests bundle_item_support_state_rejects_drift -- --nocapture",
+            "result": "PASS; 1/1 real PostgreSQL negative-path test. Rust storage rejects supported=true with @UNSUPPORTED citation and unsupported_reason; raw SQL insert rejects supported=true with @UNSUPPORTED via chk_knowledge_context_bundle_items_support_reason."
+          },
+          {
+            "command": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph -- --nocapture",
+            "result": "PASS; 1/1 real PostgreSQL test. Unsupported fact stays out of trusted graph projection; Rust API rejects Unsupported -> OperatorApproved; raw SQL rejects Unsupported -> source with the MT-233 trigger."
+          },
+          {
+            "command": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_retrieval_pipeline_tests retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven -- --nocapture",
+            "result": "PASS; 1/1 real PostgreSQL retrieval scenario. Bad citation persists supported=false, unsupported_reason='span not found in index', and @UNSUPPORTED marker in both allowed_context and item rows."
+          },
+          {
+            "command": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_facts_tests -- --nocapture",
+            "result": "PASS; 3/3 real PostgreSQL memory fact tests, including existing authority transition table coverage."
+          },
+          {
+            "command": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_documents_tests v1_compatible_bundle_persists_with_items_and_trace -- --nocapture",
+            "result": "PASS; 1/1 real PostgreSQL positive-path context bundle roundtrip with the new support-state columns."
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/knowledge_retrieval/compiler.rs src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/storage/knowledge_memory.rs src/backend/handshake_core/tests/knowledge_documents_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/knowledge_retrieval/compiler.rs src/backend/handshake_core/src/storage/knowledge.rs src/backend/handshake_core/src/storage/knowledge_memory.rs src/backend/handshake_core/tests/knowledge_documents_tests.rs src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "Select-String -Path src/backend/handshake_core/migrations/0321_knowledge_memory_unsupported_fact_guard.sql,src/backend/handshake_core/migrations/0321_knowledge_memory_unsupported_fact_guard.down.sql -Pattern '[ \\\\t]$'",
+            "result": "PASS; no trailing whitespace in migration files"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_memory_projection_tests --test knowledge_retrieval_pipeline_tests --test knowledge_memory_facts_tests --test knowledge_documents_tests -- --nocapture",
+            "result": "NOT CLAIMED AS PASS; broad combined command hit the 20-minute shell timeout under Windows paging-file pressure. Follow-up controlled logs found rustc E0786/os error 1455 and the MT-233 proof set was rerun with -j 1."
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T09:34:35.033Z",
+        "reviewer": "multi_agent:019ebfe8-0255-7523-9bc7-e5b34516eed7",
+        "result": "PASS",
+        "summary": "Initial review had failed migration backfill and support-state drift. Re-review found both blockers resolved: legacy unsupported rows are backfilled from allowed_context and @UNSUPPORTED markers, Rust and DB validation reject contradictory support state, and unsupported memory fact relabeling is blocked in both Rust and raw SQL paths. Residual uncertainty: reviewer did not run additional Cargo tests to avoid target-dir/database contention; controller ran the targeted real PostgreSQL proof set with reduced Cargo concurrency."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T09:34:35.033Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-233 (BadCitationFixture / unsupported-fact hardening) requires that unsupported summaries/claims are blocked from becoming stable trusted facts and that bad-citation evidence is typed durably with PostgreSQL authority. The commit delivers exactly this: real PG columns + CHECK constraint + authority-transition trigger, matching Rust storage validation and transition logic, proven by real PostgreSQL negative fixtures. Code is real, spec-aligned, and not mock-only.",
+      "findings": [
+        "Impl commit 67c0b209 adds migration src/backend/handshake_core/migrations/0321_knowledge_memory_unsupported_fact_guard.sql: real PG columns supported BOOLEAN + unsupported_reason TEXT on knowledge_context_bundle_items, a CHECK constraint chk_knowledge_context_bundle_items_support_reason tying supported state to @UNSUPPORTED citation marker + reason, plus a BEFORE UPDATE trigger trg_knowledge_memory_fact_authority_transition_guard that raises check_violation when an unsupported fact is relabeled to source/derived/operator_approved/model_suggested. This is a genuine Handshake-owned PostgreSQL resource touch.",
+        "knowledge_memory.rs:807-813 (set_memory_fact_authority_label) and the can_transition_to logic (diff at knowledge_memory.rs ~607) now restrict Unsupported -> {Deprecated, Superseded} only, matching the DB trigger. Both the Rust API path and the raw-SQL path are guarded, so the blocking behavior cannot be bypassed.",
+        "storage/knowledge.rs:5386-5470 adds Rust-side validation rejecting supported=true with @UNSUPPORTED/unsupported_reason and rejecting supported=false without a trimmed reason or without the @UNSUPPORTED marker; INSERT/SELECT updated to persist and read the two new columns. compiler.rs:147-200 emits aligned allowed_context JSON and item rows for supported/unsupported_reason, so the durable item rows and emitted JSON stay consistent.",
+        "Tests are real PostgreSQL negative fixtures, not mocks: knowledge_pg_support.rs:108 (knowledge_pg) and knowledge_memory_fixtures.rs:43 (MemoryFixture::setup) connect to a real cluster, create isolated schemas, and run all migrations including 0321; raw_connection (knowledge_pg_support.rs:81) issues raw SQL INSERT/UPDATE to prove the CHECK/trigger fire at the DB layer. bundle_item_support_state_rejects_drift, unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph, and retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven exercise both Rust-API rejection and raw-SQL DB rejection.",
+        "Spec alignment: current Master Spec module 02-system-architecture.md (~lines 10986-11016, sec 10.20/MemoryPack/semantic memory) requires evidence-gating, candidate-until-approved status, and stable facts only from trusted/evidence-backed sources. Blocking unsupported (evidence-lost) facts from entering trusted/stable labels and typing bad citations as supported=false enforces that spec intent.",
+        "No deferred-live escapes: grep of knowledge_memory.rs found no todo!/unimplemented!/unreachable!/Unavailable/pending MT- on the required path. The MT-233 core files (knowledge_memory.rs, migration 0321) are byte-identical between impl commit 67c0b209 and HEAD; the later checkpoint c49afb7f did not regress them.",
+        "Scope/boundary: only allowed paths touched (src/backend/handshake_core, tests). No SQLite, Docker, external search engine, or external graph/RAG service. Aside (non-blocking): handoff is at READY_FOR_VALIDATION with completed_by set but status not COMPLETED, so no self-certification occurred."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-233.json",
+        "git show 67c0b209 (full diff) in wtc-kernel-009",
+        "src/backend/handshake_core/migrations/0321_knowledge_memory_unsupported_fact_guard.sql + .down.sql",
+        "src/backend/handshake_core/src/storage/knowledge_memory.rs (set_memory_fact_authority_label, can_transition_to)",
+        "src/backend/handshake_core/src/storage/knowledge.rs (validation + INSERT/SELECT)",
+        "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs, knowledge_memory_fixtures.rs",
+        "tests: knowledge_documents_tests.rs, knowledge_memory_projection_tests.rs, knowledge_retrieval_pipeline_tests.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (memory/MemoryPack sections)",
+        "git diff 67c0b209 HEAD for MT-233 files (empty), git show --stat c49afb7f"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT233",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

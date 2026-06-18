@@ -1,0 +1,94 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-420",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-420.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-419"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement a particle pin constraint (world-space position lock on selected cloth particles) and a simulation freeze command (halt solver advance and hold all particle positions fixed) as animation authoring tools, exposed in both the MCP tool surface and the viewport UI.",
+    "allowed_paths": [
+      "tailor-solver/src/constraints/pin.rs",
+      "tailor-solver/src/solver/state.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs",
+      "src/backend/handshake_core/src/api/tailor.rs",
+      "app/src/components/tailor/AnimationTimeline.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "PinConstraint struct carries (particle_idx: u32, world_pos: Vec3, strength: f32) and is included in the ClothConstraint enum alongside Stretch/Shear/Bend/Seam/Tack/Volume.",
+      "Pinned particles have their predicted position overwritten with world_pos after each XPBD predict step (inv_mass effectively 0 while pinned).",
+      "The animation API exposes pin_particles(particle_ids: Vec<u32>, world_positions: Vec<Vec3>) and unpin_particles(particle_ids: Vec<u32>) so models and operators can select and lock cloth regions.",
+      "Freeze command (freeze_simulation()) halts the solver advance (no further substep dispatch) until resume_simulation() is called, preserving all particle positions and velocities.",
+      "Pins and freeze state serialize into the animation session and can be saved/restored without loss.",
+      "cargo test solver::pin::pinned_particle_stays_at_world_pos passes.",
+      "cargo test solver::freeze::halt_and_resume_preserves_state passes."
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver solver::pin::pinned_particle_stays_at_world_pos",
+      "cargo test -p tailor-solver solver::freeze::halt_and_resume_preserves_state",
+      "cargo test -p handshake_core tailor::api::pin_particles_endpoint"
+    ],
+    "risk_if_missed": "Garment layers cannot be selectively locked during animation, making it impossible to prevent unwanted sliding or to sculpt cloth poses by anchoring specific regions. The freeze command is the primary mechanism MD users use to stop simulation at a desired pose and export a static frame. Without it the animation authoring workflow lacks basic creative control."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

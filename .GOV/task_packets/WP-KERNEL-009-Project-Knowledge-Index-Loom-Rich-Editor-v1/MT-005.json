@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-005",
+  "title": "ResearchSpecTranslation-005-MemoryResearchTranslationMatrix",
+  "group": "ResearchSpecTranslation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-005.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Translate the accepted memory-system research into Handshake-native MemoryOntology, MemoryFact, MemoryPassage, ClaimLifecycle, ConflictResolution, and retrieval ranking requirements. This MT belongs to ResearchSpecTranslation. Convert research, operator intent, and current authority into self-contained WP/spec-ready requirements.",
+    "relevant_files": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.192/indexed-spec-manifest.json",
+      ".GOV/spec/master-spec-v02.192/INDEX.json",
+      ".GOV/spec/master-spec-v02.192/spec-modules/",
+      ".GOV/operator/docs_local/external_research_papers/MemGraphRAG-Memory-based-Multi-Agent-System-for-Graph-Retrieval-Augmented-Generation.pdf",
+      ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Research papers and GitHub/codebase findings are context inputs only; translate every accepted idea into Handshake-native requirements before activation.",
+      "Activation must cite SPEC_CURRENT and the v02.192 indexed bundle as current authority, not the v02.182 monolith alone."
+    ],
+    "expected_behavior": "MemoryResearchTranslationMatrix leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "MemoryResearchTranslationMatrix is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-001",
+      "HBR-SWARM-001"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:38:33.727Z",
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS",
+    "evidence": [
+      "AC1 (MemoryResearchTranslationMatrix specified for no-context continuation) -> the Handshake-native translation exists in .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json translated_memory_system_spec: MemoryOntology, MemoryFact (lifecycle states probationary/stable/conflicted/rejected/superseded/temporal_qualified/granularity_qualified/unsupported) and MemoryPassage layers with PostgreSQL/EventLedger canonical storage and promotion/failure rules; ConflictDetectionJob + ConflictResolutionJob + BridgeEdgeJob agent jobs; retrieval_rules with bounded traversal, ontology filters, passage fallback and QueryPlan/RetrievalTrace ranking evidence; applied as product law in .GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11 (KnowledgeClaim lifecycle proposed/accepted/conflicted/retired with evidence spans and resolution receipts; MemoryPassage MUST record ranking features, retrieval mode, freshness, compaction policy; RetrievalTrace modes)",
+      "AC2 (exact files, state tables, constraints, failure modes, verification evidence) -> exact files pinned in this MT scope.relevant_files and scope.constraints; state tables and APIs: stub architecture_seed.data_model_seed (knowledge_claims, knowledge_entities, knowledge_edges, knowledge_spans plus span_model and edge_required_fields); failure modes: stub failure_scenarios (invented links, partial extraction entering memory) and translated_memory_system_spec MemoryPassage failure_rule; verification evidence: refinement.json refinement.verification_results (4x PASS, 1x BLOCKED_PRE_EXISTING)",
+      "AC3 (sidecar research rejected, ideas restated Handshake-native) -> stub translated_memory_system_spec.status=wp_native_translation_of_research with source_research_is_normative=false and source_of_truth_after_this_stub naming WP/MT/spec as carriers; research_basis.normative_status=non_normative_context_only + translation_rule; non_goals reject importing MemGraphRAG as service or external graph database; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
+      "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-INT-004, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this research/spec-record MT (no product surface, code, test, or runtime state changed by it); their requirement content is recorded for implementation MTs in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 (HBR applicability row), 10-product-surfaces.md#10.15.8 (UserManual duty) and #10.20 (backend-navigation/parallel-agent receipts); per packet.json acceptance_matrix.note HBR proof is carried per-MT and whole-WP HBR review is the external validator batch pass"
+    ],
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "adversarial_review": {
+      "verdict": "KEEP_READY",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified translated_memory_system_spec layers (MemoryOntology/MemoryFact/MemoryPassage), the exact eight MemoryFact lifecycle states, ConflictDetectionJob/ConflictResolutionJob/BridgeEdgeJob, retrieval_rules, non_goals (MemGraphRAG-as-service rejected; note actual path is translated_memory_system_spec.non_goals), and the 2.3.13.11 KnowledgeClaim/MemoryPassage/RetrievalTrace law text."
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

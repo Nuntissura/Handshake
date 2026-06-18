@@ -1,0 +1,216 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-222",
+  "title": "ParallelSwarmStateRecovery-222-HandoffCompressionTemplate",
+  "group": "ParallelSwarmStateRecovery",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-222.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define concise handoff format for session limit recovery and small local model continuation. This MT belongs to ParallelSwarmStateRecovery. Make WP-009 safe for local/cloud swarm work, backend navigation, and repeated session recovery.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/api/role_mailbox.rs",
+      "src/backend/handshake_core/src/inspector_read/",
+      "app/src/components/swarm/",
+      "app/src-tauri/src/swarm.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Local and cloud swarm lanes must be observable, attributable, bounded, recoverable, and safe for parallel agents.",
+      "Every MT must leave enough receipts, state markers, and next-step context for session-limit recovery by a no-context model."
+    ],
+    "expected_behavior": "HandoffCompressionTemplate leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "HandoffCompressionTemplate is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "ac347aba",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "ac347aba",
+            "slice": "MT-222 compressed recovery handoff"
+          }
+        ],
+        "summary": "MT-222 adds an in-memory HandoffCompressionTemplate projection over existing PostgreSQL checkpoint authority. The builder re-reads the checkpoint row, verifies payload_sha256 before projection, preserves checkpoint/workspace/wp/mt/source/resume/git/hash/source-ref anchors, emits body_sha256, declares omitted raw inputs, bounds body size, and does not add a new migration, API, UI, table, or sidecar authority surface."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests compressed_handoff_ -- --nocapture",
+            "result": "PASS; 5/5 MT-222 compressed-handoff tests passed: bounded restartable projection, dynamic-section redaction, raw transcript/full-history omission warning, fail-closed secret-like mandatory metadata, and redacted URL credential validation"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests --no-run",
+            "result": "PASS; full parallel_swarm_state_recovery_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check -- src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "rg -n \"handoff_compression|HandoffCompression|build_handoff_compression_template\" src/backend/handshake_core app/src app/src-tauri -g \"*.rs\" -g \"*.sql\" -g \"*.ts\" -g \"*.tsx\" -g \"*.json\"",
+            "result": "PASS; HandoffCompression symbols are confined to state_recovery.rs and the integration test; no migration/API/UI authority surface added"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebe9a-ea13-70f0-9290-b61618b9482b",
+        "result": "FAIL_THEN_HARDENED",
+        "summary": "Initial reviewer found unredacted optional handoff sections, validator rejection of safe redacted labels, and raw provider-chat/full-history leakage through next_step_context. Hardened by redacting every emitted optional dynamic value, omitting raw input markers with a structured warning, and changing validation to reject raw secret values while accepting redacted markers."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebeb4-343f-7070-b84e-bc9ba57f432b",
+        "result": "FAIL_THEN_HARDENED",
+        "summary": "Second reviewer found secret-like mandatory checkpoint metadata could be emitted before redaction and redacted URL credentials could still fail validation. Hardened by failing closed on secret-like/raw-marker mandatory metadata before projection and by accepting [REDACTED:URL_CRED] URL placeholders while still rejecting raw credentials."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T02:33:58.236Z",
+        "reviewer": "multi_agent:019ebecb-0b99-7e40-82e1-785ff038ac61",
+        "result": "PASS",
+        "summary": "Final reviewer found no remaining blocker. They confirmed the template is a bounded projection over existing checkpoint authority, payload bytes are used only for hash verification, optional values are redacted, raw transcript markers are omitted, mandatory metadata fails closed, body_sha256 is recomputed, and no migration/API/UI/persistence authority surface was added."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T02:33:58.236Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-222 requires a concise, restartable HandoffCompressionTemplate for session-limit recovery/local-model continuation, built as a projection over the canonical PostgreSQL checkpoint + EventLedger authority. The code delivers exactly that: a bounded, secret-redacted, hash-verified compressed handoff with mandatory restart anchors and declared omitted raw inputs, proven against real PostgreSQL.",
+      "findings": [
+        "Implementation commit ac347aba touches only product code (state_recovery.rs + integration test); no /.GOV/ or forbidden paths.",
+        "state_recovery.rs build_handoff_compression_template (added ~line 2994) re-reads the real PostgreSQL table knowledge_agent_state_recovery_checkpoints via SELECT, verifies payload_sha256 against the stored row, and fails closed on mismatch (PayloadHashMismatch) and on secret-like mandatory metadata (ensure_handoff_checkpoint_metadata_safe).",
+        "Durable authority is real: migration src/backend/handshake_core/migrations/0311_parallel_swarm_state_recovery.sql defines the checkpoint table; tests run through knowledge_pg() (knowledge_pg_support.rs:108) which creates an isolated schema and runs the full migration chain against real PostgreSQL with a real PostgresDatabase EventLedger. No SQLite/in-memory/mock substitute. Tests skip (not fake-pass) when PG is absent.",
+        "Sub-rule 1: grep for todo!/unimplemented!/unreachable!/Unavailable/placeholder/deferred/pending-MT over the file and the handoff region returns zero hits; no deferred-live escape reachable from the required behavior.",
+        "Output is correctly a projection only: body carries authority=PostgreSQL checkpoint row plus EventLedger receipt line, mandatory restart anchors (checkpoint_id, mt_id, payload_sha256, resume_pointer, git_head, checkpoint_event_id), recomputed body_sha256, declared omitted_inputs (raw_checkpoint_payload, provider_chat_transcript, full_conversation_history), and source_refs requiring a KE- EventLedger event id. No new table/API/UI/sidecar authority surface added (constraint satisfied).",
+        "Secret-safety is real and tested: Redactor/EnvRedactionV1 are imported from the existing production module crate::kernel::sandbox/redaction.rs (not implementer-authored); 5 integration tests prove bounded body (<=max_chars), dynamic-section redaction, raw transcript/full-history omission with structured warning, fail-closed secret-like mandatory metadata, and redacted URL-credential acceptance; serialized template asserted free of sk- secrets and raw large payload.",
+        "No forbidden deps introduced (no sqlite/rusqlite/elasticsearch/meilisearch/docker in the diff); capability gate require_capability(NavigateBackend) enforced on the read path.",
+        "Aside (non-blocking, paperwork): the MT contract's hbr_focus rows are carried in checkpoint test data rather than separately proven per-row in a contract field; this is governance-paperwork-adjacent, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-222.json",
+        "git show ac347aba (state_recovery.rs + parallel_swarm_state_recovery_tests.rs diff)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (recovery_store + 5 compressed_handoff tests)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:108 (real PG schema + run_migrations)",
+        "migrations/0311_parallel_swarm_state_recovery.sql (checkpoint table exists)",
+        "src/backend/handshake_core/src/kernel/sandbox/redaction.rs (Redactor is production module)",
+        "grep: no deferred-live escapes / no sqlite/docker/external-search in diff",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "SPEC_CURRENT bundle v02.194 spec-modules (swarm/state-recovery/handoff topic present)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT222",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

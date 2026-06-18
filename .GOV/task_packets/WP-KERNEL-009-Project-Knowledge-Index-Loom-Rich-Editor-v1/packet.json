@@ -1,0 +1,3860 @@
+{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:50:29Z",
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+    "spec_enrichment_proposal": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "spec_current": ".GOV/spec/SPEC_CURRENT.md",
+    "spec_bundle": ".GOV/spec/master-spec-v02.193"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "lifecycle": {
+    "packet_format_version": "2026-04-06",
+    "status": "IN_PROGRESS",
+    "risk_tier": "HIGH",
+    "user_signature": "ilja120620260530",
+    "signature_policy": "One-time signature token from refinement phase remains unconsumed (not present in this session). Execution authorized by explicit operator command in Kernel Builder session 2026-06-11: 'you will be implementing wp kernel build 009 ... you will work autonomously without operator input' plus follow-up 'mark mt's that are finished ready for validation v1'. Recorded per CX-585C without fabricating a signature string. | 2026-06-12: operator signature ilja120620260530 supplied live, authorizing: Master Spec update (bundle v02.192 -> v02.193) describing the unified work surface, SPEC_CURRENT pointer update, and WP/MT updates (UnifiedWorkSurface group MT-241..244 + operator decisions DEC-001..DEC-005).",
+    "operator_execution_order": {
+      "at_utc": "2026-06-11T07:20:56.864Z",
+      "session": "KERNEL_BUILDER-20260611-071323",
+      "order": "Implement WP-KERNEL-009 with up to 6 read/write sub-agents; follow coder protocol and HANDSHAKE_BUILD_RULES; minimum governance paperwork (MT status + state recovery only); no placeholders/mocks/scaffolding - runtime-working code only; operator GUI surfaces must replace VS Code and Obsidian functionality Handshake-natively; GUI mockup at .GOV/operator/docs_local/handshake-gui-mockup is loose reference (functionality primary); adversarial reviewer sub-agent reviews every MT; finished MTs are marked READY_FOR_VALIDATION for later external per-MT and whole-WP validation vs Master Spec."
+    },
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN",
+    "known_blockers": [
+      {
+        "id": "BLK-001",
+        "severity": "BLOCKS_WHOLE_SUITE_COMPILE",
+        "discovered_by": "SourceIngestionAndEvidence delegate",
+        "at_utc": "2026-06-11T12:17:05.036Z",
+        "summary": "tests/kernel_end_to_end_tests.rs fails to compile (missing postgres_pool in an AppState initializer) - PRE-EXISTING from the WP-KERNEL-005 baseline, not WP-009 work. Blocks whole-crate cargo test (agents dodge via --test <specific>). Must be fixed before external whole-WP validation can run cargo test cleanly.",
+        "disposition": "KERNEL_BUILDER to fix as dependency-unblock per GLOBAL-SCOPE-004.",
+        "status": "RESOLVED",
+        "resolved_at_utc": "2026-06-11T12:25:14.232Z",
+        "resolution": "Fixed in feat/WP-KERNEL-009 commit 818b4f32; test_app_state now supplies postgres_pool from the isolated-schema URL; cargo test --test kernel_end_to_end_tests --no-run compiles to executable (exit 0, only pre-existing dead-code warnings)."
+      },
+      {
+        "id": "BLK-002",
+        "severity": "BLOCKS_CLIPPY_HYGIENE_GATE_ONLY",
+        "discovered_by": "PostgresEventLedgerCore delegate",
+        "at_utc": "2026-06-11T12:31:09.506Z",
+        "summary": "7 pre-existing deny-level clippy findings at branch HEAD in WP-004/005 baseline files (src/atelier/exports.rs, src/atelier/moodboards.rs, src/model_runtime/kv_cache.rs Uuid::new_v4, src/process_ledger/mt_executor.rs, src/sandbox/cloud_hypervisor/warm_agent_package.rs never_loop). NOT WP-009 code. disallowed_methods=deny is a clippy lint only - does NOT block cargo build/test, so it does not block any agent runtime proof; it blocks the final cargo clippy hygiene gate.",
+        "disposition": "DEFERRED to pre-validation cleanup pass (not blocking forward work). KERNEL_BUILDER to fix as dependency-unblock before external whole-WP validation.",
+        "status": "OPEN"
+      },
+      {
+        "id": "BLK-003",
+        "severity": "ENVIRONMENT_BLOCKS_APP_RUNTIME_BUILD",
+        "discovered_by": "CodeIndexingAndNavigation delegate",
+        "at_utc": "2026-06-11T16:26:10.470Z",
+        "summary": "cargo --features app-runtime fails: app-runtime pulls duckdb-flight-recorder, libduckdb-sys bundled C++ (compressed_materialization.cpp) crashes MSVC cl.exe. Toolchain/environment break, NOT WP-009 code. All WP-009 code gated on runtime-full and compiles+tests clean under runtime-full,test-utils.",
+        "disposition": "ENVIRONMENT issue for operator. Validation workaround: --features runtime-full,test-utils. Product duckdb dependency needs env/toolchain fix separate from this WP.",
+        "status": "OPEN_ENVIRONMENT"
+      }
+    ],
+    "waiver_items": [
+      {
+        "id": "WAIVER-001",
+        "from": "CRDTAndConcurrencyCore delegate",
+        "at_utc": "2026-06-11T12:38:34.533Z",
+        "items": [
+          "Created local PostgreSQL test DB handshake_wp009_crdt_test (+pgcrypto) on 5432 to break a cross-agent sqlx advisory-lock serialization stall; drop with DROP DATABASE if unwanted.",
+          "pip install psycopg2-binary (machine-local) for read-only pg_locks/pg_stat_activity stall diagnosis."
+        ],
+        "scope": "Machine-local test infrastructure only; no product code or governance touched."
+      },
+      {
+        "id": "WAIVER-002",
+        "from": "storage-hardening delegate",
+        "at_utc": "2026-06-11T17:29:19.644Z",
+        "items": [
+          "Path-scoped git stash push/pop on the dead ingestion agent broken uncommitted knowledge_ingestion files to run own tests, then restored byte-exact (verified hashes). [CX-108] git-stash-without-same-turn-consent technical deviation, mitigated by verified restore; non-destructive."
+        ],
+        "scope": "Test-run unblock only; no committed product change to ingestion lane."
+      },
+      {
+        "id": "WAIVER-003",
+        "from": "RichDocumentCore delegate",
+        "at_utc": "2026-06-12T01:53:13.415Z",
+        "items": [
+          "Touched 2 non-owned test files (tests/knowledge_fail_closed_tests.rs, tests/knowledge_idempotency_tests.rs) with additive ..Default::default() only, required to keep the build green after MT-145 added identity fields to knowledge_rich_documents. No semantic change; all prior values preserved."
+        ],
+        "scope": "Build-green unblock only; no behavior change to those tests."
+      },
+      {
+        "id": "WAIVER-004",
+        "from": "TiptapMonacoIntegration delegate",
+        "at_utc": "2026-06-12T02:58:09.834Z",
+        "items": [
+          "One out-of-app/ file: tests/dependency_policy/rich_editor_roundtrip.spec.ts (MT-176 Playwright spec) placed in the repo's established frontend spec directory. Frontend test code only; no src/backend or .GOV change. setupTests.ts jsdom shims + vite.harness.config.ts second harness entry are additive and within app/."
+        ],
+        "scope": "Frontend test placement only; no product-behavior or backend change."
+      }
+    ],
+    "recovery_snapshot": {
+      "at_utc": "2026-06-11T15:06:27.130Z",
+      "head_commit": "bffa7b64",
+      "committed_groups": {
+        "packaging_MT_017_032": "READY_FOR_VALIDATION (full adversarial loop closed)",
+        "postgres_MT_049_064": "CLAIMED (47 tests green; adversarial review LOST to session limit - must re-run)",
+        "ingestion_MT_081_096": "CLAIMED (80 tests green; adversarial review LOST to session limit - must re-run)",
+        "crdt_MT_065_080": "CLAIMED (41 tests green; adversarial review LOST to session limit - must re-run)",
+        "records_MT_001_016_033_048": "READY_FOR_VALIDATION (evidence + remediations + adversarial pass done)"
+      },
+      "committed_mt_feat_commits": 64,
+      "uncommitted_wip": {
+        "code_indexing_MT_097_112": "UNCOMMITTED in worktree: migrations 0170/0171, src/knowledge_code_index/ dir, +447 lines in storage/knowledge.rs, lib.rs mod decl. Agent died mid-stream after 64 tool calls, no commit. Resume agent must inventory + finish + commit.",
+        "cross_lane_compile_fixes": "small uncommitted edits in api/{atelier,loom,workspaces}.rs, kernel/{visual_debugging_loop,visual_diff_baseline,product_screenshot_capture}.rs - likely dead-agent unblock edits; resume to reconcile."
+      },
+      "not_started": {
+        "rich_document_MT_145_160": "died at launch (2 tool calls)",
+        "memory_graph_MT_113_128": "gated on MT-097",
+        "retrieval_MT_129_144": "gated on MT-113/097",
+        "tiptap_monaco_MT_161_176": "gated on MT-145",
+        "loom_MT_177_192": "gated on MT-145/113/129",
+        "usermanual_MT_193_208": "gated on MT-129/177",
+        "swarm_MT_209_224": "gated on MT-193",
+        "security_MT_225_240": "gated on all group openers"
+      },
+      "lost_to_session_limit": [
+        "ingestion adversarial review (0 annotations written)",
+        "storage adversarial review (0 annotations written)",
+        "crdt adversarial review (died at launch)"
+      ],
+      "open_blockers": "BLK-002 (7 pre-existing WP-004/005 clippy findings, clippy-gate only) still OPEN/deferred",
+      "session_reset": "subscription limit reset 17:00 Europe/Brussels; relaunch in progress"
+    },
+    "crdt_authority_hardening": {
+      "at_utc": "2026-06-11T15:27:06.182Z",
+      "severity": "HIGH",
+      "source": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "items": [
+        "#1 Re-validate span existence at promotion (deny non-existent/retired/foreign/pending spans; DB CHECK or trigger on promoted_facts.source_span_refs).",
+        "#2 Make promotion atomic (one tx for ledger pair + fact insert) OR replay handler materializing promoted_facts from PROMOTION_ACCEPTED.",
+        "#3 Enforce recovery authorization (unreleased+unexpired+owner+scope-covering lease; typed RecoveryFailure variants; CHECK/trigger in 0155-successor).",
+        "#4 Make lease guard a chokepoint (route draft/proposal writes through guard_lease_for_write; deny expired/foreign/wrong-scope with durable receipt).",
+        "#5 Bind approved AI edits to applied updates (verify pushed update hashes to proposal diff_sha256).",
+        "#6 Add missing MT-080 MUST negative test (promotion citing non-existent span refused).",
+        "#7 Fix lying migration comments in 0152/0153 (claim re-validation that does not exist) - implement per #1 or correct comments."
+      ],
+      "affected_mts": [
+        "MT-068",
+        "MT-069",
+        "MT-074",
+        "MT-076",
+        "MT-077",
+        "MT-079",
+        "MT-080"
+      ]
+    },
+    "ingestion_hardening": {
+      "at_utc": "2026-06-11T15:32:04.773Z",
+      "severity": "HIGH",
+      "source": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "items": [
+        "#1 MT-091 redact at whole-file granularity before windowing (carry whole-file MEDIUM findings into per-span redaction) so boundary-split secrets are caught.",
+        "#2 MT-091 add patterns: github_pat_, xapp-, headerless base64 key blobs, non-PEM-label key blocks; scan relative_path too.",
+        "#3 MT-091 DB guard: trigger/CHECK on redaction_state consistency OR store only hashed content for redacted spans (schema-enforced no-raw-bytes).",
+        "#4 MT-091/096 fixture: >120-line file with MEDIUM secret straddling window boundary; assert absent from all span content.",
+        "#5 MT-086/087 wrap lopdf entry points in std::panic::catch_unwind -> typed receipt; one poison PDF degrades to one failed file.",
+        "#6 MT-086 treat Tr3 invisible text as non-text and/or require per-page min extracted_chars.",
+        "#7 MT-094 reopen/refresh existing dead-letter entry instead of inserting a new row.",
+        "#8 MT-085 receipt_event_id + repair.enqueue_event_id NOT NULL.",
+        "#9 MT-082 unit test: every span_extraction text-decodable kind has secret_scan=true.",
+        "#10 MT-081 extend DEFAULT_DENY_PATTERNS with .env*/*.pem/id_rsa*/.aws/.npmrc."
+      ],
+      "affected_mts": [
+        "MT-081",
+        "MT-082",
+        "MT-085",
+        "MT-086",
+        "MT-087",
+        "MT-091",
+        "MT-094",
+        "MT-096"
+      ]
+    },
+    "code_index_hardening": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "HIGH",
+      "source": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "verdicts": "15 HARDEN_RECOMMENDED, 1 PASS (MT-103)",
+      "items": [
+        "HIGH MT-108: implement the real repair-queue integration for parse failures (or stop claiming it); catch Io errors (binary/non-UTF8) not just CodeParseError; wrap tree-sitter FFI parse in std::panic::catch_unwind -> typed failure receipt.",
+        "HIGH MT-106: attach StalenessVerdict to every served symbol in the nav API (never serve stale silently); replace load-all-then-filter with a DB-side name/prefix query.",
+        "HIGH-ish MT-105: reject ../ and . / .. path segments in SCIP validate; cap artifact size + document/symbol/occurrence counts; enforce the occurrence->declared-symbol invariant.",
+        "MEDIUM MT-098/099/100: disambiguate residual entity_key collisions - two impl blocks of same type, trait-vs-inherent method same name, TS overloads + declaration merging, JS class+function same name; multi-declarator const must extract all declarators.",
+        "MEDIUM MT-102: implement TS/JS test mapping (describe/it/test call blocks) or honestly mark deferred; fix validates-edge first-segment mis-attribution; bound the quadratic referenced_names scan.",
+        "MEDIUM MT-101: emit a knowledge_code_files row for config files (or document the staleness/lens consequence); replace locate_key literal substring with a structured key locator; handle TOML multiline/dotted keys.",
+        "MEDIUM MT-107: wire mark_knowledge_code_file_stale on file write/ingestion (push staleness, not pull-only); document/justify the caller-supplied-hash trust boundary or compute server-side.",
+        "MEDIUM perf MT-097/109/110/111: add input-size guards; replace load-all-workspace-symbols with DB-side filtered queries; bound context-bundle work (not just output); make the perf budget a real measured assertion.",
+        "MEDIUM MT-104: cross-file call/implements resolution (or document intra-file-only as a conservative contract); ensure relationship_id _v2 fix (storage MT-054) covers code-index edges; stop recreating evidence spans each re-index.",
+        "MEDIUM MT-112: register /knowledge/code/* in model_manual (or confirm MT-193 ownership); strengthen idempotency test to assert no evidence-span accumulation; flag the PG-less-CI SKIP gap."
+      ],
+      "note": "MT-104 relationship_id collision auto-fixed by storage MT-054 _v2 derivation."
+    },
+    "crdt_hardening_status": {
+      "at_utc": "2026-06-11T18:05:59.097Z",
+      "state": "DONE_VERIFIED",
+      "commit": "d6adf2dd",
+      "detail": "All 7 CRDT authority-hardening items closed; 33 CRDT tests pass on real PostgreSQL. KEY FINDING: the soft-ref hole was WORSE than the review reported - happy-path tests were promoting FABRICATED KSP- ids that never existed in knowledge_spans (not only pending: markers), so pre-fix ANY non-existent span id could become durable authority. Fix re-grounds valid paths on real fixtures.",
+      "span_retirement_note": "knowledge_spans has no retirement column; the fix uses knowledge_sources.stale (re-index superseded) as the queryable retired signal."
+    },
+    "systemic_findings": [
+      {
+        "id": "SYS-001",
+        "at_utc": "2026-06-11T17:34:39.272Z",
+        "finding": "This crate's test-compiles take 10-20+ min each; concurrent sub-agents sharing one Cargo target-dir thrash the incremental cache so every compile is near-full, burning agent budget before verify+commit completes. Three agents (CRDT-hardening, ingestion-hardening, CodeIndexing-review) hit limits/529 mid-verify.",
+        "mitigation": "Reduce concurrency to 2-3 agents max going forward (warmer cache = faster incremental compiles). Have agents compile once (cargo test --no-run for all their targets together) then run. For authored-but-stuck WIP, the main loop can verify+commit via background tasks (not budget-bound the way sub-agents are)."
+      }
+    ],
+    "validation_convention": {
+      "set_at_utc": "2026-06-11T18:18:02.278Z",
+      "source": "operator 2026-06-11",
+      "rule": "External validator checks MTs marked READY_FOR_VALIDATION. KERNEL_BUILDER keeps building remaining MTs. If validator FAILs an MT and KERNEL_BUILDER remediates it, mark it READY_FOR_VALIDATION_V2 (not V1) - state-recovery signal that it is a re-submission. Subsequent re-remediations increment: _V3, etc."
+    },
+    "operator_decisions": [
+      {
+        "id": "DEC-001",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Operator-facing surface name = 'Notes'",
+        "detail": "The Obsidian-class knowledge surface is named 'Notes' (operator: undersell, bombard with features). 'Loom' remains the engine/spec term. MT-177..192 group delivers the Loom engine + Notes surfaces."
+      },
+      {
+        "id": "DEC-002",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Unified work surface",
+        "detail": "Notes (Obsidian-class GUI incl. graph view + linking), Loom (LoomBlock backend), project-wiki compile backend (Karpathy LLM-wiki pattern), and the Tiptap+Monaco editor are ONE combined rich-text work surface for operators and models to understand large projects and co-author work - full VS Code and Obsidian replacement in a single surface. Operator notes: many coding formats; auto codeblocks; save-to format; hyperlinks; embedded videos/albums (CKC); embed slideshow [[HS_slideshow]]; insert picture [[HS_images]]; file linking like Obsidian; folder linking + color labels; project linking - explicitly not exhaustive."
+      },
+      {
+        "id": "DEC-003",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "HTML is the primary file projection; authority stays Postgres",
+        "detail": "Rich documents save to Postgres/EventLedger structured authority (unchanged). Primary export/interchange projection = HTML with data-hs-* attributes for near-lossless round-trip; two export modes: self-contained (assets base64-inlined - operator-confirmed) and reference-linked. Markdown remains a deliberately lossy extractor for interop. HTML import sanitized fail-closed. LLM-consumption nuance: retrieval may serve md (cheap), HTML (structure-aware), or JSON (programmatic) per task."
+      },
+      {
+        "id": "DEC-004",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Karpathy LLM-wiki integration -> MT-241/242/243",
+        "detail": "Loom/Notes adopt the 'knowledge as a compile target' pattern (research: .GOV/reference/wp009_karpathy_wiki_research.json). New UnifiedWorkSurface group: MT-241 ProjectWikiBootstrapCompiler, MT-242 WikiProjectionDriftAndStaleness (S9.1.1 guard - 241 must not ship without it), MT-243 WikiIncrementalIngestFanOut. Researcher's proposed ids MT-193/194/195 collided with the UserManual group and were renumbered."
+      },
+      {
+        "id": "DEC-005",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Master Spec update authorized (signature ilja120620260530)",
+        "detail": "Create bundle v02.193 from v02.192 with additive sections describing the unified work surface (Notes naming, unified surface composition, CKC embeds, save-to-format/HTML projection, project-wiki compile layer); update SPEC_CURRENT.md pointer + packet spec_bundle reference after the bundle lands."
+      },
+      {
+        "id": "DEC-006",
+        "at_utc": "2026-06-12T03:54:37.454Z",
+        "decision": "Parity gap-check + hardening gate before whole-WP validation",
+        "detail": "Operator order 2026-06-12: test and check for gaps/missing features compared to the original IDE (VS Code) and Obsidian; concerns addressed and everything hardened; finish all remaining MTs. Gate: after the build groups land, run (1) a parity audit of the built editor + Notes surfaces against .GOV/reference/wp009_editor_loom_capability_inventory.json AND the original VS Code/Obsidian feature sets, (2) runtime tests of the audited surfaces (not status-reading), (3) a hardening iteration fixing confirmed gaps/concerns. Repeat until no P0/P1 gap remains or the operator descopes. Remaining MT inventory at order time: Loom engine 177-192 (in-flight), UserManual 193-208, Swarm 209-224, SecurityPortability 225-240, UnifiedWorkSurface 241-243 (244 in-flight), backend-cleanup deferrals 101(verify 8b829f96)/102/107/109/110/111/112, BLK-002 clippy hygiene."
+      },
+      {
+        "id": "DEC-007",
+        "at_utc": "2026-06-12T04:32:33.318Z",
+        "decision": "Full original-app parity, runtime-proven, no shortcuts",
+        "detail": "Operator order 2026-06-12 (verbatim core): 'make sure no scaffolding, templates, mock ups or vibecoding takes place, i want a full featured vs code and obsidian merged into one in handshake and running and tested in runtime on all features the original apps have and provide. no shortcuts!'. Effects: (1) the earlier OUT_OF_SCOPE descopes of integrated terminal / debugger / source control are REVERSED (MT-252/253/254). (2) Every audit ABSENT/unowned row now has an owning MT: MT-245..262 created from the adversarial parity artifacts (evidence-derived, not invented). (3) MT-263 FullParityRuntimeProofSuite is the enforcement gate: every capability needs an executed runtime proof or an operator-cited descope; status text proves nothing. (4) HONEST STRUCTURAL LIMITS stated, not hidden: third-party extension MARKETPLACE is a network ecosystem and cannot be cloned native - Handshake-native command/registry surfaces are the equivalence path, flagged for operator awareness; REMOTE development/Live-Share-class is substituted by Handshake's native CRDT collaboration; Copilot-class assistance is Handshake's own model runtime (native by design); DEBUGGER ships protocol-core + Node inspector adapter first, more adapters iteratively - only runtime-working adapters appear in UI. (5) No-scaffolding rule restated into every new MT contract as a hard constraint."
+      },
+      {
+        "id": "DEC-008",
+        "at_utc": "2026-06-17T20:30:00.000Z",
+        "decision": "Expanded scope: Loom Search v2 (Postgres-native, graph-blended) -> MT-264; Elasticsearch rejected",
+        "detail": "Operator order 2026-06-17: add ES-class search over Loom as additional WP-009 scope and create the owning MT. ENGINE DECISION (operator-confirmed after assistant pushback): NOT Elasticsearch / no external search daemon - it would add a SECOND source of truth that drifts from the PostgreSQL+EventLedger authority, violate the Handshake-native/no-external-daemon stance, and hurt portability/self-host; and the 'blend with Loom' goal is actually EASIER in-DB (text relevance JOINed against loom_edges/type/tags in one query, transactionally consistent). WHAT IT IS - Loom Search v2: Postgres-native graph-blended search across all Loom content = full-text (tsvector/GIN + ts_rank + ts_headline highlighting) + fuzzy/typo/substring (pg_trgm) + semantic (pgvector HNSW over real embeddings via the MT-260 model-runtime), hybrid keyword+vector ranking, loom_edges-aware ranking/expansion + content_type/tag facets, results rendered as a saved Loom view (reusing MT-262). The index is a DERIVED projection inside the same Postgres, reindexed transactionally + EventLedger-receipted on block write/delete (references-not-copies, no drift, no second authority). Supersedes/extends the MT-258/250 workspace search. Owning MT-264 (UnifiedWorkSurface group); runtime-proven per DEC-007 (real-PG FTS/trigram/pgvector tests + offline Playwright per capability). NOTE: MT-264 is NOT covered by the already-run MT-263 parity suite, so it self-proves; a future parity-suite extension may add its rows."
+      }
+    ]
+  },
+  "scope": {
+    "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
+    "intent": "- What: Build Handshake Project Knowledge Index, native memory system, Loom/Obsidian replacement surface, UserManual-aware no-context operating layer, and HS_Rich_Text_Editor as one integrated product foundation.\n- Why: Handshake must let local and cloud models recover project state without chat memory, navigate the codebase/spec/WPs through backend APIs, and preserve operator intent across session limits.\n- Native dependency stance: Core behavior must not rely on outside apps, outside services, external daemons, Docker-only paths, SQLite fallback, or sidecar research papers. Allowed external runtime inputs are models/GGUF/tensors and explicitly gated CUI portable artifacts. Tiptap and Monaco are accepted as bundled Handshake product libraries, not external apps.\n- Source-of-truth stance: Research papers and GitHub projects are context only. Accepted ideas must be translated into this WP, official MTs, and later Master Spec enrichment so future models can work from SPEC_CURRENT and project artifacts alone.\n- Product goal: Every managed project can be indexed into PostgreSQL/EventLedger-backed typed knowledge, rich documents, source spans, claims, memory layers, retrieval traces, and UserManual pages with visual-debug and backend navigation evidence.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL/EventLedger-canonical ProjectKnowledgeIndex for sources, entities, edges, spans, claims, passages, wiki projections, context bundles, rich documents, UserManual pages, retrieval traces, and validation receipts.\n  - Handshake-native memory system translated from research into MemoryOntology, MemoryFact, MemoryPassage, ClaimLifecycle, ConflictDetection, ConflictResolution, EvidenceSpan, BridgeEdge, and Ranking contracts.\n  - Tiptap/ProseMirror as canonical rich document engine and Monaco as canonical embedded code-block/code editor, fully packaged and tested inside Handshake.\n  - Loom/Obsidian replacement workflows: backlinks, local/global graph, tags, tag hubs, folders, folder color labels, pins, unlinked mentions, project links, generated wiki projections, source citations, and graph-bias visibility.\n  - Code/source indexing with Handshake-managed Tree-sitter parsers first, plus optional SCIP/LSP-style import format as owned projection/import, not outside service dependency.\n  - PDF/media/research ingestion with extraction receipts, transcript/OCR metadata, failure states, repair queues, and no silent partial indexing.\n  - UserManual naming migration and build-time UserManual updates for every touched feature/tool/primitive/UI/API.\n  - Local/cloud swarm backend navigation, worktree/workspace claims, leases, receipts, state recovery, visual-debug evidence, and validator-ready HBR matrix.\n- OUT_OF_SCOPE:\n  - Making sidecar papers, markdown vaults, generated wiki pages, external apps, Docker containers, SQLite databases, Redis/Valkey caches, provider traces, or browser UI state authoritative.\n  - Shipping realtime multi-user collaboration servers as a prerequisite. CRDT semantics for human/AI draft state and EventLedger promotion are in scope; external sync servers are not required for core proof.\n  - Depending on CUI portable for core WP-009 behavior. It may remain an explicitly gated artifact/input class for other owning packets.\n  - Whole-project governance refactor beyond what is required to index, cite, validate, and later enrich the Master Spec.",
+    "acceptance_criteria": [
+      "PRODUCT-AC-001: A managed project indexes configured roots into PostgreSQL/EventLedger with source hashes, typed entities, edges, spans, claims, passages, and receipts.",
+      "PRODUCT-AC-002: Rich documents roundtrip through Tiptap/ProseMirror JSON, PostgreSQL/EventLedger, CRDT draft state, projections, and visual-debug selectors.",
+      "PRODUCT-AC-003: Monaco code blocks are embedded in Handshake, persist through backend save/load, expose code navigation, and require no external editor/server.",
+      "PRODUCT-AC-004: Memory claims use probationary/stable/rejected/superseded/conflicted lifecycle with evidence spans and conflict-resolution receipts.",
+      "PRODUCT-AC-005: Retrieval chooses explicit modes and emits QueryPlan/RetrievalTrace evidence that can reconstruct context bundles.",
+      "PRODUCT-AC-006: Loom/Obsidian navigation exposes backlinks, graph, tags, folders, pins, search, wiki projections, and repair states backed by canonical records.",
+      "PRODUCT-AC-007: UserManual replaces legacy ModelManual naming in product code except for declared deprecated compatibility shims with tests.",
+      "PRODUCT-AC-008: Local/cloud swarm lanes can navigate backend state, claim workspaces, coordinate leases, recover after compaction, and attribute actions.",
+      "PRODUCT-AC-009: Visual-debug evidence proves editor, Loom, UserManual, retrieval-debug, graph, and error states are readable, navigable, and non-overlapping.",
+      "PRODUCT-AC-010: Negative fixtures block false PASS for secrets, stale indexes, partial PDF extraction, bad citations, contradictory memory, parallel write conflicts, missing PostgreSQL, SQLite regressions, and external dependency regressions.",
+      "PRODUCT-AC-011: Loom Search v2 (MT-264, DEC-008) provides Postgres-native graph-blended search - full-text (tsvector/ts_rank/ts_headline) + fuzzy (pg_trgm) + semantic (pgvector hybrid) over canonical Loom content, faceted by type/tags and ranked via loom_edges, reindexed transactionally with no stale/deleted-block drift, results-as-Loom-view; NO Elasticsearch/external search engine."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core",
+      "app/src",
+      "app/src-tauri",
+      "tests"
+    ],
+    "forbidden_paths": [
+      "SQLite in any form (authority, cache, fixture, fallback, adapter)",
+      "Docker/outside-app runtime or proof dependency for core behavior",
+      "CDN-loaded editor workers or UI assets",
+      "External graph/RAG/memory services or sync servers as core proof",
+      "Markdown vault or generated wiki as authority",
+      "External search engine (Elasticsearch/OpenSearch/Solr/Meilisearch/Typesense) as search authority or core dependency - Postgres-native index only (DEC-008)"
+    ],
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11 Project Knowledge Index and Rich Document Authority [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/07-user-experience-and-development.md#7.1.1.8 WP-KERNEL-009 Rich Editor Lock [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.15.8 UserManual migration bridge [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.20 Project Knowledge Index and Rich Editor Surface [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/11-shared-dev-platform-and-oss-foundations.md#9.1.1 WP-KERNEL-009 authority supersession [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 WP-KERNEL-009 Primitive and Interaction Addendum [ADD v02.192]"
+    ],
+    "governance_artifact_stance": "- The operator has explicitly said future work packets will not rely on repo governance as the primary correctness target. Treat this stub as a launch record, not as product truth.\n- Correct product behavior against the master spec, current product code, and this operator intent outranks paperwork polish.\n- This stub still uses current governance conventions so it can be found by existing tools, but implementation must not optimize for generating more paperwork instead of building the product substrate."
+  },
+  "workflow": {
+    "authority": "KERNEL_BUILDER",
+    "lane": "MANUAL_RELAY",
+    "execution_owner": "CODER_A",
+    "session_start_authority": "OPERATOR_DIRECT",
+    "acp": "DISABLED_BY_OPERATOR",
+    "sub_agents": {
+      "allowed": true,
+      "max_parallel": 6,
+      "operator_approval": "Recorded in lifecycle.operator_execution_order (read/write sub-agents, max 6, adversarial reviewer per MT).",
+      "restrictions": "Sub-agents may not create or switch worktrees; KERNEL_BUILDER reviews all delegated output before state advances."
+    },
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "kernel_builder_terminal_mt_state": "READY_FOR_VALIDATION",
+    "external_validator_contract": "External validator performs per-MT READY_FOR_VALIDATION -> COMPLETED transitions and the whole-WP product-code-vs-Master-Spec verdict after all MTs are ready.",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/RUNTIME_STATUS.json",
+    "kb_ready_checklist_receipts": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "lane_note": "Folded KERNEL_BUILDER implementation under operator-direct manual relay; ACP disabled by operator. CODER_A is the schema-compatible owner token; the real implementer is KERNEL_BUILDER per lifecycle.operator_execution_order (KERNEL_BUILDER_PROTOCOL folded-receipt compatibility rule)."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "work_branch": "feat/WP-KERNEL-009",
+    "remote_backup_branch": "feat/WP-KERNEL-009",
+    "worktree_dir": "../wtc-kernel-009",
+    "merge_base_sha": "39784270a652edf9cdf94c55bdf5227dcb29111d"
+  },
+  "microtasks": {
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-*.json",
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-107",
+      "MT-108",
+      "MT-109",
+      "MT-110",
+      "MT-111",
+      "MT-112",
+      "MT-113",
+      "MT-114",
+      "MT-115",
+      "MT-116",
+      "MT-117",
+      "MT-118",
+      "MT-119",
+      "MT-120",
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124",
+      "MT-125",
+      "MT-126",
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130",
+      "MT-131",
+      "MT-132",
+      "MT-133",
+      "MT-134",
+      "MT-135",
+      "MT-136",
+      "MT-137",
+      "MT-138",
+      "MT-139",
+      "MT-140",
+      "MT-141",
+      "MT-142",
+      "MT-143",
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147",
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156",
+      "MT-157",
+      "MT-158",
+      "MT-159",
+      "MT-160",
+      "MT-161",
+      "MT-162",
+      "MT-163",
+      "MT-164",
+      "MT-165",
+      "MT-166",
+      "MT-167",
+      "MT-168",
+      "MT-169",
+      "MT-170",
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-176",
+      "MT-177",
+      "MT-178",
+      "MT-179",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-185",
+      "MT-186",
+      "MT-187",
+      "MT-188",
+      "MT-189",
+      "MT-190",
+      "MT-191",
+      "MT-192",
+      "MT-193",
+      "MT-194",
+      "MT-195",
+      "MT-196",
+      "MT-197",
+      "MT-198",
+      "MT-199",
+      "MT-200",
+      "MT-201",
+      "MT-202",
+      "MT-203",
+      "MT-204",
+      "MT-205",
+      "MT-206",
+      "MT-207",
+      "MT-208",
+      "MT-209",
+      "MT-210",
+      "MT-211",
+      "MT-212",
+      "MT-213",
+      "MT-214",
+      "MT-215",
+      "MT-216",
+      "MT-217",
+      "MT-218",
+      "MT-219",
+      "MT-220",
+      "MT-221",
+      "MT-222",
+      "MT-223",
+      "MT-224",
+      "MT-225",
+      "MT-226",
+      "MT-227",
+      "MT-228",
+      "MT-229",
+      "MT-230",
+      "MT-231",
+      "MT-232",
+      "MT-233",
+      "MT-234",
+      "MT-235",
+      "MT-236",
+      "MT-237",
+      "MT-238",
+      "MT-239",
+      "MT-240",
+      "MT-241",
+      "MT-242",
+      "MT-243",
+      "MT-244",
+      "MT-245",
+      "MT-246",
+      "MT-247",
+      "MT-248",
+      "MT-249",
+      "MT-250",
+      "MT-251",
+      "MT-252",
+      "MT-253",
+      "MT-254",
+      "MT-255",
+      "MT-256",
+      "MT-257",
+      "MT-258",
+      "MT-259",
+      "MT-260",
+      "MT-261",
+      "MT-262",
+      "MT-263",
+      "MT-264"
+    ],
+    "active_id": null,
+    "group_index": {
+      "ResearchSpecTranslation": [
+        "MT-001",
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-006",
+        "MT-007",
+        "MT-008",
+        "MT-009",
+        "MT-010",
+        "MT-011",
+        "MT-012",
+        "MT-013",
+        "MT-014",
+        "MT-015",
+        "MT-016"
+      ],
+      "NativeDependencyAndPackaging": [
+        "MT-017",
+        "MT-018",
+        "MT-019",
+        "MT-020",
+        "MT-021",
+        "MT-022",
+        "MT-023",
+        "MT-024",
+        "MT-025",
+        "MT-026",
+        "MT-027",
+        "MT-028",
+        "MT-029",
+        "MT-030",
+        "MT-031",
+        "MT-032"
+      ],
+      "MasterSpecEnrichmentSeed": [
+        "MT-033",
+        "MT-034",
+        "MT-035",
+        "MT-036",
+        "MT-037",
+        "MT-038",
+        "MT-039",
+        "MT-040",
+        "MT-041",
+        "MT-042",
+        "MT-043",
+        "MT-044",
+        "MT-045",
+        "MT-046",
+        "MT-047",
+        "MT-048"
+      ],
+      "PostgresEventLedgerCore": [
+        "MT-049",
+        "MT-050",
+        "MT-051",
+        "MT-052",
+        "MT-053",
+        "MT-054",
+        "MT-055",
+        "MT-056",
+        "MT-057",
+        "MT-058",
+        "MT-059",
+        "MT-060",
+        "MT-061",
+        "MT-062",
+        "MT-063",
+        "MT-064"
+      ],
+      "CRDTAndConcurrencyCore": [
+        "MT-065",
+        "MT-066",
+        "MT-067",
+        "MT-068",
+        "MT-069",
+        "MT-070",
+        "MT-071",
+        "MT-072",
+        "MT-073",
+        "MT-074",
+        "MT-075",
+        "MT-076",
+        "MT-077",
+        "MT-078",
+        "MT-079",
+        "MT-080"
+      ],
+      "SourceIngestionAndEvidence": [
+        "MT-081",
+        "MT-082",
+        "MT-083",
+        "MT-084",
+        "MT-085",
+        "MT-086",
+        "MT-087",
+        "MT-088",
+        "MT-089",
+        "MT-090",
+        "MT-091",
+        "MT-092",
+        "MT-093",
+        "MT-094",
+        "MT-095",
+        "MT-096"
+      ],
+      "CodeIndexingAndNavigation": [
+        "MT-097",
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-101",
+        "MT-102",
+        "MT-103",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-107",
+        "MT-108",
+        "MT-109",
+        "MT-110",
+        "MT-111",
+        "MT-112"
+      ],
+      "MemoryGraphAndClaims": [
+        "MT-113",
+        "MT-114",
+        "MT-115",
+        "MT-116",
+        "MT-117",
+        "MT-118",
+        "MT-119",
+        "MT-120",
+        "MT-121",
+        "MT-122",
+        "MT-123",
+        "MT-124",
+        "MT-125",
+        "MT-126",
+        "MT-127",
+        "MT-128"
+      ],
+      "RetrievalContextAndRanking": [
+        "MT-129",
+        "MT-130",
+        "MT-131",
+        "MT-132",
+        "MT-133",
+        "MT-134",
+        "MT-135",
+        "MT-136",
+        "MT-137",
+        "MT-138",
+        "MT-139",
+        "MT-140",
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144"
+      ],
+      "RichDocumentCore": [
+        "MT-145",
+        "MT-146",
+        "MT-147",
+        "MT-148",
+        "MT-149",
+        "MT-150",
+        "MT-151",
+        "MT-152",
+        "MT-153",
+        "MT-154",
+        "MT-155",
+        "MT-156",
+        "MT-157",
+        "MT-158",
+        "MT-159",
+        "MT-160"
+      ],
+      "TiptapMonacoIntegration": [
+        "MT-161",
+        "MT-162",
+        "MT-163",
+        "MT-164",
+        "MT-165",
+        "MT-166",
+        "MT-167",
+        "MT-168",
+        "MT-169",
+        "MT-170",
+        "MT-171",
+        "MT-172",
+        "MT-173",
+        "MT-174",
+        "MT-175",
+        "MT-176"
+      ],
+      "LoomObsidianNavigation": [
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183",
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189",
+        "MT-190",
+        "MT-191",
+        "MT-192"
+      ],
+      "UserManualAndNoContextOps": [
+        "MT-193",
+        "MT-194",
+        "MT-195",
+        "MT-196",
+        "MT-197",
+        "MT-198",
+        "MT-199",
+        "MT-200",
+        "MT-201",
+        "MT-202",
+        "MT-203",
+        "MT-204",
+        "MT-205",
+        "MT-206",
+        "MT-207",
+        "MT-208"
+      ],
+      "ParallelSwarmStateRecovery": [
+        "MT-209",
+        "MT-210",
+        "MT-211",
+        "MT-212",
+        "MT-213",
+        "MT-214",
+        "MT-215",
+        "MT-216",
+        "MT-217",
+        "MT-218",
+        "MT-219",
+        "MT-220",
+        "MT-221",
+        "MT-222",
+        "MT-223",
+        "MT-224"
+      ],
+      "SecurityPortabilityValidation": [
+        "MT-225",
+        "MT-226",
+        "MT-227",
+        "MT-228",
+        "MT-229",
+        "MT-230",
+        "MT-231",
+        "MT-232",
+        "MT-233",
+        "MT-234",
+        "MT-235",
+        "MT-236",
+        "MT-237",
+        "MT-238",
+        "MT-239",
+        "MT-240"
+      ]
+    }
+  },
+  "hbr": {
+    "tags_declared": [
+      "INT",
+      "SWARM",
+      "VIS",
+      "QUIET",
+      "MAN",
+      "STOP"
+    ],
+    "not_applicable_overrides": []
+  },
+  "acceptance_matrix": {
+    "schema_version": 1,
+    "hbr": [
+      {
+        "id": "HBRROW-001",
+        "surface": "knowledge_authority_storage",
+        "kind": "storage",
+        "applicable": [
+          "HBR-INT-001",
+          "CX-503R",
+          "HBR-SWARM-003",
+          "HBR-INT-003",
+          "HBR-INT-007"
+        ],
+        "owner_mts": "MT-049..MT-064",
+        "note": "PostgreSQL/EventLedger tables for the 10 record families; durable runtime proof, no SQLite, concurrent-write safety.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-002",
+        "surface": "crdt_draft_promotion",
+        "kind": "storage_runtime",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-065..MT-080",
+        "note": "CRDT draft state, write-box promotion, leases, conflict visibility, replay.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-003",
+        "surface": "source_ingestion_pipeline",
+        "kind": "pipeline",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-QUIET-001",
+          "HBR-STOP"
+        ],
+        "owner_mts": "MT-081..MT-096",
+        "note": "Root allowlist, hashing, receipts, redaction preflight, backpressure; background work must be quiet and bounded.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-004",
+        "surface": "code_indexing_navigation",
+        "kind": "pipeline_api",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-MAN-001",
+          "HBR-MAN-003"
+        ],
+        "owner_mts": "MT-097..MT-112",
+        "note": "Tree-sitter extraction, symbol/relationship builders, navigation APIs; nav commands need UserManual rows.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-005",
+        "surface": "memory_graph_claims",
+        "kind": "storage_jobs",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-SWARM-003",
+          "CX-503R",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-113..MT-128",
+        "note": "Ontology/fact/passage schemas, claim lifecycle, conflict agent jobs, bridge edges.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-006",
+        "surface": "retrieval_context_ranking",
+        "kind": "runtime_api",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-MAN-001",
+          "HBR-INT-007"
+        ],
+        "owner_mts": "MT-129..MT-144",
+        "note": "Mode planners, ranking, traces, context bundle compiler; replayable RetrievalTrace required.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-007",
+        "surface": "rich_document_authority",
+        "kind": "storage_runtime",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-VIS-003",
+          "CX-503R",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-145..MT-160",
+        "note": "RichDocument/EditorCodeNode authority, save/load, history, crash recovery; round-trip + capture evidence.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-008",
+        "surface": "tiptap_monaco_editor_ui",
+        "kind": "ui",
+        "applicable": [
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-QUIET-001",
+          "HBR-MAN-001",
+          "HBR-INT-004",
+          "HBR-VIS-001",
+          "HBR-QUIET-002"
+        ],
+        "owner_mts": "MT-161..MT-176",
+        "note": "Editor toolbar/palette/code nodes; renderer console errors fail gate; stable selectors; no focus stealing.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-009",
+        "surface": "loom_obsidian_navigation_ui",
+        "kind": "ui",
+        "applicable": [
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-MAN-001",
+          "HBR-INT-001",
+          "HBR-VIS-001"
+        ],
+        "owner_mts": "MT-177..MT-192",
+        "note": "Backlinks, local/global graph, tags, folders, pins, wiki projections; visual capture matrix required.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-010",
+        "surface": "usermanual_surface",
+        "kind": "ui_api_storage",
+        "applicable": [
+          "HBR-MAN-001",
+          "HBR-MAN-002",
+          "HBR-MAN-003",
+          "HBR-VIS-003",
+          "HBR-VIS-001"
+        ],
+        "owner_mts": "MT-193..MT-208",
+        "note": "UserManualRecord authority, same-commit coverage rule, no-context operation harness, self-consistency.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-011",
+        "surface": "backend_navigation_swarm_lanes",
+        "kind": "api_runtime",
+        "applicable": [
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-QUIET-003",
+          "HBR-STOP",
+          "HBR-INT-006",
+          "HBR-INT-007",
+          "HBR-SWARM-004",
+          "HBR-QUIET-002"
+        ],
+        "owner_mts": "MT-209..MT-224",
+        "note": "Agent lanes, leases, claims, receipts, checkpoints, recovery; process ownership ledger; no capacity-stop reasoning.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-012",
+        "surface": "security_portability_fixtures",
+        "kind": "fixtures",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-STOP"
+        ],
+        "owner_mts": "MT-225..MT-240",
+        "note": "Negative fixtures: secrets, SQLite/Docker/external-dep tripwires, missing-Postgres fail-closed, replay, conflicts.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-013",
+        "surface": "dependency_packaging",
+        "kind": "packaging",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-INT-004",
+          "HBR-QUIET-001",
+          "CX-503S"
+        ],
+        "owner_mts": "MT-017..MT-032",
+        "note": "Bundled Monaco/Tiptap/Yjs/tree-sitter, offline workers, license notices, allowlist + policy validator hook.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      }
+    ],
+    "hbr_not_applicable": [
+      {
+        "id": "HBRNA-001",
+        "scope": "mt_group:ResearchSpecTranslation (MT-001..MT-016)",
+        "reason": "Record-only research/spec-translation deliverables; no product code, runtime, UI, storage, or automation surface is produced, so no HBR pillar attaches. Evidence lives in activation artifacts."
+      },
+      {
+        "id": "HBRNA-002",
+        "scope": "mt_group:MasterSpecEnrichmentSeed (MT-033..MT-048)",
+        "reason": "Record-only spec-seed deliverables applied as the v02.192 bundle by the activation phase; spec text carries no build-time HBR obligation. Implementation obligations transfer to the owning product MT groups in the matrix rows."
+      },
+      {
+        "id": "HBRNA-003",
+        "scope": "lane:external_validator",
+        "reason": "Validation lanes consume HBR evidence; they do not carry build obligations. Mirrors the registry rule that validator/memory-manager phases hold no build-rule duty of their own."
+      }
+    ],
+    "note": "Typed HBR applicability matrix (MT-009 deliverable). Rows resolve from owner-MT runtime evidence; external validator performs closure.",
+    "spec_12_7_reconciliation": {
+      "spec_declared_rules": [
+        "HBR-INT-001",
+        "HBR-INT-003",
+        "HBR-INT-004",
+        "HBR-INT-006",
+        "HBR-INT-007",
+        "HBR-SWARM-001",
+        "HBR-SWARM-003",
+        "HBR-SWARM-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-QUIET-002",
+        "HBR-MAN-001",
+        "HBR-MAN-002",
+        "HBR-MAN-003"
+      ],
+      "all_declared_rules_present_in_matrix": true,
+      "supplementary_rules_in_matrix": [
+        "HBR-SWARM-002",
+        "HBR-VIS-003",
+        "HBR-QUIET-003",
+        "HBR-STOP",
+        "CX-503R",
+        "CX-503S",
+        "HBR-INT-004"
+      ],
+      "supplementary_rationale": "Supplementary ids exceed the 12.7 floor deliberately (stricter coverage); they are obligations the MT contracts' hbr_focus fields already carry.",
+      "reconciled_at_utc": "2026-06-11T08:13:01.737Z"
+    }
+  },
+  "role_profiles": {
+    "kernel_builder": "CLAUDE_FABLE_5_MAX",
+    "integration_validator": "EXTERNAL_VALIDATOR_TBD"
+  },
+  "refinement": {
+    "contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+    "enrichment_needed": "NO",
+    "spec_version": "v02.192"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_AND_RICH_EDITOR_V1",
+    "assumptions_to_attack": [
+      "A PostgreSQL knowledge graph is the right durable substrate for Handshake project memory.",
+      "Generated wiki pages help models more than they confuse source-of-truth boundaries.",
+      "The rich editor can replace separate Monaco/text editor expectations without losing code-editing power.",
+      "Loom/Obsidian UI can be built on top of canonical typed entities rather than Markdown files.",
+      "A thin vertical slice can be built without blocking on full code intelligence for every language.",
+      "Model context rot is reduced by context bundle compilation plus evidence, not by dumping more raw files into prompts.",
+      "Folding older retrieval and evidence stubs into WP-KERNEL-009 does not hide broader cross-pillar requirements.",
+      "UserManual migration can be completed without breaking existing manual routes, IPC commands, tests, or model onboarding flows."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require refinement before Coder/Validator launch.",
+      "Keep generated wiki pages and editor exports as projections, not source authority.",
+      "Require source spans/evidence on generated claims and context bundle items.",
+      "Require no-SQLite/PostgreSQL-only verification before implementation closeout.",
+      "Require visual frontend verification for editor and graph surfaces.",
+      "Require round-trip save/load tests before claiming rich editor implementation complete.",
+      "Require folded_legacy_stub_preservation review before activation.",
+      "Require retrieval-mode, relationship_id, AI-ready evidence export, and ContextPack recorder tests before closeout.",
+      "Require product-code search proof for UserManual naming migration before closeout."
+    ]
+  },
+  "handshake_native_dependency_contract": {
+    "status": "normative_for_wp009_stub",
+    "updated_at_utc": "2026-06-11T00:00:00Z",
+    "core_rule": "Core WP-009 behavior must run as Handshake product code with Handshake-owned state, packaging, receipts, and validation.",
+    "allowed_external_runtime_inputs": [
+      "operator-provided model files",
+      "GGUF model files",
+      "tensor and safetensors artifacts",
+      "explicitly gated CUI portable artifacts where an owning WP defines that boundary"
+    ],
+    "bundled_product_libraries": [
+      "Tiptap/ProseMirror for rich document editing",
+      "Monaco for embedded code editing",
+      "Yjs or equivalent CRDT library for local human/AI draft-state semantics",
+      "Tree-sitter parser crates/grammars for code indexing",
+      "Rust and npm crates/packages locked and shipped through Handshake build manifests"
+    ],
+    "forbidden_core_dependencies": [
+      "manually launched outside apps",
+      "external editor applications",
+      "external graph/RAG/memory services",
+      "external sync servers as core proof",
+      "Docker-only or VM-only service prerequisites",
+      "SQLite fallback, cache authority, fixtures, or temp adapters for touched WP-009 paths",
+      "Redis/Valkey or other external cache authority",
+      "sidecar papers or chat memory as implementation authority",
+      "CDN-loaded editor workers or UI assets"
+    ],
+    "validation_rule": "WP Validator and Integration Validator must reject PASS if core proof depends on a forbidden dependency or if a bundled library is not integrated through Handshake packaging, lockfiles, tests, and UserManual."
+  },
+  "state_recovery_contract": {
+    "status": "required_for_every_mt",
+    "reason": "The operator frequently hits session/context limits; WP-009 must be recoverable by no-context local models.",
+    "each_mt_must_record": [
+      "current MT ID, title, group, and dependencies",
+      "files changed and files intentionally not touched",
+      "commands/tests run with pass/fail/blocker status",
+      "PostgreSQL/EventLedger receipt IDs or expected receipt locations",
+      "visual-debug artifacts for UI-facing work",
+      "HBR rows proven, blocked, or not applicable",
+      "remaining risks and next MTs unblocked"
+    ],
+    "recovery_sources_in_order": [
+      "official MT contract",
+      "WP-KERNEL-009 contract",
+      "SPEC_CURRENT indexed bundle",
+      "git status/diff",
+      "PostgreSQL/EventLedger receipts",
+      "UserManual recovery pages",
+      "visual-debug artifacts",
+      "validator evidence pack"
+    ]
+  },
+  "side_by_side_delivery": {
+    "must_preserve": [
+      "Project Knowledge Index",
+      "Loom/Obsidian clone integration",
+      "HS_Rich_Text_Editor",
+      "Project Brain runtime bridge",
+      "Semantic Catalog backend index",
+      "Retrieval mode policy",
+      "AIReady evidence export semantics",
+      "relationship_id graph retrieval",
+      "ContextPack recorder visibility",
+      "UserManual naming migration"
+    ],
+    "delivery_guidance": [
+      "Do not split WP-009 into sidecar workflows during activation; use MT naming groups inside the existing microtask_plan_draft and official MT contracts.",
+      "Do not split the rich editor away and forget it; it is the operator intended Monaco/text-editor replacement integrated with Tiptap rich documents.",
+      "Do not build the Obsidian replacement as a standalone Markdown vault; it must sit on the same PostgreSQL/EventLedger knowledge substrate as project indexing.",
+      "Do not reactivate folded older stubs separately; preserve their detail inside WP-009 MTs and deprecated links.",
+      "Do not let retrieval-mode policy collapse into generic hybrid RAG; exact/direct/graph/passage-fallback modes are first-class outcomes.",
+      "Do not let external papers remain required reading; translate their value into Master Spec enrichment seeds and MT contracts.",
+      "Do not ship product code using ModelManual, Model Manual, or model_manual as canonical wording; the canonical stuck-together product term is UserManual."
+    ]
+  },
+  "hs_rich_text_editor": {
+    "product_role": "The single Handshake authoring surface for rich text, code, notes, specs, research, workflow artifacts, and media-linked project knowledge.",
+    "relationship_to_monaco": "Tiptap/ProseMirror owns the unified rich document experience. Monaco is embedded inside Handshake as the canonical language-aware code-block/code editing surface. Neither may be treated as an external editor app or outside service.",
+    "canonical_save_format": {
+      "selected": "PostgreSQL/EventLedger-backed structured Tiptap/ProseMirror document JSON plus stable Handshake block/entity IDs, CRDT draft-state references, schema versions, and projection metadata.",
+      "projections": [
+        "Markdown export",
+        "HTML export",
+        "plain text extraction",
+        "context bundle extraction",
+        "wiki/Loom projection",
+        "UserManual page projection"
+      ],
+      "locked_decisions": [
+        "Tiptap/ProseMirror is the canonical rich document editor framework for WP-009.",
+        "Monaco is the canonical embedded code-block/code editor for WP-009.",
+        "Rich document authority is not a Markdown vault, browser-local state, or generated wiki page."
+      ],
+      "remaining_activation_checks": [
+        "Confirm exact package versions and worker bundling in the WP-005 product codebase.",
+        "Confirm document tables reuse Loom concepts or introduce sibling tables without duplicating authority.",
+        "Confirm visual-debug selectors and backend APIs before Coder starts."
+      ]
+    },
+    "required_features": [
+      "Supports many coding formats and language-aware code blocks.",
+      "Can create code blocks automatically from fenced code, pasted code, language hints, indentation, or slash-command selection.",
+      "Can use normal hyperlinks.",
+      "Can embed videos by stored asset, URL, or artifact reference.",
+      "Can embed albums as ordered media asset groups.",
+      "Can embed slideshow references using syntax like [[HS_slideshow]].",
+      "Can insert pictures using syntax like [[HS_images]] and drag/drop or paste flows.",
+      "Can link files like Obsidian-style wikilinks.",
+      "Can link folders and apply folder color labels.",
+      "Can link projects and project entities.",
+      "Can show backlinks and local graph relationships for current document/entity.",
+      "Can expose stable IDs/selectors for frontend model-driven testing.",
+      "Can surface retrieval-mode and source-evidence state for linked project entities when a model or operator inspects the document.",
+      "Can open or link UserManual pages without using legacy ModelManual wording."
+    ],
+    "link_syntax_seed": [
+      "[[note:title]]",
+      "[[file:path-or-id]]",
+      "[[folder:path-or-id]]",
+      "[[project:id-or-name]]",
+      "[[spec:topic-id]]",
+      "[[wp:WP-ID]]",
+      "[[symbol:qualified-name]]",
+      "[[HS_slideshow:id-or-name]]",
+      "[[HS_images:id-or-name]]",
+      "[[album:id-or-name]]",
+      "[[video:id-or-name]]"
+    ],
+    "auto_codeblock_rules_seed": [
+      "Triple-backtick paste creates a code-block node with language if specified.",
+      "Large pasted text with high code-likeness can prompt or automatically wrap as code depending on operator preference.",
+      "Indented multi-line text can suggest a code block but must not silently rewrite prose.",
+      "Language detection confidence must be visible or reversible.",
+      "The user can convert code block back to plain text without data loss.",
+      "Code block node stores language, raw text, display settings, lint markers if present, and source link if pasted from an indexed file."
+    ],
+    "embed_rules_seed": [
+      "Embeds store references to artifact/media/source IDs, not random absolute filesystem paths.",
+      "External URLs may be stored but should be explicitly typed and previewed safely.",
+      "Missing media/embed targets render as repairable broken-link nodes, not blank UI.",
+      "Albums and slideshows are ordered collections with stable item IDs and optional captions.",
+      "Large image/video collections must reuse artifact storage and lazy loading."
+    ]
+  },
+  "architecture_seed": {
+    "system_name": "Handshake Project Knowledge Index + Loom Rich Editor",
+    "storage_model": {
+      "canonical": "PostgreSQL",
+      "projection_examples": [
+        "Loom/wiki pages",
+        "Markdown export",
+        "HTML export",
+        "context bundles",
+        "search index snapshots",
+        "debug/evidence reports"
+      ],
+      "hard_constraints": [
+        "No SQLite inside Handshake.",
+        "No markdown vault as canonical authority.",
+        "No Valkey/Redis canonical memory for this work packet.",
+        "Every generated summary/claim must be traceable to source entities/spans or explicitly marked unsupported.",
+        "No outside runtime dependencies for core WP-009 behavior except operator-provided model files, GGUF/model artifacts, tensors/safetensors, and explicitly gated CUI portable artifacts owned by their own WP.",
+        "Tiptap/ProseMirror and Monaco must be bundled, lockfile-governed, offline-capable Handshake product libraries/assets, not external editor apps, CDNs, or manually launched services.",
+        "Research papers, GitHub repositories, docs, and discussions are non-normative inputs only; WP-009, official MTs, and later Master Spec enrichment must contain the complete Handshake-native requirements.",
+        "CRDT draft state must reconcile through PostgreSQL/EventLedger promotion and cannot become a separate browser-local or external-sync authority.",
+        "PDF/media/research ingestion must record extraction receipts, partial-failure state, transcript/OCR metadata, and repair queues before content can support stable memory claims."
+      ]
+    },
+    "core_components": [
+      {
+        "name": "Project Source Registry",
+        "purpose": "Register managed project roots, source files, source kinds, content hashes, modified times, and index eligibility."
+      },
+      {
+        "name": "Knowledge Entity/Edge/Span Store",
+        "purpose": "Persist typed entities and relationships with source spans and evidence."
+      },
+      {
+        "name": "Code Indexer",
+        "purpose": "Use Tree-sitter first to extract symbols, imports, definitions, comments, tests, and structural spans; leave room for SCIP/LSP precision later."
+      },
+      {
+        "name": "Spec/Governance/Workflow Artifact Indexer",
+        "purpose": "Index specs, work packets, microtasks, taskboard rows, changelogs, workflow JSON, receipts, and research notes as project knowledge inputs."
+      },
+      {
+        "name": "LLM Wiki Compiler",
+        "purpose": "Generate cited project wiki pages/topic summaries from indexed sources and mark them stale when sources change."
+      },
+      {
+        "name": "Loom/Obsidian Projection Surface",
+        "purpose": "Expose notes, wiki pages, backlinks, local graph, folder/project navigation, tags, color labels, and search."
+      },
+      {
+        "name": "HS_Rich_Text_Editor",
+        "purpose": "Unified rich text, code, media, link, and project authoring surface."
+      },
+      {
+        "name": "Context Bundle Compiler",
+        "purpose": "Compile bounded, cited, task-specific context bundles for models with no prior conversation context."
+      },
+      {
+        "name": "Retrieval Debug / Evidence View",
+        "purpose": "Show why a bundle or wiki page contains each source, span, edge, and summary."
+      },
+      {
+        "name": "Project Brain Runtime Bridge",
+        "purpose": "Expose Project Brain query/citation/context-compaction flows as deterministic Project Knowledge Index runtime paths with QueryPlan/RetrievalTrace evidence."
+      },
+      {
+        "name": "Semantic Catalog Backend Index",
+        "purpose": "Persist and query catalog entries as backend routing contracts for tools, retrieval, and Spec Router planning."
+      },
+      {
+        "name": "Retrieval Mode Policy Engine",
+        "purpose": "Select none/direct_load/exact_lookup/graph_traversal/hybrid_rag and record non_hybrid_reason for cheapest authoritative retrieval."
+      },
+      {
+        "name": "AIReady Evidence Export Bridge",
+        "purpose": "Bound export evidence for index artifacts, rebuild/update lifecycle events, provenance, retention, and portability."
+      },
+      {
+        "name": "ContextPack Recorder Bridge",
+        "purpose": "Emit bounded recorder events for pack build/reuse/refresh/freshness decisions with pack/source hashes."
+      },
+      {
+        "name": "UserManual Migration Surface",
+        "purpose": "Rename legacy ModelManual product surfaces to UserManual while preserving declared compatibility shims."
+      },
+      {
+        "name": "Handshake Dependency Boundary / Built-In Runtime Surface",
+        "purpose": "Enforce native-by-default runtime behavior, bundled-library ownership, allowed model/GGUF/tensor/CUI-portable exceptions, and validator tripwires against outside apps/services."
+      },
+      {
+        "name": "Built-In Tiptap/ProseMirror Editor Core",
+        "purpose": "Own rich document schema, custom nodes, CRDT draft bridge, save/load, projection, visual-debug selectors, and UserManual coverage inside Handshake."
+      },
+      {
+        "name": "Built-In Monaco Code Node Core",
+        "purpose": "Own embedded code block editing, worker bundling, language registration, diagnostics, code navigation, and persistence without external editor services."
+      },
+      {
+        "name": "PDF/Media Ingestion and Evidence Adapter",
+        "purpose": "Detect text layers, transcript/OCR needs, partial extraction, source hashes, media timing anchors, repair queues, and evidence eligibility."
+      },
+      {
+        "name": "Secrets and Permissions Gate",
+        "purpose": "Prevent unauthorized roots, secrets, credentials, machine-local paths, and denied files from entering indexes, context bundles, wiki projections, logs, or UserManual."
+      },
+      {
+        "name": "CRDT State Recovery and Conflict Ledger",
+        "purpose": "Record actor/site IDs, draft updates, conflict state, promotion decisions, replay plans, and crash/session recovery receipts."
+      },
+      {
+        "name": "Native Research Translation Registry",
+        "purpose": "Track which external research ideas were accepted, rejected, translated into WP/MT/spec language, and later patched into SPEC_CURRENT."
+      }
+    ],
+    "data_model_seed": {
+      "new_tables_to_consider": [
+        "project_source_roots",
+        "project_source_files",
+        "indexing_runs",
+        "knowledge_entities",
+        "knowledge_edges",
+        "knowledge_spans",
+        "knowledge_claims",
+        "knowledge_wiki_pages",
+        "code_symbols",
+        "rich_documents",
+        "rich_document_blocks",
+        "rich_document_links",
+        "rich_document_embeds",
+        "context_bundle_runs",
+        "context_bundle_items",
+        "semantic_catalog_entries",
+        "retrieval_policy_decisions",
+        "ai_ready_index_artifacts",
+        "ai_ready_index_export_events",
+        "context_pack_events",
+        "user_manual_pages",
+        "dependency_inventory",
+        "bundled_asset_manifests",
+        "native_research_translation_requirements",
+        "pdf_ingestion_jobs",
+        "pdf_ingestion_pages",
+        "pdf_ocr_transcript_state",
+        "source_extraction_receipts",
+        "secret_redaction_policies",
+        "secret_redaction_events",
+        "permission_grants",
+        "index_access_denials",
+        "crdt_document_snapshots",
+        "crdt_update_batches",
+        "crdt_conflicts",
+        "crdt_recovery_checkpoints",
+        "agent_worktree_claims",
+        "agent_recovery_receipts",
+        "visual_debug_evidence_artifacts"
+      ],
+      "existing_tables_or_concepts_to_reuse_where_practical": [
+        "ai_bronze_records",
+        "ai_silver_records",
+        "loom_blocks",
+        "loom_edges",
+        "assets",
+        "artifact manifests",
+        "flight recorder events"
+      ],
+      "entity_kinds": [
+        "project",
+        "file",
+        "folder",
+        "spec_topic",
+        "work_packet",
+        "microtask",
+        "taskboard_row",
+        "changelog_entry",
+        "workflow_artifact",
+        "research_note",
+        "rich_document",
+        "rich_block",
+        "code_symbol",
+        "code_file",
+        "test",
+        "media_asset",
+        "model_context_bundle",
+        "wiki_page"
+      ],
+      "edge_types": [
+        "implements",
+        "tests",
+        "mentions",
+        "derives_from",
+        "changed_by",
+        "validates",
+        "depends_on",
+        "blocks",
+        "contradicts",
+        "supersedes",
+        "embeds",
+        "links_to",
+        "contains",
+        "describes",
+        "indexes",
+        "generated_by",
+        "cites",
+        "same_as"
+      ],
+      "span_model": [
+        "source_file_id",
+        "path",
+        "byte_start",
+        "byte_end",
+        "line_start",
+        "line_end",
+        "hash_at_index_time",
+        "parser",
+        "parser_version",
+        "indexing_run_id"
+      ],
+      "edge_required_fields": [
+        "relationship_id",
+        "source_entity_id",
+        "target_entity_id",
+        "edge_type",
+        "evidence_span_id",
+        "created_by_indexing_run_id"
+      ]
+    }
+  },
+  "translated_memory_system_spec": {
+    "status": "wp_native_translation_of_research",
+    "source_research_is_normative": false,
+    "source_of_truth_after_this_stub": "WP-KERNEL-009 contract now carries the technical detail; future refinement/enrichment must patch this into SPEC_CURRENT and official MTs.",
+    "layers": [
+      {
+        "name": "MemoryOntology",
+        "purpose": "Stable schema memory for entity classes, relation classes, aliases, normalized terms, and promoted extraction patterns.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "promotion_rule": "Schema terms start probationary and become stable only after evidence thresholds, conflict checks, or operator/spec approval."
+      },
+      {
+        "name": "MemoryFact",
+        "purpose": "Evidence-backed factual claims and relationships with lifecycle state.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "states": [
+          "probationary",
+          "stable",
+          "conflicted",
+          "rejected",
+          "superseded",
+          "temporal_qualified",
+          "granularity_qualified",
+          "unsupported"
+        ]
+      },
+      {
+        "name": "MemoryPassage",
+        "purpose": "Source passages, OCR/transcript output, code/doc spans, and evidence snippets used to justify claims and retrieval.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "failure_rule": "Missing text layers, partial extraction, and unsupported media produce receipts and repair queue items."
+      }
+    ],
+    "agent_jobs": [
+      "ExtractionJob: parser/model extraction writes probationary claims and passages only.",
+      "ConflictDetectionJob: finds symbolic, temporal, alias, stale-source, and semantic conflicts.",
+      "ConflictResolutionJob: discards, refines, merges, temporal-qualifies, granularity-qualifies, or promotes claims with receipts.",
+      "BridgeEdgeJob: proposes graph bridge edges across fragmented subgraphs only when evidence and hub-suppression rules allow."
+    ],
+    "retrieval_rules": [
+      "Exact IDs and authoritative paths use direct_load or exact_lookup before graph/hybrid retrieval.",
+      "Ontology/schema filters narrow graph candidates before ranking.",
+      "Graph traversal is bounded by depth, edge types, source authority, and hub suppression.",
+      "Passage fallback is explicit when structural graph candidates are missing, stale, contradicted, or low confidence.",
+      "Every answer/context bundle records QueryPlan, RetrievalTrace, candidate evidence, rejected evidence, stale reasons, and non_hybrid_reason where applicable."
+    ],
+    "non_goals": [
+      "Do not import MemGraphRAG as an external service.",
+      "Do not require a graph database outside PostgreSQL/EventLedger.",
+      "Do not treat LLM extracted triples as stable facts without Handshake evidence and conflict lifecycle."
+    ]
+  },
+  "folded_legacy_stub_preservation": {
+    "folded_at_utc": "2026-06-11T00:00:00Z",
+    "replacement_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+    "replacement_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "source_of_truth_rule": "The folded stubs are deprecated/superseded and must not be activated directly. WP-KERNEL-009 is the active planning surface for their preserved scope.",
+    "conflict_policy": "If a folded stub conflicts with WP-KERNEL-009, WP-KERNEL-009 wins unless the conflict would drop a major feature, hide a risk, weaken PostgreSQL-canonical storage, or remove deterministic retrieval/evidence behavior. In that case preserve the feature/risk as an explicit WP-KERNEL-009 requirement.",
+    "master_spec_basis": [
+      ".GOV/spec/SPEC_CURRENT.md points to master-spec-v02.191.",
+      "Project Brain: spec-modules/12-end-of-file-appendices.md Project Brain appendix and spec-modules/02-system-architecture.md Project Brain anchors define governed backend retrieval over AI-Ready Data with QueryPlan/RetrievalTrace and ContextPack reuse.",
+      "Semantic Catalog: spec-modules/12-end-of-file-appendices.md Semantic Catalog appendix and spec-modules/02-system-architecture.md catalog anchors define indexed backend routing contracts.",
+      "Retrieval mode policy: spec-modules/02-system-architecture.md requires none/direct_load/exact_lookup/graph_traversal/hybrid_rag and non-hybrid reasons in QueryPlan/RetrievalTrace.",
+      "AI-ready evidence/export and relationship IDs: spec-modules/12-end-of-file-appendices.md AI-Ready Data appendix and spec-modules/02-system-architecture.md relationship_id/graph_traversal anchors support bounded evidence and graph retrieval.",
+      "ContextPack recorder visibility: spec-modules/02-system-architecture.md and 12-end-of-file-appendices.md ContextPack anchors require visible build/select/refresh/freshness outcomes.",
+      "Loom/editor: spec-modules/07-user-experience-and-development.md rich editor inline token and Loom view anchors support the editor/navigation slice."
+    ],
+    "folded_stubs": [
+      {
+        "wp_id": "WP-1-Project-Brain-Runtime-Backfill-v1",
+        "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_full_intent_preserved",
+        "preserved_scope": [
+          "Project Brain remains a governed runtime retrieval/notebook surface, not a vague RAG promise.",
+          "Project Brain query/runtime mapping must expose citations, context-compaction visibility, QueryPlan, RetrievalTrace, and job/tool visibility.",
+          "Project Brain must distinguish discovery/synthesis from authoritative lookup and prefer fresh ContextPack reuse where appropriate."
+        ],
+        "preserved_acceptance": [
+          "Project Brain runtime/job/tool visibility is explicit in the product implementation and validation evidence.",
+          "Project Brain links deterministically to ContextPacks, QueryPlan, RetrievalTrace, SemanticCatalog, and the Project Knowledge Index."
+        ],
+        "preserved_risks": [
+          "Project Brain becomes a generic semantic-search feature instead of a deterministic runtime surface."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-Semantic-Catalog",
+          "WP-1-ACE-Runtime"
+        ],
+        "downstream_impacts": [
+          "WP-1-Thinking-Pipeline-Runtime-Backfill"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 owns the Project Knowledge Index slice; broader Project Brain behavior must be implemented only where needed to make that slice deterministic and citeable."
+      },
+      {
+        "wp_id": "WP-1-Semantic-Catalog-v2",
+        "base_wp_id": "WP-1-Semantic-Catalog",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.contract.json",
+        "disposition": "folded_into_wp_kernel_009_as_backend_routing_catalog_contract",
+        "preserved_scope": [
+          "Semantic Catalog remains a deterministic backend routing contract for tools, data surfaces, retrieval, and Spec Router planning.",
+          "Semantic Catalog entries may not remain hidden in prompts, helper labels, or UI-only descriptions.",
+          "The v2 stub was remediation for the earlier failed WP-1-Semantic-Catalog packet; this failure context remains preserved."
+        ],
+        "preserved_acceptance": [
+          "Project Knowledge Index can index, query, and cite catalog entries as backend contracts.",
+          "Spec/router/retrieval planning can use catalog entries without prompt-only drift."
+        ],
+        "preserved_risks": [
+          "Semantic Catalog stays a name-only dependency with no product-queryable backend representation."
+        ],
+        "carried_dependencies": [],
+        "downstream_impacts": [],
+        "conflict_resolution": "The empty v2 contract contributes remediation intent and name continuity; WP-KERNEL-009 supplies the implementation shape."
+      },
+      {
+        "wp_id": "WP-1-AIReady-Index-Evidence-Export-v1",
+        "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_export_semantics_preserved",
+        "preserved_scope": [
+          "Define bounded export anchors for AI-ready index artifacts and rebuild/update evidence.",
+          "Preserve manifest, retention, provenance, backend-portability, and reconstructability semantics for embedding, vector, keyword, and graph artifacts.",
+          "Context bundle and retrieval-debug evidence must reuse the canonical AI-ready export dialect instead of inventing a second export format."
+        ],
+        "preserved_acceptance": [
+          "AI-ready index artifacts and lifecycle events are linked to bounded debug/export semantics.",
+          "Exported AI-ready evidence preserves stable provenance, retention, and PostgreSQL portability semantics.",
+          "Retrieval/debug/export packets can consume one canonical AI-ready evidence contract."
+        ],
+        "preserved_risks": [
+          "Evidence exports expose inconsistent artifact subsets across backends.",
+          "Rebuild/update events are recorder-visible but not reconstructable from exported evidence bundles."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-Debug-Bundle",
+          "WP-1-Artifact-System-Foundations",
+          "WP-1-AIReady-CoreMetadata"
+        ],
+        "downstream_impacts": [
+          "WP-1-Retrieval-Trace-Bundle-Export"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 now owns the evidence semantics needed by project knowledge bundles; if later export work remains broader, it must reuse this preserved contract rather than restart the old stub."
+      },
+      {
+        "wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
+        "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.contract.json",
+        "disposition": "fully_folded_into_wp_kernel_009_graph_schema_and_retrieval",
+        "preserved_scope": [
+          "Knowledge graph edges require deterministic relationship_id values.",
+          "Extraction/indexing events must emit and persist relationship_id.",
+          "Hybrid retrieval and graph traversal must produce non-empty graph candidates for synthetic graph fixtures at minimum."
+        ],
+        "preserved_acceptance": [
+          "Graph edges have stable relationship_id values.",
+          "Retrieval traces can cite relationship_id deterministically.",
+          "Synthetic graph tests prove non-empty graph candidates."
+        ],
+        "preserved_risks": [
+          "Graph retrieval remains effectively stubbed because edges cannot be cited or reproduced."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture"
+        ],
+        "downstream_impacts": [],
+        "conflict_resolution": "No conflict: relationship_id and graph candidates are core requirements for WP-KERNEL-009 typed edges and retrieval evidence."
+      },
+      {
+        "wp_id": "WP-1-RAG-Retrieval-Mode-Policy-v1",
+        "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_cross_pillar_policy_preserved",
+        "preserved_scope": [
+          "One governed retrieval-mode policy covers none, direct_load, exact_lookup, graph_traversal, and hybrid_rag.",
+          "QueryPlan and RetrievalTrace must record retrieval mode and non_hybrid_reason for exact-id, authority, freshness, and bounded-executor cases.",
+          "Prompt-to-Spec, Project Brain, Loom graph expansion, Work Packet loads, and Micro-Task context assembly must choose the cheapest authoritative retrieval path rather than defaulting to hybrid retrieval.",
+          "Dev Command Center, operator surfaces, replay/debug views, and context inspectors must expose retrieval posture and reasons."
+        ],
+        "preserved_acceptance": [
+          "Exact identifiers and authoritative packet/spec state use direct_load or exact_lookup before hybrid_rag.",
+          "Graph traversal is preferred when bounded Loom/KG neighborhoods satisfy the task.",
+          "Retrieval evidence explains why hybrid retrieval was used or skipped."
+        ],
+        "preserved_risks": [
+          "Everything becomes generic hybrid search, increasing cost and weakening authority boundaries.",
+          "Microtask and WP context assembly blur authoritative loads with advisory retrieval."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-ACE-Runtime",
+          "WP-1-Project-Brain-Runtime-Backfill",
+          "WP-1-Spec-Router-SpecPromptCompiler",
+          "WP-1-Micro-Task-Executor"
+        ],
+        "downstream_impacts": [],
+        "conflict_resolution": "WP-KERNEL-009 wins as the activation vehicle; broad retrieval policy remains preserved and must be implemented at least for all context-bundle, Loom/KG, Project Brain, Spec Router, WP, and MT paths touched by this packet."
+      },
+      {
+        "wp_id": "WP-1-ContextPack-Recorder-Visibility-v1",
+        "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_context_bundle_observability",
+        "preserved_scope": [
+          "ContextPack build, reuse, refresh, freshness allow/deny, and require-rebuild decisions are first-class Flight Recorder evidence.",
+          "Pack hash, source hash, freshness policy, and job/spec-router/debug-bundle linkage must be stable and bounded.",
+          "Payloads must not dump full retrieval context by default."
+        ],
+        "preserved_acceptance": [
+          "ContextPack lifecycle paths emit recorder-visible events with stable pack hashes and bounded policy metadata.",
+          "Replay/debug surfaces correlate pack decisions to jobs and spec-router flows without hidden runtime state.",
+          "Tests fail if pack-visibility events or hash linkage disappear."
+        ],
+        "preserved_risks": [
+          "Context reuse depends on hidden cache decisions and cannot be replayed.",
+          "Full payload logging leaks too much retrieval context."
+        ],
+        "carried_dependencies": [
+          "WP-1-Artifact-System-Foundations",
+          "WP-1-ACE-Persist-QueryPlan-Trace-v1"
+        ],
+        "downstream_impacts": [
+          "WP-1-Distillation-v2"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 owns context-bundle observability for project knowledge; distillation-facing reuse must consume these recorder events rather than revive the old stub."
+      }
+    ],
+    "not_folded_here": [
+      {
+        "wp_id": "WP-1-AIReady-CoreMetadata-v1",
+        "reason": "Referenced as a carried dependency by AI-ready evidence export, but not folded by this pass because the operator only approved the older knowledge/retrieval/editor-adjacent stubs and this scope should not silently absorb every transitive stub."
+      },
+      {
+        "wp_id": "WP-1-ACE-Persist-QueryPlan-Trace-v1",
+        "reason": "Referenced as a carried dependency by ContextPack recorder visibility; WP-KERNEL-009 must interoperate with it or implement the required trace persistence for its own paths, but the standalone ACE persistence stub is not deprecated by this fold."
+      }
+    ]
+  },
+  "operator_gui_reference": {
+    "mockup_dir": ".GOV/operator/docs_local/handshake-gui-mockup",
+    "mockup_image": ".GOV/operator/docs_local/handshake-gui-mockup/paper-control-room-mockup-firefox.png",
+    "binding": "LOOSE_REFERENCE_FUNCTIONALITY_PRIMARY",
+    "operator_intent": "GUI surfaces must replace VS Code and Obsidian functionality as Handshake-native features without outside dependencies."
+  },
+  "contract_hygiene": {
+    "version_pin_pass": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "change": "MT contract scope.relevant_files + scope.constraints pins updated v02.191 -> v02.192 (authority bumped 06:45Z before hydration 07:20Z). MT-002 scope.relevant_files intentionally retains v02.191 module paths: its deliverable is the v02.191 stale-SQLite conflict map.",
+      "trigger": "ADVERSARIAL_REVIEWER cross-cutting risk 1"
+    }
+  },
+  "mt_validation_index": {
+    "schema_id": "hsk.wp_mt_validation_index@1",
+    "generated_at_utc": "2026-06-18T07:41:57Z",
+    "generated_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+    "spec_resolved": "v02.194 (current SPEC_CURRENT); packet anchors authored vs v02.192, sections resolve in current bundle",
+    "baseline_compile": "cargo check --bin handshake on feat/WP-KERNEL-009 (HEAD c7491525): exit 0, 0 errors",
+    "legend": {
+      "PASS_V1": "validated PASS in the prior V1 run (left untouched per operator directive)",
+      "PASS_V2": "validated PASS in this V2 run (code vs MT/WP/current Master Spec + Spec-Realism Gate)",
+      "FAIL_V2": "validated FAIL in this V2 run; see that MT lifecycle.fail_state_v2 for report + no-context remediation"
+    },
+    "totals": {
+      "total": 264,
+      "pass_v1": 75,
+      "pass_v2": 189,
+      "fail_v2": 0,
+      "other": 0
+    },
+    "rows": [
+      {
+        "mt": "MT-001",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-002",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-003",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-004",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-005",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-006",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-007",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-008",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-009",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-010",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-011",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-012",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-013",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-014",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-015",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-016",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-017",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-018",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-019",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-020",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-021",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-022",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-023",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-024",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-025",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-026",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-027",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-028",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-029",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-030",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-031",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-032",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-033",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-034",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-035",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-036",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-037",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-038",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-039",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-040",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-041",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-042",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-043",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-044",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-045",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-046",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-047",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-048",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-049",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-050",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-051",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-052",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-053",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-054",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-055",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-056",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-057",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-058",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-059",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-060",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-061",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-062",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-063",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-064",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-065",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-066",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-067",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-068",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-069",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-070",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-071",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-072",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-073",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-074",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-075",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-076",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-077",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-078",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-079",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-080",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-081",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-082",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-083",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-084",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-085",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-086",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-087",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-088",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-089",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-090",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-091",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-092",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-093",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-094",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-095",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-096",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-097",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-098",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-099",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-100",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-101",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-102",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-103",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-104",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-105",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-106",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-107",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-108",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-109",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-110",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-111",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-112",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-113",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-114",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-115",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-116",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-117",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-118",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-119",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-120",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-121",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-122",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-123",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-124",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-125",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-126",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-127",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-128",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-129",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-130",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-131",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-132",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-133",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-134",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-135",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-136",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-137",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-138",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-139",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-140",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-141",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-142",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-143",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-144",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-145",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-146",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-147",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-148",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-149",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-150",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-151",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-152",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-153",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-154",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-155",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-156",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-157",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-158",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-159",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-160",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-161",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-162",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-163",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-164",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-165",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-166",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-167",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-168",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-169",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-170",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-171",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-172",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-173",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-174",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-175",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-176",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-177",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-178",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-179",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-180",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-181",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-182",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-183",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-184",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-185",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-186",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-187",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-188",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-189",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-190",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-191",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-192",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-193",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-194",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-195",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-196",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-197",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-198",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-199",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-200",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-201",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-202",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-203",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-204",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-205",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-206",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-207",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-208",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-209",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-210",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-211",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-212",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-213",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-214",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-215",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-216",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-217",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-218",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-219",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-220",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-221",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-222",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-223",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-224",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-225",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-226",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-227",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-228",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-229",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-230",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-231",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-232",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-233",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-234",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-235",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-236",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-237",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-238",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-239",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-240",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-241",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-242",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-243",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-244",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-245",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-246",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-247",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-248",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-249",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-250",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-251",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-252",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-253",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-254",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-255",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-256",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-257",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-258",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-259",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-260",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-261",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-262",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-263",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-264",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      }
+    ]
+  },
+  "integration_validator_verdict_v2": {
+    "schema_id": "hsk.integration_validator_wp_verdict@2",
+    "verdict": "PASS",
+    "verdict_note": "Whole-WP PASS with two documented non-blocking follow-ups. Code-vs-current-Master-Spec inspection (v02.194). Per operator directive 2026-06-18: repo-governance paperwork is non-blocking; bar is good code vs WP/MT/Master Spec. No correctness blocker found.",
+    "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "reviewed_at_utc": "2026-06-18T07:50:29Z",
+    "method": "Integration Validator: (1) per-MT V2 validation of all 189 non-PASS-V1 MTs via multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a) with adversarial confirm on FAIL; (2) baseline cargo check of feat/WP-KERNEL-009; (3) whole-WP spec-coverage pass over the 10 §2.3.13.11 required capabilities (wf_356670d1-66e).",
+    "mt_summary": {
+      "total": 264,
+      "pass_v1": 75,
+      "pass_v2": 189,
+      "fail_v2": 0
+    },
+    "baseline_compile": "cargo check --bin handshake on feat/WP-KERNEL-009 HEAD c7491525: exit 0, 0 errors (2 dead-code warnings)",
+    "spec_resolved": "v02.194 (current). Packet anchors authored vs v02.192 resolve in current bundle (paperwork-only drift, non-blocking).",
+    "spec_coverage": {
+      "areas": 10,
+      "pass": 9,
+      "concern": 1,
+      "fail": 0,
+      "rows": [
+        {
+          "area": "SOURCE_REGISTRATION_AND_SPANS",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "ENTITY_EDGE_RELATIONSHIP_ID",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "CLAIM_LIFECYCLE",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "RETRIEVAL_TRACES",
+          "verdict": "CONCERN",
+          "confidence": "HIGH",
+          "gaps": [
+            "§2.3.13.11.1 MUST not wired: 'Retrieval MAY serve rich documents and wiki pages as markdown, HTML, or JSON per task cost; the serving projection MUST be recorded in RetrievalTrace.' The RetrievalTrace struct (src/knowledge_retrieval/plan.rs:293-310) and the knowledge_retrieval_traces table/decisions JSONB (migrations/0141, src/storage/knowledge_retrieval.rs) have NO serving-projection/served-format field. Document/wiki projection serving (render_projection, ProjectionFormat md/html/...) exists and is reachable via GET /knowledge/documents/:id/projection?format=, and the document-save/import path emits a receipt carrying 'format', but that format is recorded on the document aggregate's receipt, NOT in a RetrievalTrace. No code path stamps the md/html/json serving projection into the retrieval trace when a doc/wiki is served. This is a genuine, narrow code/spec gap — not paperwork — but it does not undermine the core RetrievalTrace replay/mode/ranking/freshness/LoomSearchV2 proof, hence CONCERN rather than FAIL."
+          ]
+        },
+        {
+          "area": "RICHDOC_ROUNDTRIP_CODENODE",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "USERMANUAL_LOOKUP",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "PROJECTION_REBUILD_AUTHORITY",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "EVENTLEDGER_REPLAY_CRDT_PROMOTION",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": [
+            "Minor surface weakness (not a capability failure): the RichDocument REST save endpoint (api/knowledge_documents.rs:955-1004 save_document) accepts promotion_receipt_event_id from the client request body and records its own save receipt via record_receipt_non_fatal (best-effort, post-commit) rather than minting the EventLedger promotion event inside the save transaction. The FK to kernel_event_ledger still validates any supplied receipt id and the authority-grade gated/atomic promotion path (promotion_bridge.rs / promote_graph_fact_atomic) is fully enforced, so authority integrity holds; but on this one REST path the save-event receipt is advisory rather than transaction-atomic with the version write."
+          ]
+        },
+        {
+          "area": "BACKEND_NAV_AND_VISUAL_DEBUG",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "NATIVE_RUNTIME_NO_FORBIDDEN",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        }
+      ]
+    },
+    "followups_non_blocking": [
+      {
+        "id": "FU-1",
+        "severity": "CONCERN",
+        "area": "RETRIEVAL_TRACES",
+        "spec": "v02.194 §2.3.13.11.1",
+        "title": "Serving projection (md/html/json) not stamped into RetrievalTrace",
+        "detail": "RetrievalTrace struct (src/knowledge_retrieval/plan.rs) + knowledge_retrieval_traces table (migration 0141) have no served-format field. Doc/wiki projection serving records format on the document aggregate receipt, not in the RetrievalTrace, so the spec-MUST `serving projection MUST be recorded in RetrievalTrace` is unwired. Narrow, does not break core retrieval/replay/ranking/LoomSearchV2. Fix: add a served_projection_format field to RetrievalTrace + the traces table and stamp it when a doc/wiki is served via retrieval; add a real-PG test asserting the served format round-trips into the trace."
+      },
+      {
+        "id": "FU-2",
+        "severity": "MEDIUM",
+        "area": "RICHDOC_BLOCK_ID (MT-148)",
+        "spec": "v02.194 §2.3.13.11",
+        "title": "Block id churns on structural edit/reorder; backlinks + visual-debug selectors re-key",
+        "detail": "derive_block_id seeds from (doc_id, position_path, plain_text); frontend never round-trips attrs.block_id, so inserting/reordering re-keys ids and downstream backlink relationship_ids. Documented MEDIUM in MT-148 lifecycle.adversarial_review_v2 + wp_validator_review_v2.followup_concern. Fix: persist/round-trip a per-block attrs.block_id (prefer UUID v7) on save; add insert/reorder-stability real-PG test."
+      }
+    ],
+    "merge_recommendation": {
+      "state": "READY_PENDING_OPERATOR_APPROVAL",
+      "note": "Not auto-merged. Whole-WP validation is PASS; merge of feat/WP-KERNEL-009 to main is an outward action held for explicit operator approval per the validation-not-ceremony scope."
+    }
+  }
+}

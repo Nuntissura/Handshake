@@ -1,0 +1,256 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-183",
+  "title": "LoomObsidianNavigation-183-PinsFavoritesAndUnlinked",
+  "group": "LoomObsidianNavigation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-183.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Implement pins, favorites, unlinked blocks, and sorted views with backend state. This MT belongs to LoomObsidianNavigation. Deliver the Obsidian replacement surface as a Handshake-native Loom projection.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "src/backend/handshake_core/tests/storage_conformance.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Obsidian-like behavior must be implemented as Loom/project knowledge projections over PostgreSQL, not a markdown-vault clone.",
+      "Backlinks, graph, tags, folders, pins, color labels, and project links must have backend navigation APIs and visual-debug evidence."
+    ],
+    "expected_behavior": "PinsFavoritesAndUnlinked leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "PinsFavoritesAndUnlinked is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260614-175624",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "e856a5f9",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T07:55:00Z",
+        "kind": "implementation",
+        "summary": "Reorderable Pins grid + Unlinked triage backend for the four Loom views. The All/Unlinked/Sorted/Pins view queries were already built; MT-183 adds user-controlled pin ordering (the reorderable grid, [LM-VIEW-004]) and deterministic ordering.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0293_loom_block_pin_order.sql (NEW) - nullable loom_blocks.pin_order + partial Pins index",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomBlock.pin_order + LoomBlockUpdate.pin_order",
+          "src/backend/handshake_core/src/storage/postgres.rs - map_loom_block reads pin_order tolerantly (try_get) so the ~26 existing block SELECTs are unaffected; Pins view ORDER BY pin_order ASC NULLS LAST, updated_at DESC, block_id ASC; All/Unlinked get block_id tiebreaker; set_loom_block_pin_order (sets OR clears to NULL); update_loom_block patches pin_order; get_loom_block returns it",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::set_loom_block_pin_order",
+          "src/backend/handshake_core/src/storage/tests.rs - LoomBlockUpdate literal +pin_order:None",
+          "src/backend/handshake_core/src/api/loom.rs - PUT /loom/blocks/:id/pin-order; patch tracks pin_order",
+          "src/backend/handshake_core/tests/loom_pins_views_tests.rs (NEW) - 4 real-Postgres integration tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T07:55:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_pins_views_tests  &&  --test storage_conformance  &&  --lib storage::tests:: -- --test-threads=1",
+        "result": "pins/views ok. 4 passed; storage_conformance ok. 3 passed (incl postgres_loom_storage_conformance); storage::tests ok. 25 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "pins_view_respects_user_pin_order - pin_order C=0,A=1,B=2 -> order C,A,B; reorder B=-1 -> B,C,A; pin_order returned on single read",
+          "clearing_pin_order_sends_block_to_the_end - clear B (NULL) -> NULLS LAST trails ordered A",
+          "unlinked_view_excludes_linked_blocks - lonely block unlinked; mention-linked src/tgt excluded",
+          "set_pin_order_fails_closed_on_missing_block - NotFound",
+          "REGRESSION: postgres_loom_storage_conformance (four-views) + 25 loom storage tests still green after the select_blocks ORDER BY change"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:58:53.739Z",
+        "kind": "implementation",
+        "summary": "Recovered MT-183's missing Favorites surface: durable loom_blocks.favorite flag, Favorites view/API parser, favorite update tracking, favorite propagation through LoomBlock readers, strict mapper enforcement, and LoomViewQueried telemetry allowlist.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0296_loom_block_favorites.sql (NEW) - additive favorite flag plus partial favorites index",
+          "src/backend/handshake_core/migrations/0296_loom_block_favorites.down.sql (NEW) - drops favorites index and favorite column",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomBlock.favorite, LoomBlockUpdate.favorite, LoomViewType::Favorites, LoomViewResponse::Favorites",
+          "src/backend/handshake_core/src/storage/postgres.rs - writes favorite, reads favorite strictly, Favorites view filter, and all map_loom_block SQL projections include favorite",
+          "src/backend/handshake_core/src/api/loom.rs - patch change tracking, /loom/views/favorites parsing, and Favorites result counting",
+          "src/backend/handshake_core/src/flight_recorder/mod.rs - LoomViewQueried validation accepts favorites",
+          "src/backend/handshake_core/tests/loom_pins_views_tests.rs - real-Postgres Favorites and search propagation regressions",
+          "src/backend/handshake_core/src/storage/tests.rs - LoomBlockUpdate literals updated for favorite"
+        ],
+        "gaps_closed": [
+          "Pins and Favorites are now distinct durable Loom surfaces.",
+          "Favorite-only blocks are not implicitly pinned.",
+          "Favorite flags survive non-Favorites read paths such as search results.",
+          "Favorites telemetry no longer fails recorder validation."
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:58:53.739Z",
+        "kind": "test_proof",
+        "command": "POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test loom_pins_views_tests -- --test-threads=1 --nocapture && cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils flight_recorder_loom_view_queried_accepts_favorites --lib -- --nocapture && POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5565/handshake cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils --test storage_conformance -- --test-threads=1 --nocapture && cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,test-utils && rustfmt --edition 2024 --check <targeted MT-183 files>",
+        "result": "RED compile failure captured before implementation; after review fix, loom_pins_views_tests ok: 6 passed, 0 failed; flight_recorder favorites validator ok: 1 passed; storage_conformance ok: 3 passed; cargo check exit 0; targeted rustfmt --check exit 0.",
+        "evidence_refs": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/red-mt183-favorites-view.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt183-loom-pins-favorites-views-tests-after-review-fix-2.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt183-flight-recorder-favorites-view-test.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt183-storage-conformance-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt183-cargo-check-after-review-fix.log",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt183-rustfmt-check-targeted-after-review-fix.log"
+        ]
+      },
+      {
+        "at_utc": "2026-06-14T19:58:53.739Z",
+        "kind": "adversarial_review",
+        "summary": "Russell initial review blocked MT-183 for incomplete favorite propagation and stale LoomViewQueried view_type validation. Follow-up review after fixes returned PASS and recommended READY_FOR_VALIDATION.",
+        "reviewer": "Russell",
+        "review_agent_id": "019ec7a1-33e3-7f63-a250-f0ef594cd6cf",
+        "findings_closed": [
+          "Every current map_loom_block SQL read path projects favorite and map_loom_block now fails loudly if favorite is omitted.",
+          "Flight recorder validation accepts the favorites view type.",
+          "API parser and telemetry use the same favorites literal.",
+          "create_loom_block coherently relies on the database default and returns favorite."
+        ],
+        "state_recovery_recommendation": "Move MT-183 to READY_FOR_VALIDATION."
+      },
+      {
+        "at_utc": "2026-06-14T19:58:40.214Z",
+        "kind": "KB_READY_CHECKLIST_RECEIPT",
+        "summary": "KB ready checklist PASS emitted before READY_FOR_VALIDATION handoff.",
+        "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "receipt_verdict": "PASS",
+        "blockers": []
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-14T19:58:53.739Z",
+      "reviewer": "Russell",
+      "review_agent_id": "019ec7a1-33e3-7f63-a250-f0ef594cd6cf",
+      "findings": [
+        "Initial FAIL: favorite was not propagated through every API-visible LoomBlock read path.",
+        "Initial FAIL: favorites view telemetry was rejected by the FlightRecorder validator.",
+        "Follow-up PASS: all prior findings closed by direct code changes and fresh proof."
+      ],
+      "fixes": [
+        "All map_loom_block SQL read paths now project favorite; map_loom_block uses strict row.get(\"favorite\").",
+        "LoomViewQueried validation now allows favorites.",
+        "Added real-Postgres search propagation regression and focused telemetry validator test."
+      ],
+      "verdict": "PASS",
+      "state_recovery_recommendation": "Move MT-183 to READY_FOR_VALIDATION."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-183 requires pins (reorderable grid), favorites, unlinked, and sorted Loom views backed by durable PostgreSQL state. The code implements all four as real PostgreSQL queries over loom_blocks/loom_edges with durable pin_order and favorite columns, real CRUD/API, and integration tests proven against real Handshake-managed PostgreSQL (no SQLite/mock/Docker). It aligns with current Master Spec 7.1.4.3 / 11 [LM-VIEW-002][LM-VIEW-004].",
+      "findings": [
+        "Four views are real PostgreSQL queries in query_loom_view (postgres.rs:6896-6945): Pins filters b.pinned != 0 ORDER BY b.pin_order ASC NULLS LAST, updated_at DESC, block_id ASC (reorderable grid per [LM-VIEW-004]); Favorites filters b.favorite != 0; Unlinked uses NOT EXISTS over loom_edges mention/tag edges; Sorted groups by edge. No parallel store.",
+        "Reorderable Pins grid is durable: migration 0293 adds nullable loom_blocks.pin_order + partial index; set_loom_block_pin_order (postgres.rs:10018) is a real UPDATE binding Option<i32> so NULL genuinely clears (not a COALESCE no-op), fails closed with NotFound on missing block; exposed via PUT /loom/blocks/:id/pin-order (api/loom.rs:112).",
+        "Favorites is a distinct durable surface: migration 0296 adds favorite INTEGER NOT NULL DEFAULT 0 + partial index; map_loom_block reads favorite strictly via row.get('favorite') (postgres.rs:2019,2043) so any read path omitting it fails loudly; every map_loom_block SQL projection includes b.favorite; FlightRecorder LoomViewQueried allowlist includes 'favorites' (flight_recorder/mod.rs:2648); API parser maps 'favorites' literal (api/loom.rs:3113).",
+        "Unlinked semantics (NOT EXISTS where block is source OR target of a mention/tag edge) faithfully implement spec [LM-VIEW-002] 'zero MENTION + TAG edges'; verified by current Master Spec 07-user-experience-and-development.md:525-532 and 11-shared-dev-platform-and-oss-foundations.md:445-451.",
+        "Runtime proof is real: tests/loom_pins_views_tests.rs runs against real PostgreSQL via knowledge_pg_support.rs which resolves POSTGRES_TEST_URL/DATABASE_URL/Handshake-managed ManagedPostgres with NO SQLite/in-memory/mock fallback (skips only when PG binaries genuinely absent, panics on any other failure). Tests cover pin ordering, reorder, NULL-clear, unlinked exclusion, fail-closed, favorites independence from pins, and favorite-flag survival through search. Evidence records 6 passed after review fix.",
+        "Sub-rule 1: grep of loom.rs/api loom.rs/test file found no todo!/unimplemented!/deferred/pending-MT/*Unavailable escapes on any live path; the single unreachable! (test:133) is a post-type-check assertion guard, not a live placeholder.",
+        "Sub-rule 3: lifecycle.claimed_by=KERNEL_BUILDER-20260614-175624, completed_by=null (status READY_FOR_VALIDATION) — no self-certified COMPLETED; an independent validator signs the transition.",
+        "All changes confined to allowed product paths (src/backend/handshake_core, migrations, tests); no /.GOV/, no SQLite, no Docker, no external search engine — packet forbidden list respected. Aside: external evidence logs under ../Handshake_Artifacts were not present on disk, which is expected and non-blocking."
+      ],
+      "evidence_checked": [
+        "MT-183.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show e856a5f9 (Pins commit) + c49afb7f (Favorites checkpoint)",
+        "src/backend/handshake_core/migrations/0293_loom_block_pin_order.sql + 0296_loom_block_favorites.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs (query_loom_view 6758-7000, map_loom_block 2010-2046, set_loom_block_pin_order 10018-10071)",
+        "src/backend/handshake_core/src/storage/loom.rs (LoomViewType/LoomBlock/LoomBlockUpdate)",
+        "src/backend/handshake_core/src/api/loom.rs (pin-order endpoint, favorites parse)",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs (favorites allowlist)",
+        "src/backend/handshake_core/tests/loom_pins_views_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "Master Spec v02.194 modules 07-user-experience-and-development.md, 11-shared-dev-platform-and-oss-foundations.md, 07-6-development-roadmap.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260614-175624",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

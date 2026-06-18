@@ -1,0 +1,207 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-223",
+  "title": "ParallelSwarmStateRecovery-223-StateRecoveryNegativeCases",
+  "group": "ParallelSwarmStateRecovery",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-223.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Test interrupted indexing, interrupted editor save, lost agent, stale lease, partial validation, and restart after crash. This MT belongs to ParallelSwarmStateRecovery. Make WP-009 safe for local/cloud swarm work, backend navigation, and repeated session recovery.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/api/role_mailbox.rs",
+      "src/backend/handshake_core/src/inspector_read/",
+      "app/src/components/swarm/",
+      "app/src-tauri/src/swarm.rs"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Local and cloud swarm lanes must be observable, attributable, bounded, recoverable, and safe for parallel agents.",
+      "Every MT must leave enough receipts, state markers, and next-step context for session-limit recovery by a no-context model."
+    ],
+    "expected_behavior": "StateRecoveryNegativeCases leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "StateRecoveryNegativeCases is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-209"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "ab3a5053",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "by": "KERNEL_BUILDER-20260613",
+        "commits": [
+          {
+            "sha": "ab3a5053d3d70fdf4045fc21b9d8e37dd9cd7444",
+            "slice": "MT-223 state recovery negative cases"
+          }
+        ],
+        "summary": "MT-223 hardens negative recovery paths across interrupted quiet indexing, post-KIR quiet receipt failure, stale indexing lease queue fairness, interrupted rich-document save recovery, partial validation progress handoff, missing/corrupt checkpoint false receipts, and restart-after-crash Postgres state reconstruction. The quiet indexing start path now writes the indexing lease, KIR start event/run row, and quiet background receipt in one Postgres transaction so failure rolls back all receipt surfaces."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests mt223_ -- --nocapture",
+            "result": "PASS; 9/9 MT-223 tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests quiet_ -- --nocapture",
+            "result": "PASS; 5/5 quiet recovery regression tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_index_tests mt112_indexes_mixed_tree_with_symbols_spans_edges -- --nocapture",
+            "result": "PASS; non-quiet code-index caller impact smoke test passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests --no-run",
+            "result": "PASS; full parallel_swarm_state_recovery_tests target compiled"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/knowledge_code_index/engine.rs src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only, including foreign dirty visual-debugger files"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-13T03:37:42.001Z",
+        "reviewer": "multi_agent:019ebf01-de21-70b0-8f80-3a86463edc75",
+        "result": "PASS",
+        "summary": "Reviewer confirmed Harvey's prior orphan window is closed: KIR start receipt/run row, indexing lease, and quiet receipt now share one transaction in start_quiet_run. They found no blocking issues; residual uncertainty is limited to an availability-only stale-lease expiry race that fails closed without orphaning side effects."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260613",
+    "ready_for_validation_at_utc": "2026-06-13T03:37:42.001Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-223 hardens seven parallel-swarm state-recovery negative cases (interrupted indexing start, quiet receipt failure rollback, stale-lease reclaim/queue fairness, interrupted editor-save reclaim, partial-validation handoff, missing/corrupt checkpoint false-receipt suppression, and crash-restart reconstruction). The implementation makes the quiet-indexing start path atomic across lease + KIR run row + start event + quiet receipt in one PostgreSQL transaction with rollback, and fixes lease-queue fairness so a queued writer is not leapfrogged. All proof runs against real Handshake-native PostgreSQL/EventLedger with isolated schemas and the full migration chain; no SQLite, in-memory, mock-only, or placeholder paths.",
+      "findings": [
+        "engine.rs start_quiet_run (commit ab3a5053): the quiet-indexing start path now opens one tx (self.db.pool().begin()), acquires the indexing lease via try_acquire_indexing_lease_tx, writes the KIR start event + run row via start_run_with_id_tx, and records the quiet receipt via record_quiet_background_work_tx, committing only on full success and rolling back (tx.rollback()) on any failure. This closes the prior orphan window where lease/KIR/quiet receipts could be written independently.",
+        "state_recovery.rs: added tx-scoped variants (try_acquire_indexing_lease_tx, insert_indexing_lease_outcome_tx, record_quiet_background_work_tx, active/queued_index_writer_for_scope_tx) by threading &mut Transaction<Postgres> through; non-tx wrappers retained for callers. Queue-fairness bug fixed: enqueue/acquire now consult queued_index_writer_for_scope so a new request does not jump ahead of an already-queued writer (lines ~3071-3130, 3303-3375).",
+        "postgres.rs: append_kernel_event_with_executor made pub(crate) so the engine can append the KIR start event inside the shared transaction executor — a real EventLedger write on the same tx, not a separate connection.",
+        "Test proof is real PostgreSQL: tests/knowledge_pg_support.rs knowledge_pg() requires a base DB URL, creates an isolated schema, installs pgcrypto + digest shims, and runs the full migration chain; recovery_store() (test file line 174) connects a real PgPool to that schema. All MT-223 tests skip (return) when no PG is present rather than falling back to a mock.",
+        "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease (line 4483) injects a real plpgsql BEFORE-INSERT trigger that raises on the quiet-work table (install_quiet_indexing_receipt_failure, line 745) and then asserts COUNT(*)=0 across knowledge_index_runs, knowledge_parallel_indexing_lease_queue, knowledge_agent_quiet_background_work, and kernel_event_ledger for both knowledge_code_index and parallel_swarm aggregates — a genuine atomic-rollback proof against real tables.",
+        "mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable (4603) and mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer (4688) force lease expiry via UPDATE ... expires_at_utc = NOW() - INTERVAL and verify reclaim + correct queue promotion with a fresh acquired EventLedger receipt (KNOWLEDGE_INDEX_RUN_STARTED / status acquired).",
+        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres (5044) seeds claim/handoff/checkpoint/lease/quiet rows, drops the store (simulated crash), builds a fresh store on the same pool, and proves inspect_swarm_evidence, recover_from_checkpoint, and project_swarm_dashboard all reconstruct the persisted state from PostgreSQL.",
+        "mt223_missing_checkpoint_recovery_does_not_emit_receipt (4264) and the corrupt-payload-hash test (4303) prove no false recovery receipt or EventLedger event is written on bad checkpoints; mt223_partial_validation_progress_handoff_is_not_reported_as_pass (4964) proves a progress handoff is not counted as pass in the dashboard projection.",
+        "No deferred-live escapes: grep of engine.rs and state_recovery.rs for todo!/unimplemented!/unreachable!/*Unavailable/not yet wired/pending MT-/placeholder returned zero hits. No SQLite/in-memory/mock strings in the test file.",
+        "Aside (non-blocking, per ground rules): lifecycle.claimed_by is null while completed_by is set; status is READY_FOR_VALIDATION (not self-signed COMPLETED), so sub-rule-3 is satisfied. Standard winding-down paperwork state, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-223.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show ab3a5053 (engine.rs, state_recovery.rs, postgres.rs diff)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/engine.rs (start_quiet_run, start_run_with_id_tx, build_receipt_event)",
+        "wtc-kernel-009/src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (tx variants, queue fairness)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (recovery_store, mt223_* tests, install_quiet_indexing_receipt_failure)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (knowledge_pg real-PG harness)",
+        "grep for deferred-live escapes / SQLite / mock (zero hits)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT223",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

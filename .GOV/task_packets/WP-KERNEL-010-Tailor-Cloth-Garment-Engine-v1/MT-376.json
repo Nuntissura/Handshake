@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-376",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-376.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-376.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-376.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-376.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-375"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Expose air_drag as a first-class field in FabricProperties LLM surface and MaterialParamsGpu so models can author flutter behavior and the WGSL aerodynamics pass reads it per-material rather than using a global constant",
+    "allowed_paths": [
+      "tailor-solver/src/spec.rs",
+      "tailor-solver/src/gpu/material_uniform.rs",
+      "tailor-solver/src/shaders/integrate.wgsl",
+      "src/backend/handshake_core/src/tailor/material.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "FabricProperties in tailor-solver/src/spec.rs MUST include air_drag: f32 with range [0.0, 1.0] and a doc comment explaining 0.0 = no drag, 1.0 = maximal flutter resistance (equivalent to dense still-air damping for chiffon-weight fabrics)",
+      "MaterialParamsGpu in tailor-solver/src/gpu/material_uniform.rs MUST include air_drag: f32; the padding field _pad MUST be adjusted or relocated to maintain 16-byte alignment",
+      "The WGSL integrate shader (predict.wgsl or equivalent) MUST read air_drag from the MaterialParams uniform and apply it as a velocity-proportional drag force on each particle: v_new = v * (1.0 - air_drag * dt) before gravity integration",
+      "The logarithmic mapping in material_decoder MUST NOT be applied to air_drag (it is already a dimensionless rate coefficient, not a compliance); it MUST be passed through linearly after a [0,1] clamp",
+      "MT-199 system preset calibrations MUST be updated to include air_drag values: chiffon >= 0.05, silk >= 0.02, cotton >= 0.01, denim >= 0.005, leather <= 0.003, consistent with the existing physics_json values",
+      "The FABRIC_PROPERTIES_IN_RANGE ValidationDescriptor MUST include air_drag in its range check ([0.0, 1.0])",
+      "The fabric integration test MUST assert that a chiffon panel with air_drag=0.05 and a leather panel with air_drag=0.003 subject to the same wind field at the same frame produce measurably different lateral displacement"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver -- material::air_drag_in_integrate_shader_chiffon_vs_leather",
+      "cargo test -p handshake_core -- tailor::validation::fabric_properties_range_includes_air_drag",
+      "cargo test -p tailor-solver -- gpu::material_uniform::material_params_gpu_alignment_with_air_drag"
+    ],
+    "risk_if_missed": "MT-206 implements aerodynamic air-drag as a module but if air_drag is not in FabricProperties it cannot be set per-preset or per-panel by a model or operator. The MaterialParamsGpu struct in the spec (spec line ~2397) does not list air_drag, meaning the GPU shader cannot read it from the material uniform. The result is that all fabrics share the same aerodynamic behavior regardless of weight — chiffon and leather flutter identically — which is a production-visible defect for any wind-affected animation. ClothMaterialPhysics has the field but it is not exposed through the two-layer API, making the field unreachable from model and operator authoring paths."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

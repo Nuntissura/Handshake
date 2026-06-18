@@ -1,0 +1,221 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-174",
+  "title": "TiptapMonacoIntegration-174-EditorBackendErrorStates",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-174.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Expose save/load/conflict/index/projection errors inline and in backend diagnostics. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "EditorBackendErrorStates leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "EditorBackendErrorStates is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "53b5e903",
+    "evidence": [
+      "Built+verified 53b5e903: backend_error.test.ts 6/6 + RichDocumentView conflict test - typed inline backend errors (save/conflict/schema/load/index/projection), never blank; Monaco-mount-failure textarea fallback. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T08:02:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "H5 save/conflict data loss (dirty flag cleared over in-flight keystrokes; conflict hint instructed a destructive Reload; no unload/doc-switch guard)",
+        "fix": "dirty-generation counter (clear only if no edit landed during the save await); conflict path snapshots the local doc into a preserved-edits panel (download via saveTextToFile / restore into editor / explicit discard; Reload never clears it); truthful conflict hint; beforeunload guard while dirty; doc-switch snapshot with restore offered only on the owning document; data-dirty selector",
+        "commit": "9c7a19b3",
+        "tests": [
+          "RichDocumentView.test.tsx: keeps the document dirty when keystrokes land during an in-flight save",
+          "RichDocumentView.test.tsx: clears the dirty flag after a save with no in-flight edits",
+          "RichDocumentView.test.tsx: preserves local edits as a snapshot on save conflict; restore re-applies them; reload never discards",
+          "RichDocumentView.test.tsx: blocks unload while dirty via beforeunload and releases it after save",
+          "RichDocumentView.test.tsx: snapshots un-saved edits when switching documents; restore only offered on the owning doc"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T13:50:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M18 substring-based error classification misroutes (any 'version' -> conflict)",
+        "fix": "typed ApiRequestError {status, statusText, body} thrown by api.ts request(); classification is STATUS-FIRST (409 -> conflict structurally; schema text still wins for the H2 path); bare 'version' substring trigger removed; substring fallback only for non-API errors with explicit conflict vocabulary",
+        "commit": "ce5eb4d6",
+        "tests": [
+          "backend_error.test.ts: classifies status-first from typed API errors (409 body-agnostic / schema-over-status / 500 generic)",
+          "backend_error.test.ts: no longer misroutes arbitrary 'version' mentions into the conflict surface"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "backend_error.test.ts 6/6 + RichDocumentView conflict test PASS",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Conflict guidance leads the operator into irrecoverable local-edit loss; dirty-flag race silently discards keystrokes typed during an in-flight save",
+          "evidence": "Two coupled defects on the save/error surface this MT owns: (1) backend_error.ts:44-48 conflict hint says \"Reload to get the latest version, then re-apply your edit\" but Reload (RichDocumentView.tsx:58-91) discards editorContent with no draft, no export, no confirmation - following the official hint destroys the unsaved work the conflict was protecting. (2) RichDocumentView.tsx:115-141 onSave captures editorContent at click time; keystrokes during the in-flight await mark isDirty=true, then the save resolution unconditionally setIsDirty(false) - the Save button disables with UNSAVED content in the editor and \"Saved at\" showing success. (3) No beforeunload/doc-switch guard: switching documentId or closing with dirty edits silently discards them.",
+          "fix": "On conflict: snapshot the local doc (e.g. localStorage/recovery table) BEFORE reload and offer re-apply; fix the race by capturing a save-generation counter (only clear dirty if no onChange occurred since capture); add an unsaved-changes guard on unmount/doc switch. Regression tests for all three.",
+          "status": "FIXED",
+          "fixed_commit": "9c7a19b3"
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Error classification by substring over free-text messages misroutes errors",
+          "evidence": "backend_error.ts:28-51 - any save failure whose message contains \"version\" (e.g. a backend message like \"document_versions table unavailable\") classifies as conflict with the misleading reload hint; \"schema\" anywhere wins over conflict. The rich-doc API (api.ts request) throws plain Errors with message text, so classification is best-effort string matching.",
+          "fix": "Return structured error codes from the API layer (status + typed code in the JSON error body) and classify on those; keep substring matching only as fallback.",
+          "status": "FIXED",
+          "fixed_commit": "ce5eb4d6"
+        },
+        {
+          "severity": "LOW",
+          "title": "Blocks panel renders a stale tree after save",
+          "evidence": "RichDocumentView.tsx:126 setLoad({...load, document: result.document, tree: load.tree}) - doc_version advances but tree.blocks remain the pre-save snapshot until manual reload; the visual-debug block list lies about current content.",
+          "fix": "Refresh blocks in refreshSidecars (loadRichDocumentBlocks) after save, or mark the panel as stale-until-reload."
+        }
+      ],
+      "parity_gaps": [
+        "ED-DBG-002 inline backend errors: PRESENT (typed kinds + banner tested) but the conflict REMEDIATION path is data-lossy",
+        "ED-REC-001 crash/draft recovery: no editor-side draft persistence at all (descope noted on MT-159, but the conflict hint depends on it)"
+      ],
+      "missing_tests": [
+        "typing during an in-flight save keeps isDirty=true after the save resolves",
+        "conflict -> reload preserves (or explicitly offers) the local unsaved doc",
+        "document switch / unmount with dirty edits prompts or snapshots",
+        "misclassification guard: save error mentioning \"version\" in a non-conflict sense"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-174 (EditorBackendErrorStates) requires save/load/conflict/schema/index/projection backend failures to surface as typed, inline, never-blank error states keyed on stable visual-debug selectors. The code implements exactly that: a pure classifier (backend_error.ts) maps raw/typed backend failures into a small typed vocabulary, RichTextEditor renders them inline with role=\"alert\" + data-error-kind, and the schema-mismatch fail-closed + conflict snapshot paths preserve operator edits over the real PostgreSQL-backed /knowledge/documents API. Aligns with current Master Spec v02.194 (§07 L261/263/283, §10 L8552).",
+      "findings": [
+        "backend_error.ts:48-73 classifySaveError is real, status-first classification: schema text wins (H2 fail-closed), HTTP 409 -> conflict structurally, explicit conflict vocabulary fallback for non-API errors; the bare 'version' substring misroute (prior M18 finding) is removed and regression-tested (backend_error.test.ts:75-80).",
+        "RichTextEditor.tsx:911-922 renders the typed backendError inline with role=\"alert\", data-error-kind, title+message+hint — satisfies the spec 'typed, visible error state - never a blank node' (§07 L283) and the stable-selector requirement (§07 L261).",
+        "RichTextEditor.tsx:203-214 provides a never-blank fallback when bundled editor components fail to mount (role=\"alert\", data-editor-degraded) — covers the Monaco/extension mount-failure path claimed in evidence.",
+        "RichDocumentView.tsx:617/646 dirty-generation counter only clears the dirty flag if no keystroke landed during the in-flight save (prior HIGH H5 data-loss finding fixed in 9c7a19b3); conflict path (660-672) snapshots local edits before any reload can replace them, with download/restore/explicit-discard and a truthful conflict hint (backend_error.ts:29-31); beforeunload guard (562-571) and doc-switch snapshot (541-554) prevent silent loss.",
+        "api.ts:54-61/75-78 throws a typed ApiRequestError {status,statusText,body}; statusOf() in backend_error.ts:39-45 reads it structurally — the durable authority remains PostgreSQL/EventLedger via the real /knowledge/documents API; the in-memory localSnapshot is a transient preservation buffer (file download, not localStorage-as-authority) and the recovery draft uses the real backend /knowledge/documents/{id}/draft endpoint (api.ts:3217-3243), consistent with §07 L263.",
+        "No placeholders, todo!/unimplemented!, *Unavailable escapes, or implementer-authored fakes reachable from the required behavior (grep clean). Tests are real vitest cases over the classifier and the view-editor wiring; proof is appropriate to a UI classification/render MT — no new durable PG migration is required by this MT, so sub-rule-2 managed-resource proof is NA.",
+        "Aside (non-blocking, paperwork): the MT contract's lifecycle.evidence references group/full-suite Playwright/vitest counts I did not re-run per host-load instruction; judged from code + committed evidence as directed."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-174.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/backend_error.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/backend_error.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichTextEditor.tsx (L200-216, L905-922)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/api.ts (L49-84, L3212-3243)",
+        "git commits 53b5e903, 9c7a19b3, ce5eb4d6 (show/stat + RichDocumentView.test.tsx conflict case)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (L261,263,283), 10-product-surfaces.md (L8552)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-343",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-343.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-343.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-343.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-343.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-342"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement affine panel transform operations (scale_panel, rotate_panel, translate_panel) on the GarmentSpec Panel geometry as CRDT-safe edits, preserving cm units and grain direction through the transform",
+    "allowed_paths": [
+      "tailor-solver/src/authoring/transform_ops.rs",
+      "src/backend/handshake_core/src/tailor/authoring.rs",
+      "app/src/components/tailor/PatternTransform.tsx"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "scale_panel(panel_id, sx: f32, sy: f32, pivot_cm: [f32;2]) scales all EdgeShape vertices relative to the pivot; seam attachment points scale with the panel",
+      "rotate_panel(panel_id, angle_rad: f32, pivot_cm: [f32;2]) rotates all EdgeShape vertices; grain direction rotates by the same angle",
+      "translate_panel(panel_id, offset_cm: [f32;2]) moves all vertices; seam endpoints remain linked",
+      "All three emit TailorPanelCrdtUpdateRecorded; PANEL_CLOSED and SEAM_LENGTH_MATCH re-evaluated after transform",
+      "Model-accessible via edit_panel MCP tool with operation=transform",
+      "Uniform scale preserves grain-direction alignment with fabric grain metadata"
+    ],
+    "proof_targets": [
+      "cargo test -p tailor-solver authoring::transform_ops::test_scale_panel_seam_length",
+      "cargo test -p tailor-solver authoring::transform_ops::test_rotate_panel_grain",
+      "cargo test -p handshake_core tailor::authoring::test_transform_crdt_emit"
+    ],
+    "risk_if_missed": "Without panel transforms, a model or operator cannot resize or reorient a panel produced by the primitive constructor or sketch-to-pattern without rewriting the entire coordinate array. Pattern symmetry (MT-125) and parametric sizing (MT-130) depend on consistent panel geometry; without a transform operation these produce mis-scaled results."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

@@ -1,0 +1,280 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-257",
+  "title": "UnifiedWorkSurface-257-DailyNotesJournal",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-257.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close the journal gap (LoomBlockContentType JOURNAL exists in the model): daily-note flow - today's journal block auto-create-on-open (one per day per workspace, idempotent), calendar navigation, journal_date field driving Sorted/All views, daily-note template hook (from MT-258 templates if landed, else inline minimal), backlink integration (mentions in journals appear in backlinks).",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Journal blocks are LoomBlocks with content_type=journal + journal_date (no parallel store); idempotent create proven."
+    ],
+    "expected_behavior": "Operator presses Today, writes; yesterday is one keystroke away; journal mentions weave into the graph.",
+    "acceptance_criteria": [
+      "Auto-create idempotency (two opens -> one block) real-PG proven.",
+      "Calendar prev/next navigation proven.",
+      "Journal mention -> backlink edge proven.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": null,
+    "evidence": [
+      {
+        "at_utc": "2026-06-16T17:39:58Z",
+        "by": "KERNEL_BUILDER",
+        "status": "READY_FOR_VALIDATION",
+        "summary": "Implemented MT-257 daily journal flow. A PUT journal route creates or returns one LoomBlock journal per workspace/date, enforces canonical YYYY-MM-DD dates, bridges journal blocks into the existing knowledge graph path, uses journal_date for All/Sorted date filtering, and exposes a Journal tab with Today/Previous/Next navigation.",
+        "product_files_touched": [
+          "src/backend/handshake_core/migrations/0329_loom_daily_journal_unique.sql",
+          "src/backend/handshake_core/migrations/0329_loom_daily_journal_unique.down.sql",
+          "src/backend/handshake_core/src/storage/mod.rs",
+          "src/backend/handshake_core/src/storage/postgres.rs",
+          "src/backend/handshake_core/src/api/loom.rs",
+          "src/backend/handshake_core/tests/loom_daily_journal_tests.rs",
+          "app/src/lib/api.ts",
+          "app/src/lib/api.test.ts",
+          "app/src/components/LoomDailyJournalPanel.tsx",
+          "app/src/components/LoomDailyJournalPanel.test.tsx",
+          "app/src/App.tsx",
+          "app/src/App.test.tsx",
+          "app/src/App.css"
+        ],
+        "verification": [
+          {
+            "command": "rustfmt --edition 2021 src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/tests/loom_daily_journal_tests.rs",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features runtime-full,duckdb-flight-recorder --target-dir \"D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\handshake-cargo-target\" --test loom_daily_journal_tests -- --nocapture",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "4 real-PG route tests passed: daily_journal_open_is_idempotent_and_bridged, journal_date_filters_all_and_sorted_views, journal_mentions_surface_as_backlinks, daily_journal_rejects_non_canonical_dates."
+          },
+          {
+            "command": "pnpm exec vitest run src/lib/api.test.ts src/components/LoomDailyJournalPanel.test.tsx src/App.test.tsx",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "3 files passed, 96 tests. Existing jsdom canvas getContext and React act warnings remain."
+          },
+          {
+            "command": "pnpm exec tsc --noEmit",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS"
+          },
+          {
+            "command": "pnpm run lint",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS"
+          },
+          {
+            "command": "Playwright smoke via local Vite http://127.0.0.1:5174 with route-mocked loopback backend",
+            "workdir": "wtc-kernel-009/app",
+            "result": "PASS",
+            "details": "Clicked Journal tab, verified Daily Note 2026-06-16, Previous to 2026-06-15, Next back to 2026-06-16, Today back to 2026-06-16, and blocked non-local external requests. Screenshot: D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt257-daily-journal-smoke.png."
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wtc-kernel-009",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          },
+          {
+            "command": "git diff --check",
+            "workdir": "wt-gov-kernel",
+            "result": "PASS",
+            "details": "No whitespace errors; Git reported existing LF-to-CRLF warnings."
+          }
+        ],
+        "eventledger_postgres_evidence": [
+          "Migration 0329 adds partial unique index ux_loom_daily_journal_workspace_date on loom_blocks(workspace_id, journal_date) for journal rows with non-null journal_date.",
+          "PUT /workspaces/:workspace_id/loom/journals/:journal_date stores journals as LoomBlocks with content_type=journal and journal_date; no parallel journal store was introduced.",
+          "Daily journal creation uses PostgreSQL ON CONFLICT DO NOTHING plus existing-row fallback so repeated opens return the same block.",
+          "The route calls bridge_loom_block_to_knowledge for the daily journal block; the real-PG idempotency test asserts the bridge exists after repeated opens.",
+          "All/Sorted view date filters now use journal_date for journal rows and retain updated_at filtering for non-journal rows.",
+          "Journal mention backlinks are proven through the existing Loom edge/backlink route path."
+        ],
+        "adversarial_review": {
+          "RISK_TIER": "HIGH",
+          "DIFF_ATTACK_SURFACES": [
+            "Concurrent or repeated daily opens could create duplicate journal rows.",
+            "Date filters could keep using updated_at and hide/show journal rows on the wrong day.",
+            "Journal creation could bypass the existing knowledge bridge and break backlinks.",
+            "Invalid date strings could create non-canonical journal_date values.",
+            "Calendar navigation could show a stale block title while a new date is loading.",
+            "The frontend API mock could mask the real LoomBlock response contract.",
+            "React hook lint could reject synchronous effect state updates in the new panel."
+          ],
+          "INDEPENDENT_CHECKS_RUN": [
+            "Real-PG backend route tests assert idempotent create, bridge existence, date-filter behavior, backlinks, and invalid date rejection.",
+            "Frontend API/unit/App tests assert the PUT helper, panel navigation, and Journal tab auto-open behavior.",
+            "Offline Playwright smoke proves the rendered Journal tab and Previous/Next/Today flow with no external network requests.",
+            "TypeScript and ESLint validate the frontend boundary after the hook-state refactor."
+          ],
+          "COUNTERFACTUAL_CHECKS": [
+            "If the unique index or ON CONFLICT path is removed, the idempotency test can create or expose duplicate daily rows.",
+            "If journal_date filtering is reverted to updated_at, the All/Sorted date-filter test fails.",
+            "If bridge_loom_block_to_knowledge is omitted, the bridge assertion in daily_journal_open_is_idempotent_and_bridged fails.",
+            "If openDailyJournal is not wired through App, the Journal tab integration test and Playwright smoke fail.",
+            "If the panel reuses stale block state across dates, the panel test and Playwright Previous/Next title/date assertions fail."
+          ],
+          "BOUNDARY_PROBES": [
+            "API boundary: PUT /workspaces/:workspace_id/loom/journals/:journal_date rejects non-canonical dates with 400.",
+            "Storage boundary: PostgreSQL creates or returns a single journal block keyed by workspace_id+journal_date.",
+            "Graph boundary: journal block mentions are converted into backlinks via existing Loom edge routes.",
+            "Frontend boundary: app/src/lib/api.ts exposes a typed openDailyJournal helper returning LoomBlock.",
+            "UI boundary: the Journal pane renders stable test IDs for tab, date, title, and navigation controls."
+          ],
+          "NEGATIVE_PATH_CHECKS": [
+            "daily_journal_rejects_non_canonical_dates rejects 2026-6-1, 2026-02-30, and not-a-date.",
+            "The Playwright smoke blocked non-local requests and failed earlier on invalid route-mock shapes, then passed only with a correctly shaped LoomBlock contract.",
+            "ESLint initially failed on synchronous effect state; the panel now derives loading/stale-block visibility from workspace/date request state."
+          ],
+          "FINDINGS_FIXED": [
+            "Added partial unique index plus ON CONFLICT fallback to prevent duplicate daily journals.",
+            "Changed All/Sorted view filtering so journal rows use journal_date instead of updated_at.",
+            "Refactored LoomDailyJournalPanel request state to satisfy react-hooks/set-state-in-effect while still hiding stale blocks during date navigation.",
+            "Corrected the Playwright proof to mock the full LoomBlock response shape rather than an ad hoc journal object."
+          ],
+          "RESIDUAL_UNCERTAINTY": [
+            "Playwright browser proof uses a route-mocked loopback backend; real PostgreSQL/EventLedger behavior is covered by the backend route tests.",
+            "The Browser plugin's required Node REPL tool was not exposed in this session, so direct Playwright was used as the local browser verification fallback.",
+            "Full packaged Tauri runtime was not launched for this MT."
+          ]
+        }
+      }
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-257 implements the daily-notes journal flow: an idempotent get-or-create of one journal LoomBlock per workspace/date against real PostgreSQL, journal_date-driven All/Sorted view filtering, knowledge-bridge integration so journal mentions surface as backlinks, canonical YYYY-MM-DD date validation, and a wired Journal tab with Today/Previous/Next. Behavior is real (no stubs), proven by 4 real-PG route tests plus offline GUI proof, and aligns with the current Master Spec (v02.194) JOURNAL content_type and journal_date field.",
+      "findings": [
+        "Backend route open_daily_journal (src/backend/handshake_core/src/api/loom.rs:502-529) calls storage get_or_create_daily_journal_block then bridge_loom_block_to_knowledge then refresh embedding — real wiring, not a stub.",
+        "Idempotent create is genuinely atomic against real PG: postgres.rs:5769-5946 uses a single CTE with INSERT ... ON CONFLICT (workspace_id, journal_date) WHERE content_type='journal' AND journal_date IS NOT NULL DO NOTHING, then UNION ALL selecting the existing row when insert was a no-op. Returns one canonical block. Uses Uuid::now_v7().",
+        "Migration 0329_loom_daily_journal_unique.sql creates the partial unique index ux_loom_daily_journal_workspace_date enforcing one journal per workspace/date; down migration drops it. journal_date column itself predates this MT (migration 0013).",
+        "Date validation parse_journal_date (loom.rs:492-500) parses strict %Y-%m-%d and re-checks canonical round-trip, returning 400 HSK-400-LOOM-JOURNAL-DATE on non-canonical input (e.g. 2026-6-16).",
+        "All/Sorted view date filtering (postgres.rs:1594-1614 and parallel sites ~6833/6976/7101) uses CASE: journal rows filter by journal_date, non-journal rows by updated_at — matches the MT acceptance that journal_date drives the views.",
+        "Real-PG proof: tests/loom_daily_journal_tests.rs spins a real loopback HTTP server on api::loom::routes against a real Postgres schema and asserts: idempotent open (block_id equal, journal_row_count==1), knowledge_bridge_count==1 (real loom_block_knowledge_bridge JOIN knowledge_entities), journal_date-windowed All/Sorted views exclude the other day, journal mention -> backlink with content_type=journal, and non-canonical date -> 400 with 0 rows. These touch real Handshake-owned tables, satisfying sub-rule 2.",
+        "Frontend LoomDailyJournalPanel.tsx is wired to the live openDailyJournal API (app/src/lib/api.ts:1966) with Today/Previous/Next/Today nav and stable test IDs; App.tsx exposes the Journal tab. Playwright GUI proof uses a route-mocked loopback only for the browser render — acceptable because durable behavior is covered by the real-PG route tests.",
+        "No placeholder/deferred-live escapes on the journal path (todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-' absent; the only 'stub' grep hits are an unrelated work-packet-status enum mapping).",
+        "Spec alignment confirmed: Master Spec v02.194 02-system-architecture.md defines JOURNAL='journal' content_type and journal_date as ISO YYYY-MM-DD on LoomBlock, and describes journaling — exactly what the impl delivers; no parallel journal store introduced.",
+        "Non-blocking aside (paperwork, ignored per ground rules): MT contract lifecycle.implementation_commit is null while the code is committed in c49afb7f."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-257.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0329_loom_daily_journal_unique.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/loom_daily_journal_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs (journal route + parse_journal_date)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/postgres.rs (get_or_create_daily_journal_block + view date filters + bridge fn)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/LoomDailyJournalPanel.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/api.ts (openDailyJournal)",
+        "git log/status for commit c49afb7f and clean working tree",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (JOURNAL content_type + journal_date)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

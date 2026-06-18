@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-259",
+  "title": "UnifiedWorkSurface-259-MediaCacheTiers",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-259.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close GAP-LM-009 (Heaper signature pattern): cache-tiered media - background thumbnail/preview-pyramid generation job for image/video file blocks (thumb -> preview -> full-res on demand), Postgres-tracked tier state + EventLedger receipts, Loom views render from tiers (grid scroll stays fluid on hundreds of media blocks), video poster frame + on-demand streaming from local file, preview_status surfaced (pending/ready/failed with retry). INHERITED GAPS from MT-244 (must close): (a) album/slideshow collection entity - a real backend list-source enumerating ordered member assets (today the frontend reads an ordered asset-id list in refValue; repoint seam = parseAssetRefList in app/src/lib/tiptap/embed_assets.ts); (b) HTTP Range support on GET /workspaces/:ws/assets/:id/content (api/loom.rs) for long-video seeking.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/",
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Generation is a bounded background job (no foreground stalls); failures land in a visible retry queue, never silent.",
+      "Tiers are derived artifacts (regenerable); originals are authority."
+    ],
+    "expected_behavior": "Hundreds of images browse fluidly from thumbnails; full-res loads on click; videos show posters and play locally.",
+    "acceptance_criteria": [
+      "Tier generation job real-PG proven (thumb+preview rows + receipts).",
+      "View renders tier not original (network/file assertion).",
+      "Failed-gen -> visible retry path proven.",
+      "Delete-tiers-then-regenerate leaves originals byte-identical (negative proof).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-177",
+      "MT-183"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "implementation_commit": "1baf2a77",
+    "evidence": [
+      "commit 1baf2a77 on feat/WP-KERNEL-009 (migration 0332_media_asset_tiers), zero .GOV",
+      "runtime proof: 6 real-PG tests PASS (254.82s) incl. mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers (drives the REAL run_loom_preview_generate_job via create_job + start_workflow_for_job against live PG -> thumb+preview+full tier rows; thumb/preview point at DERIVED assets, full at original; LoomPreviewGenerated receipt carries per-tier array) and mt259_http_retry_endpoint_requeues_failed_tier; vitest 32 PASS (tier URLs + collection list-source routing); tsc + eslint clean; offline Playwright 3 PASS (album grid tier=thumb from backend collection -> full on click; video Range-capable src + poster slot)",
+      "GAP-LM-244a closed: album/slideshow is now a real backend collection list-source (collection: ref -> backend ordered members), not a frontend refValue comma-split; GAP-LM-009b closed: Range-capable asset content endpoint (206/Content-Range/416)",
+      "adversarial review (5+5 blockers) forced the job-exec proof + retry test; harden added them",
+      "VALIDATION CAVEAT (intentional, documented deviation): video POSTER-frame generation is an honest `failed` tier routed to the visible retry queue (no video decoder bundled) — NOT a fake poster; full video serves byte-exact via the Range endpoint; a real poster needs a lockfile-pinned native decoder in a follow-up MT"
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-259 (MediaCacheTiers, GAP-LM-009 + inherited GAP-LM-244a/009b) requires a real PostgreSQL-canonical preview-pyramid (thumb->preview->full) tier-generation job with EventLedger receipts, tier-rendered views, a visible failed-tier retry path, byte-identical originals after tier delete, a backend album/collection list-source, and HTTP Range on asset content. Commit 1baf2a77 implements all of this with genuine code (real image decode/downscale, real SQL tier/collection tables, real Range 206/416 handling, real requeue job) and proves it with 6 real-PG/real-HTTP backend tests + offline GUI proof. The video poster is an honest `failed` tier (no decoder bundled, routed to the retry queue) — a documented deviation, not a fake.",
+      "findings": [
+        "Real preview-pyramid job: src/backend/handshake_core/src/workflows.rs run_loom_preview_generate_job actually decodes the original via image::load_from_memory, builds a 256px thumb and a <=1024px preview (real PNG re-encode), creates derived assets, writes blobs atomically, and upserts thumb/preview/full media_asset_tiers rows; the LoomPreviewGenerated receipt carries a per-tier array (thumb/preview/full) instead of a single hardcoded slot.",
+        "Durable state is real PostgreSQL: src/backend/handshake_core/src/storage/postgres.rs implements upsert_media_tier/set_media_tier_status/list_media_tiers/list_failed_media_tiers/delete_media_tiers + loom_collections via real sqlx INSERT/UPDATE/DELETE against media_asset_tiers and loom_collection_members; migration 0332_media_asset_tiers.sql creates both tables with proper FKs (ON DELETE CASCADE from original to derived; SET NULL on derived blob) and the originals-are-authority guarantee.",
+        "HTTP Range (GAP-LM-009b): src/backend/handshake_core/src/api/loom.rs get_asset_content returns 200+Accept-Ranges with no Range, 206+Content-Range for bytes=100-199 and suffix bytes=-10, and 416+Content-Range '*' for unsatisfiable; tier=thumb serves the smaller derived blob. Proven byte-exact in tests/loom_media_tiers_tests.rs mt259_range_endpoint_and_tier_serving_over_http over a real loopback axum server.",
+        "Retry path real and never silent: set_media_tier_status bumps attempt_count via SQL CASE on failed->pending; api/loom.rs retry_asset_tier flips the tier to pending and requeues a real LoomPreviewGenerate job through create_job + start_workflow_for_job. Proven over HTTP in mt259_http_retry_endpoint_requeues_failed_tier (status=pending, attempt_count=1, requeued=true).",
+        "Negative proof present: mt259_tier_rows_persist_and_delete_tiers_never_touches_original reads the original blob before/after delete_media_tiers and asserts byte-identical, and confirms the original asset row survives.",
+        "Real-PG job-exec proof: mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers drives the production protocol (capability profile -> create_job -> start_workflow_for_job) against live PG, asserts thumb+preview+full ready rows (full points at original, thumb/preview at derived assets) and the captured LoomPreviewGenerated receipt's tiers array.",
+        "GAP-LM-244a real backend collection: create_loom_collection/set_loom_collection_order/get_loom_collection enumerate ordered members with dense re-densified positions; frontend embed_assets.resolveEmbedSequence now routes collection:<id> to the backend collection instead of comma-splitting refValue (app/src/lib/editor/embed_assets.ts).",
+        "No deferred-live escapes: grep of the full diff for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/LiveClientUnavailable returns nothing on any live path. The only documented deviation is the honest video-poster 'failed' tier (no decoder bundled), which is routed to the visible retry queue, NOT a synthetic poster; full video still serves byte-exact via Range. This is legitimate, not placeholder/vibecoded.",
+        "Native-runtime clean: no SQLite, no external search/graph/RAG, no CDN, no Docker; durable authority is PostgreSQL + EventLedger receipt. Forbidden-path constraints satisfied. Offline Playwright spec (mt259-media-tiers-offline.spec.ts) intercepts all network via page.route to prove the GUI renders tier=thumb per member and upgrades to full on click with zero external requests.",
+        "Paperwork aside (non-blocking): packet cites v02.192 spec anchors while current is v02.194 and constraints mention bundle v02.193; per review ground rules this stale pointer is expected and not a failing reason. Spec module 10 (product-surfaces) covers asset thumbnail/preview/range surfaces consistent with the MT."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-259.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 1baf2a77 (full diff, --stat)",
+        "src/backend/handshake_core/migrations/0332_media_asset_tiers.sql",
+        "src/backend/handshake_core/tests/loom_media_tiers_tests.rs (all 6 tests)",
+        "src/backend/handshake_core/src/workflows.rs run_loom_preview_generate_job diff",
+        "src/backend/handshake_core/src/storage/postgres.rs (tier+collection SQL)",
+        "src/backend/handshake_core/src/storage/mod.rs (Database trait additions)",
+        "src/backend/handshake_core/src/api/loom.rs (Range + retry handlers)",
+        "app/src/components/HsLinkView.tsx + app/src/lib/editor/embed_assets.ts diffs",
+        "tests/visual/mt259-media-tiers-offline.spec.ts",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

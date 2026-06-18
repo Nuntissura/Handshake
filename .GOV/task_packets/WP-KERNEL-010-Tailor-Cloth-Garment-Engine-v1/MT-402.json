@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-402",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-402.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-402.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-402.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-402.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-401"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement image-input garment authoring path in TailorModelAdapter: accepts an image artifact_id (reference photo or sketch) alongside an optional text brief, passes both to a vision-capable LlmClient call, and produces a GarmentSpec from the visual decomposition",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/model_adapter.rs",
+      "src/backend/handshake_core/src/tailor/mcp_tools.rs",
+      "src/backend/handshake_core/src/tailor/storage_glue.rs",
+      "src/backend/handshake_core/src/tailor/fast_validate.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "AuthorGarmentInput struct gains an optional reference_image_artifact_id: Option<String> field alongside the existing spec field",
+      "When reference_image_artifact_id is non-null and spec is None, TailorModelAdapter constructs a CompletionRequest with the image bytes inline and prompts the VLM to output a GarmentSpec JSON or GarmentCodeRC compact payload",
+      "The image path passes through the identical sandbox -> fast-validation -> author_garment -> TailorGarmentDraftProposed lifecycle as the text path",
+      "When both spec and reference_image_artifact_id are provided, the image is used as a reference for NGL planning only; the explicit spec takes priority for panel vertices",
+      "The vision-capable path is guarded by a feature flag (vision-authoring) and gracefully returns a typed error (InvalidSpec with message 'vision-authoring feature not enabled') when disabled",
+      "ModelManual entry for author_garment is updated to describe the optional image input parameter and its precedence rules"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core tailor::model_adapter::image_input_path -- --nocapture (image-only input produces a draft garment via mocked VLM response)",
+      "cargo test -p handshake_core tailor::model_adapter::image_feature_flag_off (returns typed error when vision-authoring feature disabled)",
+      "cargo test -p handshake_core tailor::mcp_tools::author_garment_schema_includes_image_field (schemars JsonSchema for AuthorGarmentInput includes reference_image_artifact_id)"
+    ],
+    "risk_if_missed": "The image-to-pattern authoring path (Design2GarmentCode, Dress-1-to-3 capture mode) is absent. Operators cannot hand Tailor a reference garment photo or sketch and get a GarmentSpec back. All authoring requires the operator or model to manually describe panel vertices in JSON, which blocks the most commercially valuable workflow: 'match this garment from a photo.'"
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

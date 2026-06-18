@@ -1,0 +1,382 @@
+{
+  "schema": "tailor.parity_review@1",
+  "reviewed_against": "Marvelous Designer (.GOV/reference/cloth_engine_research/02-md-feature-map.md, 11 feature groups)",
+  "reviewed_via": "/workflows tailor-md-parity-review (11 reviewers)",
+  "original_mts": 332,
+  "parity_mts_added": 116,
+  "total_mts": 448,
+  "parity_range": "MT-333..MT-448",
+  "per_area": [
+    {
+      "area": "2D Pattern Authoring (shape tools, sketch-to-pattern, manipulation: trace/offset/flatten/internal-line/dart/pleat/fold)",
+      "md_features": 20,
+      "covered": 5,
+      "partial": 7,
+      "gap": 8,
+      "proposed": 12
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew tools, free/segment sew, seam management, topstitch)",
+      "md_features": 19,
+      "covered": 7,
+      "partial": 5,
+      "gap": 7,
+      "proposed": 10
+    },
+    {
+      "area": "Fabric & Material Physical Properties (stretch/shear, bending, dynamics, collision props, keyframeable sim-time props, preset library)",
+      "md_features": 19,
+      "covered": 11,
+      "partial": 7,
+      "gap": 1,
+      "proposed": 7
+    },
+    {
+      "area": "Simulation Engine (solver params, acceleration/GPU, self-collision, scene dynamics, pin/freeze/particle-distance)",
+      "md_features": 13,
+      "covered": 5,
+      "partial": 5,
+      "gap": 3,
+      "proposed": 7
+    },
+    {
+      "area": "Avatar System & Body Fitting (default avatars, custom import, X-ray joints/skin-offset, fitting suit/tools, AI body tools)",
+      "md_features": 20,
+      "covered": 6,
+      "partial": 7,
+      "gap": 7,
+      "proposed": 15
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/record, BVH/motion, wind, recording)",
+      "md_features": 15,
+      "covered": 5,
+      "partial": 6,
+      "gap": 4,
+      "proposed": 10
+    },
+    {
+      "area": "Trims, Accessories & Hardware (button/buttonhole, zipper, elastic, binding/tape, topstitch, rigid trims)",
+      "md_features": 13,
+      "covered": 3,
+      "partial": 2,
+      "gap": 8,
+      "proposed": 10
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV editor/arrange, material/PBR, all-quad re-mesh, render/snapshot/lighting/turntable)",
+      "md_features": 20,
+      "covered": 11,
+      "partial": 5,
+      "gap": 4,
+      "proposed": 15
+    },
+    {
+      "area": "Garment Library & Asset Management (garment/fabric/avatar libraries, modular, presets, organization)",
+      "md_features": 8,
+      "covered": 1,
+      "partial": 4,
+      "gap": 3,
+      "proposed": 7
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (OBJ/FBX/glTF/Alembic/USD/DXF, MetaHuman, real-time engines UE/Unity)",
+      "md_features": 20,
+      "covered": 4,
+      "partial": 6,
+      "gap": 10,
+      "proposed": 14
+    },
+    {
+      "area": "AI / Model-Steerability (in-product AI, model-first authoring, the Handshake parallel-swarm moat) — MD Feature Map Group 11",
+      "md_features": 13,
+      "covered": 6,
+      "partial": 4,
+      "gap": 5,
+      "proposed": 9
+    }
+  ],
+  "reshuffle_notes": [
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-116 (EdgeShape enum) and MT-117 (Panel type) should precede MT-115 (GarmentSpec canonical type) in the GarmentAuthoring build order because the EdgeShape and Panel types are component types of GarmentSpec; currently MT-115 is listed before MT-116/117 which creates a forward-reference."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-122 (dart handling) and MT-123 (pleat handling) depend on the proposed InternalLine authoring MT (Create Internal Polygon/Line gap); in the current index they appear before the InternalLine substrate exists. The new InternalLine MT should be placed immediately after MT-116/MT-117 and before MT-122/MT-123."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-132 (internal guide lines for topstitch/foldlines into UV) currently sits in the GarmentAuthoring group without a preceding MT that defines InternalLine as a named, typed record. The new InternalLine MT and the Fold Seam Line MT should precede MT-132 to establish the type before MT-132 references it."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-125 (panel symmetry/mirror) depends on the proposed transform_panel MT (Transform Pattern gap) since mirroring is an affine reflection. The transform MT should be placed before MT-125."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-127 (GarmentSpec -> tessellation) depends on primitive shape constructors existing so that the GarmentSpec to be tessellated has well-formed panels. The proposed primitive panel shape MT should be placed before MT-127."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "MT-130 (parametric sizing from avatar measurements) and MT-301 (re-grade panels) both depend on scale_panel being available; the proposed transform MT (which includes scale_panel) should be grouped with or before MT-130 to avoid a phantom dependency."
+    },
+    {
+      "area": "2D Pattern Authoring (shape tools,",
+      "note": "The bidirectional 2D<->3D arc-length feedback proposed MT logically belongs immediately after MT-074 (SimulationReceipt) since it extends the SolverResult and SimulationReceipt with arc-length data — currently MT-074 does not mention per-edge arc-lengths."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "MT-018 (seam/gather constraint) and MT-118 (Seam type definition) are logically coupled but sit in different groups (SolverCore vs GarmentAuthoring). Consider co-locating them in the same sprint since the SeamSpec data shape determines the GPU buffer layout — authors who work MT-118 must immediately unblock MT-018."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "MT-019 (tack constraint for cloth-particle pinning) and MT-168 (cloth-rigid tack coupling) implement the same underlying mechanism from two sides. MT-019 should be ordered to precede MT-168; currently MT-019 appears in the SolverCore group while MT-168 appears in TrimRigid — consider a cross-reference note so the tack WGSL shader (MT-019 product) is shared rather than duplicated."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "MT-132 (internal guide lines / topstitch into UV) and MT-226 (render topstitch into texture) should be grouped as a two-MT block and ordered before the proposed topstitch-as-3D-geometry MT (GarmentAuthoring) so the texture path is proven before the geometry path extends it."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "MT-121 (sewing resolution / pulling seam edges together) depends on the SeamConstraintRecord shape from MT-118 and the GpuSeamConstraint from MT-026. These three MTs form a strict dependency chain (MT-118 -> MT-026 -> MT-121 -> MT-031) and should be scheduled in that order within SolverCore and GarmentAuthoring groups."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "MT-134 (SEAM_LENGTH_MATCH ValidationDescriptor) is the acceptance gate for all sewing MTs. It should be placed immediately after MT-121 in scheduling so every new sewing feature has a runnable proof target from day one rather than being wired in late."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "The proposed edit_seam / reverse_seam / delete_seam MTs (ModelFirstApi) should be grouped together and scheduled after MT-118, MT-018, and MT-059 (PromotionGate) are complete, since they mutate draft authority rows and require the EventLedger CRDT path to be stable."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "The proposed auto_sew MT (GarmentAuthoring) logically follows MT-119 (2D-pattern -> 3D initial arrangement) and MT-121 (sewing resolution) and should be ordered after both, since it depends on placed panel 3D positions and the sewing pull mechanism to verify proposal quality."
+    },
+    {
+      "area": "Sewing & Seam System (2D/3D sew to",
+      "note": "The proposed 3D Sewing tool MT (GarmentAuthoring) should be ordered after MT-248 (stable element ids for front-end Tailor controls) and MT-245 (visual-debug overlays) so the 3D edge selection surface and its visual feedback layer are available before the sewing interaction is wired."
+    },
+    {
+      "area": "Fabric & Material Physical Propert",
+      "note": "MT-191 (ClothMaterialCompliance), MT-192 (FabricProperties LLM surface), MT-193 (log mapping), MT-194 (rest-geometry normalization), MT-195 (ClothMaterialPhysics), MT-196 (MaterialParamsGpu), MT-197 (grain tagging), MT-198 (FabricPreset resolve), MT-199 (seed 9 presets), MT-200-205 (calibrate stretch/shear/bend/density/friction/damping) form a linear dependency chain that mirrors MD's authoring flow: type definition -> GPU layout -> mapping -> normalization -> grain -> preset resolution -> seeding -> calibration. Consider grouping MT-191 through MT-205 as a contiguous Fabric sub-block so the build order matches the MD property hierarchy (compliance -> physics -> GPU -> LLM surface -> grain -> presets -> calibration)."
+    },
+    {
+      "area": "Fabric & Material Physical Propert",
+      "note": "MT-206 (air-drag) is currently ordered after MT-205 (calibrate damping) in the Fabric group but depends on MaterialParamsGpu (MT-196) having the air_drag field — since the proposed air-drag MT adds air_drag to FabricProperties and MaterialParamsGpu, MT-206 MUST be re-sequenced to execute after the proposed air-drag gap MT and after MT-196, not independently."
+    },
+    {
+      "area": "Fabric & Material Physical Propert",
+      "note": "MT-207 (wetness/weight modifier) references a cling-and-hang-heavier behavior that is conceptually adjacent to Solidify (MT-209) and air-drag. MT-207 should be reordered to follow MT-209 (MaterialKeyframe) since wetness is a dynamic material-state change analogous to a Solidify override, and the implementation likely reuses the per-frame MaterialFrameParams upload path established by MT-209."
+    },
+    {
+      "area": "Fabric & Material Physical Propert",
+      "note": "MT-209 (MaterialKeyframe) is currently a standalone Fabric group MT but its full utility depends on MT-287 (wire material keyframes into the Animation timeline). MT-209 should be marked as a prerequisite of MT-287 and of the proposed Trim-Weight keyframe MT and Tack-Strength keyframe MT to make the dependency chain explicit in the build order."
+    },
+    {
+      "area": "Fabric & Material Physical Propert",
+      "note": "MT-262 (assign_material MCP tool) is currently in the ModelFirstApi group but its correctness depends on the tailor_material_assignments table migration proposed in the per-panel override gap MT. MT-262 MUST be re-sequenced to execute after the proposed migration MT, or the proposed migration MT must be merged into MT-262's scope with explicit table-creation acceptance criteria added."
+    },
+    {
+      "area": "Simulation Engine (solver params, ",
+      "note": "MT-093 (self-collision broadphase), MT-094 (curvature culling), MT-095 (self-collision response) should be ordered immediately after MT-034 (8-pass dispatch) and before MT-096 (multi-layer ordering) in execution order, mirroring the MD workflow where self-collision is enabled as a scene-level toggle before multi-layer stacking is configured; currently MT-093-MT-095 are grouped with MT-096-MT-100 correctly but the gap MT for Precise Self-Collision should be inserted between MT-095 and MT-096 so the simple -> precise self-collision progression is unbroken."
+    },
+    {
+      "area": "Simulation Engine (solver params, ",
+      "note": "MT-285 (keyframeable wind field) is currently in the Animation group but the positioned wind actor (the gap MT proposed above) touches SolverCore physics (GpuSimParams.wind upload per substep) and the WGSL integrate shader. The MT for positioned wind should be ordered after MT-285 in the Animation group but co-listed in SolverCore as a cross-cutting dependency note, mirroring the MD workflow where wind is a scene-dynamics property set up before animation keyframing."
+    },
+    {
+      "area": "Simulation Engine (solver params, ",
+      "note": "MT-128 (per-panel mesh resolution control) precedes MT-127 (GarmentSpec -> tessellation) in the MT index, which is the wrong execution order; MT-127 defines the tessellation pipeline that MT-128 parameterizes. MT-127 should be ordered before MT-128. The gap MT for Particle Distance in SimRunParams should be inserted immediately after MT-128 to form the complete resolution-control chain: MT-127 (tessellate) -> MT-128 (per-panel coarse/fine) -> [new Particle Distance MT] (sim-level resolution param)."
+    },
+    {
+      "area": "Simulation Engine (solver params, ",
+      "note": "MT-006 (SimRunParams definition) should gain a reshuffle note cross-referencing the new Particle Distance MT, since `particle_distance_mm` should become a field of `SimRunParams` or a parallel tessellation-config struct passed alongside it; the current MT-006 definition does not include this field and will need a targeted amendment rather than a replacement."
+    },
+    {
+      "area": "Simulation Engine (solver params, ",
+      "note": "MT-167 through MT-169 (RigidProxy, tack coupling, parry3d interleave) are correctly grouped in TrimRigid but MT-169 explicitly specifies CPU-only parry3d; the GPU Trim MT proposed above should be ordered immediately after MT-169 so the CPU-first -> GPU-accelerated progression mirrors the MD 2024.x -> 2026.0 feature timeline, and MT-169 should note that its CPU parry3d path is the fallback, not the primary path."
+    },
+    {
+      "area": "Avatar System & Body Fitting (defa",
+      "note": "MT-047 (tailor_avatars migration) and MT-048 (tailor_body_proxies migration) are currently placed in the KernelIntegration group run. They should be pulled forward to be the first two MTs in the AutoFit group, since all avatar-import, blend-shape, and refit MTs depend on these tables. In the MD workflow, avatar setup precedes garment authoring; the current placement buries the schema dependency behind 40+ solver and collision MTs."
+    },
+    {
+      "area": "Avatar System & Body Fitting (defa",
+      "note": "MT-081 through MT-092 (body proxy types and collision geometry) are currently placed in the Collision group, which is correct for collision-response purposes. However, MT-081, MT-082, and MT-083 (ClothBodyProxy, CollisionCapsule, CollisionSphere type definitions) also serve as the foundational types for avatar import and refit. They should be cross-referenced from the AutoFit group so AutoFit MTs can cite them as prerequisites rather than re-defining equivalent types."
+    },
+    {
+      "area": "Avatar System & Body Fitting (defa",
+      "note": "MT-109 (Bind ClothBodyProxy from tailor_avatars + tailor_body_proxies into a sim run) and MT-110 (Emit TailorBodyProxyCreated/Updated + TailorAvatarCreated/MeasurementsExtracted events) should move from the Collision group to the AutoFit group or be shared between both, since they are the bridge between the avatar authority tables and the solver — which is the core AutoFit integration point, not a collision-specific concern."
+    },
+    {
+      "area": "Avatar System & Body Fitting (defa",
+      "note": "MT-299 through MT-316 (AutoFit group) implement refit pipeline steps in roughly the correct MD workflow order (correspondence -> scale -> drape -> UV preserve -> trim re-place -> tension -> ease -> size-run -> morph interp -> score -> cache -> migration -> orchestration -> batch -> determinism -> validation -> test). However, MT-307 (standard size-run generation) and MT-313 (batch refit as parallel jobs) are post-fit scaling operations and should come after MT-315 (FIT_VALID validation) and MT-316 (integration test) rather than before, to avoid building batch infrastructure before the single-garment validation gate is proven. Recommended order: ...MT-305, MT-306, MT-308, MT-309, MT-310, MT-311, MT-312, MT-314, MT-315, MT-316, then MT-307, MT-313 as a sizing/batch extension pass."
+    },
+    {
+      "area": "Avatar System & Body Fitting (defa",
+      "note": "MT-270 (measurement estimation tool: avatar description -> AVT- measurements) is placed in the ModelFirstApi group. In the MD workflow, measurement estimation is an avatar-setup step that precedes garment authoring and refit. It should be grouped with or immediately before the AutoFit avatar-import MTs, not at the end of the model-API group."
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/r",
+      "note": "MT-283 (avatar pose animation driving body proxy) should precede MT-284 (BVH/glTF import) in the Animation group execution order because BVH import populates the pose track that MT-283 then drives; currently MT-283 appears before MT-284 which is correct, but both should be grouped before MT-285 (wind) and MT-287 (material keyframes) to mirror the MD workflow of: body motion first -> environment forces second -> fabric property animation third."
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/r",
+      "note": "MT-288 (closure animation from Trim MT-186) should be ordered after the proposed tack-animation MT (tack strength keyframing) because MD's animation timeline wires trim closure (zipper slider t) after general tack constraint state is established; currently MT-288 precedes the tack-animation work which is not possible until tack targets are named."
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/r",
+      "note": "MT-289 (sim-over-timeline) and MT-290 (per-frame mesh caching) should be placed after the proposed trim-in-animation MT rather than before, since per-frame caching must include rigid trim world positions to be complete; the current ordering implies caching can be implemented before trim participation in the timeline loop is confirmed."
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/r",
+      "note": "MT-291 (adaptive sub-frame substepping at high body velocity) should be immediately adjacent to MT-289 in the MT sequence since it is a modifier of the sim-over-timeline pass; it currently follows MT-290 which places a caching concern between two solver concerns."
+    },
+    {
+      "area": "Animation & Dynamics (pose, walk/r",
+      "note": "MT-296 (animation export to OBJ-sequence/Alembic) should be ordered after the proposed animation-range-export MT and the proposed FBX-autokey MT so the export surface is complete before the export wiring is done; exporting the 'full cached range' before a range-selection mechanism exists creates a surface that will need revision."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-169 (parry3d rigid step, CPU-only) should be renamed or annotated to clarify it covers CPU broadphase initialization and body-state accumulation only — not the GPU tack/contact passes. The proposed tack.wgsl + trim_contact.wgsl MT should be sequenced immediately after MT-169 in the build order so CPU rigid state feeds GPU dispatch correctly."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-107 (WGSL collision compute pass for cloth-body) and the proposed tack.wgsl/trim_contact.wgsl MT should be explicitly ordered: cloth-body collision (MT-107) first, then tack pass, then trim_contact pass — matching the TR-3.1 substep order. Current MT-034 names this sequence but no MT authors the tack or trim_contact shaders."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-188 (migration for tailor_trims) should be split or succeeded by two MTs: one for the table schema and one for seeding the default library items (the proposed trim-library-seed MT), mirroring the pattern of MT-044 (schema) + MT-199 (seed) in the fabric preset group."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-182 (rigid-trim placement on a panel) and MT-263 (place_trim MCP tool) are currently in different groups (TrimRigid vs ModelFirstApi). A reshuffle note should be added: the kernel-side Glue/Tack authoring handler proposed above belongs in TrimRigid, while MT-263 stays in ModelFirstApi as the API surface over it — the MT ordering should reflect that TrimRigid handler is built before the ModelFirstApi MCP wrapper."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-132 (internal guide lines carried into UV/texture) and the proposed topstitch-mesh MT should be sequenced so MT-132 defines the guide-line data model first; the topstitch-mesh MT reads that data and generates geometry. If MT-132 is moved into the GarmentAuthoring group (its current home), the topstitch-mesh MT in TrimRigid should carry an explicit dependency annotation on MT-132."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "MT-168 (cloth-rigid tack coupling) covers the physics constraint but depends on GpuTackConstraint being correctly populated by the Glue/Tack placement handler. The proposed Glue/Tack placement handler MT should be ordered before MT-168 in the build sequence to prevent MT-168 from being integration-tested against an incomplete tack authority source."
+    },
+    {
+      "area": "Trims, Accessories & Hardware (but",
+      "note": "The proposed ElasticInsert/BindingTape MT requires an extension to the tailor_trims CHECK domain for trim_category. This migration change should be sequenced immediately after MT-188 and before the trim-import MT so all trim_category values are final before import tooling hardcodes them."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-220 summary references 'tailor_uv_sets' which does not match the canonical table name 'tailor_uv_islands' defined in Section 13.9 and T-CONTRACTS. MT-220 should be retitled to 'Author migrations for tailor_uv_islands, tailor_pbr_materials, tailor_graphic_layers, and tailor_material_assignments texture authority tables per Section 13.9 schema' to match canonical naming."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-213 through MT-234 (UvTexture group) should precede MT-219 (PBR material slot set) in execution order within the group, because UV island authority (MT-213-218) must exist before material assignment references it. Recommended intra-group order: MT-213, MT-214, MT-216, MT-217, MT-215, MT-218 (UV foundation), then MT-219, MT-220 (migrations), then MT-221-228 (texture generation), then MT-229-231 (export/API), then MT-232-234 (capture/test). Current numbering already reflects this but the group label [undefined] on all 332 MTs hides the grouping from tooling — MT-213 through MT-234 should be labelled [UvTexture]."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-235 through MT-256 (RenderViewportExport group) follow UvTexture in the current numbering, which is correct: UV islands must be packed before the viewport can render them correctly with the atlas transform (Section 13.9 §3.2 vertex shader). No reorder needed within this block but the group label [undefined] should be resolved to [RenderViewportExport]."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-286 (camera animation track for turntable/beauty shots) lives in the Animation group (MT-279-298). It should be cross-referenced from the proposed turntable capture MT in RenderViewportExport because the turntable capture sequence consumes CameraUniform keyframes from MT-286. The dependency edge MT-286 -> proposed turntable MT should be made explicit in both MTs' allowed_paths and acceptance_criteria."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-226 (render topstitch/foldlines into texture) and MT-132 (implement internal guide lines carried into UV/texture) are in GarmentAuthoring and UvTexture groups respectively. The two proposed topstitch MTs (polygon optimization, smooth corner) depend on both and should be positioned after MT-226 in the UvTexture group, not after MT-132 in GarmentAuthoring. Current ordering is correct but the dependency chain should be documented."
+    },
+    {
+      "area": "UV, Texturing & Rendering (UV edit",
+      "note": "MT-233 (UV_VALID ValidationDescriptor) covers only the existing UV validity checks. The side-and-back UV expansion partial gap proposed above adds a UV_COVERAGE check that MT-153 (the UV_VALID hook in ValidationHBR) cross-references. MT-153 and MT-233 should be re-examined together once the UV_COVERAGE descriptor is added to the catalog so both MTs reference the same descriptor set."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-078 (wardrobe membership) should precede the proposed GarmentLibraryEntry MT because the wardrobe table is the flat-container prerequisite that the library hierarchy builds on top of; MT-078 belongs at the start of the GarmentAuthoring asset-management cluster."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-137 (starter garment templates) should follow the proposed GarmentLibraryEntry MT so templates are seeded into a categorized library, not into a flat list; currently MT-137 has no library home to land in."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-210 (preset CRUD API) should precede the proposed LibraryBrowserPanel MT because the Fabrics tab in the library browser depends on the preset list endpoint being available."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-317 (production export package) and the proposed ExportPreset MT should be adjacent in the ProductionBridge group and scheduled so ExportPreset comes first — the export package job (MT-318) should be able to reference a named preset rather than require inline config."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-247 (backend navigation routes) and MT-240 (viewport panel) should both precede the proposed SceneObjectBrowser MT as the backend tree endpoint builds on the same typed-JSON navigation infrastructure they establish."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-077 (garment versioning chain) should precede the proposed PanelSnapshot MT in the GarmentAuthoring execution order because the EventLedger pattern for versioning snapshots at the garment level is the direct precedent for the per-panel snapshot design."
+    },
+    {
+      "area": "Garment Library & Asset Management",
+      "note": "MT-073 (GarmentSpec authority record) and MT-129 (GarmentCode import/export) should both precede the proposed HGZ archive MT since the archive serialises the GarmentSpec and reuses the forward-migration logic from MT-139."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "MT-249 (glTF export) and MT-250 (USD export) currently sit in the RenderViewportExport group but belong in ProductionBridge ordering before MT-253 (Blender bridge) and MT-254 (UE bridge) because MD's pipeline is: sim -> static export formats -> engine bridges. The current MT ordering (249, 250, 251, 252, 253, 254) is correct in sequence but the group label on 249 and 250 should be ProductionBridge, not RenderViewportExport, since they are the handoff artifacts not the in-product render."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "MT-284 (skeletal pose import BVH/glTF) is in the Animation group but it is also the foundation for glTF avatar static mesh import (proposed gap MT above). The two tasks share the gltf crate and the tailor_avatars table and should be executed consecutively so the single crate dependency is introduced once."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "MT-252 (Alembic point-cache export) should be sequenced AFTER the new Alembic import shim MT (proposed above) because the import shim establishes the GarmentFrame ingest contract that the export reverses. Currently MT-252 appears before any ingest path, which means the export schema may be designed without knowing the ingest contract."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "The proposed DXF export MT should be sequenced after MT-131 (notches/alignment marks) because DXF output must carry notches, and MT-131 is the authority for notch geometry. Executing DXF export before MT-131 risks a schema mismatch when notches are later added."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "The MetaHuman DNA import MT and the MetaHuman export/auto-resize MT should be adjacent and sequenced after MT-266 (refit_garment MCP tool) and MT-307 (size-run generation), as those are the underlying mechanisms the MetaHuman export relies on. Currently there is no placeholder in the MT sequence for either MetaHuman MT."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "MT-317 through MT-332 (ProductionBridge group) are ordered as: define package -> schedule job -> emit events -> manifest -> headless -> ownership -> Blender script -> UE import -> render handoff -> versioning -> retry -> progress -> batch -> validation -> manual -> test. The LiveSync/EveryWear stub MT (proposed above) should be inserted between MT-324 (UE import) and MT-325 (render-pipeline handoff) because the UE sync relationship is: UE import bridge (MT-324) -> auto-sync on promotion (proposed) -> render handoff (MT-325)."
+    },
+    {
+      "area": "Import/Export & Pipeline Interop (",
+      "note": "The FBX key-bake MT (R-ANIM-039, proposed as a gap above) is currently deferred in the spec as post-MVP. It should be placed in the Animation group after MT-296 (wire animation export to OBJ-sequence/Alembic) and before MT-297 (ANIMATION_STABLE validation) so the validation check can assert that baked-key FBX exports also pass the stability gate."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "MT-259 is named 'edit_panel MCP tool (CRDT-safe panel edits by garment+panel id)' but spec §13.13.4 defines the canonical tool as 'edit_garment' accepting a full JSON Merge Patch (RFC 7396) against the entire GarmentSpec. MT-259 should be renamed/expanded to 'edit_garment MCP tool' and its scope broadened to cover full-spec merge-patch edits, not just per-panel-id CRDT edits. The current narrower name implies a more limited surface than the spec requires."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "MT-260 is named 'run_simulation MCP tool' but spec §13.13.4 defines the canonical tool name as 'simulate_garment'. The MT should be renamed to 'Implement the simulate_garment MCP tool' to match the canonical wire name. Tool names in the MCP gate are load-bearing identifiers used by model prompts and ModelManual entries; a mismatch here will produce tool-not-found failures in model calls."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "MT-261 is named 'fetch_simulation_receipt MCP tool' but spec §13.13.4 does not define this as a separate tool. Receipt delivery is the return value of simulate_garment and promote_garment, not a standalone fetch call. However, get_garment (which IS defined in spec §13.13.4) is missing from the MT index entirely. MT-261 should be retitled 'Implement the get_garment MCP tool (read current GarmentSpec and latest SimulationReceipt for a draft or authority garment)' to match the spec's canonical tool set, and SimulationReceipt fetch should be documented as a field on the simulate_garment return value."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "MT-269 is named 'fabric estimation tool (natural-language fabric description -> nearest MAT- preset + normalized props)'. The spec §13.13.10 defines a second, distinct fabric estimation path via DiffXPBD gradient descent from a target drape image. MT-269 should be split: keep MT-269 as the NL->preset lookup path, and the new DiffXPBD path proposed in this manifest's gap for Dress-1-to-3 is the second path. The existing MT-269 summary should be annotated to clarify it is the NL path only to avoid implementers conflating the two."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "The proposed generate_avatar_pose MT (AI Pose Generator gap) should be sequenced immediately after MT-270 (measurement estimation) in the ModelFirstApi group, since pose generation depends on a valid avatar binding and the AVT- measurements in tailor_avatars. The natural order in the MD workflow is: avatar created -> measurements extracted -> pose generated -> garment authored -> simulated."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "The proposed generate_fabric_texture MT (AI Image Generator gap) belongs in the UvTexture group (target_group=UvTexture) and should be sequenced after MT-231 (model-first texture API) and before MT-232 (UV/texture preview render hook), since generate_fabric_texture produces a texture artifact that MT-231's API assigns to a panel and MT-232 previews."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "MT-126 ('parametric, LLM-emittable garment definition') and MT-129 ('GarmentCode-style import/export interop') should be annotated as prerequisites for the proposed ChatGarment Tier-1 decoder MT. The decoder factory depends on MT-126's parametric garment definition type and MT-129's GarmentCode JSON round-trip. In a sequenced build these three MTs should appear in order: MT-126, MT-129, then the Tier-1 decoder MT."
+    },
+    {
+      "area": "AI / Model-Steerability (in-produc",
+      "note": "The proposed GarmentParticleView MT (Garment Particles gap) depends on the ARAP flatten pass from the UvTexture group (MT-213) for the back-projection step. It should be sequenced after MT-213 is complete. Its target_group is GarmentAuthoring but the proof_targets depend on the UvTexture group being stable, which means it cannot be built in parallel with MT-213."
+    }
+  ],
+  "reconciliation_note": "Parity MTs (MT-333..448) were authored as gap-closing additions clustered by target_group, continuing the linear depends_on chain (nominal). The refinement MUST fold these into the clause-closure matrix and APPLY the reshuffle_notes (reorder by true build dependency / MD workflow order) when generating the final MT order via create-task-packet.mjs."
+}

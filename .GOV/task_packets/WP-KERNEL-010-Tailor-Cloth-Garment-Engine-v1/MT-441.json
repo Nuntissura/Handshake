@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-441",
+  "created_at_utc": "2026-06-17T18:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-441.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-441.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-441.md",
+    "status": "GENERATED_PENDING",
+    "source_file": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-441.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-440"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Extend the USD garment export (MT-250) to embed Chaos Cloth simulation-property attributes on the UsdGeomMesh so Unreal Engine 5 Chaos Cloth can re-simulate the garment using Tailor's fabric parameters without manual re-setup",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/export/usd_export.rs",
+      "tailor-solver/src/material.rs",
+      "src/backend/handshake_core/src/tailor/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "USD export with flag chaos_cloth=true writes UE-namespaced custom attributes on the exported UsdGeomMesh: unreal:clothConfig_MaxDistances, unreal:clothConfig_CollisionThickness, unreal:clothConfig_Friction derived from the garment's FabricProperties",
+      "Shrinkage values (weft/warp) from MaterialKeyframe tracks are baked as time-sample attributes on the USD stage so Chaos Cloth can read them per-frame",
+      "The export recipe documents the expected Unreal Engine import workflow (enable Chaos Cloth simulation on the imported USD skeletal mesh) and lists the attribute mapping table",
+      "The usd-export feature flag remains required; builds without it still produce OBJ fallback",
+      "A validation check CHAOS_CLOTH_ATTRS_PRESENT (Advisory) warns if the USD export is requested with chaos_cloth=true but shrinkage/collision data is absent from the garment spec"
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --features usd-export tailor::export::tests::usd_chaos_cloth_attributes_present",
+      "cargo test -p handshake_core --features usd-export tailor::export::tests::usd_chaos_cloth_shrinkage_timesamples"
+    ],
+    "risk_if_missed": "Without Chaos Cloth property export, garments exported to Unreal Engine lose all physical-property context. Artists must manually re-configure cloth simulation in UE, negating the value of Tailor's anisotropic fabric model and keyframeable properties for real-time production pipelines."
+  },
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

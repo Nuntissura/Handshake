@@ -1,0 +1,223 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-169",
+  "title": "TiptapMonacoIntegration-169-EditorToolbarAndMenus",
+  "group": "TiptapMonacoIntegration",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-169.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Build feature-complete controls for formatting, links, embeds, code, media, graph/backlinks, and UserManual insertion. This MT belongs to TiptapMonacoIntegration. Integrate Tiptap and Monaco as the full-featured Handshake editor surface.",
+    "relevant_files": [
+      "app/package.json",
+      "app/src/components/TiptapEditor.tsx",
+      "app/src/components/DocumentView.tsx",
+      "app/src/components/",
+      "app/src/lib/api.ts",
+      "app/src-tauri/src/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Tiptap/ProseMirror is the canonical rich document engine for this WP; Monaco is the canonical code-block/code editing surface embedded inside Handshake.",
+      "Tiptap and Monaco must be fully integrated into Handshake packaging, UI state, backend save/load, visual debugging, and tests; no separate external editor app may be required."
+    ],
+    "expected_behavior": "EditorToolbarAndMenus leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "EditorToolbarAndMenus is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-005",
+      "CX-503S"
+    ]
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-161"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
+    "implementation_commit": "966bec7d",
+    "evidence": [
+      "Built+verified 966bec7d: editor_commands.test.ts 7/7 (real editor) - toolbar + menus. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T12:40:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M11 canRun never populated + insertContent-over-NodeSelection replacement; L12 insert-only tables; L13 overflow stub; L14 no undo/redo",
+        "fix": "canRun across the catalog; NodeSelection-safe insertSafely (inserts AFTER selected nodes); table structure family (add/delete row/column, toggle header, delete table); REAL overflow menu (role=menu, Insert... toolbar toggle, truthful disabled state); undo/redo commands + toolbar buttons with stack-edge canRun; roving tab stop always on an enabled control",
+        "commit": "2949bc87",
+        "tests": [
+          "editor_commands.test.ts: M11 insert commands on a NodeSelection insert AFTER the node, never replace it",
+          "editor_commands.test.ts: L14 undo/redo truthful canRun + revert/reapply",
+          "editor_commands.test.ts: L12 table structure commands enable inside a table and edit it",
+          "RichTextEditor.test.tsx: opens a REAL overflow menu listing insert + table commands and runs one",
+          "RichTextEditor.test.tsx: disables undo until an edit exists, then undo/redo round-trips from the toolbar"
+        ]
+      }
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:18:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "editor_commands.test.ts 7/7 PASS; RichTextEditor.test.tsx toolbar tests PASS (with 2 uncaught jsdom getClientRects errors escaping command dispatch - the scrollIntoView path throws AFTER assertions, so the toolbar tests prove less than they appear to)",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "canRun exists on the descriptor interface but is never populated; toolbar/palette never disable invalid commands",
+          "evidence": "editor_commands.ts:59 declares canRun; no command in EDITOR_COMMANDS defines it; RichTextEditor.tsx:289-305 disables buttons only via readOnly. Concrete hazard: with a monacoCodeBlock node-selected, \"Insert table\"/\"Insert code block\"/\"Insert link\" run insertContent which REPLACES the selected code block - one toolbar click destroys the block (undoable, but silent).",
+          "fix": "Populate canRun with editor.can() chains per command; bind disabled={readOnly || !cmd.canRun?.(editor)} in toolbar + palette; add a NodeSelection-replacement regression test.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
+        },
+        {
+          "severity": "LOW",
+          "title": "Tables are insert-only: no row/column/delete/toggle-header operations",
+          "evidence": "editor_commands.ts:168-174 has only table.insert; TableKit provides addRowAfter/addColumnAfter/deleteRow/deleteColumn/deleteTable/toggleHeaderRow but none are cataloged - an inserted table cannot be structurally edited from any UI.",
+          "fix": "Add the standard table edit command family to EDITOR_COMMANDS (palette category table), shown contextually via canRun.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
+        },
+        {
+          "severity": "LOW",
+          "title": "Overflow commands are not operator-reachable from the toolbar; hidden div is a stub",
+          "evidence": "RichTextEditor.tsx:408-413 renders overflow commands as hidden empty spans; embed/graph/mention/manual commands are reachable only by knowing to open the palette.",
+          "fix": "Render a real overflow menu (button + popover listing overflowCommands) or fold them into the toolbar with grouping.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
+        },
+        {
+          "severity": "LOW",
+          "title": "No undo/redo commands in catalog or toolbar",
+          "evidence": "EDITOR_COMMANDS has no history commands; keyboard Mod-Z works via StarterKit but there is no discoverable button/palette entry (VS Code-class editors expose both).",
+          "fix": "Add history.undo/history.redo commands with canRun editor.can().undo()/redo().",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
+        }
+      ],
+      "parity_gaps": [
+        "ED-NAV-003 toolbar: PRESENT but PARTIAL (no canRun gating, overflow stub, no undo/redo, tables insert-only)",
+        "Plain URL link mark commands absent (set/unset/open link)"
+      ],
+      "missing_tests": [
+        "toolbar insert command on a NodeSelection does not silently replace the selected block",
+        "disabled state reflects canRun for context-invalid commands",
+        "jsdom suite: polyfill getClientRects or assert command dispatch does not throw (2 uncaught errors currently escape)"
+      ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-169 (EditorToolbarAndMenus) requires a feature-complete editor toolbar + menus over the Tiptap/Monaco surface (formatting, blocks, lists, tables, code, links, embeds, backlinks/graph, mentions/tags, UserManual insertion). The code delivers a real machine-readable command catalog driving a real toolbar, overflow menu, and command palette over a live Tiptap editor, with truthful enable/disable, NodeSelection-safe inserts, full table-structure editing, and undo/redo — all proven against a real editor in tests. It aligns with current Master Spec §7.1.1.8 and contains no placeholders.",
+      "findings": [
+        "editor_commands.ts:103-546 is a real 565-line command catalog covering every required category (history, format, block, list, table, tableEdit, link, code, embed, graph, mention, manual) — substantial real code, not scaffolding.",
+        "Prior adversarial MEDIUM finding (canRun never populated, toolbar could silently REPLACE a node-selected code block) is FIXED: insertSafely (editor_commands.ts:55-61) inserts AFTER a NodeSelection via insertContentAt(selection.to,...); canRun is populated on every command; commandDisabled binds it to the toolbar/palette/overflow (RichTextEditor.tsx:806-807).",
+        "Prior LOW findings FIXED: full table-structure family present (editor_commands.ts:242-337: add/delete row/column, toggle header row/column/cell, merge/split, delete table); real overflow menu role=menu with per-command buttons + truthful disabled state (RichTextEditor.tsx:1411-1443); undo/redo commands with stack-edge canRun (editor_commands.ts:107-124) wired into the toolbar.",
+        "mention.at/mention.tag now create REAL mention/tagMention nodes via arg-prompted value (editor_commands.ts:496-525), fixing the prior bug where a bare @/# character was inserted and no node could ever be created.",
+        "Real runtime proof: editor_commands.test.ts builds new Editor(...) with buildHandshakeEditorExtensions() and asserts NodeSelection survival (lines 186-206), real mention/tag node creation (397-414), table mutation + exact undo (271-312), and wikilink classification — live-editor mutation, not mock-only; satisfies §7.1.1.8 'tests that only parse JSON do not satisfy'.",
+        "Spec §7.1.1.8 (current v02.194, 07-user-experience-and-development.md:249-263) requires headings/lists/tables/task lists/quotes/callouts/media embeds/file/folder/project links/backlinks/tags/mentions + Monaco code nodes + stable element identifiers — all delivered with data-testid/data-command-id selectors on every toolbar/palette/overflow button.",
+        "sub_rule_1: placeholder grep over the three impl files found only two 'stub' strings, both comments stating the prior hidden stub was REPLACED with a real menu — no reachable todo!/unimplemented!/deferred escapes.",
+        "sub_rule_2: this MT is the UI command-catalog/toolbar surface and makes no durable PostgreSQL/EventLedger authority claim of its own; the required real-resource touch is the live Tiptap editor schema, which the tests exercise directly. PG authority is owned by the RichDocument storage MTs, not MT-169.",
+        "Boundary/scope clean: commits 966bec7d + 2949bc87 (both ancestors of feat/WP-KERNEL-009 HEAD) touch only app/src/ (allowed_paths); no /.GOV/, no SQLite, no external search engine, no CDN worker.",
+        "Aside (non-blocking): MT contract lifecycle.completed_by is null and validator_verdict fields are unset — expected paperwork state during a winding-down governance phase; not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-169.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/editor_commands.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/editor_commands.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/build_editor_extensions.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichTextEditor.tsx",
+        "git show --stat 966bec7d / 2949bc87 + merge-base ancestry check",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (sec 7.1.1.8)",
+        "placeholder grep over the three MT-169 impl files"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

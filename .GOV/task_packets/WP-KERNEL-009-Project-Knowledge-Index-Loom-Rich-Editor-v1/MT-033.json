@@ -1,0 +1,174 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-033",
+  "title": "MasterSpecEnrichmentSeed-033-SpecModuleAnchorMap",
+  "group": "MasterSpecEnrichmentSeed",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-033.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Map WP-009 concepts to current modules: system architecture, local-first infrastructure, LLM infrastructure, product surfaces, OSS foundations, and appendices. This MT belongs to MasterSpecEnrichmentSeed. Prepare the future Master Spec refinement/enrichment payload without relying on sidecar research.",
+    "relevant_files": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Prepare spec-enrichment-ready wording without editing the Master Spec in this stub task.",
+      "Where current Master Spec text is stale, mark the exact stale contract and the replacement Handshake-native rule."
+    ],
+    "expected_behavior": "SpecModuleAnchorMap leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "SpecModuleAnchorMap is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-MAN-001",
+      "HBR-SWARM-001",
+      "CX-503R"
+    ],
+    "module_anchor_disposition": {
+      "02-system-architecture.md": "ANCHORED:2.3.13.11",
+      "07-user-experience-and-development.md": "ANCHORED:7.1.1.8",
+      "10-product-surfaces.md": "ANCHORED:10.15.8,10.20",
+      "11-shared-dev-platform-and-oss-foundations.md": "ANCHORED:9.1.1",
+      "12-end-of-file-appendices.md": "ANCHORED:12.7",
+      "03-local-first-infrastructure.md": "NO_ANCHOR_REQUIRED:grep_zero_matches_20260611:law_carried_by_02#2.3.13.11",
+      "04-llm-infrastructure.md": "NO_ANCHOR_REQUIRED:grep_zero_matches_20260611:law_carried_by_02#2.3.13.11_and_02#2.3.14"
+    }
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-001",
+      "MT-004",
+      "MT-005"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": "WP_VALIDATOR-20260611-181356",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
+    "evidence": [
+      "Anchor map for modules 02/07/10/11/12 recorded in refinement.json spec_anchors and applied in v02.192 (content-verified twice: evidence pass and adversarial review pass both opened the cited sections; see lifecycle.adversarial_review.refutation_attempts).",
+      "03-local-first-infrastructure.md disposition: NO_ANCHOR_REQUIRED - grep 'WP-KERNEL-009|ProjectKnowledgeIndex|KnowledgeClaim|RichDocument|UserManualRecord' = 0 matches (2026-06-11); local-first storage law for WP-009 is carried by 02#2.3.13.11 PostgreSQL/EventLedger clauses.",
+      "04-llm-infrastructure.md disposition: NO_ANCHOR_REQUIRED - same grep 0 matches; WP-009 retrieval/memory law carried by 02#2.3.13.11 (MemoryPassage/RetrievalTrace) + 2.3.14 AI-Ready Data; module 04 model-runtime sections owned by other packets.",
+      "AC2 (exact files/state named): scope.module_anchor_disposition enumerates all seven v02.192 spec modules with ANCHORED section ids or NO_ANCHOR_REQUIRED dispositions backed by a named, reproducible grep (pattern and date recorded).",
+      "AC3 (no sidecar authority): the disposition is recorded in this typed MT contract; the anchors themselves live in the applied v02.192 bundle resolved through SPEC_CURRENT.md.",
+      "AC4 (HBR rows): this MT's hbr_focus rows are record-scope only; disposition NA per packet acceptance_matrix.hbr_not_applicable HBRNA-002 (MasterSpecEnrichmentSeed group)."
+    ],
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS_PLUS_KERNEL_BUILDER_RECORD",
+    "adversarial_review": {
+      "verdict": "DEMOTE_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity.",
+        "AC coverage: evidence addresses AC1 only; AC2 (state tables/failure modes/verification evidence), AC3 (sidecar rejection), and AC4 (HBR disposition - hbr_focus here includes CX-503R) have no evidence entries, unlike sibling MTs MT-034..048 which carry explicit AC2/AC3/AC4 rows.",
+        "Unverifiable agent citation: EV1 says \"verified by evidence-mapper agent\" - no receipt or artifact for that agent run exists; the underlying claims were independently re-verified by this review, but the citation itself proves nothing.",
+        "Coverage note (scope-conformant but worth validator attention): the disposition covers modules 02/07/10/11/12/03/04 only; 05-security-and-observability has no disposition row even though WP-009 carries secrets/permissions scope (the MT scope text does not list module 05, so this is not a contract breach)."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Re-ran the disposition grep myself: grep -E \"WP-KERNEL-009|ProjectKnowledgeIndex|KnowledgeClaim|RichDocument|UserManualRecord\" on v02.192 modules 03 and 04 returned 0 matches for both, reproducing the recorded claim; verified refinement.spec_anchors and all six anchored headings on disk. Fix: add AC2/AC3/AC4 evidence entries (mirror the MT-034 template) and either drop or substantiate the evidence-mapper citation."
+    },
+    "remediation": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "applied_by": "KERNEL_BUILDER-20260611-071323",
+      "items": [
+        "Replaced unverifiable agent citation with reproducible verification facts (adversarial reviewer independently reproduced the 0-match greps on modules 03/04).",
+        "Added AC2/AC3/AC4 evidence entries.",
+        "Note: module 05-security-and-observability was not in this MT's declared scope; flagged to external validator via adversarial_review concerns."
+      ]
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}
