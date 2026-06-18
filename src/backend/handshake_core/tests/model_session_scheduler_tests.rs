@@ -96,7 +96,6 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
             .to_string(),
     );
     let Some((storage, postgres_pool)) = scheduler_postgres_backend_from_env().await? else {
-    let Some(storage) = scheduler_postgres_backend_from_env().await? else {
         return Ok(None);
     };
 
@@ -116,7 +115,6 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
 
 async fn scheduler_postgres_backend_from_env(
 ) -> Result<Option<(Arc<dyn Database>, sqlx::postgres::PgPool)>, Box<dyn std::error::Error>> {
-) -> Result<Option<Arc<dyn Database>>, Box<dyn std::error::Error>> {
     let Ok(url) = std::env::var("POSTGRES_TEST_URL") else {
         return Ok(None);
     };
@@ -140,7 +138,6 @@ async fn scheduler_postgres_backend_from_env(
         .connect(&schema_url)
         .await?;
     Ok(Some((db.into_arc(), pool)))
-    Ok(Some(db.into_arc()))
 }
 
 async fn install_scheduler_test_schema(
