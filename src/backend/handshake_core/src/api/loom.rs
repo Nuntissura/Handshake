@@ -4126,7 +4126,7 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, NewWorkspace};
+    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace};
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;

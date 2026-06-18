@@ -381,3 +381,5 @@ describe("terminal Tauri IPC binding", () => {
     expect(unlisten).toHaveBeenCalledTimes(3);
   });
 });
+=======
+>>>>>>> feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1

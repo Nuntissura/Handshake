@@ -528,7 +528,6 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
       target: { value: "local-m#0" },
     });
 
-    expect(screen.getByTestId("operator-chat-escalation")).toBeInTheDocument();
     expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeDisabled();
     expect(screen.getByTestId("operator-chat-escalation")).toHaveTextContent(
       /openai · gpt-4o/i,

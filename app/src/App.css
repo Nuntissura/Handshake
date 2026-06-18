@@ -4003,7 +4003,12 @@ body {
 
 input.settings-row__control:disabled {
   background: var(--hs-color-bg);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
   color: var(--hs-color-text-subtle);
+  font-size: 13px;
+  min-width: 180px;
   text-align: right;
   cursor: not-allowed;
 }

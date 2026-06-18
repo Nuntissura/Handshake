@@ -6,8 +6,10 @@ import { operatorChatCloudEscalation, type SwarmRoom } from "./SwarmControlRoom"
 // composes the three REAL surfaces that already exist — it does NOT rebuild any
 // of them and adds NO new IPC:
 //
-//   (a) <OperatorChat>      — real direct local chat plus receipt-gated cloud
-//                             fallback when a caller supplies claim context.
+//   (a) <OperatorChat>      — the real operator <-> model chat for any provider
+//                             (local, cloud BYOK, official CLI): direct local
+//                             chat plus receipt-gated cloud fallback when a
+//                             caller supplies claim context.
 //   (b) "Show captured terminal" — focuses the surface's SINGLE shared
 //                             <TerminalPanel> on THIS session's captured stdout,
 //                             bound by the swarm composite instance_id (the
@@ -75,7 +77,8 @@ export function SessionWorkbench({
       data-selected-instance={selected ?? ""}
       aria-label="Session workbench"
     >
-      {/* (a) Chat — direct local chat, with receipt-gated cloud fallback. */}
+      {/* (a) Chat — accepts ALL spawned sessions (local, cloud, CLI): direct
+          local chat with receipt-gated cloud fallback. */}
       <OperatorChat
         selectedInstanceId={room.chatInstanceId}
         sessions={room.allSessions}

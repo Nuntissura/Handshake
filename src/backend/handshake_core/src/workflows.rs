@@ -28306,7 +28306,7 @@ mod tests {
         tests::{
             optional_postgres_backend_with_pool_from_env, postgres_backend_with_pool_from_env,
         },
-        AccessMode, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState, SafetyMode,
+        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState, SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};

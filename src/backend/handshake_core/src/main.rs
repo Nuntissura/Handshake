@@ -252,6 +252,34 @@ fn write_startup_recovery_report(
     Ok(())
 }
 
+fn startup_recovery_only_requested() -> bool {
+    std::env::var("HANDSHAKE_STARTUP_RECOVERY_ONLY")
+        .ok()
+        .as_deref()
+        == Some("1")
+}
+
+fn write_startup_recovery_report(
+    report: &handshake_core::session_checkpoint::ResumeReport,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(path) = std::env::var_os("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE").map(PathBuf::from)
+    else {
+        return Ok(());
+    };
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let payload = serde_json::json!({
+        "report_id": report.report_id,
+        "sessions_examined": report.sessions_examined,
+        "sessions_resumed": report.sessions_resumed.len(),
+        "sessions_recovery_failed": report.sessions_recovery_failed.len(),
+        "fr_events_emitted": report.fr_events_emitted,
+    });
+    std::fs::write(path, serde_json::to_vec_pretty(&payload)?)?;
+    Ok(())
+}
+
 /// Initialize Janitor configuration from environment variables.
 ///
 /// Environment variables:

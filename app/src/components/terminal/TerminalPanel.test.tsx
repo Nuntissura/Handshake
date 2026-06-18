@@ -298,6 +298,8 @@ describe("TerminalPanel", () => {
     expect(calls[calls.length - 1]).toEqual({ sessionId: "s1", readOnly: true });
   });
 
+=======
+>>>>>>> feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1
   it("switches the active session on tab click", async () => {
     const ipc = makeIpc([
       makeSession({ sessionId: "s1", title: "first" }),

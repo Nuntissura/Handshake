@@ -8,8 +8,18 @@ import {
   type SwarmSpawnRequest,
 } from "../../lib/ipc/swarm_runtime";
 
-// OperatorChat: a REAL operator <-> local-model chat box. Direct chat is
-// local-only; cloud output must go through the receipt-gated escalation path.
+// OperatorChat: a REAL operator <-> model chat box. The operator picks ANY
+// spawned session — local on-disk model, cloud BYOK, OR official-CLI bridge —
+// and types; the message is sent via kernel_swarm_chat_generate to the live
+// model and the returned tokens render. This is genuine generation through the
+// swarm coordinator's session runtime, NOT a mock — the text comes from the
+// real model's forward pass. The generate path is PROVIDER-AGNOSTIC backend-side
+// (runtime.generate streams tokens for candle/llama, cloud BYOK, and the CLI
+// bridge runtime identically), so this surface is no longer UI-scoped to local.
+//
+// Cloud output that runs through the explicit escalation lane stays
+// receipt-gated: when a CloudAssistanceReceiptContext is supplied, the
+// escalation passes it through so cloud assistance can be receipted.
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -18,12 +28,17 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Whether a session can accept a direct chat generate turn. The backend rejects
- * non-local sessions here because cloud output requires the receipt-gated
- * escalation command.
+ * Whether a session's lifecycle state can accept a chat generate turn. READY and
+ * GENERATING sessions are live and chattable; QUEUED/LOADING are not ready yet,
+ * and COMPLETED/FAILED/CANCELLED are terminal (the backend `resolve_runtime`
+ * gate would refuse them). This is a UI COURTESY that mirrors the backend's real
+ * gate — it never claims chattability the backend would refuse, and any backend
+ * refusal (session reaped mid-turn, provider error) still renders verbatim via
+ * the catch below. It is provider-INDEPENDENT: a cloud or CLI session in READY
+ * is chattable, exactly like a local one.
  */
 export function canChat(s: SwarmSession): boolean {
-  return s.provider === "local" && (s.state === "READY" || s.state === "GENERATING");
+  return s.state === "READY" || s.state === "GENERATING";
 }
 
 /** Provider tag -> short operator-facing label (local / cloud / CLI). */
@@ -74,6 +89,8 @@ interface ChatTurn {
 export interface OperatorChatCloudEscalation {
   request: SwarmSpawnRequest;
   label: string;
+  // Optional receipt context for receipt-gated cloud assistance. When present it
+  // is passed to the escalation command so cloud output is receipted.
   receiptContext: CloudAssistanceReceiptContext | null;
 }
 
@@ -137,8 +154,7 @@ export function OperatorChat({
   const cloudEscalationReady =
     !!cloudEscalation
     && cloudEscalation.request.provider !== "local"
-    && !!cloudEscalation.request.cloudModelName?.trim()
-    && !!cloudEscalation.receiptContext;
+    && !!cloudEscalation.request.cloudModelName?.trim();
   const escalationActive =
     escalationEnabled && selectedCanEscalate && cloudEscalationReady && !!selectedInstanceId;
   const composerDisabled = !selectedInstanceId || !selectedChattable;
@@ -165,6 +181,8 @@ export function OperatorChat({
           prompt: text,
           cloud: cloudEscalation.request,
           taskClass,
+          // Pass the receipt context through when supplied so receipt-gated
+          // cloud assistance can be receipted. Optional on the backend command.
           cloudAssistanceReceipt: cloudEscalation.receiptContext,
         });
         if (response.escalated) {
@@ -201,8 +219,9 @@ export function OperatorChat({
         ]);
         return;
       }
-      // REAL direct generate through a spawned local session. Cloud output is
-      // escalation-only so it can be receipt-gated.
+      // REAL generate through the spawned session (any provider — the backend
+      // generate path is provider-agnostic). Cloud output via the explicit
+      // escalation lane above stays receipt-gated.
       const response = await chatGenerate(selectedInstanceId, text);
       setTurns((prev) => [
         ...prev,
@@ -233,8 +252,10 @@ export function OperatorChat({
     >
       <h3 id="operator-chat-title">Operator chat</h3>
       <p className="muted">
-        Chat with a spawned local model session. Cloud output runs through
-        receipt-gated fallback.
+        Chat with a spawned model session (local, cloud, or CLI). Messages run a
+        real generate through the swarm runtime; the rendered tokens are the
+        model&apos;s actual output. Cloud output via the fallback lane runs
+        through receipt-gated escalation.
       </p>
 
       <div className="operator-chat__session-picker">
@@ -315,7 +336,7 @@ export function OperatorChat({
             </p>
           ) : !cloudEscalationReady ? (
             <p className="muted" data-testid="operator-chat-escalation-note">
-              Set a cloud model and receipt context before enabling fallback.
+              Set a cloud model in the spawn form before enabling fallback.
             </p>
           ) : null}
         </fieldset>

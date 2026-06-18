@@ -76,7 +76,6 @@ import {
 
 type ModuleId = "MAIN" | "CKC" | "INGEST" | "STAGE" | "LAB" | "STUDIO";
 
-
 type PaneTabId =
   | "workspace"
   | "media-downloader"
@@ -957,28 +956,6 @@ function App() {
     ]),
   });
 
-  const setModule = (moduleId: ModuleId) => {
-    const nextDef = MODULE_DEFINITIONS.find((item) => item.id === moduleId);
-    if (!nextDef) {
-      return;
-    }
-    setActiveModule(moduleId);
-    setPanes((current) =>
-      current.map((pane) => {
-        if (pane.id !== activePaneId) {
-          return pane;
-        }
-        const nextTabs = uniqueTabs([nextDef.defaultTab, ...nextDef.tabs, ...pane.tabs]);
-        return {
-          ...pane,
-          module: moduleId,
-          activeTab: nextDef.defaultTab,
-          tabs: nextTabs,
-        };
-      }),
-    );
-  };
-
   const openWorkspaceDocument = useCallback((documentId: string, findOptions?: EditorFindOptions) => {
     const targetPaneId = activePaneId;
     setPanes((current) =>
@@ -1481,6 +1458,28 @@ function App() {
       openUserManualPane(searchText.trim());
       setAppCommandPaletteOpen(false);
     }
+  };
+
+  const setModule = (moduleId: ModuleId) => {
+    const nextDef = MODULE_DEFINITIONS.find((item) => item.id === moduleId);
+    if (!nextDef) {
+      return;
+    }
+    setActiveModule(moduleId);
+    setPanes((current) =>
+      current.map((pane) => {
+        if (pane.id !== activePaneId) {
+          return pane;
+        }
+        const nextTabs = uniqueTabs([nextDef.defaultTab, ...nextDef.tabs, ...pane.tabs]);
+        return {
+          ...pane,
+          module: moduleId,
+          activeTab: nextDef.defaultTab,
+          tabs: nextTabs,
+        };
+      }),
+    );
   };
 
   const isSplitterLocked = (axis: DragAxis) =>

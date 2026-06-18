@@ -131,10 +131,13 @@ describe("SwarmOperatorSurface", () => {
     expect(await screen.findByTestId("swarm-board")).toBeInTheDocument();
   });
 
-  test("the Session workbench lists all providers but direct chat is local-only", async () => {
-    // Seed one local, one byok_cloud, one official_cli session (all READY),
-    // open the Session disclosure, and assert each provider's option is present
-    // while non-local direct-chat options are disabled.
+  test("the Session workbench lists all providers (tagged via data-provider) but direct chat is local-only", async () => {
+    // Seed one local, one byok_cloud, one official_cli session (all READY), open
+    // the Session disclosure, and assert each provider's option is present and
+    // tagged via data-provider, while non-local direct-chat options are disabled.
+    // The merged OperatorChat renders non-local sessions as disabled options
+    // (disabled={!chattable}); the cloud/CLI sessions are still listed, just not
+    // selectable for direct chat.
     vi.mocked(listActiveSessions).mockResolvedValue([
       {
         instanceId: { modelId: "alpha-model", instance: 0, composite: "alpha-model#0" },
@@ -214,6 +217,11 @@ describe("SwarmOperatorSurface", () => {
       target: { value: "alpha-model#0" },
     });
 
+    // Merged behavior: the OperatorChat fallback is gated on receipt context
+    // (disabled={!selectedCanEscalate || !cloudEscalationReady || busy} and the
+    // "Set a cloud model and receipt context before enabling fallback" note).
+    // Without a receipt context the toggle stays disabled and no cloud escalation
+    // request is dispatched.
     expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeDisabled();
     expect(screen.getByTestId("operator-chat-escalation-note")).toHaveTextContent(
       /receipt context/i,

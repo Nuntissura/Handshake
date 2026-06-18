@@ -285,6 +285,7 @@ mod tests {
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
     };
     use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database};
+    use crate::storage::{tests::optional_postgres_backend_from_env, Database};
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use crate::AppState;
     use std::sync::Arc;

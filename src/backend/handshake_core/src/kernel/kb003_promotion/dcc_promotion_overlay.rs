@@ -117,9 +117,11 @@ mod tests {
 
     fn sample_bundle() -> Kb003ArtifactBundleV1 {
         let run = SandboxRunV1::new_requested("KTR-1", "SES-1", "process_tier", "POL-1@1", "WSP-1");
-        let handles = vec![
-            Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa").unwrap(),
-        ];
+        let handles =
+            vec![
+                Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa")
+                    .unwrap(),
+            ];
         KbArtifactBundleAssembler::assemble(&run, handles).unwrap()
     }
 
@@ -147,6 +149,16 @@ mod tests {
             p.artifact_classes_in_view
                 .contains(&Kb003ArtifactClass::SandboxLog)
         );
+        assert!(p
+            .artifact_refs
+            .iter()
+            .any(|s| s.starts_with("kb003://promotion_receipt/")));
+        assert!(p
+            .artifact_classes_in_view
+            .contains(&Kb003ArtifactClass::PromotionReceipt));
+        assert!(p
+            .artifact_classes_in_view
+            .contains(&Kb003ArtifactClass::SandboxLog));
     }
 
     #[test]

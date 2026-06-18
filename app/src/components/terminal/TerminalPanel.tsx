@@ -236,7 +236,9 @@ function TerminalPanelBody({
   useEffect(() => {
     // refresh() awaits ipc.listSessions() BEFORE any setState, so this does not
     // synchronously update state in the effect body (mirrors SwarmBoard's
-    // `void reconcile()`).
+    // `void reconcile()`). The lint rule cannot see across the prop-method await
+    // boundary, so it is disabled here with that rationale.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 

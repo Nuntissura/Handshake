@@ -1,9 +1,14 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-// OperatorChat unit tests: the chat picker shows all spawned sessions for
-// attribution, but direct chat is local-only. Cloud output must go through the
-// receipt-gated escalation path.
+// OperatorChat unit tests: the chat picker accepts ALL spawned sessions (local +
+// cloud BYOK + official CLI) for attribution, labeling each by provider + model +
+// worktree. Direct chat, however, is local-only: a real generate goes through the
+// provider-agnostic backend path for local sessions, while cloud output must run
+// through the receipt-gated escalation path. Non-live (and non-local) sessions
+// render as disabled options and the component surfaces backend errors verbatim.
+// We mock only the chatGenerate / chatGenerateWithCloudEscalation IPC calls; the
+// rest of the component is real.
 
 const chatGenerateMock = vi.fn();
 const chatGenerateWithCloudEscalationMock = vi.fn();

@@ -132,6 +132,10 @@ export function SettingsMenu({
     return null;
   }
 
+  const emitWorkspaceSettings = (next: WorkspaceSettingsState) => {
+    onWorkspaceSettingsChange?.(normalizeWorkspaceSettingsState(next, effectiveWorkspaceSettings));
+  };
+
   const handleBoardDefaultOpenChange = (next: boolean) => {
     setBoardDefaultOpen(next);
     saveSwarmBoardDefaultOpen(next);
@@ -143,10 +147,6 @@ export function SettingsMenu({
         swarm_board_default_open: next,
       },
     });
-  };
-
-  const emitWorkspaceSettings = (next: WorkspaceSettingsState) => {
-    onWorkspaceSettingsChange?.(normalizeWorkspaceSettingsState(next, effectiveWorkspaceSettings));
   };
 
   const handleViewModeChange = (next: ViewMode) => {
