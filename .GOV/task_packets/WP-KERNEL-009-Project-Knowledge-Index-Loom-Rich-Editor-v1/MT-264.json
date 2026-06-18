@@ -99,7 +99,7 @@
     "7. Adversarial self-review; fix findings; write evidence."
   ],
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-182",
@@ -108,10 +108,17 @@
       "MT-262"
     ],
     "blocks": [],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER",
     "completed_by": null,
-    "implementation_commit": null,
-    "evidence": []
+    "implementation_commit": "c7491525",
+    "evidence": [
+      "commit c7491525 on feat/WP-KERNEL-009 (migration 0336_loom_search_v2 + .down; product code only, zero .GOV); adversarial review 3 lenses (2 initially FAIL on missing captured proof + the pg_or_skip skip-risk); harden re-ran and captured every proof.",
+      "pgvector RISK DEFUSED FOR REAL: the Handshake-managed PostgreSQL 16 lacked the `vector` extension; built pgvector 0.8.0 from source (MSVC BuildTools, nmake Makefile.win) and installed vector.dll + control + SQL into C:/Program Files/PostgreSQL/16; verified CREATE EXTENSION vector + cosine distance live. Machine-local install like pgcrypto; migration 0336 ensures-present (CREATE EXTENSION IF NOT EXISTS) and FAILS LOUD if absent on another machine.",
+      "runtime proof (serial --test-threads=1, real PG 5544): FTS ts_rank + ts_headline <mark> highlight; pg_trgm fuzzy near-match; pgvector(768) cosine HNSW kNN + hybrid keyword+vector ranking; graph-blend (loom_edges degree + content_type facets); reindex consistency edit->reflected and delete->GONE (CASCADE FK negative proof, no stale/deleted hit); no-model -> typed keyword/trigram fallback (semantic_available=false, NO fabrication); + block created via the real create_loom_block handler has a populated embedding; + journal block via open_daily_journal indexed on creation.",
+      "vitest 5 (LoomSearchV2Panel); tsc + eslint clean; offline Playwright 15 (5 specs x 3 viewports) with tracked.external==[] (zero external network); check:portable-artifacts 6/6; migration 0336 up->down->up replay-safe.",
+      "design: derived projection table loom_block_search_index (block_id FK ON DELETE CASCADE -> no second authority, no drift), GENERATED tsvector+GIN, pg_trgm GIN, pgvector(768) HNSW vector_cosine_ops; keyword/trigram refreshed transactionally in storage create/update; embedding refreshed via the API handlers (create_loom_block/open_daily_journal/patch_loom_block) that hold the MT-260 model-runtime; LlmClient::embedding trait + real Ollama /api/embeddings impl + honest deterministic InMemory embedding; POST /workspaces/:id/loom/search-v2; frontend LoomSearchV2Panel (ranked highlighted results, content_type facets, open-in-place reference, save-as-Loom-view reusing MT-262). NO Elasticsearch (DEC-008).",
+      "VALIDATION CAVEAT: (1) pgvector is a machine-local PG install (document in PG setup notes; operator-owned). (2) Embedding refresh is at the API-handler seam (the storage Database trait has no model runtime) — keyword/trigram refresh is in storage create/update; a future internal bulk-edit path or a background re-embed job (AI-Loom pattern) would extend coverage. (3) An end-to-end live-Ollama embedding-model run was not done (no Ollama server offline) — the Ollama provider impl + trait are real and pgvector kNN/hybrid is proven over real stored 768-dim vectors via the honest deterministic InMemory embedding."
+    ]
   },
   "handoff": {
     "coder_session": null,
