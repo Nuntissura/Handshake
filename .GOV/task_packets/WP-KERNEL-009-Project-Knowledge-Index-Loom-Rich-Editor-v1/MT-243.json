@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-243-WikiIncrementalIngestFanOut",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-12T14:58:36.348Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-243.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -73,7 +73,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-242",
@@ -81,7 +81,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "7a6326d9",
     "evidence": [
       {
@@ -135,7 +135,56 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T14:58:36.348Z"
+    "ready_for_validation_at_utc": "2026-06-12T14:58:36.348Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-243 requires a Karpathy-style incremental wiki fan-out: one changed source regenerates exactly the pages whose MT-242 stamps cite it (set equality with drift), refreshes backlinks/index same-pass, bounds fan-out by an explicit budget with LOUD truncation receipts, writes a per-page EventLedger receipt, and is idempotent. The code in src/backend/handshake_core/src/knowledge_wiki/fanout.rs implements all of this against real Handshake-managed PostgreSQL/EventLedger, and the test suite proves it on real PG (6 passed, executed not just compiled).",
+      "findings": [
+        "fanout.rs:182-236 computes the per-source stale set by querying list_knowledge_wiki_pages_citing + list_knowledge_wiki_pages_citing_entity_source (real JSONB @> SQL on knowledge_wiki_projections, knowledge.rs:7195), then filters by stamp-hash mismatch via citation_stale_for_request (fanout.rs:804-827) — exactly the MT-242 drift logic. No full recompile.",
+        "fanout.rs:265-270 splits the stale set by an explicit budget (clamped 1..=MAX_FANOUT_BUDGET, line 174); truncated pages get a wiki_fanout_truncated EventLedger receipt naming skipped pages AND are persistently marked rebuild_status=Stale (fanout.rs:300-343) — loud, never silent.",
+        "fanout.rs:549-566 writes a wiki_page_fanout_regenerated EventLedger receipt per regenerated page, and the page row references it via rebuild_receipt_event_id — satisfies LM-PWIKI-012 per-page receipt requirement.",
+        "Regeneration rebuilds from CURRENT authority via the compiler render_* + upsert_page/replace_page_by_projection_id (real methods, compiler.rs:587/618); entity/decision pages regenerate by stable projection_id (fanout.rs:656-707) so display-name edits update in place instead of forking duplicate pages.",
+        "Real-PG proof: tests/project_wiki_fanout_tests.rs indexes real handshake_core source files, computes an INDEPENDENT MT-242 stale set via WikiDriftChecker, and asserts set equality both directions (lines 282-289); queries kernel_event_ledger directly via raw sqlx for receipts (lines 332-356, 589-608); proves budget=1 truncation + resume (552-654) and idempotency by comparing ledger row counts before/after (657-748). PG is the Handshake-managed cluster (knowledge_pg_support.rs: managed_postgres, port 5544, no Docker/SQLite/mock; SKIP only if PG binaries absent, every other failure panics).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2726 mandates incremental, budget-bounded wiki regeneration with EventLedger receipts and staleness stamping — the implementation matches exactly.",
+        "Sub-rule 1: grep of knowledge_wiki for todo!/unimplemented!/Unavailable/placeholder/deferred returned only one comment in compiler.rs:22 stating the no-placeholder rule; no reachable escapes.",
+        "Sub-rule 3 NA: lifecycle.claimed_by is null and completed_by=KERNEL_BUILDER-20260612; no same-actor self-cert handoff malformation in play, and proof is real regardless.",
+        "Non-blocking aside (paperwork, not a fail reason): packet spec_anchors cite v02.192; resolved against current v02.194 with identical behavior. The pg_or_skip! macro could silently pass if PG were absent, but the recorded evidence shows the named tests actually executed and asserted (e.g. 'drift closes to zero', '6 passed, 0 failed')."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-243.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 8c9a1ef6 + 7a6326d9 (--stat)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/fanout.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/project_wiki_fanout_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "src/storage/knowledge.rs (list_knowledge_wiki_pages_citing_entity_source, set_knowledge_projection_rebuild_status)",
+        "src/knowledge_wiki/compiler.rs (upsert_page, replace_page_by_projection_id)",
+        "grep for placeholder/deferred escapes across src/knowledge_wiki/",
+        "Master Spec v02.194 02-system-architecture.md:2726 (wiki projection incremental regeneration contract)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-134940",

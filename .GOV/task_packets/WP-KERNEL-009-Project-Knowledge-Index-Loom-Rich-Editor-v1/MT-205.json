@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-205-UserManualVisualDebugProof",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-205.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "1c208066",
     "evidence": [
       {
@@ -133,7 +133,55 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-205 (UserManualVisualDebugProof) requires UserManual to be a built-in, readable, navigable, linked in-app surface proven via visual-debug. The code delivers a real UserManualPanel plus App.tsx/CommandPalette wiring backed by real /api/usermanual/* endpoints (PostgreSQL-backed), with behavioral tests that exercise the wiring including the duplicate-selector hardening. No placeholders and no mock standing in for a durable-authority claim.",
+      "findings": [
+        "UserManualPanel.tsx (commit 1c208066) is a complete React surface that renders pages, sections, anchors, search results, and access points from real API responses; readable/navigable/linked via page index, search box, access-point list, and page+anchors table - exactly MT-205's acceptance criteria.",
+        "app/src/lib/api.ts:933-957 issues real HTTP GETs to /api/usermanual/pages, /pages/:slug, /search, /access-points; not stubs.",
+        "Backend src/backend/handshake_core/src/api/user_manual.rs:51-77 registers the real /usermanual/* router and db_for() builds PostgresDatabase over state.postgres_pool (real PostgreSQL durable authority). Real backend test tests/user_manual_api_tests.rs exists. Durable manual authority is owned by sibling MTs MT-199..204; MT-205 is the UI-access/visual-debug proof layer over it.",
+        "Duplicate-selector hardening is real and proven: App.tsx:587-592 applies canonical 'hs-usermanual-diagnostics-tab' only to the user-manual tab in pane-a; other panes use pane-specific IDs. App.test.tsx:554 asserts querySelectorAll for that stable-id toHaveLength(1), matching the evidence claim exactly.",
+        "App.test.tsx:537-558 (command-palette opens UserManual diagnostics tab) and UserManualPanel.test.tsx:139-208 (renders surface, fetches index/page, searches, opens result page, distinguishes page-backed vs tool result_ref) exercise real component behavior - appropriate visual-debug/UI runtime proof for a UI-access MT.",
+        "Placeholder grep over the MT-205 impl + tests (todo!/unimplemented!/Unavailable/'not yet wired'/'pending MT-'/scaffold/vibecod) returned zero hits.",
+        "Spec anchors resolve in current bundle v02.194: 2.3.13.11 (02-system-architecture.md:2694), 10.15.8 UserManual migration bridge (10-product-surfaces.md:8151); spec confirms UI is a projection over PostgreSQL/EventLedger authority, which the backend respects.",
+        "Aside (non-blocking): the frontend unit tests mock the api layer, which is the standard pattern for a UI-access MT and not a durable-authority substitution; the durable backend has its own real-PG test."
+      ],
+      "evidence_checked": [
+        "MT-205.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "packet.json (allowed/forbidden paths, scope)",
+        "git show 1c208066 (stat + UserManualPanel.tsx, App.tsx, CommandPalette.tsx, api.ts)",
+        "git log --grep MT-205 (fcf9bce3, 1c208066)",
+        "app/src/App.test.tsx assertions",
+        "app/src/components/UserManualPanel.test.tsx assertions",
+        "src/backend/handshake_core/src/api/user_manual.rs",
+        "tests/user_manual_api_tests.rs (existence)",
+        "placeholder grep over MT-205 impl+tests",
+        ".GOV/spec/master-spec-v02.194/spec-modules/ anchor resolution"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

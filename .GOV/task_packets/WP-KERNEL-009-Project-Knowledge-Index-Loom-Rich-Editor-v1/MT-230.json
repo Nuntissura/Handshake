@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-230-PartialPdfExtractionFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-13T04:34:01.875Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-230.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260613",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "183300fe",
     "evidence": [
       {
@@ -158,7 +158,51 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260613",
-    "ready_for_validation_at_utc": "2026-06-13T04:34:01.875Z"
+    "ready_for_validation_at_utc": "2026-06-13T04:34:01.875Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-230 requires weak/missing PDF text layers to produce extraction receipts and repair-queue entries with real PostgreSQL/EventLedger authority, specifically distinguishing a visible sub-minimum text layer from a missing-text-operators page. The diff adds a genuine classification branch in pdf.rs and proves the weak-page reason propagates through real Postgres receipt rows, repair queue rows, and EventLedger events. The code implements the required behavior, aligns with the current Master Spec, and is backed by real (non-mock) PostgreSQL proof.",
+      "findings": [
+        "pdf.rs:393-398 adds a real classification branch: when analysis.has_text_operators is true but analysis.extracted_chars < MIN_TEXT_LAYER_CHARS (=3 at pdf.rs:114), the page-failure reason is now 'weak_text_layer_below_minimum (extracted_chars=N, minimum_required=3)' instead of the prior incorrect 'page has no text operators' else-branch. This is genuine logic, consistent with has_text_layer() at pdf.rs:52-54 which gates on the same threshold.",
+        "Test mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable (knowledge_ingestion_pipeline_tests.rs ~333-480) builds a real 2-page lopdf PDF via pdf_fixtures::build_pdf (page1 readable anchor, page2 single char 'a') and drives the real IngestionEngine.ingest_file_bytes; it asserts the weak reason contains 'weak_text_layer_below_minimum' and is NOT reported as missing operators.",
+        "Proof touches REAL PostgreSQL, not mocks: env.pg.raw_connection() (knowledge_pg_support.rs:81-84 via sqlx::PgConnection::connect to an isolated migrated schema; support header explicitly states 'no SQLite, in-memory, or mock fallback'). Asserts durable rows in knowledge_ingestion_repair_queue (state=queued, reason_class=NO_TEXT_LAYER, receipt_id binding), knowledge_ingestion_receipts (status=partial, error_class=NO_TEXT_LAYER, persisted error_detail), and kernel_event_ledger (actor_id/session_run_id/correlation_id/aggregate_type=knowledge_ingestion_receipt/aggregate_id/source_component/payload identity).",
+        "Fixtures (pdf.rs:425-494) build genuine PDFs through lopdf (the same lib the detector parses), so the weak-layer fixture exercises real PDF structure, not an opaque mock binary.",
+        "Sub-rule 1: grep of pdf.rs + test for todo!/unimplemented!/unreachable!/pending MT-/Live*Unavailable/stub/placeholder returned zero hits on the proof path.",
+        "Boundary/scope clean: diff touches only src/backend/handshake_core/src/knowledge_ingestion/pdf.rs and src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (both in allowed_paths); no /.GOV/ files; no forbidden tech (no sqlite/elasticsearch/docker) in diff.",
+        "Non-blocking aside: the mt230 test early-returns ('SKIP ... no PostgreSQL') when POSTGRES_TEST_URL/DATABASE_URL is unset, so the real-PG proof is conditional on PG availability — standard for this harness, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-230.json",
+        "git commit 183300fe (feat: MT-230 harden weak PDF receipts) full diff + --stat",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/pdf.rs (lines 38-114, 230-420, 425-494)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (lines 1-120, MT-230 test block)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs + knowledge_pg_support.rs (real-PG connection harness)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (PostgreSQL/EventLedger authority, Pillar 4 real-PG testing CX-DBP-013, OCR mechanical tools)",
+        "packet.json spec_anchors + MT-086/087 finding #6 (per-page min extracted_chars / Tr3 invisible-text)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT230",

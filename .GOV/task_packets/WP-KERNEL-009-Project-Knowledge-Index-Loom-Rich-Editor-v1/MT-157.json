@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-157-DocumentBatchOperations",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-157.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -134,6 +134,50 @@
         "test: batch rename of N docs with one failing id reports per-item results",
         "test: move with empty body leaves existing project/folder unchanged"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-157 (DocumentBatchOperations) requires a concrete, restartable batch rename/move/authority-label surface with PostgreSQL/EventLedger authority and validator-readable evidence. The code delivers a real bounded POST /knowledge/documents/batch endpoint plus an absent-vs-null move fix, both proven against real PostgreSQL with per-item receipts, partial-failure reporting, and a server-derived write gate.",
+      "findings": [
+        "Real batch endpoint: knowledge_documents.rs:1156-1278 (batch_documents) registered at routes line 106 (/knowledge/documents/batch). Bounded to BATCH_MAX_OPERATIONS=100, rejects empty list, applies rename/move/set_authority_label per-document with independent outcomes; one failing item never aborts the batch. Per-item save receipt recorded non-fatally (KnowledgeRichDocumentSaved). Response reports results[], succeeded, failed.",
+        "Move data-loss fix (prior adversarial-v2 MEDIUM): MoveBody now uses serde double-Option (knowledge_documents.rs:407-414 + double_option at 417-424). move_document (1118-1140) merges absent fields from current membership so an empty body is a no-op; explicit null clears one field; a string sets one field. Same law applied inside the batch Move arm (1196-1214). This fixes the prior silent-clear of both project_ref/folder_ref.",
+        "Real PostgreSQL proof: tests/knowledge_documents_api_tests.rs:770-903 (mt157_move_empty_body_preserves_membership_and_batch_reports_per_item) runs against knowledge_pg() which builds an isolated schema and runs all real migrations on a live cluster (knowledge_pg_support.rs:108-140); it SKIPs loudly only when PG binaries are absent. Asserts empty-body preserves PRJ-alpha/runbooks, null clears only folder, value sets only project, 3-op batch returns 200 with succeeded=1/failed=2 and per-item error kinds not_found/validation, post-batch durable title='Membership v2' and authority_label still 'promoted' (the bad 'published' label failed), and cloud_model batch returns 403.",
+        "Storage is genuine sqlx UPDATE against the PG pool: move_knowledge_rich_document (storage/knowledge.rs:5349-5371) and set_knowledge_rich_document_authority_label (5373+) enforce a closed authority_label vocabulary draft|promoted|archived, matching migration 0280 DEFAULT 'promoted' + CHECK constraint. No SQLite/in-memory authority.",
+        "Write gate is real and server-derived: ctx.require(DocumentAction::Write) at batch_documents start; actor_kind is validated strictly server-side (knowledge_documents.rs:240-262), missing header => least-privileged, unknown token => 400, cloud_model denied write => 403. No client-supplied privilege coercion.",
+        "No deferred-live escapes in the touched code (grep for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/Unavailable returned nothing). The evidence honestly discloses that contract-named tag/folder-color-label/projection-rebuild/stale-repair ops are out of this surface and live in sibling MTs (MT-155 backlinks, MT-058 rebuild-status); this is an accurate scope statement, not a placeholder reachable from the implemented behavior.",
+        "Aside (non-blocking): packet cites v02.192 spec anchors while current is v02.194; expected paperwork drift per review ground rules, not a defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-157.json",
+        "git show c8f54538 (impl + test diff) in wtc-kernel-009",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (routes, MoveBody/double_option, batch_documents, doc_context/require)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5349-5388 (move + set_authority_label)",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:770-903 (mt157 test)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:108-140 (real-PG harness)",
+        "src/backend/handshake_core/migrations/0280_knowledge_document_identity.sql (authority_label DEFAULT/CHECK)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

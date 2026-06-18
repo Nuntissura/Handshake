@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-171-EditorSelectionAndCursorState",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-171.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "a8f9c43c",
@@ -154,6 +154,51 @@
         "selection snapshot perf budget on a 10k-block document",
         "snapshot offsets across atom nodes (hsLink/code block) round-trip to positions"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-171 requires actor-attributed selection/cursor state for operator/model/agent actors with privacy and quiet-mode constraints inside the integrated Tiptap editor. The code delivers exactly that: real, DOM-free typed snapshot transforms wired into the live ProseMirror editor, plus the prior HIGH adversarial caret-teleport regression is genuinely fixed with a real RED-to-GREEN typing test.",
+      "findings": [
+        "app/src/lib/editor/selection_state.ts:75-127 implements buildSelectionSnapshot/snapshotFromOffsets/mergePresence: typed actor-attributed snapshots (SelectionActorKind operator/local_model/cloud_model/agent/validator), UTF-8 offsets, non-operator text redaction by default (redactedReason='privacy_non_operator'), quiet-mode returns null (HBR-QUIET), operator-first stable merge. Pure transforms, no DOM. Real implementation, not scaffolding.",
+        "Wired into the live editor at app/src/components/RichTextEditor.tsx:502-513: onSelectionSnapshot is computed from real editor.state.selection {from,to} + doc.textBetween + TextEncoder (the same UTF-8 convention as TiptapSelectionInfo), gated by presencePolicy. This is a real resource touch of the integrated Tiptap/ProseMirror engine, not an implementer-authored mock (sub-rule 2 satisfied for a frontend presence MT).",
+        "Spec alignment: master-spec-v02.194 07-user-experience-and-development.md:925 defines 'Awareness: Yjs feature showing who's online and cursor positions' — this MT models exactly that multi-actor cursor/selection presence; privacy + quiet-mode are Handshake-native constraints with no external presence service. No SQLite/Docker/external graph/RAG; allowed paths (app/src) only.",
+        "sub-rule 1 clean: grep of selection_state.ts and the RichTextEditor wiring found no todo!/unimplemented!/*Unavailable/'not yet wired'/'deferred to follow-on'/'pending MT-'/placeholder/stub on any reachable path.",
+        "Prior HIGH adversarial finding (caret teleport on initialContent echo, marked FIXED in b4e95476) is genuinely fixed in code: RichTextEditor.tsx:357 sets lastEmittedRef on every onUpdate; the reload effect at :405 skips when initialContent===lastEmittedRef.current (identity guard) and :407 skips when jsonDeepEquals(editor.getJSON(), next) (structural guard); setContent uses emitUpdate:false. Proven by RichTextEditor.typing.test.tsx:57-78 which types mid-document (caret at pos 6) through an EchoParent via real editor.view.dispatch(tr.insertText) and asserts the caret advances by exactly 1 each keystroke (7,8,9) and text becomes 'helloXYZ world' — a real RED-to-GREEN behavioral test, not a mock assertion.",
+        "Adversarial MEDIUM (O(doc) snapshot encoding) and LOW (multi-actor rendering, atom-node offset ambiguity) are correctly deferred to the future collaboration transport lane: the onSelectionSnapshot consumer only runs when a parent subscribes and no production consumer exists yet (RichTextEditor.tsx:504 early-returns when onSelectionSnapshot is absent), so this is bounded scope, not a placeholder on a required path. Not a fail reason.",
+        "lifecycle.claimed_by and completed_by are null; the implementer left status READY_FOR_VALIDATION (sub-rule 3 satisfied)."
+      ],
+      "evidence_checked": [
+        "app/src/lib/editor/selection_state.ts",
+        "app/src/lib/editor/selection_state.test.ts",
+        "app/src/components/RichTextEditor.tsx",
+        "app/src/components/RichTextEditor.typing.test.tsx",
+        "git show a8f9c43c (impl commit) + b4e95476 + 701904be (hardening commits)",
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-171.json",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        "master-spec-v02.194/spec-modules/07-user-experience-and-development.md:915-939 (collaboration/awareness)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-151-DocumentProjectionImport",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-151.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -126,6 +126,55 @@
         "test: import_snippet HTML -> BlockTree::from_document_json on the result must succeed (currently fails)",
         "test: import a markdown table -> load_blocks succeeds"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-151 requires importing markdown/plain-text/HTML snippets as rich documents with typed unsupported-feature warnings and repairable nodes, persisted to PostgreSQL/EventLedger with verifiable round-trip. The code delivers a real deterministic importer, captures unconvertible content as a repairable importedRaw block, renders it inert in projections, and proves the full import->load->save->export cycle on real PostgreSQL. The prior HIGH adversarial finding (importedRaw making documents unloadable / 400) is genuinely fixed in commit 22d7ee77.",
+      "findings": [
+        "import.rs:57-123 — import_snippet dispatches real, deterministic parsers (markdown block parser covering ATX headings, blockquotes, fenced code, bullet/ordered lists, table-detection, paragraphs; plain-text paragraph splitter; HTML capture). No stub/placeholder.",
+        "import.rs:38-46,118-122,162-167,231-234 — typed ImportWarning emitted (html_captured_as_raw, table_captured_as_raw, unterminated_code_fence) instead of silently dropping content; satisfies the 'unsupported feature warnings' requirement.",
+        "import.rs:87-93 — imported_raw() produces a repairable node (attrs.repairable=true, source_format) carrying the original source text verbatim; satisfies 'repairable nodes', nothing lost.",
+        "block_tree.rs:88,119,146 — BlockKind::ImportedRaw is a real arm of from_node_type/as_node_type. This is the genuine fix for the prior adversarial-v2 HIGH finding: previously imported HTML/table docs hit UnsupportedBlockType (block_tree.rs:359-364) and 400'd on every load/blocks/projection read. Now they parse and round-trip.",
+        "projection.rs:138-144,196-200 — importedRaw renders INERT: fenced code block in markdown and escaped <pre data-hsk-imported-raw><code> in HTML (text via escape_html), so captured raw HTML never executes as markup.",
+        "api/knowledge_documents.rs:71,1221-1269 — /knowledge/documents/import endpoint is real: parses format, runs import_snippet, persists via create_knowledge_rich_document (PostgreSQL) and emits a KnowledgeRichDocumentSaved EventLedger receipt. Not a mock.",
+        "tests/knowledge_documents_api_tests.rs:369-504,1167+ — mt151 HTML and markdown-table tests drive the full import->load->blocks->save(v1->v2)->markdown+html export cycle over a live loopback HTTP server, asserting 200 at each step and inert fenced export; this directly reproduces and disproves the prior 400.",
+        "tests/knowledge_pg_support.rs:40,108-155 — knowledge_pg() connects to REAL PostgreSQL (ManagedPostgres or POSTGRES_TEST_URL/DATABASE_URL) on an isolated schema via PostgresDatabase::connect; no SQLite / in-memory substitute. Tests SKIP (not pass) when PG absent.",
+        "Grep of import.rs/block_tree.rs/knowledge_documents.rs found no todo!()/unimplemented!()/unreachable!()/deferred-live/Unavailable placeholders on the required path.",
+        "Aside (non-blocking, expected): packet cites spec bundle v02.192/v02.193 while SPEC_CURRENT is v02.194; resolver/paperwork drift only, not a code defect."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-151.json",
+        ".GOV/task_packets/WP-KERNEL-009-.../packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat 22d7ee77",
+        "src/backend/handshake_core/src/knowledge_document/import.rs",
+        "src/backend/handshake_core/src/knowledge_document/block_tree.rs",
+        "src/backend/handshake_core/src/knowledge_document/projection.rs",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

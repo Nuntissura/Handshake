@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-201-UserManualBackendApi",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T18:37:30Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-201.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
     "ready_for_validation_reason": "UserManual backend API is implemented and proven with real Axum/PostgreSQL route tests; adversarial review PASS.",
     "evidence": [
@@ -126,7 +126,56 @@
           "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-201 requires backend UserManual APIs for listing, reading, searching, and linking pages as a no-context bootstrap product surface with PostgreSQL/EventLedger authority. The committed code (src/api/user_manual.rs) implements a real Axum /usermanual/* router backed by a real PG store, with route-level tests passing against real managed PostgreSQL (port 5544, no SQLite/mocks) and EventLedger receipt persistence verified.",
+      "findings": [
+        "src/backend/handshake_core/src/api/user_manual.rs:51-73 mounts a real /usermanual/* Axum router: pages list/read/links/projection, search, tools, features, quickstarts, freshness, access-points, legacy bridge, migration-plan, spec-enrichment, and a gated POST /usermanual/resync. Full implementations, no stubs.",
+        "Reads are anonymous-capable (bootstrap surface) but attributable: get_page (user_manual.rs:205-226) appends a KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED receipt via append_read_receipt and returns the event_id; store.rs:288-297 append_manual_receipt routes through db.append_kernel_event into the real EventLedger.",
+        "Resync write gate (user_manual.rs:564-588) reuses the shared real DocumentActorKind permission enum (knowledge_document/permission.rs:15,45,59): unauthenticated/cloud_model/validator -> 403 with stable reason codes, unknown token -> 400, operator/system/local_model allowed. Fail-closed, not inferred.",
+        "Tests (tests/user_manual_api_tests.rs) are real route-level HTTP probes over a loopback Axum server against real PostgreSQL via knowledge_pg_support (port 5544, isolated schema, migrations run). receipt_exists() (lines 52-64) asserts returned receipt ids actually exist in kernel_event_ledger. user_manual_support.rs:1-5,96-118 explicitly: 'No SQLite, no mock store' and skip_if_no_pg! now PANICS rather than silently passing.",
+        "Committed green evidence logs confirm real runs: green-user-manual-api-after-review-fix.log shows 13 passed (incl. mt201_pages_list_and_read_with_bootstrap_receipt, mt201_search_finds_pages_and_tools, mt201_tools_list_and_read_resolve, mt201_page_links_resolve, mt201_resync_permission_gate_fails_closed, and mtdoc_every_registry_surface_exists_on_the_real_router) finished in 47.68s.",
+        "Spec-realism sub-rule-1 grep across src/user_manual/, src/api/user_manual.rs, and the test file found NO todo!/unimplemented!/unreachable!/deferred-live/pending-MT/Unavailable placeholder reachable from the required behavior.",
+        "sub_rule_3: lifecycle.claimed_by=KERNEL_BUILDER, completed_by=null; this is a READY_FOR_VALIDATION handoff, not a self-certified COMPLETED transition. Proof is real regardless.",
+        "Aside (non-blocking, expected per ground rules): packet/MT cite v02.192/v02.193 spec anchors while current is v02.194; the MT-124 evidence note about a resync no-op not emitting an explicit receipt is a minor hardening gap, not a behavior defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-201.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 git commit fcf9bce3 (--stat)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/user_manual.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/user_manual_api_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/user_manual_support.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/user_manual/store.rs (append_manual_receipt + upsert_page)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/permission.rs",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt201-api-backend-proof.log",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-user-manual-api-after-review-fix.log"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-175624",

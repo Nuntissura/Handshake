@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-146-RichBlockTreeModel",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-146.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -108,6 +108,52 @@
       ],
       "claim_mismatches": [],
       "missing_tests": []
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-146 RichBlockTreeModel requires defining the full set of block types (paragraph, heading, list, quote, code, table, image, video, album, slideshow, file/folder/project/spec/wp/symbol links) and the canonical structured document model behind RichDocument. The implementation in src/backend/handshake_core/src/knowledge_document/block_tree.rs delivers all required block kinds with Raw/Derived/Display separation (CX-100), deterministic stable KBL- ids, a proven stable round-trip, fail-closed parsing, and is exercised against real managed PostgreSQL.",
+      "findings": [
+        "block_tree.rs:61-95 BlockKind enum covers every MT-146-required block type: Paragraph, Heading, BulletList/OrderedList/TaskList (list), Blockquote (quote), CodeBlock (code), Table, Image, Video, Album, Slideshow, FileLink, FolderLink, ProjectLink, SpecLink, WpLink, SymbolLink. ImportedRaw and Transclusion are additive hardening kinds, not gaps.",
+        "block_tree.rs:124-150 from_node_type maps both 'codeBlock' and the editor's 'monacoCodeBlock' to CodeKind, and round-trips kind->node_type->kind (lines 97-122).",
+        "block_tree.rs:187-227 RawDerivedDisplay enforces CX-100 Raw/Derived/Display separation: raw is verbatim authority, derived (DerivedBlockSummary) is recomputed on every parse, display preserved verbatim from attrs.display. Proven by unit test raw_derived_display_are_separated (608-627).",
+        "block_tree.rs:336-343 derive_block_id produces deterministic KBL- ids via sha256 over a length-prefixed injective preimage (doc id, position path, plain text); existing attrs.block_id preserved (390-395). Proven by stable_block_id_is_deterministic_and_preserved (629-653).",
+        "block_tree.rs:296-303 to_document_json emits raw block JSON verbatim, giving a stable parse->serialize round-trip; proven by from_to_document_json_is_a_stable_roundtrip (597-605) and verbatim round-trip assertions in the monaco/importedRaw/inline tests.",
+        "block_tree.rs:42-53 + parse_block (346-408) fail closed: NotADocNode, ContentNotArray, BlockMissingType, UnsupportedBlockType, MalformedAttr; proven by malformed_documents_fail_closed (655-672).",
+        "Real-PG proof: tests/knowledge_document_model_tests.rs:74-127 creates a mixed document in managed PostgreSQL, then parses the PERSISTED content_json through BlockTree::from_document_json and asserts block kinds (Heading/CodeBlock/Image/WpLink), stable KBL- ids deterministic across re-parse, and derived plain-text extraction. knowledge_pg_support.rs:21-26,40,153 confirms real managed PostgreSQL with NO SQLite/in-memory/mock fallback.",
+        "grep for todo!/unimplemented!/unreachable!/Unavailable/stub/'deferred to follow'/'pending MT' on block_tree.rs returns NONE; no deferred-live escape reachable from the required behavior.",
+        "No forbidden-path usage (no SQLite, no external search engine, no Docker/outside-app dependency); the model is a pure typed view over ProseMirror content_json whose durable authority is PostgreSQL/EventLedger per packet constraints."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-146.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat b506d832/935e0482/bf0c62a5/dd3056f5 (wtc-kernel-009)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/block_tree.rs (full)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_document_model_tests.rs (lines 1-130 + block_tree refs)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (PG-only confirmation)",
+        "grep for deferred-live escapes in block_tree.rs (NONE)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

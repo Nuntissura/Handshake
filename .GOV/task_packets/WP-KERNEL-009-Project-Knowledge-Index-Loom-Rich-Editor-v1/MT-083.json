@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-083-PathPortabilityNormalizer",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-083.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "feab81f6",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 feab81f6; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -121,13 +121,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -161,6 +161,47 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-083 requires a PathPortabilityNormalizer that canonicalizes ingested source paths to repo/workspace-relative POSIX IDs and rejects machine-local (drive-letter/rooted/UNC/ADS/traversal) authority, wired into the real ingestion pipeline with PostgreSQL/EventLedger proof. The code delivers exactly this: a real normalizer in paths.rs, genuinely wired into engine.rs ingestion call sites, with real Handshake-managed-PostgreSQL tests proving canonical storage and fail-closed rejection (zero durable rows on bad paths).",
+      "findings": [
+        "paths.rs:45 normalize_source_relative_path is a real, complete implementation: backslash->'/' (line 61), UNC '//' reject (64), rooted '/' reject (69), drive-letter reject (75-81), ':' ADS/\\\\?\\ catch (82-88), '..' traversal reject (96-100), '.'/empty-segment collapse (94), Windows reserved device names + trailing dot/space reject (102-112), NFC unification (123-127). Idempotent by construction.",
+        "Genuinely wired into the live ingestion path, not isolated: engine.rs:35 imports it and calls it at lines 248 (ingest_file_bytes), 282 (ingest_file_from_disk), and 594 (walk pass). At engine.rs:248-256 the normalized form is what flows into persist_attempt -> durable write, so the gate sits before durable records.",
+        "Real PostgreSQL proof in tests/knowledge_ingestion_policy_tests.rs mod mt_083_path_portability: machine_local_root_paths_are_rejected_before_any_durable_write (432) drives the real engine against the managed PG cluster, rejects C:/, C:\\, /var, ../ and then asserts list_knowledge_source_roots and list_policy_decisions are BOTH empty (471-488) — true fail-closed, no mock. source_paths_normalize_to_repo_relative_posix_or_reject_typed (491) ingests 'deep\\.\\nested\\note.md' and asserts stored relative_path == 'deep/nested/note.md' (523-527), then typed-rejects '..\\escape.md','C:/abs.md','con.md','dir/file. '.",
+        "DB defense-in-depth is real: test at line 326-340 exercises the chk_knowledge_ingestion_policy_decisions_path_portable CHECK constraint at the DB boundary, and the idempotence test (paths.rs:222) confirms outputs survive storage::knowledge::normalize_repo_relative_path (knowledge.rs:230) unchanged.",
+        "Error type IngestionError::Validation(String) (mod.rs:84,96) is a real typed validation variant, not an *Unavailable / deferred-live placeholder; no todo!/unimplemented!/'not yet wired'/'pending MT-' on the live path.",
+        "Spec alignment: Master Spec v02.194 section 2.3.12 Storage Backend Portability Architecture (CX-DBP-001) makes repo-relative/portable paths canonical law; rejecting drive-letter/absolute machine-local authority matches it and [GLOBAL-PORTABILITY].",
+        "Aside (non-blocking, paperwork): the V1 FAIL was purely an upstream-dependency timing flag (MT-081 not yet validator-complete), not a code defect; MT-081 is now resolved (commit 5876feaf) per remediation_v2. Packet cites v02.192 anchors vs current v02.194 — same section numbers resolve; not a fail reason."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/paths.rs (full, incl. 6 unit tests)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:240-300 (wiring at 248/282) and call sites at 594",
+        "src/backend/handshake_core/src/knowledge_ingestion/mod.rs (IngestionError::Validation variant)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:230-255 normalize_repo_relative_path (delegated base normalizer)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_policy_tests.rs:326-340 (DB CHECK) and mod mt_083_path_portability 420-542 (real-PG engine/boundary proofs)",
+        "git show --stat feab81f6; git log --grep MT-083",
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-083.json (contract + V1 review + remediation_v2)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/ portability anchors (2.3.12 CX-DBP-001)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

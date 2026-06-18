@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-216-ParallelIndexingLeaseQueue",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-216.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "e6aea0fc",
     "evidence": [
       {
@@ -130,7 +130,51 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-216 requires a Postgres-native ParallelIndexingLeaseQueue coordinating parallel indexing with leases, backpressure, cancellation, and orphan reclaim under PostgreSQL/EventLedger authority. The committed code (migration 0311/0313 + state_recovery.rs) implements exactly this with a real per-scope serial lease queue, priority-ordered backpressure, TTL orphan reclaim, EventLedger receipts, and quiet-policy enforcement, all proven against the real Handshake-managed PostgreSQL cluster including a 4-thread concurrency race test.",
+      "findings": [
+        "Real lease queue table: migrations/0311_parallel_swarm_state_recovery.sql:115-145 creates knowledge_parallel_indexing_lease_queue with priority, ttl_seconds (CHECK >0), status enum (queued/acquired/completed/cancelled/reclaimed), blocked_by_lease_id, and EventLedger FK. A partial UNIQUE index ux_parallel_indexing_lease_queue_active_scope (scope_kind, scope_id) WHERE status='acquired' enforces serialization (one writer per scope) at the DB level.",
+        "enqueue_indexing_lease (state_recovery.rs:3065-3112) implements real backpressure: if an active or queued writer exists for the scope, the new lease is inserted as Queued with blocked_by_lease_id set to the predecessor; otherwise Acquired. Unique-violation race is caught and retried as Queued. try_acquire_indexing_lease (3114-3148) and the _tx variants give a non-blocking path.",
+        "acquire_next_indexing_lease (3393-3465) promotes the highest-priority queued lease (ORDER BY priority DESC, enqueued_at_utc ASC) to acquired in one transaction, recomputes expiry from ttl_seconds, and attaches a fresh KNOWLEDGE_INDEX_RUN_STARTED EventLedger receipt. reclaim_orphaned_indexing_leases (3467-3526) reclaims expired acquired leases (expires_at_utc <= NOW()) under FOR UPDATE, setting status=reclaimed and writing a KNOWLEDGE_INDEX_RUN_CANCELLED receipt.",
+        "Capability + attribution gating: enqueue/acquire call require_capability(WriteLocalIndex) and lane.scrubbed_for_persistence() before persisting; cloud lanes are denied (test cloud_lane_is_denied_worktree_claim_and_local_index_write_lease at tests:1011). No SQLite anywhere in the impl (grep clean).",
+        "Real-PG proof: parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaims_orphans (tests:5387-5510) asserts first=Acquired, second=Queued+blocked_by=first, SESSION_QUEUED ledger event, promotion to Acquired with fresh receipt after completion, TTL-forced orphan reclaim with KNOWLEDGE_INDEX_RUN_CANCELLED receipt, and quiet-policy payload. concurrent_same_scope_indexing_lease_records_only_real_outcome_events (tests:5512-5616, 4 worker threads, barrier + injected event delay) asserts exactly one Acquired / one Queued under contention. recovery_store()/knowledge_pg() (knowledge_pg_support.rs:108) run all migrations on the real Handshake-managed PostgreSQL cluster in an isolated schema; harness SKIPs loudly only when PG binaries are absent.",
+        "Sub-rule 1: grep of state_recovery.rs for todo!/unimplemented!/unreachable!/Unavailable/pending MT-/stub/mock/placeholder returned no hits on the lease path. Sub-rule 3: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER, status=READY_FOR_VALIDATION (not self-signed COMPLETED) - clean handoff.",
+        "Aside (non-blocking, paperwork): packet/MT spec_anchors cite bundle v02.192; current is v02.194. Expected during governance wind-down and not a failing reason. quiet_policy_jsonb column referenced by the insert is added by migration 0313, not 0311 - both are in the same migration chain and tests pass, so no behavioral gap."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/migrations/0311_parallel_swarm_state_recovery.sql",
+        "src/backend/handshake_core/migrations/0313_parallel_swarm_quiet_background_work.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (lease queue: lines 3065-3526)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (lease tests 5387-5616, harness 174-199)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (knowledge_pg managed-cluster harness)",
+        "MT-216.json contract",
+        "packet.json (scope, allowed/forbidden paths, DEC-008)",
+        "git show --stat e6aea0fc"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

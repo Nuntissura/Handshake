@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-170-EditorKeyboardAndCommandPalette",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-170.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "66669bce",
@@ -181,6 +181,54 @@
         "focus is trapped in palette/arg dialog and restored on close",
         "chord during IME composition (isComposing=true) is ignored"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-170 requires an explicit, machine-readable editor keyboard map plus a command palette with no hidden chat context, wired into the integrated Handshake editor. The code delivers a real, deterministic keymap (editor_keymap.ts) bound to the command catalog and a fully wired command palette in RichTextEditor.tsx with keyboard navigation, modal focus trap/restore, Monaco-origin containment, Mod-s save, and IME guard — all backed by genuine DOM/editor tests. Aligns with the current Master Spec UI surface; no forbidden storage/runtime introduced.",
+      "findings": [
+        "editor_keymap.ts:48-58 defines an explicit machine-readable EDITOR_KEY_BINDINGS table mapping chords to command ids / special tokens (palette.open, find.open, replace.open, editor.save); satisfies acceptance 'no hidden chat context'.",
+        "editor_keymap.ts:77-82 resolveShortcut is a pure deterministic function (Mod = ctrl OR meta) returning a bound action or null; editor_keymap.ts:78 returns null during IME composition (prior LOW finding fixed).",
+        "editor_keymap.ts:100-160 isGlobalEditorAction + shouldContainChordFromCodeBlock implement code-block chord containment, the fix for the prior HIGH adversarial finding (Monaco-origin chords mutating prose). Containment set includes StarterKit natives + own non-global bindings; palette and save are deliberate global escape hatches.",
+        "RichTextEditor.tsx:670-721 wires the keymap into a real keydown handler on editor.view.dom: defaultPrevented guard, Monaco-origin check (line 685 origin.closest('[data-testid=monaco-code-block]') && !isGlobalEditorAction), palette open, find/replace open, and SAVE_ACTION -> onSaveRequested (line 709-713). Real wiring, not a stub.",
+        "RichTextEditor.tsx:868-892 onPaletteInputKeyDown implements ArrowUp/Down/Home/End roving + Enter to run active option (prior MEDIUM finding fixed); aria-activedescendant/aria-selected combobox-listbox semantics at lines 1214-1284.",
+        "RichTextEditor.tsx:224-260 useDialogFocus implements focus capture/restore + Tab trap; applied to palette/arg-prompt/export/line dialogs (prior MEDIUM 'not modal' finding fixed).",
+        "Tests are real and non-vacuous: RichTextEditor.a11y.test.tsx:86-253 drives a real RichTextEditor (palette nav asserts aria-activedescendant transitions undo->redo, focus-restore to opener, Tab-trap wrap, Mod-s from prose AND from inside the embedded code block firing onSaveRequested twice with defaultPrevented, palette save entry). RichTextEditor.typing.test.tsx exercises real ProseMirror transactions/selection for H1/H3.",
+        "editor_keymap.test.ts:32-114 covers chord building, resolution, IME guard, save classification, and code-block containment classification against the real catalog (EDITOR_COMMAND_BY_ID).",
+        "grep of editor_keymap.ts for todo!/unimplemented!/placeholder/'deferred'/'pending MT-' = no matches on the live path; no deferred-live escape.",
+        "Aside (non-blocking paperwork drift): lifecycle.evidence for commit 66669bce cites 'editor_keymap.test.ts 6/6' but the on-disk file now has 11 tests after later iterations; cosmetic evidence staleness, not a code defect.",
+        "Diff confined to app/src/ (lib/editor + components); no /.GOV/, no src/backend, no SQLite/Docker/external-editor/external-search; packet forbidden paths respected."
+      ],
+      "evidence_checked": [
+        "D:/.../wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-170.json",
+        "D:/.../wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 66669bce, b4e95476, ddab11ee (wtc-kernel-009)",
+        "D:/.../wtc-kernel-009/app/src/lib/editor/editor_keymap.ts",
+        "D:/.../wtc-kernel-009/app/src/lib/editor/editor_keymap.test.ts",
+        "D:/.../wtc-kernel-009/app/src/components/RichTextEditor.tsx",
+        "D:/.../wtc-kernel-009/app/src/components/RichTextEditor.a11y.test.tsx",
+        "D:/.../wtc-kernel-009/app/src/components/RichTextEditor.typing.test.tsx (header + harness)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

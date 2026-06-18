@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-134-StructureAwareRanking",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-134.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "2bec339d",
@@ -135,6 +135,50 @@
       "missing_tests": [
         "test: real candidates ranked then compiled (integrated rank->budget->bundle)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-134 requires deterministic structure-aware ranking of retrieval candidates over evidence quality, graph proximity, relationship type, source authority, recency, and hub suppression with a stable tie-break, producing spec RetrievalCandidate objects persisted to a replayable RetrievalTrace. The code implements exactly this in ranking.rs and wires it into a real PostgreSQL-backed executed pipeline (executor.rs) proven by two integration tests that rank real graph edges and real fallback passages and persist the bundle+trace.",
+      "findings": [
+        "ranking.rs:88-98 score_candidate combines all six MT-required axes (evidence_quality, graph_proximity, relationship_type_weight, source_authority, recency) with hub_penalty subtracted (suppressed not removed) and clamped to [0,1] — matches spec 02-system-architecture.md:11228 'score + select deterministically' and the named axes at :10813.",
+        "ranking.rs:103-151 rank_candidates pre-sorts by candidate_id then sorts by score desc with stable tie-break by candidate_id, emitting spec RetrievalCandidate objects with base_score + tiebreak (spec field confirmed at 02-system-architecture.md:11490 'tiebreak: string'). Determinism proven by unit test ranking_is_deterministic_with_stable_tiebreak (ranking.rs:209).",
+        "Relationship-type ordering is structural: CandidateFeatures::relationship_weight_for (ranking.rs:73-82) ranks defines/implements/validates (1.0) above mentions (0.25) — satisfies the 'relationship type' axis; asserted in relationship_weights_order_definitional_above_mentions and end-to-end in the graph test (defines edge 0.95 outranks mentions edge 0.5).",
+        "Adversarial-v2 LOW fix verified in code: ranking.rs:128-134 records the real hub penalty Some(-weights.hub_penalty) (-0.25) instead of the prior -1.0 sentinel; asserted in hub_candidate_is_penalized_but_present (ranking.rs:204-205, asserts Some(-0.25)).",
+        "Adversarial-v2 MEDIUM fix verified: executor.rs:89-300 execute_retrieval feeds EXECUTED graph edges (confidence/proximity/edge-type/hub at :200-228) or fallback passages (extraction confidence at :174-198) through rank_candidates (:230) into the compiler with persisted bundle+trace (:276-289). The integrated rank->compile path is now real, not hand-built candidates.",
+        "Real PostgreSQL proof confirmed (sub-rule 2): knowledge_memory_fixtures.rs header 'Real PostgreSQL only. No SQLite, no mocks'; fixture uses managed-PG auto-discovery via knowledge_pg_support and skip_if_no_pg! SKIPs loudly when PG absent. executed_pipeline_graph_path_ranks_and_compiles (pipeline_tests.rs:610-690) creates real edges, asserts ranked[0].base_score > ranked[1], persists bundle (2 span-cited items) + trace mode graph_traversal. executed_pipeline_falls_back_to_passages_ranks_and_compiles (:481-604) asserts the 0.9 passage outranks 0.4, persists bundle+trace with passage_fallback posture.",
+        "Sub-rule 1: no todo!/unimplemented!/'not yet wired'/'deferred to follow-on'/'pending MT-'/*Unavailable escapes in ranking.rs or executor.rs (grep clean). Documented feature defaults (GRAPH_SOURCE_AUTHORITY, NEUTRAL_RECENCY at executor.rs:54-56) are honest neutral constants for axes not yet per-record, not placeholder escapes — the ranking still runs and discriminates on the live axes.",
+        "Boundary/scope: all changes confined to src/backend/handshake_core/src/knowledge_retrieval/ and tests/ (allowed_paths). No SQLite, no external search engine, no Docker, no forbidden surfaces touched. Aside (non-blocking): packet cites v02.192 spec anchors; resolved against current v02.194 where the same ranking clauses exist."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-134.json",
+        "git commits 2bec339d, 136c5e9a, 6050afca in wtc-kernel-009",
+        "src/backend/handshake_core/src/knowledge_retrieval/ranking.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs (executed_pipeline_graph_path_ranks_and_compiles, executed_pipeline_falls_back_to_passages_ranks_and_compiles)",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:10813,11228,11490"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

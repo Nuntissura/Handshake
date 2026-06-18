@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-106-CodeNavigationApi",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-106.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -132,6 +132,55 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "VERIFIED FIXED from V1 (c2a660ae): served_staleness (knowledge_code_nav.rs:271) is attached on ALL 6 nav routes - lookup_symbols/get_symbol via symbol_to_json (332), symbol_references (455,468,482), symbol_tests (523,536), symbol_spans (588), file_lens via build_monaco_payload. It FAILS CLOSED: a staleness lookup failure is served as an explicit error verdict, never as fresh (294-296). The serve-stale-silently on 5-of-6-routes finding the V1 reviewer flagged is closed."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-106 requires a backend CodeNavigationApi (symbol lookup, definition, references/callers, tests, source spans, owning WP) with PostgreSQL/EventLedger authority and attributable retrieval receipts per Master Spec 2.3.13.11. The implementation delivers all six Axum routes over real Handshake-managed PostgreSQL, enforces identity headers (400), writes real KnowledgeRetrievalTraceRecorded + quiet-background-work receipts, and flags staleness fail-closed on every served symbol per 2.3.13.11.1.",
+      "findings": [
+        "knowledge_code_nav.rs:85-103 wires all 6 nav routes (symbols lookup, symbol detail, references, tests, spans, file lens) — every MT-106 navigation surface is implemented and reachable, not stubbed.",
+        "knowledge_code_nav.rs:164-198 nav_context() enforces x-hsk-actor-id/kernel-task-run-id/session-run-id (400 if missing) and resolves actor-kind; this satisfies spec 2.3.13.11 (line 2717): backend nav calls MUST carry actor/session/correlation id and a typed receipt.",
+        "knowledge_code_nav.rs:204-234 record_nav_receipt() appends a real KnowledgeRetrievalTraceRecorded EventLedger event via db.append_kernel_event (postgres.rs:13432, real SQL) BEFORE returning the body, threading the event id into the response — fail-closed retrieval attribution.",
+        "served_staleness() (knowledge_code_nav.rs:325-352) is attached to EVERY served symbol on all 6 routes (symbol_to_json:386, references callers/callees:539/552, tests:610, spans/self-staleness:566/623/678, lens via build_monaco_payload); it derives freshness from the persisted knowledge_code_files index health and fails closed (lookup error -> fresh:false). This satisfies spec 2.3.13.11.1 (line 2726) 'machine-readable staleness verdict, fail-closed; pages without staleness stamping are forbidden to serve as fresh' and closes the prior adversarial 'serve-stale-silently on 5/6 routes' finding.",
+        "DoS fix is real: lookup_symbols (knowledge_code_nav.rs:435) now calls PostgresDatabase::lookup_code_symbols (knowledge.rs:6837) which pushes path/name/prefix filters down to SQL with LIKE-metachar escaping (escape_like, knowledge.rs:6896) instead of loading every workspace symbol. Parameterised binds ($1..$9) — no SQL injection.",
+        "Path traversal rejected: file_lens (knowledge_code_nav.rs:712) calls is_safe_relative_path which rejects absolute/'..'/'.'/backslash segments (400).",
+        "Runtime proof is real PostgreSQL: tests/knowledge_code_nav_api_tests.rs drives the actual nav_api::routes over a loopback listener against a real managed-PG schema via knowledge_pg() (SKIP-loud if PG absent; no SQLite, no mock store), indexing a fixture through the real CodeIndexEngine. Tests assert 400-without-headers, receipt ids, staleness=fresh on all routes, marked_stale flag after mark-stale on lookup+detail, persisted quiet-background-work receipts (PG COUNT query), 404 on unknown symbol, and 400 on traversal.",
+        "Self-cert clean: lifecycle.claimed_by=KERNEL_BUILDER..., completed_by=null, status READY_FOR_VALIDATION — implementer did not sign COMPLETED.",
+        "Non-blocking aside: record_quiet_nav_receipt (knowledge_code_nav.rs:267) hardcodes mt_id=\"MT-219\" though this is MT-106 — a cosmetic provenance-label inaccuracy on the quiet-work record, not a behavior defect. (Governance/paperwork concerns, if any, are out of scope and not a fail reason.)"
+      ],
+      "evidence_checked": [
+        "MT-106.json (full contract: acceptance_criteria, constraints, lifecycle, adversarial_review_v2)",
+        "packet.json allowed/forbidden paths (referenced)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate (3 sub-rules)",
+        "git show --stat 5d6490b0, 79e1a7e4, c2a660ae",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs (full, all 6 routes + served_staleness + nav_context + record_nav_receipt + DoS/path-traversal fixes)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6575-6602 (code-file lookups), 6837-6901 (lookup_code_symbols DB-side + escape_like)",
+        "src/backend/handshake_core/src/storage/postgres.rs append_kernel_event (13432)",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs:2201 record_quiet_background_work (real PG tx)",
+        "tests/knowledge_code_nav_api_tests.rs (full integration proof, real PG harness)",
+        "tests/knowledge_pg_support.rs knowledge_pg() (real PostgresDatabase::connect, SKIP-loud)",
+        "spec master-spec-v02.194/spec-modules/02-system-architecture.md 2.3.13.11 (2694-2719) + 2.3.13.11.1 (2721-2726)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

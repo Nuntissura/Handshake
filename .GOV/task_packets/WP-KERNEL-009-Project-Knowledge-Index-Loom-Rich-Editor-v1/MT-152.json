@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-152-EmbedReferenceModel",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-152.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -125,6 +125,50 @@
       "missing_tests": [
         "test: saving a document whose image block carries an absolute-path src is rejected or sanitized (no test exercises content_json embed validation on save)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-152 EmbedReferenceModel requires rich-document embeds to be stored as typed artifact/media/source ids or typed http(s) URLs, never random absolute paths, with PostgreSQL/EventLedger authority. The code delivers a typed EmbedTarget law enforced both at the side-table DB CHECK and (after the adversarial-v2 fix) on the document content_json save path before commit, with real managed-PostgreSQL HTTP integration proof. The prior adversarial finding (save-path bypass) is genuinely closed.",
+      "findings": [
+        "embed.rs:75-100 EmbedTarget::new is the only public constructor and fail-closed rejects absolute paths (is_absolute_path covers POSIX /, Windows drive-letter, UNC \\\\, and file: URLs at embed.rs:293-310), non-http url-kind values, and scheme-bearing id values; url_scheme (embed.rs:191-219) defeats tab/newline/case obfuscation so javascript:/data: cannot hide in an id field.",
+        "embed.rs:154-182 validate_block_embeds walks every is_embed() block through EmbedTarget::parse_raw and returns the first (block_id,error) so a bad target rejects the whole write; block_embed_target_raw (embed.rs:122-134) is the single canonical attrs reader shared with projection.rs:41, so the same bytes are governed by the same law on both render and save.",
+        "Save-path enforcement is real and pre-commit: knowledge_documents.rs:977-979 (save) and :654 (create) call validate_block_embeds and 400 fail-closed before db.save_knowledge_rich_document_version; this closes the adversarial-v2 MEDIUM (embeds validated only in the side table). Post-commit the side table is resynced via replace_knowledge_document_embeds (knowledge_documents.rs:1049).",
+        "storage/knowledge.rs:5580-5633 replace_knowledge_document_embeds is a real transactional delete-all-for-document + insert into the knowledge_document_embeds PostgreSQL table (mirrors backlinks sync), so the table can never drift from content; migration 0281 adds DB-level CHECK constraints rejecting absolute/UNC/file:/drive-letter ref_value and enforcing http(s) for url kind, and registers the table as authority-class in knowledge_schema_registry.",
+        "Real-PG proof exists: tests/knowledge_documents_api_tests.rs:526 mt152_save_path_validates_and_persists_content_embeds spins a real Axum server over PostgresDatabase::connect(pg.schema_url) (test:114-115), creates+saves a doc with a media-id embed (embeds_persisted==1), resaves with media-id+https-url (==2), asserts 6 dangerous targets (javascript:/JaVa\\tScRiPt:/data:/C:\\/etc/passwd/file:) all 400 fail-closed with doc_version unchanged (test:608-651), and a no-embed save empties the table (test:653-676). This touches the real Handshake-owned PG resource, not an implementer mock.",
+        "Self-cert not present: lifecycle.claimed_by=null, completed_by=null, status=READY_FOR_VALIDATION. No deferred-live escapes (no todo!/unimplemented!/*Unavailable) reachable from the save path; the test SKIP guard is a managed-PG-availability skip, not a live-path placeholder.",
+        "Aside (non-blocking, paperwork): the MT cites spec anchor 2.3.13.11 (v02.192); exact-section resolution against current v02.194 is Integration Validator scope. Conceptual alignment with §2.3.13 storage traits + Raw/Derived/Display (CX-100) + local-first PostgreSQL authority is clear and uncontradicted."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-152.json",
+        "src/backend/handshake_core/src/knowledge_document/embed.rs",
+        "src/backend/handshake_core/migrations/0281_knowledge_document_embeds.sql",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (save/create embed validation lines 654,699,843,977,1049)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5580-5648 replace_knowledge_document_embeds",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:507-676 mt152_save_path_validates_and_persists_content_embeds",
+        "git commits b506d832, aa0ce3f6, bf0c62a5, dd3056f5 (show --stat)",
+        "spec module index grep in .GOV/spec/master-spec-v02.194/spec-modules/"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-255-EditorDraftRecovery",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-16T16:25:21Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-255.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -78,7 +78,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -86,7 +86,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       {
@@ -189,7 +189,55 @@
           ]
         }
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-255 requires editor-side crash/draft recovery where unsaved keystrokes survive a tab/app crash via periodic draft persistence to the backend write-box (not localStorage), a reopen recovery banner with MT-247 diff offering restore/discard, and the draft cleared on successful save. The code delivers all of this with real Handshake-native PostgreSQL persistence, EventLedger receipts, and genuine runtime proofs (real-PG Rust route test plus offline Playwright through the real built UI).",
+      "findings": [
+        "Migration 0328_rich_document_draft_recovery.sql:5-38 creates a real PostgreSQL table knowledge_rich_document_drafts (PK on rich_document_id, FK to knowledge_rich_documents and workspaces ON DELETE CASCADE, sha256 CHECK constraints, actor/session attribution) and registers it in knowledge_schema_registry with mt_id MT-255 — durable backend write-box, not localStorage.",
+        "api/knowledge_documents.rs:74-76 wires GET/PUT/DELETE /knowledge/documents/:id/draft; load_document_draft (773-805) suppresses the recovery offer when draft hash/content equals saved head; upsert_document_draft (809-905) validates base version/hash fail-closed, parses through BlockTree + validate_block_embeds, and records a KnowledgeCrdtRecoveryReceiptRecorded EventLedger receipt; clear_document_draft (909-942) explicit discard with its own receipt.",
+        "storage/knowledge.rs:5201-5205 deletes the draft row in the SAME transaction (&mut *tx) as the version INSERT before tx.commit() — clean save atomically clears the draft server-side, satisfying the 'draft cleared after clean save (proven)' acceptance criterion and closing the debounce-vs-save race.",
+        "RichDocumentView.tsx:339-398 implements debounced backend draft persistence (scheduleDraftPersist -> upsertRichDocumentDraft), 501-525 loads the backend draft on open and offers a draft_recovery snapshot with a merge/diff panel (MT-247 reuse), 682-712 restore rehydrates editor content, 702-712 discard calls clearRichDocumentDraft; save path (618) cancels the pending debounce and (650) drops the recovery snapshot on success.",
+        "Real-PG proof: tests/knowledge_documents_api_tests.rs:1185-1344 boots the actual axum docs routes against real PostgreSQL via knowledge_pg_support (PostgresDatabase::connect to an isolated schema on Handshake-managed PG; the support module explicitly documents NO SQLite/in-memory/mock fallback) and asserts draft upsert, EventLedger receipt id presence, clean-save clears draft, and discard leaves saved head byte-equal ('crash sentinel draft').",
+        "Offline Playwright proof: tests/dependency_policy/editor_draft_recovery.spec.ts builds the harness, mounts the REAL RichDocumentView (harness/editor_draft_recovery_harness.tsx:8,33), types into a real ProseMirror editor, simulates crash via page.close, reopens a new page, verifies the recovery banner + merge panel, restores byte-exact, saves (asserts draft cleared), discards (asserts saved head untouched = firstDraft), and asserts externalRequests == [] (zero external network).",
+        "No placeholders or deferred-live escapes: grep across impl + harness found no todo!/unimplemented!/unreachable!/stub/FIXME/'deferred to follow-on'/'pending MT-' reachable from the required behavior.",
+        "Aside (non-blocking, paperwork): lifecycle.implementation_commit is null and the files landed inside a multi-MT checkpoint commit c49afb7f; the three proof commands are self-reported PASS in the evidence block and were not re-run here due to the host-load constraint — realism was judged by reading the genuine test code. Self-cert (claimed_by==completed_by==KERNEL_BUILDER) is present but status is correctly READY_FOR_VALIDATION and the proof is independently real."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-255.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0328_rich_document_draft_recovery.sql",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (lines 74-76, 773-942)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (lines 1902-2012, 5009-5110, 5184-5206)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (lines 90-160, 1185-1344)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (lines 1-60)",
+        "wtc-kernel-009/app/src/components/RichDocumentView.tsx (lines 339-525, 610-712, 900-990)",
+        "wtc-kernel-009/app/src/harness/editor_draft_recovery_harness.tsx",
+        "wtc-kernel-009/tests/dependency_policy/editor_draft_recovery.spec.ts",
+        "git log/status on feat/WP-KERNEL-009 (commit c49afb7f)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

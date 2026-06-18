@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-173-EditorAccessibilityAndReadability",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-173.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "1d0a2e66",
@@ -153,6 +153,50 @@
         "axe-core scan of the mounted editor (0 serious violations)",
         "narrow-viewport no-overlap visual assertion"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-173 requires editor accessibility/readability: text fit, focus order, discoverability, contrast semantics, no-overlap, exposed via the integrated Tiptap/Monaco editor. The code delivers a real, tested ARIA toolbar pattern (roving tabindex), labelled modal command palette with combobox/listbox keyboard navigation, code-block Escape exit (WCAG 2.1.2), and read-only marking — all asserted against the real RichTextEditor component, with all three prior adversarial findings fixed in code that is an ancestor of HEAD.",
+      "findings": [
+        "RichTextEditor.a11y.test.tsx mounts the REAL RichTextEditor (import ./RichTextEditor, render(<RichTextEditor .../>)) and asserts real DOM/ARIA output — not implementer-authored mocks satisfying a fake contract. 8 tests covering toolbar, palette, arg-prompt, read-only, palette arrow nav, focus restore, Tab trap, toolbar roving, Mod-s save, code-block Escape exit.",
+        "Toolbar roving tabindex (M16) is really implemented: RichTextEditor.tsx:772-789 onToolbarKeyDown computes next ENABLED control for ArrowRight/Left/Home/End with wrap; per-button tabIndex assignment at 995-1074 keeps exactly one tab stop on an enabled control (role=\"toolbar\" at 975).",
+        "Palette combobox/listbox semantics (M12) real: RichTextEditor.tsx:1221-1274 role=combobox input with aria-controls/aria-activedescendant, role=listbox, per-option aria-selected tracking paletteActiveIndex. Replaces the prior static aria-selected=false.",
+        "Code-block Escape exit (M6/M17) real: MonacoCodeBlockView.tsx:239-243 Monaco Escape keybinding -> exitToProse (context-guarded so find/suggest keep Escape); degraded textarea path 444-458 mirrors it; data-keyboard-exit=\"escape\" + aria-label expose the affordance (377-379).",
+        "All three prior adversarial-review-v2 findings (toolbar pattern, code-block keyboard trap, palette/textarea semantics) are marked FIXED at commit ddab11ee, which I confirmed via git merge-base is an ancestor of HEAD.",
+        "No reachable placeholder/escape: grep hits for 'stub' are comments asserting surfaces are no longer stubs; 'placeholder' is the HTML input attribute. No todo!/unimplemented!/deferred/pending-MT on any live path.",
+        "Aside (non-blocking): recorded lifecycle.implementation_commit 1d0a2e66 only adds the test file; the actual a11y implementation landed in ddab11ee — a paperwork pointer staleness, both in HEAD, not a code defect.",
+        "Aside (non-blocking): LOW finding #4 (no axe-core/contrast/narrow-viewport scan) is a hardening gap; MT scope explicitly defers pixel/contrast/overlap to the MT-176 matrix and delivers the semantic structure those checks rely on, so it does not contradict MT-173 acceptance criteria."
+      ],
+      "evidence_checked": [
+        "MT-173.json (full contract incl. adversarial_review_v2 findings + fixed_commit markers)",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 1d0a2e66 and ddab11ee",
+        "git merge-base --is-ancestor for both commits vs HEAD",
+        "app/src/components/RichTextEditor.a11y.test.tsx (full)",
+        "app/src/components/RichTextEditor.tsx:765-824, grep of a11y markers + placeholders",
+        "app/src/components/MonacoCodeBlockView.tsx (grep escape-exit impl)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

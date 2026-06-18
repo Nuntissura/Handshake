@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-206-UserManualStateRecoveryGuide",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T18:37:30Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-206.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
     "ready_for_validation_reason": "State recovery guide is seeded and verified for compaction, interrupted MTs, failed builds, and validation reentry; proof and adversarial review PASS.",
     "evidence": [
@@ -126,7 +126,53 @@
           "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-206 requires a no-context UserManual state-recovery guide covering session compaction, interrupted microtasks, failed builds, and validation reentry, anchored to PostgreSQL/EventLedger authority. The implementation seeds a real state-recovery-guide page into managed PostgreSQL and proves coverage via a content test that queries the page back from the DB; the code delivers the MT behavior and aligns with current Master Spec 10.15.8.",
+      "findings": [
+        "seed.rs:1164-1282 page_state_recovery_guide() defines a state_recovery page with exactly the four required scenarios as recovery-kind sections: 'After session compaction', 'After an interrupted microtask', 'After a failed build', 'Validation reentry'; each ties recovery to product authority (manual-toc, WP/MT contract, EventLedger receipts kernel_event_ledger, scoped tests, freshness verdicts, DEC-007).",
+        "seed.rs:185 registers page_state_recovery_guide() in seed_corpus(), so the page is actually seeded; seed.rs:1809-1840 ensure_seeded() upserts pages into real PostgreSQL via UserManualStore::upsert_page — a genuine durable resource write, not a mock.",
+        "tests/user_manual_content_tests.rs:449-483 mt206_state_recovery_guide_covers_contract_scenarios reads the page back from PG via get_page_by_slug, asserts page_kind=='state_recovery', >=4 sections, all four scenario substrings present, and every section kind 'recovery'.",
+        "tests/user_manual_support.rs:132-143 skip_if_no_pg! PANICS when PostgreSQL is absent (it does not silently skip), so a green test result is proof of a real PG round-trip.",
+        "Proof log ../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt206-state-recovery-proof.log shows 'mt206_state_recovery_guide_covers_contract_scenarios ... ok' in 3.63s against external real PostgreSQL (pg-external-* logs; 127.0.0.1:5544 per commit fcf9bce3).",
+        "Spec alignment: master-spec-v02.194 10.15.8 (10-product-surfaces.md:8151-8157) requires a UserManualRecord to explain common failure modes and recovery steps, and 10.20 (:8545) mandates UserManual recovery panes for no-context model operation; the MT page directly satisfies this and carries spec_anchors 10.15.8 + 2.3.13.11 (seed.rs:1171).",
+        "No deferred-live escapes: grep of seed.rs found no todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/placeholder on the recovery page path.",
+        "Minor aside (non-blocking): the MT contract's scope.relevant_files still name legacy model_manual/* paths while the code lives under user_manual/* — this is the spec-sanctioned UserManual rename bridge (10.15.8), expected paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "MT-206.json",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "SPEC_CURRENT.md (v02.194)",
+        "git show --stat fcf9bce3",
+        "src/backend/handshake_core/src/user_manual/seed.rs:1164-1282,178-191,1809-1840",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs:447-483",
+        "src/backend/handshake_core/tests/user_manual_support.rs:132-143",
+        "../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/green-mt206-state-recovery-proof.log",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md:8151-8157,8534-8552"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-175624",

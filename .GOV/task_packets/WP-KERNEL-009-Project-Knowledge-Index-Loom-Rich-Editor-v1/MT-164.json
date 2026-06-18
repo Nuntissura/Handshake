@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-164-TiptapAutoCodeBlockRules",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-164.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "5ca31f9d",
@@ -145,6 +145,53 @@
         "integrated editor: paste indented blob -> plaintext code block",
         "codeToProse round-trip: prose -> code -> prose preserves text"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-164 implements Tiptap auto-code-block rules (fenced input rule, fenced/indented paste conversion into embedded Monaco code blocks, slash-command insertion, and reversible prose<->code commands). The code is real, wired into a live ProseMirror editor, and the tests exercise the actual registered handlePaste plugin dispatch path. The two prior adversarial findings (unwired paste, missing codeToProse) are genuinely fixed in commit 3ae8ecdd.",
+      "findings": [
+        "auto_code_block_rules.ts:67-84 — AutoCodeBlockRules.addProseMirrorPlugins registers a REAL ProseMirror Plugin with a handlePaste prop that delegates to handleCodeBlockPaste(editor, text). This is the fix to the prior HIGH adversarial finding (paste had zero product callers); it is now wired into the live editor, not a dangling pure helper.",
+        "auto_code_block_rules.test.ts:135-164 — the wired-paste test drives editor.view.someProp('handlePaste', fn => fn(view, event)), i.e. the actual ProseMirror dispatch path, not the bare helper. Asserts a real monacoCodeBlock node with language='rust', code='fn main() {}' is produced, and that prose-only paste falls through. This is genuine runtime proof against a real @tiptap/core Editor + real schema node.",
+        "auto_code_block_rules.ts:107-140 — codeToProse command implemented (prior MEDIUM finding 'reverse conversion missing'). Resolves the block via NodeSelection or caret, reads node.attrs.code, and splits into one paragraph per line. Tests at lines 190-244 prove round-trip (prose->code->prose) and multi-line split, plus decline-without-block returns false.",
+        "auto_code_block.ts:102-130 — segmentPasteText splits a pasted blob into ordered prose/code segments so interleaved prose between fences is preserved (prior helper dropped it = data loss). Verified by mixed-paste test at lines 166-188 asserting prose-before, code block, prose-after order.",
+        "Dependencies real: app/package.json declares @tiptap/pm ^3.13.0 as a direct dep (resolves the earlier import workaround); MonacoCodeBlockNode (monaco_code_block_node.ts) defines the code/language/contentHash attrs that codeToProse reads. No symbol is fabricated.",
+        "Scope confinement clean: both commits (5ca31f9d, 3ae8ecdd) touch only app/src/lib/editor/auto_code_block.ts and app/src/lib/tiptap/auto_code_block_rules.ts(.test) — all under allowed app/src; no /.GOV/, no src/backend, no forbidden SQLite/Docker/external-search/CDN-worker tech present.",
+        "Spec alignment: master-spec-v02.194 line 2708 defines EditorCodeNode as 'a Monaco-backed code block embedded in a RichDocument, with language id ... round-trip hash', and ProseMirror/Tiptap is the canonical rich-doc engine (lines 1583, 2707). The monacoCodeBlock node + reversible fenced round-trip match this directly.",
+        "No deferred-live escapes, stubs, TODO/placeholder, or *Unavailable variants found in the impl or detection module (grep empty).",
+        "Aside (non-blocking): this is a pure client-side editor MT with no durable-state write, so the contract's general PostgreSQL/EventLedger durable-authority clause does not apply to this MT; the correct native resource (real editor/PM runtime) IS exercised."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-164.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 git show 5ca31f9d + 3ae8ecdd (stats + diff)",
+        "wtc-kernel-009/app/src/lib/tiptap/auto_code_block_rules.ts",
+        "wtc-kernel-009/app/src/lib/editor/auto_code_block.ts",
+        "wtc-kernel-009/app/src/lib/tiptap/auto_code_block_rules.test.ts",
+        "wtc-kernel-009/app/package.json (tiptap deps)",
+        "wtc-kernel-009/app/src/lib/tiptap/monaco_code_block_node.ts (code/language attrs)",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (EditorCodeNode, ProseMirror/Tiptap anchors)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-095-SourceIngestionApi",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-095.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "f720f43c",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f720f43c; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -121,13 +121,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -161,6 +161,50 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-095 requires a backend HTTP surface that lets a no-context agent list roots/sources/receipts/repairs and trigger ingestion runs + repair retries, with PostgreSQL/EventLedger authority and actor/session identity carried onto ledger receipts. The implementation delivers exactly that: a real Axum route module wired into the live router, backed by the real ingestion engine over the shared Postgres pool, proven by a route-level integration test against real PostgreSQL asserting on real kernel_event_ledger rows.",
+      "findings": [
+        "Implementation (src/backend/handshake_core/src/api/knowledge_ingestion.rs, 498 lines) exposes the full MT-095 scope: register_root (POST), list_roots/list_sources/list_receipts/list_repairs (GET), trigger_run (POST), retry_repair (POST). All handlers call real engine methods on IngestionEngine over the shared AppState.postgres_pool (engine_for, line 109-112: wraps the Arc pool, does NOT reconnect or open SQLite).",
+        "Routes are merged into the live product router: src/backend/handshake_core/src/api/mod.rs:42 builds knowledge_ingestion::routes(state) and :67 merges it into the real workspace router — not a dead/orphan module.",
+        "Backend-navigation receipt law (spec 2.3.13.11, present in current v02.194 02-system-architecture.md:2694) is enforced: mutation_context() (knowledge_ingestion.rs:130-166) REQUIRES x-hsk-actor-id + x-hsk-kernel-task-run-id + x-hsk-session-run-id, returning a typed 400 (bad_request) when any is missing — not a panic, not a silent default. Read endpoints correctly omit the requirement.",
+        "Engine methods are real, not stubs: engine.rs register_root (line 147) compiles+evaluates the allowlist policy, appends a ValidationRecorded EventLedger receipt, records a durable policy decision, and creates the DB root row; run_ingestion_pass (534), retry_repair (736) all exist in a 1474-line engine. Grep for todo!()/unimplemented!()/'not yet wired'/'deferred to follow-on'/'pending MT-'/Live*Unavailable across the entire knowledge_ingestion module returned NO matches.",
+        "Runtime proof is real (sub-rule 2): tests/knowledge_ingestion_api_tests.rs starts the actual Axum app on a loopback listener and drives it over HTTP, then asserts directly on real kernel_event_ledger rows via env.pg.raw_connection() (lines 367-410): decision event carries actor_id/kernel_task_run_id/session_run_id/correlation_id verbatim; run start+finish = 2 ledger events under the API identity; retry left >=1 ledger event. Test is gated on real PostgreSQL (ingestion_pg()).",
+        "Typed error mapping is correct (ingestion_error, lines 170-213): PolicyDenied->403 with durable decision_id+verdict+matched_pattern, Validation->400, NotFound->404, Conflict->409, Io->400, unexpected->500 with tracing::error and no content/secret in the 500 body. List endpoints clamp limit to [1, LIST_CAP=500].",
+        "Constraint compliance: no SQLite/Docker/external-search/external-graph path; fs_anchor is REQUEST-scoped runtime input explicitly never stored (lines 28-31, 383-386); durable state is PostgreSQL/EventLedger only. No forbidden paths touched; commit f720f43c only touches Cargo.toml (+lopdf already present chain), api/knowledge_ingestion.rs, api/mod.rs (+3 wiring lines), and the test file — all within packet allowed_paths.",
+        "Prior FAIL_V1 (wp_validator_review_v1) was UPSTREAM_DEPENDENCY_NOT_READY only — a sequencing/paperwork concern that MT-081 was still CLAIMED at validation time, never a code defect. remediation_v2 records MT-081 now implemented+ready (commit 5876feaf). Under the ground rules, dependency-ordering paperwork is not a blocking reason; the code itself was never failed for a defect and is sound.",
+        "Aside (non-blocking): adversarial review noted x-hsk-actor-kind defaults to 'system' when absent (actor-id still required, so identity is never anonymous), and fs_anchor is caller-trusted but bounded by the MT-081 registration allowlist gate + per-root file allowlist. Both are low-risk and do not violate the MT or spec."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-095.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_ingestion.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/mod.rs (lines 38-72)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_api_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs (from_database/register_root/run_ingestion_pass/retry_repair)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/store.rs (list_extraction_receipts/list_repair_entries)",
+        "git show --stat f720f43c (commit scope)",
+        "grep for placeholders across src/backend/handshake_core/src/knowledge_ingestion (no matches)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (section 2.3.13.11)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-182-TagsAndTagHubs",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T19:14:37.123Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-182.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "c6bf160a",
     "evidence": [
       {
@@ -148,6 +148,54 @@
       "fixes": [
         "No code change required; findings are handled-by-design and tested."
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-182 requires tags as first-class Loom tag hubs with backlinks, nested tags, and search filters delivered as Handshake-native projections over PostgreSQL (loom_blocks + loom_edges). The implementation delivers exactly that: a LoomTagHub type, three real Postgres-backed Database methods + backend navigation APIs (including a cycle-guarded recursive CTE for nested-tag membership), proven by 4 committed integration tests that run against real Handshake-managed PostgreSQL with no SQLite/mock fallback.",
+      "findings": [
+        "commit c6bf160a is the sole MT-182 commit; +485 lines across loom.rs, mod.rs, postgres.rs, api/loom.rs, and a new test file (no /.GOV/ or out-of-scope paths; all within packet allowed_paths src/backend/handshake_core + tests).",
+        "storage/loom.rs:1029 LoomTagHub { block, sub_tags, tagged_blocks, backlink_count } models the tag-hub surface; matches Master Spec §7.1.1.7 / [LM-TAG-002] (tag = LoomBlock content_type=TAG_HUB, TAG edges) in v02.194 07-user-experience-and-development.md:238,244.",
+        "postgres.rs list_tag_hubs filters content_type='tag_hub'; get_tag_hub fails closed via StorageError::Validation('loom block is not a tag_hub') when block is not a TagHub, and aggregates direct SUB_TAG children, direct TAG sources, and a COUNT(*) backlink_count over loom_edges.",
+        "postgres.rs list_blocks_for_tag uses a RECURSIVE CTE over edge_type='sub_tag' (child source -> parent target) with a path-array cycle guard (NOT source_block_id = ANY(path)) and a $4::BOOL=TRUE gate that disables descendant expansion when include_subtags=false, giving exact direct membership; verified against the test assertions.",
+        "Enum-to-SQL string consistency verified: loom.rs maps TagHub->'tag_hub', Tag->'tag', SubTag->'sub_tag' (lines 64,365,366), matching the literal strings bound in postgres.rs queries.",
+        "PostgresDatabase is the ONLY concrete Database impl; the NotImplemented trait-default stubs added in mod.rs for these three methods are overridden and not reachable from the live API/test path (sub-rule 1 clean).",
+        "tests/loom_tag_hub_tests.rs (4 tests) runs against real Handshake-managed PostgreSQL via knowledge_pg_support, which documents NO SQLite/in-memory/mock fallback (SKIP on absent binaries, panic on any other failure) — real durable-authority proof (sub-rule 2 PASS).",
+        "Self-cert clean: lifecycle.claimed_by=KERNEL_BUILDER-20260614-175624, completed_by=null, status=READY_FOR_VALIDATION — implementer correctly handed off rather than signing COMPLETED (sub-rule 3 PASS).",
+        "Aside (non-blocking paperwork): the evidence-referenced log ../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/pg-external-loom-wiki-20260614-205058/green-mt182-loom-tag-hub-tests.log is not present on disk (artifacts are external/transient); proof realism is established from the committed test code itself, not the convenience log."
+      ],
+      "evidence_checked": [
+        "git show c6bf160a (full diff) in wtc-kernel-009",
+        "src/backend/handshake_core/src/storage/loom.rs (LoomTagHub, enum string mappings)",
+        "src/backend/handshake_core/src/storage/mod.rs (trait method additions)",
+        "src/backend/handshake_core/src/storage/postgres.rs (list_tag_hubs/get_tag_hub/list_blocks_for_tag/loom_blocks_by_incoming_edge)",
+        "src/backend/handshake_core/src/api/loom.rs (3 tag routes + handlers)",
+        "src/backend/handshake_core/tests/loom_tag_hub_tests.rs (4 integration tests)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (real-Postgres-only harness)",
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-182.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (LM-TAG anchors)",
+        "grep for deferred-live escapes across impl + test paths (none found)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

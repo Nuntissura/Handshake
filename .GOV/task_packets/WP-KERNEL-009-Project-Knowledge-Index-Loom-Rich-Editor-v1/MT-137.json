@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-137-ContextBudgetPolicy",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-137.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "80d38c14",
@@ -118,6 +118,50 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "Deterministic tiered allocation with per-drop reasons + truncation flags; PG-proven (pipeline_tests:230)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-137 requires a context budget policy (token/size budgets, truncation rules, priority tiers, why-dropped evidence) producing bounded, explainable, PostgreSQL-backed context bundles. The code delivers a real deterministic tiered allocator wired into the live bundle compiler and persisted/verified against real PostgreSQL.",
+      "findings": [
+        "budget.rs:113 allocate() is a real, deterministic tier-ordered allocator: Authoritative>Primary>Supplementary admission, three enforced caps (max_total_evidence_tokens, max_snippets_total, max_snippets_per_source), per-item DropReason ledger (token_budget_exhausted / snippet_count_exhausted / per_source_cap_reached) and truncation_flags. Matches MT scope 'token/size budgets, truncation rules, priority tiers, why-dropped evidence'.",
+        "Allocator is on a LIVE path, not dead code: compiler.rs:28 imports it and compiler.rs:147 calls allocate(&budget_items, &plan.budgets); admitted items become the bounded allowed_context that ContextBundle (compiler.rs:180) persists, with EventLedger ContextBundleRecorded event (compiler.rs:187).",
+        "Real-PostgreSQL proof: tests/knowledge_retrieval_pipeline_tests.rs:382 compiler_persists_bounded_bundle_and_drops_over_budget sets max_total_evidence_tokens=30, compiles two 30-token candidates against MemoryFixture PG (skip_if_no_pg gate), asserts only the Authoritative item admitted and the Supplementary item dropped (lines 443-447), then reads the bundle+trace back from PG via get_knowledge_context_bundle (lines 450-466). This touches the Handshake-native PostgreSQL/EventLedger contract, satisfying sub-rule 2.",
+        "Spec alignment confirmed against CURRENT v02.194: RetrievalBudgets struct (plan.rs:101) mirrors spec 02-system-architecture.md:11430 (max_total_evidence_tokens, max_snippets_total, ...); spec:10983 'drop lowest priority items, log truncation flags' is exactly implemented.",
+        "Sub-rule 1: grep of src/knowledge_retrieval/ found no todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/Unavailable reachable from the required behavior.",
+        "Adversarial-v2 LOW (candidate/read/tool/rerank caps unenforced) was resolved honestly in commit a46b9e6b by documenting the enforcement map in plan.rs:84-111: token/snippet caps HARD via allocate; candidate/rerank are planner hints carried into RouteStep + executor load bounds; read/tool caps advisory for the consuming runtime (the retrieval layer performs no tool calls/raw reads itself). This is accurate to the code, not a vibecoded cover.",
+        "Aside (non-blocking, paperwork): MT relevant_files cite memory/retrieval_mode.rs etc., but the actual implementation landed in knowledge_retrieval/budget.rs + plan.rs + compiler.rs; the file-path drift is a contract-metadata staleness, not a code defect. Implementer self-certified READY_FOR_VALIDATION via KERNEL_BUILDER, expected during governance wind-down."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_retrieval/budget.rs (full)",
+        "src/backend/handshake_core/src/knowledge_retrieval/plan.rs (full, RetrievalBudgets + enforcement-map doc)",
+        "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs:120-200 (allocate call + persistence)",
+        "tests/knowledge_retrieval_pipeline_tests.rs:61-72,378-472 (real-PG over-budget drop test)",
+        "git show 80d38c14 + a46b9e6b (impl + LOW sweep)",
+        "grep for deferred-live escapes across src/knowledge_retrieval/",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:10983,11430 (RetrievalBudgets + truncation)",
+        "MT-137.json contract, WP_VALIDATOR_PROTOCOL Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

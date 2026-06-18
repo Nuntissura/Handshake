@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-246-SplitEditorsAndTabs",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-15T22:45:04.226Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-246.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,14 +76,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-130809",
-    "completed_by": "KERNEL_BUILDER-20260615-MT246-MT256-REVALIDATION",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       "IMPLEMENTED_SLICE: durable workbench layout state foundation for MT-246 in app/src/App.tsx, app/src/lib/api.ts, src/backend/handshake_core/migrations/0323_workbench_layout_state.sql, src/backend/handshake_core/src/kernel/mod.rs, src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/workspaces.rs, and src/backend/handshake_core/tests/workbench_layout_state_tests.rs.",
@@ -128,7 +128,51 @@
       "NON_PASS_REVALIDATION_STATE_20260615_224504Z: operator allowed READY_FOR_VALIDATION items to be touched; MT-246 remains READY_FOR_VALIDATION and is deliberately not marked PASS after this revalidation."
     ],
     "ready_by": "KERNEL_BUILDER-20260615-MT246-MT256-REVALIDATION",
-    "ready_for_validation_at_utc": "2026-06-15T22:45:04.226Z"
+    "ready_for_validation_at_utc": "2026-06-15T22:45:04.226Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-246 requires a VS Code-class split editor workbench (editor groups; open-document tabs with open/close/reorder/pin/dirty-dot; per-group active doc; drag-between-groups; keyboard group navigation; same-doc CRDT consistency) over RichDocumentView, with layout restoring after reload via a Postgres-backed projection. The code delivers all of this with a real frontend implementation, a real Playwright proof against the live Vite app shell, and a real PostgreSQL/EventLedger Rust integration test for the durable layout authority. Proof is genuine, not mock-only or self-certified.</summary>\n</invoke>\n",
+      "findings": [
+        "Frontend split workbench is real: app/src/App.tsx defines PaneId pane-a..pane-d, SplitWeights, OpenDocumentTab with pinned/dirty, keyboard group navigation helpers (App.tsx:332-341), drag handlers handleDocumentTabDragStart/handleDocumentTabDrop (App.tsx:1595,1615), closeDocumentInPane with dirty-guard/force (App.tsx:1159), and emits data-* test-ids the spec drives (data-split-weights App.tsx:1897, data-active-pane-id App.tsx:1891).",
+        "Durable layout authority is real PostgreSQL + EventLedger: migrations/0323_workbench_layout_state.sql creates knowledge_workbench_layout_states with FK to kernel_event_ledger plus a CHECK on schema_id; storage/postgres.rs save_workbench_layout_state (postgres.rs:8937) runs full renderable-shape validation via validate_workbench_layout_state_shape (postgres.rs:2495) BEFORE a transactional EventLedger append + upsert, with latest-wins and per-mutation receipt retention.",
+        "Real PG integration proof: tests/workbench_layout_state_tests.rs uses a real isolated PostgreSQL schema (panics if PG absent, line 23) and proves non-object rejection, wrong-schema rejection, schema-correct-but-malformed rejection BEFORE EventLedger append (event_count==0, lines 126-168), persistence with distinct receipts per mutation, latest-wins load, and an FK JOIN of stored row to kernel_event_ledger (lines 171-258). Satisfies sub_rule_2; the Playwright fixture mocking the layout route is acceptable because durable authority is independently proven in Rust.",
+        "Real browser runtime proof: tests/visual/workbench-split-editors.spec.ts boots the real Vite app shell on loopback, blocks all non-loopback network (asserts externalRequests==[], line 592), and drives the actual UI to prove split via keyboard splitters, open via file drawer, pin, reorder (move-left), keyboard group navigation (Control+Alt+ArrowRight), same-doc edit in pane-b reflecting live in pane-a (CRDT consistency, lines 511-523), dirty-dot, dirty-close cancellation dialog, save clearing dirty, drag tab between groups (lines 545-550), layout save, and reload restore of panes/pins/active-doc/split-weights.",
+        "sub_rule_1: no deferred-live escape on the layout path; placeholder grep across touched frontend files and the Rust test returned only unrelated UI search placeholders and comments stating features are no longer a stub.",
+        "sub_rule_3: not self-certified. lifecycle.status is READY_FOR_VALIDATION (not COMPLETED); claimed_by and proposed completed_by differ and no implementer-signed COMPLETED transition exists.",
+        "Aside (non-blocking): packet spec_anchors cite v02.192 and tokens ED-WB-003/ED-WB-004 are not literal in v02.194 modules (behavior traces to DEC-002); implementation_commit is null and work landed in bundled checkpoint commit c49afb7f. Neither is a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "MT-246.json",
+        "packet.json",
+        "WP_VALIDATOR_PROTOCOL.md",
+        "0323_workbench_layout_state.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs",
+        "tests/workbench_layout_state_tests.rs",
+        "tests/visual/workbench-split-editors.spec.ts",
+        "app/src/App.tsx"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-130809",

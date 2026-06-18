@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-236-TiptapRoundtripFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-15T21:35:09.729Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-236.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-013033",
-    "completed_by": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       {
@@ -219,7 +219,60 @@
           "Playwright proof is an offline built-harness proof for UI/runtime behavior; backend authority proof is covered by the separate PostgreSQL fixture."
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-236 requires a Tiptap/ProseMirror roundtrip fixture proving every custom editor node survives real backend save/load/version-history and CRDT promotion, with fail-closed negative behavior and no mock/SQLite proof. The committed fixture delivers exactly that against real Handshake-managed PostgreSQL, and aligns with the current Master Spec's Tiptap/ProseMirror + PostgreSQL-authority rich editor.",
+      "findings": [
+        "src/backend/handshake_core/tests/knowledge_tiptap_roundtrip_fixture_tests.rs:40-111 builds a doc covering all 20+ custom node kinds (heading, bulletList, orderedList, codeBlock, monacoCodeBlock, table, taskList, blockquote, image/video/album/slideshow, fileLink/folderLink/projectLink/specLink/wpLink/symbolLink, importedRaw, plus inline hsLink across 11 refKinds, mention, tagMention).",
+        "Fixture lines 232-359: real PostgreSQL create_knowledge_rich_document -> save_knowledge_rich_document_version(v2) preserves content_json, crdt_snapshot_id, promotion_receipt_event_id; lines 397-440 prove idempotent save v3 with replayed==true on second call; lines 442-454 load asserts doc_version==3 and exact content_json.",
+        "Lines 456-502: BlockTree::from_document_json parses all 20 blocks in exact expected order, tree.to_document_json()==loaded.content_json (stable roundtrip), and inline hsLink/tagMention nodes are asserted not stripped.",
+        "Lines 504-558: DocumentLinkReferences::extract + replace_knowledge_document_backlinks persists typed file/wp/wikilink/mention/tag backlinks to a real backend table and asserts each persisted.",
+        "Lines 560-592: list_knowledge_rich_document_versions returns 3 versions each with correct content_json, crdt_snapshot_id, and promotion_receipt_event_id — real version history proof.",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:1-120 documents and implements REAL-PostgreSQL-only proof via Handshake-native ManagedPostgres (port 5544, repo-local managed_pgdata); explicitly NO SQLite/in-memory/mock; returns None only when PG binaries absent.",
+        "Sub-rule 1: grep of fixture, pg helper, and app/src/lib/editor/export_formats.ts found no todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/Unavailable placeholders reachable from the proof path.",
+        "Fail-closed repair confirmed: fixture line 233-235 knowledge_pg().await.expect(\"MT-236 requires PostgreSQL proof; missing PostgreSQL must fail closed\") panics (exit nonzero) instead of green-skipping when PG is missing — matches the claimed RED->GREEN missing-Postgres negative path.",
+        "Backend methods are real, not test-authored mocks: storage/knowledge.rs:2976/3018/3218 (and PostgresDatabase impls at 4882/5117/5999) implement create/save/idempotent-save; BlockKind variants (block_tree.rs:68-145) and DocumentLinkKind::Wikilink (backlink.rs:26-82) are real enum variants with real parsing.",
+        "app/src/lib/editor/export_formats.ts:196-313 implements real fail-closed media export — fetches against real backend metadata/content endpoints, enforces size guards, marks data-hs-export-error and emits no backend content URL into self-contained exports on missing/oversized/failed media.",
+        "Spec alignment: v02.194 07-user-experience-and-development.md confirms Tiptap/ProseMirror as canonical rich editor and PostgreSQL authority — exactly what the fixture proves.",
+        "Aside (paperwork only, non-blocking): lifecycle.implementation_commit is null though the fixture is committed at c49afb7f; packet spec_anchors cite v02.192 while current is v02.194 — both are expected governance drift per ground rules."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-236.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_tiptap_roundtrip_fixture_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/export_formats.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/block_tree.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/backlink.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md",
+        "git log feat/WP-KERNEL-009 (commit c49afb7f touching the fixture)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-MT236-REVALIDATION",

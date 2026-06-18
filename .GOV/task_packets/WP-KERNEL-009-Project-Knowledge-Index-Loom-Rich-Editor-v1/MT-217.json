@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-217-ParallelEditorAgentSafety",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T18:38:08.560Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-217.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "91efe116",
     "evidence": [
       {
@@ -138,7 +138,52 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T18:38:08.560Z"
+    "ready_for_validation_at_utc": "2026-06-12T18:38:08.560Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-217 (ParallelEditorAgentSafety) requires preventing parallel swarm agents from silently overwriting operator rich-document edits and graph-claim mutations, with PostgreSQL/EventLedger authority. The diff adds real RichDocument/GraphMutation claim scopes, per-lane EditRichDocument/MutateGraph capabilities (granted to local/operator/editor/system, denied to validator/cloud/indexer), and pre-write scope validation that rejects malformed/mismatched scopes before any claim row or EventLedger receipt is written. Proof runs against Handshake-managed PostgreSQL with no SQLite/mock fallback.",
+      "findings": [
+        "state_recovery.rs: adds ClaimScope::RichDocument{workspace_id,document_id} and ClaimScope::GraphMutation{workspace_id,graph_id} with kind() 'rich_document'/'graph_mutation' and composite scope_id format '{workspace}/{child}' (diff @ ClaimScope, scope_id, scope_from_parts).",
+        "state_recovery.rs:744-746: validate_claim_scope() is called in claim_work_surface BEFORE require_capability and BEFORE any DB write/reclaim, so malformed or mismatched-workspace scopes reject (StateRecoveryError::InvalidInput) prior to row insert or EventLedger receipt.",
+        "state_recovery.rs required_claim_capability(): RichDocument -> EditRichDocument, GraphMutation -> MutateGraph; capability grants give EditRichDocument/MutateGraph to Local/Operator/Editor/System lanes and withhold them from Validator/Cloud/Indexer lanes (capability vecs in AgentLaneIdentity).",
+        "migrations/0312_parallel_swarm_editor_agent_safety.sql: extends the real chk_agent_worktree_claims_scope_kind CHECK constraint to include 'rich_document','graph_mutation'; .down.sql restores the prior 3-value constraint. Operates on real knowledge_agent_worktree_claims table, no new table invented.",
+        "tests/parallel_swarm_state_recovery_tests.rs: recovery_store() -> knowledge_pg() (knowledge_pg_support.rs:108) connects to Handshake-managed PostgreSQL (managed_postgres::ManagedPostgres::ensure_running) on an isolated schema with the full migration chain; header explicitly states NO SQLite/in-memory/mock fallback.",
+        "Test editor_document_and_graph_claims_serialize_parallel_mutations: proves second concurrent claim on same document/graph returns ClaimStatus::Held naming the active holder, different document proceeds Active, release frees the claim, and persisted scope_ids are queried from the real pool.",
+        "Test non_editor_lanes_cannot_claim_editor_mutation_scopes: validator/cloud/indexer denied with InvalidInput naming EditRichDocument/MutateGraph; asserts COUNT(*)==0 claim rows and 0 parallel_swarm_claim EventLedger receipts for the denied workspace; editor lane allowed claim succeeds.",
+        "Test malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts: 6 malformed cases (empty/slash segments, mismatched workspace) all rejected; asserts 0 persisted claim rows and 0 EventLedger receipts against the real pool. This is the RED->GREEN test cited in lifecycle.evidence.",
+        "No deferred-live escapes: grep of state_recovery.rs for todo!/unimplemented!/unreachable!/*Unavailable/'not yet wired'/'pending MT-' returned no hits on the required behavior path.",
+        "Self-cert: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260612, status=READY_FOR_VALIDATION (not a self-signed COMPLETED); independent review proceeds. Aside: packet cites v02.192 spec anchors while current is v02.194 (expected paperwork drift, non-blocking)."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-217.json",
+        "wtc-kernel-009 git show 91efe116 (state_recovery.rs, 0312 up/down migrations, parallel_swarm_state_recovery_tests.rs)",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (claim_work_surface, validate_claim_scope, required_claim_capability, capability grants, append_event_tx, INSERT INTO knowledge_agent_worktree_claims)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (3 MT-217 tests + recovery_store)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (knowledge_pg, base_database_url, managed PostgreSQL, no-SQLite assertion)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (parallel-agent divergence)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT217",

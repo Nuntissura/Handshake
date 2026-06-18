@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-172-EditorVisualDebugSelectors",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-172.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "5d4da13a",
@@ -137,6 +137,55 @@
         "debug publication is gated/debounced (perf regression guard once fixed)",
         "two mounted editors publish attributable snapshots"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-172 requires stable data-testid selectors plus a machine-readable visual-debug payload so a no-context model / visual lane can assert editor state without screen-scraping. The code delivers exactly this: a real Tiptap-walking debug snapshot published on stable globals + reflected on stable selectors, wired into the real integrated editor and the real rich-doc-backed document view, with proof from a real built-harness Playwright run against bundled Monaco.",
+      "findings": [
+        "visual_debug.ts:60-92 buildEditorDebugSnapshot walks the real ProseMirror/Tiptap doc (node counts, monacoCodeBlock language+contentHash+codeLength, hsLink refKind/refValue/resolved, selection, editable) - a concrete machine-readable payload, not a stub.",
+        "RichTextEditor.tsx:432-438 + 487-526 publish the snapshot (gated by isEditorDebugEnabled(), coalesced into one microtask) on __HS_EDITOR_DEBUG__ and per-id __HS_EDITOR_DEBUG_BY_ID__[debugId]; lines 905-907 reflect counts on stable data-* selectors (data-code-block-count/-link-count/-selection-empty). EDITOR_STABLE_SELECTORS (visual_debug.ts:151-169) documents the canonical selector set.",
+        "Real wiring: RichDocumentView.tsx:901,938 mounts the real RichTextEditor over the real rich-doc backend and passes debugId={doc.rich_document_id} - the selectors/payload exist on the production document surface, not just in tests.",
+        "Sub-rule 2 proof is real, not mock-only: RichTextEditor.test.tsx mounts the REAL integrated Tiptap editor (new Editor with buildHandshakeEditorExtensions) and asserts live data-code-block-count/data-link-count + __HS_EDITOR_DEBUG__.nodeCounts; tests/dependency_policy/rich_editor_typing.spec.ts drives the BUILT dist-harness in a real browser with bundled Monaco, reading __HS_EDITOR_DEBUG__ selection/codeBlocks and asserting ZERO external network requests (bootEditor aborts any non-loopback URL).",
+        "Sub-rule 1: placeholder/stub grep over the impl returned only legitimate HTML input placeholder= attributes and comments noting surfaces are 'no longer a hidden stub' - no todo!/unimplemented!/'deferred to follow-on'/*Unavailable escape reachable from the required behavior.",
+        "Prior adversarial findings (M15 unconditional O(doc) walk per transaction; L19 last-writer-wins single global key) are genuinely fixed in commit 701904be via isEditorDebugEnabled() gating, microtask-coalesced refresh, and the per-id namespace, each with added tests (visual_debug.test.ts:84-111).",
+        "Boundary/scope clean: both commits (5d4da13a, 701904be) touch only app/src and tests; no /.GOV/, no src/backend, no SQLite/Docker/external-search/CDN-worker violations. Durable-state authority is not owned by this UI/debug MT, so no PostgreSQL row is required.",
+        "Aside (non-blocking): MT contract still carries lifecycle.status READY_FOR_VALIDATION with claimed_by/completed_by null - paperwork state, not a code defect."
+      ],
+      "evidence_checked": [
+        "MT-172.json (contract, acceptance_criteria, constraints, adversarial_review_v2 findings)",
+        "packet.json allowed/forbidden paths (via task brief)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "git show --stat 5d4da13a + 701904be + log --grep MT-172",
+        "app/src/lib/editor/visual_debug.ts",
+        "app/src/lib/editor/visual_debug.test.ts",
+        "app/src/components/RichTextEditor.tsx",
+        "app/src/components/RichTextEditor.test.tsx",
+        "tests/dependency_policy/rich_editor_typing.spec.ts",
+        "RichDocumentView.tsx grep (debugId wiring)",
+        "placeholder/escape grep over impl",
+        "spec-modules/ grep for visual-debug/HBR-VIS anchors"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

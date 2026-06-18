@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-150-DocumentProjectionExport",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-150.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -134,6 +134,52 @@
         "test: render HTML projection of a doc whose link target is javascript:... and assert the scheme is neutralized",
         "test: render a doc whose image attrs.src is an absolute path and assert it is not emitted as-is"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-150 (DocumentProjectionExport) requires deterministic markdown/HTML/plain-text/wiki-Loom/context-bundle projections derived from canonical rich-document state, with projections being regenerable and never authority. The code delivers a real, deterministic renderer wired into a live PG-backed API endpoint, plus a real-PostgreSQL negative proof that deleting a projection leaves the authority document byte-identical, and the adversarial-v2 stored-XSS findings are genuinely fixed (scheme allowlist + typed EmbedTarget routing). It aligns with current Master Spec v02.194 Section 2.3.13.11.",
+      "findings": [
+        "projection.rs:79-92 render_projection dispatches all five required formats (Markdown, WikiLoom, Html, PlainText, ContextBundle) deterministically from the BlockTree; real renderers for 18 block kinds, no todo!()/unimplemented!()/placeholder on any path.",
+        "projection.rs:27-43 + 145-167 + 202-246: typed links and embeds are sanitized at render time. Links go through sanitize_link_target (allowlist http/https/mailto/hsk + scheme-less); javascript:/data:/vbscript:/file: neutralize to a non-link span (data-hsk-blocked-link). Embeds route through validated_embed_target -> EmbedTarget::parse_raw, so the adversarial-v2 raw-attrs bypass is closed; invalid targets render a repairable placeholder, never a live src.",
+        "embed.rs:191-219 url_scheme strips tab/LF/CR and leading controls before scheme detection, defeating browser-tolerated obfuscation (jav\\tascript:, case folding). embed.rs:75-100 EmbedTarget::new rejects absolute paths, non-http url-kind, and scheme-bearing id-kinds. Comprehensive unit tests for 12+ obfuscated payloads (projection.rs:438-581, embed.rs:357-430).",
+        "api/knowledge_documents.rs:1189-1217 export_projection is a real HTTP endpoint (GET /knowledge/documents/:document_id/projection) that loads the document from PostgreSQL (get_knowledge_rich_document), rebuilds the BlockTree, and renders. Rendering never mutates authority.",
+        "tests/knowledge_document_model_tests.rs:370-446 deleting_a_projection_never_mutates_document_authority: real-PG test renders a projection, upserts it as a knowledge_wiki_projection row, snapshots authority, deletes the projection row, and asserts the authority document is byte-identical (before == after). Directly satisfies spec 2.3.13.11 'deleting a projection MUST NOT mutate authority'.",
+        "tests/knowledge_pg_support.rs:1-165: the PG harness is real PostgreSQL ONLY (POSTGRES_TEST_URL / DATABASE_URL / Handshake-managed no-Docker cluster), fresh isolated schema + full migration chain; NO SQLite/in-memory/mock fallback (returns None -> loud SKIP only when PG binaries are genuinely absent). Satisfies sub-rule-2 managed-resource proof.",
+        "Spec v02.194 line 2711 (Section 2.3.13.11) and 2725 (2.3.13.11.1) explicitly state projections (markdown/wiki/HTML/context bundles) are never authority, deletion must not mutate authority, and HTML import/sanitize must fail closed - the implementation matches this exactly.",
+        "Aside (non-blocking, paperwork): packet spec_anchors cite v02.192 and packet spec_bundle points at v02.193 while SPEC_CURRENT is v02.194; the same section numbers resolve and content is consistent, so this is stale-pointer drift only, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/projection.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_document/embed.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (export_projection 1187-1217, parse_projection_format 1634-1641)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_document_model_tests.rs (negative proof 370-446)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "git show --stat/log for commits 9527758c, bf0c62a5, b506d832",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-.../MT-150.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-.../packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (Section 2.3.13.11, lines 2694-2726)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-130-CheapestAuthoritativePathPlanner",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-130.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "bc2aaa63",
@@ -130,6 +130,53 @@
       "missing_tests": [
         "test: dangling WorkPacketId / MicroTaskId / RelationshipId degrades to a broader mode (currently produces a confident unsatisfiable plan)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-130 implements a deterministic CheapestAuthoritativePathPlanner that selects the cheapest authoritative retrieval mode (none/direct_load/exact_lookup/graph_traversal/hybrid_rag) and records the skip reason, exactly as required by current Master Spec 2.3.14 [ADD v02.178]. Every authoritative handle kind is existence-checked via real PostgreSQL reads before anchoring a direct/exact plan; dangling handles degrade to a broader mode and are recorded. Real-PG tests prove the behavior; the prior adversarial MEDIUM is genuinely fixed.",
+      "findings": [
+        "planner.rs:194-315 implements the cheapest-authoritative mode ladder (user-forced -> confirmed-handle direct/exact -> graph_traversal -> policy-blocked -> hybrid_rag), recording NonHybridReason on each non-hybrid path. Matches Master Spec v02.194 02-system-architecture.md:2817 (2.3.14 [ADD v02.178]) verbatim in intent.",
+        "planner.rs:351-434 first_confirmed_handle now existence-checks EVERY handle kind via real PG reads: EntityId/EntityIdentity->get_knowledge_entity(_by_identity), WorkPacketId/MicroTaskId->get_knowledge_entity_by_identity(kind=WorkPacket/MicroTask), SourceId->get_knowledge_source, RelationshipId->get_knowledge_edge_by_relationship_id. All are real sqlx SELECTs (storage/knowledge.rs:3944-3975 etc.).",
+        "Dangling handles degrade to a broader mode and are recorded on PlannedRetrieval.dangling_handles with an actor-visible reason() (planner.rs:138-177, 416-432) instead of producing an unsatisfiable plan.",
+        "Prior adversarial-v2 MEDIUM (WP/MT/relationship handles returned confirmed unconditionally) is genuinely fixed in commit fb71d0f6 and covered by real-PG tests dangling_wp_mt_relationship_handles_degrade_and_record (knowledge_retrieval_pipeline_tests.rs:154-184) and indexed_wp_mt_relationship_handles_confirm (190-286).",
+        "Tests run against a real managed PostgreSQL via MemoryFixture/pool_for (knowledge_memory_fixtures.rs:8,25-26,146-149); header explicitly states NO SQLite, NO mocks; tests SKIP loudly when PG binaries absent. No forbidden tech (SQLite/Elasticsearch/Docker) present.",
+        "Sub-rule 1 clean: only a doc-comment reference to a folded governance 'stub' (planner.rs:21), no reachable todo!/unimplemented!/Unavailable escape.",
+        "Open LOW (non-blocking): freshness_uncertain (planner.rs:226-232) stamps NonHybridReason::FreshnessUncertain but does not downgrade a confirmed-but-stale record; this is a refinement, not a contradiction of the MT or spec.",
+        "Aside (non-blocking, expected): impl lives in knowledge_retrieval/planner.rs, not the relevant_files paths listed in the MT (retrieval_mode.rs/context_bundle.rs); paperwork drift only, the real implementation is present and proven."
+      ],
+      "evidence_checked": [
+        "MT-130.json (full contract incl. adversarial_review_v2)",
+        "packet.json constraints (read via MT)",
+        "git show --stat bc2aaa63 + fb71d0f6",
+        "git log --grep MT-130",
+        "src/backend/handshake_core/src/knowledge_retrieval/planner.rs (full, 503 lines)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:3944-4005 (real PG reads)",
+        "tests/knowledge_retrieval_pipeline_tests.rs:1-286",
+        "tests/knowledge_memory_fixtures.rs (real-PG fixture markers)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2706,2817 (2.3.14 [ADD v02.178])",
+        "grep for deferred-live escapes and forbidden tech"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

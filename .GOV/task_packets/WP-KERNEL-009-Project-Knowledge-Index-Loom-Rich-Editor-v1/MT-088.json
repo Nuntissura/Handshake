@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-088-MediaTranscriptIngestion",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "4a9aa81d",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a9aa81d; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -121,13 +121,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -161,6 +161,47 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-088 requires ingesting operator-provided ASR/caption transcript artifacts as media-time-anchored KnowledgeSpans with provenance, partial receipts on malformed cues, typed whole-file failures, and PostgreSQL/EventLedger authority. The code parses SRT/VTT/JSON into time-coded cues, wires them to persisted MediaTime spans, and proves the full pipeline (receipt + spans + repair enqueue) against real PostgreSQL. It implements the MT and aligns with current Master Spec 2.3.13.11.",
+      "findings": [
+        "transcripts.rs (commit 4a9aa81d, full file): parse_srt/parse_vtt/parse_json_transcript convert SRT (HH:MM:SS,mmm), WebVTT (WEBVTT header required, MM:SS.mmm short stamps, NOTE/STYLE/REGION skipped, tag stripping), and canonical/whisper JSON into TranscriptCue{index,start_ms,end_ms,text}. Malformed cues (bad timing, negative range, missing text) are recorded as typed MalformedCue{line,reason} and parsing CONTINUES (transcripts.rs:198-223, 278-303, 363-377). Zero well-formed cues -> typed PARSE_ERROR; unknown extension -> UNSUPPORTED_FORMAT (transcripts.rs:225-233, 407-412). Correctly NO ASR (parses operator artifacts only), matching the WP constraint.",
+        "engine.rs:1123-1160 IngestionSourceKind::MediaTranscript branch maps each cue to SpanAnchor::MediaTime{start_ms,end_ms,cue_index}, sets status Partial + error_class MalformedCue + spans_failed=malformed.len() when lossy, and packs malformed_cues into error_detail. Success when no malformed cues.",
+        "engine.rs persist_attempt (420-527) persists real DB rows: record_extraction_receipt (status/error_class/error_detail/spans_failed/spans_produced), replace_source_spans, EventLedger event, source index rollup, and enqueue_repair for repairable Partial/Failed classes. MalformedCue is repairable (receipts.rs:104-105 is_repairable excludes only UnsupportedFormat/SecretBlocked).",
+        "Integration test mt088_transcripts_become_time_coded_spans_with_partial_on_malformed_cues (knowledge_ingestion_pipeline_tests.rs:484-559) runs against real PostgreSQL via ingestion_pg() and the real ingest_file_bytes pipeline: asserts SRT -> 2 MediaTime spans (1000/4000/cue_index 0); VTT with one malformed cue -> persisted Partial receipt, error_class MalformedCue, spans_failed=1, malformed_cues array len 1, repair enqueued; whisper JSON -> 500/2250 ms spans; fully malformed -> persisted Failed/ParseError. This is real-resource proof, not mock-only.",
+        "No deferred-live escapes in the transcript path (grep todo!/unimplemented!/Unavailable/\"deferred\"/\"pending MT-\" over transcripts.rs = no hits).",
+        "Spec 2.3.13.11 (master-spec-v02.194/02-system-architecture.md:2694-2709) defines KnowledgeSpan with a media-time range as a citeable evidence unit; line 268 names ASR transcripts as importable knowledge content. Implementation aligns.",
+        "Aside (non-blocking, expected): MT contract cites v02.192 spec path and prior FAIL_V1 was a pure dependency-ordering block (MT-081 not yet validated), not a code defect; remediation_v2 records MT-081 now READY/implemented. Neither is a code problem."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/transcripts.rs (full)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs (MediaTranscript branch 1123-1160; persist_attempt 420-527)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/receipts.rs (IngestionErrorClass, is_repairable)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/spans.rs (SpanAnchor::MediaTime)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (ingest helper + mt088 test 484-559)",
+        "git show --stat 4a9aa81d (impl commit)",
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-088.json (contract + prior FAIL_V1 review)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11 KnowledgeSpan media-time anchor; line 268 ASR transcript)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

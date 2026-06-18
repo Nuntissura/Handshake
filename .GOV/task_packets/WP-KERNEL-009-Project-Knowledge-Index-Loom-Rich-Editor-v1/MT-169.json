@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-169-EditorToolbarAndMenus",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-169.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "966bec7d",
@@ -157,6 +157,54 @@
         "disabled state reflects canRun for context-invalid commands",
         "jsdom suite: polyfill getClientRects or assert command dispatch does not throw (2 uncaught errors currently escape)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-169 (EditorToolbarAndMenus) requires a feature-complete editor toolbar + menus over the Tiptap/Monaco surface (formatting, blocks, lists, tables, code, links, embeds, backlinks/graph, mentions/tags, UserManual insertion). The code delivers a real machine-readable command catalog driving a real toolbar, overflow menu, and command palette over a live Tiptap editor, with truthful enable/disable, NodeSelection-safe inserts, full table-structure editing, and undo/redo — all proven against a real editor in tests. It aligns with current Master Spec §7.1.1.8 and contains no placeholders.",
+      "findings": [
+        "editor_commands.ts:103-546 is a real 565-line command catalog covering every required category (history, format, block, list, table, tableEdit, link, code, embed, graph, mention, manual) — substantial real code, not scaffolding.",
+        "Prior adversarial MEDIUM finding (canRun never populated, toolbar could silently REPLACE a node-selected code block) is FIXED: insertSafely (editor_commands.ts:55-61) inserts AFTER a NodeSelection via insertContentAt(selection.to,...); canRun is populated on every command; commandDisabled binds it to the toolbar/palette/overflow (RichTextEditor.tsx:806-807).",
+        "Prior LOW findings FIXED: full table-structure family present (editor_commands.ts:242-337: add/delete row/column, toggle header row/column/cell, merge/split, delete table); real overflow menu role=menu with per-command buttons + truthful disabled state (RichTextEditor.tsx:1411-1443); undo/redo commands with stack-edge canRun (editor_commands.ts:107-124) wired into the toolbar.",
+        "mention.at/mention.tag now create REAL mention/tagMention nodes via arg-prompted value (editor_commands.ts:496-525), fixing the prior bug where a bare @/# character was inserted and no node could ever be created.",
+        "Real runtime proof: editor_commands.test.ts builds new Editor(...) with buildHandshakeEditorExtensions() and asserts NodeSelection survival (lines 186-206), real mention/tag node creation (397-414), table mutation + exact undo (271-312), and wikilink classification — live-editor mutation, not mock-only; satisfies §7.1.1.8 'tests that only parse JSON do not satisfy'.",
+        "Spec §7.1.1.8 (current v02.194, 07-user-experience-and-development.md:249-263) requires headings/lists/tables/task lists/quotes/callouts/media embeds/file/folder/project links/backlinks/tags/mentions + Monaco code nodes + stable element identifiers — all delivered with data-testid/data-command-id selectors on every toolbar/palette/overflow button.",
+        "sub_rule_1: placeholder grep over the three impl files found only two 'stub' strings, both comments stating the prior hidden stub was REPLACED with a real menu — no reachable todo!/unimplemented!/deferred escapes.",
+        "sub_rule_2: this MT is the UI command-catalog/toolbar surface and makes no durable PostgreSQL/EventLedger authority claim of its own; the required real-resource touch is the live Tiptap editor schema, which the tests exercise directly. PG authority is owned by the RichDocument storage MTs, not MT-169.",
+        "Boundary/scope clean: commits 966bec7d + 2949bc87 (both ancestors of feat/WP-KERNEL-009 HEAD) touch only app/src/ (allowed_paths); no /.GOV/, no SQLite, no external search engine, no CDN worker.",
+        "Aside (non-blocking): MT contract lifecycle.completed_by is null and validator_verdict fields are unset — expected paperwork state during a winding-down governance phase; not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-169.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/editor_commands.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/editor_commands.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/build_editor_extensions.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichTextEditor.tsx",
+        "git show --stat 966bec7d / 2949bc87 + merge-base ancestry check",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md (sec 7.1.1.8)",
+        "placeholder grep over the three MT-169 impl files"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

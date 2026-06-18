@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-135-EvidenceSnippetAssembler",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-135.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "dd02de8d",
@@ -118,6 +118,54 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "Carries span range + content_sha256 + extraction receipt + source path; explicit supported=false + reason for missing span / claim-with-no-spans (anti-hallucination honored); real-span citation proven (pipeline_tests:216)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-135 requires an EvidenceSnippetAssembler that emits snippets carrying source path, span range, content hash, extraction-receipt EventLedger id, and explicit unsupported-claim markers, backed by real PostgreSQL/EventLedger authority. The committed code (snippet.rs) implements exactly this, is wired into the live retrieval executor, reads through the committed KnowledgeStore against real PG, and is proven by real-PG integration tests for supported, source-missing, and ghost/unsupported paths. It aligns with current Master Spec v02.194 section 2.3.13.11.",
+      "findings": [
+        "snippet.rs:56-106 assemble_span_snippet loads the span and its source through the real PostgresDatabase (KnowledgeStore), producing EvidenceSnippet with source_path, range_start/end, line_start/end, content_sha256, extraction_receipt_event_id, and excerpt — every field the MT scope names.",
+        "snippet.rs:60-75 a missing span yields supported=false with reason 'span not found in index' rather than an error; snippet.rs:82-90 a span whose source row is gone yields supported=false with reason 'the span's source no longer exists' (the adversarial-v2 LOW closure cited in lifecycle.evidence, commit a46b9e6b). Defensive belt under the FK CASCADE law.",
+        "snippet.rs:112-158 assemble_claim_snippets: a claim with no backing evidence spans returns a single supported=false unsupported-claim marker rather than dropping it — directly satisfies the spec anti-hallucination requirement (Master Spec 02-system-architecture.md:2701,2704: KnowledgeSpan is the minimum citeable evidence unit and claims MUST carry evidence spans).",
+        "snippet.rs:163-179 citation() emits stable 'path:lines@sha8' for supported and '...@UNSUPPORTED' for unsupported — the visible-citation contract.",
+        "executor.rs:243-245 wires assemble_span_snippet into the live retrieval executor path (not a dead helper), so the assembler runs in the real bundle-compilation pipeline.",
+        "Real-PG proof, not mock-only: knowledge_retrieval_pipeline_tests.rs:368-377 (supported span citation incl. content hash + path), :1212-1215 (ghost span KSP-0000... asserts !supported), knowledge_retrieval_replay_tests.rs:69-73 (supported + unsupported snippet replay). All run against fx.pg.db from MemoryFixture::setup() which uses knowledge_pg() — fixtures header states 'Real PostgreSQL only. No SQLite, no mocks.' Gated by skip_if_no_pg! so they exercise real managed PG when available.",
+        "sub_rule_1: no todo!/unimplemented!/unreachable!/Unavailable/placeholder/'deferred to follow-on'/'pending MT-' anywhere in snippet.rs or the executor wiring reachable from the required behavior.",
+        "sub_rule_3 NA: lifecycle.claimed_by and completed_by are both null; no implementer self-certification of the COMPLETED transition.",
+        "The in-module #[cfg(test)] tests in snippet.rs:182-224 only test the citation() formatter with hand-built structs (not PG) — but that does not weaken the verdict because the real PG-backed proof lives in the integration tests above; the unit tests are a thin formatting supplement, not the authority proof.",
+        "Aside (non-blocking, paperwork): packet cites v02.192 anchors; resolved against current v02.194 where the same section content exists — not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-135.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show dd02de8d (feat MT-135 snippet.rs) and a46b9e6b (LOW sweep) in wtc-kernel-009",
+        "src/backend/handshake_core/src/knowledge_retrieval/snippet.rs (full)",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs:235-260",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs:355-423,1200-1234",
+        "src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs:21,69-73",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:8,43-142",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2701,2704"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-156-DocumentHistoryView",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-156.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -120,6 +120,51 @@
       "missing_tests": [
         "test: history of a doc with many large versions paginates and does not return all bodies inline"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-156 (DocumentHistoryView) requires exposing document history, revisions, actor identity, and EventLedger receipts to operator/model surfaces with PostgreSQL/EventLedger authority. The code delivers exactly this: real PG-backed history endpoints (paginated metadata list + lazy single-version body load), permission-gated, exposing version sha/receipt event ids and owner actor identity, with a real end-to-end PostgreSQL integration test and a frontend history+diff view wired to the real authority.",
+      "findings": [
+        "load_history (src/backend/handshake_core/src/api/knowledge_documents.rs:1122) and load_history_version (:1167) are gated by ctx.require(DocumentAction::Read) and read real rows from the knowledge_rich_document_versions PostgreSQL table; the list response exposes versions metadata, total_versions, current_version, authority_label, owner_actor_kind/id, and per-version content_sha256 + promotion_receipt_event_id (EventLedger receipt) — satisfying MT scope 'history, revisions, actor changes, ... EventLedger receipts'.",
+        "Adversarial-v2 DoS hardening is real (commit bde6d28f): GET /history is paginated (HISTORY_DEFAULT_LIMIT=50, HISTORY_MAX_LIMIT=200, knowledge_documents.rs:381-383) and returns metadata only — list_knowledge_rich_document_version_metas (storage/knowledge.rs:4681) deliberately does NOT select content_json; count_knowledge_rich_document_versions and get_knowledge_rich_document_version provide total + lazy single-body load with 404 on missing version.",
+        "Runtime proof is real and managed-PostgreSQL backed: mt156_history_is_paginated_and_omits_version_bodies (tests/knowledge_documents_api_tests.rs) builds a 5-version doc via real HTTP saves on a doc_server backed by PostgresDatabase::connect, asserts page [2,3] with content_json absent, limit 100000 clamps to 200, GET /history/3 returns the v3 body, and GET /history/99 returns 404. knowledge_pg_support.rs resolves to POSTGRES_TEST_URL/DATABASE_URL or the Handshake-managed no-Docker cluster with NO SQLite/in-memory/mock fallback (returns None -> SKIP if PG truly absent).",
+        "No deferred-live escape: grep of the impl + storage path found no todo!/unimplemented!/unreachable!/*Unavailable/placeholder/stub reachable from the history behavior; source comments explicitly assert 'NO mocks, no SQLite'.",
+        "Frontend wired to real authority: app/src/lib/api.ts:3274 loadRichDocumentHistory and :3287 loadRichDocumentVersion target the real endpoints; RichDocVersion type omits content_json (matches metadata-only list) and RichDocVersionBody adds it (lazy load). RichDocumentView.tsx renders a revision history + version-diff surface (data-testid rich-document-history) with vitest coverage in RichDocumentView.test.tsx.",
+        "No forbidden paths: no SQLite/Elasticsearch/OpenSearch/Meilisearch/Typesense/rusqlite usage in the touched files (only negation comments). All changes confined to src/backend/handshake_core and app/src per packet allowed_paths.",
+        "Aside (non-blocking, governance paperwork): MT contract lifecycle.status is READY_FOR_VALIDATION and validator_verdict is unset; that is expected wind-down paperwork and not a code reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-156.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show b506d832 / bf0c62a5 / dd3056f5 / bde6d28f --stat (wtc-kernel-009)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (load_history, load_history_version, HistoryParams)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (KnowledgeRichDocumentVersionMeta + 3 PG storage methods)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (mt156 test)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/api.ts (RichDocVersion types + history client fns)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.tsx + RichDocumentView.test.tsx"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

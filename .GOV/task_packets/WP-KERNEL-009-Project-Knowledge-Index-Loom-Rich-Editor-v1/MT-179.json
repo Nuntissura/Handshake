@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-179-LocalGraphApi",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-179.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "cd944110",
     "evidence": [
       {
@@ -130,7 +130,55 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-179 requires a Handshake-native local graph neighborhood API with edge-type filters, depth, stale markers, and ProjectKnowledgeIndex source citations as a PostgreSQL-backed Loom projection. The code delivers exactly this (undirected cycle-guarded recursive-CTE BFS + induced-subgraph assembly with degree/stale/citation), wired to GET /loom/graph/local, and proven against real PostgreSQL with full migrations.",
+      "findings": [
+        "storage/postgres.rs:5312-5395 local_graph: fail-closed start check (get_loom_block), depth.max(1), node_limit.clamp(1,5000), UNDIRECTED recursive CTE walking both source->target and target->source with ARRAY path cycle guard and edge-type filter ($4 TEXT[]), MIN(depth)::BIGINT, fetch cap+1 to detect truncation. Real, non-placeholder.",
+        "storage/postgres.rs:71-195 assemble_loom_graph: fetches blocks for the node set, loom_block_knowledge_bridge entity_id citations, induced edges (both endpoints in node set) within edge-type filter, per-node degree, stale=not-bridged for nodes, stale=AiSuggested for edges, deterministic ORDER BY. Matches MT requirement of stale markers + source citations.",
+        "storage/loom.rs:485-526 LoomGraphNode/Edge/Graph carry depth, degree, stale, entity_id citation, truncated, suppressed_hub_ids; serde skips on absent. Matches the projection contract.",
+        "api/loom.rs:1099-1124 local_loom_graph handler validates workspace + start_block_id (HSK-400-LOOM-START-BLOCK-REQUIRED), clamps depth, parses edge_types, node_limit min 5000, calls storage.local_graph; route registered at api/loom.rs:140 /workspaces/:workspace_id/loom/graph/local.",
+        "tests/loom_graph_tests.rs:93-180 three MT-179 tests run against REAL PostgreSQL via knowledge_pg_support.rs (isolated CREATE SCHEMA, PostgresDatabase::connect + run_migrations full chain, search_path pinned): undirected reachability of incoming A + outgoing C from B, depth-0 start, bridged=non-stale with entity_id citation, un-bridged=stale w/o citation, ai_suggested edge stale, mention-only filter drops tag neighbor; depth-1 induced edges=2; fail-closed NotFound on missing start.",
+        "No deferred-live escapes: grep found only descriptive comments ('not yet an indexed entity'); no todo!/unimplemented!/Unavailable on live paths.",
+        "SQLite unreachable: Cargo.toml sqlx has only the postgres feature (no sqlite); storage/loom.rs:862-864 is an explicit PostgreSQL-only regression-guard comment. No mock-only or SQLite substitution.",
+        "Aside (non-blocking, Integration-Validator whole-WP concern): current spec [LM-GRAPH-001] (11-shared-dev-platform...md:601) still mentions SQLite dual-store; the packet's DEC-008 PostgreSQL-only direction supersedes this. Spec-pointer/legacy text drift is not a per-MT code defect."
+      ],
+      "evidence_checked": [
+        "MT-179.json contract",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "SPEC_CURRENT.md (v02.194)",
+        "spec-modules/11-shared-dev-platform-and-oss-foundations.md (LM-GRAPH-001, LM-LINK/TAG/BACK, line 522 ProjectKnowledgeIndex resolution)",
+        "git show cd944110 (commit + stat)",
+        "storage/postgres.rs local_graph + assemble_loom_graph",
+        "storage/loom.rs LoomGraph types + SQLite guard comment",
+        "api/loom.rs local_loom_graph handler + route",
+        "tests/loom_graph_tests.rs MT-179 bodies",
+        "tests/knowledge_pg_support.rs real-PG harness",
+        "Cargo.toml sqlx features"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

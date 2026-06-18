@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-185-WikiPageEditableOverlay",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-185.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "043cf8c8",
     "evidence": [
       {
@@ -128,7 +128,55 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-185 (WikiPageEditableOverlay) requires operator annotations on generated wiki projections WITHOUT the regenerable projection becoming canonical authority — the overlay must be its own authority row, backed by PostgreSQL/EventLedger. The code delivers this: migration 0295 creates loom_wiki_overlays (annotation = authority, FK->projection ON DELETE CASCADE, no authority FK FROM any record), Postgres impls add/list/delete with workspace scoping + fail-closed projection existence, HTTP routes are wired, and a real-PostgreSQL test proves the projection text is never mutated by an overlay, the overlay survives projection regenerate, and deleting the overlay leaves the projection intact. Aligns with the current Master Spec projection-never-authority law.",
+      "findings": [
+        "Migration src/backend/handshake_core/migrations/0295_loom_wiki_overlays.sql:14-37 creates loom_wiki_overlays with annotation TEXT NOT NULL (authority), projection_id FK->knowledge_wiki_projections ON DELETE CASCADE, workspace_id FK->workspaces, btrim(annotation)<>'' CHECK, and the comment correctly documents the projection-never-authority split. Down migration is clean.",
+        "storage/loom.rs:1275-1289 defines LoomWikiOverlay (authority struct) with anchor doc'd as 'never an absolute path' per MT-152 typed-reference discipline.",
+        "Real Postgres impls at storage/postgres.rs:10542-10615: add validates non-empty annotation, fail-closes on missing projection via get_loom_wiki_projection, uses Uuid::now_v7() ids; list is workspace+projection scoped; delete returns NotFound when 0 rows affected. These are genuine SQL, not stubs.",
+        "The NotImplemented returns at storage/mod.rs:2779-2805 are DEFAULT methods on `pub trait Database` (mod.rs:1964), overridden by PostgresDatabase. AppState.storage is Postgres-backed (api/loom.rs:1181), so NotImplemented is NOT reachable from the live path — standard trait-default-then-override pattern, not a deferred-live escape.",
+        "API routes wired at api/loom.rs:181-186 (GET/POST .../loom/wiki/:id/overlays, DELETE .../loom/wiki-overlays/:id) with ensure_workspace_exists guard (api/loom.rs:1180).",
+        "Runtime proof: tests/loom_wiki_boundary_tests.rs:181-221 overlay_is_own_authority_independent_of_projection asserts projection.rendered_content unchanged after overlay add, overlay not folded into projection, overlay survives regenerate, projection survives overlay delete. Harness (knowledge_pg_support.rs) runs against REAL PostgreSQL only (managed cluster / DATABASE_URL), fresh isolated schema with full migration chain, explicit no-SQLite/no-mock/no-in-memory fallback (returns None+SKIP only when PG binaries truly absent). Commit 043cf8c8 records 5 passed on real PostgreSQL.",
+        "No reachable todo!/unimplemented!/mock/fake/SQLite hits on the impl or test live path.",
+        "Aside (non-blocking): KERNEL_BUILDER both implemented and self-reviewed (lifecycle.adversarial_code_review reviewer = self), but the runtime proof is real PostgreSQL exercising the actual contract, so sub-rule 3 self-cert is not a fail. Packet cites v02.192 spec anchors (current is v02.194) — expected winding-down paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/migrations/0295_loom_wiki_overlays.sql",
+        "src/backend/handshake_core/migrations/0295_loom_wiki_overlays.down.sql",
+        "src/backend/handshake_core/src/storage/loom.rs:1273-1289",
+        "src/backend/handshake_core/src/storage/mod.rs:2775-2805 (trait Database defaults)",
+        "src/backend/handshake_core/src/storage/postgres.rs:10542-10615",
+        "src/backend/handshake_core/src/api/loom.rs:148-214,1175-1216",
+        "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs:1-221",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:1-60",
+        "git show --stat 043cf8c8",
+        "MT-185.json contract + packet.json",
+        "spec master-spec-v02.194/spec-modules/10-product-surfaces.md (projection-not-authority law)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

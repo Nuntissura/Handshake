@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-221-CloudFallbackRules",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-13T01:09:49.866Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-221.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260613",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "0e729a0b",
     "evidence": [
       {
@@ -164,7 +164,54 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260613",
-    "ready_for_validation_at_utc": "2026-06-13T01:09:49.866Z"
+    "ready_for_validation_at_utc": "2026-06-13T01:09:49.866Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-221 (CloudFallbackRules) requires making swarm cloud assistance receipt-gated, attributable, non-authoritative, and PostgreSQL/EventLedger-backed. The committed code (0e729a0b) implements exactly this with real Handshake-native PostgreSQL tables, a bound fallback-basis EventLedger gate, fail-closed escalation, and real-PG integration tests proving loose/replayed-basis rejection. It aligns with current Master Spec v02.194 local-first/cloud-fallback, non-authoritative, promotion-gated direction.",
+      "findings": [
+        "Real migration: src/backend/handshake_core/migrations/0314_parallel_swarm_cloud_assistance_receipts.sql creates knowledge_agent_cloud_assistance_receipts with strong CHECK constraints (non_authoritative IS TRUE, requires_promotion IS TRUE, authority_mutation_allowed IS FALSE, review_state in pending_review/rejected) and FK chains into kernel_event_ledger; fallback_basis_event_id is NOT NULL UNIQUE, mechanically enforcing one-use (anti-replay).",
+        "state_recovery.rs:2407+ record_cloud_assistance_output is gated: requires an active cloud-owned workspace claim (active_cloud_assistance_claim_tx, FOR UPDATE), and ensure_cloud_fallback_basis_event_tx matches the fallback-basis EventLedger event by event_id AND payload fields (workspace/wp/mt/claim/parent_session/prompt_sha256/fallback_reason) AND requires lane_kind in (local,system), not cloud — rejecting loose/forged basis rows.",
+        "record_cloud_fallback_basis (state_recovery.rs:~2410) rejects cloud and non-local/system lanes; test cloud_assistance_rejects_loose_or_replayed_fallback_basis proves a Validator lane is denied (\"local/system lane\"), a prompt-mismatched basis is denied (\"fallback-basis EventLedger\"), first use accepted, and replay of the same basis errors.",
+        "validate_cloud_assistance_receipt (state_recovery.rs:~3632) asserts schema_id, PSR-CLOUD-/PSR-HANDOFF- ids, KE- EventLedger ids, pending_review, non_authoritative=true, requires_promotion=true, authority_mutation_allowed=false, promotion_event_id none — invariants match the spec's non-authoritative/promotion-gated cloud output.",
+        "app/src-tauri swarm_runtime.rs:2477 chat_generate_with_cloud_escalation_inner + spawn_generate_cloud_escalation (2672) is fail-closed: missing recorder, missing receipt_context, or basis-record failure all return cloud_error and never spawn/return cloud output; order is record bound basis -> spawn cloud + generate -> record non-authoritative receipt -> only then return; receipt failure cancels the cloud instance (cancel_cloud_escalation_instance).",
+        "Direct chat is local-only: swarm_runtime.rs returns \"direct chat is local-only; cloud output requires receipt-gated cloud escalation\" for cloud sessions; test chat_generate proves it (\"direct chat is local-only\").",
+        "Tests run against real PostgreSQL: recovery_store()/knowledge_pg() connect an isolated PG schema; tests skip (return None) only when no PG present — they are real-PG by construction, not mock-only. Evidence block records 3/3 PG cloud-assistance tests + 10/10 chat-generate tests passing.",
+        "No deferred-live escapes: diff grep for todo!/unimplemented!/unreachable!/Unavailable/\"not yet wired\"/\"pending MT-\" found only a deleted comment line; no forbidden tech (sqlite/docker/redis/elasticsearch/etc.) in the diff.",
+        "Spec v02.194 04-llm-infrastructure.md lines 1182/1206 define a \"Cloud fallback\" work profile and require local_only to reject cloud; line 392 requires durable product-owned EventLedger reconstruction — the impl matches.",
+        "Aside (non-blocking, expected): packet cites v02.192 anchors while current is v02.194; per ground rules this is not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-221.json",
+        "git show 0e729a0b (commit feat: MT-221 receipt-gate cloud fallback, 13 files)",
+        "src/backend/handshake_core/migrations/0314_parallel_swarm_cloud_assistance_receipts.sql + .down.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (record_cloud_fallback_basis, record_cloud_assistance_output, ensure_cloud_fallback_basis_event_tx, active_cloud_assistance_claim_tx, validate_cloud_assistance_receipt, ensure_cloud_assistance_lane)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (recovery_store, 3 cloud_assistance tests)",
+        "app/src-tauri/src/commands/swarm_runtime.rs (chat_generate_with_cloud_escalation_inner, spawn_generate_cloud_escalation, recorder trait + PostgresCloudAssistanceReceiptRecorder, local-only direct-chat gate)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/04-llm-infrastructure.md (lines 392, 1182, 1206, 1408)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT221",

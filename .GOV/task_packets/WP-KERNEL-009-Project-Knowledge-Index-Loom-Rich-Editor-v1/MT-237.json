@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-237-ParallelWriteConflictFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-15T03:57:26.429Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-237.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-031300",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "working-tree",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: /knowledge/crdt/updates/push now routes through durable save semantics; same-process same-document CRDT pushes serialize before head read; MT-237 fixture drives concurrent operator/model/validator HTTP pushes against managed PostgreSQL/EventLedger, proves one accepted head, two durable stale-base denials, conflict UI, HTTP repair writes, absent denied bytes, and EventLedger receipt linkage.",
     "ready_by": "KERNEL_BUILDER-20260615-031300",
@@ -114,7 +114,57 @@
       "Product files touched: src/backend/handshake_core/src/api/knowledge_crdt.rs, src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs, src/backend/handshake_core/tests/knowledge_parallel_write_conflict_fixture_tests.rs, src/backend/handshake_core/Cargo.toml.",
       "The MT-237 fixture uses the real axum CRDT route over loopback and the managed PostgreSQL/EventLedger fixture; no SQLite, Docker-default, external daemon, or mock-only proof is used.",
       "Denied initial writes are asserted absent from both pull replay bytes and persisted PostgreSQL CRDT update bytes; conflict receipts are asserted against EventLedger event type, aggregate, actor, correlation, and payload."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-237 requires a negative fixture proving that concurrent operator/model/validator CRDT draft writes create durable conflict/repair state instead of data loss, against Handshake-managed PostgreSQL/EventLedger. The committed code and fixture deliver exactly this: one accepted head, two durable stale-base denials with receipts, conflict UI, HTTP repair round-trip, denied-byte absence from both replay and persisted rows, and EventLedger receipt linkage — all over real managed PostgreSQL.",
+      "findings": [
+        "Fixture is real and substantive: tests/knowledge_parallel_write_conflict_fixture_tests.rs:193-667 spawns 3 concurrent same-base HTTP pushes (operator/model/validator) through the real axum CRDT router over loopback (lines 286-301), asserts exactly one OK + two HTTP 409 stale denials (lines 302-340), then drives HTTP repair writes and re-pulls.",
+        "Proof routes through the real save path, not a bypass: knowledge_crdt.rs:154 push handler calls save_rich_document_draft, which calls push_yjs_update (save_semantics.rs:151). push_yjs_update takes a per-document in-process mutex BEFORE reading head (yjs_bridge.rs:529-530), closing the prior bypassed-route/weak-fixture finding cited in the adversarial review.",
+        "Real Handshake-owned resource touch: denial receipts are written via insert_denial_receipt -> INSERT INTO knowledge_crdt_denial_receipts (storage/knowledge_crdt.rs:98-145, migration 0150), and conflicts append a real KnowledgeCrdtConflictDetected EventLedger event (save_semantics.rs:272-298). The fixture connects through managed_postgres::ManagedPostgres::ensure_running (knowledge_pg_support.rs:108-165), satisfying the PostgreSQL/EventLedger duty; no SQLite/mock-only path.",
+        "Data-loss guard proven both ways: fixture asserts denied sentinel bytes are absent from the pull replay feed (lines 566-573) AND from persisted PostgreSQL update bytes read back via read_kernel_crdt_update_bytes (lines 592-598), and asserts each denial receipt links to a real EventLedger conflict row by event_id/aggregate/actor/correlation/payload (lines 620-660).",
+        "No deferred-live escapes: grep of the MT-237 surface (knowledge_crdt.rs, save_semantics.rs, yjs_bridge.rs, conflict_ui.rs, storage/knowledge_crdt.rs) for todo!/unimplemented!/unreachable!/'deferred to follow-on'/'pending MT-'/Live*Unavailable returned zero hits.",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2715 requires manual/AI edits to leave actor/state-vector/denial receipts and forbids silent authority overwrite; the fixture proves denial-receipt + conflict-event + no-overwrite, matching 2.3.13.11.",
+        "Self-cert note: lifecycle.claimed_by=KERNEL_BUILDER and status is READY_FOR_VALIDATION (not self-signed COMPLETED); the external validator owns the COMPLETED transition. Proof is real so no sub-rule-3 concern.",
+        "Honest residual (non-blocking): the serialization mutex is in-process only; cross-process backend writers could still race between EventLedger append and CRDT row insert. This fails closed via the unique seq index idx_kernel_crdt_updates_seq -> typed SequenceSlotRace denial (yjs_bridge.rs:627-641), i.e. still a denial, not data loss. Acceptable for this MT's required behavior; flagged only as future hardening.",
+        "Aside (not a failing reason per ground rules): packet cites v02.192 spec anchors while current is v02.194; section numbers resolve identically. implementation_commit is 'working-tree' but the files are committed (e.g. checkpoint c49afb7f); working tree is clean and files present."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-237.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_parallel_write_conflict_fixture_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_crdt.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/kernel/crdt/save_semantics.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_crdt.rs (insert_denial_receipt, real INSERT)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (managed_postgres helper)",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0150_knowledge_crdt_denial_receipts.sql",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11, line 2715)",
+        "git log --grep MT-237 / git status (working tree clean, files committed)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-031300",

@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-091-SecretRedactionPreflight",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:58:58.290Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-091.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "1c52a45e",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 1c52a45e; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -129,7 +129,52 @@
     },
     "evidence": [
       "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-091 (SecretRedactionPreflight) requires scanning candidate source text for secrets/credentials before any span content persists, blocking HIGH-severity files and redacting MEDIUM findings, with no raw secret bytes reaching durable PostgreSQL rows. The committed code implements this faithfully, the prior adversarial cross-span/pattern-miss findings are genuinely fixed and backstopped by a DB CHECK guard, and the proof exercises the real Handshake-managed PostgreSQL contract (isolated schema, raw cross-table probes, real check_violation), not implementer mocks.",
+      "findings": [
+        "secrets.rs:342-397 scan_text runs all literal patterns (AWS AKIA, private-key blocks incl unterminated-to-EOF, credential connection URLs, GitHub classic+fine-grained PAT, Slack xoxb/xapp, Google, JWT) + Shannon-entropy gate (3.5 bits/char) on generic assignments with placeholder suppression, then sorts+merges overlapping findings so redaction never double-splices. Matches current Master Spec 10-product-surfaces.md:4156-4173 Secret Redactor category table and [REDACTED:...] output format.",
+        "Prior adversarial cross-span-split leak (MT-091 #1) is genuinely fixed: secrets.rs:446-487 redact_span_with_whole_file_findings clips whole-file findings onto each span's original byte range, so a secret straddling a 120-line code window is excised from every partial-overlap span. Wired in engine.rs:943-971 redact_spans (byte-anchored spans use whole-file findings; PDF/transcript/JSON spans without byte offset fall back to per-span scan) and engine.rs:1038-1056/1256-1266 (single whole-file scan reused for must_block + redaction).",
+        "Pattern-miss findings from the adversarial review are closed: secrets.rs adds GithubFineGrainedPat (github_pat_), SlackAppToken (xapp-), HeaderlessKeyBlob (standalone high-entropy base64, BLOB_MIN_LEN 64 + 4.8 bits/char), and NonPemLabelKeyBlock (vendor PEM labels). secrets.rs:96-105 SecretFinding carries kind/line/byte offsets/len ONLY, no matched value; engine.rs:1270-1283 secret_block_detail emits kind/line/matched_len only, no secret bytes.",
+        "DB-level backstop is real: migrations/0210_knowledge_ingestion_redaction_guard.sql:48-53 adds CHECK (redaction_state<>'redacted' OR position('[REDACTED:' IN content)>0), enforcing the no-raw-bytes invariant on EVERY writer, not just the engine. One-directional so legitimate content literally containing the marker is not rejected.",
+        "Proof is real PostgreSQL, not implementer mock: tests/knowledge_pg_support.rs:7-13/26-120 uses managed_postgres::ManagedPostgres::ensure_running (or POSTGRES_TEST_URL/DATABASE_URL) with per-test isolated schema + full migration chain, explicitly no SQLite/no mocks. hardening_tests.rs:73-82 count_like probes the durable tables via a raw PG connection with real LIKE SQL; mt091_mt096_boundary_seam (102-205) asserts the raw JWT is absent from every span content row and each contiguous third across 4 durable tables; mt091_db_guard_refuses_redacted_span_without_marker (306-365) does a raw INSERT and asserts a real check_violation on chk_knowledge_ingestion_spans_redaction_marker.",
+        "No deferred-live escapes: grep of engine.rs/secrets.rs/store.rs/kinds.rs/spans.rs/mod.rs found no todo!()/unimplemented!()/unreachable!()/'not yet wired'/'pending MT-'/*Unavailable stand-ins on the required behavior path (the only 'placeholder' hits are looks_like_placeholder, the legitimate documentation-placeholder suppressor).",
+        "Note (non-blocking): the residual entropy-gate miss for low-entropy real passwords (e.g. dictionary passphrases below 3.5 bits/char) remains a known limitation acknowledged in the adversarial review; it is inherent to entropy-based detection, matches field tools (gitleaks/trufflehog), and is not required by the MT or spec to be caught. Aside (non-blocking): packet cites v02.192 spec anchors; resolved against current v02.194 where the same sections exist."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-091.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 1c52a45e and 5876feaf in wtc-kernel-009",
+        "src/backend/handshake_core/src/knowledge_ingestion/secrets.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:933-1070,1248-1283 (redact_spans, whole-file preflight, must_block, secret_block_detail)",
+        "src/backend/handshake_core/migrations/0210_knowledge_ingestion_redaction_guard.sql",
+        "src/backend/handshake_core/tests/knowledge_ingestion_hardening_tests.rs:48-365",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs / knowledge_ingestion_support.rs (real managed PG infra)",
+        "Master Spec v02.194 spec-modules: 10-product-surfaces.md:4155-4173 (Secret Redactor categories+format), 06-mechanical-integrations.md:7098/7233, 02-system-architecture.md:953-1138 (export-only redaction scope = diary content, distinct surface)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-204-UserManualFreshnessCheck",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T18:22:30Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-204.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T18:22:30Z",
     "ready_for_validation_reason": "Freshness documentation and spec seed now cover every runtime FreshnessVerdictKind, including non-page tool/feature/alias verdicts; RED/GREEN proof and adversarial review PASS.",
     "evidence": [
@@ -130,7 +130,56 @@
           "subagent:019ec752-383a-7bc3-aee6-26749c59fef6"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-204 requires the UserManualFreshnessCheck surface to detect and document drift between the stored UserManual, the compiled-in seed corpus, and the declared surface registry; the V2 fix adds non-page (tool/feature/legacy-alias) verdict vocabulary. The code delivers a real, PostgreSQL-backed freshness check wired to a live route, with all 12 typed verdict kinds documented in the seeded manual and UMSPEC-002 and enforced by tests including real-PG fixtures.",
+      "findings": [
+        "freshness.rs:39-77 defines FreshnessVerdictKind with all 12 variants; every non-Current variant is is_problem()=true and maps to a real defect category (page content, tool/feature/alias drift, uncovered/dangling surface, unseeded version).",
+        "freshness.rs:98-337 check_freshness performs real store queries (list_pages, list_tool_entries, list_feature_entries, list_legacy_aliases, anchors_by_kind, get_version) plus surface-registry comparison; substantive, not stubbed.",
+        "api/user_manual.rs:62 and :439 expose live GET /usermanual/freshness calling the real check_freshness against PostgreSQL and appending a freshness_checked receipt; runtime-wired, not placeholder.",
+        "seed.rs:984-1004 (usermanual-surface page) and spec_seed.rs:55-66 (UMSPEC-002) both enumerate all 12 verdict strings including the V2 non-page verdicts; recovery guidance states resync covers 'changed pages, tool entries, feature entries, and legacy aliases'.",
+        "user_manual_content_tests.rs:617-670 mt204_freshness_docs_name_every_verdict_kind asserts every FreshnessVerdictKind::as_str appears in both the seeded page and UMSPEC-002, with a negative assertion that resync guidance is not page-only; this is the RED/GREEN proof closing the V1 gap.",
+        "Real-PG proof: user_manual_freshness_fixture_tests.rs:16-88 and content_tests.rs:678-711 call check_freshness against knowledge_pg() (Handshake-managed PostgreSQL) and assert StaleContent / MissingPage verdicts; satisfies sub-rule 2.",
+        "UMSPEC-002 target anchor '10.15.8 UserManual migration bridge' exists in the current v02.194 spec bundle (10-product-surfaces.md:8151); spec_seed rows point at live anchors.",
+        "No deferred-live escapes: grep of freshness.rs, spec_seed.rs, and api/user_manual.rs found no todo!/unimplemented!/unreachable!/Unavailable/pending-MT placeholders.",
+        "Aside (non-blocking, expected): MT contract has no implementation_commit field; work landed in commit fcf9bce3 (MT-193..208 group) plus checkpoint c49afb7f. Paperwork-only, not a code defect."
+      ],
+      "evidence_checked": [
+        "MT-204.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "packet.json (allowed/forbidden paths, DEC-008)",
+        "src/backend/handshake_core/src/user_manual/freshness.rs",
+        "src/backend/handshake_core/src/user_manual/spec_seed.rs",
+        "src/backend/handshake_core/src/api/user_manual.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs (grep)",
+        "tests/user_manual_content_tests.rs",
+        "tests/user_manual_freshness_fixture_tests.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md",
+        "git log --grep MT-204"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-175624",

@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-220-SwarmDashboardProjection",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T22:56:23.358Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-220.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "3eead501",
     "evidence": [
       {
@@ -145,7 +145,53 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T22:56:23.358Z"
+    "ready_for_validation_at_utc": "2026-06-12T22:56:23.358Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-220 requires a projection-only parallel swarm dashboard read model over PostgreSQL/EventLedger (not UI-authoritative), exposed via a backend route. The code delivers exactly this: a real SELECT-only store method, a wired API route, EventLedger membership validation, bounded rows with authoritative full-source totals plus truncation warnings, and real managed-PostgreSQL test proof including no-mutation snapshots and forgery negative tests.",
+      "findings": [
+        "Route real and wired: GET /kernel/parallel_swarm/dashboard_projection registered at src/backend/handshake_core/src/api/kernel.rs:666; handler parallel_swarm_dashboard_projection (kernel.rs:217) constructs ParallelSwarmStateRecoveryStore from state.postgres_pool + state.storage, calls project_swarm_dashboard, then runs validate_swarm_dashboard_projection before returning. No mock injected.",
+        "Projection is genuinely SELECT-only over real PG tables: state_recovery.rs:1598 project_swarm_dashboard issues bounded LIMIT-ed SELECTs against knowledge_agent_worktree_claims, knowledge_agent_role_mailbox_handoffs, knowledge_agent_state_recovery_checkpoints, knowledge_agent_recovery_receipts, knowledge_parallel_indexing_lease_queue, knowledge_agent_quiet_background_work. No INSERT/UPDATE/DELETE on the read path.",
+        "Authoritative full-source totals computed separately from bounded row arrays via dashboard_authority_totals (state_recovery.rs:1874), so limited rows do not masquerade as totals; add_truncation_warning emits per-collection truncation warnings (state_recovery.rs:1802-1837). This resolves the prior adversarial finding about limited-row totals.",
+        "Real EventLedger semantic linkage: dashboard_authority_totals event_count query (state_recovery.rs:1973) UNIONs source event-id columns from all six source tables and INNER JOINs kernel_event_ledger e ON e.event_id AND e.source_component = PARALLEL_SWARM_SOURCE_COMPONENT; dashboard_event_watermark validates membership and reports missing_event_refs as warnings. Not a stub.",
+        "Cross-workspace claim-less handoff leakage resolved: handoff queries INNER JOIN knowledge_agent_worktree_claims c ON c.claim_id = h.claim_id and filter c.workspace_id (state_recovery.rs:1634, 1898, 2060), so unscoped handoffs are excluded and surfaced via the handoffs_without_workspace_source_ref_excluded warning.",
+        "validate_swarm_dashboard_projection (state_recovery.rs) is a real semantic validator: enforces projection_only=true, authority_mutation_allowed=false, ui_state_authoritative=false, required source tables/event aggregates, watermark event-count consistency, empty missing_event_refs, and per-row source_ref table/aggregate-id checks.",
+        "Real managed-PostgreSQL proof: tests/knowledge_pg_support.rs:108 knowledge_pg provisions an isolated PG schema with real run_migrations and pgcrypto; recovery_store (tests:174) connects via PgPoolOptions. Skip is conditional on PG availability, not an unconditional no-op.",
+        "Main test swarm_dashboard_projection_derives_from_postgres_eventledger_and_is_projection_only (tests:2214) seeds durable claim/handoff/checkpoint/recovery/lease/quiet rows, asserts before==after authority + global source counts (SELECT-only proof), asserts events==6, asserts the unscoped handoff is excluded, and runs five forgery negative tests (UI-authoritative, source-less row, wrong table, wrong event aggregate, missing watermark) each expecting validation failure.",
+        "No deferred-live escapes: git show 3eead501 on state_recovery.rs has zero hits for todo!/unimplemented!/unreachable!/*Unavailable/'not yet wired'/'pending MT-'/placeholder.",
+        "Non-blocking paperwork aside: lifecycle.claimed_by is null while completed_by=KERNEL_BUILDER-20260612; a handoff-field oddity, not a code/behavior defect and not grounds to fail."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-220.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 3eead501 (wtc-kernel-009) --stat and full diff",
+        "src/backend/handshake_core/src/api/kernel.rs (route + handler + error map)",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs:1598-2092 (project_swarm_dashboard, dashboard_authority_totals, event watermark) and validate_swarm_dashboard_projection",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs:174-198, 2214-2512 (recovery_store, main dashboard test + forgery cases)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:108-157 (managed PG provisioning)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT220",

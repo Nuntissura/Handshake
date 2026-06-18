@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-090-OperatorResearchNoteIngestion",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-090.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "d0393ffc",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 d0393ffc; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -120,13 +120,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -160,6 +160,47 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-090 requires ingesting operator research notes as non-normative context: split markdown/text into heading-path-anchored paragraph spans, record [[wikilink]] candidates per span (never resolved at ingestion), and stamp provenance authority=non_normative_context, with durable PostgreSQL/EventLedger proof. The code (notes.rs parser + engine.rs integration) implements exactly this and is proven by a real Handshake-managed PostgreSQL pipeline test asserting persisted spans, heading paths, wikilink candidates, the non_normative_context stamp, and a replayable ledger event.",
+      "findings": [
+        "notes.rs:52-174 parse_note() is a real, complete parser: paragraph blocks split on blank lines, fenced code blocks (```) kept as single spans with in_fence tracking, heading stack with correct level-pop semantics (l>=level pop), 1-based line anchors, heading_path carried per span. No placeholders/todo!/unimplemented! anywhere (grep clean).",
+        "Heading-injection guard verified: notes.rs:84-103 routes fence lines so a '# not a heading' line inside a fence never reaches heading_level(); unit test fenced_code_blocks_stay_single_spans (notes.rs:236-257) and line 109 heading path both assert the fake heading is excluded.",
+        "engine.rs:1071-1086 wires OperatorResearchNote (and MarkdownText) kind to parse_note() in the real extraction path, producing persisted spans + error_detail rollup (headings_seen/link_candidates). engine.rs:369-372 stamps provenance['authority']=non_normative_context for OperatorResearchNote kind, satisfying the context-not-authority requirement and [GLOBAL-GOVARTIFACTS-028].",
+        "sub_rule_2 (real resource touch) PASS: tests/knowledge_ingestion_support.rs:1-39 builds on knowledge_pg() = real Handshake-managed PostgreSQL with per-test isolated schema and full migration chain, explicitly 'no SQLite, no mocks'; PostgresDatabase::connect feeds IngestionEngine::from_database. The MT-090 test (knowledge_ingestion_pipeline_tests.rs:110-196) ingests a note through the real engine and asserts durable spans, heading_path=['Research'], 2 wikilink candidates (target/label) read from persisted JSONB, provenance authority=non_normative_context, and a real kernel_event_ledger row queried via sqlx carrying actor/session/correlation + extraction_receipt payload, plus per-source rollup (last_index_receipt_event_id). This is real-PG end-to-end proof, not implementer-authored mocks.",
+        "sub_rule_1 (no deferred-live escape) PASS: grep of notes.rs and the engine note branch for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow'/'pending MT'/Unavailable returns no hits on the live path.",
+        "Wikilink robustness: spans.rs detect_wikilinks handles malformed/empty/nested/newline cases ([[]], [[a\\nb]] -> none) per its tests; candidates are recorded only, never resolved at ingestion, matching MT scope and the link_candidates JSONB serialization the PG test reads.",
+        "Prior FAIL_V1 (wp_validator_review_v1) was UPSTREAM_DEPENDENCY_NOT_READY (MT-081 still CLAIMED at validation time) — a sequencing/paperwork concern, not a code defect; remediation_v2 records MT-081 now READY_FOR_VALIDATION (commit 5876feaf). Per ground rules this dependency-ordering issue is not a code failing reason and the implementation itself was never faulted.",
+        "Aside (non-blocking, paperwork): MT contract cites spec bundle v02.192 anchors; current is v02.194 with the same section numbers (2.3.13.11). Stale spec pointer is expected and not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/notes.rs (full, incl. 5 unit tests)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs (lines 360-372 provenance stamp; 1071-1086 note extraction branch; mod import line 34)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (mt085_mt090 test, lines 107-196)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs (ingestion_pg real-PG harness, lines 1-75)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs (ExtractedSpan/link_candidates/detect_wikilinks)",
+        "git show --stat d0393ffc + commit message",
+        "MT-090.json contract + packet.json constraints",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

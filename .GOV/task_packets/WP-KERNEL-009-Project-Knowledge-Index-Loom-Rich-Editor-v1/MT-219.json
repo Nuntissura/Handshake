@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-219-QuietModeBackgroundWork",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T21:32:36.615Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-219.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "1e55f9d6",
     "evidence": [
       {
@@ -149,7 +149,57 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T21:32:36.615Z"
+    "ready_for_validation_at_utc": "2026-06-12T21:32:36.615Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-219 requires quiet/non-intrusive background work (indexing, test runs, visual capture, backend navigation) for parallel swarm lanes with PostgreSQL/EventLedger authority. The commit 1e55f9d6 delivers a real implementation: a new PG table with CHECK constraints and an EventLedger FK, a RunQuietBackgroundWork capability, a quiet policy enforced in DB and code, and quiet wrappers that preflight denial paths before side effects. Proof runs against real Handshake-managed PostgreSQL, not mocks.",
+      "findings": [
+        "Migration src/backend/handshake_core/migrations/0313_parallel_swarm_quiet_background_work.sql: real PostgreSQL table knowledge_agent_quiet_background_work with work_kind CHECK (indexing/backend_navigation/visual_capture/test_run), a quiet-policy CHECK enforcing all five quiet booleans, receipt_id LIKE 'PSR-QUIET-%' constraint, FK event_ledger_event_id REFERENCES kernel_event_ledger(event_id), plus a quiet_policy_jsonb column + CHECK added to knowledge_parallel_indexing_lease_queue, and a knowledge_schema_registry insert. Native PG authority, not SQLite/sidecar.",
+        "state_recovery.rs: adds RunQuietBackgroundWork capability granted to non-Validator lanes (Validator lanes excluded), QuietBackgroundPolicy with no_foreground_window/no_focus_steal/no_os_shell_window/bounded/observable, record_quiet_background_work() appending a KnowledgeQuietBackgroundWorkRecorded EventLedger event in-tx then inserting the receipt row, validate_quiet_background_policy() rejecting any non-quiet flag, and try_acquire_indexing_lease() returning None on contention/unique-violation instead of queueing an orphan lease. require_capability(RunQuietBackgroundWork) gates writes.",
+        "engine.rs start_quiet_run(), governance_check_runner.rs run_quiet_check(), product_screenshot_capture.rs record_native_product_screenshot_quiet(), and api/knowledge_code_nav.rs record_quiet_nav_receipt() all preflight capability/lease/kind/focus/PNG/redaction validation BEFORE recording the quiet receipt or performing product side effects. product_screenshot_capture.rs carries the HBR-QUIET console-window suppression tie-in. This closes the prior adversarial ordering/orphan concerns recorded in the MT evidence block.",
+        "Proof realism: tests/knowledge_pg_support.rs:1-24 documents and enforces real-PostgreSQL-only via ManagedPostgres::ensure_running (no Docker, no external daemon, explicit 'There is NO SQLite, in-memory, or mock fallback'); absent binaries -> loud SKIP. parallel_swarm_state_recovery_tests.rs exercises real record_quiet_background_work/start_quiet_run/run_quiet_check/resolve_backend_navigation_quiet, asserts EventLedger event_type KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED, persisted-row counts, loud-policy rejection persists 0 rows, validator-write rejection, and quiet_entrypoint_denials_happen_before_product_side_effects proves denied index leaves 0 knowledge_index_runs rows and contention leaves no orphan queued lease.",
+        "knowledge_code_nav_api_tests.rs exercises the real backend-navigation HTTP routes end-to-end and asserts each response returns a quiet_background_work_receipt_id whose knowledge_agent_quiet_background_work row exists in PG (assert_backend_nav_quiet_receipt).",
+        "Spec alignment: current Master Spec v02.194 module 05 (lines 1765-1870) confirms the HBR-QUIET and HBR-SWARM families (sandbox quietness, no-foreground/no-focus-steal, bounded/observable parallel work) backed by HANDSHAKE_BUILD_RULES.json; the quiet policy fields map directly onto these gates. Aside (non-blocking, expected): packet cites v02.192 anchors while current is v02.194."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-219.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 1e55f9d6 (wtc-kernel-009) full diff",
+        "src/backend/handshake_core/migrations/0313_parallel_swarm_quiet_background_work.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs",
+        "src/backend/handshake_core/src/governance_check_runner.rs",
+        "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs",
+        "src/backend/handshake_core/src/kernel/mod.rs",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/05-security-and-observability.md",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT219",

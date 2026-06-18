@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-17T20:30:00.000Z",
+  "updated_at_utc": "2026-06-18T07:50:29Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -1875,6 +1875,1986 @@
       "applied_at_utc": "2026-06-11T08:13:01.737Z",
       "change": "MT contract scope.relevant_files + scope.constraints pins updated v02.191 -> v02.192 (authority bumped 06:45Z before hydration 07:20Z). MT-002 scope.relevant_files intentionally retains v02.191 module paths: its deliverable is the v02.191 stale-SQLite conflict map.",
       "trigger": "ADVERSARIAL_REVIEWER cross-cutting risk 1"
+    }
+  },
+  "mt_validation_index": {
+    "schema_id": "hsk.wp_mt_validation_index@1",
+    "generated_at_utc": "2026-06-18T07:41:57Z",
+    "generated_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+    "spec_resolved": "v02.194 (current SPEC_CURRENT); packet anchors authored vs v02.192, sections resolve in current bundle",
+    "baseline_compile": "cargo check --bin handshake on feat/WP-KERNEL-009 (HEAD c7491525): exit 0, 0 errors",
+    "legend": {
+      "PASS_V1": "validated PASS in the prior V1 run (left untouched per operator directive)",
+      "PASS_V2": "validated PASS in this V2 run (code vs MT/WP/current Master Spec + Spec-Realism Gate)",
+      "FAIL_V2": "validated FAIL in this V2 run; see that MT lifecycle.fail_state_v2 for report + no-context remediation"
+    },
+    "totals": {
+      "total": 264,
+      "pass_v1": 75,
+      "pass_v2": 189,
+      "fail_v2": 0,
+      "other": 0
+    },
+    "rows": [
+      {
+        "mt": "MT-001",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-002",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-003",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-004",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-005",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-006",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-007",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-008",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-009",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-010",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-011",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-012",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-013",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-014",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-015",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-016",
+        "group": "ResearchSpecTranslation",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-017",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-018",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-019",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-020",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-021",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-022",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-023",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-024",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-025",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-026",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-027",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-028",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-029",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-030",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-031",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-032",
+        "group": "NativeDependencyAndPackaging",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-033",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-034",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-035",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-036",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-037",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-038",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-039",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-040",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-041",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-042",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-043",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-044",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-045",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-046",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-047",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-048",
+        "group": "MasterSpecEnrichmentSeed",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-049",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-050",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-051",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-052",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-053",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-054",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-055",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-056",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-057",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-058",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-059",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-060",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-061",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-062",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-063",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-064",
+        "group": "PostgresEventLedgerCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-065",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-066",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-067",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-068",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-069",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-070",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-071",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-072",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-073",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-074",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-075",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-076",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-077",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-078",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-079",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-080",
+        "group": "CRDTAndConcurrencyCore",
+        "verdict": "PASS_V1",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-081",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-082",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-083",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-084",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-085",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-086",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-087",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-088",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-089",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-090",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-091",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-092",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-093",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-094",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-095",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-096",
+        "group": "SourceIngestionAndEvidence",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-097",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-098",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-099",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-100",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-101",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-102",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-103",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-104",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-105",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-106",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-107",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-108",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-109",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-110",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-111",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-112",
+        "group": "CodeIndexingAndNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-113",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-114",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-115",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-116",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-117",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-118",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-119",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-120",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-121",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-122",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-123",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-124",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-125",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-126",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-127",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-128",
+        "group": "MemoryGraphAndClaims",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-129",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-130",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-131",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-132",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-133",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-134",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-135",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-136",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-137",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-138",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-139",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-140",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-141",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-142",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-143",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-144",
+        "group": "RetrievalContextAndRanking",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-145",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-146",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-147",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-148",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-149",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-150",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-151",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-152",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-153",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-154",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-155",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-156",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-157",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-158",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-159",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-160",
+        "group": "RichDocumentCore",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-161",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-162",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-163",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-164",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-165",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-166",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-167",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-168",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-169",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-170",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-171",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-172",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-173",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-174",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-175",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-176",
+        "group": "TiptapMonacoIntegration",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-177",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-178",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-179",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-180",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-181",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-182",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-183",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-184",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-185",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-186",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-187",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-188",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-189",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-190",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-191",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-192",
+        "group": "LoomObsidianNavigation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-193",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-194",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-195",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-196",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-197",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-198",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-199",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-200",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-201",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-202",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-203",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-204",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-205",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-206",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-207",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-208",
+        "group": "UserManualAndNoContextOps",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-209",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-210",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-211",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-212",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-213",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-214",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-215",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-216",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-217",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-218",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-219",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-220",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-221",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-222",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-223",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-224",
+        "group": "ParallelSwarmStateRecovery",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-225",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-226",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-227",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-228",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-229",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-230",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-231",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-232",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-233",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-234",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-235",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-236",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-237",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-238",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-239",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-240",
+        "group": "SecurityPortabilityValidation",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-241",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-242",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-243",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-244",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-245",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-246",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-247",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-248",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-249",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-250",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-251",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-252",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-253",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-254",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-255",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-256",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-257",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-258",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-259",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-260",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-261",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-262",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-263",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      },
+      {
+        "mt": "MT-264",
+        "group": "UnifiedWorkSurface",
+        "verdict": "PASS_V2",
+        "status": "COMPLETED",
+        "note": ""
+      }
+    ]
+  },
+  "integration_validator_verdict_v2": {
+    "schema_id": "hsk.integration_validator_wp_verdict@2",
+    "verdict": "PASS",
+    "verdict_note": "Whole-WP PASS with two documented non-blocking follow-ups. Code-vs-current-Master-Spec inspection (v02.194). Per operator directive 2026-06-18: repo-governance paperwork is non-blocking; bar is good code vs WP/MT/Master Spec. No correctness blocker found.",
+    "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "reviewed_at_utc": "2026-06-18T07:50:29Z",
+    "method": "Integration Validator: (1) per-MT V2 validation of all 189 non-PASS-V1 MTs via multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a) with adversarial confirm on FAIL; (2) baseline cargo check of feat/WP-KERNEL-009; (3) whole-WP spec-coverage pass over the 10 §2.3.13.11 required capabilities (wf_356670d1-66e).",
+    "mt_summary": {
+      "total": 264,
+      "pass_v1": 75,
+      "pass_v2": 189,
+      "fail_v2": 0
+    },
+    "baseline_compile": "cargo check --bin handshake on feat/WP-KERNEL-009 HEAD c7491525: exit 0, 0 errors (2 dead-code warnings)",
+    "spec_resolved": "v02.194 (current). Packet anchors authored vs v02.192 resolve in current bundle (paperwork-only drift, non-blocking).",
+    "spec_coverage": {
+      "areas": 10,
+      "pass": 9,
+      "concern": 1,
+      "fail": 0,
+      "rows": [
+        {
+          "area": "SOURCE_REGISTRATION_AND_SPANS",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "ENTITY_EDGE_RELATIONSHIP_ID",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "CLAIM_LIFECYCLE",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "RETRIEVAL_TRACES",
+          "verdict": "CONCERN",
+          "confidence": "HIGH",
+          "gaps": [
+            "§2.3.13.11.1 MUST not wired: 'Retrieval MAY serve rich documents and wiki pages as markdown, HTML, or JSON per task cost; the serving projection MUST be recorded in RetrievalTrace.' The RetrievalTrace struct (src/knowledge_retrieval/plan.rs:293-310) and the knowledge_retrieval_traces table/decisions JSONB (migrations/0141, src/storage/knowledge_retrieval.rs) have NO serving-projection/served-format field. Document/wiki projection serving (render_projection, ProjectionFormat md/html/...) exists and is reachable via GET /knowledge/documents/:id/projection?format=, and the document-save/import path emits a receipt carrying 'format', but that format is recorded on the document aggregate's receipt, NOT in a RetrievalTrace. No code path stamps the md/html/json serving projection into the retrieval trace when a doc/wiki is served. This is a genuine, narrow code/spec gap — not paperwork — but it does not undermine the core RetrievalTrace replay/mode/ranking/freshness/LoomSearchV2 proof, hence CONCERN rather than FAIL."
+          ]
+        },
+        {
+          "area": "RICHDOC_ROUNDTRIP_CODENODE",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "USERMANUAL_LOOKUP",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "PROJECTION_REBUILD_AUTHORITY",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "EVENTLEDGER_REPLAY_CRDT_PROMOTION",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": [
+            "Minor surface weakness (not a capability failure): the RichDocument REST save endpoint (api/knowledge_documents.rs:955-1004 save_document) accepts promotion_receipt_event_id from the client request body and records its own save receipt via record_receipt_non_fatal (best-effort, post-commit) rather than minting the EventLedger promotion event inside the save transaction. The FK to kernel_event_ledger still validates any supplied receipt id and the authority-grade gated/atomic promotion path (promotion_bridge.rs / promote_graph_fact_atomic) is fully enforced, so authority integrity holds; but on this one REST path the save-event receipt is advisory rather than transaction-atomic with the version write."
+          ]
+        },
+        {
+          "area": "BACKEND_NAV_AND_VISUAL_DEBUG",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        },
+        {
+          "area": "NATIVE_RUNTIME_NO_FORBIDDEN",
+          "verdict": "PASS",
+          "confidence": "HIGH",
+          "gaps": []
+        }
+      ]
+    },
+    "followups_non_blocking": [
+      {
+        "id": "FU-1",
+        "severity": "CONCERN",
+        "area": "RETRIEVAL_TRACES",
+        "spec": "v02.194 §2.3.13.11.1",
+        "title": "Serving projection (md/html/json) not stamped into RetrievalTrace",
+        "detail": "RetrievalTrace struct (src/knowledge_retrieval/plan.rs) + knowledge_retrieval_traces table (migration 0141) have no served-format field. Doc/wiki projection serving records format on the document aggregate receipt, not in the RetrievalTrace, so the spec-MUST `serving projection MUST be recorded in RetrievalTrace` is unwired. Narrow, does not break core retrieval/replay/ranking/LoomSearchV2. Fix: add a served_projection_format field to RetrievalTrace + the traces table and stamp it when a doc/wiki is served via retrieval; add a real-PG test asserting the served format round-trips into the trace."
+      },
+      {
+        "id": "FU-2",
+        "severity": "MEDIUM",
+        "area": "RICHDOC_BLOCK_ID (MT-148)",
+        "spec": "v02.194 §2.3.13.11",
+        "title": "Block id churns on structural edit/reorder; backlinks + visual-debug selectors re-key",
+        "detail": "derive_block_id seeds from (doc_id, position_path, plain_text); frontend never round-trips attrs.block_id, so inserting/reordering re-keys ids and downstream backlink relationship_ids. Documented MEDIUM in MT-148 lifecycle.adversarial_review_v2 + wp_validator_review_v2.followup_concern. Fix: persist/round-trip a per-block attrs.block_id (prefer UUID v7) on save; add insert/reorder-stability real-PG test."
+      }
+    ],
+    "merge_recommendation": {
+      "state": "READY_PENDING_OPERATOR_APPROVAL",
+      "note": "Not auto-merged. Whole-WP validation is PASS; merge of feat/WP-KERNEL-009 to main is an outward action held for explicit operator approval per the validation-not-ceremony scope."
     }
   }
 }

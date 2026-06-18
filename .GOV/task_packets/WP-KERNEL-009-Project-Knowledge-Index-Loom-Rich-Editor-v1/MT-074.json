@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-074-AiEditProposalReviewFlow",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:33:27.400Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "dbecce27",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 dbecce27; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -123,13 +123,13 @@
     "evidence": [
       "Hardened d6adf2dd: AI-edit lease chokepoint + approved-vs-applied binding (migration 0192 CHECK applied_sha256=diff_sha256); applied_update_must_hash_to_approved_diff PASS."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -166,6 +166,49 @@
       "commit": "070745fb",
       "fail_verdict": "FAIL_V1 NEEDS_MANAGED_RESOURCE_PROOF: no proof applied_update_id matches a real kernel_crdt_updates row",
       "remediation": "bind_applied_ai_edit_update now requires a matching kernel_crdt_updates row for the proposal workspace/document/crdt_document_id/update_id AND verifies row content hash before binding; absent row refuses binding + emits durable denial receipt even when diff_sha256 matches. Negative test green on real PG."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-074 implements the AiEditProposalReviewFlow: model edits are recorded as typed diffs (base revision + state vector + diff_sha256 + >=1 source span citation + required model lane lease), reviewed via a proposed->approved|rejected state machine restricted to operator/validator (models blocked at runtime and by DB CHECK), and promoted via a causation-linked EventLedger pair with durable denial receipts. The prior FAIL_V1 finding (applied_update_id could bind to a phantom kernel_crdt_updates row on hash-match alone) is genuinely remediated in commit 070745fb: apply_approved_ai_edit now requires a real, content-consistent kernel_crdt_updates row before binding and emits a durable ai_edit_applied_update_missing denial otherwise, proven by a real-PG negative test.",
+      "findings": [
+        "Prior FAIL_V1 finding (APPLIED_UPDATE_ID_EXISTENCE_GAP) is fixed. ai_edit_proposal.rs:693-723 (apply_approved_ai_edit) now calls knowledge_crdt::find_applied_crdt_update_sha256 and refuses binding via deny_applied_update_missing when the stored hash != presented content hash (including absent row), even when diff_sha256 matches. New AiEditApplyOutcomeV1::UpdateRowMissing variant + durable 'ai_edit_applied_update_missing' receipt.",
+        "find_applied_crdt_update_sha256 (knowledge_crdt.rs:1390-1419) keys on (workspace_id, document_id, crdt_document_id, update_id) which exactly matches the kernel_crdt_updates PRIMARY KEY (migrations/0020_kernel_crdt_storage.sql:25), and reads the real persisted update_sha256 column (line 11). Lookup is sound.",
+        "Negative test approved_hash_matches_but_update_id_absent_refuses_binding (knowledge_crdt_proposal_tests.rs:1244-1382) presents the EXACT approved diff with a never-pushed update id, asserts UpdateRowMissing + stored_update_sha256 is None + durable ai_edit_applied_update_missing receipt present + proposal row carries no applied binding, then a control pushes a real kernel_crdt_updates row and proves the same diff binds. This is precisely the test the V1 verdict required.",
+        "Real-PG proof: backend_or_blocked() uses postgres_backend_with_pool_from_env() and panics ENVIRONMENT_BLOCKED if POSTGRES_TEST_URL is unset (tests lines 19-29); there is no in-memory/SQLite/mock substitute. insert_real_crdt_update pushes genuine EventLedger + kernel_crdt_updates rows via append_kernel_crdt_update.",
+        "Migration 0290 widens knowledge_crdt_denial_receipts receipt_kind CHECK to admit 'ai_edit_applied_update_missing' and the Rust allow-list KNOWLEDGE_CRDT_DENIAL_KINDS is updated to 11 (knowledge_crdt.rs:50,63-66) so callers fail closed; DB and Rust stay in sync.",
+        "Sub-rule 1: grep of ai_edit_proposal.rs, knowledge_crdt.rs, and the test file found zero todo!/unimplemented!/unreachable!/placeholder/'deferred to follow'/*Unavailable escapes on the live path.",
+        "Core MT behavior is real: model self-approval blocked at runtime (promote gate_actor restricted to Operator/Validator/System, ai_edit_proposal.rs:430-451) and by DB CHECK per migration 0154; promotion uses a causation-linked EventLedger PromotionRequested/Accepted pair with idempotency keys; pending/rejected promotion leaves a durable ai_edit_promotion_denied receipt.",
+        "Spec alignment: current Master Spec v02.194 section 2.3.13.11 (02-system-architecture.md:2694-2715) requires AI edit proposals to leave actor/source-span/state-vector/validation/denial/promotion receipts and authority to flow through EventLedger promotion; the implementation matches.",
+        "Sub-rule 3: lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323 and the verdict actor is a distinct WP_VALIDATOR; no self-certification.",
+        "Aside (non-blocking, paperwork): adversarial_code_review notes a residual 'approved-vs-applied' integrity nuance and lease-existence-only check carried from sibling MTs; these are bounded (draft log, not authority) and outside this MT's V1 remediation scope, not a code defect for MT-074."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-074.json",
+        "git show 070745fb (remediation) and dbecce27 (impl) in wtc-kernel-009",
+        "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs (apply_approved_ai_edit, deny_applied_update_missing, promote_ai_edit_proposal gates)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs (find_applied_crdt_update_sha256, KNOWLEDGE_CRDT_DENIAL_KINDS)",
+        "src/backend/handshake_core/tests/knowledge_crdt_proposal_tests.rs (backend_or_blocked, model_lease, insert_real_crdt_update, approved_hash_matches_but_update_id_absent_refuses_binding, applied_update_must_hash_to_approved_diff)",
+        "src/backend/handshake_core/migrations/0020_kernel_crdt_storage.sql, 0154/0192/0290 AI edit migrations",
+        "D:/.../wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md section 2.3.13.11",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

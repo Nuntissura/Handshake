@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-089-GovernanceArtifactIngestion",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-089.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "4a21588b",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a21588b; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -120,13 +120,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -160,6 +160,48 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-089 requires GovernanceArtifactIngestion: parse JSON/JSONL governance artifacts (WP/MT contracts, receipts, registries) into structural spans with restartable, hash-based, secret-aware, PostgreSQL/EventLedger-backed evidence and failure receipts. The code implements exactly this — a bounded deterministic JSON/JSONL parser emitting RFC 6901 JSON-pointer spans, wired into the ingestion engine with real PostgreSQL persistence, EventLedger receipts, governance sub-kind provenance, secret-scan preflight, and repair-queue enqueue on typed parse failure — and is proven by a genuine managed-PostgreSQL pipeline test.",
+      "findings": [
+        "governance.rs:139-243 (wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/governance.rs): parse_governance_json / parse_governance_jsonl emit bounded structural spans with RFC 6901 pointers; token escaping ~->~0, /->~1 at line 67-69; truncation FLAGGED on anchor (render_node 71-79); span cap counts skipped_nodes (emit_node 90-93); JSONL malformed lines counted not fatal, all-malformed/empty -> typed ParseError (227-238). Real implementation, no scaffolding.",
+        "Wired into engine: engine.rs:31 imports the parsers; engine.rs:1087-1123 GovernanceArtifact branch dispatches json vs jsonl, maps lossy->Partial + ParseError class, err->Failed; engine.rs:365-368 records governance_sub_kind in provenance via detect_governance_sub_kind (kinds.rs:335). Not dead code.",
+        "Secret-scan preflight (engine.rs:1033-1056) runs over the whole raw text for any needs_text kind including GovernanceArtifact; HIGH-severity findings Block the file and store no spans — satisfies MT 'secret-aware' / 'allowlisted, hash-based, restartable, secret-aware' constraint.",
+        "Real PG proof: tests/knowledge_ingestion_pipeline_tests.rs:565-640 mt089 test ingests synthetic contract through the full engine persist path and asserts on PostgreSQL-backed outcome.source.provenance['governance_sub_kind']=='mt_contract', json-pointer spans incl /scope/constraints, JSONL line anchors (Partial status), and malformed artifact -> Failed + ParseError + repair entry. knowledge_pg_support.rs:26-155 uses handshake_core::managed_postgres::ManagedPostgres::ensure_running + PostgresDatabase::connect on an isolated schema — Handshake-native managed PostgreSQL, not SQLite/in-memory/mock. Sub-rule 2 satisfied.",
+        "Sub-rule 1: grep of governance.rs + kinds.rs for todo!/unimplemented!/unreachable!/'pending MT-'/*Unavailable variants on the live path returns no hits. No deferred-live escape.",
+        "Sub-rule 3: claimed_by=KERNEL_BUILDER-20260611-071323; an independent WP_VALIDATOR session signs the verdict, so no self-cert; proof is real regardless.",
+        "Aside (non-blocking, paperwork): prior lifecycle.validator_verdict FAIL_V1 was solely UPSTREAM_DEPENDENCY_NOT_READY (MT-081 unfinished at validation time), never a code defect; remediation_v2 records MT-081 now complete (5876feaf). Packet cites v02.192 spec anchors while current is v02.194 — stale pointer only, same sections exist; not a code problem."
+      ],
+      "evidence_checked": [
+        "wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-089.json",
+        "wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md (v02.194)",
+        "git show --stat 4a21588b + commit message (wtc-kernel-009)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/governance.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs:340-400, 1010-1123",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/kinds.rs:335 detect_governance_sub_kind",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs:562-640 (mt089 real-PG test)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:26-155 (ManagedPostgres + PostgresDatabase::connect)",
+        "grep for deferred-live placeholders on governance path (no hits)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-045-AppendixFeatureRegistrySeed",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:17:33.962Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-033"
@@ -96,7 +96,7 @@
       "AC3 (sidecar research rejected, ideas restated Handshake-native) -> stub research_basis.normative_status=non_normative_context_only + translation_rule; registry rows are Handshake-native primitives, not external references; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
       "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this spec-seed record MT (no product surface, code, test, or runtime state changed by it; requirement content recorded for implementation MTs in 12-end-of-file-appendices.md#12.7, 10-product-surfaces.md#10.15.8 and #10.20); CX-503R PostgreSQL-only storage law = SATISFIED at spec level by 02-system-architecture.md#2.3.13.11 and 11-shared-dev-platform-and-oss-foundations.md#9.1.1 which lock PostgreSQL/EventLedger-only authority and bar SQLite for WP-KERNEL-009 paths; per packet.json acceptance_matrix.note HBR proof is carried per-MT"
     ],
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "adversarial_review": {
       "verdict": "KEEP_READY",
       "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
@@ -114,13 +114,13 @@
         "Corrected interaction-addition count to four + HBR row per adversarial review."
       ]
     },
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -154,6 +154,48 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 AC1_EVIDENCE_OVERCLAIM (MEDIUM): evidence claimed five interaction additions + HBR row (the fifth 12.7 bullet IS the HBR row)",
       "remediation": "Corrected AC1 wording to four interaction additions plus the HBR row (five 12.7 bullets total). Matches the actual appendix contents."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "NA",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-045 is a MasterSpecEnrichmentSeed record MT (no implementation_commit, no product code) that registers the WP-KERNEL-009 primitive/interaction family for future spec enrichment. The seed content is real, applied to the appendix, Handshake-native, and consistent with the current Master Spec; the sole prior FAIL_V1 finding (interaction-count overclaim) is verifiably corrected.",
+      "findings": [
+        "MT-045 has no lifecycle.implementation_commit; it is a spec-enrichment-seed/record MT. Spec-Realism sub-rules 1 and 2 are NA per the WP_VALIDATOR_PROTOCOL research/spec/record-MT carve-out; the validation bar is whether the named artifact/spec anchor exists and satisfies the acceptance_criteria.",
+        "AC1 satisfied: the seed rows are actually applied in 12-end-of-file-appendices.md#12.7 (current v02.194, lines 13303-13329). Counted directly: 13 primitive additions (PRIM-ProjectKnowledgeIndex ... PRIM-VisualDebugEvidence, lines 13309-13321) and 5 interaction bullets total (lines 13325-13329) = 4 interaction edges + 1 HBR applicability row.",
+        "Prior FAIL_V1 (AC1_EVIDENCE_OVERCLAIM, MT-045.json lines 132-141) is FIXED. The remediation_v2 (lines 152-157) corrected the wording; current MT-045 evidence (line 94) reads 'four interaction additions and the HBR applicability row (five 12.7 interaction/HBR bullets total, the fifth being the HBR row, not a sixth)', which matches the appendix exactly.",
+        "AC2 satisfied: exact files pinned in scope.relevant_files; supporting artifacts spec-enrichment-proposal.json (module_change_plan references 12-end-of-file-appendices.md at line 110) and refinement.json both exist in the packet dir.",
+        "AC3 satisfied: registered rows are Handshake-native primitives, not external references; constraints bar sidecar-paper/outside-runtime proof. Confirmed against current spec 2.3.13.11 (02-system-architecture.md line 2696) which fixes ProjectKnowledgeIndex as a PostgreSQL/EventLedger-backed authority surface explicitly rejecting wiki/markdown-vault/sidecar authority -- consistent with the seed.",
+        "AC4 satisfied: HBR-INT-001/HBR-MAN-001/HBR-SWARM-001 named NOT_APPLICABLE for runtime proof on a spec-seed record MT (no product surface/code/test/runtime state changed), and CX-503R PostgreSQL-only law named SATISFIED at spec level via 2.3.13.11; concrete reasons given (line 97).",
+        "Sub-rule 3: claimed_by == ready_by == KERNEL_BUILDER, but kernel_builder did NOT sign COMPLETED (status is READY_FOR_VALIDATION_V2; completed_by null). Per protocol, self-cert alone is not a fail and the proof here is real, so no fail.",
+        "Aside (non-blocking, expected): contracts pin v02.192 anchors while current spec is v02.194; the same section numbers (12.7, 2.3.13.11) resolve in v02.194, so the stale pin is paperwork drift only, not a code/behavior defect.",
+        "Legacy SQLite text remains in 02-system-architecture.md baseline sections (e.g. lines 1158-1283), but those are the pre-existing base-research layer; the WP-009 enrichment 2.3.13.11 overrides them with PG-only authority for this WP's paths, which is exactly what the MT constraint asks the seed to flag as a replacement Handshake-native rule."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-045.json",
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json (allowed/forbidden paths)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/12-end-of-file-appendices.md#12.7 (lines 13303-13329)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11 (line 2694+)",
+        ".GOV/task_packets/WP-KERNEL-009-.../spec-enrichment-proposal.json",
+        ".GOV/task_packets/WP-KERNEL-009-.../refinement.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

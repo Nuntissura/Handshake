@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-107-CodeIndexStalenessDetector",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T08:16:29.280Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-107.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
     "adversarial_code_review": {
@@ -135,7 +135,53 @@
       "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
       "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
       "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-107 (CodeIndexStalenessDetector) requires marking code files stale when source content hashes or parser versions change, with PostgreSQL/EventLedger authority and validator-readable runtime proof. The implementation delivers a precedence-correct staleness evaluator backed by a real PostgreSQL knowledge_code_files table (migration 0170), wired into real consumers (monaco_bridge/context_bridge) and proven end-to-end against managed PostgreSQL.",
+      "findings": [
+        "staleness.rs:76-93 evaluate_staleness implements correct precedence MarkedStale > SourceChanged > ParserChanged > Fresh; content change takes precedence over parser change with a documented rationale. Pure-logic, no placeholders.",
+        "Durable authority is real PostgreSQL: migration 0170_knowledge_code_files.sql defines the knowledge_code_files table with stale BOOLEAN, indexed_content_hash (sha256 CHECK), parser_version, plus an idx on (workspace_id, stale). Not SQLite, not mock.",
+        "storage/knowledge.rs:6513 upsert_knowledge_code_file writes/clears stale=FALSE on (re)index; :6605 mark_knowledge_code_file_stale sets stale=TRUE idempotently via real sqlx UPDATE returning the row. These satisfy the MT 'mark stale' requirement against managed PG.",
+        "Real consumer wiring: monaco_bridge.rs:96-110 reads the persisted PG row via get_knowledge_code_file_by_source and calls evaluate_staleness, fail-safe to MarkedStale when no row exists (never silently 'fresh'). Matches spec 2.3.13.11 'mark stale, never serve stale silently'.",
+        "Real-PG runtime proof: tests/knowledge_code_index_tests.rs:1249-1303 mt107_staleness_detected_on_content_change registers + indexes a source through the engine (persisting a PG row), asserts Fresh on matching hash and SourceChanged on a changed buffer hash via build_monaco_payload. Uses knowledge_pg() managed-PG harness, SKIPs loudly without PG (no mock-only substitution).",
+        "Spec alignment confirmed: SPEC_CURRENT resolves to v02.194; section 2.3.13.11 (02-system-architecture.md:2694) defines ProjectKnowledgeIndex as a PostgreSQL/EventLedger authority surface, not a markdown vault. Implementation respects this (packet forbids SQLite/markdown-as-authority).",
+        "Aside (non-blocking, paperwork): commit message line-number references in adversarial_code_review (e.g. knowledge.rs:5020/5090) are stale after file growth; the actual functions are at 6513/6605. Detector is pull-only and trusts a caller-supplied live hash, recorded as HARDEN_RECOMMENDED follow-up in lifecycle.adversarial_code_review; the MT acceptance criteria do not require server-side re-hashing, so this is not an MT-107 code defect."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/staleness.rs",
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:80-118",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6513-6619",
+        "src/backend/handshake_core/migrations/0170_knowledge_code_files.sql",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1249-1303,528-551",
+        "git show --stat 5d6490b0 and 79e1a7e4",
+        ".GOV/spec/SPEC_CURRENT.md (v02.194)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694 (2.3.13.11)",
+        "MT-107.json contract",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-100-JavaScriptSymbolExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-100.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -136,6 +136,47 @@
         "test: multi-declarator const (a, b both function-valued) extracts both symbols"
       ],
       "note": "VERIFIED FIXED from V1 (b0266f35): JS class+function same-name disambiguated; all const declarators claimed extracted. Residual: positional-ordinal churn + suggest a multi-declarator regression test."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-100 requires a Handshake-native JavaScript symbol extractor (functions, classes, methods, exported const/function, test blocks) with stable entity keys stored through the shared PostgreSQL/EventLedger knowledge authority. The committed code implements this in extract_javascript (symbols.rs:582-637), resolves the prior same-name/multi-declarator merge bugs, and proves it end-to-end against real managed PostgreSQL.",
+      "findings": [
+        "symbols.rs:582-637 extract_javascript: real, conservative extractor. Handles function_declaration/generator_function_declaration, class_declaration, method_definition (under class scope JS_SCOPE_KINDS), lexical/variable_declaration via ts_const_bindings, and it/test/describe test blocks via ts_js_test_case_symbol_path. Names Option-guarded, empty names skipped (line 616) - no panic path.",
+        "V1 adversarial MEDIUM findings are genuinely fixed in commit b0266f35: (a) class Foo + function Foo no longer collide - each top-level decl carries a kind-tag disambiguator via ts_js_kind_tag (symbols.rs:485-499, 632); (b) ts_const_bindings (symbols.rs:543-574) now extracts EVERY variable_declarator, not just the first function-valued one, and tags non-function bindings as Constant; (c) any residual same-base-key duplicates get a stable dupN ordinal via assign_collision_ordinals (symbols.rs:140-165).",
+        "entity_key (symbols.rs:116-132) appends the ~discriminator only when present; nav simple-name parser strips it (per commit msg), so name/path lookup is unaffected while distinct symbols stay distinct.",
+        "Real unit proof present and specific: javascript_extracts_functions_classes_const_arrows (970-988) asserts Function/Class/Method/Function/Component kinds; javascript_class_and_function_same_name_do_not_collide (1124-1137) and lowercase_function_and_const_same_name_do_not_collide (1139-1149) assert assert_unique_keys; multi-declarator coverage via typescript_multi_declarator_const_extracts_all (1086-1104) exercises the shared ts_const_bindings path (the V2-requested regression test).",
+        "Real managed-PostgreSQL proof (sub_rule_2): tests/knowledge_code_index_tests.rs mt112 (knowledge_pg() harness, line 312; SKIPs loudly when PG absent, never silently green) indexes a JS fixture app/store.js through the shared knowledge_* authority tables and asserts the disambiguated JS entity key landed: 'javascript:app/store.js#compute~value' (line 417). No SQLite/Docker/external-LSP path.",
+        "sub_rule_1: grep of symbols.rs found zero todo!()/unimplemented!()/unreachable!()/Unavailable/'pending MT-'/'deferred to follow' on any path. No deferred-live escape.",
+        "Conservative-scope limitation (object-literal methods like const obj={run(){}} not indexed) is documented in the adversarial review as intentional/acceptable for the contract, not a defect; it does not contradict the MT acceptance criteria. Spec anchor 2.3.13.11 (code-index relationship/citation model) is present in the current v02.194 bundle (spec-modules/02-system-architecture.md), confirming spec alignment."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-100.json",
+        "wtc-kernel-009 commits 5d6490b0, 79e1a7e4, b0266f35 (git show --stat)",
+        "src/backend/handshake_core/src/knowledge_code_index/symbols.rs:116-185, 485-574, 577-637, 965-1150",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:6-7, 290-420 (mt112 real-PG end-to-end + JS entity-key assertion)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11 anchor present)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

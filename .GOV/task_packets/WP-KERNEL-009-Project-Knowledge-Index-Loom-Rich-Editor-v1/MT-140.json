@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-140-SemanticCatalogBridge",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-140.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "1d1f949d",
@@ -124,6 +124,53 @@
       "missing_tests": [
         "test: a planned query whose target has a catalog entry derives its route from the catalog"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-140 requires the SemanticCatalog implemented as a backend-indexed routing contract whose entries derive QueryPlan.route[] when present (spec 2.6.6.7.14.6 A). The code implements this end-to-end against real Handshake-managed PostgreSQL: the planner resolves a named catalog entry and derives the route, falling back to spec-C defaults otherwise, with real-PG test proof.",
+      "findings": [
+        "Prior adversarial-v2 MEDIUM finding (planner emitted hardcoded routes, never called the catalog bridge) is now actually fixed in commit 06bb2cec.",
+        "planner.rs:317-339 adds async catalog_route() which calls semantic_catalog::routing_for(pool, workspace_id, name, max_candidates); both the graph-neighborhood branch (planner.rs ~235-260) and the hybrid_rag branch (~281-310) now derive plan.route from the catalog entry when resolvable, falling back to defaults when the entry is None/unknown/empty.",
+        "semantic_catalog.rs:68-83 routing_for resolves via storage::resolve_semantic_catalog_entry against real PostgreSQL table knowledge_semantic_catalog_entries; route_steps_from_entry (lines 38-55) maps catalog query_routes to RetrievalStore steps that cite the catalog entry name+version, satisfying explainability.",
+        "Real authority backing: migration 0260_knowledge_semantic_catalog.sql creates knowledge_semantic_catalog_entries with FK to workspaces, JSONB query_routes/selectors, lifecycle_state, and registers it as authority-class in knowledge_schema_registry (MT-140). storage/knowledge_retrieval.rs:793-814 resolve_semantic_catalog_entry runs real SQL (WHERE workspace_id/name/lifecycle='active' ORDER BY version DESC).",
+        "Spec MUST confirmed in CURRENT Master Spec v02.194 02-system-architecture.md:11514-11521 (A: QueryPlan.route[] MUST be derived from SemanticCatalog if present) and default policy at line 11544 (spec C) - implementation matches both branches exactly.",
+        "Real-PG proof: tests/knowledge_retrieval_pipeline_tests.rs:459-539 planner_derives_route_from_semantic_catalog_entry uses MemoryFixture::setup against Handshake-managed PostgreSQL (knowledge_memory_fixtures.rs pool_for -> PgPoolOptions::connect(schema_url)), upserts a real catalog entry, asserts the hybrid route IS the 2-step catalog contract citing 'loom_neighborhood', graph mode also catalog-derived, and an unknown entry falls back to the 4-step default hybrid route. skip_if_no_pg! only SKIPS when PG is unavailable; it does not substitute a mock.",
+        "No placeholder/deferred escapes (todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-') in semantic_catalog.rs or planner.rs. Planner is wired into the live execution path at executor.rs:102-103 (planner.plan(request)), so the catalog-derived route reaches runtime candidate generation, not orphaned code.",
+        "Aside (non-blocking, paperwork): MT-140 also appears in an unrelated WP-KERNEL-005 commit d2ad663c; not relevant to this WP-009 acceptance."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-140.json",
+        "git show 06bb2cec (feat/WP-KERNEL-009 in wtc-kernel-009)",
+        "src/backend/handshake_core/src/knowledge_retrieval/semantic_catalog.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/planner.rs (diff)",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs:41,102-103",
+        "src/backend/handshake_core/src/storage/knowledge_retrieval.rs:742-839",
+        "src/backend/handshake_core/migrations/0260_knowledge_semantic_catalog.sql",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs:455-539",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:43,146-149",
+        "D:/.../master-spec-v02.194/spec-modules/02-system-architecture.md:11512-11556"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

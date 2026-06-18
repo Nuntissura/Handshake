@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-163-TiptapCustomLinkNodes",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-163.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "23f3f510",
@@ -146,6 +146,55 @@
         "label containing HTML-special characters renders escaped (regression guard)",
         "unresolved-target chip is visually distinct after backend resolution pass (once wired)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-163 (TiptapCustomLinkNodes) requires a typed [[kind:value]] wikilink node for the Handshake link family, integrated into the real Tiptap editor with parse/round-trip/wiring proof. The committed code implements a real ProseMirror inline-atom node (hsLink) plus a pure parser, input/paste rules, JSON + plaintext round-trip, hostile-paste clamping, and a typed navigation-intent contract, proven against a real @tiptap/core Editor (not mocks). It implements the MT behavior, aligns with the current Master Spec's WP-009 surface description, and has real proof appropriate to a syntax-layer frontend MT.",
+      "findings": [
+        "app/src/lib/tiptap/hs_link_node.ts:64-189 — hsLink is a real Tiptap/ProseMirror inline atom node (atom+inline+selectable) with addAttributes (refKind/refValue/label/resolved), parseHTML/renderHTML/renderText round-trip, addInputRules (nodeInputRule) and addPasteRules (nodePasteRule) wired to the shared wikilink regex/classifier. Not a stub.",
+        "app/src/lib/editor/wikilink.ts:44-92 — pure classifyWikilink/parseWikilink/extractWikilinks classify the [[prefix:value|label]] family into typed backend ref kinds; unknown prefixes preserved as typed refKind='unknown', resolved=false (never dropped, styled distinctly via hs-link--unresolved). Matches spec 'typed visible error, never silent'.",
+        "app/src/lib/editor/extension_inventory.ts:80-92 — implemented wikilink vocabulary is note/file/folder/project/spec/wp/symbol/album/video/HS_images/HS_slideshow. The MT scope prose also names 'MT' and 'UserManual' as link kinds; those two prefixes are NOT input-rule vocabulary. This is a minor completeness gap, not a code break: such tokens are preserved as typed-unknown links, and the navigation resolver (link_navigation.ts:80,82) explicitly handles mt/micro_task and user_manual/user_manual_page kinds. No normative fixed prefix list in the current Master Spec (10.x) requires those two as wikilink input prefixes.",
+        "app/src/lib/tiptap/hs_link_node.test.ts:69-167 — tests instantiate a REAL @tiptap/core Editor (StarterKit + HsLinkNode) in jsdom: schema registration, insert + JSON round-trip into a fresh editor, plaintext serialization back to [[file:src/app.ts]], input/paste rule factory wiring (exactly one each), hostile pasted-HTML spoof clamp (unknown kind forced unresolved), and clampRefKind vocabulary sweep. This is real editor-runtime proof, not implementer-authored mocks.",
+        "app/src/lib/editor/wikilink.ts:94-112 + hs_link_node.ts:84-108 — iteration-3 L3 fix: clampRefKind clamps pasted data-ref-kind to KNOWN_BACKEND_REF_KINDS and drops the claimed resolved flag for unknown kinds, so spoofed clipboard chips render visibly unresolved. Prior LOW spoof finding genuinely fixed (commit 5ca8355d).",
+        "app/src/lib/editor/link_navigation.ts:1-87 — chips dispatch a typed hs:link-navigate CustomEvent; resolveHsLinkTarget maps typed refs to in-app surfaces and returns a typed 'error' (never a silent no-op) for unowned kinds. The prior adversarial MEDIUM (resolved=true minted from prefix alone) is documented as deferring only the BACKEND target-existence verification to MT-249 (a real downstream MT). That deferral is scoping, not a deferred-live escape: no todo!/unimplemented!/placeholder error variant sits on the required syntax/render path (grep clean across all MT-163 files).",
+        "Aside (non-blocking, governance only): MT contract still carries v02.192 spec anchors while current is v02.194; expected and not a failure reason."
+      ],
+      "evidence_checked": [
+        "git show --stat 23f3f510 (MT-163 impl commit)",
+        "git show --stat 5ca8355d (iteration-3 L3/EXT-NAV-LINK-001)",
+        "git show --stat 2949bc87 (iteration-3 command correctness)",
+        "app/src/lib/tiptap/hs_link_node.ts",
+        "app/src/lib/tiptap/hs_link_node.test.ts",
+        "app/src/lib/editor/wikilink.ts",
+        "app/src/lib/editor/extension_inventory.ts",
+        "app/src/lib/editor/link_navigation.ts",
+        "app/src/components/HsLinkView.tsx",
+        ".GOV/task_packets/WP-KERNEL-009-.../MT-163.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (WP-009 surface, link/embed family, UserManual)",
+        "grep for deferred-live escapes across MT-163 files (clean)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

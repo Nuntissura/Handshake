@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-162-TiptapSchemaVersioning",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-162.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "5f1b0939",
@@ -137,6 +137,54 @@
         "load unknown_version schema -> unknown nodes are NOT silently dropped into a saveable doc",
         "migrated document -> save stamps current schema_version (end-to-end through RichDocumentView)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-162 requires editor-side schema-version assertion + forward migration + typed compatibility handling for persisted Tiptap/ProseMirror JSON, wired into the load path. The code (app/src/lib/editor/schema_versioning.ts + RichDocumentView wiring) implements all four cases, aligns with Master Spec 7.1.1.8 (\"deterministic save/load/round-trip ... across schema migration\"), and the prior adversarial HIGH fail-open data-loss finding is genuinely fixed (fail-closed read-only + save-blocked) with a real destructive-save negative test.",
+      "findings": [
+        "schema_versioning.ts:105-170 — assertEditorSchema implements all four compatibility outcomes: current pass-through (110-119), forward-migration walk with a cycle guard (122-144), newer-than-editor typed refusal via versionRank comparison without down-conversion (147-159), and typed unknown_version mismatch (161-169). Pure, deterministic, no network — matches the MT's required behavior.",
+        "RichDocumentView.tsx:464-496 — the guard is wired into the REAL load path: reload() runs assertEditorSchema over response.document.schema_version + content_json from the live /knowledge/documents backend. Not isolated/dead code. ok:true sets editor content; ok:false sets schemaBlocked + typed schemaMismatchError banner.",
+        "Prior adversarial HIGH (fail-open: newer/unknown-schema docs stayed editable+saveable -> ProseMirror silently drops unknown nodes -> one save overwrites authority) is genuinely FIXED in commit 6e48aa6b: editor mounts read-only (RichDocumentView.tsx:914 readOnly={schemaBlocked!==null}), Save disabled (880), and onSave refuses any path with typed schemaSaveBlockedError defense-in-depth (598-609).",
+        "RichDocumentView.test.tsx:1002-1044 — destructive-save negative test: load rich_document_v999 -> data-schema-blocked=true, editor data-readonly=true, schema-kind banner, and forced edit + Save click asserts saveRichDocument call count is unchanged (the stripped doc can never reach the backend authority).",
+        "schema_versioning.ts:46 SCHEMA_MIGRATIONS is empty, which is CORRECT (rich_document_v1 is the first schema; no production migration exists yet). The forward-migration walk is not a placeholder escape — it is exercised end-to-end by a synthetic v0->current chain (schema_versioning.test.ts:52-82) proving the mechanics before a real migration ships. No todo!/unimplemented/pending-MT/*Unavailable escape reachable from the load path.",
+        "backend RichDocument.schema_version is real and backend-stamped (src/backend/handshake_core/src/api/knowledge_documents.rs); the editor module is pure client reconciliation over that real field — PostgreSQL/EventLedger authority unchanged, consistent with the MT constraint that the backend stays canonical.",
+        "Aside (non-blocking): the adversarial MEDIUM 'migrated content never auto-persisted' is honestly DEFERRED — auto-saving a migration is an unrequested write and the empty ladder means no production migration is unexercised; fail-closed guard prevents any silent overwrite meanwhile. Not a defect.",
+        "Aside (paperwork, non-blocking per ground rules): packet cites v02.192 spec anchors while current is v02.194; same section numbers resolve and 7.1.1.8 carries the schema-migration requirement in both."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-162.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/schema_versioning.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/editor/schema_versioning.test.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/RichDocumentView.test.tsx",
+        "git show --stat 5f1b0939 / 6e48aa6b in wtc-kernel-009",
+        "app/src/lib/tiptap/extension_set.ts (WP009_RICH_DOCUMENT_SCHEMA_VERSION=rich_document_v1)",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (schema_version stamping)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/07-user-experience-and-development.md#7.1.1.8"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

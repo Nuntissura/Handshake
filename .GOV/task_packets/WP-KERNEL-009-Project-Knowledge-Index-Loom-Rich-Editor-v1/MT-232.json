@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-232-FragmentedGraphFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-13T06:45:58.727Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-232.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260613",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "a3250073",
     "evidence": [
       {
@@ -154,7 +154,51 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260613",
-    "ready_for_validation_at_utc": "2026-06-13T06:45:58.727Z"
+    "ready_for_validation_at_utc": "2026-06-13T06:45:58.727Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-232 (FragmentedGraphFixture) requires proving that isolated/fragmented chunks cannot create off-topic bridge edges or misleading graph retrieval. The commit a3250073 implements real schema-scoped edge-type narrowing plus active-only edge traversal so off-topic, proposed, and retired bridge edges cannot become graph candidates, ranked evidence, or persisted bundle items, and proves it with real Handshake-managed PostgreSQL negative fixtures. The code is substantive, spec-aligned, and not placeholder/mock.",
+      "findings": [
+        "executor.rs:302-329 schema_scoped_graph_policy() intersects schema-derived edge_type_allowlist with caller policy; disjoint allowlists set deny_all_edges=true rather than collapsing to empty-=-unrestricted. Real logic, no placeholder.",
+        "graph_planner.rs:39-44,67-76 adds explicit deny_all_edges flag distinct from empty allowlist; allows() returns false when deny_all_edges. Closes the widening hole the adversarial reviewer found.",
+        "graph_planner.rs:181-182 replaces entity_edge_degree(pool) with list_knowledge_edges_for_entity(...).retain(lifecycle_state==Active); the single filtered vec feeds both degree and expansion, so proposed/retired edges are excluded from traversal. Confirmed list_knowledge_edges_for_entity (knowledge.rs:4220) returns ALL lifecycle states unfiltered, so the retain filter is the real gate.",
+        "schema_filter.rs:104-122 resolve_schema_edge_type_allowlist() reads real ontology terms via get_memory_ontology_term (knowledge_memory.rs:289) and their maps_to_edge_type column (knowledge_memory.rs:157,214); carries them into SchemaFilterResult.edge_type_allowlist. Supporting infra verified real, not invented.",
+        "tests knowledge_retrieval_pipeline_tests.rs:692+ fragmented_graph_schema_scope_blocks_off_topic_bridge_edges and :998+ fragmented_graph_retrieval_ignores_proposed_and_retired_bridges use MemoryFixture::setup() -> knowledge_pg() real managed PostgreSQL (fixtures.rs:43), create real ontology terms, knowledge_edges (DependsOn vs Mentions), facts, and assert graph_edge_count==1 (off-topic excluded), ==0 for disjoint policy, ==0 for proposed/retired bridges, plus persisted-bundle ref_id assertions. Real negative-fixture proof, not mock.",
+        "Spec alignment confirmed: v02.194 02-system-architecture.md:2704 (edge lifecycle proposed/accepted/conflicted/retired), :2680-2688 (proposed CRDT/promotion-bridge state is not authority until promotion), :7318 (bounded graph traversal for authoritative lookup), :10931 (graph traversal MUST be bounded). Implementation enforces exactly this.",
+        "Lifecycle: claimed_by=null, completed_by=KERNEL_BUILDER-20260613, status READY_FOR_VALIDATION -> no implementer self-cert of COMPLETED. HBR-VIS-005 correctly marked NOT_APPLICABLE (no GUI surface touched). Aside: one cargo run timed out at 5min per evidence and a no-run compile was substituted; judged by reading code/tests per host-load instruction, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-232.json",
+        "git show a3250073 (executor.rs, graph_planner.rs, schema_filter.rs, knowledge_retrieval_pipeline_tests.rs)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/graph_planner.rs:160-230",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:1074-1102,1195,4220-4234,4248+",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_memory.rs:157,214,289",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:41-90",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2680-2704,7318,10931",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT232",

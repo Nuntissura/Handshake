@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-180-GlobalGraphApi",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-180.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "cd944110",
     "evidence": [
       {
@@ -130,7 +130,53 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-180 requires a project-level global Loom graph API with performance node limits and hub suppression as a PostgreSQL projection over loom_edges + loom_blocks. The code delivers exactly that: a real storage trait method, PostgreSQL implementation, wired HTTP route, and two real-PostgreSQL integration tests proving hub suppression and node-limit truncation. No placeholders, no SQLite/mock fallback, aligned with current Master Spec [LM-NOTES-002].",
+      "findings": [
+        "storage/postgres.rs:9797-9884 global_graph: real PostgreSQL aggregation — per-node degree via UNION ALL of source/target over filtered loom_edges (9814-9832), hub suppression drops degree>threshold nodes (threshold 0 disables) and lists them in suppressed_hub_ids (9840-9846), candidate ids capped via node_limit.clamp(1,5000) with truncated set when full set exceeds cap (9868-9869).",
+        "storage/postgres.rs:71-246 assemble_loom_graph builds induced subgraph (edges require BOTH endpoints in surviving node set, 9 lines of real SQL at ~187-204), so a suppressed hub's edges are excluded — matches the test assertion.",
+        "api/loom.rs:269-272 route /workspaces/:workspace_id/loom/graph/global registered; handler 3284-3305 parses edge_types, applies LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT(500)/MAX(5000)/DEFAULT_HUB_DEGREE(50) consts (loom.rs:1009-1013) and calls storage.global_graph.",
+        "storage/mod.rs:2581-2584 declares Database::global_graph at the trait boundary with doc describing truncated + suppressed_hub_ids; LoomGraph struct (loom.rs:776-778,996) carries truncated + suppressed_hub_ids fields.",
+        "tests/loom_graph_tests.rs:181-237 two global-graph tests run against real PostgreSQL: global_graph_returns_all_and_suppresses_hubs proves threshold 0 keeps hub (degree 6 counted), threshold 5 drops the degree-6 hub + lists it + excludes its edges + leaves unrelated X-Y pair intact; global_graph_node_limit_sets_truncated proves node_limit 3 over 5 blocks -> 3 nodes + truncated=true.",
+        "knowledge_pg_support.rs:21,40 confirms NO SQLite/in-memory/mock fallback — tests resolve POSTGRES_TEST_URL/DATABASE_URL against isolated migrated schemas and skip (not mock) if PG unavailable; sub_rule_2 real-resource touch satisfied.",
+        "Placeholder scan of global/graph/assemble/hub/suppress paths in postgres.rs returned zero hits (no todo!/unimplemented!/Unavailable/stub).",
+        "No forbidden deps: pure PostgreSQL projection, no markdown vault, no external search/graph engine, no SQLite. Aside: lifecycle paperwork (claimed_by/completed_by null, self-review sub-agent) is non-blocking per ground rules."
+      ],
+      "evidence_checked": [
+        "commit cd944110 (git show --stat + diff)",
+        "src/backend/handshake_core/src/storage/postgres.rs:71-320 (assemble_loom_graph), :9797-9884 (global_graph)",
+        "src/backend/handshake_core/src/storage/mod.rs:2566-2590 (trait decl)",
+        "src/backend/handshake_core/src/storage/loom.rs:776-1013 (LoomGraph types + consts)",
+        "src/backend/handshake_core/src/api/loom.rs:266-3305 (route + handler)",
+        "src/backend/handshake_core/tests/loom_graph_tests.rs:1-249 (global graph tests)",
+        "tests/knowledge_pg_support.rs (real-PG, no mock fallback)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md:954 [LM-NOTES-002]",
+        "MT-180.json + packet.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

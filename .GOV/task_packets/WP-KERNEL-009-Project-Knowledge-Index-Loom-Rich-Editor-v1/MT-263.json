@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-263-FullParityRuntimeProofSuite",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-263.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -78,7 +78,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-245",
@@ -102,7 +102,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "225eb598",
     "evidence": [
       "commit 225eb598 on feat/WP-KERNEL-009 (4 test files under tests/; product-code diff vs HEAD is EMPTY — the suite only measures, it does not modify product). zero .GOV",
@@ -110,7 +110,60 @@
       "tamper-evident by construction: each row resolves via one decision function to {inline executed proof | harness executed proof | `backed` = a named real-backend lane spec asserted to EXIST on disk + be non-trivial | DEC-cited descope}. A tamper spec proves no false-PASS / false-DESCOPE is possible; live demo: moving a backing spec turned the whole suite RED (exit 1), then restored to green.",
       "adversarial review (3/3 FAIL) caught the implement step's gaming — 39 rows had been marked DESCOPED via unverified 'proven elsewhere by <spec>' prose the suite never executed. Harden converted 9 offline-provable rows to REAL executed in-suite proofs and the 25 real-backend rows to the tamper-evident `backed` kind; readout went 32->42 PASS.",
       "VALIDATION CAVEAT: the 25 `backed` rows point (tamper-evidently) to their owning MTs' (MT-245..262) real-backend lane specs (PG/PTY/DAP) which were runtime-proven in those MTs' own workflows — they are NOT re-executed inside this offline suite. ED-WB-009 (settings/keybindings/themes GUI, owner MT-248) is NOT on this branch, so it carries an inline proof of the reachable keymap/command surface + an honest note rather than a false PASS. Your separate validation is the authority on each backed lane + the descopes. Report: Handshake_Artifacts/wp009-parity-proof/wp009_parity_proof_report.json (schema wp009.parity_proof_report@1)."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-263 is the DEC-007 enforcement parity-proof suite: an executable suite exercising every capability row (61 editor + 10 loom = 71) that emits a machine-readable PASS/FAIL/DESCOPED report with no third state. The code delivers exactly that — 42 rows executed as real offline Playwright runtime proofs, 25 tamper-evident backed real-backend rows, 4 structural descopes — with a single shared verdict function the tamper guard exercises, and a corroborating committed runtime report (42 PASS / 0 FAIL / 0 external requests).",
+      "findings": [
+        "resolveVerdict (wp009_parity_registry.ts:146-161) is a single pure decision function shared by the runner and the tamper spec: inline/harness PASS only on a non-throwing executed proof; backed DESCOPED only when DEC known AND backing spec exists+non-trivial; descoped DESCOPED only on known DEC. No fourth state, no false-PASS path possible.",
+        "33 inline + 9 harness proofs are genuine runtime DOM assertions against BUILT product harnesses, not artifact-verdict reads (e.g. registry:245-303 tables/task-lists assert real <tr>/taskList growth; 1242-1281 collaboration asserts a second Yjs-bound editor converges; 1192-1220 draft recovery restores byte-exact content).",
+        "All 16 distinct backed specs verified present and non-trivial on disk (3404-33904 bytes, all above the 512-byte floor): schema_versioning.test.ts, auto_code_block_rules.test.ts, mt249_code_intelligence.spec.ts, mt250/254/259/260/261/262 visual specs, rich_editor_typing.spec.ts, workbench-split-editors.spec.ts, source_control_panel.spec.ts, terminal-panel.spec.ts, quick-switcher.spec.ts, knowledge_document/import.rs, permission.rs.",
+        "Spot-checked backed specs are real-backend proofs: mt249_code_intelligence.spec.ts:1-12 spawns a Rust fixture seeding a real CodeIndexEngine into isolated PostgreSQL; source_control_panel.spec.ts:1-11 spawns mt253 fixture with a real temp git repo + real PG-backed routes. These satisfy sub-rule-2 for the durable/real-process rows the offline lane cannot itself spawn.",
+        "Tamper guard (wp009_parity_tamper.spec.ts) proves removed/throwing inline+harness proofs resolve to FAIL, missing/emptied backing spec resolves to FAIL, and bogus DEC resolves to FAIL; it then re-runs the real registry against the real packet DEC set and real filesystem asserting every backed/descoped row cites a known DEC and every backed spec exists+non-trivial.",
+        "Row-count guard (suite spec:265-280) asserts registry editor ids exactly equal the 61-row wp009_editor_adversarial_parity_v2.json (verified 61 editor rows + 10 loom = 71) — silent omission impossible.",
+        "Committed runtime report Handshake_Artifacts/wp009-parity-proof/wp009_parity_proof_report.json (generated 2026-06-17 20:52, matching commit 225eb598 at 20:53) corroborates evidence: 71 rows, 42 PASS, 0 FAIL, 0 uncited_fails, 25 backed, 4 structural, 0 external requests.",
+        "No deferred-live escapes: grep of all MT-263 files found no todo!/unimplemented!/'deferred to follow-on'/'pending MT-'/stub-return shapes; the only 'placeholder' hit is a real split-editor UI data-testid (mt246-editor-group-b-placeholder), not a code escape.",
+        "Product-code diff is intentionally empty (suite only measures); honest disclosed caveat: the 25 backed rows are NOT re-executed inside this offline lane — they are tamper-evident existence assertions over the owning MTs' (MT-245..262) real-backend specs proven in those MTs' own workflows. This is correct architecture for an offline-Playwright lane and matches DEC-007 routing; authority over those backed lanes belongs to the separate MT-245..262 validations.",
+        "Aside (non-blocking, paperwork): MT contract constraint text still references spec bundle v02.193 while current is v02.194 — stale pointer only, expected during governance wind-down."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-263.json",
+        ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat 225eb598",
+        "tests/dependency_policy/wp009_parity_proof_suite.spec.ts",
+        "tests/dependency_policy/wp009_parity_tamper.spec.ts",
+        "tests/dependency_policy/parity/wp009_parity_registry.ts (full)",
+        "tests/dependency_policy/parity/wp009_harness_fixtures.ts (head)",
+        "tests/dependency_policy/mt249_code_intelligence.spec.ts (head)",
+        "tests/dependency_policy/source_control_panel.spec.ts (head)",
+        "filesystem existence+size of all 16 backed specs",
+        "app/dist-harness/harness/*.html + app/src/harness/*.tsx presence",
+        "Handshake_Artifacts/wp009-parity-proof/wp009_parity_proof_report.json",
+        "grep for deferred-live/placeholder escapes across MT-263 files"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

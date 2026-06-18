@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-098-RustSymbolExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -134,6 +134,49 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "VERIFIED FIXED from V1 (b0266f35): the silent two-impl/same-type merge at the upsert is resolved by disambiguator + ordinal (test duplicate_same_kind_declarations_get_ordinal_and_do_not_collide, symbols.rs:823). Residual is positional-ordinal churn, a lesser issue than the merge it replaced."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-098 requires a Rust symbol extractor (fns, structs, enums, traits, impls, methods, modules, consts, type aliases, macros, tests, scopes, spans) that produces stable entity_keys persisted as `symbol` KnowledgeEntities anchored to AST spans in PostgreSQL/EventLedger. The implementation in symbols.rs delivers this, fixes the prior V1 entity_key collision-merge defect, aligns with current Master Spec 2.3.13.11, and is proven end-to-end against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "symbols.rs:256-331 extract_rust covers the full MT-098 kind set: function_item (split into Function/Method/Test via rust_has_test_attribute + rust_is_in_impl_or_trait), struct_item, enum_item, trait_item, impl_item, mod_item, const/static_item, type_item, macro_definition; scope_path + RUST_SCOPE_KINDS build dotted paths (e.g. Widget::render); start/end byte+line spans carried.",
+        "PRIOR V1 FAIL (entity_key silent merge) is fixed in commit b0266f35: the `disambiguator` field (symbols.rs:100) + assign_collision_ordinals (symbols.rs:140-165) give distinct keys to inherent vs trait-impl methods (A::run vs A::run~as:T) and to two impl blocks of the same type (impl A~as:T1 / ~as:T2 / ~inherent). Unit tests rust_trait_and_inherent_method_same_name_do_not_collide (symbols.rs:1021) and rust_two_trait_impls_of_same_type_do_not_collide (symbols.rs:1045) assert assert_unique_keys.",
+        "Real-PG runtime proof: tests/knowledge_code_index_tests.rs drives the real CodeIndexEngine -> storage::knowledge::KnowledgeStore -> managed PostgreSQL (knowledge_pg_support.rs uses ManagedPostgres::ensure_running, port 5544; header explicitly states NO SQLite/in-memory/mock fallback, SKIPs loudly if PG binaries absent). Lines 377-390 read symbol entities back from PG and assert rust:src/lib.rs#add and the disambiguated rust:src/lib.rs#Widget::render~as:Render; lines 422-438 assert each symbol has an `ast`-kind KnowledgeSpan with line_start>0.",
+        "Spec alignment: Master Spec v02.194 2.3.13.11 (02-system-architecture.md:2701-2702) defines KnowledgeEntity as 'a typed symbol ... detected from one or more spans' and KnowledgeSpan including AST ranges as the minimum citeable evidence unit; the impl maps Rust symbols to `symbol` entities anchored to `ast` spans, matching exactly.",
+        "Discriminator is non-leaky: api/knowledge_code_nav.rs:797-800 symbol_simple_name strips the `~` discriminator before name/path lookup, so collision-resistance does not break navigation by simple name (test simple_name_extraction, line 882).",
+        "Grep of symbols.rs for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-'/placeholder/stub returns no matches: no deferred-live escape on any required path.",
+        "Residual (non-blocking, V2 adversarial LOW): assign_collision_ordinals dup ordinals are positional, so adding/reordering duplicate decls re-numbers others' entity_key. This is an edit-stability nit on genuinely-duplicate symbols, not a merge/correctness defect; the prior fail-class (silent merge) is closed."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-098.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/symbols.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_index_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (grep)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_code_nav.rs (grep)",
+        "git show --stat b0266f35; git log --grep MT-098",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2702"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

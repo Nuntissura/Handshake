@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-247-DiffAndMergeEditor",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-15T21:18:04.075Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-247.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,7 +76,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -84,7 +84,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-MT247",
-    "completed_by": "KERNEL_BUILDER-20260615-MT247",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       {
@@ -245,7 +245,58 @@
           "Validator should keep lifecycle status out of PASS until independent validation completes."
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-247 requires side-by-side/inline diff of two document versions (prose block-level + Monaco code-block) against real backend history, plus a CRDT-aware per-block conflict merge UI that never silently discards local edits. The code delivers all three with a real Handshake-native diff/merge model, real backend history endpoint wiring, a real bundled offline Monaco diff editor proven via Playwright, and an explicit per-block merge flow with a no-silent-discard negative test.",
+      "findings": [
+        "document_diff_merge.ts:53-124 implements a real Handshake-native diff/merge model: buildRichDocumentDiff uses LCS block alignment (longestCommonBlockSubsequence, lines 169-197), planRichDocumentMerge computes per-block conflict/local_only/remote_only status (lines 66-101), applyRichDocumentMergePlan resolves via explicit choices. No placeholders/escapes (grep for todo!/unimplemented!/pending MT-/Unavailable across all MT-247 files returned NO MATCHES).",
+        "No-silent-discard is enforced at the model level: selectedMergeNode (document_diff_merge.ts:232-243) throws `Unresolved conflict at block N` when a conflicting block has no explicit choice. Unit test document_diff_merge.test.ts:68-93 is the required negative test — applyRichDocumentMergePlan(plan, {}) throws, and the unrelated local-only block ('Local unsaved body') is preserved through resolution of only the conflicting block. Satisfies constraint 'Merge must never discard local edits without explicit per-block operator choice (negative test required)'.",
+        "UI conflict merge wired in RichDocumentView.tsx:728-756: applySnapshotMerge returns early if unresolvedMergeConflicts>0; merge apply button disabled until all conflicts resolved. UI test RichDocumentView.test.tsx:1336-1400 ('offers an explicit merge choice after a conflict reload') asserts apply is disabled with 1 conflict, becomes enabled only after clicking snapshot-merge-block-0-remote, and applies remote without losing data.",
+        "History-pair diff touches the REAL backend: loadSelectedHistoryDiff (RichDocumentView.tsx:786-810) calls loadRichDocumentVersion(documentId, version) for both sides -> backend route /knowledge/documents/:document_id/history/:doc_version (knowledge_documents.rs:86), real handler load_history_version (knowledge_documents.rs:1167-1185) calling KnowledgeStore::get_knowledge_rich_document_version (real impl knowledge.rs:5292). Backend PG test mt156_history_is_paginated_and_omits_version_bodies exists (knowledge_documents_api_tests.rs:736). Satisfies sub_rule_2 real-resource-touch.",
+        "Real Monaco diff editor, offline, no CDN: createConfiguredDiffEditor (monaco/setup.ts:172-201) uses monaco.editor.createDiffEditor with Vite-bundled ?worker imports (setup.ts:14-18), no @monaco-editor/loader. Harness rich_document_diff_harness.tsx mounts it; Playwright rich_document_diff.spec.ts:100-102 asserts visible .monaco-diff-editor and getLineChanges()>0, and externalRequests is empty (network blocked at spec.ts:74-82). Satisfies acceptance 'Prose block diff + Monaco code diff runtime-proven' and 'offline Playwright, zero external network'.",
+        "sub_rule_3 aside: lifecycle.claimed_by == completed_by (KERNEL_BUILDER-20260615-MT247) — self-cert noted, but proof is real and exercises the spec behavior, so not a fail; the COMPLETED transition is the Integration Validator's to sign.",
+        "Paperwork aside (non-blocking): lifecycle.implementation_commit is null; the MT-247 files actually landed in checkpoint commit c49afb7f. Spec anchors cite v02.193 vs current v02.194. Neither affects code correctness."
+      ],
+      "evidence_checked": [
+        "MT-247.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "SPEC_CURRENT.md (v02.194)",
+        "spec-modules/10-product-surfaces.md:6445,8305 + 07-user-experience-and-development.md:2362 (no-silent-resolution principle)",
+        "app/src/lib/editor/document_diff_merge.ts",
+        "app/src/lib/editor/document_diff_merge.test.ts",
+        "app/src/components/RichDocumentView.tsx (lines 720-1050 diff/merge wiring)",
+        "app/src/components/RichDocumentView.test.tsx (MT-247 tests at 316,1336)",
+        "app/src/lib/monaco/setup.ts",
+        "app/src/harness/rich_document_diff_harness.tsx",
+        "tests/dependency_policy/rich_document_diff.spec.ts",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs:86,1165-1185",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5292",
+        "git grep for placeholders/escapes (NO MATCHES)",
+        "git log for MT-247 files (checkpoint c49afb7f)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-MT247",

@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-168-CodeBlockPersistenceBridge",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-168.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "d7e2b397",
@@ -155,6 +155,55 @@
         "document load with a tampered code-block hash surfaces a typed integrity error (blocked: not wired)",
         "NodeView edit after language switch keeps hash valid (cross-ref MT-165)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-168 (CodeBlockPersistenceBridge) requires persisting Monaco code-block language + code + a deterministic round-trip integrity hash through the rich-doc save API, with PostgreSQL content_sha256 as durable authority. The code implements this with a pure, unit-tested serialization bridge; all three prior adversarial findings (dead integrity check, minting-point bypass, separator ambiguity) are genuinely fixed in live product code, and a real-browser Playwright proof cross-checks the hash. Aligns with current Master Spec v02.194 EditorCodeNode round-trip-hash requirement.",
+      "findings": [
+        "app/src/lib/editor/code_block_serialization.ts: pure FNV-1a serialization bridge (makeCodeBlockAttrs, serializeCodeNode, deserializeCodeNode, verifyCodeBlockIntegrity, verifyDocCodeBlockIntegrity). Deserialization tolerates partial/legacy/camelCase shapes and repairs a missing hash so a load never throws. Real backend authority is PostgreSQL content_sha256 (knowledge_documents.rs:334/376) via existing /knowledge/documents/:id/save API; no new SQLite or forbidden tech introduced.",
+        "Prior MEDIUM M9 (integrity check dead in production) is FIXED: verifyDocCodeBlockIntegrity is called on every load at RichDocumentView.tsx:477 and surfaces a typed 'integrity' banner via codeIntegrityError (backend_error.ts:118, kind 'integrity'). Editing stays possible; backend content_sha256 remains durable authority.",
+        "Prior MEDIUM M10 (minting-point bypass) is FIXED: all MonacoCodeBlockView writers (lines 235, 351, 367) route through makeCodeBlockAttrs; node node-builder, editor_commands, auto_code_block_rules, document_diff_merge all use makeCodeBlockAttrs. The one remaining direct codeBlockHash call (find_replace.ts:249) re-mints from current language+code consistently with the invariant, so it is not a corruption bypass.",
+        "Prior LOW L11 (separator ambiguity) is FIXED: codeBlockHash uses explicit \u0000 separator with a documented SEPARATOR INVARIANT (code_block_serialization.ts:40-58); byte-identical hash output, no migration.",
+        "Sub-rule 1 clean: no todo!/unimplemented!/'deferred to follow-on'/'pending MT-'/Unavailable placeholders reachable from required behavior; the only 'scaffold' grep hit is a benign comment describing the offline static-server test harness.",
+        "Sub-rule 2 satisfied: real browser proof in tests/dependency_policy/rich_editor_typing.spec.ts H4 (line 290) drives real Monaco via page.keyboard, performs a language switch, and independently recomputes the product FNV hash (same \u0000 separator + 0x811c9dc5/0x01000193 constants, line 79-83) against the live contentHash in the running editor. Not a mock or tautology; H7 in commit 7f8c9f34 additionally re-hydrates through the real ProseMirror schema (node.check()).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2708 defines EditorCodeNode with a 'round-trip hash' and line 2719 requires 'RichDocument round-trip with EditorCodeNode' in the vertical slice. Implementation matches.",
+        "Aside (non-blocking, expected): contract cites v02.192 anchor 7.1.1.8 / lifecycle paperwork; resolved against current v02.194 with no behavioral discrepancy."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-168.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show d7e2b397 / 92c484be / 7f8c9f34 (stat + content)",
+        "wtc-kernel-009/app/src/lib/editor/code_block_serialization.ts",
+        "wtc-kernel-009/app/src/lib/editor/code_block_serialization.test.ts",
+        "wtc-kernel-009/app/src/components/RichDocumentView.tsx:460-499",
+        "wtc-kernel-009/app/src/components/MonacoCodeBlockView.tsx (makeCodeBlockAttrs call sites)",
+        "wtc-kernel-009/app/src/lib/editor/find_replace.ts:235-251",
+        "wtc-kernel-009/app/src/lib/editor/backend_error.ts:20,118-129",
+        "wtc-kernel-009/tests/dependency_policy/rich_editor_typing.spec.ts (H4 browser proof)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_documents.rs (content_sha256, list_knowledge_editor_code_nodes)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2708,2719"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

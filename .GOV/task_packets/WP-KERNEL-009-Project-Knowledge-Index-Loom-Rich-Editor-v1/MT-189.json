@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-189-LoomRetrievalBiasVisibility",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-15T04:33:21.266Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-189.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-040144",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "working-tree",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: Loom graph-search block hits now rank by bounded Loom-native retrieval-bias score from pinned/favorite/tag_count/backlink_count, expose hsk.loom_retrieval_bias@1 metadata with reason codes and raw-vs-scoring counts, and propagate that metadata into the Loom visual-debug search summary. UserManual registry/seed documents the graph-search metadata contract and bumps USER_MANUAL_VERSION.",
     "ready_by": "KERNEL_BUILDER-20260615-040144",
@@ -115,7 +115,47 @@
       "Product files touched for MT-189: src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/tests/loom_retrieval_bias_visibility_tests.rs, src/backend/handshake_core/src/user_manual/mod.rs, src/backend/handshake_core/src/user_manual/registry.rs, src/backend/handshake_core/src/user_manual/seed.rs, src/backend/handshake_core/Cargo.toml.",
       "The MT-189 fixture uses real/managed PostgreSQL through knowledge_pg_support; there is no SQLite, Docker-default, external daemon, sidecar-paper, or mock-only proof path.",
       "Graph-search metadata exposes retrieval_bias_schema_id, retrieval_bias_score, and retrieval_bias_reasons for Loom block hits; plain hits expose an empty reason list; visual-debug search summaries preserve the same metadata for model/debug inspection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-189 implements Loom retrieval-bias visibility over real PostgreSQL with typed reason codes (pins, tags, backlinks); SQL ORDER BY and Rust score agree, metadata propagates to visual-debug, UserManual updated. Passes all three spec-realism sub-rules.</summary>\n</invoke>\n",
+      "findings": [
+        "postgres.rs 3447-3470 bias weights match SQL ORDER BY 7400-7408",
+        "metadata and reasons built at postgres.rs 3472-3526, plain blocks empty",
+        "search_loom_graph attaches metadata and ranks by bias score at 7454-7533",
+        "real PG proof via knowledge_pg_support, pg_or_fail panics without cluster",
+        "test proves biased outranks plain with pinned tagged backlinked codes, visual-debug carries metadata, no placeholders, spec aligns v02.194"
+      ],
+      "evidence_checked": [
+        "MT-189.json",
+        "postgres.rs",
+        "loom.rs",
+        "tests",
+        "user_manual",
+        "spec"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-040144",

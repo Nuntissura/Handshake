@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-234-EditorVisualRegressionFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-15T01:21:41.625Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-234.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
@@ -89,7 +89,7 @@
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-002617",
     "ready_for_validation_at_utc": "2026-06-15T01:21:41.625Z",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_worktree": "wtc-kernel-009",
     "evidence": [
       {
@@ -136,7 +136,58 @@
           "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-234"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-234 requires a production-built editor visual-regression harness and a Playwright fixture proving the real rich editor text, controls, embeds, graph/backlink panes, and UserManual links render without incoherent overlap on desktop and narrow viewports. The committed code mounts the real RichTextEditor into a production harness build wired into vite.harness.config.ts, and a 617-line spec performs genuine geometry/overlap assertions, real command exercises, loopback-only network isolation, and a real PNG quality gate. The implementation is real, spec-aligned, and placeholder-free.</summary>\n</invoke>\n",
+      "findings": [
+        "harness mounts the REAL product RichTextEditor (app/src/components/RichTextEditor.tsx, 1492 lines) at editor_visual_regression_harness.tsx lines 11 and 389 with real hsLink nodes, real EmbedResolverContext, and real debug instrumentation - not a stub or mock.",
+        "editor_visual_regression.spec.ts lines 246-517 perform real overlap proofs: boundingBox geometry, assertNoOverlap across toolbar/surface, editorPanel/sidecar, embeds/backlinks/userManual, plus viewport branching width<=700 narrow-stack vs desktop side-by-side at lines 353-361, matching playwright visual-narrow 390 and visual-normal 1280 projects.",
+        "Network isolation is real: route aborts all non-loopback origins (lines 274-282), asserts externalRequests empty (line 494); same-origin 400+ responses captured and asserted empty (lines 283-288 and 495-498). Loopback server serves real built dist-harness assets (lines 62-113).",
+        "Screenshot proof gated by real assertRenderedPngQuality (image_quality.ts line 108) which decodes the PNG and throws on insufficient color buckets or saturated pixels (image_quality.ts line 140) - not a no-op.",
+        "Sub-rule 1: grep of all four MT-234 files found zero placeholders or deferred-live escapes.",
+        "Sub-rule 2: required surface is the real RichTextEditor UI plus loopback embed routes (UI/visual MT, not durable-PG authority); proof exercises the real component and real built artifacts. No mock-only substitution where real was required.",
+        "Sub-rule 3: claimed_by is KERNEL_BUILDER, completed_by is null (READY_FOR_VALIDATION) - no self-certification; proof is real regardless.",
+        "Boundary and hygiene clean: all four files under app/ and tests/; no /.GOV/ touched. dist-harness and test-results are gitignored and not committed.",
+        "Aside (non-blocking, expected): no commit message greps MT-234; files were persisted under checkpoint commit c49afb7f. Paperwork detail only, not a code defect."
+      ],
+      "evidence_checked": [
+        "MT-234.json contract",
+        "packet.json allowed and forbidden paths",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "tests/visual/editor_visual_regression.spec.ts",
+        "app/src/harness/editor_visual_regression_harness.tsx",
+        "app/harness/editor-visual-regression.html",
+        "app/vite.harness.config.ts",
+        "tests/visual/image_quality.ts",
+        "app/playwright.config.ts",
+        "app/src/components/RichTextEditor.tsx",
+        "git log and ls-files commit c49afb7f",
+        ".gitignore and app/.gitignore",
+        "spec-modules v02.194"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-002617",

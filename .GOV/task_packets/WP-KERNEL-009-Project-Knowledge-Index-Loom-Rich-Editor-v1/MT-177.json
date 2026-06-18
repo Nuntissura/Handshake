@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-177-LoomBlockKnowledgeBridge",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-177.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145",
@@ -88,7 +88,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "2ee98c28",
     "implementation_commits": [
       "2ee98c28 gov(WP-KERNEL-009): MT-177 LoomBlockKnowledgeBridge",
@@ -161,7 +161,58 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-177 requires binding every LoomBlock to the ProjectKnowledgeIndex (knowledge_entities, entity_kind=loom_block) plus an EventLedger receipt so Loom resolves to PostgreSQL/EventLedger authority rather than a parallel/SQLite store. The implementation delivers this with a real FK-enforced bridge table (migration 0292), a real PostgresDatabase implementation that upserts the knowledge entity, appends a real KNOWLEDGE_LOOM_BLOCK_INDEXED EventLedger receipt, and upserts an idempotent bridge row, all proven by real Handshake-managed-PostgreSQL integration tests. No SQLite, mock, or deferred-live escape is reachable from the required path.",
+      "findings": [
+        "migrations/0292_loom_block_knowledge_bridge.sql: real FK-enforced bridge table loom_block_knowledge_bridge(block_id PK -> loom_blocks ON DELETE CASCADE, entity_id -> knowledge_entities, index_event_id NOT NULL -> kernel_event_ledger ON DELETE RESTRICT, UNIQUE(entity_id)). EventLedger receipt is mandatory, matching the MT's PostgreSQL+EventLedger authority requirement.",
+        "postgres.rs:4825+ bridge_loom_block_to_knowledge is a real impl: (1) get_loom_block fail-closes on missing/foreign block, (2) upsert_knowledge_entity with stable identity (workspace, loom_block, block_id) reusing the existing KnowledgeStore, (3) appends a real KernelEventType::KnowledgeLoomBlockIndexed EventLedger event via append_kernel_event, (4) upserts the bridge row pointing at the stored event_id. No placeholder/stub on the live path.",
+        "Verified prerequisites pre-exist and are real: kernel/mod.rs:274 KnowledgeLoomBlockIndexed event type; storage/knowledge.rs:294/844 KnowledgeEntityKind::LoomBlock -> \"loom_block\". The bridge EXTENDS existing infrastructure, no parallel store.",
+        "sub_rule_1: storage/mod.rs trait defaults for bridge_loom_block_to_knowledge/get/list return StorageError::NotImplemented, but these are UNREACHABLE in production. grep confirms PostgresDatabase (postgres.rs:4333 impl super::Database) is the SOLE Database implementor and overrides all three; AppState.storage is always Arc<dyn Database> backed by PostgresDatabase. The NotImplemented defaults are not on any reachable required-behavior path. No deferred-live escape.",
+        "sub_rule_2: tests/loom_knowledge_bridge_tests.rs runs against REAL Handshake-managed PostgreSQL via knowledge_pg_support (managed_postgres::ManagedPostgres::ensure_running, port 5544, no Docker/no SQLite/no mock; skips loudly when PG binaries absent, panics on any other failure). Tests assert the knowledge entity exists with KEN- id + correct entity_key, the bridge row points at a real KNOWLEDGE_LOOM_BLOCK_INDEXED ledger event aggregated on the entity, idempotency (1 entity + 1 bridge row, fresh receipt on re-index), get/list read-back, and fail-closed on missing block. Real managed resource touched.",
+        "SQLite removal verified live: grep confirms storage/mod.rs declares no sqlite/locus_sqlite module; orphan files src/storage/sqlite.rs and locus_sqlite.rs are physically absent; source-level regression guard test (sqlite_is_unreachable_from_the_loom_runtime_path) asserts no module decl, no orphan files, sqlx lacks the sqlite feature, and no SqlitePool/storage::sqlite reference in Loom source. Matches packet forbidden-SQLite (DEC-008).",
+        "api/loom.rs: create_loom_block, import_loom_asset, and ensure_edge_target_exists (auto-created link/tag targets) all fail-closed bridge after creation, and GET /workspaces/:ws/loom/blocks/:id/knowledge exposes the binding (404 loom_block_not_bridged when absent). Backend navigation API present for the authority binding.",
+        "Adversarial fix (58b773a5): create_loom_block now rejects empty/surrounding-whitespace block_id at the source (postgres.rs:3405+) because the id becomes the knowledge_entities entity_key (btrim CHECK), closing the orphan-block window; proven by create_rejects_unbridgeable_block_id (5 bad ids rejected, zero blocks in All view).",
+        "Spec alignment: MT cites Master Spec 10.12 #9.1.1 (WP-009 PostgreSQL+EventLedger authority supersession). Current v02.194 02-system-architecture.md lines 44/2006/2267 confirm the current authority direction is Handshake-managed PostgreSQL/EventLedger 'from the start ... avoiding stale SQLite, Docker, or outside-app fallback paths'. Legacy base-research SQLite-as-index narrative (lines 336/1158-1283) is superseded by this direction; the MT does not contradict current spec.",
+        "Aside (non-blocking): self-review reviewer is KERNEL_BUILDER backend delegate (self-cert), and the NON-ATOMIC-BRIDGE note (3 sequential awaits, not one transaction) is accepted as self-healing/idempotent on the next bridge call with no duplicate authority rows or data loss; proof is real so self-cert is not disqualifying per governance wind-down."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-177.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 git show 2ee98c28 (migration 0292, mod.rs, api/loom.rs, postgres.rs)",
+        "wtc-kernel-009 git show 58b773a5 (adversarial fix postgres.rs + test)",
+        "src/backend/handshake_core/src/storage/loom.rs (MT-177 types LoomKnowledgeBridge, LoomAuthorityBackend)",
+        "src/backend/handshake_core/src/storage/postgres.rs (bridge impl + create_loom_block guard)",
+        "src/backend/handshake_core/tests/loom_knowledge_bridge_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "src/backend/handshake_core/src/kernel/mod.rs (KnowledgeLoomBlockIndexed)",
+        "src/backend/handshake_core/src/storage/knowledge.rs (KnowledgeEntityKind::LoomBlock)",
+        "grep: sole Database impl = PostgresDatabase; no sqlite module; orphans absent",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

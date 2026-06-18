@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-249-CodeIntelligenceBridge",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-16T02:40:39.720Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-249.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -87,7 +87,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER",
     "ready_for_validation_at_utc": "2026-06-16T02:40:39.720Z",
     "implementation_commit": null,
@@ -143,6 +143,54 @@
         "Non-blocking residual: stale-marker diagnostics scan a bounded identifier set for UI performance; served hover/completion still carries staleness directly."
       ],
       "RESIDUAL_UNCERTAINTY": "The MT is ready for external validation, not marked PASS. Remaining uncertainty is limited to broader cross-file reference UX and full-WP dirty-worktree interactions outside MT-249; the core contract named in MT-249 is covered by real PostgreSQL, real backend routes, Monaco runtime proof, targeted unit tests, and independent boundary checks."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-249 requires wiring the built backend code index into embedded Monaco as real providers (completion, hover, def/refs, diagnostics, formatting, minimap/stickyScroll/inlayHints) with staleness surfaced and real runtime proof. The code delivers all of this with genuine PostgreSQL/EventLedger-backed routes, real Monaco provider registration consuming those routes, and a real-PG Playwright fixture that drives the actual Monaco editor — not mocks or static lists.",
+      "findings": [
+        "app/src/lib/monaco/code_intelligence.ts:268-432 registers real completion, hover, definition, reference, formatting, codeLens, and inlayHints providers; each calls the real API client (lookupCodeSymbols/getCodeSymbolReferences/getCodeFileLens) — no static/fake suggestion lists. Completion uses prefix (line 281-285); hover injects file-lens doc + staleness (line 309-313).",
+        "app/src/lib/monaco/setup.ts:144-146 (and 184-186 for diff editor) enables minimap/stickyScroll/inlayHints; line 139/177 installs ensureHandshakeCodeIntelligenceProviders in the single product editor entry point createConfiguredEditor — satisfies the minimap/sticky/inlay enablement requirement.",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:325-352 served_staleness fails closed (anything not provably fresh -> not fresh), implementing spec 2.3.13.11 never-serve-stale-silently; routes are real PostgreSQL+EventLedger with retrieval receipts (record_nav_receipt line 204-234). prefix param accepted and pushed (line 413-417, 435-444).",
+        "src/backend/handshake_core/src/storage/knowledge.rs:6837-6889 lookup_code_symbols pushes name/path/prefix into bounded SQL (prefix LIKE binds at 6883-6886), avoiding the 100k-symbol DoS; real Postgres query.",
+        "Runtime proof is real, not mock: src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs uses ManagedPostgres/PostgresDatabase (line 92-93), run_migrations, real CodeIndexEngine register+index (line 210-222), marks file stale (line 104), and serves real api::routes (line 251-256). tests/dependency_policy/mt249_code_intelligence.spec.ts boots it and asserts real route hits (prefix=ad, references, file lens, /api/diagnostics).",
+        "app/src/harness/mt249_code_intelligence_harness.tsx drives the REAL Monaco editor via createConfiguredEditor and real Monaco actions (triggerSuggest, showHover, revealDefinition, _executeReferenceProvider, formatDocument); fetch rewrite only redirects the hardcoded test base URL to the loopback fixture — providers and API client are unchanged product code.",
+        "Backend integration test src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs:218-293 boots a real PG-backed HTTP server (skips only when no PG available) and asserts the prefix=ad completion route returns the add symbol — closes the producer/consumer prefix-drift risk over real PG.",
+        "No deferred-live escapes or placeholders: grep for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-'/static suggestion across the impl + bridge + route returned no hits.",
+        "Aside (non-blocking, paperwork): MT-249.json lifecycle.implementation_commit is null though the code is committed on feat/WP-KERNEL-009; this is a contract-bookkeeping gap, not a code defect, and is not a failing reason."
+      ],
+      "evidence_checked": [
+        "app/src/lib/monaco/code_intelligence.ts",
+        "app/src/lib/monaco/setup.ts",
+        "app/src/harness/mt249_code_intelligence_harness.tsx",
+        "tests/dependency_policy/mt249_code_intelligence.spec.ts",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs",
+        "src/backend/handshake_core/src/storage/knowledge.rs (lookup_code_symbols)",
+        "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+        "src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs",
+        ".GOV/task_packets/WP-KERNEL-009-...-v1/MT-249.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (anchor 2.3.13.11 present)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-195-UserManualBuildUpdateRule",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-195.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "fcf9bce3+working-tree-20260614",
     "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Build-update rule implemented as a three-layer enforcement substrate over src/user_manual/registry.rs (99 typed SurfaceDescriptor rows = the declared WP-009 surface inventory: ingestion 6, code-nav 6, documents 16, retrieval 5, memory 5, crdt 3, Notes/Loom 43 incl. the POST /workspaces prerequisite, usermanual 16): (1) COMPILE-TIME gate - lib test user_manual::seed::tests::every_registry_surface_is_anchor_covered_in_the_corpus fails the build when a registry surface lacks an http_route anchor in the seed corpus (spec 10.15.8: coverage in the same implementation unit); (2) DB gate - user_manual_storage_tests::mt195_every_registry_surface_has_db_coverage proves every surface has anchor + tool-entry rows in seeded PostgreSQL; (3) RUNTIME gate - user_manual_api_tests::mtdoc_every_registry_surface_exists_on_the_real_router probes all 99 documented (method,route) pairs against the REAL full api::routes router (405 or bare router-404 fails). Negative proof the gate can fire: mt195_uncovered_surface_detection_fires (delete a route anchor -> freshness uncovered_surface verdict -> reseed heals). RED-then-GREEN evidence: the compile-time gate FAILED on first run (code-nav anchors missing from knowledge-index-surface) and was fixed by adding the anchors - the rule provably blocks uncovered surfaces. New-surface law documented in registry.rs module docs: a later group lands its SurfaceDescriptor + seed coverage in the same unit or the suite is RED.",
     "adversarial_code_review": {
@@ -122,6 +122,55 @@
       "at_utc": "2026-06-14T17:17:33.320Z",
       "commit": "working-tree",
       "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-195 requires a build-update rule that forces every WP-009 surface to add/validate UserManual coverage in the same implementation unit, with real PostgreSQL/EventLedger authority and non-mock runtime proof (spec 10.15.8). The code delivers exactly this via a three-layer enforcement substrate (compile-time anchor-coverage test, real-PostgreSQL DB coverage test, and a real-router runtime probe over all registry surfaces) plus a negative test proving the gate can fire and heal.",
+      "findings": [
+        "Spec 10.15.8 in CURRENT v02.194 (10-product-surfaces.md:8151-8157) explicitly states a WP-KERNEL-009 surface without UserManual coverage 'is a build-rule defect' and coverage must land 'in the same implementation unit' — MT-195 implements precisely this rule.",
+        "Compile-time gate is real: seed.rs:1942 every_registry_surface_is_anchor_covered_in_the_corpus iterates the actual wp009_surface_registry() and asserts each (method,route) has an http_route anchor in the seed corpus; failure aborts the build.",
+        "DB gate is real PostgreSQL: tests/user_manual_storage_tests.rs:419 mt195_every_registry_surface_has_db_coverage seeds an isolated PG schema and asserts every registry surface has anchor + tool-entry rows; skip_if_no_pg! (user_manual_support.rs:133) PANICS when PG is absent, so the proof is fail-closed, not vacuously skipped.",
+        "Runtime gate is real: tests/user_manual_api_tests.rs:698 mtdoc_every_registry_surface_exists_on_the_real_router builds a real AppState (PostgresDatabase + real pool, user_manual_support.rs:95) and serves api::routes(state) on a loopback listener, then probes all registry surfaces; a bare router-404 (empty body) or 405 fails — genuine doc-vs-runtime proof against the real product router.",
+        "Negative/fire proof is real: storage_tests.rs:460 mt195_uncovered_surface_detection_fires DELETEs a route anchor via raw sqlx, asserts check_freshness() returns an UncoveredSurface verdict, then reseeds and asserts the verdict clears. The freshness logic (freshness.rs:273-290) genuinely diffs the registry against DB http_route anchors in both directions (uncovered + dangling).",
+        "Durable authority is real PostgreSQL: migration 0310_user_manual.sql creates user_manual_pages/sections/anchors/tool_entries/feature_entries/versions/legacy_aliases — no SQLite, no mock store. NoopRecorder/NoopLlmClient in the test harness are peripheral flight-recorder/LLM stand-ins, not the manual storage path.",
+        "No deferred-live escapes: grep of src/user_manual/ for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/*Unavailable returned zero hits.",
+        "No self-certification: lifecycle.completed_by is null, status READY_FOR_VALIDATION, hardening_closed note explicitly leaves PASS/COMPLETED to the validator.",
+        "Minor (non-blocking) aside: the MT narrative says 99 surfaces but registry.rs has 106 surface!() rows; the gate tests iterate the actual registry so coverage is enforced over the real set regardless — this is benign narrative-vs-code count drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-195.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (10.15.8)",
+        "wtc-kernel-009 git show --stat fcf9bce3 + git log --grep MT-195",
+        "src/backend/handshake_core/src/user_manual/registry.rs",
+        "src/backend/handshake_core/src/user_manual/seed.rs:1900-2009",
+        "src/backend/handshake_core/src/user_manual/freshness.rs:255-299",
+        "src/backend/handshake_core/tests/user_manual_storage_tests.rs:400-505",
+        "src/backend/handshake_core/tests/user_manual_api_tests.rs:690-743",
+        "src/backend/handshake_core/tests/user_manual_support.rs (skip_if_no_pg!, app_state_for)",
+        "src/backend/handshake_core/migrations/0310_user_manual.sql"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

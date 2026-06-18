@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-244-EditorEmbedViewsSaveToFormatAndFindReplace",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-15T20:29:43.899Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -90,7 +90,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "cbfc0c3b",
     "evidence": [
       {
@@ -486,7 +486,54 @@
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T04:52:08.439Z",
     "validated_by": "WP_VALIDATOR-20260615-HILBERT_PLUS_KERNEL_BUILDER",
-    "validated_at_utc": "2026-06-15T20:29:43.899Z"
+    "validated_at_utc": "2026-06-15T20:29:43.899Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-244 requires three frontend editor deliverables (CKC embed NodeViews rendering real backend assets fail-closed; save-to-format HTML/md/txt/json export with data-hs-* round-trip; document-wide find/replace across prose + Monaco code). The committed code implements all three as real, non-trivial, fail-closed logic wired into RichTextEditor, with offline Playwright proof against the real Handshake asset route contract. PASS.",
+      "findings": [
+        "app/src/lib/editor/embed_assets.ts:403-471 resolveEmbedAsset hits the REAL backend route GET /workspaces/:ws/assets/:id and returns a typed content URL; validateAssetRef (112-152) rejects absolute paths/traversal/schemes client-side before any fetch; every failure is a typed EmbedErrorKind, never a blank or mock.",
+        "app/src/components/HsLinkView.tsx:274-376 MediaEmbed renders real <img>/<video>/sequence elements from resolved bytes; EmbedError (623-644) is a visible role=alert with data-error-kind; non-media kinds keep the unchanged MT-163 chip (79-122).",
+        "app/src/lib/editor/export_formats.ts:371-418 exportHtml builds the primary HTML projection via real Tiptap generateHTML + DOM-API-only transforms; self_contained mode fetches and base64-inlines REAL asset bytes with documented 8MiB/64MiB size guards (216-238) and a pre-fetch metadata guard; videos fail closed with a visible data-hs-inline-skipped marker (311-323) so a standalone file makes zero requests.",
+        "export_formats.ts importHtml (480-490) sanitizes fail-closed (sanitizeImportedDom 452-469 removes script/iframe/form, strips on* handlers, filters javascript:/vbscript:/data:text-html/data:image-svg with scheme-obfuscation normalization 432-445) then re-parses with the REAL editor schema, giving the round-trip claimed in tests.",
+        "export_formats.ts provides markdown (exportMarkdown 603-609, deliberately lossy and documented), plain_text (612-619 via real renderText serializers), and a typed ProseMirror JSON envelope (630-639) with explicit projection-only authority note; authority correctly stays at the Postgres rich document.",
+        "app/src/lib/editor/find_replace.ts buildFindMatches (158-193) scans prose text runs AND monacoCodeBlock code attrs in document order; applyReplaceAll (264-322) does prose insertText + per-node setNodeMarkup with recomputed contentHash in ONE descending-ordered transaction = single undo step with selection preserved; case/whole-word/regex with $1..$9/$&/$$ expansion and typed invalid-regex error; DoS guards (term cap, match cap, 250ms budget, zero-length advance).",
+        "tests/dependency_policy/editor_embeds_export_find.spec.ts serves the REAL Handshake asset route shapes with a pngjs-encoded PNG and a browser-recorded WebM (MediaRecorder) under a network kill-switch; this is genuine offline proof against the real route contract, not implementer mocks standing in for the contract.",
+        "All MT-244 changes are confined to app/src (allowed product paths); no SQLite/Docker/external-search/CDN deps introduced; commit 0b055376 stat shows only app/src files. Backend gaps (no album/slideshow list-source entity; no HTTP Range on content endpoint) are honestly reported as gaps and resolved via the closest real surface, not mocked.",
+        "Aside (non-blocking, paperwork): the packet cites v02.192 anchors while current is v02.194; section numbers resolve identically and this does not affect code correctness."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/app/src/lib/editor/embed_assets.ts",
+        "wtc-kernel-009/app/src/components/HsLinkView.tsx",
+        "wtc-kernel-009/app/src/lib/editor/export_formats.ts",
+        "wtc-kernel-009/app/src/lib/editor/find_replace.ts",
+        "wtc-kernel-009/tests/dependency_policy/editor_embeds_export_find.spec.ts (head)",
+        "git log/show for MT-244 commits 8e6de709,0b055376,47076ec5,cbfc0c3b",
+        "grep for placeholder/escape/forbidden-dep patterns across MT-244 surface"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER frontend delegate session 2026-06-12 (MT-244)",

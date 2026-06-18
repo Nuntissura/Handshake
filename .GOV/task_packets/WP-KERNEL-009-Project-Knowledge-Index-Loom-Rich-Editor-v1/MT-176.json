@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-176-EditorRoundtripVisualTests",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-176.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "dfd7a0f8",
@@ -165,6 +165,55 @@
         "10k-block document open + typing latency budget",
         "pixelmatch visual baseline at >=2 viewports"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-176 requires Playwright/visual-debug tests proving the integrated Tiptap+Monaco editor round-trips content, handles code editing/embeds/links/save-load offline against the real bundled stack with no external app/server. The implementation delivers real schema round-trip re-hydration plus real keyboard-driven browser tests against the BUILT editor, with a network kill-switch and zero-external-request proof. The prior HIGH adversarial findings (tautological round-trip, no real typing) are genuinely fixed in commit 7f8c9f34.",
+      "findings": [
+        "rich_editor_roundtrip.spec.ts:174-190 — the round-trip is now a REAL schema re-hydration, not the flagged tautology: the harness (rich_editor_harness.tsx:147-185) serializes the live doc, rebuilds it through getSchema(buildHandshakeEditorExtensions()) -> nodeFromJSON -> node.check() -> toJSON(), structurally compares via jsonDeepEquals, and independently recomputes the code-block hash. The spec asserts schemaRehydrated, docEqual, rehydrateError===null, and hash equality. HIGH finding genuinely FIXED.",
+        "rich_editor_typing.spec.ts (entire, 524 lines) — real page.keyboard typing against the BUILT editor: mid-document caret-per-keystroke assertion (H1, line 249-269), undo (271-288), real Monaco typing + language switch with hash recomputed by an independent in-spec FNV (H4, 290-327), Monaco column/multi-cursor (329-350), snippet tab-stops (352-396), prose multi-range edits (398-417), chord containment in Monaco (H3, 419-442), real ClipboardEvent fenced paste creating an embedded code block (H6, 444-481), Escape keyboard-trap exit (483-499), CDP IME composition set+commit (501-523). All assertions read the editor's own machine-readable surfaces (__HS_EDITOR_DEBUG__, __RICH_EDITOR_HARNESS__.docJson, data-rt-hash) — no screen-scraping. The second HIGH finding (zero real-typing coverage) is genuinely FIXED.",
+        "Offline/native-runtime proof is real: rich_editor_roundtrip.spec.ts:123-132 installs a network kill-switch aborting any non-loopback request; lines 192-199 assert a real worker-chunk loopback fetch occurred AND externalRequests===[] (no CDN/external editor/server — MT-175 wire-through). tests/dependency_policy/global_setup.ts builds the real dist-harness from source via the app's own vite (no dev server, no mocks); specs require app/dist-harness/harness/rich-editor.html to exist before running.",
+        "Resource touch is real Handshake-native: the proof exercises the actual product editor (app/src/components/RichTextEditor.tsx, 61KB; build_editor_extensions.ts; code_block_serialization.ts; bundled monaco-editor assets) — not implementer-authored mocks. code_block_serialization.ts:49-59 codeBlockHash uses an explicit \u0000 separator (L11 NUL-byte landmine fixed, hash output unchanged) and the typing spec cross-checks it with an independent FNV implementation.",
+        "No deferred-live escapes/placeholders: grep for todo!/unimplemented!/not yet wired/deferred/pending MT-/test.skip/.fixme across the two specs and the harness returned 0 hits.",
+        "Scope: the only out-of-app file (tests/dependency_policy/rich_editor_roundtrip.spec.ts) plus the app/ harness + config are within packet allowed_paths (tests, app/src); no src/backend or /.GOV/ product code touched (WAIVER-004). This MT owns no durable PostgreSQL resource — the backend save/load authority round-trip is covered by the sibling RichDocumentView vitest suite per the MT design — so sub_rule_2's PostgreSQL clause is NA for this MT's scope; the resource this MT does own (the real built editor + Monaco + schema) is genuinely exercised at runtime.",
+        "Aside (non-blocking, expected): packet/MT cite v02.192 spec anchors while current is v02.194; the §7.1.1.8 deterministic-round-trip anchor referenced by code_block_serialization.ts resolves under the current bundle. Paperwork staleness only; not a basis to fail."
+      ],
+      "evidence_checked": [
+        "MT-176.json (contract, acceptance_criteria, adversarial_review_v2 findings + FIXED statuses)",
+        "packet.json (allowed/forbidden paths, DEC-008, WAIVER-004, acceptance criteria PRODUCT-AC-002/003/009)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate (3 sub-rules)",
+        "git show --stat dfd7a0f8 and 7f8c9f34 (hardening commit)",
+        "tests/dependency_policy/rich_editor_roundtrip.spec.ts",
+        "tests/dependency_policy/rich_editor_typing.spec.ts",
+        "app/src/harness/rich_editor_harness.tsx",
+        "app/src/lib/editor/doc_equality.ts",
+        "app/src/lib/editor/code_block_serialization.ts",
+        "tests/dependency_policy/global_setup.ts",
+        "app/playwright.dependency.config.ts + app/package.json build:harness wiring",
+        "grep for placeholders/escapes across spec+harness paths (0 hits)",
+        "ls of real product files RichTextEditor.tsx/build_editor_extensions.ts/visual_debug.ts"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

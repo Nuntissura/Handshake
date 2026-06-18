@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-241-ProjectWikiBootstrapCompiler",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-14T19:14:37.123Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-241.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177",
@@ -91,7 +91,7 @@
       "MT-242"
     ],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "9cee7f0a",
     "evidence": [
       {
@@ -159,6 +159,55 @@
       "fixes": [
         "Title-collision guard + ProseMirror depth cap committed in 97c680a3 (with MT-242); re-tested green (4/4 bootstrap suite)."
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-241 requires a bootstrap compiler that produces a navigable, typed, cited project wiki from existing PostgreSQL/EventLedger authority into the existing wiki-projection store, with real-PG proof of citation resolution, the byte-identity projection-delete negative test, idempotent recompile, and EventLedger compile receipts. The code delivers exactly this with genuine native PostgreSQL/EventLedger implementation and real managed-PG integration tests; it aligns with current Master Spec LM-PWIKI-001..006 and 012.",
+      "findings": [
+        "compiler.rs:187-529 bootstrap() compiles typed module/concept/entity/decision + index pages over real authority (list_wiki_code_file_inputs, list_wiki_source_entities_with_spans, list_knowledge_rich_documents, decision entities). Citations are CitedSource{entity/span/source id + sha256 content_hash} (compiler.rs:880-918, 977-998), never file-path strings -> LM-PWIKI-003 satisfied.",
+        "compile_index_page (compiler.rs:532-583) builds the catalog listing every page and resolve_page_links (700-745) fills projection-ids for a navigable wiki -> LM-PWIKI-002.",
+        "EventLedger started/completed compile receipt pair via append_receipt (compiler.rs:349-364, 487-515, 747-771); every page row carries rebuild_receipt_event_id -> LM-PWIKI-012.",
+        "Token-aware packing pack_files_into_parts (compiler.rs:776-811) splits clusters into (part N) pages and flags lone over-budget files in oversize_files; never silent truncation -> LM-PWIKI-004. Page-cap guard (319-321) and pre-write title-collision guard (327-347).",
+        "migration 0300_knowledge_wiki_page_compile.sql:48-63 ship-together CHECK chk_..._stamp_guard makes a typed page without compile_stamp structurally impossible, plus stamp-shape CHECK and GIN cited-sources index -> LM-PWIKI-009 / MT-242 ship-together constraint satisfied; upsert_knowledge_wiki_page (knowledge.rs:7034-7079) takes the stamp as a required column.",
+        "DB methods in storage/knowledge.rs:7034-7421 are real parameterized SQL against PostgreSQL (upsert/list/citing/links/ledger-version/compile-input queries); no stubs.",
+        "tests/project_wiki_bootstrap_tests.rs runs 4 real-PG tests: cited typed pages with nav spot-check on evaluate_staleness (217-429), byte-identity authority fingerprint over 11 authority tables incl. kernel_event_ledger after deleting every page (431-496), idempotent recompile with zero stale (498-559), loud budget splits (561-614).",
+        "tests/knowledge_pg_support.rs uses real Handshake-managed PostgreSQL (no SQLite/in-memory/mock fallback; SKIPs loudly if PG binaries absent) -> sub-rule-2 managed-resource proof is real.",
+        "sub_rule_1: grep of knowledge_wiki/ for todo!/unimplemented!/Unavailable/'deferred'/'pending MT-' found only a doc comment (compiler.rs:22) stating flow pages are deliberately NOT emitted as empty placeholders; no reachable escape.",
+        "Constraints honored: only src/backend/handshake_core (+migrations) and tests touched; no /.GOV/ files in commit 9cee7f0a; no SQLite/Docker/external-search references.",
+        "Non-blocking aside (paperwork, not a fail reason): lifecycle.evidence references an artifacts log path under Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/... that does not exist on disk; the test source is real and self-verifying so this is pure evidence-pointer drift."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-241.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/compiler.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/project_wiki_bootstrap_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0300_knowledge_wiki_page_compile.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (7034-7421)",
+        "git show --stat 9cee7f0a (commit)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md (LM-PWIKI-001..013)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

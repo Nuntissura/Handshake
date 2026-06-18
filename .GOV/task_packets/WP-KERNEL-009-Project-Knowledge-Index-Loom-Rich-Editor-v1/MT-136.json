@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-136-ContextBundleCompilerV2",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-136.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "22ef2707",
@@ -108,6 +108,52 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "Validates plan; deterministic budget allocation; persists bundle+items+trace bound together; over-budget drop + replay proven (pipeline_tests:230)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-136 ContextBundleCompilerV2 compiles a bounded, cited, explainable context bundle for a retrieval target by running budget-allocate -> build kernel ContextBundle V1 (content-hashed id) -> persist bundle+per-item decisions to PostgreSQL (migration 0141) with an EventLedger ContextBundleRecorded receipt -> finalize and persist the replayable RetrievalTrace bound to the bundle. Real Handshake-managed PostgreSQL round-trip tests prove the bounded/over-budget-drop/replay behavior; the code implements what the MT requires and aligns with current Master Spec 2.3.13.11.",
+      "findings": [
+        "compiler.rs:122-317 implements the full plan->budget->build->persist-bundle->persist-trace pipeline for all 10 BundleTargetKind targets (compiler.rs:47-58: Task/File/Symbol/WorkPacket/MicroTask/SpecTopic/RichDocument/LoomBlock/MediaAsset/UserManualPage), matching the MT scope target list.",
+        "Real PostgreSQL persistence: storage/knowledge.rs:5758-5850 record_knowledge_context_bundle does a transactional INSERT into knowledge_context_bundles + knowledge_context_bundle_items (migration 0141_knowledge_context_bundles.sql exists). Sub-rule 2 satisfied with a real Handshake-owned resource touch.",
+        "EventLedger authority wired: compiler.rs:184-209 emits a ContextBundleRecorded kernel event with idempotency key when no build_receipt_event_id is supplied; the compiled JSON allowed_context is treated as a projection (compiler.rs:22, 169-177), matching spec 2.3.13.11 'context bundles ... are projections only' and 'all authority records MUST be durable PostgreSQL/EventLedger'.",
+        "Replayable RetrievalTrace bound to the bundle: compiler.rs:301-309 calls record_retrieval_trace with Some(bundle_id); test traces_for_bundle asserts exactly one trace bound to the bundle (knowledge_retrieval_pipeline_tests.rs:459-466).",
+        "Real-PG runtime proof, not mock: tests/knowledge_pg_support.rs uses ManagedPostgres::ensure_running (port 5544) or POSTGRES_TEST_URL/DATABASE_URL with NO SQLite/in-memory/mock fallback (skips loudly if PG binaries absent). compiler_persists_bounded_bundle_and_drops_over_budget (pipeline_tests.rs:382-472) sets a 30-token budget, admits only the authoritative item, asserts the supplementary item is dropped, then reads bundle+items back from PG (get_knowledge_context_bundle) and asserts items.len()==2 with the trace bound. Sub-rule 3 ok: proof exercises the Handshake-owned PG/EventLedger contract, not implementer-authored mocks.",
+        "Sub-rule 1 clean: grep of compiler.rs found no todo!/unimplemented!/unreachable!/Unavailable/placeholder/'deferred to follow-on'/'pending MT-' on any reachable path.",
+        "Aside (non-blocking): MT contract scope.relevant_files cite kernel/context_bundle.rs / memory/retrieval_mode.rs / workflows.rs but the impl landed in knowledge_retrieval/compiler.rs reusing the V1 kernel ContextBundle. This is a paperwork/path-list drift, not a code defect, and is EXPECTED per the winding-down governance posture.",
+        "Aside (non-blocking): adversarial_review_v2 LOW finding (per-source/snippet-cap drops coarsened to ExcludedBudget in the items row) is documented as intentional at compiler.rs:320-329 (precise drop reason lives in the replayable trace). Acceptable design choice, not a failure."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs (full)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5758-5856 (record/get_knowledge_context_bundle real PG)",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs:1-75,380-472 (real-PG compiler test)",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs (real-PG fixture, no mock)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (ManagedPostgres, no SQLite fallback)",
+        "migration 0141_knowledge_context_bundles.sql (exists)",
+        "git show --stat 22ef2707 (commit feat: MT-136 ContextBundleCompilerV2)",
+        "MT-136.json (contract), packet.json (scope/forbidden paths)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

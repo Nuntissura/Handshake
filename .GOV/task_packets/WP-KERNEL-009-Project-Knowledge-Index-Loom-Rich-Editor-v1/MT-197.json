@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-197-UserManualToolPrimitiveCatalog",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-197.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "fcf9bce3+working-tree-20260614",
     "evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fcf9bce3. Machine-readable tool/primitive catalog in user_manual_tool_entries: 99 wp009_surface rows generated FROM the registry (method, route, summary, expected input/output, per-group common_errors + recovery_steps - catalog cannot drift from the declared inventory) PLUS the full legacy static MODEL_MANUAL command_reference imported deterministically (100+ rows, origin legacy_model_manual, content preserved exactly incl. ipc_channel/tauri_command/cli_flag/schema_fields/common_errors/recovery_steps - the spec 10.15.8 deterministic mapping). Feature entries: one per WP-009 surface group + every legacy feature group. Surface-guide pages seeded per group (knowledge-index incl. code-nav, notes-loom, rich-documents, retrieval, memory, crdt, usermanual) each with route tables (markdown + machine-readable body_json), inputs/outputs, failure modes, recovery, and visual-debug hooks (GET /knowledge/memory/visual-debug + the manual HTML projection selectors). THIS CLOSES THE MT-112 DEFERRAL: all 6 /knowledge/code/* nav routes are manual-registered (anchors + tool entries) - see MT-112.json lifecycle.manual_registration_closure. Tests GREEN on real PG: lib tool_catalog_covers_registry_and_legacy_without_id_collisions, user_manual_api_tests::mt201_tools_list_and_read_resolve (per-route entries readable incl. every /knowledge/code/* row with errors+recovery; legacy origin filter returns the imported manifest), mtdoc_every_registry_surface_exists_on_the_real_router (each cataloged route probed on the live router), user_manual_storage_tests::mt195_every_registry_surface_has_db_coverage (tool entry per surface in DB).",
     "adversarial_code_review": {
@@ -122,6 +122,51 @@
       "at_utc": "2026-06-14T17:17:33.320Z",
       "commit": "working-tree",
       "note": "State recovered to READY_FOR_VALIDATION only. completed_by remains null; validator owns PASS/COMPLETED."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-197 requires a machine-readable UserManual tool/primitive catalog documenting tools, primitives, routes, APIs, common errors and recovery with PostgreSQL/EventLedger authority and validator-readable evidence. The implementation builds a deterministic catalog from the WP-009 surface registry plus the full legacy ModelManual manifest, persists it to the real user_manual_tool_entries table, and proves it with real-PostgreSQL tests including a live-router doc-vs-runtime probe — it satisfies the MT and aligns with current Master Spec 10.15.8 / LAW-CORPUS-PARITY-003.",
+      "findings": [
+        "seed.rs:1610-1711 seed_tool_entries() builds the catalog deterministically: one wp009_surface row per registry entry (surface_id, method, route, summary, expected input/output, per-group common_errors + recovery_steps) PLUS every legacy CommandReference imported as origin=legacy_model_manual with content preserved (ipc_channel/tauri_command/cli_flag/schema_fields). Catalog is derived from the registry constant so it cannot drift from the served inventory.",
+        "store.rs:704-755 persists tool entries via real INSERT ... ON CONFLICT into the PostgreSQL table user_manual_tool_entries; store.rs:764+ reads via real SELECT. migrations/0310_user_manual.sql:118 CREATE TABLE user_manual_tool_entries with route index — this is real durable PostgreSQL authority, satisfying sub_rule_2.",
+        "Tests touch real PG, not mocks: user_manual_support.rs:97-105 app_state_for() connects a real PostgresDatabase + PgPool to an isolated schema; skip_if_no_pg! (support.rs:132-146) PANICS (fails) when PG is unavailable rather than silently skipping, so a green run is real-PG proof not a mock pass.",
+        "user_manual_api_tests.rs:212 mt201_tools_list_and_read_resolve hits live HTTP /usermanual/tools endpoints against the mounted router, asserts one wp009 entry per registry surface, reads every /knowledge/code/* entry (errors+recovery non-empty), 404 on missing, and legacy origin returns >50 imported rows. user_manual_api_tests.rs:698 mtdoc_every_registry_surface_exists_on_the_real_router probes every documented surface against the real api::routes router (fails on bare-404 or 405) — a genuine doc-vs-runtime keystone.",
+        "seed.rs:1967 tool_catalog_covers_registry_and_legacy_without_id_collisions asserts zero tool_id collisions between dotted registry ids and snake_case legacy ids and full coverage of both sources — addresses the legacy/new id-collision risk.",
+        "No deferred-live escapes: grep of src/user_manual/ found no reachable todo!()/unimplemented!()/stub/placeholder; all 'Unavailable'/'SQLite' hits are documentation prose describing fail-closed behavior (seed.rs:288,450,1132 etc.), not code escapes. No SQLite/rusqlite code path exists.",
+        "Spec alignment: master-spec-v02.194 10.15.8 (UserManual migration bridge) requires legacy ModelManual to map deterministically to UserManual authority entries; LAW-CORPUS-PARITY-003 (line 8454) requires the catalog be machine-readable backend authority with views as projections only — the implementation matches both.",
+        "Aside (non-blocking): MT lifecycle.completed_by is null and the verdict is owned by Integration Validator; evidence references working-tree state at fcf9bce3 while HEAD is now MT-264, but the cited code/tests are present and intact in the current tree."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/user_manual/seed.rs (seed_tool_entries 1610-1711, seed_feature_entries, tests 1940-2009)",
+        "src/backend/handshake_core/src/user_manual/store.rs (700-800 tool entry persist/read)",
+        "src/backend/handshake_core/src/user_manual/registry.rs (wp009_surface_registry)",
+        "src/backend/handshake_core/migrations/0310_user_manual.sql (CREATE TABLE user_manual_tool_entries)",
+        "src/backend/handshake_core/tests/user_manual_api_tests.rs (mt201_tools_list_and_read_resolve, mtdoc_every_registry_surface_exists_on_the_real_router)",
+        "src/backend/handshake_core/tests/user_manual_support.rs (app_state_for real PG, skip_if_no_pg! panic-on-absent)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (10.15.8, LAW-CORPUS-PARITY-003)",
+        "MT-197.json contract; packet.json allowed/forbidden paths"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-086-PdfTextLayerDetector",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:58:58.290Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-086.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "c1785c1a",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c1785c1a; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -121,7 +121,52 @@
     },
     "evidence": [
       "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-086 requires detecting PDFs with missing/weak text layers and producing repairable metadata plus receipts (against PostgreSQL/EventLedger authority) instead of silently indexing partial content. The code delivers this: a real pure-Rust lopdf-based per-page text-layer detector wired into the real ingestion engine, proven against Handshake-managed PostgreSQL with image-only PDFs yielding typed NoTextLayer failures plus durable repair-queue rows, never empty-success.",
+      "findings": [
+        "pdf.rs:52-56 has_text_layer() now requires has_text_operators AND extracted_chars>=MIN_TEXT_LAYER_CHARS(3) AND error.is_none() — fixes the prior adversarial 'false-success watermark/tiny-text' concern recorded in MT-086.lifecycle.adversarial_code_review.",
+        "pdf.rs:251-272 tracks PDF text render mode and excludes invisible text (Tr 3) from counting as a visible text layer — directly closes the OCR-overlay/hidden-text misclassification path. Proven by test invisible_text_pdf_is_not_a_text_layer (pdf.rs:718-735) and tiny_text_below_minimum_is_not_a_text_layer (pdf.rs:737-744).",
+        "pdf.rs:129-150 guard_lopdf wraps lopdf entry points in catch_unwind, converting a parser panic into a typed Internal error so one poison PDF degrades to one failed file rather than aborting the batch — fixes the second prior adversarial concern. Proven by guard_lopdf_converts_panic_to_typed_internal_error (pdf.rs:703-716) and truncated_pdf_header_fails_typed_not_panic (pdf.rs:692-701).",
+        "pdf.rs:348-420 extract_pdf_text returns a typed NoTextLayer error (never empty success) for image-only PDFs, with OCR_NEEDED guidance in detail_json (pdf.rs:85-98), and populates explicit failed_pages for partial extraction — matches MT requirement 'repairable metadata instead of silent partial indexing'.",
+        "engine.rs:1172-1234 wires the detector into the real ingestion path: success/partial/failed/blocked ExtractionStatus, spans per PDF page, secret preflight over extracted text, and error_detail carrying the repair report — the durable receipt-writing surface.",
+        "tests/knowledge_ingestion_pipeline_tests.rs:240-293 mt086_image_only_pdf_yields_typed_no_text_layer_and_repair_entry runs against real PG (ingestion_pg) and asserts receipt.status=Failed, error_class=NoTextLayer, empty spans, OCR_NEEDED in detail, and a durable repair-queue row with reason_class=NO_TEXT_LAYER linked to the receipt_id; mt230_weak_pdf...durable (line 334+) directly queries knowledge_ingestion_repair_queue and knowledge_ingestion_receipts tables.",
+        "knowledge_pg_support.rs:21 and knowledge_ingestion_support.rs:4-5 confirm the proof harness uses real Handshake-managed PostgreSQL with the full migration chain and explicitly NO SQLite/in-memory/mock fallback — satisfies sub_rule_2 durable-authority touch.",
+        "Dependency added is lopdf 0.41 (MIT, pure Rust, no native deps, no daemon, default-features disabled); no forbidden SQLite/Docker/external search-engine/CDN-worker introduced — within packet allowed boundary.",
+        "Aside (non-blocking, paperwork only): MT-086.lifecycle.hardening_closed.commit cites 5876feaf but the actual hardening landed in the worktree as c42e0e1d; stale commit pointer does not affect code correctness."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/pdf.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:1150-1268 (PDF extraction branch)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs:204-331 (real-PG PDF tests)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_support.rs and knowledge_pg_support.rs (real managed PostgreSQL, no mock fallback)",
+        "src/backend/handshake_core/Cargo.toml diff (lopdf 0.41 dependency)",
+        "git log/show for commits c1785c1a and c42e0e1d",
+        "MT-086.json contract and prior adversarial_code_review concerns"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

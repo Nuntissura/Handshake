@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-129-RetrievalModeEnumExpansion",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-129.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-113",
@@ -87,7 +87,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "0f78b03d",
@@ -108,6 +108,55 @@
       ],
       "claim_mismatches": [],
       "missing_tests": []
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-129 (RetrievalModeEnumExpansion) defines the spec-canonical cheapest-authoritative retrieval-mode axis (none, direct_load, exact_lookup, graph_traversal, hybrid_rag) plus passage_fallback/blocked planner postures and the non_hybrid_reason vocabulary, with a QueryPlan/RetrievalTrace data model whose storage-string collapse and non-hybrid-reason invariant are real, fully implemented, and proven against real Handshake-managed PostgreSQL. The code matches current Master Spec v02.194 (2.3.14, 2.6.6.7.14.5) exactly.",
+      "findings": [
+        "memory/retrieval_mode.rs:174-236 defines QueryRetrievalMode with all MT-required modes; to_storage_str() (207-215) collapses None|Blocked->none and HybridRag|PassageFallback->hybrid_rag; cost_rank() (219-229) implements the cheapest-first ladder; requires_non_hybrid_reason() (233-235) marks all non-hybrid modes.",
+        "memory/retrieval_mode.rs:248-264 NonHybridReason variants exactly match the current Master Spec vocabulary (02-system-architecture.md:11416: exact_identifier_known | authoritative_state_required | bounded_executor_context | freshness_uncertain | policy_disallows_hybrid_rag | user_forced_direct).",
+        "to_storage_str() five durable strings exactly match migration 0141 CHECK (0141_knowledge_context_bundles.sql:83-85: none, direct_load, exact_lookup, graph_traversal, hybrid_rag) and the storage enum KnowledgeRetrievalMode FromStr (knowledge.rs:1500-1513); storage_mode_of (knowledge_retrieval.rs:79-83) round-trips via parse so any drift fails closed.",
+        "knowledge_retrieval/plan.rs:199-206 QueryPlan::validate enforces the spec A0.5 invariant (02-system-architecture.md:11528: if retrieval_mode != hybrid_rag MUST populate non_hybrid_reason); storage/knowledge_retrieval.rs:103 calls validate() before any DB write so a non-hybrid trace without a reason cannot persist.",
+        "Real-PG proof: tests/knowledge_retrieval_replay_tests.rs:132-139 persists a real QueryPlan/RetrievalTrace and replays from the durable knowledge_retrieval_traces row via replay_context_bundle_from_trace (storage/knowledge_retrieval.rs:177-325), with EventLedger receipt linkage (kernel_event_ledger, lines 587-646). Harness knowledge_pg_support.rs:26-64 uses Handshake-managed PostgreSQL (ManagedPostgres::ensure_running) or DATABASE_URL/POSTGRES_TEST_URL, returning None (legitimate skip) only when PG binaries are absent.",
+        "sub_rule_1: no reachable placeholder/deferred-live escape in any MT-129 file (only a 'folded stub intent' doc-comment at knowledge_retrieval.rs:741 referring to the MT-139..142 bridge fold, not a code stub).",
+        "Adversarial-v2 LOW (passage_fallback/blocked collapse to hybrid_rag/none in the durable mode column) is by-design with the WHY preserved in mode_reason (plan.rs:338-361) and the full replayable decisions JSONB; not a code defect.",
+        "Aside (non-blocking governance paperwork): packet cites v02.192 anchors while current is v02.194; the same section numbers resolve and content matches. Expected during repo-governance wind-down."
+      ],
+      "evidence_checked": [
+        "MT-129.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat 0f78b03d + git log --grep MT-129",
+        "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/plan.rs",
+        "src/backend/handshake_core/src/storage/knowledge_retrieval.rs",
+        "src/backend/handshake_core/src/storage/knowledge.rs (KnowledgeRetrievalMode 1478-1513)",
+        "migrations/0141_knowledge_context_bundles.sql (CHECK constraint)",
+        "spec-modules/02-system-architecture.md lines 2706, 2817, 11235, 11415-11528 (v02.194)",
+        "tests/knowledge_retrieval_replay_tests.rs",
+        "tests/knowledge_memory_fixtures.rs",
+        "tests/knowledge_pg_support.rs"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

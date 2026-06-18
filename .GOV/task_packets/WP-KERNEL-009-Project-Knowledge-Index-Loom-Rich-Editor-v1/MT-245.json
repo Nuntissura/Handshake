@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-245-EditorWorkbenchChrome",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-14T03:09:36.399Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-245.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -75,14 +75,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "ec95bac9",
     "implementation_worktree": "wtc-kernel-009",
     "evidence": [
@@ -90,7 +90,58 @@
       "runtime proof: offline Playwright tests/dependency_policy/editor_workbench_chrome.spec.ts PASS (1 test, real browser, network cut, PNG captured + verified 1280x868) proving all 5 parity rows function: ED-NAV-004 outline (live heading tree + click-to-scroll moving the real selection); ED-WB-007 status bar (live word count, focused Monaco code-block language, authority dirty->saved); ED-NAV-006 go-to-line (out-of-range -> typed visible error); EXT-SAVE-001 Mod-s -> onSaveRequested (save count + state flip); EXT-NAV-LINK-001 (resolvable wp link -> kind:wp no error; unresolvable -> typed visible error)",
       "EXT-NAV-LINK-001 resolution extracted into a pure exported resolveHsLinkTarget() (link_navigation.ts) called by BOTH App.tsx and the harness, so the browser proof exercises the real code (not a copy); link_navigation.test.ts (4) + editor_chrome.test.ts (4) cover it; vitest 13 PASS total; tsc clean; eslint clean over the 16 MT-245 files; check:portable-artifacts PASS 6/6 (no two-'..' artifact-root overreach reintroduced)",
       "VALIDATION CAVEAT: the offline EXT-NAV-LINK-001 proof asserts typed-target resolution + the typed-error path, not the full in-app pane-focus (needs the live backend; App.tsx uses the same resolveHsLinkTarget, covered by the App vitest suite). Pre-existing act() warnings + unrelated pre-existing eslint errors elsewhere in app/ are out of MT-245 scope."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-245 closes five editor-chrome parity rows (ED-NAV-004 outline, ED-WB-007 status bar, ED-NAV-006 go-to-line, EXT-SAVE-001 Mod-s save, EXT-NAV-LINK-001 typed link nav) on the real integrated RichTextEditor. The code is genuine VS Code-class chrome wired through the actual Tiptap/Monaco surfaces, with no placeholders/escapes and forbidden tech absent. Runtime proof is real: offline Playwright in a real Chromium with the network cut, plus vitest over the real editor.",
+      "findings": [
+        "RichTextEditor.tsx:795-1127 renders the live workbench chrome from the real editor: buildEditorOutline(editor.state.doc) drives the outline nav (lines 924-967), with outline clicks calling editor.commands.setTextSelection(item.selectionPos)+scrollIntoView (954-959) - a real selection move, not a label. The ED-WB-007 status bar (1104-1127) is fed by buildEditorStatus over the real doc + live Monaco cursor.",
+        "editor_chrome.ts:75-198 contains pure, real model helpers (buildEditorOutline, buildEditorStatus, findFocusedCodeBlock, codeLineRange, countDocumentWords). No stubs; computed over the actual ProseMirror doc shape. editor_chrome.test.ts uses a real Tiptap Editor with buildHandshakeEditorExtensions, not mocks.",
+        "ED-NAV-006 go-to-line is real: RichTextEditor.tsx:631-657 runGoToLine resolves the focused code block, computes codeLineRange, and calls revealCodeBlockRange (code_block_find_registry.ts:35) which drives the real Monaco instance.setSelection/revealRangeInCenterIfOutsideViewport (MonacoCodeBlockView.tsx:139-153). Out-of-range -> typed visible error (644-646).",
+        "EXT-SAVE-001 is real: RichTextEditor.tsx:709-714 swallows Mod-s (no browser dialog) and fires onSaveRequested, global even from inside Monaco code blocks.",
+        "EXT-NAV-LINK-001 is genuinely integrated, not harness-only: link_navigation.ts:70-87 resolveHsLinkTarget is a pure exported resolver; HsLinkView.tsx:109 dispatchHsLinkNavigate fires on real chip click; App.tsx:1294-1312 consumes the same resolver and maps each resolved kind to real pane actions (openWorkspaceDocument etc.), with unresolvable -> typed visible error (1300-1307). The offline harness (editor_workbench_chrome_harness.tsx:99-112) exercises the SAME resolver, so the browser proof hits real code.",
+        "ED-WB-007 Monaco language/cursor bridge is real: MonacoCodeBlockView.tsx:105-121 dispatches MONACO_CODE_BLOCK_STATUS_EVENT on onDidFocusEditorText/onDidBlurEditorText/onDidChangeCursorPosition (215-224); RichTextEditor.tsx:450-470 consumes it to drive the status bar language/Ln/Col.",
+        "Runtime proof is real and appropriate to a GUI MT: tests/dependency_policy/editor_workbench_chrome.spec.ts drives a real Chromium against the built dist-harness, aborts every non-loopback request at the browser network layer (lines 93-101), asserts all 5 rows function (real selection move, live word count, typescript code language, out-of-range go-to-line error, save-count flip, resolvable wp link -> kind:wp, ghost link -> visible typed error), and asserts zero external requests (204). Matches the contract's named proof (offline Playwright per capability).",
+        "sub_rule_2 = NA: this is a UI-chrome/projection MT (constraint: 'UI artifacts are projections only'); it touches no durable PostgreSQL/EventLedger table/column. The contract's verification names offline Playwright + vitest, which is what was produced. Spec 10.2 (Monaco Editor Experience, VS Code-like model, lazy-load with no runtime network fetches) aligns with the offline proof.",
+        "sub_rule_3 = PASS: contract lifecycle.completed_by is null and status is READY_FOR_VALIDATION (not self-signed COMPLETED). No forbidden tech (SQLite/Elasticsearch/Docker/CDN) appears in the MT-245 files. Aside (non-blocking): the contract still cites spec bundle v02.193/v02.192 anchors while current is v02.194 - expected paperwork drift, not a defect."
+      ],
+      "evidence_checked": [
+        "wtc-kernel-009 git show --stat ec95bac9 (16 files, all app/+tests, zero .GOV)",
+        "app/src/lib/editor/editor_chrome.ts",
+        "app/src/lib/editor/link_navigation.ts",
+        "app/src/components/RichTextEditor.tsx",
+        "app/src/components/MonacoCodeBlockView.tsx:95-224",
+        "app/src/harness/editor_workbench_chrome_harness.tsx",
+        "tests/dependency_policy/editor_workbench_chrome.spec.ts",
+        "app/src/lib/editor/editor_chrome.test.ts",
+        "app/src/App.tsx:58,1294-1312 (real resolver integration)",
+        "app/src/components/HsLinkView.tsx:41,109 (dispatch wiring)",
+        "git grep for escapes/placeholders/forbidden-tech across MT-245 files (none reachable)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (10.2 Monaco Editor Experience)",
+        "MT-245.json contract + WP_VALIDATOR_PROTOCOL Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-MT245",

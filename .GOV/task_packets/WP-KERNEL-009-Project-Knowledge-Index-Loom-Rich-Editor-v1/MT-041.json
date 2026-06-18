@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-041-SwarmRecoverySpecSeed",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:17:33.962Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-041.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -111,14 +111,14 @@
     }
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-033"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
     "evidence": [
@@ -150,13 +150,13 @@
         "Added AC3/AC4 evidence entries."
       ]
     },
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -189,6 +189,42 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 CONTRACT_EVIDENCE_OWNER_SET_DRIFT (MEDIUM): seed listed 8 owners but evidence named only 5",
       "remediation": "Reconciled evidence[1] to name the full 8-owner set matching scope.swarm_lease_checkpoint_contract_seed.implementation_owner_mts; justified the MT-215/217/223 additions. Seed and evidence now consistent."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "NA",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-041 is a MasterSpecEnrichmentSeed (record/spec-seed) MT whose deliverable is an embedded, restartable normative-draft contract for agent-lane leases and swarm checkpoints/recovery. The seed is detailed, PostgreSQL/EventLedger-native, receipt-driven, aligns with current Master Spec v02.194 Section 2.3.13.11, and the prior FAIL_V1 owner-set drift is now reconciled.",
+      "findings": [
+        "MT-041 has no lifecycle.implementation_commit; it is a MasterSpecEnrichmentSeed record MT. Deliverable is the embedded normative-draft contract scope.swarm_lease_checkpoint_contract_seed (MT-041.json lines 81-111), which carries MUST-level AgentLaneLease semantics (claim/expiry/server-enforced/renewal/takeover with takeover_of lineage/typed denial receipt; lines 86-93) and durable SwarmCheckpoint + recovery records with no-chat-history reconstruction (lines 94-98). This satisfies acceptance_criteria AC1/AC2 (enough detail for no-context continuation; names tables/fields/failure modes).",
+        "Spec alignment confirmed against CURRENT v02.194: 02-system-architecture.md line 2717 states backend navigation calls MUST carry actor id, session id, correlation id, and a typed receipt; line 2711/2713 mandate durable PostgreSQL/EventLedger authority and forbid SQLite/sidecar/markdown-vault authority. The seed restates exactly these as Handshake-native requirements and marks itself FUTURE_SPEC_BUMP_MATERIAL_ONLY (line 110), honoring the no-spec-edit constraint. AC3 (reject sidecar authority) satisfied.",
+        "Spec anchors named in the seed resolve in the current bundle: target_module_suggestion 02#2.3.13.11 and 10.20 exist (02-system-architecture.md line 2694; 10-product-surfaces.md contains 2.3.13.11 refs). evidence[2] applied-law claim (02#2.3.13.11 receipt law) verified true.",
+        "PRIOR FAILURE FIXED: FAIL_V1 was CONTRACT_EVIDENCE_OWNER_SET_DRIFT (seed listed 8 owner MTs but evidence named only 5). Current contract evidence[1] (line 126) now names MT-209/210/213/214/215/216/217/223, matching scope.swarm_lease_checkpoint_contract_seed.implementation_owner_mts (lines 100-109). remediation_v2 (lines 187-192) records the reconciliation. AC4 (HBR rows dispositioned to owner MTs) satisfied.",
+        "Spec-Realism Gate: sub_rule_1 NA - no live code path exists; grep hits for 'stub'/'deferred' (lines 53, 128, 142, 204) describe the MT's own seed-stub nature and red-team minimum-control text, not reachable deferred-live escapes. sub_rule_2 NA - record MT; durable PostgreSQL/EventLedger proof is by-design transferred to implementation owner MTs, and the seed explicitly is not applied law. sub_rule_3 PASS - claimed_by=KERNEL_BUILDER (line 120), completed_by=null (line 121), verdict set by separate session WP_VALIDATOR-20260611-181356 (line 153); no self-certification.",
+        "Aside (non-blocking, paperwork): scope.relevant_files still pin the v02.192 bundle path while CURRENT is v02.194; per task ground rules stale spec pointers are expected and not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-041.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (lines 2694-2728)",
+        "git grep for placeholder/deferred escapes in MT-041.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

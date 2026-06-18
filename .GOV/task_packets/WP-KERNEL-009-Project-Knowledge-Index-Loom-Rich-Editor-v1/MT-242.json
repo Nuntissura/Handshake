@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-242-WikiProjectionDriftAndStaleness",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T03:37:21.486Z",
-  "updated_at_utc": "2026-06-14T19:14:37.123Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-242.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -75,7 +75,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-241",
@@ -85,7 +85,7 @@
       "MT-243"
     ],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "97c680a3",
     "evidence": [
       {
@@ -148,6 +148,54 @@
       "fixes": [
         "No additional code change required beyond the 97c680a3 hardening (title-collision guard, receipt caps, depth cap) recorded under MT-241's review."
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-242 requires EventLedger-anchored drift/staleness for compiled project wiki pages: every compiled page stamped with ledger version + exact cited-source set (content hashes, no wall-clock), a drift check that flags exactly the citing pages with concrete reasons, and a fail-closed staleness verdict on every serve path with unstamped-never-fresh. The current tree on feat/WP-KERNEL-009 implements all of this with real PostgreSQL/EventLedger and real Axum-route proof, fully aligned with current Master Spec LM-PWIKI-006/007/008/012.",
+      "findings": [
+        "drift.rs:120-235 (evaluate_stamps) batch-resolves CURRENT content hashes for every cited source kind (source/entity/loom_block/rich_document) and emits per-page Fresh/Stale verdicts; Stale carries concrete WikiStaleReason {kind,id,stamped vs current hash, source_changed|source_deleted}. Matches LM-PWIKI-007.",
+        "mod.rs:178-294 defines WikiCompileStamp (ledger_version + sorted/deduped cited_sources), WikiStalenessVerdict tagged enum (fresh/stale/unstamped) with is_fresh()/label(); from_value() returns None for missing/malformed stamps -> Unstamped (never fresh). Matches LM-PWIKI-006/008.",
+        "mod.rs:313-365 entity_content_hash and loom_block_state_content_hash deliberately EXCLUDE updated_at and run ids; the SAME functions are reused at stamp time and drift time (drift.rs:156-173), so no false-stale and no stamp/check derivation drift. Satisfies the no-wall-clock and no-false-stale constraints.",
+        "api/loom.rs:766-769 ServedWikiPage makes a verdict-less serve unrepresentable; attach_wiki_verdict (828-841) propagates verdict-evaluation errors via map_err(...)? -> HTTP error, never silent fresh. list (966-998), single GET (880-893), compile (850-878), regenerate (919-946), and /stale (895-917) all attach the verdict; /stale derives stale = !is_fresh() so unstamped reads stale. Fail-closed per LM-PWIKI-008.",
+        "drift.rs:243-341 check_workspace persists rebuild_status='stale' marks for drifted pages and appends a KnowledgeProjectionRebuilt receipt with payload kind 'wiki_drift_check' (counts + per-page stale/unstamped detail). Satisfies LM-PWIKI-012 staleness-verdict receipt.",
+        "migrations/0300_knowledge_wiki_page_compile.sql:38-67 adds compile_stamp JSONB with a CHECK that typed pages MUST have a non-null compile_stamp (page_type IS NULL OR compile_stamp IS NOT NULL) plus structural-validity check and a GIN index on cited_sources -- a database-level ship-together / stamp-required guard.",
+        "tests/project_wiki_drift_tests.rs proves behavior against REAL PostgreSQL (PostgresDatabase::connect to managed/operator PG; knowledge_pg_support.rs documents NO SQLite/in-memory/mock fallback) and REAL Axum routes over a TCP loopback with reqwest. mt242_source_edit_flags_exactly_the_citing_pages_with_reasons re-registers+re-indexes a REAL handshake_core source via the real CodeIndexEngine and asserts set equality both directions against an independently derived expected set (303-306); mt242_no_change_recompile_yields_zero_stale is the negative test (388-402); mt242_verdict_attached_on_every_serve_path_fail_closed covers the fresh->stale flip and the legacy UNSTAMPED row reading state=unstamped/stale=true (628,651).",
+        "No deferred-live escapes/placeholders/stubs/todo!/unimplemented! anywhere in drift.rs, mod.rs, or api/loom.rs (grep clean). No forbidden tech (no SQLite, no external search/graph/RAG services).",
+        "Minor (non-blocking, attribution only): commit 97c680a3 labeled MT-242 contains only the test file + adversarial hardening (title-collision guard, receipt caps, prosemirror depth cap); the core drift/staleness machinery (drift.rs, ServedWikiPage, stamps) actually landed in the MT-241 commit 9cee7f0a. The required behavior exists and is proven in the current tree on this branch, so this does not affect the verdict."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-242.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/drift.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_wiki/mod.rs (170-369)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs (760-998)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/project_wiki_drift_tests.rs (40-193, 218-402, 481-706)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (1-163)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0300_knowledge_wiki_page_compile.sql",
+        "git show --stat 97c680a3; git log/-S history for drift.rs, ServedWikiPage, test file",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/11-shared-dev-platform-and-oss-foundations.md (LM-PWIKI-005..013)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2726"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

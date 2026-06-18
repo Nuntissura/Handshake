@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-118-PassageEvidenceGraphProjection",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T23:21:34.542Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-118.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,20 +79,66 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
     "implementation_commit": "d39c2d76",
     "evidence": [
       "Built+verified d39c2d76; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-118 requires a passage/evidence graph projection linking passages to their claim/span/source authority refs, Handshake-native (PostgreSQL/EventLedger) with projection-never-authority semantics. The code implements exactly this in projection.rs with real PG queries and proves it against real managed PostgreSQL.",
+      "findings": [
+        "projection.rs:255-341 (wtc-kernel-009/src/backend/handshake_core/src/knowledge_memory/projection.rs) implements PassageEvidenceGraphProjection: PassageEvidenceNode (passage_id ref + retrieval_mode/compaction_policy/token_count) and PassageEvidenceEdge (passage_id --ref_kind--> target_id for source/claim/span). build_passage_evidence_graph loads passages then walks list_knowledge_passage_evidence, emitting one derived_from edge per evidence ref. authority_class hardcoded to 'projection' (line 319).",
+        "Spec alignment confirmed against CURRENT v02.194 02-system-architecture.md:2706 (MemoryPassage derived from sources and claims) and 2.3.13.11 projection contract (line ~2715: projections MAY carry stable refs into authority but MUST NOT become the only location or mutate/replace authority). Implementation models exactly this: every node/edge carries the authority id it was derived from, authority_class='projection'.",
+        "Real-PG proof: test passage_evidence_graph_and_citation_resolution (tests/knowledge_memory_projection_tests.rs:462-550) creates entity/claim/fact/passage in PostgreSQL via MemoryFixture, calls build_passage_evidence_graph, asserts authority_class=='projection', 1 passage node, 2 evidence edges (claim+span) resolving to the real claim_id and span_id. sub_rule_2 PASS.",
+        "Fixture knowledge_memory_fixtures.rs:1-9 is explicit: 'Real PostgreSQL only. No SQLite, no mocks' via knowledge_pg() managed-PG auto-discovery + full migration chain; setup() returns None (loud SKIP) when PG binaries absent. Supporting fns load_passages_for_workspace/list_passages_citing_claim (passage.rs:32-130) are real sqlx queries over knowledge_memory_passages / knowledge_passage_evidence.",
+        "sub_rule_1 PASS: grep of src/knowledge_memory/ for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'deferred to follow-on'/'pending MT-' returned zero hits on any reachable path.",
+        "Scope/boundary clean: impl commit d39c2d76 touches only the test file; projection.rs was committed with the module scaffold (last hardened by bd468f5a MT-231) and working tree is clean. No /.GOV/, SQLite, or Docker files in scope. Migrations 0240-0243 present with .down.sql counterparts.",
+        "Aside (non-blocking, expected): MT-118.json cites v02.192 anchors and packet paths reference src/.../memory/ while the actual module is src/.../knowledge_memory/ -- paperwork drift only; the code and spec resolve correctly under v02.194."
+      ],
+      "evidence_checked": [
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_memory/projection.rs (lines 1-342)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_memory/passage.rs (lines 32-130)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs (lines 1-639, MT-118 test 462-550)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs (lines 1-90)",
+        "git show --stat d39c2d76; git log for projection.rs (bd468f5a); git status clean",
+        "migrations 0240-0243 (.sql + .down.sql) present",
+        "grep for deferred-live escapes in src/knowledge_memory/ (zero hits)",
+        "Master Spec v02.194 02-system-architecture.md 2.3.13.11 + 2.3.13.11.1 (projection contract), line 2706 MemoryPassage",
+        "MT-118.json contract + packet.json forbidden-paths",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

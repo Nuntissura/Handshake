@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-239-UserManualFreshnessFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T23:46:27.464Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-239.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-224535",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T23:46:27.464Z",
     "ready_for_validation_reason": "UserManual freshness now detects same-count page child-row tampering and reseed heals the drift using real PostgreSQL evidence; targeted compile, formatting, API regression, KB ready checklist, and adversarial review passed.",
     "evidence": [
@@ -131,7 +131,52 @@
         "result": "PASS",
         "summary": "Read-only adversarial review found no blocking MT-239 findings. It confirmed freshness and reseed both use the same child-row comparison, the new fixture uses real PostgreSQL and proves the false-PASS state, and residual anchor/position/LIST_CAP concerns are non-blocking validation risks."
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-239 requires a real-PostgreSQL UserManualFreshnessFixture proving freshness rejects a false-PASS state where stored child rows drift without changing the page row hash or row count, and that reseed heals it. The code implements exactly this: freshness.rs and upsert_page share page_child_rows_match_seed, so a same-count section title/body tamper now yields stale_content and reseed rewrites the mismatched child rows. Proof is a real managed-PostgreSQL fixture, not mock-only.",
+      "findings": [
+        "freshness.rs:147-165 — when a page row's content_hash matches the seed, check_freshness now still calls store.page_child_rows_match_seed and emits StaleContent when child rows differ despite a matching page hash. This is the core false-PASS fix and matches the MT scope verbatim.",
+        "store.rs:309-329 — upsert_page early-returns changed=false ONLY when both stored_hash==content_hash AND page_child_rows_match_seed is true; otherwise it transactionally DELETEs+reINSERTs sections/anchors (lines 383-428). Detection and healing use the identical comparison, so reseed cannot leave drift that freshness still flags.",
+        "store.rs:203-216 section_rows_match_seed compares length, position, section_kind, title, body_md, body_json content (not just count) — so the same-count title/body tamper in the fixture is genuinely detected, not a count heuristic. anchor_rows_match_seed (218-239) compares the full anchor key set.",
+        "tests/user_manual_freshness_fixture_tests.rs:16-107 — fixture uses real PostgreSQL via knowledge_pg_support, asserts clean.fresh first, raw-SQL UPDATEs user_manual_sections title/body_md in place, asserts the page content_hash AND section COUNT are unchanged after tamper (66-74), then asserts !stale.fresh with a StaleContent verdict for the page slug, then ensure_seeded heals (pages_changed>=1) and restores original title/body. This is exactly the negative/false-PASS + stale-state coverage the MT constraints demand.",
+        "tests/knowledge_pg_support.rs — proof path is real Handshake-managed PostgreSQL (managed_postgres::ManagedPostgres::ensure_running) or operator PG URL; explicit 'NO SQLite, in-memory, or mock fallback'; absent binaries return None -> SKIP, every other failure panics. Satisfies the PostgreSQL/EventLedger durable-authority duty.",
+        "seed.rs:1809-1822 ensure_seeded drives upsert_page per page and counts pages_changed, the exact path the fixture's heal assertion exercises. No mock seam.",
+        "No reachable placeholders: grep of store.rs/freshness.rs/fixture for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred'/'pending MT-'/*Unavailable returned nothing.",
+        "lifecycle.claimed_by=KERNEL_BUILDER-20260614-224535, completed_by=null, status=READY_FOR_VALIDATION — not a self-certified COMPLETED, so sub_rule_3 is satisfied; the implementer correctly handed off rather than signing the gate transition.",
+        "Aside (non-blocking, per ground rules): lifecycle.implementation_commit is not populated; the change is carried in checkpoint commit c49afb7f. This is paperwork drift only and does not affect code correctness."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-239.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/user_manual/freshness.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/user_manual/store.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/user_manual/seed.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/user_manual_freshness_fixture_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-224535",

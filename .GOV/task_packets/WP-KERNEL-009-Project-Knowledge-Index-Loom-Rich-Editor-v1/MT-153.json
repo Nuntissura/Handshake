@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-153-BrokenEmbedRepairState",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-153.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -108,6 +108,55 @@
       ],
       "claim_mismatches": [],
       "missing_tests": []
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-153 (BrokenEmbedRepairState) requires rendering missing media/link/embed targets as repairable broken nodes with backend repair actions, PostgreSQL-backed. The code delivers a typed embed model, a real path-rejecting and repair-state-pair CHECK migration, storage methods for the broken/ok transition and broken queue, and HTTP endpoints (list broken queue + repair with receipt), all proven against Handshake-managed PostgreSQL. PASS_V2.",
+      "findings": [
+        "Model: embed.rs:231-288 defines EmbedRepairAction (Relink/Reresolve/Remove) and BrokenEmbedRepair carrying block_id, the failed target, a reason, and available_actions -- the required repairable-node data. Unit test embed.rs:432-446 asserts all 3 actions offered.",
+        "Migration: migrations/0281_knowledge_document_embeds.sql creates knowledge_document_embeds with repair_state DEFAULT 'ok' CHECK IN ('ok','broken'), paired CHECK ((repair_state='broken') = (repair_reason IS NOT NULL)), a path-rejecting ref_value CHECK, a partial broken-row index, and schema-registry registration. Real durable PG authority, no SQLite.",
+        "Storage: storage/knowledge.rs:5553-5578 set_knowledge_document_embed_repair_state (Some(reason)->broken, None->ok) and :5635-5648 list_knowledge_document_broken_embeds (WHERE repair_state='broken'). Real sqlx against the PG pool.",
+        "API: api/knowledge_documents.rs:1291-1312 list_broken_embeds (returns broken_embeds + available_actions) and :1316-1348 repair_embed (POST embeds/:embed_id/repair, permission-gated DocumentAction::Write, emits a KnowledgeRichDocumentSaved receipt). Routes at :95-100.",
+        "REAL-PG PROOF (sub-rule 2): tests/knowledge_document_model_tests.rs:271-364 (embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable) runs on Handshake-managed PostgreSQL via knowledge_pg_support.rs (explicit: NO SQLite, in-memory, or mock fallback; managed cluster, isolated schema, real migrations). Inserts an ok embed, marks it broken, asserts the broken queue returns it, repairs to ok, asserts the queue empties; also proves the DB CHECK rejects an absolute-path ref_value.",
+        "SUB-RULE 1: no deferred-live escapes; grep found no todo!/unimplemented!/unreachable!/pending-MT/*Unavailable on the live path; the only placeholder hit is a doc-comment describing the editor repairable-placeholder UI node (intended feature).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md (block documents with embeds, Raw/Derived/Display separation) is consistent with typed embed refs and broken state as repairable data.",
+        "Adversarial-v2 LOW: broken-embed queue is not auto-populated by scanning content_json on save. Hardening refinement, not a fail-level gap: MT-required behavior is fully implemented and real-PG proven, and the repair API can mark any embed broken by id.",
+        "Aside (non-blocking, expected): packet cites v02.192/v02.193 vs current v02.194; paperwork drift is not a failing reason."
+      ],
+      "evidence_checked": [
+        "MT-153.json",
+        "packet.json",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "src/backend/handshake_core/src/knowledge_document/embed.rs",
+        "src/backend/handshake_core/migrations/0281_knowledge_document_embeds.sql",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5553-5648",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs",
+        "src/backend/handshake_core/tests/knowledge_document_model_tests.rs:270-364",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "git show --stat b506d832",
+        "spec master-spec-v02.194/02-system-architecture.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

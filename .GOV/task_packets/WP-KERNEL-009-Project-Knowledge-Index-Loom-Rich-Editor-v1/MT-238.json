@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-238-RetrievalTraceReplayFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T02:56:03.330Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-238.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260614",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "implementation_worktree": "wtc-kernel-009",
     "evidence": [
@@ -130,7 +130,52 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260614",
-    "ready_for_validation_at_utc": "2026-06-14T02:56:03.330Z"
+    "ready_for_validation_at_utc": "2026-06-14T02:56:03.330Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-238 (RetrievalTraceReplayFixture) requires proving a ContextBundle can be reconstructed from a persisted RetrievalTrace, QueryPlan, sources, spans, and EventLedger receipts on durable PostgreSQL authority, with negative fixtures. The code delivers a real, fully-implemented replay function plus a 7-test suite against Handshake-managed real PostgreSQL with fail-closed negative cases; it aligns with current Master Spec 2.3.13.11.",
+      "findings": [
+        "storage/knowledge_retrieval.rs:177-325 replay_context_bundle_from_trace is a real implementation: loads the durable knowledge_retrieval_traces row (get_trace_by_id, raw SQL :327-355), the bundle+items, deserializes typed QueryPlan/RetrievalTrace from decisions JSONB, validates query_plan_id linkage and bundle.allowed_context query_plan_id (:215-224), enforces selected==included set equality and candidate-kind matching (:226-274), reconstructs span/source/passage/entity/claim evidence from committed rows (:357-574), and loads two EventLedger receipts with strict event_type/aggregate_type/aggregate_id/run-context validation (get_receipt_event :587-646). Fails closed (StorageError::Validation) on every mismatch.",
+        "Evidence reconstruction is genuinely durable-backed: replay_span_evidence (:401) reads knowledge_spans + knowledge_sources; replay_entity_evidence (:481) resolves graph-edge relationship_id via get_knowledge_edge_by_relationship_id then list_knowledge_edge_span_ids (real knowledge_edges/knowledge_edge_spans), not a fake entity lookup — confirms the evidence summary's graph-edge claim.",
+        "tests/knowledge_retrieval_replay_tests.rs (538 lines, 7 #[tokio::test]) run against Handshake-managed real PostgreSQL: knowledge_memory_fixtures.rs + knowledge_pg_support.rs use ManagedPostgres::ensure_running (port 5544, data dir under Handshake_Artifacts) and db.run_migrations(); header states 'Real PostgreSQL only. No SQLite, no mocks.' skip_if_no_pg! (:36-48) PANICS if PG absent — no silent green.",
+        "Negative fixtures are real and corrupt actual rows via sqlx on a live pool: wrong receipt event_type (:217), trace/bundle workspace drift (:237), missing build_receipt_event_id (:260) and trace_receipt_event_id (:278), aggregate_id mismatch (:311), empty selected (:333), missing ranked candidate (:361) — each asserts expect_err with a specific message. Covers the MT's required negative cases (false PASS, stale state, missing receipts, parallel-write/workspace conflicts).",
+        "compiler.rs:250-282 records RetrievalCandidate rows for admitted candidates when the executor did not already provide them, with .any() dedup guard (:256-258) — matches the evidence summary fixing the prior selected-candidate false-green.",
+        "No placeholders/escapes: grep for todo!/unimplemented!/unreachable!/Unavailable/'not yet wired'/'pending MT-' across the three files returned zero hits. No forbidden deps (sqlite/elasticsearch/opensearch/meilisearch/typesense/docker/redis/valkey) present.",
+        "Current Master Spec v02.194 section 2.3.13.11 (02-system-architecture.md:2694-2706) requires RetrievalTrace as 'a replayable record' on PostgreSQL/EventLedger authority — the MT proof exercises exactly this.",
+        "Non-blocking paperwork aside: lifecycle.implementation_commit is null; work is folded into broad checkpoint commit c49afb7f rather than an MT-238-named commit. Expected during governance wind-down; not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-238.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_retrieval.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/compiler.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (grep)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-MT238",

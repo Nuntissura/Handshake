@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-138-RetrievalTraceModel",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-138.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "c5bac6ec",
@@ -118,6 +118,51 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "Persistence validates the plan, derives non-empty mode_reason (DB CHECK) + decisions JSON; replay round-trip proven (pipeline_tests:66 decisions[query_plan][plan_id] + retrieval_mode)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-138 RetrievalTraceModel requires persisting a QueryPlan + RetrievalTrace (with explicit retrieval mode and non_hybrid_reason) into PostgreSQL/EventLedger as a durable, replayable trace. The committed code (storage/knowledge_retrieval.rs + knowledge_retrieval/plan.rs) implements exactly that against the real committed knowledge_retrieval_traces table (migration 0141) with EventLedger receipt linkage, and is proven by real schema-isolated PostgreSQL round-trip + replay tests including negative cases.",
+      "findings": [
+        "storage/knowledge_retrieval.rs:93-162 record_retrieval_trace persists a QueryPlan+RetrievalTrace into the committed knowledge_retrieval_traces row: it calls plan.validate() (line 103, fail-closed on non-hybrid-without-reason A0.5 invariant), derives retrieval_mode via storage_mode_of (one of the five spec strings), non-empty mode_reason from trace.mode_reason(), and full replayable decisions JSONB via trace.to_decisions_json(plan), then appends a KnowledgeRetrievalTraceRecorded EventLedger event and links trace_receipt_event_id. This is the exact MT scope.",
+        "knowledge_retrieval/plan.rs:198-202 validate() enforces the spec invariant (retrieval_mode != hybrid_rag MUST carry non_hybrid_reason); plan.rs:338-364 mode_reason() is structurally never-empty (unit-tested mode_reason_is_never_empty at plan.rs:435). Matches DB CHECK on mode_reason. Mode set = none/direct_load/exact_lookup/graph_traversal/hybrid_rag/passage_fallback per constraint.",
+        "Real-PG proof is genuine: tests/knowledge_retrieval_replay_tests.rs uses MemoryFixture::setup() -> knowledge_pg() (real schema-isolated PostgresDatabase, pool connect to schema_url, real migrations, real source/span/entity rows in knowledge_memory_fixtures.rs:43-119). Test replay_context_bundle_from_trace_reconstructs_plan_evidence_and_receipts (line 133) round-trips a stored trace back into bundle+plan+evidence+EventLedger receipts and asserts aggregate_type/aggregate_id/run-context; skip_if_no_pg! macro panics (no silent skip). Negative cases at lines 254/296/327 prove fail-closed on missing receipts, aggregate-id mismatch, and missing selected items.",
+        "Sub-rule 1 PASS: no todo!/unimplemented!/unreachable!/*Unavailable/deferred-live escape reachable from the MT path. The only 'stub' tokens are descriptive comments preserving folded research-stub intent (e.g. knowledge_retrieval.rs:741, planner.rs:21), not live placeholders.",
+        "Sub-rule 2 PASS: every durable resource the MT names (knowledge_retrieval_traces table mig 0141, kernel_event_ledger, knowledge_context_bundles, span/source/passage/entity/claim rows) is touched by real PostgreSQL proof through Handshake-managed PostgresDatabase, not implementer mocks. No SQLite/in-memory anywhere in this surface (grep clean).",
+        "Prior adversarial LOW finding (build_plan did not call validate() despite comment) was remediated in commit a46b9e6b; persistence remains the authoritative fail-closed gate at knowledge_retrieval.rs:103. Self-cert sub-rule NA: no ACP lifecycle claimed_by/completed_by transition in play (direct code inspection).",
+        "Aside (non-blocking, expected per ground rules): packet/MT spec_anchors cite v02.192 and plan.rs comment cites 2.3.14/v02.178; the unified-surface section numbers resolve in current v02.194. Paperwork-only, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-138.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show c5bac6ec (impl commit) + git log --grep MT-138 (a46b9e6b hardening)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_retrieval.rs (full, 839 lines)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/plan.rs (validate/mode_reason/to_decisions_json + unit tests)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_retrieval_replay_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs (real-PG fixture)",
+        "migrations 0141 + 0260 presence; SQLite grep (clean)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

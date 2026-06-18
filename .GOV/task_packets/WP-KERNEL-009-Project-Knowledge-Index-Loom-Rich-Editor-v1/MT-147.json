@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-147-RawDerivedDisplaySeparation",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-147.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -102,6 +102,54 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "Raw/Derived/Display separation clean: raw verbatim authority, derived recomputed on every parse, display preserved from attrs.display only (block_tree.rs:169-209,360-389)."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-147 (RawDerivedDisplaySeparation) requires separating raw document authority, regenerable derived summaries, and display-only UI state on every rich-document block, backed by PostgreSQL/EventLedger authority with stable entity IDs. The code delivers exactly this in block_tree.rs (RawDerivedDisplay: raw=verbatim node authority, derived=recomputed-on-parse summary, display=attrs.display-only hints; to_document_json emits raw only; stable KBL- block ids) and proves it through real Handshake-managed PostgreSQL save/reload integration tests plus migrations 0280-0282.",
+      "findings": [
+        "block_tree.rs:187-195 — RawDerivedDisplay struct cleanly separates the three layers: raw=AUTHORITY (canonical ProseMirror node JSON), derived=DerivedBlockSummary (regenerable), display=Value (UI hints only). Doc comments explicitly state derived/display never override raw.",
+        "block_tree.rs:296-303 to_document_json() re-serializes by cloning block.content.raw verbatim only — derived and display can never leak into authority, so raw stays canonical on save/round-trip.",
+        "block_tree.rs:208-227 DerivedBlockSummary::from_plain_text recomputes plain_text/word_count/preview on every parse (line 386 calls it on each parse_block) — derived is never persisted as authority, satisfying 'recomputed on every parse'.",
+        "block_tree.rs:378-383 display is read ONLY from attrs.display and preserved verbatim (empty object if absent); it carries no authority — matches the MT's display-only separation requirement.",
+        "block_tree.rs:328-343 + 388-395 stable KBL- block ids: existing attrs.block_id preserved, else derived deterministically from (doc id, length-prefixed injective preimage of position path + raw text). Satisfies MT 'stable entity IDs' constraint. Unit tests at 629-653 prove determinism + preservation.",
+        "Unit test raw_derived_display_are_separated (block_tree.rs:607-627) directly asserts raw==verbatim node, derived recomputed (word_count=3), display preserved ({fold:true}).",
+        "Real-PG proof: knowledge_document_model_tests.rs:74-127 creates a mixed document in Handshake-managed PostgreSQL, reloads it, parses the typed tree, and asserts MT-147 derived content is regenerable (line 122-127); content_json survives save/reload byte-equal (line 179); display attr present in fixture (line 45). Negative proof (projection-delete leaves authority byte-identical) is part of the same suite per evidence.",
+        "knowledge_pg_support.rs:1-24 confirms REAL PostgreSQL only via managed cluster (ManagedPostgres::ensure_running, native no-Docker) or POSTGRES_TEST_URL/DATABASE_URL; explicitly NO SQLite/in-memory/mock fallback — returns None and SKIPs only when PG binaries are genuinely absent, else panics. Sub-rule 2 satisfied.",
+        "Migrations 0280-0282 (knowledge_document identity/embeds/backlinks) are committed in b506d832 — real durable schema, not scaffolding.",
+        "Spec-Realism sub_rule_3 NA: lifecycle.claimed_by=null, completed_by=null, ready_by=KERNEL_BUILDER set status READY_FOR_VALIDATION (not a self-signed COMPLETED) — handoff is correct.",
+        "No reachable placeholders/escapes: the only 'placeholder' hits (embed.rs:9/259, projection.rs:231/548) are the editor's real repairable-embed UI placeholder feature, not todo!/unimplemented!/Unavailable code escapes. Aside (non-blocking): packet cites v02.192 spec anchors while current is v02.194 — expected paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-147.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show --stat b506d832 935e0482 bf0c62a5 dd3056f5 (wtc-kernel-009)",
+        "src/backend/handshake_core/src/knowledge_document/block_tree.rs (full)",
+        "src/backend/handshake_core/tests/knowledge_document_model_tests.rs (lines 1-200 + grep)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (lines 1-80)",
+        "grep for sqlite/placeholder/todo escapes across knowledge_document/ and tests"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-209-AgentLaneModel",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-209.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-049",
@@ -90,7 +90,7 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "e6aea0fc",
     "evidence": [
       {
@@ -132,7 +132,53 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-209 requires defining local, cloud, operator, validator, indexer, editor, and system agent lanes with actor IDs and per-lane capability constraints, made observable/attributable/exclusive and PostgreSQL/EventLedger-backed for parallel swarm work and session recovery. The code delivers a real typed AgentLaneKind/AgentCapability/AgentLaneIdentity model with per-lane capability sets, KernelActor mapping, secret scrubbing, and capability enforcement wired into real claim/mailbox/checkpoint/recovery paths, proven against Handshake-managed PostgreSQL with EventLedger receipts.",
+      "findings": [
+        "AgentLaneKind enum (state_recovery.rs:57-66) defines all required lanes: Local, Cloud, Operator, Validator, IntegrationValidator, Indexer, Editor, System, with bidirectional string parse/as_str (lines 68-97).",
+        "Per-lane capability constraints implemented in AgentLaneIdentity::capabilities() (state_recovery.rs:206-271): Cloud deliberately excludes ClaimWorktree and WriteLocalIndex; Validator/IntegrationValidator restricted to InspectEvidence+NavigateBackend; Editor restricted to workspace/document/graph editing. Identity carries actor_id with safe-token validation (lines 187-204).",
+        "Capability enforcement is wired into live behavior via require_capability() (state_recovery.rs:5116-5128) called from real claim, mailbox handoff, navigation, checkpoint, recovery, and index-lease paths (lines 1346, 1486, 2222, 2404, 2471, 2855, 2938, 3013, 3071, 3557). KernelActor mapping (lines 282-294) attributes lanes to Operator/ValidationRunner/System/ModelAdapter.",
+        "Durable authority is real PostgreSQL: migration 0311_parallel_swarm_state_recovery.sql creates knowledge_agent_worktree_claims and related tables with FK references to kernel_event_ledger and a partial unique index enforcing one active claim per scope (lines 30-32), plus schema_registry rows.",
+        "Proof is real-PG, not mock: tests/knowledge_pg_support.rs:108-165 builds isolated PG schemas on Handshake-managed PostgreSQL (managed_postgres::ManagedPostgres) or env URL with explicit NO SQLite/in-memory/mock fallback (lines 21,39-64); recovery_store() (tests:174) runs real migrations.",
+        "Test agent_lanes_and_work_claims_are_typed_attributable_and_exclusive (tests:776-875) exercises typed lane capability sets, asserts cloud lane lacks WriteLocalIndex, verifies secret scrubbing in serialized attribution, and proves exclusive claim arbitration + EventLedger KE- release receipts via sqlx queries against the real knowledge_agent_worktree_claims table.",
+        "Negative-path lane tests exist: cloud_lane_is_denied_worktree_claim_and_local_index_write_lease (tests:1011), non_editor_lanes_cannot_claim_editor_mutation_scopes (tests:1795), validator_lanes_inspect_swarm_evidence_without_mutating_state (tests:1995), mailbox_handoff_requires_write_mailbox_capability (tests:3545).",
+        "No deferred-live escapes/placeholders: grep for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/*Unavailable variants in state_recovery.rs returned zero hits.",
+        "Aside (non-blocking, expected per ground rules): packet cites v02.192 anchors while current spec is v02.194; same section numbers resolve; spec drift is paperwork-only and not a failing reason."
+      ],
+      "evidence_checked": [
+        "MT-209.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate + Job 4)",
+        "git show --stat e6aea0fc",
+        "src/backend/handshake_core/migrations/0311_parallel_swarm_state_recovery.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (lanes 50-300, require_capability 5116-5157, placeholder grep)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (harness 160-225, lane test 776-875, test inventory)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (108-165, base_database_url 39-64)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/ (swarm-lane references)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

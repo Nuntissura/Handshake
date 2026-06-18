@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-167-MonacoWorkerBundling",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-167.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "953a1453",
@@ -121,6 +121,54 @@
         "worker-only failure (editor mounts, ts worker dies) keeps editing usable and flags language services degraded",
         "websocket/eventsource channels included in the zero-external assertion"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-167 requires bundling Monaco workers under Handshake packaging and proving offline/local startup with no external/CDN worker routing. The code delivers a real, focused language-to-bundled-worker binding layer on top of genuine Vite ?worker bundling infrastructure and a real dist scanner; its 4 tests pass live and it aligns with current Master Spec EDIT-BND-003.",
+      "findings": [
+        "Commit 953a1453 adds only 2 files (app/src/lib/monaco/worker_bundling.ts + .test.ts, 97 lines) under allowed_path app/src; no .GOV/, no forbidden SQLite/Docker/CDN/external-search paths touched. Scope and boundary clean.",
+        "worker_bundling.ts:24-52 is real pure logic: workerKindForLanguage delegates to workerKindForLabel (worker_map.ts), languagesWithUnbundledWorker() filters HANDSHAKE_CODE_LANGUAGE_IDS for any language not resolving to a BUNDLED_MONACO_WORKER_KINDS kind. No placeholders/escapes.",
+        "Underlying offline-bundling proof is real, not mock: setup.ts:14-18 imports every Monaco worker via Vite ?worker (editor/json/css/html/ts), setup.ts:49-67 constructs them through a typed dependency-failure path; the *Unavailable shape here is a real failure report, not a deferred-live stub.",
+        "scripts/lib/worker_bundling_scan.mjs scanWorkerBundleTree walks the REAL built dist, detects external worker loads + CDN refs, and asserts REQUIRED_MONACO_WORKERS chunks exist (worker_bundling_scan.mjs:10,78-87). frontend_worker_bundling.test.ts proves the scanner catches new Worker(\"https://...\") / importScripts CDN hits in negative fixtures — adversarial, not self-confirming.",
+        "Verified live: npx vitest run worker_bundling.test.ts -> 4/4 passed against current code (5ms). Tests assert every curated language (rust/python/go/sql/powershell/plaintext -> editor; ts/js/json/css/html -> dedicated) binds to a bundled kind and languagesWithUnbundledWorker() === [].",
+        "Spec alignment: current Master Spec v02.194 10-product-surfaces.md EDIT-BND-003 (Workers) MUST correctly route Monaco web workers and avoid network fetches at runtime for Monaco assets — MT-167 + the bundling stack directly serve this clause.",
+        "Spec-Realism: sub_rule_3 N/A-clean (claimed_by/completed_by both null; status READY_FOR_VALIDATION, no self-cert). sub_rule_2 satisfied by frontend-bundling contract proof (no PostgreSQL/EventLedger durable-state claim in this MT, so PG proof not required).",
+        "Aside (non-blocking): adversarial_review_v2 LOW findings (per-code-block degraded-language indicator; websocket/eventsource not in zero-external assertion) are real minor hardening notes, not MT-blocking. Stale-paperwork concerns ignored per ground rules."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-167.json",
+        "git show 953a1453 (wtc-kernel-009)",
+        "app/src/lib/monaco/worker_bundling.ts",
+        "app/src/lib/monaco/worker_map.ts",
+        "app/src/lib/monaco/setup.ts",
+        "app/src/lib/monaco/language_registry.ts",
+        "app/scripts/lib/worker_bundling_scan.mjs",
+        "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+        "live: npx vitest run src/lib/monaco/worker_bundling.test.ts (4/4 PASS)",
+        "SPEC_CURRENT.md (v02.194) + spec-modules/10-product-surfaces.md EDIT-BND-003",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

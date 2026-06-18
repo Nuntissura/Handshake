@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-224-ParallelSwarmUserManualPatch",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-13T04:06:02.251Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-224.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260613",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "93bb6c5e",
     "evidence": [
       {
@@ -150,7 +150,53 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260613",
-    "ready_for_validation_at_utc": "2026-06-13T04:06:02.251Z"
+    "ready_for_validation_at_utc": "2026-06-13T04:06:02.251Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-224 adds a parallel-swarm operation/recovery section to the PostgreSQL-seeded state-recovery-guide UserManual page, naming live state_recovery.rs runtime symbols and live MT-223 negative-recovery proofs, with a test that reads the page back from real Postgres and cross-checks every named symbol/test against actual source. The code implements exactly what the MT requires with real DB-backed proof; PASS.",
+      "findings": [
+        "seed.rs (commit 93bb6c5e, ~lines 1183-1245): new section_with_json 'Parallel swarm operation and recovery' added to page_state_recovery_guide, carrying body_md naming 11 live symbols + 4 negative tests and body_json with runtime_symbols/negative_case_tests/authority arrays. Real change; rest of diff is rustfmt reformatting (non-load-bearing).",
+        "All 11 named runtime symbols are real pub definitions in src/swarm_orchestration/state_recovery.rs: AgentLaneIdentity (struct L180), claim_work_surface (L1340), project_swarm_dashboard (L1598), record_quiet_background_work (L2201), resolve_backend_navigation_quiet (L2286), record_role_mailbox_handoff (L2400), record_checkpoint (L2851), recover_from_checkpoint (L2932), build_handoff_compression_template (L3009), enqueue_indexing_lease (L3065), try_acquire_indexing_lease (L3114). No invented anchors.",
+        "All 4 cited negative-recovery proofs exist in tests/parallel_swarm_state_recovery_tests.rs (mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts, mt223_quiet_receipt_failure_rolls_back_index_run_and_lease, mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer, mt223_restart_after_crash_reconstructs_swarm_state_from_postgres).",
+        "New test mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols (user_manual_content_tests.rs L483+) uses skip_if_no_pg! + knowledge_pg() which builds a real isolated PostgreSQL schema and runs migrations (knowledge_pg_support.rs L104-145), ensure_seeded() seeds real DB, then get_page_by_slug() reads the authority row back including persisted body_json column (store.rs L57/146/497). Real Handshake-owned PostgreSQL resource touch, not a mock the implementer authored.",
+        "Code-truth binding: the test greps the actual state_recovery.rs source and parallel_swarm_state_recovery_tests.rs for every named symbol/test, so manual<->runtime drift fails the test rather than rotting silently.",
+        "Both linked pages resolve: backend-navigation-and-identity is an explicit slug; quickstart-state-recovery is generated via format!(\"quickstart-{area}\") with 'state-recovery' in the areas list (seed.rs L1392/1402/1502). No orphan/dangling page link.",
+        "sub_rule_1: no todo!/unimplemented!/unreachable!/*Unavailable/'pending MT-'/'deferred' placeholders in seed.rs or the test on the required path.",
+        "sub_rule_3: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260613 -> no implementer/signer collision, and proof is real regardless.",
+        "Aside (non-blocking, expected): post-commit auto-relay hook could not locate the official packet for WP-KERNEL-009 (evidence note) - paperwork/runtime-route concern only, not a code defect."
+      ],
+      "evidence_checked": [
+        "git show --stat / git show 93bb6c5e (impl commit)",
+        "src/backend/handshake_core/src/user_manual/seed.rs (MT-224 section, page_link helper, all_slugs, quickstart_pages format! slug)",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (11 symbol definitions via grep -nE)",
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs (4 negative tests present)",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs (mt224 test, PathBuf import)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (real isolated-schema PostgreSQL fixture)",
+        "src/backend/handshake_core/src/user_manual/store.rs (get_page_by_slug, body_json persisted column)",
+        "MT-224.json contract + WP_VALIDATOR_PROTOCOL Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-SWARM-MT224",

@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-085-ExtractionReceiptModel",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:58:58.290Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-085.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "ce857886",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ce857886; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -123,7 +123,55 @@
     },
     "evidence": [
       "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-085 requires a typed ExtractionReceiptModel for every extraction attempt (success/partial/unsupported/no-text-layer/OCR/operator-repair) with PostgreSQL/EventLedger authority, anchored to Master Spec 2.3.13.11 KnowledgeSource last-index receipt. The committed code implements a real, durable, PostgreSQL-backed receipt model with typed status + 10 typed error classes, app-side and DB-side shape CHECKs, EventLedger receipt binding, and per-source rollup advancement, proven by real-managed-PG integration tests (no SQLite, no mocks).",
+      "findings": [
+        "receipts.rs:19-129 defines ExtractionStatus (success/partial/failed/deferred/skipped/blocked) and IngestionErrorClass with the exact MT-085 vocabulary (UNSUPPORTED_FORMAT, NO_TEXT_LAYER, OCR_NEEDED, ...) plus repairability classification (is_repairable excludes UnsupportedFormat/SecretBlocked) feeding the MT-094 repair queue.",
+        "receipts.rs:171-199 NewExtractionReceipt::validate() pre-validates shape app-side: non-empty extractor id/version, success<=>no error_class, non-success<=>error_class, non-negative counts.",
+        "migration 0162 (shown from commit ce857886) creates knowledge_ingestion_receipts in real PostgreSQL with matching CHECK constraints (chk_*_error_shape, chk_*_success_shape, count >=0, id/hash regex, btrim extractor) and a receipt_event_id FK to kernel_event_ledger(event_id) ON DELETE RESTRICT; registers the table as authority in knowledge_schema_registry with mt_id MT-085.",
+        "store.rs:263-333 record_extraction_receipt / list_extraction_receipts / get_extraction_receipt are real sqlx queries binding all 15 columns against the live pool (self.pool) -- genuine PostgreSQL persistence, not mock.",
+        "Real-PG proof: tests/knowledge_ingestion_pipeline_tests.rs:111-198 (mt085_mt090...) persists a receipt, asserts typed Success/no error_class/extractor identity, then opens env.pg.raw_connection() and queries kernel_event_ledger by receipt_event_id to confirm the receipt is bound to a replayable ledger event carrying actor/session/correlation, and asserts the per-source rollup (parser_status, extraction_status, last_index_receipt_event_id) advanced per spec 2.3.13.11. Harness (knowledge_ingestion_support.rs:4) is explicitly real Handshake-managed PostgreSQL, full migration chain, no SQLite, no mocks.",
+        "Sub-rule 1: no todo!/unimplemented!/unreachable!/'not yet wired'/'deferred'/'pending MT-'/*Unavailable placeholders reachable on the receipt path (grep clean on receipts.rs + store.rs).",
+        "Sub-rule 2: durable receipt + EventLedger authority is exercised against the real Handshake-native PostgreSQL implementation, not implementer-authored mocks.",
+        "Sub-rule 3: lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323, completed_by=null, status READY_FOR_VALIDATION -- no self-certified COMPLETED.",
+        "Prior adversarial concern (nullable receipt_event_id allowing a ledger-less receipt to bypass the receipt law) was actually hardened: migration 0211 backfills any legacy NULL via a synthetic ledger event then SET NOT NULL on receipt_event_id (and repair-queue enqueue_event_id), with a matching .down.sql relaxing it -- so 'every receipt has a ledger receipt' is now schema-enforced, matching spec 2.3.13.11's mutation-receipt law.",
+        "Aside (non-blocking): MT contract cites v02.192 spec path; resolved against current v02.194 where section 2.3.13.11 KnowledgeSource/last-index-receipt content is present and consistent."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-085.json",
+        "git show ce857886 (stat + migration 0162)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/receipts.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/store.rs:255-345",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0211_*.sql + .down.sql",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs:111-198 (+ grep of receipt usage across pipeline tests)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs header (real-PG, no-SQLite)",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2721 (2.3.13.11)",
+        "wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

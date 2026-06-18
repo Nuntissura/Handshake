@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-235-MonacoWorkerOfflineFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-15T00:17:30.321Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-235.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,14 +88,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-235740",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-15T00:17:30.321Z",
     "ready_for_validation_reason": "MT-235 Monaco worker offline fixture hardening implemented: missing-worker false-PASS fixture fails closed; real offline browser proof now proves editor, ts, json, css, and html Monaco worker chunks are loopback-served from built Handshake assets with no external requests; worker-bundling build scan and dependency-policy gate pass; adversarial product review found no blocking product-code issues.",
     "evidence": [
@@ -168,7 +168,55 @@
         "product_verdict": "PASS",
         "governance_note": "Reviewer product findings found no blocking product-code issues. Reviewer flagged governance closeout because MT-235 was still CLAIMED and exact files/evidence were not yet recorded; this READY_FOR_VALIDATION update addresses that state/evidence gap without setting completed_by."
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-235 requires proving embedded Monaco web workers load from Handshake's own bundled packaging with no CDN/external server, via negative fixtures plus real offline browser proof. The code delivers exactly that: a fail-closed missing-worker fixture, a loopback-only Playwright proof that boots all five Monaco worker chunks from local built assets with the network cut and an empty external-request ledger, and a real build-time scanner over actual dist artifacts. It aligns with current Master Spec v02.194 section 10.2.1.3 (route Monaco workers, no runtime network fetch for Monaco assets).",
+      "findings": [
+        "app/src/lib/monaco/setup.ts:265-284 proveBundledMonacoWorkers constructs every bundled Monaco worker kind (editor/ts/json/css/html) through the real MonacoEnvironment.getWorker route; ts gets a real language-service round-trip (proveTypescriptWorkerRoundTrip, 225-246). No placeholder/fake return.",
+        "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts:256-277 negative fixture FAILS CLOSED: a dist missing the html worker chunk yields missing_monaco_workers=['html'], proving the gate detects a missing local worker rather than passing falsely. Companion positive case (279-299) asserts zero external_worker_refs/cdn_hits.",
+        "tests/dependency_policy/offline_editor_load.spec.ts is a REAL Playwright browser proof: serves built app/dist-harness over loopback 127.0.0.1 (serveDistHarness, 42-65), aborts+records every non-loopback request (91-100), asserts each of editor/ts/json/css/html worker chunks was served from loopback (178-191), ts worker responded (114), and externalRequests===[] (194). This is the offline guarantee the MT demands.",
+        "app/scripts/check-worker-bundling.mjs:80-138 runs the REAL pnpm build + build:harness (no mocks/dev server) then scans built JS for external worker loads, CDN hits, split-host CDN evasion, single-occurrence caps, and required-chunk presence; exit 0 only when all assertions hold. MT-026 stray-write boundary proof included.",
+        "Current Master Spec v02.194 spec-modules/10-product-surfaces.md section 10.2.1.3 (lines 372-380) requires correctly routing Monaco web workers and avoiding runtime network fetches for Monaco assets; MT-235 proof maps directly to that requirement.",
+        "Sole deferred-escape grep hit is the word 'stubs' in setup.ts:212, an accurate comment about monaco-editor's own editor.api.d.ts type definitions, not a placeholder on a live path.",
+        "Aside (non-blocking, expected): MT contract carries WP-wide boilerplate constraints about PostgreSQL/EventLedger durable authority; this MT makes no durable-authority claim, so no PG proof is owed — frontend offline-bundling correctly proven via real build round-trip + loopback IPC."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-235.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009/app/src/lib/monaco/setup.ts",
+        "wtc-kernel-009/app/src/lib/monaco/worker_map.ts",
+        "wtc-kernel-009/app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+        "wtc-kernel-009/app/src/harness/dependency_policy_harness.tsx",
+        "wtc-kernel-009/tests/dependency_policy/offline_editor_load.spec.ts",
+        "wtc-kernel-009/app/scripts/check-worker-bundling.mjs",
+        "wtc-kernel-009/app/scripts/lib/worker_bundling_scan.mjs",
+        "wtc-kernel-009/app/scripts/lib/worker_bundling_scan.d.mts",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (sections 10.2.1.3 Monaco bundling)",
+        "git log/status on feat/WP-KERNEL-009"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-235740",

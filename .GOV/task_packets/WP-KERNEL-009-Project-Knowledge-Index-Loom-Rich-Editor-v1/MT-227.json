@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-227-MissingPostgresFailClosedFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-227.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "9915fcfa",
     "evidence": [
       {
@@ -134,7 +134,50 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-227 requires a negative fixture proving core control-plane storage fails closed when PostgreSQL/EventLedger authority is unavailable, with no SQLite fallback. The committed test exercises the real production ControlPlaneStorageConfig::resolve gate across four missing/non-PostgreSQL cases, each asserting an error — real Handshake-native rejection logic, not a mock or placeholder.",
+      "findings": [
+        "Test mt_227_missing_postgres_authority_fails_closed_without_sqlite_fallback at security_portability_validation_tests.rs:377-402 drives four negative cases through the REAL production type handshake_core::storage::ControlPlaneStorageConfig::resolve (imported at line 17), each asserting expect_err — not an implementer-authored mock.",
+        "The four cases map to genuine fail-closed paths in storage/mod.rs:186-217: (None,None,None) -> 'postgres_primary requires DATABASE_URL' (line 204-206); (postgres_primary,true,None) -> same missing-URL error; (postgres_primary,true,sqlite://...) -> 'postgres_primary requires a PostgreSQL DATABASE_URL' (line 207-211, is_postgres_url rejects sqlite://); (sqlite,None,sqlite://...) -> 'unsupported storage mode' via FromStr at storage/mod.rs:159-164.",
+        "No SQLite fallback exists by construction: ControlPlaneStorageMode has exactly one variant PostgresPrimary (storage/mod.rs:133-147), is_postgres_url (line 224-226) only accepts postgres://|postgresql://, and the resolve match arm for PostgresPrimary is the sole branch (line 202-214). This satisfies packet DEC-008 SQLite-forbidden constraint.",
+        "Sub-rule 1 PASS: grep of storage/mod.rs and the test file for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred'/'pending MT-'/*Unavailable placeholder variants returned zero hits.",
+        "Sub-rule 2 PASS: the MT names a config rejection gate, not a live DB connection; the proof touches the real Handshake-owned resolve()/from_env() contract (from_env is wired into production main.rs:66), which is the authoritative durable-storage admission gate. Proving the gate rejects non-PostgreSQL authority is the correct native-runtime proof for a fail-closed fixture; a live PG handshake is not required to prove the closed door.",
+        "Sub-rule 3 PASS: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260612, status=READY_FOR_VALIDATION — not self-certified to COMPLETED.",
+        "Aside (non-blocking, expected): packet cites v02.192 anchors; current spec is v02.194. Fail-closed/PostgreSQL-authority/no-SQLite-fallback is documented across current spec modules (02,03,05) and consistent with the implementation."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-227.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009 git show --stat 9915fcfa",
+        "src/backend/handshake_core/tests/security_portability_validation_tests.rs:1-30,370-402",
+        "src/backend/handshake_core/src/storage/mod.rs:130-332 (ControlPlaneStorageMode, ControlPlaneStorageConfig::resolve/from_env, is_postgres_url, parse_requires_postgres, StorageError)",
+        "src/backend/handshake_core/src/main.rs:66 (from_env wired into runtime)",
+        "grep for placeholder/deferred-live escapes in storage/mod.rs + test file (zero hits)",
+        ".GOV/spec/master-spec-v02.194/spec-modules grep for fail-closed/postgres-authority/no-SQLite"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

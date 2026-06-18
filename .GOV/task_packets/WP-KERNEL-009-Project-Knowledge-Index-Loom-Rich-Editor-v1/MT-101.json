@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-101-ConfigAndSchemaExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T08:16:29.280Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-101.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
     "adversarial_code_review": {
@@ -135,7 +135,55 @@
       "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
       "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
       "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-101 (ConfigAndSchemaExtractor) requires extracting JSON/YAML/TOML/SQL-migration/schema config facts with source spans, persisting them as KnowledgeEntity/KnowledgeSpan/edges in PostgreSQL with EventLedger receipts. The implementation does exactly this with real, non-placeholder code and proves it against managed PostgreSQL; all three prior HARDEN_RECOMMENDED concerns are actually fixed in commit 8b829f96.",
+      "findings": [
+        "config_schema.rs:120-131 extract_config_facts dispatches to real serde_json/serde_yaml parsers (JSON/YAML) and deterministic line scanners (TOML/SQL); pure-data ConfigFact with key_path + 1-based line + byte span. Real logic, no stubs.",
+        "config_schema.rs:163-228: prior adversarial concern (literal-substring locate_key mislocating spans) is FIXED — locate_key now uses structured KeyToken::Json/Yaml. find_json_key requires a quoted key followed by ':'; find_yaml_key requires the leaf to begin a trimmed line and be followed by ':' + whitespace, with prefix/next-char guards against substring collisions (name vs display_name).",
+        "engine.rs:1125-1300 index_config_file writes real durable state through self.db: upsert_knowledge_entity (File entity + per-fact entity), create_knowledge_span (Byte spans), upsert_knowledge_edge (Contains), append_receipt_event (KnowledgeValidationRecorded EventLedger event), record_knowledge_source_index_receipt. Not mock — real PostgresDatabase handle.",
+        "engine.rs:1271-1289: prior concern (config files lacked a knowledge_code_files row -> permanently stale) is FIXED — index_config_file now calls upsert_knowledge_code_file with KnowledgeCodeLanguage::Config, gated by migration 0291 widening the 0170 language CHECK to include 'config' (verified migration content at 0291_knowledge_code_files_config_language.sql:11-16).",
+        "config_schema.rs:384-440: prior TOML concern is FIXED — scanner now skips multiline-array continuation lines (open_array_depth), expands inline tables to dotted keys, keeps dotted bare keys.",
+        "Proof realism: tests/knowledge_code_index_tests.rs mt112 (line 310) and config assertions (481-563) run against real managed PostgreSQL via knowledge_pg() (knowledge_pg_support.rs:108-159 creates an isolated schema, runs the FULL migration chain incl. 0291, connects PostgresDatabase::connect to schema_url). Tests SKIP loudly when PG absent; no SQLite/in-memory substitute. Asserts config:package.json#scripts.build entity, migration table/index entities, schema properties, and one language='config' code-file row per config source (540-563).",
+        "sub_rule_1: grep of config_schema.rs + engine.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow'/'pending MT-'/LiveClientUnavailable/placeholder returned no hits on the live path.",
+        "sub_rule_3: lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323, completed_by=null (status READY_FOR_VALIDATION) — no self-certified COMPLETED transition; spec-realism gate self-cert not triggered.",
+        "Forbidden-tech check: no SQLite, no Docker, no external search/graph/LSP server, no toml crate added (deterministic in-house scanner) — aligns with packet forbidden list and DEC-008.",
+        "Aside (non-blocking, paperwork): MT-101.json cites v02.192 spec anchors while current is v02.194; anchor 2.3.13.11 resolves cleanly in v02.194 (02-system-architecture.md). Not a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-101.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 git commits 5d6490b0, 79e1a7e4, 8b829f96 (--stat + show)",
+        "src/backend/handshake_core/src/knowledge_code_index/config_schema.rs (lines 1-440)",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs (index_config_file 1125-1300, relationships/test-mapping 820-990)",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs (mt112 + config assertions + harness usage)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (knowledge_pg managed-PG harness)",
+        "src/backend/handshake_core/migrations/0291_knowledge_code_files_config_language.sql + 0170 presence",
+        "spec module 02-system-architecture.md anchor 2.3.13.11 in master-spec-v02.194"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

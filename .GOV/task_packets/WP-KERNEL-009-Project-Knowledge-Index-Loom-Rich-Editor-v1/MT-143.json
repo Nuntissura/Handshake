@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-143-RetrievalDebugApi",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-143.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "387a43b2",
@@ -124,6 +124,52 @@
       "missing_tests": [
         "test: a retrieval repair action endpoint exists and records a receipt"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-143 requires backend APIs for retrieval explanation, bundle reproduction, stale-reason, missing-evidence, and repair actions with PostgreSQL/EventLedger authority and real proof. The code delivers all five surfaces over real Axum routes with nav-identity receipts, and the proof is a real-PostgreSQL route-level test that exercises bundle creation, evidence deletion, missing_evidence detection, and repair re-execution.",
+      "findings": [
+        "api/knowledge_retrieval.rs:71-91 wires 5 real Axum routes: GET bundles/:id (explain, returns bundle+items+replayable QueryPlan/RetrievalTrace), GET .../export, GET .../staleness, POST .../repair, GET catalog. This satisfies the MT scope: explanation + reproduction + stale reason + missing evidence + repair actions.",
+        "knowledge_retrieval.rs:147-214 every route requires backend-nav identity headers (actor/session/kernel-task-run/correlation) returning 400 otherwise, and appends a KnowledgeRetrievalTraceRecorded EventLedger receipt. This matches current Master Spec v02.194 02-system-architecture.md:2717 (backend nav calls MUST carry actor/session/correlation/target-ref/typed receipt; no wiki-scraping).",
+        "knowledge_retrieval.rs:309-419 staleness re-checks each bundle item's backing record against the live index (Span/Passage/Source/Claim -> ok|missing_evidence|source_stale; Entity intentionally ok with documented reason at :376-381) and sets bundle stale flag. Real per-item DB lookups via get_knowledge_span/get_knowledge_source/get_knowledge_memory_passage/get_knowledge_claim.",
+        "knowledge_retrieval.rs:429-499 repair re-executes the bundle's RECORDED query (extracted from trace decisions query_plan) through the real execute_retrieval pipeline, producing a fresh persisted bundle+trace linked old->new, retaining the original (append-only). Real executor call, not a stub.",
+        "executor.rs (commit 572bfe42) :158+ correctly populates non_hybrid_reason=NonHybridReason::BoundedExecutorContext on a hybrid-origin plan revised to PassageFallback, and copies it into the trace. This satisfies Master Spec v02.194 02-system-architecture.md:11528 (non-hybrid modes MUST populate non_hybrid_reason) and uses the spec-listed vocabulary value bounded_executor_context (spec:11416/11496). NonHybridReason::BoundedExecutorContext is a real enum variant (memory/retrieval_mode.rs:257).",
+        "tests/knowledge_retrieval_debug_api_tests.rs:151-306 mt143_staleness_surface_and_repair_action is a REAL-PG route-level test: spins the actual retrieval_api::routes Axum app against PostgreSQL (fixture header: 'Real PostgreSQL only. No SQLite, no mocks'), creates a real passage-backed bundle via execute_retrieval, asserts fresh=all-ok/stale=false, then deletes the passage row via raw SQL (:220-232) and asserts stale=true + a missing_evidence item, then POST repair returns a fresh persisted bundle_id != original while original is retained (:271-285), and asserts 400 (no headers) / 404 (ghost bundle). This exercises the Handshake-owned PostgreSQL/knowledge-store contract, not implementer mocks.",
+        "NoopRecorder/NoopLlmClient in the test are peripheral scaffolding for the flight-recorder and llm AppState fields, which the retrieval-debug routes do not use as the resource-under-proof; the durable authority path (knowledge store + postgres_pool + EventLedger receipts) is real. This does not constitute mock-only proof of the MT's claims.",
+        "Aside (non-blocking): MT contract still cites v02.192 anchors and lifecycle paperwork (claimed_by/completed_by null); resolved against current v02.194 per instructions, and paperwork drift is expected and not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-143.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show 387a43b2 and 572bfe42 (impl + hardening commits)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_retrieval.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_retrieval_debug_api_tests.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs (real-PG setup)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_retrieval/executor.rs (non_hybrid_reason fix)",
+        "wtc-kernel-009/src/backend/handshake_core/src/memory/retrieval_mode.rs (NonHybridReason variant)",
+        "spec master-spec-v02.194/spec-modules/02-system-architecture.md:2717, 11416, 11496, 11528 (backend nav + non_hybrid_reason)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

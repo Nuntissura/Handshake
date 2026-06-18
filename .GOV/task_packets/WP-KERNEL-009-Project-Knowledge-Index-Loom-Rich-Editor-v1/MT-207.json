@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-207-UserManualSpecEnrichmentSeed",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T18:22:30Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-207.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T18:22:30Z",
     "ready_for_validation_reason": "Spec enrichment seed UMSPEC-002 now mirrors runtime non-page freshness verdict coverage and recovery semantics; content proof and adversarial review PASS.",
     "evidence": [
@@ -128,7 +128,52 @@
           "subagent:019ec752-383a-7bc3-aee6-26749c59fef6"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-207 prepares a typed, runtime-discoverable UserManual spec-enrichment seed (5 rows, UMSPEC-001..005) grounded in what the MT-193..208 UserManual group actually built, with each seed row's target spec anchor verified to exist and an anchor-existence test enforcing it. The deliverable is real, anchor-accurate, route-wired, and proven green on real PostgreSQL; no placeholders or self-authored-mock proof.",
+      "findings": [
+        "spec_seed.rs:32-110 defines 5 typed SpecEnrichmentSeedRow entries (UMSPEC-001..005), each naming an exact target_module + target_anchor + seed_kind (amend/appendix) + proposed_wording_md grounded in built UserManual surfaces. Not aspirational scaffolding.",
+        "All 5 seed anchors verified present in the CURRENT v02.194 bundle (not just cited v02.193): 10.15.8 UserManual migration bridge (10-product-surfaces.md), 2.3.13.11 (02-system-architecture.md), PRIM-UserManual (12-end-of-file-appendices.md), 7.1.1.9 (07-user-experience-and-development.md). The acceptance criterion 'accepted research ideas restated as Handshake-native requirements / anchor-grounded' holds.",
+        "UMSPEC-002 wording (spec_seed.rs:55-66) lists the full 12-verdict freshness vocabulary that exactly matches the real FreshnessVerdictKind::as_str() enum in freshness.rs:42-70 (current, stale_content, missing_page, uncovered_surface, dangling_anchor, unseeded_version, missing_tool_entry, stale_tool_entry, missing_feature_entry, stale_feature_entry, missing_legacy_alias, stale_legacy_alias). Seed describes actually-built behavior.",
+        "Route is genuinely wired, not stubbed: api/user_manual.rs:68-69 registers GET /usermanual/spec-enrichment-seed; handler at :503-507 returns the real spec_enrichment_seed() rows; surface registered in registry.rs:649. No todo!/unimplemented!/placeholder/deferred markers anywhere in spec_seed.rs or api/user_manual.rs.",
+        "Proof ran green on real PostgreSQL (127.0.0.1:5544, isolated schemas): 'test mt207_spec_seed_anchors_exist_in_current_bundle ... ok' (content suite 12 passed) and 'test mt204_freshness_docs_name_every_verdict_kind ... ok' in the recovery green logs. RED log red-mt204-freshness-docs-verdicts.log shows the test genuinely fails when wording drifts, then green after fix — real RED->GREEN.",
+        "Self-cert: lifecycle.claimed_by=KERNEL_BUILDER, completed_by=null (external validator signs COMPLETED). Not malformed.",
+        "Non-blocking aside (paperwork only, not a fail per brief): the anchor test in user_manual_content_tests.rs:588 hardcodes master-spec-v02.193 while current bundle is v02.194; anchors resolve in both today, so behavior is correct, but the test would SKIP on a future bundle bump. Stale spec pointer is explicitly a non-blocking concern."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/user_manual/spec_seed.rs (full)",
+        "src/backend/handshake_core/src/api/user_manual.rs:42,68-69,503-508",
+        "src/backend/handshake_core/src/user_manual/freshness.rs:42-70",
+        "src/backend/handshake_core/src/user_manual/registry.rs:649-650",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs:579-669",
+        "commit fcf9bce3 (MT-193..208 UserManual group) --stat",
+        "master-spec-v02.194 spec-modules: 10/02/12/07 anchor grep",
+        "Handshake_Artifacts/handshake-test/wp-kernel-009-recovery green-user-manual-content-after-review-fix.log + green-mt204-freshness-docs-verdicts.log",
+        "MT-207.json contract + packet.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-175624",

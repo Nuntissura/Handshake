@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-186-GraphSearchAndFilters",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T21:33:11.562Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-186.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-200747",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "evidence": [
       {
         "at_utc": "2026-06-14T21:33:11.562Z",
@@ -164,7 +164,55 @@
       "state_recovery_recommendation": "Move MT-186 to READY_FOR_VALIDATION."
     },
     "ready_by": "KERNEL_BUILDER-20260614-200747",
-    "ready_for_validation_at_utc": "2026-06-14T21:33:11.562Z"
+    "ready_for_validation_at_utc": "2026-06-14T21:33:11.562Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-186 requires Handshake-native Loom graph search across titles, block text, tags, source kinds, symbols, WPs, MTs, and UserManual pages over PostgreSQL authority. The code delivers a real, complete search_loom_graph implementation querying real PG authority tables, wired to a live Axum route, with a real-PostgreSQL integration test suite that fails closed when PG is absent. No stubs, mocks, or placeholders on the required path.",
+      "findings": [
+        "storage/postgres.rs:7454 search_loom_graph is a real heterogeneous search over real PG authority tables: loom_blocks (via search_loom_blocks), knowledge_entities for symbol/work_packet/micro_task (7544-7637), knowledge_rich_documents for documents (7642-7748), user_manual_pages + user_manual_sections (7753-7884), and knowledge_wiki_projections (7889-7962). Real columns selected, real fetch_all against self.pool.",
+        "Literal-wildcard safety is real: escape_like_token + ESCAPE '\\\\' used on every ILIKE branch (e.g. postgres.rs:7576-7585, 7677-7694), and the test mt186_graph_search_...with_filters asserts a '%' query returns empty (tests file:299-307). Empty/whitespace query short-circuits to Vec::new() (7468-7470).",
+        "Block-scoped filter leak prevention is real: loom_search_has_block_scoped_filters gates knowledge/document/usermanual/wiki branches (7541, 7639-7640, 7750-7751, 7886-7887); test mt186_block_scoped_filters_do_not_leak_non_block_hits (tests:970-1071) proves a tag filter excludes symbols/usermanual and returns only the tagged block.",
+        "Offset/limit pagination prefetches offset+source_limit per source before merged skip/take (7477-7484, 7976-7980); test mt186_graph_search_offsets_after_prefetching_each_source (tests:929-967) proves no row drop at offset 10 limit 5.",
+        "API route is real and wired: api/loom.rs:287 registers /workspaces/:workspace_id/loom/graph-search -> search_loom_graph handler (3502) calling state.storage.search_loom_graph (3539) and emitting a real LoomSearchExecuted FlightRecorder/EventLedger event (3549). Legacy /loom/search restored to block-only handler search_loom_blocks (api/loom.rs:278-279, 3388), satisfying the adversarial-review compatibility requirement.",
+        "Proof touches real Handshake-managed PostgreSQL: tests/knowledge_pg_support.rs resolves POSTGRES_TEST_URL/DATABASE_URL or ManagedPostgres::ensure_running; the pg_or_skip! macro panics ('requires real PostgreSQL') when none is available, so a skip cannot masquerade as PASS (tests:24-33).",
+        "No deferred-live escapes: grep for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/LiveClientUnavailable across the search code returned no hits on the required path.",
+        "Self-cert clean: lifecycle.claimed_by=KERNEL_BUILDER-20260614-200747 set status READY_FOR_VALIDATION (not COMPLETED); the COMPLETED transition is left to the validator role.",
+        "Non-blocking aside (paperwork only, not a fail reason): the evidence_refs test logs under ../Handshake_Artifacts/handshake-test/wp-kernel-009-recovery/mt186/ are not present on this disk, and the packet cites v02.192 spec anchors while current is v02.194. Both are expected wind-down paperwork drift and do not affect the code verdict."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-186.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json (scope, acceptance_criteria, forbidden_paths, DEC-008)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/postgres.rs:7454-7981 (search_loom_graph)",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs:278-289,3388-3422,3502-3561 (routes + handlers)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/loom.rs:498-820 (LoomSearchSourceKind, LoomGraphSearchResult types)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/loom_graph_search_filters_tests.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:1-57 (real-PG harness)",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (Knowledge Graph / search alignment)",
+        "git log: MT-186 WP-009 work landed in checkpoint commit c49afb7f"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-200747",

@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-116-OntologyGraphProjection",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T23:21:34.542Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-116.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,20 +79,64 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
     "implementation_commit": "d39c2d76",
     "evidence": [
       "Built+verified d39c2d76; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-116 requires a read-only OntologyGraphProjection built from PostgreSQL authority rows (ontology terms + aliases) that is never authority itself, with stable_only filtering and real managed-PG proof. The committed code in knowledge_memory/projection.rs delivers exactly that, and the integration test exercises it against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "projection.rs:68-102 build_ontology_graph() is a pure read over PG authority rows: list_memory_ontology_terms() + list_memory_ontology_aliases() (real sqlx queries against knowledge_memory_ontology_terms, storage/knowledge_memory.rs:302-327). Returns OntologyGraphProjection with authority_class=\"projection\" (projection.rs:100), so it is never authority — matches spec 2.3.13.11 / LM-PWIKI-001 (projection regenerable, never authority).",
+        "Every node carries the stable authority term_id ref (projection.rs:105-113); supersedes edges derive from term.superseded_by_term_id (projection.rs:87-93) — back-references to authority preserved as the MT requires.",
+        "stable_only filter is real: maps to MemoryOntologyLifecycle::Stable and passes through to the SQL lifecycle_state filter (projection.rs:74-76, storage/knowledge_memory.rs:313-322).",
+        "MT-116 proof test ontology_graph_projection_includes_terms_aliases_and_class (tests/knowledge_memory_projection_tests.rs:71-122) runs against REAL managed PostgreSQL via MemoryFixture (fixtures header line 8: 'Real PostgreSQL only. No SQLite, no mocks'; SKIPs loudly when PG absent). It upserts a real term + alias, builds the graph, asserts authority_class==\"projection\", node/term/alias content, lifecycle_state, and that stable_only excludes the probationary term.",
+        "No deferred-live escapes / placeholders in the projection path: grep for todo!/unimplemented!/unreachable!/Unavailable/'pending MT-'/'not yet wired' returned no matches in projection.rs.",
+        "lifecycle.claimed_by is null (MT-116.json:88) — no implementer self-certification; verdict is recorded by an independent validator. Migrations 0240-0243 (with .down.sql) backing the ontology/facts tables exist in src/backend/handshake_core/migrations/.",
+        "Aside (non-blocking, expected): packet cites v02.192 spec anchors while current is v02.194; the 2.3.13.11 section resolves identically in v02.194. Not a code/behavior defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-116.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009 git show --stat d39c2d76",
+        "src/backend/handshake_core/src/knowledge_memory/projection.rs:1-114",
+        "src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs:71-122",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:1-75",
+        "src/backend/handshake_core/src/storage/knowledge_memory.rs:302-360",
+        "src/backend/handshake_core/migrations/ (0240-0243 ontology/facts)",
+        "spec master-spec-v02.194 spec-modules/02-system-architecture.md:2694 (2.3.13.11), 11-shared-dev-platform...md:968 (LM-PWIKI-001)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

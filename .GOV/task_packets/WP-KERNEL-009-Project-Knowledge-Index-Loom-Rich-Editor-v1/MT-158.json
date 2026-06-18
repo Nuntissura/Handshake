@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-158-DocumentPermissionBoundary",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-158.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -126,6 +126,50 @@
         "test: request with NO x-hsk-actor-kind header is treated as least-privileged, not system",
         "test: a caller cannot escalate by asserting actor_kind != its authenticated identity"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-158 requires a server-side read/write/index permission boundary for operator/local-model/cloud-model/validator/system actors over rich documents, backed by PostgreSQL/EventLedger authority. The code implements a real server-enforced permission matrix wired into every knowledge-documents endpoint, the prior adversarial-v2 fail-open-to-system hole is genuinely closed, and the boundary is proven against real PostgreSQL through the booted route stack.",
+      "findings": [
+        "permission.rs:120-152 defines DocumentPermission::decide() with the full actor matrix (operator/local_model full; cloud_model read+index no-write; validator read-only; system full; unauthenticated read-only) returning a PermissionDecision with stable reason codes.",
+        "knowledge_documents.rs:273-281 DocContext::require() enforces the matrix server-side and returns a 403 forbidden on denial; it is called on every mutating/reading endpoint (write at lines 638,816,915,962,1227,1323,1424,1471,1523; index at 725,1018,1377,1446; read at 748,781,1098 etc.). actor_kind is stored in DocContext (line 220,265) derived in doc_context(), not re-supplied per call, so the gate cannot be bypassed.",
+        "Prior adversarial-v2 HIGH (fail-open to system on missing x-hsk-actor-kind) is genuinely fixed in commit 5674367c: knowledge_documents.rs:244-251 now maps an absent header to DocumentActorKind::least_privileged() = Unauthenticated (read-only; write+index denied) instead of \"system\", an unknown token is a strict 400 (permission.rs:42-55 from_wire returns None for unknown incl. \"SYSTEM\"/\"root\"), and KernelActor is server-derived from the validated kind (lines 252-262) so a caller cannot pick an arbitrary receipt actor.",
+        "Real-PG proof: tests/knowledge_documents_api_tests.rs boots the actual docs_api::routes stack over loopback (doc_server, lines 114-145) against a real isolated PostgreSQL schema via knowledge_pg_support.rs (DATABASE_URL/POSTGRES_TEST_URL, CREATE SCHEMA, PostgresDatabase::connect with real migrations). Test mt158_missing_actor_kind_is_least_privileged_never_system (196-284) asserts absent-header create/save/rename/index all 403 with reason unauthenticated_write_denied while read stays 200 AND the doc content/version are unchanged; mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected (287-348) asserts cloud_model write/create 403 (cloud_model_write_denied) and bogus kinds (root/SYSTEM/model_adapter/admin) 400.",
+        "Durable backing is real: migration 0280_knowledge_document_identity.sql:38-63 adds owner_actor_kind with a DB CHECK constraint (closed vocabulary mirroring KernelActor) and a paired NULL-consistency check; permission unit tests (permission.rs:178-223) cover the matrix incl. least_privileged_default_cannot_write_or_index and strict from_wire rejection.",
+        "No deferred-live escapes or placeholders (todo!/unimplemented!/unreachable!/pending MT-/Unavailable) in the impl or permission files. Aside (non-blocking): MT contract still cites v02.192 spec anchors; section 2.3.13.11 exists and is consistent in current v02.194 — pure paperwork, not a code issue."
+      ],
+      "evidence_checked": [
+        "MT-158.json (contract, prior adversarial_review_v2 findings + FIXED status)",
+        "packet.json allowed/forbidden paths",
+        "git show 5674367c (v2 hardening diff)",
+        "src/backend/handshake_core/src/api/knowledge_documents.rs (doc_context, require, endpoint gating)",
+        "src/backend/handshake_core/src/knowledge_document/permission.rs (matrix, from_wire, least_privileged, unit tests)",
+        "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs (MT-158 real-PG route tests)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (real PG schema harness)",
+        "src/backend/handshake_core/migrations/0280_knowledge_document_identity.sql (owner_actor_kind CHECK)",
+        "spec module 02-system-architecture.md 2.3.13.11 (v02.194)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

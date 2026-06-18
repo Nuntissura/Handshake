@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-178-BacklinkComputation",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-178.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "991985b9",
     "evidence": [
       {
@@ -135,7 +135,53 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-178 requires computing backlinks (linked incoming MENTION/TAG edges with surrounding-text context snippets) plus unlinked mentions (word-boundary title/alias text matches lacking a formal edge) as a Handshake-native Loom projection over the PostgreSQL loom_edges + loom_blocks store, with backend navigation APIs and real-Postgres proof. Commit 991985b9 delivers exactly this: real PostgresDatabase implementations, two HTTP routes, pure char-safe helper functions with unit tests, and 4 real Handshake-managed-PostgreSQL integration tests proving linked backlinks, unlinked-mention word-boundary/exclusion semantics, alias scanning, and fail-closed behavior. Code aligns with Master Spec LM-BACK-001..003 (§02-system-architecture / §11).",
+      "findings": [
+        "Implementation is real, not placeholder. postgres.rs:5016-5181 implements get_backlinks_with_context (reuses get_backlinks incoming-edge query over loom_edges, resolves source block + snippet) and scan_unlinked_mentions (parameterized QueryBuilder with ILIKE prefilter + NOT EXISTS edge exclusion + precise Rust word-boundary pass). Authority is loom_edges + loom_blocks Postgres, no parallel/external index.",
+        "Sub-rule 1 PASS: The trait-default Database::get_backlinks_with_context / scan_unlinked_mentions in storage/mod.rs:2110-2135 return StorageError::NotImplemented, but PostgresDatabase (storage/postgres.rs:4333) is the ONLY concrete Database impl and overrides both, so the NotImplemented default is unreachable on the live path. This NotImplemented default-method pattern is established across the codebase (loom search v2, workbench layout, workspace settings, etc.). No todo!()/unimplemented!()/deferred-escape reachable from required behavior.",
+        "Sub-rule 2 PASS: Proof touches the real Handshake-owned resource. tests/loom_backlink_tests.rs runs 4 integration tests through knowledge_pg_support.rs, which resolves PostgreSQL via POSTGRES_TEST_URL -> DATABASE_URL -> Handshake-managed ManagedPostgres::ensure_running (no-Docker product cluster), applies the full migration chain in isolated per-test schemas, and has NO SQLite/in-memory/mock fallback (returns None and SKIPs only when PG binaries are genuinely absent; any other failure panics). Tests create real loom_blocks + loom_edges via create_loom_block/create_loom_edge and assert real query results.",
+        "Sub-rule 3 PASS: lifecycle.claimed_by=null, completed_by=null, status=READY_FOR_VALIDATION (not a self-signed COMPLETED). The recorded adversarial_code_review is explicitly self-review by the KERNEL_BUILDER delegate and carries no authority; it does not constitute a self-certified COMPLETED transition.",
+        "Spec alignment: §02-system-architecture.md:1597-1599 / §11:357-361 LM-BACK-001 (backlinks via MENTION/TAG edges), LM-BACK-002 (DerivedContent computed from graph traversal, reactive), LM-BACK-003 (context snippet from source block surrounding text). Impl computes from incoming edges at read time (computed DerivedContent, reflects current graph each read) and includes context snippets. Unlinked mentions matches the WP scope's Obsidian-replacement requirement.",
+        "Test quality is meaningful, not vacuous: linked_backlinks_carry_source_block_and_context_snippet asserts edge type + source block + snippet content; unlinked_mentions test proves positive (unlinked surfaces), negative substring exclusion (Roadmapping != Roadmap word-boundary), and already-linked exclusion (NOT EXISTS edge guard); alias scan proven; backlinks_fail_closed_on_missing_block asserts NotFound rather than silent empty success.",
+        "Boundary/hygiene clean: diff touches only src/backend/handshake_core (storage, api) + tests, all within packet allowed_paths. No SQLite (sqlx has no sqlite feature per status note), no Docker, no external search engine, no markdown-vault authority. Cross-workspace filtering present (every query filters workspace_id). One-line aside (non-blocking): MT relevant_files lists app/src/components/DocumentView.tsx but this BacklinkComputation MT delivered backend + API only; UI/visual-debug evidence (HBR-VIS) is a WP-level concern for a later MT and does not block this computation MT."
+      ],
+      "evidence_checked": [
+        "commit 991985b9 (git show --stat + full diff)",
+        "src/backend/handshake_core/src/storage/loom.rs (LoomBacklink/LoomUnlinkedMention types, loom_context_snippet, loom_find_unlinked_term, 5 unit tests)",
+        "src/backend/handshake_core/src/storage/mod.rs (trait defaults NotImplemented)",
+        "src/backend/handshake_core/src/storage/postgres.rs (get_backlinks_with_context, scan_unlinked_mentions, loom_block_scan_text)",
+        "src/backend/handshake_core/src/api/loom.rs (GET backlinks + unlinked-mentions routes)",
+        "src/backend/handshake_core/tests/loom_backlink_tests.rs (4 real-PG integration tests)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs (real managed-PostgreSQL harness, no mock fallback)",
+        "grep for Database impls (only PostgresDatabase)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md and 11-shared-dev-platform-and-oss-foundations.md (LM-BACK-001..003)",
+        "MT-178.json contract + WP_VALIDATOR_PROTOCOL Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

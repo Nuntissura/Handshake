@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-256-QuickSwitcher",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-15T22:45:04.226Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-256.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,14 +76,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260615-143459",
-    "completed_by": "KERNEL_BUILDER-20260615-MT246-MT256-REVALIDATION",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       "IMPLEMENTED_SLICE: app/src/components/QuickSwitcher.tsx, app/src/components/CodeSymbolPanel.tsx, app/src/components/LoomBlockPanel.tsx, app/src/components/KernelDccProjectionView.tsx, app/src/App.tsx, app/src/App.css, app/src/lib/api.ts, app/src/lib/api.test.ts, app/src/App.test.tsx, app/src/components/KernelDccProjectionView.test.tsx, and tests/visual/quick-switcher.spec.ts add a debounced Ctrl/Cmd-P quick switcher over real loom graph search source kinds, direct UserManual page routing, backend-backed Loom block routing by block id, backend-backed code symbol routing by entity id, WP/MT DCC focus routing, command-palette separation on Ctrl/Cmd-Shift-P, stale-result clearing, keyboard selection, and local recents ordering.",
@@ -157,7 +157,62 @@
       "NON_PASS_REVALIDATION_STATE_20260615_224504Z: operator allowed READY_FOR_VALIDATION items to be touched; MT-256 remains READY_FOR_VALIDATION and is deliberately not marked PASS after this revalidation."
     ],
     "ready_by": "KERNEL_BUILDER-20260615-MT246-MT256-REVALIDATION",
-    "ready_for_validation_at_utc": "2026-06-15T22:45:04.226Z"
+    "ready_for_validation_at_utc": "2026-06-15T22:45:04.226Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-256 requires a global fuzzy quick switcher (Ctrl/Cmd-P class) that opens any block/file/doc/tag-hub/symbol/WP/MT/manual/wiki-page by real backend fuzzy title search, recents-first ordering, and a unified command palette on Ctrl/Cmd-Shift-P. The code delivers all of this against real PostgreSQL/EventLedger and real backend graph search, with no placeholders or mock-only proof on the required paths.",
+      "findings": [
+        "QuickSwitcher.tsx (app/src/components/QuickSwitcher.tsx:1-320) is a real component: debounced (150ms) calls to searchLoomGraph over 9 real source kinds (loom_block, file, tag_hub, document, symbol, work_packet, micro_task, user_manual_page, wiki_page), keyboard selection, recents-biased ordering, and stale-result clearing. Exceeds the MT's '>=5 entity kinds' bar.",
+        "AC1 (fuzzy open >=5 kinds): openTargetForLoomSearchHit (app/src/lib/loom_search_open_target.ts:71-98) routes each of the 9 source kinds to a concrete app surface (document/loom_block/code_symbol/work_packet/micro_task/user_manual/wiki_page). Backend fuzzy is real pg_trgm: migration 0325_quick_switcher_fuzzy_search.sql creates pg_trgm + GIN trigram indexes; postgres.rs:3075-3193 builds public.similarity / subsequence / initials matching.",
+        "AC2 (recents ordering, durable): real PG table knowledge_quick_switcher_recents (migrations/0322) with NOT NULL FK to kernel_event_ledger(event_id). Storage impl postgres.rs:8185-8285 runs one tx: append_kernel_event_with_executor then INSERT ... ON CONFLICT incrementing selected_count. API client api.ts:1393-1412 hits real HTTP GET/POST /workspaces/:id/loom/quick-switcher/recents; routes registered in api/loom.rs:298-299,3568-3594.",
+        "AC3 (palette unification): App.tsx:1401-1450 binds Ctrl/Cmd-P -> QuickSwitcher and the command-palette chord (Ctrl/Cmd-Shift-P) -> app CommandPalette; runAppCommand (App.tsx:1457-1484) + app_command_registry.ts project editor commands into the app palette and route them to the active rich document by paneId/documentId. Both modes reachable.",
+        "Sub-rule 2 proof realism: tests/quick_switcher_recents_tests.rs uses pg_or_skip! that PANICS (line 22-24) when no real PostgreSQL is present, so the cited green run genuinely required real PG. The test (lines 76-205) asserts selected_count increments to 2, asserts non-empty event_ledger_event_id, and directly queries kernel_event_ledger to confirm exactly one typed receipt row + FK linkage. knowledge_pg_support.rs:108-155 connects via POSTGRES_TEST_URL/DATABASE_URL to an isolated real schema. This is not implementer-authored mock state.",
+        "Sub-rule 3: lifecycle.claimed_by (KERNEL_BUILDER-20260615-143459) != completed_by token; status correctly left at READY_FOR_VALIDATION rather than self-COMPLETED.",
+        "Migration CHECK constraints are progressively widened to match the 9 frontend source kinds: 0322 (base 5) -> 0324 (+wiki_page) -> 0326 (+file/tag_hub/document); backend test mt256_quick_switcher_recents_accept_breadth_source_kinds exercises the breadth kinds, so producer/consumer source-kind sets agree.",
+        "Aside (non-blocking paperwork): MT-256.json lifecycle.implementation_commit is null; all MT-256 work landed in checkpoint commit c49afb7f. Per the winding-down-governance ground rules this is not a fail reason."
+      ],
+      "evidence_checked": [
+        "app/src/components/QuickSwitcher.tsx",
+        "app/src/lib/loom_search_open_target.ts",
+        "app/src/lib/api.ts:1320-1412",
+        "app/src/App.tsx:1401-1484,2275-2280",
+        "app/src/lib/app_command_registry.ts (references in App.tsx)",
+        "src/backend/handshake_core/src/storage/postgres.rs:8185-8294,3075-3193",
+        "src/backend/handshake_core/src/api/loom.rs:298-299,3568-3594",
+        "src/backend/handshake_core/migrations/0322_quick_switcher_recents.sql",
+        "src/backend/handshake_core/migrations/0324_quick_switcher_wiki_page_kind.sql",
+        "src/backend/handshake_core/migrations/0325_quick_switcher_fuzzy_search.sql",
+        "src/backend/handshake_core/migrations/0326_quick_switcher_breadth_source_kinds.sql",
+        "src/backend/handshake_core/tests/quick_switcher_recents_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "src/backend/handshake_core/tests/loom_graph_search_filters_tests.rs:18-27",
+        "MT-256.json",
+        "packet.json",
+        "SPEC_CURRENT.md",
+        "git log c49afb7f"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260615-143459",

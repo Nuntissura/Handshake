@@ -22,7 +22,7 @@
   "title": "RetrievalContextAndRanking-144-RetrievalFixtures",
   "group": "RetrievalContextAndRanking",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T00:37:20.897Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-144.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-129"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "00eb73b5",
@@ -124,6 +124,52 @@
       "missing_tests": [
         "fixtures + tests for: hybrid retrieval, passage fallback, stale graph, bad citation, no-result recovery (driven, not named)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-144 requires fixtures for seven retrieval scenarios (exact lookup, graph traversal, hybrid retrieval, passage fallback, stale graph, bad citation, no-result recovery) with PostgreSQL/EventLedger authority and validator-readable proof. The code delivers all seven as real, backend-derived, driven scenarios proven against managed PostgreSQL; the prior adversarial-v2 gap (scenarios as enum labels only) is genuinely closed in commit e457c2a4.",
+      "findings": [
+        "Commit 00eb73b5 adds knowledge_retrieval/fixtures.rs (RetrievalScenario enum + builders) and two real-PG test files; e457c2a4 adds the driven-scenario test retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven (tests/knowledge_retrieval_pipeline_tests.rs:758+).",
+        "All 7 scenarios are DRIVEN, not labels: exact-lookup/graph/hybrid/passage-fallback are exercised by executor.rs::execute_retrieval tests; stale-graph/no-result/bad-citation by the new hardening test. The prior adversarial-v2 MEDIUM finding (fixtures.rs only produced candidate-feature/budget sets) is correctly marked FIXED and is genuinely fixed.",
+        "stale_graph reason is real backend logic: passage_fallback.rs:94 (signals.freshness_uncertain && graph.has_candidates() -> GraphCandidatesStale='graph_candidates_stale'), surfaced via executor.rs:295 fallback_reason; the test asserts this exact value over a real upserted edge.",
+        "no_result_recovery is proven by a persisted, bounded, explainable EMPTY bundle (0 items, 0 tokens, 1 trace) fetched back via get_knowledge_context_bundle - recovery without hallucination, not a stub.",
+        "bad_citation: snippet.rs:72 returns supported=false/unsupported_reason for a missing span (KSP-0...0); the persisted bundle.allowed_context carries the supported=false marker; AND ON DELETE RESTRICT FKs on knowledge_spans (migrations 0135/0136/0137) make dangling citations unconstructable, proven by an expect_err on DELETE.",
+        "Spec-Realism sub-rule 1 PASS: no todo!/unimplemented!/unreachable!/'deferred to follow-on'/'pending MT-'/*Unavailable placeholders anywhere in knowledge_retrieval impl or the test.",
+        "Spec-Realism sub-rule 2 PASS: proof touches real Handshake-managed PostgreSQL (MemoryFixture/knowledge_pg_support, real edges/passages/spans, real FK constraints, real ContextBundleCompilerV2 persistence); tests SKIP loudly when PG is absent and explicitly use NO SQLite/NO mocks.",
+        "Boundary/scope clean: both commits touch only src/backend/handshake_core/{src/knowledge_retrieval,migrations,tests} - all within packet allowed_paths. No forbidden tech (only SQLite reference is a comment disclaiming it). Aside: contract lifecycle status is READY_FOR_VALIDATION with claimed_by/completed_by null, so self-cert sub-rule 3 is NA; this is a paperwork-state observation, not a blocker."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-144.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show e457c2a4 + 00eb73b5 (wtc-kernel-009)",
+        "src/backend/handshake_core/tests/knowledge_retrieval_pipeline_tests.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/executor.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/passage_fallback.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/snippet.rs",
+        "src/backend/handshake_core/src/knowledge_retrieval/fixtures.rs",
+        "src/backend/handshake_core/migrations/0134-0137 knowledge_spans/entities/edges/claims FK constraints"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

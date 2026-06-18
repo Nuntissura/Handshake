@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-250-FindInFilesWorkspaceSearch",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-16T15:44:43Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-250.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,7 +76,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -84,7 +84,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       {
@@ -226,7 +226,56 @@
         ],
         "blocked": []
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-250 requires a workspace-wide find-in-files surface over the MT-186 search backend with kind/tag/path filters, case/word/regex toggles, click-to-open at match, and safe replace-in-files (per-match preview + confirm, receipts on apply, canonical-set not visible-subset), proven against real PostgreSQL/EventLedger. The implementation (WorkspaceSearchPanel.tsx + real MT-186 backend route + a real PG-backed fixture and end-to-end Playwright spec) delivers all of this with genuine runtime proof, not mocks or scaffolding.",
+      "findings": [
+        "app/src/components/WorkspaceSearchPanel.tsx:531-593 runSearch wires the UI to the real MT-186 backend (searchLoomGraph -> /workspaces/{id}/loom/graph-search) and paginates the canonical result set (SEARCH_PAGE_SIZE=500 loop), passing case_sensitive/whole_word/regex/path/source_kinds/tag_ids server-side. Backend parses all of these in src/backend/handshake_core/src/api/loom.rs:3359-3411 (real route registered at loom.rs:287). Not a mocked search.",
+        "Canonical-set rule honored: previewReplace (WorkspaceSearchPanel.tsx:636-666) derives document ids from `results` (the backend hit set via documentIdFromLoomSearchHit), NOT from `visibleResults` (the client-filtered rows at line 426-429). An unopened/hidden doc is still loaded and previewed/replaced. The MT acceptance 'negative test with unloaded doc' is satisfied by the real-backend spec replacing the unopenedDoc.",
+        "Replace-in-files is preview+confirm, never blind bulk write: replaceInContent/replaceSegment (lines 249-342) produce per-match before/after context snippets (replacementMatchPreview, MATCH_PREVIEW_CONTEXT_CHARS=24); cancel (lines 828-839) clears preview and writes nothing; apply (679-714) writes only through the real saveRichDocument save path and collects save_receipt_event_id receipts; stale guards on resultSetKey (line 630) and previewPlanKey (line 681).",
+        "Click-open lands at the match: openHit (595-620) routes document hits through onOpenDocument carrying EditorFindOptions (query + case/word/regex), enabling the editor FindReplacePanel to select the first match.",
+        "Real runtime proof (sub-rule 2): src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs boots managed PostgreSQL (ManagedPostgres::ensure_running / POSTGRES_TEST_URL), runs real migrations, seeds via the real KnowledgeStore.create_knowledge_rich_document, and serves the REAL api::routes (loom.rs:242-249), not a mocked search. The proof endpoint reads knowledge_rich_documents and list_kernel_events_for_aggregate (real EventLedger) only to read state back, never to manufacture it.",
+        "tests/visual/mt250-workspace-search-real-backend.spec.ts drives the real WorkspaceSearchPanel (built from app via Vite in build_workspace_search_harness.ts -> workspace_search_visual_harness.tsx) through the real backend: asserts both docs returned (source_kinds=document on the wire, line 209-216), unopened doc replaced (lines 230-232), cancel leaves doc_version=1/event_count=0 read from real PG (237-245), apply yields doc_version=2 + real KNOWLEDGE_RICH_DOCUMENT_SAVED receipts (254-264, emitted by the real MT-145 save handler in api/knowledge_documents.rs, only read back by the fixture), and externalRequests===[] (zero external network, line 269).",
+        "sub-rule 1: grep over the MT-250 surfaces found no todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow-on'/'pending MT-' escapes; the only `placeholder` hits are legitimate HTML input attributes. No SQLite / :memory: authority (DuckDB in-memory at fixture line 222 is the diagnostics flight-recorder, not durable authority).",
+        "sub-rule 3: lifecycle.claimed_by=KERNEL_BUILDER, completed_by=null, status=READY_FOR_VALIDATION — no self-certified COMPLETED transition. Aside (non-blocking): packet/MT spec_anchors cite v02.192/v02.193 while SPEC_CURRENT is v02.194 and lifecycle.implementation_commit is null; expected winding-down paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-250.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/WorkspaceSearchPanel.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/tests/visual/mt250-workspace-search-real-backend.spec.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/tests/visual/build_workspace_search_harness.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/workspace_search_visual_harness.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/api.ts",
+        "src/backend/handshake_core/src/api/loom.rs (graph-search route + filter parsing)",
+        "grep: KNOWLEDGE_RICH_DOCUMENT_SAVED emit sites; placeholder/SQLite grep over MT-250 surfaces; git log for MT-250 commits"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

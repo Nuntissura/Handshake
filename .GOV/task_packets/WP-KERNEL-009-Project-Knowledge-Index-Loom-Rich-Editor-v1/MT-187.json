@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-187-ObsidianImportBoundary",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-187.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "043cf8c8",
     "evidence": [
       {
@@ -129,7 +129,56 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-187 (ObsidianImportBoundary) requires a markdown-like import that creates Handshake-native PostgreSQL authority rows while rejecting markdown/vault layout as the source of truth. The code delivers exactly this: import_markdown_to_loom parses markdown via the real MT-151 importer, creates an authority RichDocument + bridged LoomBlock note in real PostgreSQL, and never stores the markdown source as authority; proof runs against real managed PG.",
+      "findings": [
+        "postgres.rs:10619 import_markdown_to_loom is a real implementation: validates title fail-closed, calls import_snippet(markdown, Markdown) to parse to a ProseMirror tree, creates an authority RichDocument via create_knowledge_rich_document (KRD- id), creates a LoomBlock note via create_loom_block, then bridges it to ProjectKnowledgeIndex+EventLedger via bridge_loom_block_to_knowledge. The markdown source text is discarded after parsing - only PostgreSQL authority rows persist. This is the anti-vault boundary the MT requires.",
+        "The NotImplemented returns in storage/mod.rs:2297+ are the ABSTRACT trait DEFAULTS, not on the live path. The concrete PostgresDatabase impl overrides import_markdown_to_loom with the working body, so sub_rule_1 has no deferred-live escape reachable from the required behavior.",
+        "import.rs:57 import_snippet is a real deterministic markdown parser (MT-151): handles ATX headings, blockquotes, fenced code, lists, paragraphs; unsupported features become repairable importedRaw nodes with typed warnings rather than silent drops. Not a stub.",
+        "api/loom.rs:1228 import_markdown_to_loom HTTP handler is wired end-to-end: route /workspaces/:workspace_id/loom/import/markdown (loom.rs:190), ensures workspace, calls real state.storage.import_markdown_to_loom, and records a FlightRecorder LoomBlockCreated event. Real IPC/route wiring, not orphaned.",
+        "tests/loom_wiki_boundary_tests.rs:224 markdown_import_creates_authority_never_vault exercises real PostgreSQL via pg_or_skip!/knowledge_pg(); asserts content_type=Note, rich_document_id starts with KRD- (real RichDocument), bridge entity_id starts with KEN- (real ProjectKnowledgeIndex resolution), and the block round-trips from PG with the imported title.",
+        "tests/knowledge_pg_support.rs:108-156 knowledge_pg() connects to real PostgreSQL via POSTGRES_TEST_URL/DATABASE_URL, creates an isolated schema, and runs the full migration chain (run_migrations). Satisfies sub_rule_2 real Handshake-owned resource touch; no SQLite/in-memory/mock-only path.",
+        "No SQLite path: grep of src/ shows only comments explicitly stating SQLite is never used; sqlx has no sqlite feature per the status note. Forbidden-store constraints (DEC-008, vault-as-authority) are honored.",
+        "Spec alignment: current Master Spec v02.194 10-product-surfaces.md:8534 (Section 10.12) requires the WP-KERNEL-009 surface to be 'a projection over product authority, not a second store' - the impl enforces this by making the parsed PostgreSQL rows authoritative and the markdown source non-authoritative.",
+        "Aside (non-blocking, expected): MT contract cites spec anchor §10.12 #9.1.1 and packet cites v02.192; current spec is v02.194. Paperwork pointer staleness only, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-187.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 commit 043cf8c8 (git show --stat + diff)",
+        "src/backend/handshake_core/src/storage/postgres.rs:10619-10700 (import_markdown_to_loom impl)",
+        "src/backend/handshake_core/src/storage/mod.rs:2297+ (trait defaults)",
+        "src/backend/handshake_core/src/storage/loom.rs (LoomMarkdownImport type)",
+        "src/backend/handshake_core/src/knowledge_document/import.rs:1-120 (import_snippet parser)",
+        "src/backend/handshake_core/src/api/loom.rs:190,1228-1257 (route + handler)",
+        "src/backend/handshake_core/tests/loom_wiki_boundary_tests.rs:223-259 (markdown import test)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:40,108-156 (real PG harness)",
+        "D:/.../wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md:8534 (Section 10.12)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

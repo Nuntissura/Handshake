@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-211-RoleMailboxIntegration",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-211.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "e6aea0fc",
     "evidence": [
       {
@@ -130,7 +130,50 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-211 (RoleMailboxIntegration) requires routing MT handoffs/blockers/validator-notes/repair-requests through Role-Mailbox/EventLedger-backed PostgreSQL surfaces with restartable, attributable, parallel-safe state. The code delivers exactly that: a real Postgres table, an atomic EventLedger-linked write path, capability gating, and real-PostgreSQL tests proving persistence, attribution, denial, and integrity.",
+      "findings": [
+        "Migration migrations/0311_parallel_swarm_state_recovery.sql:38-60 creates knowledge_agent_role_mailbox_handoffs with from-lane attribution, to_role, mailbox_thread_id/message_id, status CHECK IN ('started','progress','blocked','pass','fail') (covers handoffs/blockers/validator-notes/repair states), body_sha256 64-hex CHECK, and event_ledger_event_id TEXT NOT NULL REFERENCES kernel_event_ledger(event_id). Schema registry row (line 151-152) maps the table to MT-211 with EventLedger authority class.",
+        "state_recovery.rs:2400 record_role_mailbox_handoff is a real native impl: require_capability(WriteMailbox) gate, ensure_safe_token/ensure_sha256 validation, scrubbed attribution, a single Postgres tx that append_event_tx(KernelEventType::HbrHandoffGate, ...) then INSERTs the handoff row binding event_id into the NOT-NULL FK, then commits atomically (line 2463). No placeholder, no escape.",
+        "Grep of state_recovery.rs for todo!/unimplemented!/unreachable!/*Unavailable/'not yet wired'/'deferred to follow'/'pending MT-'/placeholder/scaffold returned zero hits (sub_rule_1 PASS).",
+        "Proof touches the real Handshake-owned resource: tests/parallel_swarm_state_recovery_tests.rs recovery_store() (line 174) connects a PgPool to knowledge_pg()'s migrated isolated PostgreSQL schema (skips when no PG). Positive test (line 2239) records a claim-backed handoff and asserts dashboard projection derives from PG/EventLedger; cloud-assistance test (line 1218-1232) selects the persisted handoff row and asserts handoff.event_ledger_event_id == receipt.handoff_event_ledger_event_id. No SQLite, no implementer-authored mock authority (sub_rule_2 PASS).",
+        "Negative/adversarial proofs exist: validator/cloud lane WriteMailbox denial (line 2141-2167) asserts ledger_count_for_payload_value == 0 so denied writes emit no false receipts; cloud-assistance denial test (1411-1499) asserts handoff and event counts are unchanged after invalid requests; a forced authority-mutation UPDATE is asserted to be rejected by DB constraint (1316-1329).",
+        "Self-certification is structurally present (lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER-20260612) but per the gate this alone is not a fail and the proof is independently real, so sub_rule_3 PASS. Paperwork-only aside: packet spec_anchors cite v02.192 and lifecycle references v02.193 vs current v02.194 - non-blocking per review ground rules."
+      ],
+      "evidence_checked": [
+        "MT-211.json (full contract)",
+        ".../wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "packet.json (allowed/forbidden paths, acceptance, DEC-008)",
+        "git show --stat e6aea0fc",
+        "migrations/0311_parallel_swarm_state_recovery.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (capability model + record_role_mailbox_handoff)",
+        "tests/parallel_swarm_state_recovery_tests.rs (recovery_store harness, mailbox positive/negative/atomicity tests)",
+        "grep for deferred-live escapes (zero hits)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

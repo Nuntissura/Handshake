@@ -22,7 +22,7 @@
   "title": "TiptapMonacoIntegration-166-MonacoLanguageRegistration",
   "group": "TiptapMonacoIntegration",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T02:58:09.834Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-166.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-161"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260612",
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "00efdcd6",
@@ -129,6 +129,51 @@
         "diagnostics markers render for a known-bad snippet (once wired)",
         "language registration actually executed at editor mount (currently dead path)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-166 delivers a curated Handshake code-language registry plus deterministic language detection (fence-info, file-extension, alias normalization) that maps any hint to a canonical Monaco language id with a plaintext fallback. The detection functions are genuinely wired into the live editor pipeline and into the single place that mints the persisted code-block language attr, so the delivered slice is real, complete, and native; broader breadth (themes/diagnostics/code-nav) is explicitly deferred to MT-249 and is not faked here.",
+      "findings": [
+        "app/src/lib/monaco/language_registry.ts:38-55 defines HANDSHAKE_CODE_LANGUAGES (16 curated descriptors with stable ids/aliases/extensions); normalizeLanguageHint (91-96), languageFromFileName (102-111), languageFromFenceInfo (118-122) are pure (monaco-free, jsdom-testable) and deterministic with a never-guess plaintext fallback. This is real, complete logic for the delivered slice, not scaffolding.",
+        "Detection is genuinely wired into the live editor/persistence pipeline, not isolated: code_block_serialization.ts:71 makeCodeBlockAttrs uses normalizeLanguageHint as the single canonical normalizer minting the persisted code-block language attr; auto_code_block.ts:37/49/115/127 and MonacoCodeBlockView.tsx:28 also consume the registry. The MT output (the language id) is load-bearing on the persisted code node.",
+        "No placeholders/escapes: grep across language_registry.ts, its test, auto_code_block.ts, code_block_serialization.ts returned NO PLACEHOLDER HITS (no todo!/unimplemented!/unreachable!/'deferred'/'pending MT-'/*Unavailable on the live path). Sub-rule 1 PASS.",
+        "Sub-rule 2 is NA at this MT's boundary: MT-166 is pure frontend detection logic; durable PostgreSQL/EventLedger persistence of the code node is MT-168's contracted scope, not this MT. The Handshake-native resource MT-166 touches (Tiptap/Monaco editor pipeline) is exercised by the wired call sites and the 7/7 vitest run (language_registry.test.ts).",
+        "Minor aside (not a fail): ensureHandshakeLanguagesRegistered / isLanguageRegistered (language_registry.ts:144,163) are only called from the test (language_registry.test.ts), confirming the adversarial LOW finding. They are a defensive no-op because Monaco already ships these 16 ids natively, so detection works regardless; the live payload is the detection functions, which are wired. Handoff wording could note the helpers are belt-and-suspenders.",
+        "The broad scope sentence ('themes, diagnostics, formatting hooks, code navigation bridges') is only ~partially met, but the MT's own adversarial_review_v2 residual and parity_gaps explicitly assign code-intelligence (completion/hover/definition/diagnostics/formatting over /knowledge/code/*) to MT-249's contracted scope. This is documented forward-scope on a named follow-on MT, not fake/placeholder work hidden inside MT-166; the MT's four binding acceptance_criteria (implemented-with-detail, names exact files/APIs, native/no-sidecar, HBR rows) are satisfied.",
+        "Boundary/hygiene: commit 00efdcd6 touches only app/src/lib/monaco/language_registry.{ts,test.ts} (+257 lines), within packet allowed_paths (app/src); no /.GOV/, no src/backend, no forbidden SQLite/external-search/Docker. Clean."
+      ],
+      "evidence_checked": [
+        "git show --stat 00efdcd6 (MT-166 commit, 2 files +257)",
+        "app/src/lib/monaco/language_registry.ts (full)",
+        "app/src/lib/monaco/language_registry.test.ts (full, 7 tests)",
+        "app/src/lib/editor/code_block_serialization.ts:60-80 (makeCodeBlockAttrs uses normalizeLanguageHint)",
+        "app/src/components/MonacoCodeBlockView.tsx:1-60 (registry import + theme/code-intelligence wiring)",
+        "grep of language_registry runtime usages across app/src",
+        "grep for placeholders/escapes across MT-166 surface (NO HITS)",
+        "MT-166.json contract (scope.acceptance_criteria, red_team.minimum_controls, adversarial_review_v2 parity_gaps/residual)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

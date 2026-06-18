@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-159-DocumentCrashRecovery",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-159.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -125,6 +125,50 @@
       "missing_tests": [
         "test: draft/unsaved document state recovers after crash (the non-trivial half of MT-159)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-159 requires proving unsaved/draft/promoted rich-document state recovers after app crash or session compaction against PostgreSQL/EventLedger authority. The code delivers it: a real integration test reconstructs a draft (write-box) document — label, WIP content, sha, full version history, block tree — over a fresh PostgreSQL connection, proves a crash never silently promotes, and continues the lifecycle (promotion) post-recovery, all backed by genuine SQL implementations and the Handshake-managed PG harness (no SQLite/mock).",
+      "findings": [
+        "Draft/write-box crash-recovery proof is real and complete: tests/knowledge_document_model_tests.rs:515-583 (crash_recovery_reconstructs_draft_writebox_state_from_postgres) creates a draft-labeled doc, saves a v2 WIP edit still in draft, then reconnects via PostgresDatabase::connect(&pg.schema_url,5) (a genuine fresh-process recovery) and asserts authority_label=='draft' (never silently promoted), doc_version==2, content_json==wip, content_sha256 match, 2-version history intact, and block-tree reconstruction; then promotes post-recovery — directly satisfying the unsaved/draft half the adversarial-v2 MEDIUM flagged as missing.",
+        "The prior adversarial-v2 finding (knowledge_document_model_tests.rs original crash_recovery test covered only promoted/committed state, lines ~454-499) is genuinely remediated by the new draft test, not just re-labeled. lifecycle.evidence and adversarial_review_v2.findings[0].status=='FIXED' (commit b8093659) match the code on disk.",
+        "Backing implementations are real PostgreSQL SQL, not stubs: save_knowledge_rich_document_version (storage/knowledge.rs:5117-5207) uses optimistic-concurrency UPDATE + append-only version INSERT in a tx; set_knowledge_rich_document_authority_label (5373-5398) is a CHECK-constrained UPDATE; get/list functions are real SELECTs. Migration 0280_knowledge_document_identity.sql:37-46 adds authority_label NOT NULL with a closed-vocabulary CHECK ('draft','promoted','archived').",
+        "Sub-rule 2 PASS: the PG harness (tests/knowledge_pg_support.rs:1-65) resolves to POSTGRES_TEST_URL/DATABASE_URL or the Handshake-managed no-Docker cluster, fresh isolated schema per test with full migration chain, and explicitly NO SQLite/in-memory/mock fallback (returns None -> SKIP only when PG binaries truly absent). Durable-authority claim is proven against real PostgreSQL.",
+        "Sub-rule 1 PASS: grep over storage/knowledge.rs, the test file, and src/knowledge_document/ found zero todo!()/unimplemented!()/unreachable!()/'deferred to follow-on'/'pending MT-'/*Unavailable escapes on the proof path.",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2680-2692 mandates CRDT/write-box pre-promotion draft state, that drafts are not authority until promotion commits, and recovery from durable product rows alone without chat history — exactly what the test exercises.",
+        "Aside (non-blocking, expected): packet/MT cite v02.192 spec anchors while current is v02.194; same section numbers resolve. This is paperwork drift, not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-159.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "git show b8093659 (MT-159 draft crash-recovery commit)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_document_model_tests.rs:1-120,166,467,515-583",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:1-90",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:4882-5207,5373-5398",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0280_knowledge_document_identity.sql",
+        "Master Spec v02.194 02-system-architecture.md:2680-2715 (write-box/CRDT/recovery)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "ResearchSpecTranslation-009-BuildRulesApplicabilityMap",
   "group": "ResearchSpecTranslation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:17:33.962Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-001"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
     "evidence": [
@@ -123,13 +123,13 @@
         "Recorded spec_12_7_reconciliation block."
       ]
     },
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -164,6 +164,44 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 HBR_FOCUS_EVIDENCE_MISMATCH (HIGH): evidence cited CX-503S/CX-503P instead of the actual hbr_focus rows",
       "remediation": "Rewrote AC4 evidence to prove/NA each actual hbr_focus row (HBR-INT-001 SATISFIED; HBR-INT-004/MAN-001/SWARM-001 NOT_APPLICABLE for this record-only MT); removed the unrelated CX-503S/CX-503P citation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "NA",
+        "sub_rule_2": "NA",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-009 (ResearchSpecTranslation, record-only) requires a per-surface HBR applicability matrix mapping every WP-009 feature/primitive/tool/UI/storage/validator-lane surface to applicable HBR rows and build_rules, restated as Handshake-native requirements with no sidecar/outside-runtime authority. The deliverable is a typed 13-row matrix plus NA dispositions and a 12.7 reconciliation block in packet.json acceptance_matrix; it exists, is machine-readable, covers all 15 spec-12.7 HBR rules, and satisfies AC1-AC4.",
+      "findings": [
+        "This is a record/research MT with no lifecycle.implementation_commit and no product code; the deliverable is the HBR applicability matrix recorded as packet.json acceptance_matrix (typed JSON, not markdown/sidecar) - satisfies AC3 directly.",
+        "packet.json acceptance_matrix.hbr has 13 typed rows (HBRROW-001..013) keyed by surface (knowledge_authority_storage, crdt_draft_promotion, source_ingestion_pipeline, code_indexing_navigation, memory_graph_claims, retrieval_context_ranking, rich_document_authority, tiptap_monaco_editor_ui, loom_obsidian_navigation_ui, usermanual_surface, backend_navigation_swarm_lanes, security_portability_fixtures, dependency_packaging) - these map cleanly onto the spec 12.7 PRIM-* primitive family in master-spec-v02.194/spec-modules/12-end-of-file-appendices.md:13303-13329.",
+        "Matrix rule union covers all 15 spec-12.7-declared HBR rules (12-end-of-file-appendices.md:13329): declared-minus-union is empty. The prior adversarial concern of 6 missing 12.7 rules (HBR-INT-003/006/007, HBR-SWARM-004, HBR-VIS-001, HBR-QUIET-002) is now resolved - all appear in owning rows. spec_12_7_reconciliation.all_declared_rules_present_in_matrix=true verified independently.",
+        "acceptance_matrix.hbr_not_applicable adds explicit dispositions HBRNA-001 (ResearchSpecTranslation MT-001..016), HBRNA-002 (MasterSpecEnrichmentSeed MT-033..048), HBRNA-003 (external_validator lane) - closes the prior 'two MT groups + validator lane had no disposition' gap. Satisfies AC4 'names HBR rows proven, blocked, or not applicable with concrete reasons'.",
+        "Prior FAIL_V1 reason (HBR_FOCUS_EVIDENCE_MISMATCH: AC4 evidence cited CX-503S/CX-503P instead of actual hbr_focus rows) is fixed: lifecycle.evidence AC4 entry (MT-009.json:99) now dispositions HBR-INT-001=SATISFIED, HBR-INT-004/MAN-001/SWARM-001=NOT_APPLICABLE for this record-only MT; remediation_v2 (MT-009.json:162-167) records removal of the CX citation.",
+        "Minor (non-blocking, governance-cosmetic): rows still cite bare HBR-STOP (registry HANDSHAKE_BUILD_RULES.json defines HBR-STOP-001..005) and CX-503R/CX-503S which are Codex rules, not HBR-registry rows. These resolve to real existing authorities (verified registry + Codex), so it is an imprecise family-prefix citation, not a fake/placeholder or spec contradiction. Aside only per winding-down governance.",
+        "Spec-Realism: sub_rule_1/sub_rule_2 = NA (no code, no live path, no Handshake-owned resource this record MT itself must touch; the matrix transfers runtime HBR obligations to the owning product MT groups). sub_rule_3 = PASS (claimed_by KERNEL_BUILDER but verdict transition signed by separate WP_VALIDATOR session, and the proof artifact is real and inspectable, not implementer-authored mock)."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-009.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json (acceptance_matrix.hbr 13 rows, hbr_not_applicable 3 rows, spec_12_7_reconciliation)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/SPEC_CURRENT.md (current=v02.194)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/12-end-of-file-appendices.md:13303-13329 (section 12.7 primitives + HBR floor)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json (registry HBR/CX ids)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

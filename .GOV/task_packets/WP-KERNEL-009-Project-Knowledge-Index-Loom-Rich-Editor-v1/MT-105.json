@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-105-ScipLspImportBoundary",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -129,6 +129,51 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "VERIFIED FIXED from V1 (575fcffd): parse_scip_artifact enforces a 64 MiB byte cap FIRST (scip.rs:152,162) + document/symbol/occurrence count caps (153-155), and validate_relative_path rejects leading '/', backslash, and '.'/'..'/empty segments (scip.rs:187) with tests rejects_dot_dot_path_segment (362) + rejects_single_dot_path_segment (374). The path-traversal vector the V1 reviewer flagged (../ passing validation) is closed in real code, not just the docstring."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-105 requires defining an optional SCIP/LSP-style index format as a Handshake-OWNED import/projection boundary (never an external LSP/indexer service), with durable PostgreSQL/EventLedger authority, strict typed rejection, and validator-readable proof. The code delivers exactly this: a parse+validate-only scip.rs boundary, a real PG import-ledger migration (0171), a real sqlx insert path, and a real-PostgreSQL integration test recording imported and rejected outcomes.",
+      "findings": [
+        "scip.rs:161-177 parse_scip_artifact is PARSE+VALIDATE ONLY: imports only serde+sha2, does serde_json::from_slice then validate, no std::process / no IO / no LSP spawn. Satisfies the MT core claim 'never spawns an indexer/LSP' and current spec 2.3.13.11 ('LSP/SCIP-style precision is a Handshake-owned import/projection path, NOT an outside service requirement', 02-system-architecture.md:2694).",
+        "Durable PostgreSQL authority is real, not mock: migrations/0171_knowledge_code_scip_imports.sql creates knowledge_code_scip_imports with artifact_format/status CHECK constraints, KSCIP-id + sha256 regex CHECKs, FK to workspaces and kernel_event_ledger, and a reason-shape constraint (status='imported' OR reason IS NOT NULL) so rejected/partial imports are auditable and never silent.",
+        "storage/knowledge.rs:6622 record_knowledge_scip_import performs a real sqlx INSERT into self.pool() with server-side validation (sha256 hash gate 6626, required reason for non-imported 6631-6637). No SQLite / no in-memory substitute.",
+        "Real-PostgreSQL proof exists: tests/knowledge_code_index_tests.rs:1668 mt105_scip_import_ledger_records_outcomes gates on knowledge_pg(), parses a valid artifact, records an 'imported' row and a 'rejected' row (with the parse rejection reason), then asserts list_knowledge_scip_imports returns 2. This touches the Handshake-owned PG ledger contract, not implementer mocks (sub_rule_2 PASS).",
+        "V1 adversarial security findings are actually closed in committed code (commit 575fcffd): path-traversal '..'/'.'/empty-segment rejection via is_repo_relative_posix (scip.rs:182-188), 64MiB byte cap checked before deserialisation (scip.rs:163-170) plus document/symbol/occurrence count caps (scip.rs:198-222), and the occurrence->declared-symbol invariant now enforced (scip.rs:274-282) with covering unit tests rejects_dot_dot_path_segment / rejects_artifact_exceeding_byte_cap / rejects_occurrence_referencing_undeclared_symbol / accepts cross-document reference.",
+        "sub_rule_3 PASS: lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323, completed_by=null; no self-certified COMPLETED transition was signed by the implementer.",
+        "Non-blocking aside: engine.rs does not yet call parse_scip_artifact / record_knowledge_scip_import (the import path is not wired into the indexing orchestrator), and the V1 fs_anchor.join sink at engine.rs:1100 is the Tree-sitter file-index path, not the SCIP import path. The MT scope is to define the owned boundary + durable ledger, which is delivered and proven; engine projection wiring is a downstream concern, not an MT-105 acceptance gap."
+      ],
+      "evidence_checked": [
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/scip.rs (full)",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0171_knowledge_code_scip_imports.sql",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:6328-6682 (row type, record_knowledge_scip_import, list_knowledge_scip_imports)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1663-1742 (mt105 real-PG test)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/engine.rs:1085-1120 (confirmed SCIP not wired; fs_anchor.join is tree-sitter path)",
+        "git show 575fcffd (hardening commit) and git show --stat 5d6490b0 (foundation)",
+        "MT-105.json contract + packet forbidden-list",
+        "SPEC_CURRENT.md -> master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2719 (section 2.3.13.11)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

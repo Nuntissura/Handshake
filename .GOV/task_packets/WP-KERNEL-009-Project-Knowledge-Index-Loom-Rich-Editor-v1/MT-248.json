@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-248-SettingsKeybindingsThemesUI",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-15T23:32:27.8947134Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-248.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -76,14 +76,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": null,
     "evidence": [
       {
@@ -140,7 +140,57 @@
           "findings": []
         }
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-248 requires an in-app settings/keybindings/themes editor persisted in Postgres-backed state (not localStorage-only) with conflict detection, reset-to-default, and runtime proof. The code delivers all of this with a real PostgreSQL+EventLedger storage path, fully-wired frontend that drives editor behavior, real API routes, and executed real-PG tests plus an offline Playwright proof artifact.",
+      "findings": [
+        "Migration src/backend/handshake_core/migrations/0327_workspace_settings_state.sql:5-26 creates knowledge_workspace_settings_states with a JSONB CHECK pinning schema_id=hsk.workspace_settings_state@1, a NOT NULL FK to kernel_event_ledger(event_id), and schema-registry registration for MT-248 — durable Postgres authority, no SQLite, no localStorage-only.",
+        "storage/postgres.rs:9022 save_workspace_settings_state validates is_object -> schema_id -> validate_workspace_settings_state_shape (which includes the duplicate-chord check at postgres.rs:2646-2650) BEFORE self.pool.begin() at line 9062, then appends the EventLedger event and upserts the row in one transaction with the real event_id as FK. Validation-before-append ordering is correct.",
+        "Test src/backend/handshake_core/tests/workspace_settings_state_tests.rs runs 4 tokio tests against REAL PostgreSQL (pg_or_skip! panics if no real PG): rejects non-object, rejects wrong schema_id, rejects duplicate chords and asserts event_count==0 (no EventLedger append on invalid input), and proves persist+restore with distinct EventLedger receipts per mutation and a verified row->event FK join. Conflict-detection, reset-to-default behavior, and Postgres persistence are all runtime-proven, satisfying MT acceptance_criteria.",
+        "Frontend app/src/lib/workspaceSettings.ts provides the typed schema, chord normalization, keyboardEventMatchesChord, and findKeybindingConflicts; app/src/components/SettingsMenu.tsx renders searchable rows, a live conflict alert (data-testid settings-keybinding-conflict), blocks save when findKeybindingConflicts is non-empty (lines 180,199), and exposes per-keybinding Reset (line 345).",
+        "app/src/App.tsx genuinely wires settings to behavior: loads from backend via getWorkspaceSettingsState (line 762), saves via saveWorkspaceSettingsState (line 1374), drives command palette / quick switcher through keyboardEventMatchesChord against the persisted chords (lines 1406-1450), applies data-theme={workspaceSettings.theme} (line 1898), and passes onResetLayout={resetWorkbenchLayout} (line 2266). Monaco theme propagates via a MutationObserver on data-theme (MonacoCodeBlockView.tsx:288-294).",
+        "API routes GET/PUT /workspaces/:workspace_id/settings are registered (api/workspaces.rs:57-58) and call the real storage functions; api.ts:1569-1579 provides the matching client. Kernel event KnowledgeWorkspaceSettingsStateRecorded is a real enum variant mapping to KNOWLEDGE_WORKSPACE_SETTINGS_STATE_RECORDED (kernel/mod.rs:361).",
+        "sub_rule_1: the only 'not yet wired' strings (SettingsMenu.tsx:46,71,420) are honest disabled-control markers for ancillary/optional rows (NotYetWiredRow component and a layout-reset fallback). They are NOT on the required theme/keybinding/persist path, and the layout-reset callback is in fact supplied in production (App.tsx:2266), so the fallback is unreachable there. No placeholder/escape reachable from MT-required behavior.",
+        "sub_rule_3: lifecycle.claimed_by=null, completed_by=KERNEL_BUILDER, status=READY_FOR_VALIDATION (not self-certified to COMPLETED) — correct handoff posture for external per-MT review.",
+        "Aside (non-blocking, paperwork): MT contract lifecycle.implementation_commit is null though the work physically landed in checkpoint commit c49afb7f plus migration/tests files; this is governance bookkeeping drift, not a code/behavior defect, and per ground rules is not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-248.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0327_workspace_settings_state.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/storage/postgres.rs (lines 2620-2664, 9005-9088)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/workspace_settings_state_tests.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/lib/workspaceSettings.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/SettingsMenu.tsx",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/App.tsx (grep of settings/keybinding/theme wiring)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/app/src/components/MonacoCodeBlockView.tsx + app/src/lib/monaco/setup.ts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/api/workspaces.rs + app/src/lib/api.ts + src/kernel/mod.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt-248-devserver/ (Playwright PNG + vite log)",
+        "git log: work landed in checkpoint commit c49afb7f"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

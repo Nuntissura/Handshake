@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-109-MonacoCodeLensBridge",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T08:16:29.280Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 working tree: code-index implementation hardened after EventLedger JSONB idempotency false-conflict; real PostgreSQL tests green (knowledge_code_index_tests 22, knowledge_code_index:: lib 82, knowledge_code_nav_api_tests 2) plus MT-109 exact stress 25/25; adversarial re-review PASS 2026-06-14.",
     "adversarial_code_review": {
@@ -134,7 +134,56 @@
       "EventLedger idempotency false-conflict root cause confirmed as PostgreSQL JSONB payload numeric normalization while canonical payload_hash matched.",
       "append_kernel_event idempotency now compares canonical metadata plus payload_hash instead of raw JSONB Value equality; detectors accept enriched conflict diagnostics.",
       "Adversarial re-review PASS: no blocking findings for MT-101/102/107/109/110/111/112 readiness."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-109 requires a backend MonacoCodeLensBridge payload that feeds code navigation/diagnostics into embedded Monaco from PostgreSQL/EventLedger authority (no external editor service), with staleness flagging and validator-readable real-PG proof. The code delivers a complete, real implementation: a typed payload built from the Postgres knowledge graph with attached staleness, a receipted nav API route with path-traversal guard, DB-side path pushdown after hardening, and runtime tests plus a frontend Playwright spec that exercise it against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "monaco_bridge.rs:76-245 build_monaco_payload reads entities/spans/edges from PostgreSQL via KnowledgeStore and never re-parses; emits typed MonacoCodeLensPayload {workspace_id, relative_path, staleness, truncated, entries} - a derived projection over Postgres authority, matching Master Spec v02.194 2.3.13.11 (EditorCodeNode/Monaco-backed; projections-only; backend nav APIs).",
+        "monaco_bridge.rs:96-110 attaches StalenessVerdict via evaluate_staleness against the caller content_hash/parser_version; a missing knowledge_code_files row defaults to MarkedStale - the 'never serve a stale lens as authoritative' guarantee is honored here.",
+        "api/knowledge_code_nav.rs:699-751 file_lens exposes GET /knowledge/code/files/:path/lens with is_safe_relative_path traversal rejection (line 712/829) and typed nav + quiet receipts (record_nav_receipt/record_quiet_nav_receipt).",
+        "MT-109 hardening commit b63c1e84 replaces the load-all-workspace-symbols DoS with DB-side path pushdown: lookup_code_symbols (storage/knowledge.rs:6837-6890) uses a parameterized, LIKE-escaped %:{path}#% segment match (escape_like, line 6896); monaco_bridge.rs:134-157 re-checks the exact {lang}:{path}# prefix in Rust to keep the language boundary tight.",
+        "Real-PG proof: tests/knowledge_pg_support.rs header + resolver mandate REAL PostgreSQL only (POSTGRES_TEST_URL/DATABASE_URL/managed ManagedPostgres::ensure_running; explicit 'NO SQLite, in-memory, or mock fallback', SKIP loudly when PG binaries absent). knowledge_code_index_tests.rs:1277-1503 (mt109_monaco_payload_has_entries_with_ranges, mt107 staleness fresh/SourceChanged, mt107 reindex) drive build_monaco_payload end-to-end; knowledge_code_nav_api_tests.rs:397-422 drives the /lens API and asserts staleness 'fresh' + entries + receipt; tests/dependency_policy/mt249_code_intelligence.spec.ts:219 confirms the /lens route is consumed by real embedded Monaco offline.",
+        "No placeholder/deferred-live escape: grep for todo!/unimplemented!/unreachable!/Unavailable/'deferred to follow-on'/'pending MT-'/stub across monaco_bridge.rs and knowledge_code_nav.rs returned nothing on the required path. All span/edge lookups are Option/Result-guarded (no panic).",
+        "Non-blocking quality follow-ups (recorded under hardening_pending, do NOT affect verdict): residual per-symbol N+1 span/edge fetch inside the loop; whole-workspace caller_count vs file-filtered reference-range cosmetic mismatch; hard-coded 4-language prefix list (rust/typescript/tsx/javascript) silently drops a future 5th language until updated.",
+        "Aside (paperwork, non-blocking): packet spec_anchors cite v02.192; current bundle is v02.194 - same section numbers resolve and align."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009.../MT-109.json",
+        ".GOV/task_packets/WP-KERNEL-009.../packet.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat b63c1e84 (MT-109 hardening commit)",
+        "wtc-kernel-009/src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:1-246",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_code_nav.rs:699-751,829",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs:6837-6901 (lookup_code_symbols + escape_like)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1-50,1255-1503",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs:397-437",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs:1-60",
+        "wtc-kernel-009/tests/dependency_policy/mt249_code_intelligence.spec.ts:180-225",
+        "spec master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

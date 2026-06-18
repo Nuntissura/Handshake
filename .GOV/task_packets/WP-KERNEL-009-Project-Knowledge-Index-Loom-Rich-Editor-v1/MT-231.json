@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-231-ContradictoryMemoryFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-13T05:45:40.492Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-231.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260613",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "bd468f5a",
     "evidence": [
       {
@@ -158,7 +158,53 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260613",
-    "ready_for_validation_at_utc": "2026-06-13T05:45:40.492Z"
+    "ready_for_validation_at_utc": "2026-06-13T05:45:40.492Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-231 requires contradictory KnowledgeClaims to stay conflicted until resolved with a matching EventLedger receipt, proven by real PostgreSQL negative fixtures. Commit bd468f5a delivers this at the migration, Rust API, and trusted-projection layers with real managed-PostgreSQL proof and no placeholders.",
+      "findings": [
+        "migrations/0320_knowledge_claim_conflict_acceptance_guard.sql: real PG triggers/functions enforce that a conflicted claim cannot exit to accepted/retired while any knowledge_claim_conflicts row (claim_id or conflicting_claim_id) is unresolved, and requires a NEW.resolution_receipt_event_id that joins to kernel_event_ledger with aggregate_type='knowledge_claim_conflict' and aggregate_id=conflict_id (lines ~120-205). Also adds unordered-pair unique index and an unresolved-state guard that pushes involved claims back to 'conflicted'.",
+        "storage/knowledge.rs:4139-4360: Rust transition_knowledge_claim mirrors the same three checks (unresolved-count, matching-resolved-conflict, aggregate-authority join) for Conflicted->Accepted/Retired; record_knowledge_claim_conflict rejects reverse-order duplicate pairs; resolve path validates receipt aggregate_type/aggregate_id. Binds API writers and raw-SQL writers to identical authority.",
+        "knowledge_memory/projection.rs:171-256: build_fact_graph trusted_only now also requires the backing claim lifecycle_state == Accepted and excludes any claim with an unresolved conflict (claim_has_unresolved_conflict), closing the stale-lifecycle-state trusted-fact leak even when claim row state is stale (CX-503R).",
+        "tests/knowledge_pg_support.rs:1-66: proof harness is real-PostgreSQL-only (POSTGRES_TEST_URL/DATABASE_URL/managed_postgres ensure_running), per-test isolated schema with full migration chain, explicit 'NO SQLite, in-memory, or mock fallback' — absent binaries SKIP, all other failures panic so a broken cluster cannot look green.",
+        "tests/knowledge_claims_tests.rs:58-450: negative fixtures assert expect_err for unresolved conflicted->accepted and ->retired at BOTH the Rust API layer and the raw-SQL layer, a wrong/legacy EventLedger-aggregate receipt rejection, and a resolved-path positive case; conflict pair uses contradictory port assertions (5544 vs 5432).",
+        "migration round-trip: scratch_schema_apply_rollback_reapply test plus the real down.sql (restores prior 0200 guard shape) prove 0320 up/down/reapply; no placeholders, todo!, unimplemented!, or *Unavailable variants anywhere in the diff.",
+        "Non-blocking aside: spec section header carries an [ADD v02.192] label while current bundle is v02.194; section 2.3.13.11 content is present and aligned in v02.194. HBR-VIS-005 NOT_APPLICABLE is honest (no GUI surface changed in this MT)."
+      ],
+      "evidence_checked": [
+        ".GOV/task_packets/WP-KERNEL-009-...-v1/MT-231.json",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "wtc-kernel-009 commit bd468f5a (show --stat + full diff)",
+        "src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.sql",
+        "src/backend/handshake_core/migrations/0320_knowledge_claim_conflict_acceptance_guard.down.sql",
+        "src/backend/handshake_core/src/storage/knowledge.rs",
+        "src/backend/handshake_core/src/knowledge_memory/projection.rs",
+        "src/backend/handshake_core/tests/knowledge_claims_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260613-SECURITY-MT231",

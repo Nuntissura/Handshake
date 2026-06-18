@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-253-SourceControlPanel",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-253.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -82,14 +82,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-247"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "1a4a93c4",
     "evidence": [
       "commit 1a4a93c4 on feat/WP-KERNEL-009 (12 files, +1127/-7, zero .GOV)",
@@ -97,7 +97,53 @@
       "Monaco diff reuse closed: createConfiguredDiffEditor wired into SourceControlPanel via new unit-tested app/src/lib/source_control/unified_patch.ts (reconstructs original/modified sides from the unified patch)",
       "adversarial review (4 blockers) forced executed-and-captured runtime proof; harden executed + captured the full real-PG/real-git/Playwright set",
       "VALIDATION NOTE: the receipt PG test reads POSTGRES_TEST_URL (exported alongside DATABASE_URL); consistent with existing crate PG tests"
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-253 source-control panel: PASS_V2. Real git CLI layer, real PG/EventLedger receipts, real Monaco diff, real offline Playwright proof of all named capabilities. No placeholders or forbidden deps.",
+      "findings": [
+        "Core git layer real: source_control.rs implements all named capabilities via Command::new(git), run_git_bytes line 382.",
+        "Discard confirm enforced source_control.rs:217-219; Playwright negative test asserts button disabled and head commit unchanged (spec 254-257).",
+        "Real EventLedger receipts via KernelSourceControlEventRecorder (api/source_control.rs:70-112); event type registered kernel/mod.rs:284,368.",
+        "sub_rule_2 genuine: source_control_receipt_pg_tests.rs drives product recorder against real PostgreSQL, reads events back, asserts operations and durable KE- ids and commit in real git log; passed 113.84s.",
+        "Monaco diff reuse: MonacoDiffView uses createConfiguredDiffEditor (MT-247 seam) over unified_patch.ts; 3 vitest cases.",
+        "Offline Playwright drives built panel against real git + real PostgreSQL fixture, all 7 capabilities, zero external requests; passed 4.1m.",
+        "No placeholders/forbidden deps; boundary clean (zero .GOV); DEC-007 signed authorizes MT-253."
+      ],
+      "evidence_checked": [
+        "source_control.rs",
+        "api/source_control.rs",
+        "kernel/mod.rs",
+        "source_control_receipt_pg_tests.rs",
+        "mt253_source_control_fixture.rs",
+        "source_control_panel.spec.ts",
+        "SourceControlPanel.tsx",
+        "unified_patch.ts/.test.ts",
+        "git show 1a4a93c4",
+        "MT-253.json + packet.json"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

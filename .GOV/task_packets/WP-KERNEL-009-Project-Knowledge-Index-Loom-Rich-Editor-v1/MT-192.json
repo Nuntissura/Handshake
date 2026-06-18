@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-192-LoomNavigationFixtures",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-192.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "20b1f968",
     "evidence": [
       {
@@ -128,7 +128,52 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-192 requires a consolidated Loom navigation fixture exercising every Obsidian-replacement navigation path (exact block open, backlinks, unlinked mentions, tags/nested tags, folder color labels, breadcrumbs, local/global graph filters, pins, stale wiki projection regen, and projection-delete-leaves-authority-intact) over one realistic workspace on real PostgreSQL, proving the surfaces compose over the same authority. The committed test does exactly this against a genuine Handshake-managed/real PostgreSQL harness with isolated schemas and the full migration chain, calling real postgres-backed implementations, and aligns with current Master Spec Section 10.12.",
+      "findings": [
+        "Single commit 20b1f968 adds exactly one new file, src/backend/handshake_core/tests/loom_navigation_fixtures_tests.rs (191 lines), in-scope per packet allowed_paths (tests/). No /.GOV/ or out-of-scope product files touched.",
+        "The test loom_navigation_fixture_exercises_every_path (loom_navigation_fixtures_tests.rs:92) builds one workspace and exercises 10 fixtures: exact open (line 112), backlinks+context (116-120), unlinked mentions with linked-exclusion negative assert (123-127), tag hub + nested-tag membership (130-135), folder tree + color label #3366ff (138-149), breadcrumbs spine asserting workspace/folder/project/entity crumbs (152-155), local undirected + tag-only-filtered + global graph (158-165), pins view+order (168-174), stale wiki projection that regenerates after a source edit (177-184), and projection-delete-leaves-block-byte-identical (187-190).",
+        "All called methods resolve to real postgres-backed implementations, not stubs: scan_unlinked_mentions at postgres.rs:9593 is genuine SQL (QueryBuilder with NOT EXISTS edge-exclusion + ILIKE prefilter); get_backlinks_with_context at postgres.rs:9544; local_graph at 9709; loom_wiki_projection_is_stale at 10459; regenerate_loom_wiki_projection (api/loom.rs:919 wired through storage); loom_block_breadcrumbs at 10704.",
+        "Sub-rule 2: the harness (tests/knowledge_pg_support.rs:108-165) connects a real PostgresDatabase to an isolated per-test schema (knowledge_test_<uuidv7>), installs pgcrypto + digest shims, and runs the full migration chain (db.run_migrations()). base_database_url() (line 10) resolves POSTGRES_TEST_URL/DATABASE_URL or falls back to ManagedPostgres::ensure_running — real Handshake-managed PostgreSQL lifecycle, not an implementer-authored mock. When no PG is configured it SKIPs (returns early), never a fake pass.",
+        "Sub-rule 1: grep over the loom postgres impl range (postgres.rs 9544-10800) found no todo!/unimplemented!/unreachable!/'not yet wired'/'deferred'/'pending MT-'/*Unavailable on the proof path.",
+        "Spec alignment: current Master Spec v02.194 module 10-product-surfaces.md (Section 10.12 Loom, lines 8534-8550) requires Loom navigation, Obsidian-like backlinks, unlinked/sorted/pinned/backlink graph views as 'a projection over product authority, not a second store'; line 8253 makes PostgreSQL+EventLedger the canonical authority. FIXTURE 10 (projection-delete-leaves-block-byte-identical) directly proves the markdown-vault-never-authority constraint; FIXTURES 2-9 cover the named navigation surfaces.",
+        "Sub-rule 3 NA: this is a WP-Validator advisory review and the lifecycle.completed_by is null (READY_FOR_VALIDATION); no self-cert COMPLETED transition was signed by the implementer.",
+        "Aside (non-blocking, expected): the evidence block notes a concurrent unrelated knowledge_retrieval MT-133/134 WIP that does not compile; the coder correctly left it as found and it is out of WP-009 scope. Self-review sub-agent verdict carries no authority and was disregarded."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/loom_navigation_fixtures_tests.rs (full, commit 20b1f968)",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:108-165 and base_database_url 10-25",
+        "src/backend/handshake_core/src/storage/postgres.rs:9544-9665 (scan_unlinked_mentions/get_backlinks_with_context) + method-presence grep across loom impls",
+        "src/backend/handshake_core/src/storage/mod.rs trait declarations + src/api/loom.rs wiring",
+        "git show --stat / git log --grep MT-192 in wtc-kernel-009",
+        ".GOV/task_packets/WP-KERNEL-009.../MT-192.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/10-product-surfaces.md (Section 10.12 Loom, lines 8253, 8534-8550)",
+        ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

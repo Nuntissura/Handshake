@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-258-NotesAuthoringConveniences",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-12T04:32:33.318Z",
-  "updated_at_utc": "2026-06-16T17:48:02Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-258.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-244",
@@ -89,7 +89,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "f867ee59",
     "evidence": [
       "commit f867ee59 on feat/WP-KERNEL-009 (32 files, +2952/-51, zero .GOV files); worktree clean",
@@ -98,7 +98,62 @@
       "harden pass closed the deferred search-bookmark deviation with REAL PG durability: migration 0330_workspace_search_bookmark_state.sql(+.down), PG-backed saved-search store (api/workspaces.rs, storage/mod.rs, storage/postgres.rs), WorkspaceSearchPanel migrated off localStorage; properties tag-edit via tag loom_edges in patch_loom_block",
       "VALIDATION CAVEAT: transclusion resolution requires loom_blocks.document_id to share the legacy `documents` anchor with knowledge_rich_documents; import_markdown_to_loom currently leaves document_id NULL, so existing imported notes resolve as typed-unresolved (not blank) until a follow-up MT sets that anchor on note-block creation",
       "consumed migration number 0330 (next free for downstream MTs is 0331+)"
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-258 implements the Obsidian-parity notes-authoring set (hover preview, transclusion, templates, properties panel, bookmarks, search operators) on LoomBlock authority. The code is real and substantial, wires to the Handshake-native PostgreSQL + EventLedger backend (no SQLite/Docker/mock), and each named capability has real runtime proof: PG-backed cargo tests for transclusion (read-through/edit-routes-to-source/no-copy) and properties tag-edit, a durable PG-backed saved-search route, and offline Playwright + vitest for the editor surfaces.",
+      "findings": [
+        "Transclusion backend is real: get_loom_block_transclusion (src/backend/handshake_core/src/api/loom.rs:598-659) resolves loom_blocks.document_id -> knowledge_rich_documents and returns live SOURCE content_json + version; typed unresolved states (loom_block_has_no_source_document / source_rich_document_missing) are never silent blanks.",
+        "NO-COPY invariant is enforced and proven: the loomTransclusion node is an atom carrying only {refValue} (app/src/lib/tiptap/loom_transclusion_node.ts:58-102; renderHTML emits a content-free placeholder), and loom_transclusion_tests.rs:356-439 asserts a host doc persists exactly one atom node and never absorbs the source body.",
+        "Edit-routes-to-source is proven against real PG: loom_transclusion_tests.rs:314-354 edits via PUT /knowledge/documents/:source/save, asserts source version advances, the re-read transclusion shows the edited content, and the old body is gone (single authority, no divergent copy).",
+        "Properties tag-edit is real-backend: patch_loom_block add_tags/remove_tags creates/removes real `tag` loom_edges, recomputes authoritative derived.tag_count, and enforces the HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB guard; inline PG route test mt258_properties_tag_edit_persists_edges_and_metrics (git show f867ee59 loom.rs) verifies persistence, idempotent add, removal, guard rejection, and reads tag_count back from the store.",
+        "Real defect fixed in the harden pass: the new tags_added/tags_removed payload keys failed flight-recorder require_exact_keys validate(), silently dropping every LoomBlockUpdated receipt; validate_loom_block_updated_payload now permits the optional tag arrays (flight_recorder/mod.rs).",
+        "Saved searches/bookmarks moved off localStorage to durable PG+EventLedger: migration 0330_workspace_search_bookmark_state.sql creates knowledge_workspace_search_bookmark_states with a CHECK on schema_id/bookmarks and an FK to kernel_event_ledger(event_id); storage trait+Postgres impl, KnowledgeWorkspaceSearchBookmarkStateRecorded event, and /workspaces/:id/search-bookmarks GET/PUT route back the UI projection.",
+        "Templates are data-only (no eval): template.note.daily runs insertNoteTemplate (app/src/lib/editor/editor_commands.ts:379-387 -> editor_note_templates), satisfying the 'templates are data, not code' constraint.",
+        "Search operators are a real parser feeding the real backend: parseLoomSearchOperators (app/src/lib/loom_search_query.ts) parses tag:/path:/folder:/kind:/mention: and WorkspaceSearchPanel.tsx (lines 393-575) feeds tagIds/mentionIds/sourceKinds/path into searchLoomGraph against the real /loom/graph-search route.",
+        "PG proof path is genuine: knowledge_pg_support.rs resolves POSTGRES_TEST_URL/DATABASE_URL or the Handshake-managed cluster, with NO SQLite/in-memory/mock fallback; absent binaries -> SKIP, any other failure panics, so a broken cluster cannot read green.",
+        "Sub_rule_1 scan: the only todo/unreachable hits in touched files are unreachable!() inside #[cfg(test)] expected-error branches in workspaces.rs (e.g. lines 1711,1823,1878) — standard test idiom, not a live-path escape.",
+        "Honest documented deviation (not a blocker): imported markdown notes leave loom_blocks.document_id NULL so existing imported notes resolve as typed-unresolved until a follow-up MT sets the anchor on note-block creation; this is a visible fail-closed state, recorded in lifecycle.evidence.",
+        "Aside (non-blocking): MT contract cites Master Spec bundle v02.193 while current is v02.194; section numbers resolve identically and this is expected paperwork drift during governance wind-down."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-258.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat f867ee59 (32 files, +2952/-51)",
+        "wtc-kernel-009/app/src/lib/tiptap/loom_transclusion_node.ts",
+        "wtc-kernel-009/app/src/components/LoomTransclusionView.tsx",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/loom.rs (transclusion handler + tag-edit test via git show)",
+        "wtc-kernel-009/src/backend/handshake_core/tests/loom_transclusion_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "wtc-kernel-009/src/backend/handshake_core/migrations/0330_workspace_search_bookmark_state.sql (via git show)",
+        "wtc-kernel-009/app/src/lib/loom_search_query.ts",
+        "wtc-kernel-009/app/src/components/WorkspaceSearchPanel.tsx (operator wiring)",
+        "wtc-kernel-009/app/src/lib/editor/editor_commands.ts",
+        "wtc-kernel-009/app/src/components/LoomBlockPanel.tsx (tag-edit PATCH wiring)",
+        "grep scan for deferred-live escapes across MT-258 touched files"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

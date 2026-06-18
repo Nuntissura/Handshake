@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-127-MemoryGraphVisualDebugPayload",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T23:21:34.542Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-127.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,20 +79,66 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
     "implementation_commit": "ff67de1c",
     "evidence": [
       "Built+verified ff67de1c; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-127 requires a typed backend MemoryGraphVisualDebugPayload exposing memory-graph state to visual/debug surfaces with stable IDs and source citations, as a projection over PostgreSQL/EventLedger authority. The code delivers a real builder composing the ontology/fact/passage-evidence projections plus claim-state/fact-label/open-conflict counts, marked authority_class=\"projection\" with a schema_id, proven against real Handshake-managed PostgreSQL. Aligned with current Master Spec 10.20 / 2.3.13.11.",
+      "findings": [
+        "visual_debug.rs:55-69 defines MemoryGraphVisualDebugPayload with workspace_id, schema_id, three subgraph projections, claim_state_counts, fact_label_counts, open_conflict_count, and authority_class — exactly the structured visual-debug state Master Spec 10.20 (10-product-surfaces.md:8546) and 2.3.13.11 require, as a projection (never a second store, spec line 8548).",
+        "visual_debug.rs:76-102 build_memory_graph_visual_debug composes the REAL projection builders (build_ontology_graph/build_fact_graph/build_passage_evidence_graph from projection.rs:68/160/290, confirmed non-stub bodies) plus live SQL aggregate queries against knowledge_claims (105-130), knowledge_memory_facts (133-161), and knowledge_claim_conflicts (165-178). schema_id and authority_class='projection' are hard-set.",
+        "sub_rule_1: grep of visual_debug.rs for todo!/unimplemented!/unreachable!/Unavailable/stub/fake/mock/'deferred'/'pending MT'/'not yet wired' returned NONE; no deferred-live escape on the required path.",
+        "sub_rule_2: proof touches REAL Handshake-managed PostgreSQL. tests/knowledge_memory_projection_tests.rs:556-638 visual_debug_payload_composes_graphs_and_counts builds a fixture via MemoryFixture::setup -> knowledge_pg_support.rs:51 ManagedPostgres::ensure_running (the Handshake-native managed PG, real migrations via db.run_migrations at line 156), inserts real ontology term/fact/passage, then asserts payload.schema_id, authority_class='projection', subgraph populations, claim_state_counts.proposed==1, fact_label_counts.source==1, open_conflict_count==0. Not an implementer-authored in-memory mock.",
+        "sub_rule_3: MT lifecycle.claimed_by=null, completed_by=null, status READY_FOR_VALIDATION — no self-certified COMPLETED transition; sub-rule NA.",
+        "Commit ff67de1c touches only src/ and tests/ (all within packet allowed_paths); api/mod.rs change is a single additive merge line; no /.GOV/ or governance boundary touch. No forbidden tech (SQLite/Docker/external search/graph services) present.",
+        "Aside (non-blocking): MT evidence text cites migrations 0240-0243 and 21 memory-graph tests for the group; this MT's own committed proof is the 1 visual-debug builder test, which is sufficient and real for the MT-127 surface."
+      ],
+      "evidence_checked": [
+        "wtc-kernel-009 commit ff67de1c (show --stat + name-only)",
+        "src/backend/handshake_core/src/knowledge_memory/visual_debug.rs (full)",
+        "src/backend/handshake_core/tests/knowledge_memory_projection_tests.rs (full)",
+        "src/backend/handshake_core/src/knowledge_memory/projection.rs:68-200",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs:9-156",
+        "src/backend/handshake_core/tests/knowledge_memory_fixtures.rs:34-146",
+        "MT-127.json contract",
+        "packet.json allowed/forbidden paths",
+        "spec-modules/10-product-surfaces.md:8530-8553 (10.20)",
+        "spec-modules/02-system-architecture.md:2694 (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

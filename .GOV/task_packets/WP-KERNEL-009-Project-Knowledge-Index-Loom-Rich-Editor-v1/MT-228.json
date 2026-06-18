@@ -22,7 +22,7 @@
   "title": "SecurityPortabilityValidation-228-NoSQLiteTripwireFixture",
   "group": "SecurityPortabilityValidation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-228.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-225"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "9915fcfa",
     "evidence": [
       {
@@ -134,7 +134,54 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-228 requires a real no-SQLite tripwire fixture proving SQLite cannot appear in storage/cache/tests/fixtures/examples/temp adapters, with PostgreSQL/EventLedger as canonical authority and no SQLite fallback. The implementation delivers a real source-pattern scanner, a real allowlist forbidden-class declaration, fail-closed PostgreSQL-only storage config, and negative-fixture tests that exercise the real Handshake-native scanner, allowlist, and Node validator subprocess. Aligns exactly with current Master Spec v02.194 which forbids SQLite and names SqlitePool as strictly forbidden.",
+      "findings": [
+        "source_tripwires.rs:21-94 declares real BUILT_IN_PATTERNS for the sqlite class (sqlite://, .sqlite3, rusqlite, sqlx::Sqlite, SqlitePool, SqlitePoolOptions, SqliteConnectOptions, SqliteDatabase, 'sqlite fallback') plus outside_app/outside_server_daemon patterns; scan_source_text (222-257) matches both path and content, fail-closed.",
+        "app/src/lib/dependency_policy/runtime_dependency_allowlist.json:64-68 declares the real sqlite forbidden class with cargo_crate_name_substrings ['sqlite'], npm_package_names, and full source_scan_patterns; product_scan_roots cover app/src + handshake_core/src + src-tauri/src; source_tripwire_exceptions (181+) are exact path+pattern scoped to negative-assertion test files, keeping the production tripwire active elsewhere.",
+        "tests/security_portability_validation_tests.rs:404-447 (mt_228_no_sqlite_tripwire_rejects_storage_cache_fixture_and_temp_adapter_refs) asserts sqlite-class violations for 7 storage/cache/fixture/example/temp-adapter fixtures using the real loaded allowlist; lines 450-477 assert the allowlist declares required patterns; lines 529-565 write a real temp .rs file under Handshake_Artifacts and assert the file-scoped policy gate fails closed reporting sqlite/SqlitePool.",
+        "tests/security_portability_validation_tests.rs:567-699 spawn the real Node validator (app/scripts/check-dependency-policy.mjs --source-tripwire-files) as a subprocess and assert non-zero exit with file_read_errors / forbidden-source-tripwire / path-name scanning; check-dependency-policy.mjs:67,168,198-229 genuinely implement --source-tripwire-files, read errors, and process.exitCode=1 on failure — not a no-op.",
+        "storage/mod.rs:186-217 ControlPlaneStorageConfig::resolve is genuinely fail-closed: PostgresPrimary is the only supported ControlPlaneStorageMode (from_str maps everything else to 'unsupported storage mode' at 162), DATABASE_URL must pass is_postgres_url (224-226); a sqlite:// URL or sqlite mode is rejected and NO SQLite fallback branch exists — directly substantiating MT-228's no-fallback claim and verified by mt_227 test (377-402).",
+        "Spec alignment: current Master Spec v02.194 02-system-architecture.md:2304-2308 forbids SQLite syntax/shims and 2388 declares 'fn sqlite_pool(&self) -> Option<&SqlitePool> is strictly FORBIDDEN' — the exact pattern this tripwire detects; preamble v02.184 records no-SQLite Kernel V1 authority law. No spec drift.",
+        "Sub-rule 1: grep of the diff for the touched files found no todo!/unimplemented!/unreachable!/stub/placeholder/'not yet wired'/'deferred to follow'/'pending MT-'/*Unavailable escapes reachable from the tripwire path.",
+        "Aside (non-blocking, paperwork): lifecycle.implementation_commit 9915fcfa bundles MT-225..229; completed_by is set with claimed_by null (no same-actor self-cert handoff malformation), consistent with winding-down repo governance and not a code defect."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-228.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show --stat 9915fcfa (wtc-kernel-009)",
+        "src/backend/handshake_core/src/dependency_policy/source_tripwires.rs",
+        "src/backend/handshake_core/tests/security_portability_validation_tests.rs",
+        "app/src/lib/dependency_policy/runtime_dependency_allowlist.json",
+        "app/scripts/check-dependency-policy.mjs",
+        "src/backend/handshake_core/src/storage/mod.rs (resolve 186-244)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2267-2388)",
+        ".GOV/spec/master-spec-v02.194/spec-modules/00-preamble.md (v02.182/v02.184 entries)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

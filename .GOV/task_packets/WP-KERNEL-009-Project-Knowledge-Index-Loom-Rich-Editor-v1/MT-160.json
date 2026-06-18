@@ -22,7 +22,7 @@
   "title": "RichDocumentCore-160-RichDocumentFixtures",
   "group": "RichDocumentCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-160.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-145"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
@@ -112,6 +112,54 @@
         "fixture: album/slideshow/video embed render",
         "fixture: save conflict (stale expected_version)"
       ]
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-160 (RichDocumentFixtures) requires roundtrip fixtures for every block/embed/link type plus conflict and missing-target cases, backed by PostgreSQL/EventLedger authority. The branch delivers real-PostgreSQL fixtures covering all 21 block kinds (byte-identical save/load roundtrip), typed-embed rejection of absolute paths via a real DB CHECK, projections-never-authority, crash recovery (promoted and draft), stale-version Conflict, and broken/missing-target embed repair. The code is real, not placeholder, and aligns with current Master Spec 2.3.13.11.",
+      "findings": [
+        "Every block/embed/link type roundtrip IS proven: src/backend/handshake_core/tests/knowledge_tiptap_roundtrip_fixture_tests.rs:40-111 builds all_custom_nodes_doc covering all 21 BlockKind variants (heading, paragraph w/ all hsLink inline kinds incl video/album/slideshow + mention + tagMention, bulletList, orderedList, codeBlock, monacoCodeBlock, table, taskList, blockquote, image, video, album, slideshow, fileLink, folderLink, projectLink, specLink, wpLink, symbolLink, importedRaw); L455-490 asserts the exact kinds vector AND tree.to_document_json() == loaded.content_json after real-PG create/save/load. This is the every-type roundtrip the MT-160 scope demands.",
+        "Conflict case proven on a real rich document against real PostgreSQL: tests/knowledge_documents_tests.rs:294-308 saves v2 then re-saves with stale expected_version=1 and asserts expect_err matches StorageError::Conflict(_). Backed by the save_knowledge_rich_document_version optimistic-concurrency path (storage/knowledge.rs:1794-1795 comment + StorageError::Conflict).",
+        "Missing-target case proven in the MT-160 integration file itself: tests/knowledge_document_model_tests.rs:319-363 creates an embed to KMED-missing, marks it broken, asserts it lands in the broken-embed queue, repairs it, and asserts the queue drains (MT-152/153 missing-target repair).",
+        "Real Handshake-owned resource touch (sub-rule 2): all fixtures run on real Handshake-managed PostgreSQL via knowledge_pg() isolated schemas and real PostgresDatabase::connect (knowledge_document_model_tests.rs:480-483, 546-549). The absolute-path rejection hits a real DB CHECK chk_knowledge_document_embeds_ref_value_not_path via raw sqlx INSERT (L302-316). No SQLite, no implementer-authored mock substitutes for the durable authority.",
+        "Projections-never-authority negative proof present: knowledge_document_model_tests.rs:370-446 registers a wiki projection, deletes it, and asserts the authority RichDocument row is byte-identical before/after, matching Master Spec 2.3.13.11 (02-system-architecture.md:2711 'Deleting or editing a projection MUST NOT mutate authority records').",
+        "Crash recovery proven for both promoted (L453-506) and draft write-box (L514-590) state via a fresh PostgresDatabase connection, reconstructing version history + block tree with no data loss and no silent promotion.",
+        "No placeholder/deferred-live escapes in any of the three fixture/test files (grep for todo!/unimplemented!/unreachable!/Unavailable/'deferred to follow'/'pending MT-' returns nothing); SKIP-on-no-PG guards are standard env gates, not stand-ins.",
+        "The coder's own adversarial-review-v2 LOW finding (missing importedRaw/album/slideshow/video roundtrip + conflict fixture) is now actually fixed in the branch by the MT-236 fixture file and the documents-tests conflict case; that finding is no longer reachable as a real gap. Aside (non-blocking): the every-type roundtrip lives in a file labeled MT-236 rather than the MT-160 file, and link-level missing-target (unresolved hsLink) is not separately asserted beyond embed missing-target -- neither is a code/behavior defect against the MT scope, which is satisfied across the committed suite.",
+        "All three fixture files are git-tracked and the working tree is clean (HEAD c7491525); implementation commits b506d832+935e0482+bf0c62a5+dd3056f5 plus c49afb7f for the all-nodes fixture."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/knowledge_document_model_tests.rs (full)",
+        "src/backend/handshake_core/tests/knowledge_tiptap_roundtrip_fixture_tests.rs:1-170,430-520",
+        "src/backend/handshake_core/tests/knowledge_documents_tests.rs:250-312",
+        "src/backend/handshake_core/src/knowledge_document/block_tree.rs (BlockKind enum)",
+        "src/backend/handshake_core/src/knowledge_document/embed.rs (EmbedRefKind)",
+        "src/backend/handshake_core/src/storage/knowledge.rs (Conflict path)",
+        ".GOV/task_packets/WP-KERNEL-009.../MT-160.json",
+        ".GOV/task_packets/WP-KERNEL-009.../packet.json",
+        ".GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11",
+        "git show --stat bf0c62a5 / dd3056f5; git log --grep MT-160; git ls-files + status for test files"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

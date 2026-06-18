@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-183-PinsFavoritesAndUnlinked",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T19:58:53.739Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-183.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "e856a5f9",
     "evidence": [
       {
@@ -190,6 +190,54 @@
       ],
       "verdict": "PASS",
       "state_recovery_recommendation": "Move MT-183 to READY_FOR_VALIDATION."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-183 requires pins (reorderable grid), favorites, unlinked, and sorted Loom views backed by durable PostgreSQL state. The code implements all four as real PostgreSQL queries over loom_blocks/loom_edges with durable pin_order and favorite columns, real CRUD/API, and integration tests proven against real Handshake-managed PostgreSQL (no SQLite/mock/Docker). It aligns with current Master Spec 7.1.4.3 / 11 [LM-VIEW-002][LM-VIEW-004].",
+      "findings": [
+        "Four views are real PostgreSQL queries in query_loom_view (postgres.rs:6896-6945): Pins filters b.pinned != 0 ORDER BY b.pin_order ASC NULLS LAST, updated_at DESC, block_id ASC (reorderable grid per [LM-VIEW-004]); Favorites filters b.favorite != 0; Unlinked uses NOT EXISTS over loom_edges mention/tag edges; Sorted groups by edge. No parallel store.",
+        "Reorderable Pins grid is durable: migration 0293 adds nullable loom_blocks.pin_order + partial index; set_loom_block_pin_order (postgres.rs:10018) is a real UPDATE binding Option<i32> so NULL genuinely clears (not a COALESCE no-op), fails closed with NotFound on missing block; exposed via PUT /loom/blocks/:id/pin-order (api/loom.rs:112).",
+        "Favorites is a distinct durable surface: migration 0296 adds favorite INTEGER NOT NULL DEFAULT 0 + partial index; map_loom_block reads favorite strictly via row.get('favorite') (postgres.rs:2019,2043) so any read path omitting it fails loudly; every map_loom_block SQL projection includes b.favorite; FlightRecorder LoomViewQueried allowlist includes 'favorites' (flight_recorder/mod.rs:2648); API parser maps 'favorites' literal (api/loom.rs:3113).",
+        "Unlinked semantics (NOT EXISTS where block is source OR target of a mention/tag edge) faithfully implement spec [LM-VIEW-002] 'zero MENTION + TAG edges'; verified by current Master Spec 07-user-experience-and-development.md:525-532 and 11-shared-dev-platform-and-oss-foundations.md:445-451.",
+        "Runtime proof is real: tests/loom_pins_views_tests.rs runs against real PostgreSQL via knowledge_pg_support.rs which resolves POSTGRES_TEST_URL/DATABASE_URL/Handshake-managed ManagedPostgres with NO SQLite/in-memory/mock fallback (skips only when PG binaries genuinely absent, panics on any other failure). Tests cover pin ordering, reorder, NULL-clear, unlinked exclusion, fail-closed, favorites independence from pins, and favorite-flag survival through search. Evidence records 6 passed after review fix.",
+        "Sub-rule 1: grep of loom.rs/api loom.rs/test file found no todo!/unimplemented!/deferred/pending-MT/*Unavailable escapes on any live path; the single unreachable! (test:133) is a post-type-check assertion guard, not a live placeholder.",
+        "Sub-rule 3: lifecycle.claimed_by=KERNEL_BUILDER-20260614-175624, completed_by=null (status READY_FOR_VALIDATION) — no self-certified COMPLETED; an independent validator signs the transition.",
+        "All changes confined to allowed product paths (src/backend/handshake_core, migrations, tests); no /.GOV/, no SQLite, no Docker, no external search engine — packet forbidden list respected. Aside: external evidence logs under ../Handshake_Artifacts were not present on disk, which is expected and non-blocking."
+      ],
+      "evidence_checked": [
+        "MT-183.json contract",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "git show e856a5f9 (Pins commit) + c49afb7f (Favorites checkpoint)",
+        "src/backend/handshake_core/migrations/0293_loom_block_pin_order.sql + 0296_loom_block_favorites.sql",
+        "src/backend/handshake_core/src/storage/postgres.rs (query_loom_view 6758-7000, map_loom_block 2010-2046, set_loom_block_pin_order 10018-10071)",
+        "src/backend/handshake_core/src/storage/loom.rs (LoomViewType/LoomBlock/LoomBlockUpdate)",
+        "src/backend/handshake_core/src/api/loom.rs (pin-order endpoint, favorites parse)",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs (favorites allowlist)",
+        "src/backend/handshake_core/tests/loom_pins_views_tests.rs",
+        "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+        "Master Spec v02.194 modules 07-user-experience-and-development.md, 11-shared-dev-platform-and-oss-foundations.md, 07-6-development-roadmap.md"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

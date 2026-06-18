@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-104-CallImportRelationshipBuilder",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T20:45:29.357Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-104.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-097"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5d6490b0+79e1a7e4",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -131,6 +131,51 @@
       "claim_mismatches": [],
       "missing_tests": [],
       "note": "VERIFIED FIXED from V1: derive_knowledge_relationship_id uses the _v2 length-prefixed ({byte_len}:{value}) injective preimage, separator-injective across code-index edge keys (file:/module:/{lang}:{path}#{path}). Consistent with the same discipline I confirmed in derive_block_id (block_tree.rs:318) and derive_document_link_relationship_id (backlink.rs:152). The separator-injection collision the V1 reviewer flagged is neutralized."
+    },
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-104 CallImportRelationshipBuilder extracts call/import/implements relationship candidates and writes them as references/depends_on/implements KnowledgeEdges through PostgreSQL with evidence spans, extractor version, confidence, and an injective deterministic relationship_id, matching Master Spec 2.3.13.11. The prior V1 separator-injection collision is genuinely closed by the committed _v2 length-prefixed derivation, and real-PG integration tests prove the edges and re-index idempotency.",
+      "findings": [
+        "relationships.rs:87-106 extract_relationships is pure, deterministic (sort+dedup), with conservative fixed confidence (imports 0.95, implements 0.9, calls 0.6) per relationships.rs:55-63 - correct given simple-name call resolution can collide.",
+        "engine.rs:814-933 write_relationships resolves candidates into real edges: calls->References (engine.rs:841-851), implements->Implements (852-861), imports->DependsOn via an on-demand module:{name} concept entity (862-886); unresolved targets are skipped (None=>continue) and self-edges guarded (889-892) so no false/degenerate edges land.",
+        "Every edge carries a created AST evidence span (engine.rs:895-919) and upsert_knowledge_edge enforces non-empty evidence_span_ids, [0,1] confidence, and non-empty extractor_version (knowledge.rs:4101-4115), satisfying spec 2.3.13.11 'every edge MUST carry source span refs, extractor version, confidence, stable relationship_id'.",
+        "Prior-V1 collision concern is closed: derive_knowledge_relationship_id (knowledge.rs:1154-1182) is the _v2 length-prefixed {byte_len}:{value} preimage joined by '|', which is separator-injective; the unescaped module:/file: keys fed into it can no longer alias distinct tuples. The fix is committed in 5d6490b0 (not an uncommitted external edit).",
+        "relationship_id is derived from the resolved entities' natural identities (entity_kind+entity_key looked up from PG, knowledge.rs:4117-4140), never row/run ids, and edges use ON CONFLICT (workspace_id, relationship_id) DO UPDATE (knowledge.rs:4151-4157) -> re-index is idempotent.",
+        "Real-PG proof: tests/knowledge_code_index_tests.rs header declares 'no SQLite, no mock, no in-memory'; the end-to-end test (line 441-479) asserts a References call edge with extractor_version, confidence in (0,1], non-empty relationship_id, and a source span, plus the depends_on module:crate::storage::knowledge concept; mt104_reindex_is_idempotent_on_relationship_id (1807-1855) re-indexes identical content and asserts edge count converges. knowledge_pg() uses managed PostgreSQL and SKIPs loudly when absent.",
+        "Sub-rule grep for todo!/unimplemented!/unreachable!/Unavailable/placeholder/stub/mock/deferred over relationships.rs and engine.rs returned zero hits - no deferred-live escape on the required behavior path.",
+        "Self-cert: lifecycle.claimed_by=KERNEL_BUILDER-20260611-071323, completed_by=null, status READY_FOR_VALIDATION - implementer did not sign COMPLETED.",
+        "Non-blocking limitation (adversarial review, accurate): call/implements resolution is intra-file only (resolve_symbol_by_name searches this file's symbol_index; cross-file callers/callees produce no edge). This is a documented conservatism, not a violation of the MT-required call/import/implements builder behavior."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/relationships.rs:1-348",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:560-687,814-933",
+        "src/backend/handshake_core/src/storage/knowledge.rs:1108-1182,4097-4171",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:1-58,435-493,1803-1855",
+        "git show --stat 5d6490b0 (relationships.rs +348, engine.rs +1115, knowledge.rs +447) and 79e1a7e4 (integration tests)",
+        "spec master-spec-v02.194/spec-modules/02-system-architecture.md:2694-2719 (2.3.13.11 KnowledgeEdge)",
+        "MT-104.json contract + packet.json scope/forbidden paths"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

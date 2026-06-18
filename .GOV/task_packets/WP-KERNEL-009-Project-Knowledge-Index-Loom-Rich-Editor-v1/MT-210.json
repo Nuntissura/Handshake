@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-210-WorktreeWorkspaceClaimApi",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T17:48:02.005Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-210.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": "KERNEL_BUILDER-20260612",
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "e6aea0fc",
     "evidence": [
       {
@@ -130,7 +130,55 @@
       }
     ],
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z"
+    "ready_for_validation_at_utc": "2026-06-12T17:48:02.005Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-210 requires backend APIs to claim worktrees/workspaces, list active claims, and release/reclaim stale claims with PostgreSQL/EventLedger authority. The code delivers all four operations as real, atomic, EventLedger-backed PostgreSQL functions, proven at runtime against a Handshake-managed PostgreSQL cluster with isolated schemas and claim/release/reclaim receipts asserted via direct SQL.",
+      "findings": [
+        "claim_work_surface (state_recovery.rs:1340) implements the claim API: validates TTL+scope+capability, opportunistically reclaims expired claims, returns Held when an active holder exists, otherwise inserts an 'active' row in knowledge_agent_worktree_claims in a transaction and writes a SessionClaimed EventLedger receipt; unique-violation race returns the existing holder (state_recovery.rs:1438).",
+        "list_active_claims (state_recovery.rs:1455) reclaims expired claims first, then selects active, non-released, non-expired claims for the workspace - correct canonical-state read.",
+        "release_claim (state_recovery.rs:2329) uses SELECT ... FOR UPDATE scoped to actor_id+active, writes a release receipt, sets status='released' with release_event_ledger_event_id, and returns false if caller is not the active holder.",
+        "reclaim_expired_work_claims (state_recovery.rs:3551) gates on ClaimWorktree capability, locks expired active claims FOR UPDATE, writes a SessionCancelled reclaim receipt per claim, and updates status='reclaimed' RETURNING the row, all in one transaction.",
+        "Migration 0311_parallel_swarm_state_recovery.sql:6-36 creates knowledge_agent_worktree_claims with FK refs to kernel_event_ledger, a status CHECK constraint, and a partial UNIQUE index ux_agent_worktree_claims_active_scope enforcing one active claim per (scope_kind, scope_id) - the real exclusivity primitive. Registered in knowledge_schema_registry under mt_id MT-210 (line 149-150).",
+        "Runtime proof is real PG: recovery_store() (tests:174) connects via knowledge_pg() which uses ManagedPostgres::ensure_running (knowledge_pg_support.rs:49-64) - the Handshake-managed PostgreSQL cluster with per-test isolated schemas and real migrations. No SQLite, no mock store.",
+        "Test agent_lanes_and_work_claims_are_typed_attributable_and_exclusive (tests:776) proves the full MT-210 cycle: claim Active -> second claim Held naming holder -> list_active_claims len==1 -> release -> SQL assertion that release_event_ledger_event_id starts with 'KE-' -> re-claim Active. explicit_expired_claim_reclaim_records_event_receipt (tests:5642) forces expiry in real PG and asserts reclaim status plus a kernel_event_ledger reclaim receipt counted by SQL. Atomicity failure-injection tests exist (release/reclaim rollback when receipt insert fails, tests:940/5709).",
+        "sub_rule_1: grep of state_recovery.rs and the test file found no todo!/unimplemented!/unreachable!/*Unavailable/'pending MT-'/'deferred to follow-on' on any live claim path. The None SKIP path (no PG binaries) is a host-availability guard, not a stand-in for required behavior.",
+        "Spec alignment: Master Spec v02.194 module 05-security-and-observability.md:1860 (reclaim hooks on session staleness) and 06-mechanical-integrations.md:6796 (parallel governed sessions contending for leases, concurrency invariants) confirm parallel-agent claim/lease/reclaim is in-scope native runtime behavior; the impl matches.",
+        "Aside (non-blocking, governance only): lifecycle.claimed_by is null while completed_by is KERNEL_BUILDER, so this is not a clean two-actor handoff; per ground rules self-cert alone is not a fail and the proof here is real PG runtime evidence."
+      ],
+      "evidence_checked": [
+        "MT-210.json (contract: scope, acceptance_criteria, constraints, red_team, lifecycle.implementation_commit e6aea0fc)",
+        "packet.json scope (allowed/forbidden paths) via prompt",
+        "git show --stat e6aea0fc (wtc-kernel-009)",
+        "src/backend/handshake_core/migrations/0311_parallel_swarm_state_recovery.sql",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs (claim_work_surface, list_active_claims, release_claim, reclaim_expired_work_claims, append_event_tx)",
+        "tests/parallel_swarm_state_recovery_tests.rs (recovery_store, agent_lanes_and_work_claims..., explicit_expired_claim_reclaim..., rollback tests)",
+        "tests/knowledge_pg_support.rs (knowledge_pg / ManagedPostgres harness)",
+        "spec-modules/05-security-and-observability.md, 06-mechanical-integrations.md (v02.194)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260612-SECURITY-SWARM-USERMANUAL",

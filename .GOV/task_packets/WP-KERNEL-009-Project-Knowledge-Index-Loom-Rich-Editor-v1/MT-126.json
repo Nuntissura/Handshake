@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-126-MemoryGraphBackendApi",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T23:21:34.542Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-126.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,20 +79,68 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
     "implementation_commit": "ff67de1c",
     "evidence": [
       "Built+verified ff67de1c; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-126 requires Handshake-native backend navigation APIs for the memory graph (claim lookup, conflict review/repair queue, evidence/fact trace, graph neighborhood, visual-debug) over PostgreSQL/EventLedger with attributable typed receipts. The committed code (api/knowledge_memory.rs) implements all five read-only endpoints over the shared postgres_pool, enforces backend-nav identity headers (400 otherwise), and emits a typed KNOWLEDGE_RETRIEVAL_TRACE_RECORDED EventLedger receipt per query, with a real route-level HTTP integration test against managed PostgreSQL. This matches spec 2.3.13.11 (line 2717).",
+      "findings": [
+        "api/knowledge_memory.rs:64-78 builds a real routes(state) Router exposing all five MT-required endpoints: claims/:id, conflicts (repair queue), facts/:id (trace), entities/:id/neighborhood, visual-debug; merged into the live app router at api/mod.rs:18,43,68.",
+        "Backend-navigation receipt law enforced: nav_context (lines 134-168) requires x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id (returns 400 bad_request if absent); record_nav_receipt (lines 171-201) appends a typed KernelEventType::KnowledgeRetrievalTraceRecorded EventLedger event carrying actor/session/correlation + query. Matches spec 2.3.13.11 line 2717 (actor id, session id, correlation id, target authority ref, intended operation, typed receipt).",
+        "All durable reads go through real PostgresDatabase/KnowledgeStore impls, not implementer mocks: list_knowledge_claim_span_ids, list_knowledge_claim_conflicts, get_knowledge_claim, list_knowledge_edges_for_entity, list_knowledge_edge_span_ids all have real impls at src/storage/knowledge.rs:4220-4642; get_memory_fact/get_memory_fact_by_claim/create_memory_fact real at src/storage/knowledge_memory.rs:693-735. Conflict queue uses a direct SQL join over knowledge_claim_conflicts/knowledge_claims (lines 289-308).",
+        "sub_rule_2 PASS: test knowledge_memory_api_tests.rs drives the actual Axum routes over a loopback listener against REAL managed PostgreSQL via MemoryFixture::setup -> knowledge_pg() auto-discovery with isolated schema + full migration chain (fixtures line 8-9, 43-44: 'Real PostgreSQL only. No SQLite, no mocks'). Asserts 400-without-headers (line 215), receipt event ids on every response, claim/conflict/fact/neighborhood/visual-debug shapes, and lifecycle_state=conflicted.",
+        "sub_rule_1 PASS: grep of api/knowledge_memory.rs and visual_debug.rs found zero todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow-on'/'pending MT'/Unavailable placeholders reachable from the proof path.",
+        "sub_rule_3 PASS: claimed_by/completed_by are null; ready_by=KERNEL_BUILDER (READY_FOR_VALIDATION). No self-certified COMPLETED transition, and proof is real regardless.",
+        "No forbidden surfaces: no SQLite, Docker, external search engine, or sidecar-paper authority; all authority is PostgreSQL/EventLedger. The single commit ff67de1c bundles MT-126 (api) and MT-127 (visual_debug payload); MT-126 scope is cleanly the api file + its test, within packet allowed_paths (src/backend/handshake_core, tests).",
+        "Aside (non-blocking, governance paperwork): MT contract still cites v02.192 anchors and lifecycle.status=READY_FOR_VALIDATION; expected during governance wind-down, not a code defect."
+      ],
+      "evidence_checked": [
+        "wtc-kernel-009/src/backend/handshake_core/src/api/knowledge_memory.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/api/mod.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_api_tests.rs",
+        "wtc-kernel-009/src/backend/handshake_core/tests/knowledge_memory_fixtures.rs",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge.rs (impls 4220-4642)",
+        "wtc-kernel-009/src/backend/handshake_core/src/storage/knowledge_memory.rs (693-735)",
+        "wtc-kernel-009/src/backend/handshake_core/src/kernel/mod.rs (KnowledgeRetrievalTraceRecorded 271/345/427)",
+        "git show --stat ff67de1c",
+        "wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md (2.3.13.11 line 2694-2719)",
+        "MT-126.json",
+        "packet allowed_paths"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

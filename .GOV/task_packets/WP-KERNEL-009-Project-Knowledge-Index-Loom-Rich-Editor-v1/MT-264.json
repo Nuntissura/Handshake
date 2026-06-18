@@ -22,7 +22,7 @@
   "title": "UnifiedWorkSurface-264-LoomSearchV2",
   "group": "UnifiedWorkSurface",
   "created_at_utc": "2026-06-17T20:30:00.000Z",
-  "updated_at_utc": "2026-06-17T20:30:00.000Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-264.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -99,7 +99,7 @@
     "7. Adversarial self-review; fix findings; write evidence."
   ],
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-182",
@@ -109,7 +109,7 @@
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "c7491525",
     "evidence": [
       "commit c7491525 on feat/WP-KERNEL-009 (migration 0336_loom_search_v2 + .down; product code only, zero .GOV); adversarial review 3 lenses (2 initially FAIL on missing captured proof + the pg_or_skip skip-risk); harden re-ran and captured every proof.",
@@ -118,7 +118,56 @@
       "vitest 5 (LoomSearchV2Panel); tsc + eslint clean; offline Playwright 15 (5 specs x 3 viewports) with tracked.external==[] (zero external network); check:portable-artifacts 6/6; migration 0336 up->down->up replay-safe.",
       "design: derived projection table loom_block_search_index (block_id FK ON DELETE CASCADE -> no second authority, no drift), GENERATED tsvector+GIN, pg_trgm GIN, pgvector(768) HNSW vector_cosine_ops; keyword/trigram refreshed transactionally in storage create/update; embedding refreshed via the API handlers (create_loom_block/open_daily_journal/patch_loom_block) that hold the MT-260 model-runtime; LlmClient::embedding trait + real Ollama /api/embeddings impl + honest deterministic InMemory embedding; POST /workspaces/:id/loom/search-v2; frontend LoomSearchV2Panel (ranked highlighted results, content_type facets, open-in-place reference, save-as-Loom-view reusing MT-262). NO Elasticsearch (DEC-008).",
       "VALIDATION CAVEAT: (1) pgvector is a machine-local PG install (document in PG setup notes; operator-owned). (2) Embedding refresh is at the API-handler seam (the storage Database trait has no model runtime) — keyword/trigram refresh is in storage create/update; a future internal bulk-edit path or a background re-embed job (AI-Loom pattern) would extend coverage. (3) An end-to-end live-Ollama embedding-model run was not done (no Ollama server offline) — the Ollama provider impl + trait are real and pgvector kNN/hybrid is proven over real stored 768-dim vectors via the honest deterministic InMemory embedding."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-264 requires Postgres-native (DEC-008, no external search engine) ES-class hybrid search over the Loom corpus: tsvector FTS + pg_trgm fuzzy + pgvector semantic, graph-blended via loom_edges, with a derived projection reindexed transactionally on block write/delete and real embeddings (typed no-model fallback, no fabrication). The commit (c7491525) delivers all of this with real product code and real-PG runtime proof across every acceptance criterion; it aligns with Master Spec module 11 (\"Three-tier search: local FTS + PostgreSQL tsvector + semantic embeddings\", tsvector+GIN, graph-relationship filtering in same query) and module 06 (pgvector). PASS.",
+      "findings": [
+        "Migration 0336_loom_search_v2.sql:39-78 creates the derived loom_block_search_index projection: CREATE EXTENSION IF NOT EXISTS pg_trgm + vector (fails loud if vector absent), a GENERATED tsvector STORED column + GIN, a pg_trgm GIN, and a pgvector(768) HNSW vector_cosine_ops index; block_id FK ON DELETE CASCADE makes deletes drift-proof (the negative test relies on this).",
+        "postgres.rs loom_search_v2 (diff lines ~249-360) is a single canonical SQL CTE fusing all three modalities: ts_rank(search_tsv, websearch_to_tsquery) + public.similarity (pg_trgm) + (1 - embedding <=> query) (pgvector cosine), with ts_headline <mark> highlight, content_type facet COUNT, loom_edges degree subquery for graph blend, and content_type/tag facet filters — exactly the 'filter by graph relationships in same query' the spec (module 11 line 560) requires.",
+        "Reindex consistency is real and transactional with block existence: upsert_loom_block_search_text is called inside create_loom_block, get_or_create_daily_journal_block, and update_loom_block authority write paths (postgres.rs diff); delete relies on FK CASCADE. Proven by mt264_reindex_consistency_edit_and_delete (loom_search_v2_tests.rs:294-355) which asserts edit-reflected, delete-GONE negative, and original-term-gone.",
+        "Semantic proof is real, not fabricated: InMemoryLlmClient::deterministic_embedding (ollama.rs diff) is a genuine hashed bag-of-words L2-normalized function of the text, so pgvector kNN ranks the genuinely-closest block (mt264_pgvector_semantic_and_hybrid asserts the canine block ranks first with vector_sim>0). The production OllamaAdapter::embedding is a real HTTP POST to /api/embeddings with empty-vector and non-success guards. No-model path (DisabledLlmClient -> EmbeddingUnsupported) is proven by mt264_no_model_typed_fallback_no_fabrication: semantic_available=false, vector_sim==0.0, NO embedding written, keyword fallback still finds the block.",
+        "sub_rule_1: grep for todo!/unimplemented!/unreachable!/not yet wired/deferred/pending MT-/LiveClientUnavailable in loom_search, storage/loom.rs, and the V2 panel returns only negative-assertion doc comments ('NEVER fabricated', 'no semantic result is invented'); no reachable placeholder or deferred-live escape.",
+        "sub_rule_2: every required durable resource is touched by real-PG proof — the migration DDL, the loom_block_search_index projection, pg_trgm/pgvector extensions, loom_edges graph join, EventLedger-receipted reindex (validate_write in reindex_loom_block_search), and the API-handler seam (mt264_api_create_and_update_refresh_embedding / mt264_journal_block_indexed_on_create query state.postgres_pool directly to assert embedded index rows). All against the Handshake-managed PostgreSQL (port 5544 per evidence), no SQLite/mock-only stand-in.",
+        "sub_rule_3: claimed_by=KERNEL_BUILDER, status READY_FOR_VALIDATION (not self-signed COMPLETED); proof is real regardless.",
+        "Non-blocking quality nit (not a contract violation): loom_search/mod.rs:74 embed_text maps ALL LlmError variants (including transport/provider errors) to EmbedOutcome::NoModel, so a transient Ollama failure silently degrades to keyword-only instead of failing loudly. It never fabricates, so the MT's no-fabrication/degrade-with-notice constraint still holds; only the loudness of a real-model transport failure is softened.",
+        "Honestly-disclosed caveat (acceptable): live-Ollama end-to-end embedding run was not executed (no offline Ollama server); the Ollama provider impl + LlmClient::embedding trait are real and pgvector kNN/hybrid is proven over real stored 768-dim vectors via the honest deterministic embedding. pgvector is a machine-local PG install (operator-owned), migration ensures-present and fails loud elsewhere. These are disclosed in lifecycle.evidence VALIDATION CAVEAT.",
+        "Aside (expected, non-blocking): packet cites v02.192 anchors; resolved against current v02.194 modules 11/06 which mandate this exact three-tier Postgres-native search. No paperwork issue affects code judgment."
+      ],
+      "evidence_checked": [
+        "git show --stat + full diff of commit c7491525 (wtc-kernel-009)",
+        "src/backend/handshake_core/migrations/0336_loom_search_v2.sql + .down.sql",
+        "src/backend/handshake_core/src/loom_search/mod.rs",
+        "src/backend/handshake_core/src/storage/postgres.rs (loom_search_v2, reindex_loom_block_search, upsert_loom_block_search_text, create/update/journal write paths)",
+        "src/backend/handshake_core/src/llm/ollama.rs (embedding impl + InMemoryLlmClient deterministic_embedding)",
+        "src/backend/handshake_core/src/api/loom.rs (handler wiring + mt264 API-path tests)",
+        "src/backend/handshake_core/tests/loom_search_v2_tests.rs (6 real-PG modality tests)",
+        ".GOV/task_packets/.../MT-264.json + packet constraints",
+        "Master Spec v02.194 spec-modules/11 (three-tier search) + 06 (pgvector)",
+        "placeholder + forbidden-tech greps"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

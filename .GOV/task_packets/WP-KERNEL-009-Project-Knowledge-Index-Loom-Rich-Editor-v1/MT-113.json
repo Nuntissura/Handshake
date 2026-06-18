@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-113-MemoryOntologySchema",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T23:21:34.542Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-113.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-049",
@@ -88,13 +88,59 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_by": "KERNEL_BUILDER-20260611-071323",
     "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
     "implementation_commit": "98beb6d7",
     "evidence": [
       "Built+verified 98beb6d7; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-113 (MemoryOntologySchema) requires a Handshake-native PostgreSQL/EventLedger MemoryOntology layer defining schema terms (entity/relation classes, aliases, normalized terms, promoted extraction patterns) with a probationary->stable lifecycle gated by evidence thresholds, conflict checks, and receipt-backed promotion. The code delivers exactly this: real migration 0240 with two authority tables, lifecycle/receipt-enforcing triggers, a genuine storage layer, and integration tests proven against real managed PostgreSQL including adversarial raw-SQL negative paths.",
+      "findings": [
+        "Migration src/backend/handshake_core/migrations/0240_knowledge_memory_ontology.sql creates knowledge_memory_ontology_terms (term_kind/lifecycle_state CHECK enums, FK workspace_id->workspaces, promotion_receipt_event_id FK->kernel_event_ledger, identity UNIQUE(workspace_id,term_kind,term_key), KMO- id regex) and knowledge_memory_ontology_aliases (UNIQUE(workspace_id,alias_norm_key) so one normalized key resolves to one canonical term). Real DDL, registered in knowledge_schema_registry with authority_class='authority'.",
+        "0240 defines two enforcing triggers: trg_knowledge_memory_ontology_stable_requires_receipt (RAISE EXCEPTION if lifecycle_state='stable' AND promotion_receipt_event_id IS NULL) and trg_knowledge_memory_ontology_transition_guard (probationary->stable|retired, stable->retired, retired terminal; rejects illegal transitions). DB-layer enforcement, not app-only.",
+        "storage/knowledge_memory.rs:240-405 implements upsert_memory_ontology_term (ON CONFLICT identity upsert accruing observation_count), promote_memory_ontology_term (fails closed via is_promotable() at line 178: probationary AND (operator_approved OR observation_count>=promotion_threshold), requires EventLedger receipt id), retire_memory_ontology_term. Lines 466-535: alias add/resolve(JOIN)/list. No stubs.",
+        "Grep of storage/knowledge_memory.rs and src/knowledge_memory/*.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow'/'pending MT-'/Unavailable returned zero hits (sub-rule 1).",
+        "tests/knowledge_memory_ontology_tests.rs runs against real managed PostgreSQL via knowledge_pg auto-discovery; appends real kernel_event_ledger events (db.append_kernel_event) as promotion receipts; includes adversarial raw-SQL negatives proving DB triggers fire: stable-without-receipt refusal (line 162-173), stable->probationary illegal-transition refusal (221-229), retired-terminal refusal (241-251), duplicate-alias-norm-key UNIQUE violation (303-317), under-threshold app+DB rejection (155-173) (sub-rule 2).",
+        "Spec 02-system-architecture.md 2.3.13.11 mandates KnowledgeClaim lifecycle (proposed/accepted/conflicted/retired) with evidence spans + resolution receipts and PostgreSQL/EventLedger authority, no SQLite; the MemoryOntology term lifecycle mirrors this discipline exactly and 0241 facts back knowledge_claims rather than duplicating lifecycle. Aligned.",
+        "No forbidden-path touch: no SQLite/.db/Docker in the diff; all changes under src/backend/handshake_core and tests, within packet allowed_paths.",
+        "Aside (non-blocking): packet/anchor cites spec bundle v02.192/v02.193 while current is v02.194; same section numbers resolve and content is unchanged for this MT. Pure paperwork pointer, expected and not a failing reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-113.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+        "git show 98beb6d7 (commit + stat) in wtc-kernel-009",
+        "src/backend/handshake_core/migrations/0240_knowledge_memory_ontology.sql (+.down.sql)",
+        "src/backend/handshake_core/migrations/0241_knowledge_memory_facts.sql (FK linkage grep)",
+        "src/backend/handshake_core/src/storage/knowledge_memory.rs (lines 178-535)",
+        "src/backend/handshake_core/tests/knowledge_memory_ontology_tests.rs (full)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md#2.3.13.11"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

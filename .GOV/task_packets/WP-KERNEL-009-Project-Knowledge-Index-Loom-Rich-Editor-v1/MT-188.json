@@ -22,7 +22,7 @@
   "title": "LoomObsidianNavigation-188-NavigationBreadcrumbs",
   "group": "LoomObsidianNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T06:25:27.785Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-188.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-177"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "1a5f3abb",
     "evidence": [
       {
@@ -130,7 +130,51 @@
       ]
     },
     "ready_by": "KERNEL_BUILDER-20260612",
-    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z"
+    "ready_for_validation_at_utc": "2026-06-12T06:25:27.785Z",
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "NA"
+      },
+      "summary": "MT-188 adds a navigation breadcrumb trail for a LoomBlock (workspace -> project -> folder ancestry -> block -> ProjectKnowledgeIndex entity) as a read projection over PostgreSQL authority, with a real Postgres-backed implementation and three real-PostgreSQL integration tests. The code implements the required behavior, aligns with the current Master Spec's \"projection over product authority, not a second store\" requirement for the WP-009 surface, and has no placeholder/mock/deferred-live escape on the live path.",
+      "findings": [
+        "postgres.rs:10704 loom_block_breadcrumbs is a real, substantive PostgreSQL implementation: fail-closed get_loom_block, workspace crumb, deterministic single folder branch (ORDER BY created_at, folder_id LIMIT 1), cycle-guarded recursive ancestry CTE emitting root-first, root-most project_ref project crumb, block crumb, and entity crumb when bridged via get_loom_block_knowledge_bridge. No placeholder.",
+        "mod.rs:2830 trait default returns StorageError::NotImplemented(\"loom breadcrumb backend\") but this is NOT reachable on the live path: the production AppState routes state.storage (PostgresDatabase) which overrides it. The only two impls are the trait default and the Postgres override (confirmed via grep).",
+        "tests/loom_breadcrumb_tests.rs: 3 real-PostgreSQL integration tests via knowledge_pg_support (managed_postgres::ManagedPostgres, isolated knowledge_test_<uuidv7> schemas, full migration chain, no SQLite/in-memory/mock fallback - harness header explicitly documents 'NO SQLite, in-memory, or mock fallback'). Covers full spine root-first ordering + project crumb + entity crumb, minimal [workspace, block] for unfiled/unbridged, and fail-closed NotFound on missing block.",
+        "api/loom.rs:344 GET /workspaces/:ws/loom/blocks/:id/breadcrumbs wires the storage call with ensure_workspace_exists and map_storage_error - real HTTP contract for the Notes UI.",
+        "Dependent surfaces are all real Postgres-backed (get_loom_block postgres.rs:5948, get_loom_block_knowledge_bridge :9503, loom_folders/loom_folder_members tables), so the breadcrumb is wired end-to-end against real durable state.",
+        "Spec alignment: master-spec-v02.194 10-product-surfaces.md:8534 requires the WP-009 surface be 'a projection over product authority, not a second store' - the MT delivers exactly a read projection, no parallel store.",
+        "Non-blocking aside (NOT a fail): MT scope text lists crumb kinds doc/symbol/WP/MT/source-span; the backend delivers workspace/project/folder/block/entity and the evidence states the remaining kinds are surfaced by the frontend over the existing knowledge entity/edge graph. The backbone is real and extensible; this is a documented in-WP frontend follow-on, not a fake/placeholder backend, and the MT acceptance criteria (restartable native impl with concrete files/tests) are met."
+      ],
+      "evidence_checked": [
+        "MT-188.json contract (scope, acceptance_criteria, constraints, evidence, adversarial_code_review)",
+        "packet.json allowed/forbidden paths (read context via task)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate",
+        "git show 1a5f3abb (full diff: api/loom.rs, storage/loom.rs, storage/mod.rs, storage/postgres.rs, tests/loom_breadcrumb_tests.rs)",
+        "tests/knowledge_pg_support.rs (real-PG harness, no mock fallback)",
+        "grep for placeholders/NotImplemented near breadcrumb impl",
+        "master-spec-v02.194 SPEC_CURRENT.md + 10-product-surfaces.md:8534",
+        "grep confirming only 2 impls of loom_block_breadcrumbs and real dependent helpers/tables"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

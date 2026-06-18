@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-084-ContentHashStrategy",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:16:10.973Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-084.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "5de73483",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5de73483; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -118,13 +118,13 @@
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
     ],
-    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
-    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "validator_verdict": "PASS_V2",
     "failure_label": "FAIL_V1",
     "failed_by": "WP_VALIDATOR-20260611-181356",
     "failed_at_utc": "2026-06-11T19:01:36.361Z",
-    "completed_at_utc": null,
+    "completed_at_utc": "2026-06-18T07:41:57Z",
     "wp_validator_review_v1": {
       "schema_id": "hsk.wp_validator_mt_review@1",
       "verdict": "FAIL_V1",
@@ -158,6 +158,45 @@
       "by": "KERNEL_BUILDER-20260611-071323",
       "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
       "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    },
+    "pass_label": "PASS_V2",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-084 defines and implements a two-hash content strategy: raw_sha256 (exact bytes, fidelity/authority hash stored as knowledge_sources.content_hash and pinned on receipts) and normalized_text_sha256 (BOM-strip + CRLF/CR->LF, change-detection only, recorded in provenance, never authority). The strategy is concretely implemented in hashing.rs, wired into the ingestion engine, and proven against real Handshake-managed PostgreSQL.",
+      "findings": [
+        "hashing.rs:65 compute_content_hashes computes raw_sha256 over exact bytes via the single crate digest authority ai_ready_data::chunking::sha256_hex (no duplicate crypto), and a normalized_text_sha256 only for text-decodable payloads.",
+        "hashing.rs:39-46 decode_text gates text on valid UTF-8 AND no NUL byte; hashing.rs:49-63 normalize_text_for_hashing strips the UTF-8 BOM and folds CRLF/lone-CR to LF. Binary/invalid-UTF8/NUL payloads correctly get normalized_text_sha256=None (is_text=false).",
+        "engine.rs:249 calls compute_content_hashes at ingest; engine.rs:385 stores hashes.raw_sha256 as the source row content_hash; engine.rs:411-414 and 435 pin the same raw hash on the EventLedger receipt event and the extraction receipt row; engine.rs:363 records normalized_text_sha256 in source provenance (non-authority).",
+        "engine.rs:290-294 oversize path stream-hashes raw bytes (stream_sha256) producing the same SHA-256 authority with normalized_text_sha256=None and is_text=false; this is a deliberate bounded-memory design, not a placeholder escape.",
+        "Real-PG proof: knowledge_ingestion_pipeline_tests.rs:50 mt084_same_content_two_paths_shares_fidelity_hash_and_records_text_hash drives the real IngestionEngine over knowledge_ingestion_support::ingestion_pg() (knowledge_pg = real Handshake-managed PostgreSQL, isolated schema, full migration chain, no SQLite/mocks per support.rs:4-9). It asserts identical bytes at two paths yield two distinct source rows with equal content_hash (line 72-73), receipt.content_hash==source.content_hash (74), and CRLF vs LF differ on raw content_hash while the provenance normalized_text_sha256 matches (94-103).",
+        "Prior FAIL_V1 (wp_validator_review_v1) was purely UPSTREAM_DEPENDENCY_NOT_READY (MT-081 was still CLAIMED at validation time) — not a code defect in MT-084. MT-081 is now implemented (commit 5876feaf) per remediation_v2; this is the only V1 blocker and it is resolved.",
+        "Aside (non-blocking, expected): relevant_files and packet anchors cite master-spec-v02.192; current is v02.194. Paperwork-only, never a fail reason."
+      ],
+      "evidence_checked": [
+        "git show --stat 5de73483 (MT-084 impl commit: hashing.rs + mod.rs wiring)",
+        "git show 5de73483:.../knowledge_ingestion/hashing.rs (full module + unit tests)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:240-300,340-440 (hash integration: ingest, content_hash storage, receipt/ledger pinning, provenance, oversize stream path)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs:1-104 (MT-084 real-PG test)",
+        "src/backend/handshake_core/tests/knowledge_ingestion_support.rs:1-84 (real managed-PG harness, no SQLite/mocks)",
+        "MT-084.json contract (scope, acceptance_criteria, lifecycle, prior wp_validator_review_v1, remediation_v2)",
+        "WP_VALIDATOR_PROTOCOL.md Spec-Realism Gate"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
     }
   },
   "handoff": {

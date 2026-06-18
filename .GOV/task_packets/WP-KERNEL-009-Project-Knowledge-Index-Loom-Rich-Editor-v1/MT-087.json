@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-087-PdfTranscriptImportPath",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:58:58.290Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-087.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-081"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "implementation_commit": "0903cdcf",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0903cdcf; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -122,7 +122,54 @@
     },
     "evidence": [
       "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-087 requires a Handshake-native PDF text/transcript import path that never makes OCR an undeclared runtime dependency, emits typed failures plus repairable metadata instead of silent partial indexing, and persists spans/receipts/repair to real PostgreSQL/EventLedger authority anchored to spec 2.3.13.11. The code (pdf.rs extract_pdf_text, spans.rs SpanAnchor::PdfPage, migration 0163, engine.rs PDF branch) implements exactly this and is proven against real Handshake-managed PostgreSQL with no SQLite/mock fallback.",
+      "findings": [
+        "pdf.rs:348-420 extract_pdf_text: text-layer pages -> PdfPageText spans; image-only PDF -> typed IngestionErrorClass::NoTextLayer with OCR_NEEDED guidance in detail (NEVER empty success); mixed PDF -> Ok with explicit failed_pages. Caller must write partial receipt. Matches MT-087 no-silent-partial-indexing requirement.",
+        "No-OCR contract honored: pdf.rs:14-19 + 342-345 document that Handshake runs no OCR; scanned-document import path is an operator-provided transcript artifact routed through MediaTranscript (engine.rs:1124). OCR is never an undeclared external runtime dependency, satisfying the MT scope statement.",
+        "pdf.rs:129-150 guard_lopdf wraps load_document/extract via catch_unwind, converting crafted-PDF panics to typed IngestionErrorClass::Internal so one poison file degrades to one failed file rather than aborting the pass (MT-086/087 #5). lopdf 0.41 is pure-Rust MIT, no daemon/native dep — within the bundled-library constraint; no SQLite/Docker/external engine introduced.",
+        "spans.rs:31-34 SpanAnchor::PdfPage{page} and migration 0163_knowledge_ingestion_spans.sql:29-34 anchor_kind CHECK including 'pdf_page' match spec 2.3.13.11 KnowledgeSpan anchor kinds (.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694). Table is FK-bound to receipts, carries content_hash verifiability + EventLedger evidence, registered as authority_class='authority' (0163:68-73).",
+        "engine.rs:1172-1227 PDF branch wires extract_pdf_text into the pipeline: spans persisted via store.replace_source_spans (engine.rs:445-453), repair enqueued via store.enqueue_repair (engine.rs:500-513), and MT-091 secret preflight (scan_text over concatenated extracted page text) blocks on must_block() before any span is stored.",
+        "Real-PG proof: tests/knowledge_ingestion_pipeline_tests.rs:204-331 (mt086_mt087 text-layer -> 2 pdf_page spans, no repair; mt086 image-only -> Failed receipt + NO_TEXT_LAYER + queued repair with reason_class NO_TEXT_LAYER; mt087 mixed -> Partial receipt, spans_failed=1, failed_pages[0].page==2, repair enqueued). Harness knowledge_ingestion_support.rs/knowledge_pg_support.rs connect a real PostgresDatabase to an isolated schema with the full migration chain (POSTGRES_TEST_URL/DATABASE_URL), explicitly 'no SQLite, no mocks'; FileIngestOutcome.spans are StoredSpan rows from store.replace_source_spans.",
+        "Grep of pdf.rs + spans.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to follow-on'/'pending MT-'/Live*Unavailable returned no hits on the required-behavior path.",
+        "Non-blocking aside (paperwork only): MT contract cites v02.192 spec anchors; section 2.3.13.11 exists unchanged in current v02.194. Per ground rules this is not a fail reason."
+      ],
+      "evidence_checked": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-087.json",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/pdf.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/spans.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/src/knowledge_ingestion/engine.rs (lines 237-527, 1120-1230)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/migrations/0163_knowledge_ingestion_spans.sql",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_pipeline_tests.rs (lines 1-120, 200-369)",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_ingestion_support.rs",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-009/src/backend/handshake_core/tests/knowledge_pg_support.rs (grep)",
+        "git show --stat 0903cdcf, 5876feaf; git log --grep MT-087",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/spec/master-spec-v02.194/spec-modules/02-system-architecture.md:2694 (2.3.13.11)"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": null,

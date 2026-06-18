@@ -22,7 +22,7 @@
   "title": "UserManualAndNoContextOps-202-UserManualContextBundleBridge",
   "group": "UserManualAndNoContextOps",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-14T18:37:30Z",
+  "updated_at_utc": "2026-06-18T07:41:57Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-202.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,14 +80,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-193"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260614-175624",
-    "completed_by": null,
+    "completed_by": "INTEGRATION_VALIDATOR-20260618-074148",
     "ready_for_validation_at_utc": "2026-06-14T18:37:30Z",
     "ready_for_validation_reason": "Context bundle bridge persists UserManual citations with slug, version, anchor, and content hash metadata; real PostgreSQL proof and adversarial review PASS.",
     "evidence": [
@@ -127,7 +127,55 @@
           "subagent:019ec762-6372-7e90-81d8-cfb064a2ed1f"
         ]
       }
-    ]
+    ],
+    "validator_verdict": "PASS_V2",
+    "pass_label": "PASS_V2",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR-20260618-074148",
+    "validator_verdict_set_at_utc": "2026-06-18T07:41:57Z",
+    "completed_at_utc": "2026-06-18T07:41:57Z",
+    "wp_validator_review_v2": {
+      "schema_id": "hsk.wp_validator_mt_review@2",
+      "verdict": "PASS_V2",
+      "reviewed_by": "INTEGRATION_VALIDATOR-20260618-074148",
+      "reviewed_at_utc": "2026-06-18T07:41:57Z",
+      "review_method": "Integration Validator multi-agent workflow (wf_0ac25815-485 + wf_98386044-70a): independent per-MT reviewer + adversarial confirm on FAIL. No ACP. Governance/repo paperwork non-blocking per operator directive (2026-06-18). Bar = good code vs MT contract + WP packet + current Master Spec v02.194, plus the WP_VALIDATOR Spec-Realism Gate.",
+      "implements_mt": "YES",
+      "spec_alignment": "ALIGNED",
+      "spec_realism_gate": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS",
+        "sub_rule_3": "PASS"
+      },
+      "summary": "MT-202 (UserManualContextBundleBridge) requires that context bundles can cite UserManual pages with version + source anchors. The committed code implements exactly this: it mirrors a manual page into a real knowledge_entities row and emits a bundle candidate whose citation carries slug@version#anchor@hash, and a real PostgreSQL-gated test compiles a real context bundle, persists it, reloads it, and asserts the persisted citation shape. Proof is real, not mock/placeholder.",
+      "findings": [
+        "src/backend/handshake_core/src/user_manual/bundle_bridge.rs:30-94 — real MT-202 deliverable: manual_citation_base() builds 'usermanual:<slug>@<version>#<anchor>'; ensure_manual_page_entity() upserts a knowledge_entities row of kind user_manual_page (idempotent); manual_bundle_candidate() emits a BundleCandidate with EvidenceSnippet carrying content_sha256 (drift hash) and the citation base. Directly satisfies MT scope 'cite UserManual pages with version and source anchors'.",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs:354-441 mt202_bundle_cites_manual_page_with_version_and_anchor — REAL runtime proof: real CheapestAuthoritativePathPlanner + ContextBundleCompilerV2 compile a bundle, persist to PG, reload via get_knowledge_context_bundle, then assert the persisted citation contains slug+'@', manual_version, '#<section_kind>-<position>' anchor, and content_hash[..8] drift prefix, plus bundle target kind user_manual_page. Idempotency of entity id is also asserted (lines 372-375).",
+        "src/backend/handshake_core/tests/user_manual_support.rs:132-142 skip_if_no_pg! PANICS when PostgreSQL is unavailable ('UserManual proof requires live PostgreSQL/EventLedger') — it does NOT silently skip, so the MT-202 test cannot pass vacuously without real PG.",
+        "src/backend/handshake_core/src/storage/knowledge.rs:3874-3913 upsert_knowledge_entity is a real Postgres SQL INSERT ... ON CONFLICT (workspace_id, entity_kind, entity_key) DO UPDATE upsert — the Handshake-owned durable resource the bridge touches (sub-rule 2 satisfied).",
+        "Enum variants are real, not invented stubs: KnowledgeEntityKind::UserManualPage (storage/knowledge.rs:845) and BundleTargetKind::UserManualPage (knowledge_retrieval/compiler.rs:57) both map to 'user_manual_page'.",
+        "No placeholder/escape hits (todo!/unimplemented!/*Unavailable/deferred/pending MT-) in bundle_bridge.rs or the MT-202 test (sub-rule 1).",
+        "lifecycle.claimed_by=KERNEL_BUILDER-20260614-175624, completed_by=null, status=READY_FOR_VALIDATION — no self-certified COMPLETED transition (sub-rule 3).",
+        "Both deliverable files are git-tracked (committed in fcf9bce3); changes confined to src/backend/handshake_core; no SQLite/Docker/external-search forbidden-path usage.",
+        "Aside (non-blocking, paperwork): committed evidence log green-mt202-context-bundle-proof.log not present on disk; packet spec_bundle cites v02.193 vs current v02.194 — neither affects code correctness."
+      ],
+      "evidence_checked": [
+        "MT-202.json (contract)",
+        "packet.json (scope/forbidden paths/DEC-008)",
+        "WP_VALIDATOR_PROTOCOL.md (Spec-Realism Gate)",
+        "src/backend/handshake_core/src/user_manual/bundle_bridge.rs",
+        "src/backend/handshake_core/src/user_manual/mod.rs",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+        "src/backend/handshake_core/tests/user_manual_support.rs (skip_if_no_pg macro)",
+        "src/backend/handshake_core/src/storage/knowledge.rs (upsert_knowledge_entity, get_knowledge_context_bundle, UserManualPage entity kind)",
+        "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs (BundleTargetKind::UserManualPage)",
+        "git show --stat fcf9bce3; git ls-files; placeholder grep"
+      ],
+      "confidence": "HIGH",
+      "remediation": "",
+      "followup_concern": null,
+      "adversarial_confirm": null,
+      "status_after": "COMPLETED"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260614-175624",
