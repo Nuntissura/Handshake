@@ -1,0 +1,44 @@
+{
+  "spike_date": "2026-06-20T01:18:59Z",
+  "selected_toolkit": "egui",
+  "selection_rationale": "egui stack passed 5/5 probes. Probe e (make-or-break) proves the toolkit can HOST a custom wgpu offscreen render pass (3D cube w/depth + painted-texture quad) inside an egui pane paint-callback via a real device/queue AND that a model can STEER a viewport uniform via an AccessKit action (rotation 0->1, mirror set in the GPU-write code path); pixel-correct output is not read back (throwaway-spike scope) and is an MT-002 hardening item. Probe a proves OUT-OF-PROCESS AccessKit read+action via the Windows UIA client, matching the widget by stable Name (the practical egui+accesskit+UIA identifier); a stable AutomationId convention is an MT-002 item. Headless probes b/c and single-binary d complete the decision. Selected egui.",
+  "rustc_host": "1.91.1; the egui 0.34 family requires rustc 1.92, so the egui 0.33 family is pinned (no repo-wide toolchain bump). egui 0.34 is available behind a future rustc-1.92 bump.",
+  "pinned_versions": {
+    "_note": "MT-002+ MUST reuse these exact working pins (CONTROL-3). egui_tiles uses the 'serde' feature. dumpbin is absent on this host; probe d inspects PE imports via the object crate.",
+    "accesskit": "0.21.1",
+    "accesskit_windows": "0.29.2",
+    "accesskit_winit": "0.29.2",
+    "eframe": "0.33.3",
+    "egui": "0.33.3",
+    "egui-wgpu": "0.33.3",
+    "egui_kittest": "0.33.3",
+    "egui_tiles": "0.14.1",
+    "object": "0.36",
+    "uiautomation": "0.25",
+    "wgpu": "27.0.1"
+  },
+  "candidates": {
+    "egui": {
+      "accesskit_out_of_process": true,
+      "custom_viewport": true,
+      "docking_save_restore": true,
+      "editor_surface": true,
+      "notes": "a: out-of-process UIA: found btn_test by name; Invoke dispatched; counter before=Some(0) after=Some(1) || b: before(left=0.300,main=0.700,children=2,tiles=3) -> restored(left=0.300,main=0.700,children=2,tiles=3); tol=0.01 || c: typed 10 synthetic chars; buffer=\"abcdefghij\" (len 10) || d: profile=release(crt-static); 20 imported DLLs (all system=true); non_system=[]; dlls={\"ADVAPI32.dll\", \"GDI32.dll\", \"KERNEL32.dll\", \"USER32.dll\", \"api-ms-win-core-synch-l1-2-0.dll\", \"bcryptprimitives.dll\", \"combase.dll\", \"dwmapi.dll\", \"gdi32.dll\", \"imm32.dll\", \"kernel32.dll\", \"ntdll.dll\", \"ole32.dll\", \"oleaut32.dll\", \"opengl32.dll\", \"shell32.dll\", \"shlwapi.dll\", \"uiautomationcore.dll\", \"user32.dll\", \"uxtheme.dll\"} || e: hosted(render_ok)=true offscreen_pass_submitted=true steering: uniform angle before=0 after=1 (model AccessKit Click on 'rotate-step'); custom wgpu offscreen pass (3D cube w/depth + painted-texture quad) built + submitted via the harness's real device/queue inside an egui pane paint-callback, no device loss; PIXEL OUTPUT NOT READ BACK -> proves hostability + model-steering, NOT pixel-correctness (readback deferred to MT-002)",
+      "single_binary": true
+    },
+    "gpui": {
+      "accesskit_out_of_process": false,
+      "custom_viewport": false,
+      "docking_save_restore": false,
+      "editor_surface": false,
+      "notes": "GPUI not evaluated this spike: egui passed the make-or-break custom-viewport probe and the rest; GPUI's standalone-crate availability + out-of-process AccessKit on Windows is younger. Re-spike GPUI only if egui hits a concrete wall (per the contract decision rule, egui auto-selected when it passes all probes).",
+      "single_binary": false
+    }
+  },
+  "mt002_followups": [
+    "Probe a: establish a stable identifier convention for production widgets that resolves OUT-OF-PROCESS via UIA. The spike matched by Name; egui/accesskit may not populate UIA AutomationId from NodeId by default, so the contract's NodeId-as-AutomationId note must be validated in MT-002.",
+    "Probe e: add GPU pixel readback (COPY_SRC + map_async; assert non-clear pixels and that output differs between rotation 0 and 1) for production viewports; the spike proves hostability + model-steering but does not read back pixels.",
+    "Probe d: if reused, tighten is_system_dll from a System32-existence check to a finite apiset/CRT/OS allowlist.",
+    "Toolkit: the egui 0.34 family is available behind a future repo-wide rustc-1.92 bump."
+  ]
+}

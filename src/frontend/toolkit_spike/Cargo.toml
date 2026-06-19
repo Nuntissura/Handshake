@@ -1,0 +1,43 @@
+# WP-KERNEL-011 MT-001 toolkit decision spike.
+# THROW-AWAY decision harness (not production). Standalone [workspace] so it can
+# never be absorbed into handshake_core's build graph (CONTROL-5 / RISK-5).
+# Version matrix: the MT contract's pins (egui 0.31 / accesskit 0.17 ...) were stale
+# at implementation time (2026-06-20). Latest egui family is 0.34.x but it requires
+# rustc 1.92; host toolchain is rustc 1.91.1, so we pin the egui 0.33 family (MSRV <= 1.91)
+# rather than bump the whole repo's toolchain. egui 0.34 is available behind a future
+# rustc-1.92 bump. The verdict JSON records the ACTUAL working pins as MT-002 authority.
+[workspace]
+
+[package]
+name = "toolkit_spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "toolkit_spike"
+path = "src/main.rs"
+
+[dependencies]
+egui = "0.33"
+eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "default_fonts"] }
+egui_tiles = { version = "0.14", features = ["serde"] }
+egui-wgpu = "0.33"
+bytemuck = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+pollster = "0.4"
+# egui_kittest is a normal dependency (not dev) so main.rs runs probes c/e headlessly and
+# folds their real results into the single verdict JSON (the contract requires main to run
+# all five probes). object parses the release .exe import table for probe (d) since dumpbin
+# is not on PATH on this host.
+egui_kittest = { version = "0.33", features = ["wgpu"] }
+object = "0.36"
+# Windows UIAutomation client for probe (a): reads the eframe window's AccessKit tree
+# OUT-OF-PROCESS and invokes a button, proving a model can see+steer the app a11y tree.
+uiautomation = "0.25"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"

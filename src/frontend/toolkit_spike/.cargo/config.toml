@@ -1,0 +1,12 @@
+# Scoped to the spike crate only (CONTROL-4 / RISK-4): static-link the MSVC CRT so
+# probe (d) single-binary can pass without a vcruntime DLL dependency. NOT applied
+# at workspace level, so handshake_core builds are unaffected.
+[build]
+# DEDICATED throw-away target dir (NOT the shared handshake-cargo-target used by handshake_core /
+# app/src-tauri), so this spike's crt-static builds never contend with or pollute the production
+# artifact cache (adversarial-review MAJOR: isolation at the artifact layer, not just the build
+# graph). Still under the external Handshake_Artifacts root per CX-212E.
+target-dir = "../../../../Handshake_Artifacts/toolkit-spike-target"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
