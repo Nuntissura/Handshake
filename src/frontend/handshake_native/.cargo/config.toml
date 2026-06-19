@@ -1,0 +1,4 @@
+# Dedicated artifact dir under the external root (CX-212E), separate from the shared
+# handshake-cargo-target and the toolkit-spike dir, to avoid build contention during dev.
+[build]
+target-dir = "../../../../Handshake_Artifacts/handshake-native-target"

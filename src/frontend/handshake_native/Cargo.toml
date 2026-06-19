@@ -1,0 +1,29 @@
+# WP-KERNEL-011 — Handshake native Rust GUI. Long-term home of ALL native GUI code (no webview,
+# no Tauri, no Electron). Versions are the MT-001 spike-verdict proven pins (egui 0.33 family;
+# rustc 1.91.1 forces 0.33, not 0.34). Standalone [workspace] for now: the repo has no root cargo
+# workspace, so this crate stands alone; forming a root workspace is a future CX-106 decision.
+[workspace]
+
+[package]
+name = "handshake-native"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "handshake-native"
+path = "src/main.rs"
+
+[dependencies]
+egui = "0.33"
+eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
+egui_tiles = { version = "0.14", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+egui_kittest = { version = "0.33", features = ["wgpu"] }
