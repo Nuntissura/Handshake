@@ -10,11 +10,12 @@ use crate::accessibility::{self, ChromeWidget};
 use crate::backend_client::{self, HealthInfo, HEALTH_URL};
 use crate::error::AppError;
 use crate::pane_registry::{
-    DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry, PaneType,
-    PlaceholderPaneFactory,
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
+    PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
+use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
-use crate::tab_bar::{TabBarColors, TabBarState, TabState};
+use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -70,6 +71,14 @@ pub struct HandshakeApp {
     /// state is NOT stored here — it lives in egui's `DragAndDrop` payload while a drag is in flight
     /// (the drop crosses pane boundaries, so it cannot belong to any single `TabBarState`).
     tab_bar_states: HashMap<PaneId, TabBarState>,
+    /// Active pop-outs (MT-008): panes detached into their own OS windows. The pane record stays in
+    /// `pane_registry` (single source of truth); this only tracks which panes render into a detached
+    /// viewport and where that window sits. Serialized into the layout snapshot by MT-009.
+    popout_manager: PopOutManager,
+    /// A pop-out was requested this frame (e.g. by a future MT-019 pane-header "Pop Out" action, or
+    /// by a test / out-of-process driver via [`HandshakeApp::request_pop_out`]). Applied at the top
+    /// of the next `ui()` so the detached viewport is created cleanly before the frame renders.
+    pop_out_request: Option<PaneId>,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -193,6 +202,8 @@ impl HandshakeApp {
             split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
+            popout_manager: PopOutManager::new(),
+            pop_out_request: None,
         }
     }
 
@@ -213,6 +224,8 @@ impl HandshakeApp {
             split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
+            popout_manager: PopOutManager::new(),
+            pop_out_request: None,
         }
     }
 
@@ -235,6 +248,38 @@ impl HandshakeApp {
     /// driving a frame, and for future agent/operator tab mutation).
     pub fn tab_bar_states_mut(&mut self) -> &mut HashMap<PaneId, TabBarState> {
         &mut self.tab_bar_states
+    }
+
+    /// Request that `pane_id` be popped out into its own OS window on the next frame (MT-008). The
+    /// request is applied at the top of `ui()`; the pane's record stays in the registry. Public so a
+    /// future MT-019 pane-header action, a test, or an out-of-process driver can trigger a pop-out
+    /// without inventing UI that belongs to a later MT.
+    pub fn request_pop_out(&mut self, pane_id: PaneId) {
+        self.pop_out_request = Some(pane_id);
+    }
+
+    /// Whether a pane currently renders into a detached pop-out window (test / snapshot visibility).
+    pub fn is_popped_out(&self, pane_id: &PaneId) -> bool {
+        self.popout_manager.is_popped_out(pane_id)
+    }
+
+    /// Read-only view of the pop-out manager (tests / MT-009 snapshot wiring).
+    pub fn popout_manager(&self) -> &PopOutManager {
+        &self.popout_manager
+    }
+
+    /// Drive the app's REAL `popout_manager` exactly as the immediate viewport callback does when the
+    /// OS title-bar close button (`ViewportInfo::close_requested`) fires for a detached pop-out: mark
+    /// the pane's pop-out `open = false`. The next `ui()` frame's `show_all` drain then removes the
+    /// entry, so `is_popped_out(pane)` flips to `false` through the app's own update loop — not a
+    /// throwaway manager. Mirrors the `close_requested -> request_close` wiring in
+    /// [`PopOutManager::show_all`]; this is the OS-close driver seam (parallel to [`request_pop_out`],
+    /// the pop-out driver seam) that lets a test or an out-of-process driver simulate the native close
+    /// without a real winit window. Returns `true` if a pop-out existed for `pane_id`.
+    ///
+    /// [`request_pop_out`]: HandshakeApp::request_pop_out
+    pub fn request_os_close(&mut self, pane_id: &PaneId) -> bool {
+        self.popout_manager.request_os_close(pane_id)
     }
 
     /// Register the bundled Inter font when the `bundled-fonts` feature is on; otherwise leave
@@ -441,6 +486,29 @@ impl HandshakeApp {
             self.status_indicator(ui, &text);
         });
 
+        // ── Apply a pending pop-out request (MT-008) ───────────────────────────────────────────────
+        // A request set by `request_pop_out` (future MT-019 pane-header action / test / out-of-process
+        // driver) is applied here, at the top of the frame, BEFORE the layout renders, so the detached
+        // viewport is created cleanly and the split layout draws the placeholder this same frame. The
+        // pane's record is NOT removed from the registry — only its render destination changes.
+        if let Some(pane_id) = self.pop_out_request.take() {
+            // Only pop out a pane that actually exists in the registry and is not already popped out.
+            let exists = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned")
+                .get(&pane_id)
+                .is_some();
+            if exists && !self.popout_manager.is_popped_out(&pane_id) {
+                // Open the window near the current pointer if known, else at the fallback position.
+                let pos = ctx
+                    .pointer_latest_pos()
+                    .unwrap_or(crate::popout_window::FALLBACK_POPOUT_POS);
+                self.popout_manager
+                    .pop_out(pane_id, PopOutGeometry::at(pos));
+            }
+        }
+
         // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
         // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same
         // time. The registry is the single source of truth (MT-005); MT-006 partitions the central
@@ -454,6 +522,13 @@ impl HandshakeApp {
         // Catch-all factory for any PaneType without a dedicated entry: the empty-label Placeholder
         // key registered in build_default_factories.
         let fallback_key = PaneType::Placeholder(String::new());
+
+        // Snapshot the popped-out pane set so the CentralPanel's `is_popped_out` predicate can borrow
+        // it by `&` while `popout_manager` is reserved for the post-frame `show_all` (&mut). Merge-back
+        // clicks collected by the placeholder are applied to the manager after the CentralPanel closes.
+        let popped_out: std::collections::HashSet<PaneId> =
+            self.popout_manager.popped_out_ids().into_iter().collect();
+        let mut merge_requests: Vec<PaneId> = Vec::new();
 
         // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
         // dividers are themed and flip dark<->light with the rest of the shell (MT-006 contract).
@@ -473,12 +548,16 @@ impl HandshakeApp {
             accent: palette.accent,
             drop_highlight: palette.accent_soft,
         };
+        // The placeholder tile's label + Merge Back button paint with the active theme's text token.
+        let placeholder_text = palette.text;
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // SplitLayoutWidget renders the four panes into their split rects and the two dividers.
             // The pane render path keeps LIVE AccessKit emission (MT-025): the emit callback is
             // invoked once per pane inside its egui scope, so panes remain findable out-of-process
-            // by author_id and the MT-025 live-tree tests still pass.
+            // by author_id and the MT-025 live-tree tests still pass. A pane that is popped out
+            // (MT-008) renders a PopOutPlaceholder tile here instead of its tab bar + body; a Merge
+            // Back click is collected into `merge_requests` and applied after the panel closes.
             SplitLayoutWidget::show(
                 ui,
                 split_weights,
@@ -488,6 +567,9 @@ impl HandshakeApp {
                 divider_colors,
                 tab_bar_states,
                 tab_colors,
+                |pane_id| popped_out.contains(pane_id),
+                &mut merge_requests,
+                placeholder_text,
                 |pane_type| {
                     factories
                         .get(pane_type)
@@ -501,9 +583,127 @@ impl HandshakeApp {
             );
         });
 
+        // ── Apply merge-back requests, then render detached pop-out windows (MT-008) ────────────────
+        // A Merge Back click from the placeholder (pointer OR out-of-process AccessKit Click) marks
+        // the pop-out for close; `show_all`'s post-show drain removes it next frame so the pane
+        // returns to the main split.
+        for pane_id in &merge_requests {
+            self.popout_manager.merge_back(pane_id);
+        }
+
+        // Render every open pop-out into its own deferred viewport. The pane is STILL in the registry,
+        // so we render it through the SAME factory + tab-bar path the main split uses (one source of
+        // truth). `show_all` drains entries that requested close (Merge Back button or OS close
+        // button) after showing, returning the merged-back pane ids.
+        let registry = self.pane_registry.clone();
+        let factories = &self.factories;
+        let tab_bar_states = &mut self.tab_bar_states;
+        let fallback_key = PaneType::Placeholder(String::new());
+        // Resolve the detached-window title from the registry's surface label, so it reads
+        // "Handshake – <pane_type_label>" (e.g. "Handshake – Workspace"). Falls back to the pane id
+        // string only if the record vanished (defensive; should not happen while popped out).
+        let title_registry = registry.clone();
+        let title_for = move |pane_id: &PaneId| -> String {
+            let label = title_registry
+                .lock()
+                .expect("pane registry mutex poisoned")
+                .get(pane_id)
+                .map(|r| r.pane_type.label())
+                .unwrap_or_else(|| pane_id.as_ref().to_owned());
+            popout_title_for(&label)
+        };
+        let _merged_back = self
+            .popout_manager
+            .show_all(ctx, title_for, |ctx, _class, pane_id| {
+                Self::render_popout_body(
+                    ctx,
+                    pane_id,
+                    &registry,
+                    factories,
+                    &fallback_key,
+                    tab_bar_states,
+                    tab_colors,
+                );
+            });
+
         if matches!(self.health_status, HealthDisplayState::Loading) {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
+    }
+
+    /// Render a popped-out pane's body (tab bar + factory content) inside its detached viewport's
+    /// `CentralPanel`. This is the SAME render path the main split uses for a docked pane (tab bar
+    /// strip on top, factory body below, live AccessKit pane node emitted), so a popped-out pane is
+    /// rendered from the one registry source of truth and remains addressable out-of-process by its
+    /// stable `author_id` — only the host window changed (MT-008 / HBR-SWARM accessibility).
+    #[allow(clippy::too_many_arguments)]
+    fn render_popout_body(
+        ctx: &egui::Context,
+        pane_id: &PaneId,
+        registry: &Arc<Mutex<PaneRegistry>>,
+        factories: &HashMap<PaneType, Box<dyn PaneFactory>>,
+        fallback_key: &PaneType,
+        tab_bar_states: &mut HashMap<PaneId, TabBarState>,
+        tab_colors: TabBarColors,
+    ) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let guard = registry.lock().expect("pane registry mutex poisoned");
+            let Some(record) = guard.get(pane_id) else {
+                // The pane was removed from the registry while popped out: show nothing rather than
+                // panic. (Closing a popped-out pane is an MT-019+ concern; this is the safe default.)
+                return;
+            };
+            let node_id = guard.accesskit_id(pane_id).map(|n| n.0).unwrap_or(0);
+            let pane_egui_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
+            let factory = factories
+                .get(&record.pane_type)
+                .or_else(|| factories.get(fallback_key))
+                .expect("placeholder fallback factory always registered")
+                .as_ref();
+            let role = factory.accesskit_role();
+            let label = record.pane_type.label();
+
+            // Tab bar strip on top (same as the docked pane), if this pane has tab state.
+            let full = ui.available_rect_before_wrap();
+            let tab_h = TAB_BAR_HEIGHT.min(full.height());
+            let tab_rect = egui::Rect::from_min_max(
+                full.min,
+                egui::pos2(full.right(), full.top() + tab_h),
+            );
+            let body_rect =
+                egui::Rect::from_min_max(egui::pos2(full.left(), full.top() + tab_h), full.max);
+
+            if let Some(tab_state) = tab_bar_states.get(pane_id) {
+                let mut tab_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("popout-tab-bar", node_id))
+                        .max_rect(tab_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                );
+                tab_ui.set_clip_rect(tab_rect);
+                // Render the tab bar; tab interactions inside a pop-out are reconciled by a later MT
+                // (the detached-window tab mutation path). Here the bar is rendered for parity +
+                // accessibility; its interactions are intentionally not yet reconciled cross-window.
+                let _resp = TabBar::show(&mut tab_ui, tab_state, tab_colors);
+            }
+
+            let render_ctx = PaneRenderContext {
+                record,
+                egui_id: pane_egui_id,
+            };
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt(("popout-body", node_id))
+                    .max_rect(body_rect)
+                    .layout(egui::Layout::top_down(egui::Align::Min)),
+            );
+            child.set_clip_rect(body_rect);
+            factory.render(&mut child, &render_ctx);
+            child.interact(body_rect, pane_egui_id, egui::Sense::hover());
+            // Live AccessKit pane node in the pop-out's own tree, addressed by the SAME author_id as
+            // when docked, so out-of-process steering finds the pane regardless of host window.
+            accessibility::emit_pane_node(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
+        });
     }
 }
 

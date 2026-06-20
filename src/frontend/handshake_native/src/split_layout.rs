@@ -38,6 +38,7 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 
 use crate::pane_registry::{PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType};
+use crate::popout_window::PopOutPlaceholder;
 use crate::tab_bar::{
     apply_drop, apply_drop_same_pane, TabBar, TabBarColors, TabBarState, TAB_BAR_HEIGHT,
 };
@@ -282,8 +283,16 @@ impl SplitLayoutWidget {
     ///   reconciled into this map after the pane loop, so a tab dragged from one pane to another moves
     ///   exactly once (see [`apply_drop`]).
     /// - `tab_colors`: the MT-003 theme-token colors the tab bar paints with.
+    /// - `is_popped_out`: predicate over a `PaneId` (wired by the app to
+    ///   [`crate::popout_window::PopOutManager::is_popped_out`]). When it returns `true` for a pane,
+    ///   the pane's grid rect renders a [`PopOutPlaceholder`] tile instead of the tab bar + body, so
+    ///   the pane appears detached while its record stays in the registry (MT-008).
+    /// - `merge_requests`: sink for merge-back requests. The placeholder's "Merge Back" button (and
+    ///   thus an out-of-process AccessKit `Click` on it) pushes the pane id here; the app applies
+    ///   each request to the [`crate::popout_window::PopOutManager`] after this call.
+    /// - `placeholder_text`: the MT-003 theme text token the placeholder label/button paint with.
     #[allow(clippy::too_many_arguments)]
-    pub fn show<'f, F, A>(
+    pub fn show<'f, F, A, P>(
         ui: &mut egui::Ui,
         weights: &mut SplitWeights,
         drag_state: &mut SplitDragState,
@@ -292,11 +301,15 @@ impl SplitLayoutWidget {
         divider_colors: DividerColors,
         tab_bars: &mut HashMap<PaneId, TabBarState>,
         tab_colors: TabBarColors,
+        is_popped_out: P,
+        merge_requests: &mut Vec<PaneId>,
+        placeholder_text: egui::Color32,
         mut factory_for: F,
         mut emit_accesskit: A,
     ) where
         F: FnMut(&PaneType) -> &'f dyn PaneFactory,
         A: FnMut(&egui::Context, egui::Id, &str, accesskit::Role, &str),
+        P: Fn(&PaneId) -> bool,
     {
         // Defensive clamp at the top of the frame: even if a weight was deserialized out of range
         // (MT-009 snapshot, or a hand-edited file), the rect math below reads only clamped values.
@@ -340,6 +353,29 @@ impl SplitLayoutWidget {
                 .map(|n| n.0)
                 .unwrap_or_else(|| hash_pane_id(&pane_id));
             let pane_egui_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
+
+            // ── Popped-out pane: render the placeholder tile instead of the tab bar + body ─────────
+            // The pane's record stays in the registry (single source of truth); only its render
+            // destination moved to a detached window (MT-008). We render a centered "<label> (popped
+            // out)" + Merge Back button in the pane rect and SKIP the tab bar + pane body so the pane
+            // is not rendered (or AccessKit-emitted) in two places at once. A Merge Back click is
+            // collected into `merge_requests` for the app to apply after this call.
+            if is_popped_out(&pane_id) {
+                let label = record.pane_type.label();
+                let mut child = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("popout-placeholder", node_id))
+                        .max_rect(pane_rect)
+                        .layout(egui::Layout::top_down(egui::Align::Center)),
+                );
+                child.set_clip_rect(pane_rect);
+                let clicked =
+                    PopOutPlaceholder::show(&mut child, pane_id.as_ref(), &label, placeholder_text);
+                if clicked {
+                    merge_requests.push(pane_id.clone());
+                }
+                continue;
+            }
 
             // Carve the tab-bar strip off the top of the pane rect. Guard against a degenerate pane
             // shorter than the tab bar: in that case the body rect collapses but never inverts.

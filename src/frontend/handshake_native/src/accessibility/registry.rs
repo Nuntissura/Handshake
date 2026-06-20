@@ -31,6 +31,7 @@ use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
+use crate::popout_window::MERGE_BACK_SLOTS;
 use crate::tab_bar::TABBAR_SLOTS;
 
 /// Fixed AccessKit/egui id for the theme-toggle button (mirrors the private `THEME_TOGGLE_NODE_ID`
@@ -69,6 +70,7 @@ pub struct DeclaredIdentity {
 /// - divider horizontal -> id 30 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
 /// - divider vertical   -> id 31 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
 /// - tab bar pane-a..d  -> id 60..63 (`Role::TabList`, `tab_bar::TabBar`)
+/// - merge-back pane-a..d -> id 64..67 (`Role::Button`, `popout_window::PopOutPlaceholder`)
 ///
 /// Panes occupy id >= 100 (see [`PANE_NODE_ID_BASE`]); they are validated by the disjointness
 /// assertion in the collision test rather than enumerated here. Individual tab + tab-close nodes
@@ -113,6 +115,25 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: "tabbar-pane-d",
         node_id: TABBAR_SLOTS[3].1,
+    },
+    // MT-008 per-pane "Merge Back" placeholder buttons (Role::Button), fixed 64..67 band. These
+    // render ONLY while a pane is popped out, so the default-seed live tree never contains them; the
+    // collision test still covers their fixed ids here so they can never overlap chrome/tab/pane ids.
+    DeclaredIdentity {
+        author_id: "merge-back-pane-a",
+        node_id: MERGE_BACK_SLOTS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: "merge-back-pane-b",
+        node_id: MERGE_BACK_SLOTS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: "merge-back-pane-c",
+        node_id: MERGE_BACK_SLOTS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: "merge-back-pane-d",
+        node_id: MERGE_BACK_SLOTS[3].1,
     },
 ];
 
