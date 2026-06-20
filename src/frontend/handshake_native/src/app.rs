@@ -3,8 +3,15 @@
 //! a central work-surface placeholder. Render logic lives in `ui()` (no eframe::Frame) so it is
 //! driveable headlessly by egui_kittest.
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
 use crate::backend_client::{self, HealthInfo, HEALTH_URL};
 use crate::error::AppError;
+use crate::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneId, PaneRecord,
+    PaneRegistry, PaneType, PlaceholderPaneFactory,
+};
 use crate::theme::{self, HsTheme};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -29,6 +36,82 @@ pub struct HandshakeApp {
     /// change so the common steady-state frame skips `set_visuals`). `None` until the first
     /// frame so the initial palette is always applied once.
     last_applied_theme: Option<HsTheme>,
+    /// The single source of truth for every pane in the work surface (MT-005). Wrapped in
+    /// `Arc<Mutex<_>>` now — even though MT-005 is single-threaded — so the MT-028 concurrency work
+    /// (parallel agent + operator pane mutation) is a behavior change, not a structural refactor
+    /// (RISK-5 / CONTROL-5).
+    pane_registry: Arc<Mutex<PaneRegistry>>,
+    /// Pane renderers, one per `PaneType`. Every variant gets a `PlaceholderPaneFactory` until a
+    /// real surface factory replaces it in a later MT, so an unhandled type can never blank/panic
+    /// a pane (RISK-3 / CONTROL-3).
+    factories: HashMap<PaneType, Box<dyn PaneFactory>>,
+}
+
+/// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
+/// (`app/src/App.tsx`): pane-a..pane-d, all System-authored, Unlocked, and Clean.
+fn default_panes() -> Vec<PaneRecord> {
+    let seeds: [(&str, PaneType); 4] = [
+        ("pane-a", PaneType::Workspace),
+        ("pane-b", PaneType::InferenceLab),
+        ("pane-c", PaneType::MediaDownloader),
+        ("pane-d", PaneType::FontManager),
+    ];
+    seeds
+        .into_iter()
+        .map(|(id, ty)| {
+            PaneRecord::new(
+                PaneId::from(id),
+                ty,
+                "default-project",
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            )
+        })
+        .collect()
+}
+
+/// Register a `PlaceholderPaneFactory` for every `PaneType` variant. Concrete factories override
+/// individual entries in later MTs. The `Placeholder` key uses an empty label as the catch-all
+/// entry; render time still uses the record's own `Placeholder(label)` for display.
+fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
+    let variants = [
+        PaneType::Workspace,
+        PaneType::LoomDailyJournal,
+        PaneType::LoomBlock,
+        PaneType::LoomWikiPage,
+        PaneType::AtelierEditor,
+        PaneType::KernelDcc,
+        PaneType::InferenceLab,
+        PaneType::ModelRuntime,
+        PaneType::Swarm,
+        PaneType::Problems,
+        PaneType::Jobs,
+        PaneType::Timeline,
+        PaneType::UserManual,
+        PaneType::CodeSymbol,
+        PaneType::SourceControl,
+        PaneType::MediaDownloader,
+        PaneType::FontManager,
+        PaneType::FlightRecorder,
+        PaneType::VisualDebugger,
+        PaneType::Placeholder(String::new()),
+    ];
+    let mut map: HashMap<PaneType, Box<dyn PaneFactory>> = HashMap::new();
+    for v in variants {
+        map.insert(v.clone(), Box::new(PlaceholderPaneFactory::new(v)));
+    }
+    map
+}
+
+/// Build a seeded registry from the default panes.
+fn seeded_registry() -> PaneRegistry {
+    let mut reg = PaneRegistry::new();
+    for record in default_panes() {
+        reg.insert(record);
+    }
+    reg
 }
 
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
@@ -64,6 +147,8 @@ impl HandshakeApp {
             // Desktop default mirrors the React app's dark default.
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
+            pane_registry: Arc::new(Mutex::new(seeded_registry())),
+            factories: build_default_factories(),
         }
     }
 
@@ -78,7 +163,14 @@ impl HandshakeApp {
             health_handle: None,
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
+            pane_registry: Arc::new(Mutex::new(seeded_registry())),
+            factories: build_default_factories(),
         }
+    }
+
+    /// Shared handle to the pane registry (for tests and future concurrent agent/operator wiring).
+    pub fn pane_registry(&self) -> Arc<Mutex<PaneRegistry>> {
+        self.pane_registry.clone()
     }
 
     /// Active base theme (for tests / future settings binding).
@@ -229,7 +321,23 @@ impl HandshakeApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("(work surface — dockable panes arrive in later MTs)");
+            // Render every registered pane through its factory. The registry is the single source
+            // of truth (MT-005); split/tab/pop-out/persistence MTs mutate it, not the view.
+            let registry = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
+            let factories = &self.factories;
+            // Catch-all factory for any PaneType without a dedicated entry: the empty-label
+            // Placeholder key registered in build_default_factories.
+            let fallback_key = PaneType::Placeholder(String::new());
+            PaneHostWidget::show(ui, &registry, |pane_type| {
+                factories
+                    .get(pane_type)
+                    .or_else(|| factories.get(&fallback_key))
+                    .expect("placeholder fallback factory always registered")
+                    .as_ref()
+            });
         });
 
         if matches!(self.health_status, HealthDisplayState::Loading) {
