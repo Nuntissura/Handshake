@@ -18,6 +18,7 @@ use crate::pane_registry::{
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
 use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
+use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
@@ -823,6 +824,17 @@ impl HandshakeApp {
         self.poll_health();
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
+
+        // Apply the integrated-rail scrollbar style (MT-010) every frame from the LIVE palette, so
+        // egui's built-in `ScrollArea` scrollbars render in the rail dimensions + colors and track a
+        // runtime theme toggle on the next frame. This overrides only scrollbar-specific
+        // spacing/handle fills — never panel/window backgrounds (rails red-team control).
+        let rail_palette = self.current_theme.palette();
+        apply_rail_scrollbar_style(
+            ctx,
+            RailColors::from_palette(&rail_palette),
+            RailDimensions::default(),
+        );
 
         egui::TopBottomPanel::top("handshake_title_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {

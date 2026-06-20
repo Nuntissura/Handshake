@@ -39,6 +39,7 @@ use egui::accesskit;
 
 use crate::pane_registry::{PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType};
 use crate::popout_window::PopOutPlaceholder;
+use crate::rails::{RailColors, RailDimensions, RailOrientation, SplitterRail};
 use crate::tab_bar::{
     apply_drop, apply_drop_same_pane, TabBar, TabBarColors, TabBarState, TAB_BAR_HEIGHT,
 };
@@ -615,21 +616,56 @@ impl SplitLayoutWidget {
             node.add_action(accesskit::Action::Focus);
         });
 
-        // ── Paint the divider line ───────────────────────────────────────────────────────────────
-        // Color comes from the MT-003 theme tokens (idle/hover/grab), NOT egui's generic visuals
-        // (MT-006 contract). grab > hover/focus > idle in priority.
-        if ui.is_rect_visible(hit_rect) {
-            let color =
-                divider_line_color(colors, response.hovered() || response.has_focus(), *dragging);
-            let visible = divider_visible_rect(axis, hit_rect);
-            ui.painter().rect_filled(visible, 0.0, color);
-        }
+        // ── Paint the divider through the integrated rail primitive (MT-010) ─────────────────────
+        // The divider now paints via the SHARED `SplitterRail`/`RailWidget` so it renders with the
+        // SAME thin-strip-in-wider-hit geometry, corner radius, and idle/hover/grab state model as
+        // the scrollbar rails — the "integrated rail" look the C2 contract asks for. After MT-010
+        // there is ZERO direct `painter.rect_filled` for dividers in this file; all divider painting
+        // flows through `SplitterRail::paint`.
+        //
+        // COLOR NOTE: the divider keeps the MT-003 `divider_idle/hover/grab` theme tokens (mapped
+        // into a `RailColors` below), NOT the scrollbar rail palette. MT-006's contract + tests pin
+        // the divider to those tokens; MT-010 unifies the rail SHAPE/STATE-MODEL, not the divider's
+        // color identity. `disabled` is unused for dividers (they are always draggable) — set to the
+        // idle token as an inert placeholder.
+        let rail_colors = RailColors {
+            idle: colors.idle,
+            hover: colors.hover,
+            grab: colors.grab,
+            disabled: colors.idle,
+        };
+        // The painted strip is the contract's DIVIDER_THICKNESS (4px) centered in DIVIDER_HIT_THICKNESS
+        // (8px), expressed as rail dimensions so the divider and scrollbar share one geometry source.
+        let rail_dims = RailDimensions {
+            visual_thickness: DIVIDER_THICKNESS,
+            hit_thickness: DIVIDER_HIT_THICKNESS,
+            ..RailDimensions::default()
+        };
+        let orientation = match axis {
+            SplitAxis::Horizontal => RailOrientation::Horizontal,
+            SplitAxis::Vertical => RailOrientation::Vertical,
+        };
+        SplitterRail::paint(
+            ui,
+            orientation,
+            hit_rect,
+            response.hovered() || response.has_focus(),
+            *dragging,
+            rail_colors,
+            rail_dims,
+        );
     }
 }
 
 /// Pick the divider line color from the theme tokens by interaction state. Priority: grab (active
 /// drag) > hover/focus > idle. Pure (no egui frame) so the "divider uses the theme tokens" contract
 /// is unit-testable.
+///
+/// MT-010: production divider painting moved to `SplitterRail::paint` (which selects the same
+/// state -> token color via `rails::divider_rail_state` + the `rail_colors` mapping built from these
+/// SAME `DividerColors`). This pure helper is retained as the MT-006 color-contract regression
+/// oracle the unit tests assert against, hence `#[cfg(test)]`.
+#[cfg(test)]
 #[inline]
 fn divider_line_color(colors: DividerColors, hovered_or_focused: bool, dragging: bool) -> egui::Color32 {
     if dragging {
@@ -643,6 +679,12 @@ fn divider_line_color(colors: DividerColors, hovered_or_focused: bool, dragging:
 
 /// The painted (visual) rect for a divider: the [`DIVIDER_THICKNESS`]-wide line centered inside the
 /// wider [`DIVIDER_HIT_THICKNESS`] hit rect.
+///
+/// MT-010: production divider painting now uses `rails::RailWidget::visual_rect`, which computes the
+/// IDENTICAL centered thin strip. This helper is retained as the MT-006 geometry regression oracle
+/// the unit tests assert against (and `divider_visible_rect_matches_rail_widget` proves the two agree
+/// byte-for-byte), hence `#[cfg(test)]`.
+#[cfg(test)]
 fn divider_visible_rect(axis: SplitAxis, hit_rect: egui::Rect) -> egui::Rect {
     let half_visible = DIVIDER_THICKNESS / 2.0;
     let center = hit_rect.center();
@@ -936,6 +978,32 @@ mod tests {
             dark.divider_grab, light.divider_grab,
             "dark grab (accent) differs from light grab (accent)"
         );
+    }
+
+    /// MT-010 integration regression: the shared `RailWidget::visual_rect` the divider now paints
+    /// through produces the EXACT same centered thin strip the MT-006 `divider_visible_rect` did, for
+    /// both axes. This proves routing the divider through the integrated rail did not move or resize
+    /// the painted line (the MT-006 4px-in-8px geometry is preserved byte-for-byte).
+    #[test]
+    fn divider_visible_rect_matches_rail_widget() {
+        use crate::rails::{RailDimensions, RailOrientation, RailWidget};
+        let dims = RailDimensions {
+            visual_thickness: DIVIDER_THICKNESS,
+            hit_thickness: DIVIDER_HIT_THICKNESS,
+            ..RailDimensions::default()
+        };
+        let area = area_600();
+        let r = compute_split_rects(area, SplitWeights { vertical: 0.5, horizontal: 0.5 });
+
+        let old_h = divider_visible_rect(SplitAxis::Horizontal, r.divider_h);
+        let rail_h = RailWidget::visual_rect(RailOrientation::Horizontal, r.divider_h, dims);
+        assert!((old_h.min - rail_h.min).length() < EPS, "horizontal visual min matches rail");
+        assert!((old_h.max - rail_h.max).length() < EPS, "horizontal visual max matches rail");
+
+        let old_v = divider_visible_rect(SplitAxis::Vertical, r.divider_v);
+        let rail_v = RailWidget::visual_rect(RailOrientation::Vertical, r.divider_v, dims);
+        assert!((old_v.min - rail_v.min).length() < EPS, "vertical visual min matches rail");
+        assert!((old_v.max - rail_v.max).length() < EPS, "vertical visual max matches rail");
     }
 
     /// Divider node ids stay below the pane id base and are disjoint from the chrome ids, preserving

@@ -32,6 +32,7 @@ use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
 use crate::popout_window::MERGE_BACK_SLOTS;
+use crate::rails::SCROLLBAR_V_NODE_IDS;
 use crate::tab_bar::TABBAR_SLOTS;
 
 /// Fixed AccessKit/egui id for the theme-toggle button (mirrors the private `THEME_TOGGLE_NODE_ID`
@@ -135,6 +136,26 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
         author_id: "merge-back-pane-d",
         node_id: MERGE_BACK_SLOTS[3].1,
     },
+    // MT-010 per-pane vertical scrollbar rails (Role::ScrollBar), fresh 40..43 band. These render
+    // ONLY when a pane's content overflows its viewport, so the default-seed live tree (placeholder
+    // panes that fit) never contains them; the collision test still covers their fixed ids here so
+    // they can never overlap chrome / divider / tab / merge-back / pane ids.
+    DeclaredIdentity {
+        author_id: SCROLLBAR_V_NODE_IDS[0].0,
+        node_id: SCROLLBAR_V_NODE_IDS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: SCROLLBAR_V_NODE_IDS[1].0,
+        node_id: SCROLLBAR_V_NODE_IDS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: SCROLLBAR_V_NODE_IDS[2].0,
+        node_id: SCROLLBAR_V_NODE_IDS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: SCROLLBAR_V_NODE_IDS[3].0,
+        node_id: SCROLLBAR_V_NODE_IDS[3].1,
+    },
 ];
 
 /// AccessKit roles that denote an interactive widget a model is expected to be able to address and
@@ -153,6 +174,9 @@ pub const INTERACTIVE_ROLES: &[accesskit::Role] = &[
     accesskit::Role::Link,
     accesskit::Role::MenuItem,
     accesskit::Role::Tab,
+    // MT-010 integrated scrollbar rails are driveable out-of-process (SetValue / ScrollUp /
+    // ScrollDown), so a ScrollBar node MUST carry a stable author_id or the gate fails.
+    accesskit::Role::ScrollBar,
 ];
 
 /// True when a live AccessKit node is an interactive *control* a model is expected to drive.

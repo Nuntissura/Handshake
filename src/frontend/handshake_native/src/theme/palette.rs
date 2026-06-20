@@ -73,6 +73,18 @@ pub struct HsPalette {
     /// the focus-visible affordance with `var(--hs-color-accent)` (`app/src/App.css` 3441–3443), so
     /// the accent is the canonical "the operator is manipulating this divider" color.
     pub divider_grab: Color32,
+    /// Integrated rail (scrollbar + splitter) IDLE color (MT-010). The MT-010 GUI look-and-behavior
+    /// table specifies a dedicated dark-family rail palette distinct from the React slate divider
+    /// gradient, so the rails read as one cohesive native control family. Stored premultiplied.
+    /// Dark: `#2A2A2F` @ 0.6; Light: `#C8C8D0` @ 0.6.
+    pub scrollbar_idle: Color32,
+    /// Integrated rail HOVER color (MT-010). Dark: `#4A4A55` @ 0.85; Light: `#9898A8` @ 0.85.
+    pub scrollbar_hover: Color32,
+    /// Integrated rail GRAB color (MT-010), fully opaque accent. Dark: `#7A7AFF`; Light: `#5050FF`.
+    pub scrollbar_grab: Color32,
+    /// Integrated rail DISABLED color (MT-010), e.g. a scrollbar whose content fits the viewport.
+    /// Dark: `#1E1E22` @ 0.3; Light: `#E0E0E8` @ 0.3.
+    pub scrollbar_disabled: Color32,
     pub syntax: HsSyntaxTokens,
 }
 
@@ -100,6 +112,11 @@ impl HsPalette {
             divider_idle: rgba_premultiplied(148, 163, 184, 0.45),
             divider_hover: rgba_premultiplied(148, 163, 184, 0.7),
             divider_grab: Color32::from_rgb(0x25, 0x63, 0xeb),
+            // MT-010 light rail palette (exact spec table).
+            scrollbar_idle: rgba_premultiplied(0xC8, 0xC8, 0xD0, 0.6),
+            scrollbar_hover: rgba_premultiplied(0x98, 0x98, 0xA8, 0.85),
+            scrollbar_grab: Color32::from_rgb(0x50, 0x50, 0xFF),
+            scrollbar_disabled: rgba_premultiplied(0xE0, 0xE0, 0xE8, 0.3),
             syntax: HsSyntaxTokens::light(text_subtle, bg),
         }
     }
@@ -133,6 +150,11 @@ impl HsPalette {
             divider_idle: rgba_premultiplied(148, 163, 184, 0.55),
             divider_hover: rgba_premultiplied(148, 163, 184, 0.85),
             divider_grab: Color32::from_rgb(0x22, 0xc5, 0x5e),
+            // MT-010 dark rail palette (exact spec table).
+            scrollbar_idle: rgba_premultiplied(0x2A, 0x2A, 0x2F, 0.6),
+            scrollbar_hover: rgba_premultiplied(0x4A, 0x4A, 0x55, 0.85),
+            scrollbar_grab: Color32::from_rgb(0x7A, 0x7A, 0xFF),
+            scrollbar_disabled: rgba_premultiplied(0x1E, 0x1E, 0x22, 0.3),
             syntax: HsSyntaxTokens::dark(text_subtle, bg),
         }
     }
@@ -166,6 +188,10 @@ impl HsPalette {
                 "divider_idle" => self.divider_idle = color,
                 "divider_hover" => self.divider_hover = color,
                 "divider_grab" => self.divider_grab = color,
+                "scrollbar_idle" => self.scrollbar_idle = color,
+                "scrollbar_hover" => self.scrollbar_hover = color,
+                "scrollbar_grab" => self.scrollbar_grab = color,
+                "scrollbar_disabled" => self.scrollbar_disabled = color,
                 _ => {} // unknown key: silently ignored
             }
         }
