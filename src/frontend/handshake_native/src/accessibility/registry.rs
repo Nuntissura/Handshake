@@ -32,6 +32,7 @@ use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
 use crate::popout_window::MERGE_BACK_SLOTS;
+use crate::project_tabs::{PROJECT_TABS_AUTHOR_ID, PROJECT_TABS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
 use crate::tab_bar::TABBAR_SLOTS;
 
@@ -155,6 +156,16 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: SCROLLBAR_V_NODE_IDS[3].0,
         node_id: SCROLLBAR_V_NODE_IDS[3].1,
+    },
+    // MT-011 top project-tab strip CONTAINER (Role::TabList), fresh band slot 50: above the scrollbar
+    // rails (40..43), below the per-pane tab-bar containers (60..63), strictly below the pane id base
+    // (100). Individual project TABS (Role::Tab) are dynamic (count varies as projects open/close) and
+    // are addressed by an egui::Id derived from their author_id STRING (`project-tab-{id}`), so they
+    // live in egui's hashed id space — NOT this fixed band — and are not enumerated here (same pattern
+    // as the MT-007 per-tab nodes). Only the fixed container id is declared.
+    DeclaredIdentity {
+        author_id: PROJECT_TABS_AUTHOR_ID,
+        node_id: PROJECT_TABS_NODE_ID,
     },
 ];
 

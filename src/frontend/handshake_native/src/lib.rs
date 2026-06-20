@@ -10,6 +10,7 @@ pub mod error;
 pub mod layout_persistence;
 pub mod pane_registry;
 pub mod popout_window;
+pub mod project_tabs;
 pub mod rails;
 pub mod split_layout;
 pub mod tab_bar;

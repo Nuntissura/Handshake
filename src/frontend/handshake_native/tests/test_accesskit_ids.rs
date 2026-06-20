@@ -365,7 +365,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
     // stable-id nodes the fresh-seed shell emits (7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab
-    // nodes = 21), so a re-order or a dropped node fails loudly.
+    // nodes + 2 MT-011 project-tab nodes = 23), so a re-order or a dropped node fails loudly. The two
+    // MT-011 nodes are the project-tab-strip container (`project-tabs`, Role::TabList) and the single
+    // seeded default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds
+    // one project tab before the `/workspaces` fetch (which never runs headlessly) would resolve.
     let expected_sorted = vec![
         "divider-horizontal",
         "divider-vertical",
@@ -373,6 +376,8 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "pane-b",
         "pane-c",
         "pane-d",
+        "project-tab-default-project",
+        "project-tabs",
         "shell.chrome.status-bar",
         "shell.chrome.theme-toggle",
         "shell.chrome.title-bar",
@@ -392,7 +397,19 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 21 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 23 stable-id nodes in sorted order"
+    );
+
+    // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
+    assert_eq!(
+        snapshot.by_author_id("project-tabs").unwrap().role,
+        "TabList",
+        "project-tabs strip container role"
+    );
+    assert_eq!(
+        snapshot.by_author_id("project-tab-default-project").unwrap().role,
+        "Tab",
+        "seeded project tab role"
     );
 
     // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.

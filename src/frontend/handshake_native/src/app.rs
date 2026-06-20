@@ -18,6 +18,9 @@ use crate::pane_registry::{
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
 use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
+use crate::project_tabs::{
+    fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
+};
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
@@ -144,6 +147,13 @@ pub struct HandshakeApp {
     /// extent; `ui()` refreshes it from egui's monitor size each frame so the clamp uses the real
     /// desktop bounds when a layout is restored.
     monitor_extent: egui::Rect,
+    /// The top project-tab strip (MT-011): one tab per open workspace, rendered above the pane grid.
+    /// Clicking a non-active tab drives `active_project_id`, which the MT-009 lifecycle keys on to
+    /// save the leaving project's layout and load the entered project's layout.
+    project_tabs: ProjectTabBar,
+    /// In-flight `GET /workspaces` fetch (MT-011). Spawned non-blocking so a slow/absent backend never
+    /// stalls the render loop; polled each frame and folded into `project_tabs` when it resolves.
+    workspaces_handle: Option<tokio::task::JoinHandle<Result<Vec<ProjectItem>, AppError>>>,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -228,6 +238,18 @@ fn default_tab_bar_states() -> HashMap<PaneId, TabBarState> {
         .collect()
 }
 
+/// The project-tab strip a fresh shell shows before the `/workspaces` fetch resolves (MT-011): a
+/// single tab for the seeded `default-project`, marked active. Once the background fetch returns the
+/// real workspace list, `apply_fetched` replaces this with the backend's projects (or the "No
+/// projects" placeholder if the list is empty). Seeding with the default project keeps the strip
+/// non-empty and the active highlight consistent with `active_project_id` from the first frame.
+fn default_project_tabs() -> ProjectTabBar {
+    ProjectTabBar::new(
+        vec![ProjectItem::new(DEFAULT_PROJECT_ID, "Default Project")],
+        DEFAULT_PROJECT_ID,
+    )
+}
+
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
 /// (ON by default from MT-004). When the feature is OFF, font loading is skipped and eframe's
 /// default fonts are used — never a panic (RISK-6 / CONTROL-6). build.rs fails fast with a clear
@@ -254,6 +276,11 @@ impl HandshakeApp {
             .expect("build tokio runtime");
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
         let health_handle = Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+        // Fire-once, non-blocking workspace list fetch (MT-011): the shell opens immediately with the
+        // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
+        let workspaces_handle = Some(rt.spawn(async {
+            fetch_workspaces(backend_client::BACKEND_BASE_URL).await
+        }));
         // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
         // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
         let transport = WorkbenchLayoutClient::production(rt.handle().clone());
@@ -283,6 +310,8 @@ impl HandshakeApp {
             save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
+            project_tabs: default_project_tabs(),
+            workspaces_handle,
         }
     }
 
@@ -320,6 +349,10 @@ impl HandshakeApp {
             save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
+            project_tabs: default_project_tabs(),
+            // Headless/test shell: no background fetch (no runtime to spawn on). A test seeds tabs
+            // directly via `project_tabs_mut`.
+            workspaces_handle: None,
         }
     }
 
@@ -365,6 +398,103 @@ impl HandshakeApp {
     /// The project whose layout this shell currently shows (MT-009).
     pub fn active_project_id(&self) -> &str {
         &self.active_project_id
+    }
+
+    /// Read-only view of the top project-tab strip (MT-011): tests assert the project list, active id,
+    /// and fetch state.
+    pub fn project_tabs(&self) -> &ProjectTabBar {
+        &self.project_tabs
+    }
+
+    /// Mutable view of the top project-tab strip (MT-011): tests seed the workspace list directly (no
+    /// live backend), and a future workspace-sidebar MT pushes a refreshed list here.
+    pub fn project_tabs_mut(&mut self) -> &mut ProjectTabBar {
+        &mut self.project_tabs
+    }
+
+    /// Reset the live work-surface layout to the seeded default for `project_id` (MT-011), the native
+    /// mirror of React's `defaultWorkbenchLayoutState(projectId)`. Rebuilds the four default panes
+    /// (re-stamped to `project_id`), the default per-pane tab bars, the default split weights, clears
+    /// the active pane and all pop-outs, and points `active_project_id` at the new project.
+    ///
+    /// This is called on a project switch BEFORE the lifecycle load so a project with NO stored layout
+    /// shows its own fresh default — never the leaving project's panes/tabs/splits carried over (the
+    /// MT-011 implementation note: "never carry over the old project's open documents"). When the
+    /// entered project DOES have a stored layout, the lifecycle load then overwrites this default with
+    /// the restored layout; when it does not, this fresh default is what remains.
+    fn reset_to_default_layout(&mut self, project_id: &str) {
+        self.active_project_id = project_id.to_owned();
+        self.split_weights = SplitWeights::default();
+        self.active_pane = None;
+        self.popout_manager = PopOutManager::new();
+        self.tab_bar_states = default_tab_bar_states();
+        // Rebuild the registry from the default panes, re-stamped to the entered project so the captured
+        // snapshot's pane records are self-consistent with `active_project_id`.
+        {
+            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            *guard = PaneRegistry::new();
+            for mut record in default_panes() {
+                record.project_id = project_id.to_owned();
+                guard.insert(record);
+            }
+        }
+    }
+
+    /// Switch the shell to `project_id` (MT-011), the native mirror of the React `selectProject()`
+    /// (`app/src/App.tsx`). This is the single project-switch transition:
+    ///
+    /// 1. SAVE the leaving project's current layout NOW (so its split/tabs/pop-outs are persisted
+    ///    before the shell shows a different project). The save routes through the same MT-009
+    ///    persistence manager (retry / last-known-good) the debounced autosave uses, keyed on the
+    ///    CURRENT `active_project_id` — so it must run BEFORE `active_project_id` is changed.
+    /// 2. RESET the live layout to the entered project's seeded DEFAULT
+    ///    ([`reset_to_default_layout`](Self::reset_to_default_layout)) so the leaving project's
+    ///    panes/tabs/splits/pop-outs are never carried over (MT-011 implementation note). This also
+    ///    sets `active_project_id` + the tab-strip highlight to the entered project.
+    ///
+    /// The LOAD of the entered project's layout is performed by the existing per-frame lifecycle
+    /// ([`drive_layout_persistence`](Self::drive_layout_persistence)): on the next frame
+    /// `loaded_project_id != active_project_id`, so it loads + applies the new project's STORED layout,
+    /// overwriting the fresh default from step 2. If the entered project has NO stored layout, the
+    /// fresh default from step 2 remains — mirroring React's `defaultWorkbenchLayoutState(projectId)`
+    /// fallback. No-op if `project_id` is already active.
+    ///
+    /// Returns `true` if the switch happened (the id actually changed).
+    pub fn switch_project(&mut self, project_id: &str) -> bool {
+        if self.active_project_id == project_id {
+            return false;
+        }
+        // 1. Persist the leaving project's layout (keyed on the current active id) before switching.
+        self.save_layout_now();
+        // 2. Reset to the entered project's fresh default + point the shell at it. The next frame's
+        //    lifecycle load overwrites this default with the stored layout if one exists (loaded_project_id
+        //    now differs from active_project_id), else the fresh default remains.
+        self.reset_to_default_layout(project_id);
+        self.project_tabs.set_active_id(project_id);
+        true
+    }
+
+    /// Poll the in-flight `GET /workspaces` fetch (MT-011) and fold the result into the project-tab
+    /// strip when it resolves: a successful list replaces the seeded default tab; an error retains the
+    /// previous list and surfaces an inline message. Non-blocking (only reads a finished JoinHandle),
+    /// so a slow/absent backend never stalls the render loop.
+    fn poll_workspaces(&mut self) {
+        let finished = self.workspaces_handle.as_ref().is_some_and(|h| h.is_finished());
+        if !finished {
+            return;
+        }
+        if let Some(handle) = self.workspaces_handle.take() {
+            match self.rt.block_on(handle) {
+                Ok(Ok(projects)) => {
+                    self.project_tabs.apply_fetched(projects);
+                    // Keep the active highlight + active_project_id consistent if the fetch changed the
+                    // active id (e.g. the seeded default project is not in the backend list).
+                    self.active_project_id = self.project_tabs.active_id().to_owned();
+                }
+                Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
+                Err(e) => self.project_tabs.apply_fetch_error(format!("join error: {e}")),
+            }
+        }
     }
 
     /// Current 2x2 split divider fractions (MT-006). Read by tests / the MT-009 snapshot capture.
@@ -822,6 +952,7 @@ impl HandshakeApp {
     /// Render the shell. Split from eframe::App::update so egui_kittest can drive it without a Frame.
     pub fn ui(&mut self, ctx: &egui::Context) {
         self.poll_health();
+        self.poll_workspaces();
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
 
@@ -844,6 +975,34 @@ impl HandshakeApp {
                 });
             });
         });
+
+        // ── Top project-tabs strip (MT-011) ─────────────────────────────────────────────────────────
+        // Sits directly below the title bar and above the pane grid. Switching a project tab drives
+        // `active_project_id`; the layout-persistence lifecycle (below) then saves the leaving project's
+        // layout and loads the entered project's layout on the next frame. Colors come from the active
+        // MT-003 theme tokens so the strip flips dark<->light with the rest of the shell.
+        let project_palette = self.current_theme.palette();
+        let project_tab_colors = ProjectTabColors {
+            bar_bg: project_palette.bg,
+            active_bg: project_palette.accent_soft,
+            inactive_bg: project_palette.surface,
+            hover_bg: project_palette.surface_strong,
+            text: project_palette.text,
+            disabled_text: project_palette.text_subtle,
+            accent: project_palette.accent,
+            error: project_palette.error_text,
+        };
+        let switch_request = egui::TopBottomPanel::top("handshake_project_tabs")
+            .exact_height(PROJECT_TAB_BAR_HEIGHT)
+            .show(ctx, |ui| self.project_tabs.show(ui, project_tab_colors))
+            .inner;
+        if let Some(new_project_id) = switch_request {
+            // A non-active project tab was clicked: perform the save-old / set-active transition. The
+            // entered project's layout LOADS on the next frame via the lifecycle (loaded != active).
+            if self.switch_project(&new_project_id) {
+                ctx.request_repaint();
+            }
+        }
 
         egui::TopBottomPanel::bottom("handshake_status_bar").show(ctx, |ui| {
             let text = match &self.health_status {
