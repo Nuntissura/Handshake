@@ -62,6 +62,38 @@ fn default_module() -> ModuleId {
     ModuleId::Main
 }
 
+/// The default `drawers.project` value (left rail OPEN) used when a layout blob predates MT-014 and
+/// carries no `drawers` key. A fresh shell shows the rail open so the project tree is visible.
+fn default_left_rail_open() -> bool {
+    true
+}
+
+/// Persisted open/closed state of the shell's collapsible drawers (MT-014). Mirrors the React
+/// workbench `drawers` object; currently only the LEFT rail (`project`) drawer is tracked here. A
+/// missing field defaults via [`default_left_rail_open`] so an older blob still deserializes (the
+/// version-1 schema stays backward compatible). `bottom` is reserved for the MT-022 bottom stash
+/// drawer so this struct is the single shared home for drawer flags (red-team CONTROL: one shared
+/// field name, not separate booleans that can drift).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DrawersState {
+    /// The LEFT activity rail (project tree / quick links / stash) open flag. React field `project`.
+    #[serde(default = "default_left_rail_open")]
+    pub project: bool,
+    /// The BOTTOM stash drawer open flag (MT-022 owns the full UI; MT-014 only toggles this). Defaults
+    /// closed so a fresh shell does not show an empty bottom drawer.
+    #[serde(default)]
+    pub bottom: bool,
+}
+
+impl Default for DrawersState {
+    fn default() -> Self {
+        Self {
+            project: default_left_rail_open(),
+            bottom: false,
+        }
+    }
+}
+
 /// One pop-out's persisted state: where the detached window sat and whether it was open. Geometry
 /// reuses the MT-008 [`PopOutGeometry`] (already serde) so the restore path can hand it straight to
 /// `clamped_to` + `PopOutManager::pop_out` with no lossy re-typing.
@@ -108,6 +140,12 @@ pub struct LayoutSnapshot {
     pub tab_bars: BTreeMap<PaneId, TabBarState>,
     /// Per-pane pop-out geometry + open flag (MT-008). Only panes that were popped out appear.
     pub pop_outs: BTreeMap<PaneId, PopOutSnapshot>,
+    /// Collapsible-drawer open flags (MT-014): the left activity rail (`drawers.project`) and the
+    /// bottom stash drawer (`drawers.bottom`). `#[serde(default)]` so a layout blob written before
+    /// MT-014 (no `drawers` key) still deserializes with the rail OPEN (the default), keeping the
+    /// version-1 schema backward compatible.
+    #[serde(default)]
+    pub drawers: DrawersState,
 }
 
 impl LayoutSnapshot {
@@ -133,7 +171,15 @@ impl LayoutSnapshot {
             panes,
             tab_bars,
             pop_outs,
+            drawers: DrawersState::default(),
         }
+    }
+
+    /// Builder: set the collapsible-drawer flags (MT-014). Returns `self` so the app can chain it onto
+    /// [`new`](Self::new) at capture time: `LayoutSnapshot::new(...).with_drawers(drawers)`.
+    pub fn with_drawers(mut self, drawers: DrawersState) -> Self {
+        self.drawers = drawers;
+        self
     }
 
     /// Reject a snapshot whose schema id or version does not match this build. This is the gate that

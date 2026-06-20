@@ -61,9 +61,17 @@ fn divider_value(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> f64 {
 /// rect (kittest derives this from the AccessKit bounding box egui populated from the `ui.interact`
 /// response rect). Used to drive a REAL pointer drag onto the exact divider, rather than guessing
 /// pixel coordinates from panel geometry. Looked up by the divider's stable AccessKit label.
-fn divider_center(harness: &Harness<'_, HandshakeApp>, label: &str) -> egui::Pos2 {
+/// A grab point on the HORIZONTAL divider that is WELL AWAY from the vertical-divider crossing (the
+/// divider's center.x), computed from the divider's ACTUAL on-screen rect. Using the rect's own left
+/// edge + a fraction of its width keeps the grab on the divider regardless of where the divider starts
+/// horizontally — the divider no longer begins at x=0 since the MT-014 left rail (a SidePanel::left)
+/// shifts the central pane grid to the right. (Pre-MT-014 this test used `center.x * 0.25`, which
+/// assumed the divider spanned from the window's left edge; that assumption broke when the left rail
+/// claimed the left edge.)
+fn horizontal_divider_grab(harness: &Harness<'_, HandshakeApp>) -> egui::Pos2 {
     use egui_kittest::kittest::Queryable;
-    harness.get_by_label(label).rect().center()
+    let rect = harness.get_by_label("Horizontal split divider").rect();
+    egui::pos2(rect.left() + rect.width() * 0.2, rect.center().y)
 }
 
 #[test]
@@ -172,11 +180,11 @@ fn live_pointer_drag_horizontal_divider_changes_weight_and_clamps() {
     harness.run();
 
     let before = divider_value(&harness, DIVIDER_H_AUTHOR_ID);
-    // The horizontal line spans the full width; grab it WELL AWAY from x=center (where the vertical
-    // divider crosses it) so the drag lands on the horizontal divider, not the crossing point.
-    let h_center = divider_center(&harness, "Horizontal split divider");
-    let center = egui::pos2(h_center.x * 0.25, h_center.y);
-    println!("LIVE drag horizontal: grab point = {center:?} (line y={})", h_center.y);
+    // Grab the horizontal divider WELL AWAY from x=center (where the vertical divider crosses it) so the
+    // drag lands on the horizontal divider, not the crossing point. Computed from the divider's actual
+    // rect (the left rail shifts the grid right, so the divider no longer starts at x=0).
+    let center = horizontal_divider_grab(&harness);
+    println!("LIVE drag horizontal: grab point = {center:?}");
 
     // Drive the drag one frame PER pointer event (`step`, not `run`). egui hit-tests at the START of
     // a frame using the pointer position recorded at the END of the previous frame, so each pointer
@@ -220,9 +228,9 @@ fn live_pointer_drag_far_clamps_to_max() {
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
-    let h_center = divider_center(&harness, "Horizontal split divider");
-    // Grab away from the vertical-divider crossing (see sibling test).
-    let center = egui::pos2(h_center.x * 0.25, h_center.y);
+    // Grab away from the vertical-divider crossing (see sibling test), computed from the divider's
+    // actual rect (the MT-014 left rail shifts the grid right).
+    let center = horizontal_divider_grab(&harness);
     harness.hover_at(center);
     harness.step();
     harness.step();

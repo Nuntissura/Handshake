@@ -275,6 +275,13 @@ fn live_drag_tab_across_panes_moves_it_exactly_once() {
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
     harness.set_size(egui::Vec2::new(1000.0, 700.0));
     harness.run();
+    // Collapse the MT-014 left rail for this tab-drag test: an OPEN rail is a SidePanel::left that
+    // narrows + shifts the 2x2 pane grid, which moves the tab + tab-bar rects under test and made the
+    // live cross-pane drag gesture unreliable in the harness. The rail is irrelevant to the tab-drag
+    // behavior being proven, so collapsing it restores stable pane geometry without changing what this
+    // test exercises (the cross-pane tab move). The rail's own behavior is covered by test_left_rail.
+    harness.state_mut().set_left_rail_open(false);
+    harness.run();
 
     // Source counts before.
     let pane_a: PaneId = Arc::from("pane-a");

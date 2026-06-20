@@ -10,9 +10,11 @@ use crate::accessibility::{self, ChromeWidget};
 use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
 use crate::error::AppError;
 use crate::layout_persistence::{
-    LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
+    DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
     PopOutSnapshot,
 };
+use crate::event_bus::{new_shell_event_bus, ShellEvent, ShellEventReceiver, ShellEventSender};
+use crate::left_rail::{LeftRail, LeftRailColors, LeftRailEvent};
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
 use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
 use crate::pane_registry::{
@@ -161,6 +163,30 @@ pub struct HandshakeApp {
     /// + active tab via [`HandshakeApp::set_module`]. Serialized into the layout snapshot as
     /// `active_module` by MT-009, so the module survives a project switch and an app restart.
     module_switcher: ModuleSwitcher,
+    /// The LEFT activity rail (MT-014): activity icons + project tree + quick links + stash/agenda/
+    /// mail/notes affordances. Owns its own per-section expand state, the project tree, and the
+    /// quick-links list; the app owns the rail's OPEN flag (persisted) + the bottom-drawer flag.
+    left_rail: LeftRail,
+    /// Whether the left rail is expanded (showing the project tree / quick links / affordances) vs
+    /// collapsed to just the activity icon strip. Persisted in the layout snapshot's `drawers.project`
+    /// (MT-014) so it round-trips across sessions. Defaults to open so a fresh shell shows the tree.
+    left_rail_open: bool,
+    /// Whether the BOTTOM stash drawer is open (MT-014 toggles it; MT-022 owns its full UI). This is
+    /// the SINGLE shared field both the left-rail stash toggle and the future bottom drawer reference
+    /// (red-team CONTROL: one shared flag, not two booleans that drift). Persisted in `drawers.bottom`.
+    bottom_drawer_open: bool,
+    /// The tokio runtime handle used to spawn the project-tree's async document/canvas loads. Cloned
+    /// from `rt` so the rail can fetch without holding the whole runtime. `None` in the headless/test
+    /// shell (no multi-thread runtime); the tree then renders from directly-seeded content.
+    runtime_handle: Option<tokio::runtime::Handle>,
+    /// In-process shell event bus (MT-014 FIX-B) the app drains each frame so a document/canvas/
+    /// bookmark deleted from another surface disappears from the project tree with no stale row. The
+    /// receiver is owned here; [`event_bus_sender`](HandshakeApp::event_bus_sender) hands out clonable
+    /// senders for future delete-performing surfaces (no production emitter exists yet — see FIX-B).
+    event_bus_rx: ShellEventReceiver,
+    /// A clonable producer handle onto [`event_bus_rx`](Self::event_bus_rx). Stored so the app can hand
+    /// copies to producers; the bus stays alive as long as the app does.
+    event_bus_tx: ShellEventSender,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -295,6 +321,12 @@ impl HandshakeApp {
             Box::new(transport),
             LAYOUT_SAVE_DEBOUNCE,
         )));
+        // Clone the runtime handle BEFORE moving `rt` into the struct, so the left-rail project tree can
+        // spawn its async document/canvas loads on the same multi-thread runtime (MT-014).
+        let rt_handle = rt.handle().clone();
+        // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
+        // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
+        let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
         Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -321,6 +353,12 @@ impl HandshakeApp {
             workspaces_handle,
             // The default seed pane (`pane-a`) is the React `MAIN` module, so the switcher starts on MAIN.
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
+            left_rail: LeftRail::new(),
+            left_rail_open: true,
+            bottom_drawer_open: false,
+            runtime_handle: Some(rt_handle),
+            event_bus_rx,
+            event_bus_tx,
         }
     }
 
@@ -337,6 +375,8 @@ impl HandshakeApp {
             Box::new(NullLayoutTransport),
             LAYOUT_SAVE_DEBOUNCE,
         )));
+        // MT-014 FIX-B: the in-process shell event bus (same construction as the production ctor).
+        let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
         Self {
             health_status: state,
             rt,
@@ -363,6 +403,14 @@ impl HandshakeApp {
             // directly via `project_tabs_mut`.
             workspaces_handle: None,
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
+            left_rail: LeftRail::new(),
+            left_rail_open: true,
+            bottom_drawer_open: false,
+            // Headless/test shell: the current-thread runtime cannot spawn background loads, so the
+            // project tree is seeded directly via `left_rail_mut().project_tree.set_content(...)`.
+            runtime_handle: None,
+            event_bus_rx,
+            event_bus_tx,
         }
     }
 
@@ -374,6 +422,40 @@ impl HandshakeApp {
     /// Active base theme (for tests / future settings binding).
     pub fn current_theme(&self) -> HsTheme {
         self.current_theme
+    }
+
+    /// A clonable producer handle onto the shell event bus (MT-014 FIX-B). A future surface that
+    /// performs a delete (document / canvas / bookmark) clones this and publishes a [`ShellEvent`] so
+    /// the project tree drops the row on the next frame. No production emitter exists yet (FIX-B); this
+    /// is the wired entry point for one.
+    pub fn event_bus_sender(&self) -> ShellEventSender {
+        self.event_bus_tx.clone()
+    }
+
+    /// Drain the shell event bus (MT-014 FIX-B) and apply each event to the live project tree so a
+    /// document / canvas / bookmark deleted from another surface disappears with no stale row. Called
+    /// once per frame at the top of [`ui`](Self::ui), before the tree renders. Returns the number of
+    /// events that actually removed a row (for tests / repaint scheduling).
+    pub fn drain_shell_events(&mut self) -> usize {
+        let events = self.event_bus_rx.drain();
+        let mut removed = 0usize;
+        for event in events {
+            let did_remove = match event {
+                ShellEvent::DocumentDeleted { document_id } => {
+                    self.left_rail.project_tree.remove_document(&document_id)
+                }
+                ShellEvent::CanvasDeleted { canvas_id } => {
+                    self.left_rail.project_tree.remove_canvas(&canvas_id)
+                }
+                ShellEvent::BookmarkRemoved { block_id } => {
+                    self.left_rail.project_tree.remove_bookmark(&block_id)
+                }
+            };
+            if did_remove {
+                removed += 1;
+            }
+        }
+        removed
     }
 
     /// Read-only view of the per-pane tab-bar state (for tests / MT-009 snapshot wiring).
@@ -430,6 +512,34 @@ impl HandshakeApp {
     /// Read-only view of the module switcher (tests / future settings binding).
     pub fn module_switcher(&self) -> &ModuleSwitcher {
         &self.module_switcher
+    }
+
+    /// Whether the left activity rail is expanded (MT-014). Persisted as `drawers.project`.
+    pub fn left_rail_open(&self) -> bool {
+        self.left_rail_open
+    }
+
+    /// Set the left-rail open flag directly (tests / a future settings surface). The change is picked
+    /// up by the MT-009 layout change-detector (drawers are part of the captured snapshot), so it
+    /// persists through the debounced save.
+    pub fn set_left_rail_open(&mut self, open: bool) {
+        self.left_rail_open = open;
+    }
+
+    /// Whether the bottom stash drawer is open (MT-014). Persisted as `drawers.bottom`.
+    pub fn bottom_drawer_open(&self) -> bool {
+        self.bottom_drawer_open
+    }
+
+    /// Read-only view of the left rail (tests assert the project tree / quick-links state).
+    pub fn left_rail(&self) -> &LeftRail {
+        &self.left_rail
+    }
+
+    /// Mutable view of the left rail (tests seed the project tree's documents/canvases directly, with no
+    /// live backend, via `left_rail_mut().project_tree.set_content(...)`).
+    pub fn left_rail_mut(&mut self) -> &mut LeftRail {
+        &mut self.left_rail
     }
 
     /// The pane a module switch targets: the active pane if one is set, else the alphabetically-first
@@ -496,6 +606,110 @@ impl HandshakeApp {
         true
     }
 
+    /// Build the live ACTIVE-WINDOW quick-link entries (MT-014) from the current pane tab bars: one
+    /// [`crate::quick_links::QuickLinkEntry`] per open tab, with `is_active` set on each pane's active
+    /// tab so the rail's collapsed view shows only the active tabs. The owning project name is the
+    /// active project's display name from the project-tab strip (all seeded panes belong to the active
+    /// project in this WP; a future multi-project-pane MT can vary it per pane). Panes are visited in
+    /// stable id order (BTreeMap-style) so the list is deterministic frame-to-frame.
+    fn build_quick_link_entries(&self) -> Vec<crate::quick_links::QuickLinkEntry> {
+        let project_name = self
+            .project_tabs
+            .projects()
+            .iter()
+            .find(|p| p.id == self.active_project_id)
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| self.active_project_id.clone());
+
+        let mut pane_ids: Vec<&PaneId> = self.tab_bar_states.keys().collect();
+        pane_ids.sort();
+        let mut entries = Vec::new();
+        for pane_id in pane_ids {
+            let Some(bar) = self.tab_bar_states.get(pane_id) else { continue };
+            for (index, tab) in bar.tabs.iter().enumerate() {
+                entries.push(crate::quick_links::QuickLinkEntry {
+                    pane_id: pane_id.clone(),
+                    tab_index: index,
+                    project_name: project_name.clone(),
+                    tab_label: tab.label(),
+                    pane_type: tab.pane_type.clone(),
+                    is_active: index == bar.active_index,
+                });
+            }
+        }
+        entries
+    }
+
+    /// Apply a left-rail event (MT-014) against the live shell state (single source of truth). Returns
+    /// `true` if the event changed app state (so the caller can request a repaint + let the layout
+    /// change-detector schedule a save). Mirrors the React handlers the WorkspaceSidebar/App wired:
+    /// document/canvas open -> open a tab on the active pane; quick-link click -> focus pane + activate
+    /// tab; stash/rail toggles -> flip the persisted drawer flags; agenda/mail/notes -> open the tab.
+    fn apply_left_rail_event(&mut self, event: LeftRailEvent) -> bool {
+        match event {
+            LeftRailEvent::OpenDocument(doc_id) => {
+                self.open_content_on_active_pane(PaneType::Workspace, Some(doc_id))
+            }
+            LeftRailEvent::OpenCanvas(canvas_id) => {
+                // Canvases open on the Atelier editor surface (the canvas editor), carrying the id.
+                self.open_content_on_active_pane(PaneType::AtelierEditor, Some(canvas_id))
+            }
+            LeftRailEvent::OpenBookmark { document_id, block_id } => {
+                // Mirror React `handleOpenBookmark`: a document pin opens as that document on the
+                // Workspace surface; otherwise the pinned Loom block opens on the LoomBlock surface.
+                match document_id {
+                    Some(doc_id) => {
+                        self.open_content_on_active_pane(PaneType::Workspace, Some(doc_id))
+                    }
+                    None => self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id)),
+                }
+            }
+            LeftRailEvent::OpenModuleTab(pane_type) => {
+                self.open_content_on_active_pane(pane_type, None)
+            }
+            LeftRailEvent::FocusPaneTab { pane_id, tab_index } => {
+                self.active_pane = Some(pane_id.clone());
+                if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
+                    bar.activate(tab_index);
+                    return true;
+                }
+                false
+            }
+            LeftRailEvent::ToggleStash => {
+                self.bottom_drawer_open = !self.bottom_drawer_open;
+                true
+            }
+            LeftRailEvent::ToggleRail => {
+                self.left_rail_open = !self.left_rail_open;
+                true
+            }
+            LeftRailEvent::RetryProjectTree => {
+                if let Some(handle) = self.runtime_handle.clone() {
+                    self.left_rail.project_tree.retry(&handle);
+                }
+                false
+            }
+        }
+    }
+
+    /// Open a tab for `pane_type` (carrying optional `content_id`) on the ACTIVE pane (MT-014), the
+    /// native equivalent of React `setActiveTabForPane(activePaneId, tab)`. De-duplicates by
+    /// `(pane_type, content_id)` (an already-open tab is re-activated, not duplicated) via the
+    /// MT-007 `TabBarState::insert_tab`. Returns `true` if a pane was targeted.
+    fn open_content_on_active_pane(&mut self, pane_type: PaneType, content_id: Option<String>) -> bool {
+        let Some(target) = self.module_target_pane() else {
+            return false;
+        };
+        self.active_pane = Some(target.clone());
+        if let Some(bar) = self.tab_bar_states.get_mut(&target) {
+            let mut tab = TabState::new(pane_type);
+            tab.content_id = content_id;
+            bar.insert_tab(tab);
+            return true;
+        }
+        false
+    }
+
     /// Reset the live work-surface layout to the seeded default for `project_id` (MT-011), the native
     /// mirror of React's `defaultWorkbenchLayoutState(projectId)`. Rebuilds the four default panes
     /// (re-stamped to `project_id`), the default per-pane tab bars, the default split weights, clears
@@ -512,6 +726,11 @@ impl HandshakeApp {
         self.active_pane = None;
         self.popout_manager = PopOutManager::new();
         self.tab_bar_states = default_tab_bar_states();
+        // A fresh default work surface shows the left rail OPEN and the bottom stash CLOSED (MT-014),
+        // mirroring the React `defaultWorkbenchLayoutState` drawers. A subsequent lifecycle load
+        // overwrites these if the entered project has stored drawer flags.
+        self.left_rail_open = true;
+        self.bottom_drawer_open = false;
         // A fresh default work surface starts on the MAIN module (the default seed pane's module), so the
         // switcher highlight resets too. A subsequent lifecycle load overwrites this if the entered
         // project has a stored `active_module`.
@@ -688,6 +907,10 @@ impl HandshakeApp {
             tab_bars,
             pop_outs,
         )
+        .with_drawers(DrawersState {
+            project: self.left_rail_open,
+            bottom: self.bottom_drawer_open,
+        })
     }
 
     /// Apply a restored [`LayoutSnapshot`] to the live shell (MT-009), the inverse of
@@ -713,6 +936,10 @@ impl HandshakeApp {
         self.active_project_id = snapshot.project_id;
         self.split_weights = snapshot.split_weights;
         self.active_pane = snapshot.active_pane;
+        // Restore the collapsible-drawer flags (MT-014): the left-rail open flag and the bottom stash
+        // drawer flag, so a reopened project shows the rail in the state it was left.
+        self.left_rail_open = snapshot.drawers.project;
+        self.bottom_drawer_open = snapshot.drawers.bottom;
         // Restore the active MODULE highlight (MT-012) so a reopened project shows the module it was
         // left on, not the default. The pane tab bars are restored from the snapshot below, so we only
         // need to re-point the switcher highlight here.
@@ -1160,6 +1387,65 @@ impl HandshakeApp {
                     .unwrap_or(crate::popout_window::FALLBACK_POPOUT_POS);
                 self.popout_manager
                     .pop_out(pane_id, PopOutGeometry::at(pos));
+            }
+        }
+
+        // ── Left activity rail (MT-014) ─────────────────────────────────────────────────────────────
+        // The collapsible SidePanel::left holds (collapsed) the activity icon strip or (open) the full
+        // project tree + quick links + stash/agenda/mail/notes affordances. It is rendered AFTER the top
+        // strips and BEFORE the central pane grid, so egui carves it from the left edge of the remaining
+        // area. Colors come from the active MT-003 theme tokens so the rail flips dark<->light.
+        //
+        // Point the project tree at the active workspace each frame (a no-op if unchanged); when the
+        // workspace changes this spawns the async document/canvas load on the cloned runtime handle. In
+        // the headless/test shell there is no multi-thread runtime, so the tree renders from
+        // directly-seeded content instead (set via `left_rail_mut().project_tree.set_content`).
+        if let Some(handle) = self.runtime_handle.clone() {
+            let active_project = self.active_project_id.clone();
+            self.left_rail
+                .project_tree
+                .set_workspace(&active_project, &handle);
+        }
+        // Drain the shell event bus (MT-014 FIX-B) BEFORE rendering so a document/canvas/bookmark
+        // deleted from another surface disappears from the tree this frame with no stale row.
+        if self.drain_shell_events() > 0 {
+            ctx.request_repaint();
+        }
+        // Drain any delivered async tree-load result before rendering this frame (non-blocking).
+        self.left_rail.project_tree.poll();
+
+        let rail_palette = self.current_theme.palette();
+        let left_rail_colors = LeftRailColors {
+            icon_bg: rail_palette.surface,
+            icon_hover_bg: rail_palette.surface_strong,
+            icon_active_bg: rail_palette.accent_soft,
+            icon_text: rail_palette.text,
+            row_bg: rail_palette.surface,
+            row_hover_bg: rail_palette.surface_strong,
+            row_text: rail_palette.text,
+            group_text: rail_palette.text_subtle,
+            muted_text: rail_palette.text_subtle,
+            error: rail_palette.error_text,
+            project_prefix: rail_palette.text_subtle,
+        };
+        let quick_link_entries = self.build_quick_link_entries();
+        let rail_open = self.left_rail_open;
+        // The collapsed rail is just the icon strip (~40px incl. padding); the open rail is resizable
+        // from a 200px default. min_width keeps the icon strip visible in both states.
+        let rail_event = {
+            let left_rail = &mut self.left_rail;
+            egui::SidePanel::left("left-rail")
+                .resizable(rail_open)
+                .min_width(if rail_open { 180.0 } else { 40.0 })
+                .default_width(if rail_open { 220.0 } else { 40.0 })
+                .show(ctx, |ui| {
+                    left_rail.show(ui, rail_open, &quick_link_entries, left_rail_colors)
+                })
+                .inner
+        };
+        if let Some(event) = rail_event {
+            if self.apply_left_rail_event(event) {
+                ctx.request_repaint();
             }
         }
 

@@ -391,20 +391,44 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     }
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
-    // stable-id nodes the fresh-seed shell emits (7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab
-    // nodes + 4 MT-013 lock buttons + 4 MT-013 header titles + 2 MT-011 project-tab nodes + 6 MT-012
-    // module-switcher buttons = 37), so a re-order or a dropped node fails loudly. The two MT-011 nodes
-    // are the project-tab-strip container (`project-tabs`, Role::TabList) and the single seeded
-    // default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds one
+    // stable-id nodes the fresh-seed shell emits (37 pre-MT-014 nodes + 20 MT-014 left-rail nodes = 57),
+    // so a re-order or a dropped node fails loudly. (The MT-014 left-rail node count rose from 18 to 20
+    // with the FIX-A Bookmarks group: the bookmarks container `project-tree.bookmarks` (Role::Tree) and
+    // its always-rendered group header `project-tree.group.bookmarks` (Role::TreeItem). The bookmark
+    // LEAF rows are dynamic and absent in the headless shell, which seeds no pins.)
+    //
+    // Pre-MT-014 (37): 7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab nodes + 4 MT-013 lock buttons +
+    // 4 MT-013 header titles + 2 MT-011 project-tab nodes + 6 MT-012 module-switcher buttons. The two
+    // MT-011 nodes are the project-tab-strip container (`project-tabs`, Role::TabList) and the single
+    // seeded default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds one
     // project tab before the `/workspaces` fetch (which never runs headlessly) would resolve. The six
-    // MT-012 nodes are the header module buttons (`module-main`..`module-studio`, Role::Button) — all
-    // six render every frame (fixed module set), unlike the dynamic project tabs. The eight MT-013
-    // nodes are the per-pane lock buttons (`pane-pane-{x}-lock`, Role::Button) + the per-pane header
-    // titles (`pane-pane-{x}-title`, Role::Label, bound to the active tab); the tab module/type badge
-    // rides the existing Tab node's description, so it adds no new stable-id node.
+    // MT-012 nodes are the header module buttons (`module-main`..`module-studio`, Role::Button). The
+    // eight MT-013 nodes are the per-pane lock buttons (`pane-pane-{x}-lock`, Role::Button) + the
+    // per-pane header titles (`pane-pane-{x}-title`, Role::Label, bound to the active tab).
+    //
+    // MT-014 left activity rail (18): the nine fixed rail buttons (`left-rail.activity.{files,agenda,
+    // mail,notes}`, `left-rail.{stash-toggle,agenda,mail,notes,collapse-toggle}`, all Role::Button); the
+    // project-tree container (`project-tree`, Role::Tree) + its three always-rendered group headers
+    // (`project-tree.group.{documents,canvases,bookmarks}`, Role::TreeItem — the leaf rows are dynamic
+    // and absent when the headless shell has no loaded documents/canvases/pins) + the FIX-A bookmarks
+    // sub-container (`project-tree.bookmarks`, Role::Tree); and the quick-links container (`quick-links`,
+    // Role::List) + its disclosure toggle (`quick-links.disclosure`, Role::Button) + one row per pane's
+    // ACTIVE tab (`quick-links.pane-{a..d}.0`, Role::Link — the collapsed default shows active-only, so
+    // exactly four rows for the four seeded panes). The ScrollArea's internal focusable viewport node is
+    // intentionally NOT emitted (the rail does not wrap content in an egui ScrollArea — see left_rail.rs
+    // note), so it adds no stable-id node and no anonymous interactive node.
     let expected_sorted = vec![
         "divider-horizontal",
         "divider-vertical",
+        "left-rail.activity.agenda",
+        "left-rail.activity.files",
+        "left-rail.activity.mail",
+        "left-rail.activity.notes",
+        "left-rail.agenda",
+        "left-rail.collapse-toggle",
+        "left-rail.mail",
+        "left-rail.notes",
+        "left-rail.stash-toggle",
         "module-ckc",
         "module-ingest",
         "module-lab",
@@ -425,6 +449,17 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "pane-pane-d-title",
         "project-tab-default-project",
         "project-tabs",
+        "project-tree",
+        "project-tree.bookmarks",
+        "project-tree.group.bookmarks",
+        "project-tree.group.canvases",
+        "project-tree.group.documents",
+        "quick-links",
+        "quick-links.disclosure",
+        "quick-links.pane-a.0",
+        "quick-links.pane-b.0",
+        "quick-links.pane-c.0",
+        "quick-links.pane-d.0",
         "shell.chrome.status-bar",
         "shell.chrome.theme-toggle",
         "shell.chrome.title-bar",
@@ -444,7 +479,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 37 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 57 stable-id nodes in sorted order"
     );
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
@@ -457,6 +492,18 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         snapshot.by_author_id("project-tab-default-project").unwrap().role,
         "Tab",
         "seeded project tab role"
+    );
+
+    // MT-014 FIX-A bookmarks nodes: the sub-container is a Tree, its group header a TreeItem.
+    assert_eq!(
+        snapshot.by_author_id("project-tree.bookmarks").unwrap().role,
+        "Tree",
+        "bookmarks sub-container role"
+    );
+    assert_eq!(
+        snapshot.by_author_id("project-tree.group.bookmarks").unwrap().role,
+        "TreeItem",
+        "bookmarks group header role"
     );
 
     // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.

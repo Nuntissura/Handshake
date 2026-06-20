@@ -28,6 +28,7 @@
 use egui::accesskit;
 
 use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
+use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
@@ -35,6 +36,10 @@ use crate::module_switcher::{MODULE_DEFINITIONS, MODULE_NODE_ID_BASE};
 use crate::pane_header::{PANE_LOCK_SLOTS, PANE_TITLE_SLOTS};
 use crate::popout_window::MERGE_BACK_SLOTS;
 use crate::project_tabs::{PROJECT_TABS_AUTHOR_ID, PROJECT_TABS_NODE_ID};
+use crate::project_tree::{
+    BOOKMARKS_AUTHOR_ID, BOOKMARKS_NODE_ID, PROJECT_TREE_AUTHOR_ID, PROJECT_TREE_NODE_ID,
+};
+use crate::quick_links::{QUICK_LINKS_AUTHOR_ID, QUICK_LINKS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
 use crate::tab_bar::TABBAR_SLOTS;
 
@@ -247,6 +252,74 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: "pane-pane-d-title",
         node_id: PANE_TITLE_SLOTS[3].1,
+    },
+    // MT-014 left activity rail controls (Role::Button), fresh 80..=88 band: above the pane-title band
+    // (74..77), below the project-tree container (89) / quick-links container (90), strictly below the
+    // pane id base (100). The nine controls are the four activity icons (files/agenda/mail/notes), the
+    // stash toggle, the three bottom affordances (agenda/mail/notes), and the rail collapse toggle.
+    // Each has a fixed id (LEFT_RAIL_NODE_ID_BASE + slot) and a fixed author_id, both enumerated here
+    // (const slice cannot iterate) so the collision test proves the nine ids are disjoint from every
+    // other declared identity. The `left_rail_band_is_disjoint_and_sequential` unit test in `left_rail`
+    // pins the band shape; this declares them for the cross-module collision proof.
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[0].0,
+        node_id: LEFT_RAIL_BUTTONS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[1].0,
+        node_id: LEFT_RAIL_BUTTONS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[2].0,
+        node_id: LEFT_RAIL_BUTTONS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[3].0,
+        node_id: LEFT_RAIL_BUTTONS[3].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[4].0,
+        node_id: LEFT_RAIL_BUTTONS[4].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[5].0,
+        node_id: LEFT_RAIL_BUTTONS[5].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[6].0,
+        node_id: LEFT_RAIL_BUTTONS[6].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[7].0,
+        node_id: LEFT_RAIL_BUTTONS[7].1,
+    },
+    DeclaredIdentity {
+        author_id: LEFT_RAIL_BUTTONS[8].0,
+        node_id: LEFT_RAIL_BUTTONS[8].1,
+    },
+    // MT-014 project-tree CONTAINER (Role::Tree), fixed slot 89: above the left-rail band (80..88),
+    // below the quick-links container (90) and the pane id base (100). Individual tree group headers and
+    // leaf rows are DYNAMIC (their count varies with the project's content) and live in egui's hashed id
+    // space (author_id-derived), so they are not enumerated here — only the fixed container id is.
+    DeclaredIdentity {
+        author_id: PROJECT_TREE_AUTHOR_ID,
+        node_id: PROJECT_TREE_NODE_ID,
+    },
+    // MT-014 quick-links CONTAINER (Role::List), fixed slot 90: above the project-tree container (89),
+    // below the pane id base (100). Individual quick-link rows + the disclosure toggle are DYNAMIC /
+    // author_id-derived, so they are not enumerated here — only the fixed container id is.
+    DeclaredIdentity {
+        author_id: QUICK_LINKS_AUTHOR_ID,
+        node_id: QUICK_LINKS_NODE_ID,
+    },
+    // MT-014 FIX-A bookmarks-group CONTAINER (Role::Tree), fixed slot 91: above the quick-links
+    // container (90), below the pane id base (100). The Bookmarks group renders pinned Loom blocks
+    // below the Documents/Canvases groups inside the Files panel. Individual bookmark ROWS are DYNAMIC
+    // (count varies with pins) and live in egui's hashed id space (`project-tree.bookmark.{slug}`), so
+    // they are not enumerated here — only the fixed container id is.
+    DeclaredIdentity {
+        author_id: BOOKMARKS_AUTHOR_ID,
+        node_id: BOOKMARKS_NODE_ID,
     },
 ];
 
