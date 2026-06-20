@@ -47,4 +47,7 @@ pub use registry::{
     assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_IDENTITIES, INTERACTIVE_ROLES,
     PALETTE_AUTHOR_IDS, PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
 };
-pub use snapshot::{collect_tree_snapshot, AccessNodeSnapshot, AccessTreeSnapshot};
+pub use snapshot::{
+    collect_tree_snapshot, collect_ui_tree_snapshot, AccessNodeSnapshot, AccessTreeSnapshot,
+    UiNodeBounds, UiTreeNode, UiTreeSnapshot, MAX_SNAPSHOT_NODES,
+};
