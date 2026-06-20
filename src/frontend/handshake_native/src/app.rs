@@ -432,6 +432,26 @@ pub struct HandshakeApp {
     /// carries only `Result<(), String>`). Actions deliver sequentially and the UI drains between frames,
     /// so the most-recent in-flight kind is the one the next receipt belongs to. `None` between actions.
     drawer_action_in_flight: Option<crate::stash_shelf::DrawerCardKind>,
+    /// MT-027 model-steering: the running out-of-process MCP transport (localhost TCP + Windows named
+    /// pipe), bound at startup on the app runtime. `None` in the headless/test shell and until bind
+    /// completes. Dropping it on app exit removes the discovery binding file.
+    mcp_server: Option<crate::mcp::SwarmMcpServer>,
+    /// MT-027: the bounded action queue the MCP server ENQUEUES resolved AccessKit actions into and the
+    /// egui frame loop DRAINS each frame (via [`mcp_drain_into_events`](Self::mcp_drain_into_events))
+    /// to steer the live shell. Shared (`Arc<Mutex<_>>`) because the server tasks run on tokio threads
+    /// concurrently with the UI thread (HBR-SWARM).
+    mcp_action_channel: Arc<Mutex<crate::mcp::ActionChannel>>,
+    /// MT-027: the latest UI-tree snapshot the frame loop publishes each frame; the MCP `list_widgets`
+    /// tool clones it and `click_widget`/`set_value` resolve targets against it. Shared with the server.
+    mcp_snapshot: Arc<Mutex<crate::accessibility::UiTreeSnapshot>>,
+    /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
+    /// the discovery binding file so an authorized agent can present it.
+    mcp_token: crate::mcp::SessionToken,
+    /// MT-027: true only while a side-effect-free snapshot-capture pass is running `ui()` on a throwaway
+    /// AccessKit context. The async pollers, event-bus drain, and layout-persistence scheduler early-return
+    /// when this is set, so publishing the live snapshot never consumes an async result or schedules a
+    /// spurious save (the real frame owns those side effects).
+    capturing_snapshot: bool,
 }
 
 /// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
@@ -604,6 +624,28 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+/// The placeholder UI-tree snapshot the MCP slot (MT-027) holds before the first frame publishes the
+/// real live tree. A single `Window` root with `widget_count` 1, so `list_widgets` over the wire before
+/// the first frame returns a well-formed (if empty) snapshot rather than a lock on uninitialized state.
+fn empty_snapshot() -> crate::accessibility::UiTreeSnapshot {
+    crate::accessibility::UiTreeSnapshot {
+        root: crate::accessibility::UiTreeNode {
+            id: "node:root".to_owned(),
+            author_id: None,
+            node_id: 0,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children: Vec::new(),
+        },
+        captured_at_utc: "0.000000000Z".to_owned(),
+        widget_count: 1,
+    }
+}
+
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
 /// (ON by default from MT-004). When the feature is OFF, font loading is skipped and eframe's
 /// default fonts are used — never a panic (RISK-6 / CONTROL-6). build.rs fails fast with a clear
@@ -659,7 +701,7 @@ impl HandshakeApp {
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
-        Self {
+        let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
             health_handle,
@@ -762,6 +804,58 @@ impl HandshakeApp {
             confirm_discard: None,
             drawer_action_success: None,
             drawer_action_in_flight: None,
+            // MT-027: bind the out-of-process MCP transport on the app runtime. The token + shared
+            // channel/snapshot are created here; `bind` is async (TcpListener) so it runs via the
+            // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
+            // window from opening (the shell must always start).
+            mcp_server: None,
+            mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
+            mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_token: crate::mcp::SessionToken::generate(),
+            capturing_snapshot: false,
+        };
+        app.spawn_mcp_server();
+        app
+    }
+
+    /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
+    /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
+    /// the headless/test shell drives the server's `dispatch_request` directly instead.
+    fn spawn_mcp_server(&mut self) {
+        let token = self.mcp_token.clone();
+        let snapshot = self.mcp_snapshot.clone();
+        let channel = self.mcp_action_channel.clone();
+        let capture = crate::mcp::SwarmMcpServer::os_window_capture();
+        let result = self
+            .rt
+            .block_on(async move { crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await });
+        match result {
+            Ok(server) => {
+                tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
+                self.mcp_server = Some(server);
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "MCP swarm server bind failed; model-steering transport disabled this session");
+            }
+        }
+    }
+
+    /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
+    /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
+    /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
+    /// projected to a [`UiTreeSnapshot`] (the MT-026 path) and stored for the MCP `list_widgets` tool.
+    fn refresh_mcp_snapshot(&mut self) {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        self.capturing_snapshot = true;
+        let output = ctx.run(egui::RawInput::default(), |ctx| self.ui(ctx));
+        self.capturing_snapshot = false;
+        if let Some(update) = output.platform_output.accesskit_update {
+            let snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
+            match self.mcp_snapshot.lock() {
+                Ok(mut slot) => *slot = snapshot,
+                Err(poisoned) => *poisoned.into_inner() = snapshot,
+            }
         }
     }
 
@@ -887,7 +981,38 @@ impl HandshakeApp {
             confirm_discard: None,
             drawer_action_success: None,
             drawer_action_in_flight: None,
+            // MT-027: the headless/test shell does NOT bind the OS transport (no multi-thread runtime,
+            // no OS window). The shared channel/snapshot/token still exist so a test can drive the MCP
+            // dispatch + frame-drain steering loop in-process; the over-the-wire test binds its OWN
+            // `SwarmMcpServer` on a `#[tokio::test]` runtime.
+            mcp_server: None,
+            mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
+            mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_token: crate::mcp::SessionToken::generate(),
+            capturing_snapshot: false,
         }
+    }
+
+    /// The shared MCP action channel (MT-027): the slot the out-of-process server enqueues into and the
+    /// frame loop drains. Exposed so a test (or the over-the-wire server) can share the SAME channel the
+    /// running shell drains, proving a connected client steers the live app.
+    pub fn mcp_action_channel(&self) -> Arc<Mutex<crate::mcp::ActionChannel>> {
+        self.mcp_action_channel.clone()
+    }
+
+    /// The shared MCP snapshot slot (MT-027): the live UI-tree the server's `list_widgets` reads.
+    pub fn mcp_snapshot_slot(&self) -> Arc<Mutex<crate::accessibility::UiTreeSnapshot>> {
+        self.mcp_snapshot.clone()
+    }
+
+    /// The per-session MCP token (MT-027) gating every request.
+    pub fn mcp_token(&self) -> crate::mcp::SessionToken {
+        self.mcp_token.clone()
+    }
+
+    /// The bound MCP transport handle (MT-027), if the server is running (production shell only).
+    pub fn mcp_server(&self) -> Option<&crate::mcp::SwarmMcpServer> {
+        self.mcp_server.as_ref()
     }
 
     /// Shared handle to the pane registry (for tests and future concurrent agent/operator wiring).
@@ -913,6 +1038,10 @@ impl HandshakeApp {
     /// once per frame at the top of [`ui`](Self::ui), before the tree renders. Returns the number of
     /// events that actually removed a row (for tests / repaint scheduling).
     pub fn drain_shell_events(&mut self) -> usize {
+        // MT-027: a snapshot-capture pass must not consume the shell event bus (the real frame owns it).
+        if self.capturing_snapshot {
+            return 0;
+        }
         let events = self.event_bus_rx.drain();
         let mut removed = 0usize;
         for event in events {
@@ -3167,6 +3296,10 @@ impl HandshakeApp {
     /// previous list and surfaces an inline message. Non-blocking (only reads a finished JoinHandle),
     /// so a slow/absent backend never stalls the render loop.
     fn poll_workspaces(&mut self) {
+        // MT-027: a snapshot-capture pass must not consume the async workspaces result.
+        if self.capturing_snapshot {
+            return;
+        }
         let finished = self.workspaces_handle.as_ref().is_some_and(|h| h.is_finished());
         if !finished {
             return;
@@ -3405,6 +3538,11 @@ impl HandshakeApp {
     ///
     /// `now` is the current instant (the app passes `Instant::now()`; tests pass a controlled clock).
     fn drive_layout_persistence(&mut self, now: std::time::Instant) {
+        // MT-027: a snapshot-capture pass must not load/save layout or schedule a debounced PUT (the real
+        // frame owns persistence). Skip entirely so capturing the live tree has no persistence side effect.
+        if self.capturing_snapshot {
+            return;
+        }
         // ── 1. Load on first frame / project change ─────────────────────────────────────────────
         if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
             let project = self.active_project_id.clone();
@@ -3734,6 +3872,10 @@ impl HandshakeApp {
     }
 
     fn poll_health(&mut self) {
+        // MT-027: a snapshot-capture pass must not consume the async health result (the real frame owns it).
+        if self.capturing_snapshot {
+            return;
+        }
         let finished = self.health_handle.as_ref().is_some_and(|h| h.is_finished());
         if finished {
             if let Some(handle) = self.health_handle.take() {
@@ -4384,7 +4526,36 @@ impl HandshakeApp {
 }
 
 impl eframe::App for HandshakeApp {
+    /// MT-027 live steering: inject any model actions queued by the MCP server into THIS frame's input,
+    /// BEFORE egui processes the frame, so a connected out-of-process client steers the running shell.
+    /// `raw_input_hook` is eframe's supported pre-frame seam; pushing `AccessKitActionRequest` / `Text`
+    /// events here is exactly the path the in-process steering test proves.
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        let events = match self.mcp_action_channel.lock() {
+            Ok(mut chan) => chan.drain_into_events(),
+            Err(poisoned) => poisoned.into_inner().drain_into_events(),
+        };
+        if !events.is_empty() {
+            raw_input.events.extend(events);
+        }
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ui(ctx);
+        // MT-027: publish the just-rendered UI tree into the shared MCP snapshot slot so the server's
+        // `list_widgets` returns the live tree and `click_widget`/`set_value` resolve against it. This
+        // runs a side-effect-free capture pass (guarded by `capturing_snapshot`) and requests a repaint
+        // so queued model actions are drained promptly even when the UI is otherwise idle.
+        if self.mcp_server.is_some() {
+            self.refresh_mcp_snapshot();
+            let has_pending = self
+                .mcp_action_channel
+                .lock()
+                .map(|c| c.pending() > 0)
+                .unwrap_or(false);
+            if has_pending {
+                ctx.request_repaint();
+            }
+        }
     }
 }

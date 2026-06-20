@@ -81,14 +81,54 @@ egui = "0.33"
 eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
 egui_tiles = { version = "0.14", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+# MT-027 transport: the out-of-process MCP server runs a localhost TCP listener and (on Windows) a
+# named-pipe server on the app's tokio runtime, so `net`, `io-util`, `sync`, `time` are added to the
+# already-present runtime features. `net` brings `tokio::net::TcpListener` AND
+# `tokio::net::windows::named_pipe`; `io-util` brings `AsyncBufReadExt`/`AsyncWriteExt` for the
+# newline-delimited JSON-RPC framing; `sync` brings the shutdown broadcast; `time` bounds a slow read.
+# (rt/rt-multi-thread/macros were already required by MT-002's health/workspace polls.)
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# MT-027 token auth: the contract mandates a per-session HMAC token validated by constant-time compare
+# via the `hmac` + `sha2` crates. These two RustCrypto crates are the only NEW dependency families this
+# MT adds; both are audited, pure-Rust (no native build). `rand` (CSPRNG token bytes) is reused from the
+# existing locked graph. See the MT-027 deviation notes for the per-crate justification.
+hmac = "0.12"
+sha2 = "0.10"
+rand = "0.9"
+# base64 STANDARD-alphabet encode for the screenshot tool's `png_base64`. Already present in the locked
+# graph (transitive); declared so the screenshot adapter uses the audited crate instead of a hand-rolled
+# encoder.
+base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
+# SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
+# it is declared with the GDI + window-enumeration features the focus-safe capture needs. Windows-only
+# (the offscreen render path covers headless proof on every OS).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Threading",
+    "Win32_Storage_Xps",
+] }
+# image (png): the production Windows screenshot path encodes the captured GDI bitmap to PNG. Already in
+# the locked graph (egui_kittest dev-dep pulls 0.25); declared as a Windows runtime dep so the live
+# OS-window capture can encode without the test profile. No new dependency family.
+image = { version = "0.25", default-features = false, features = ["png"] }
+
 [dev-dependencies]
 egui_kittest = { version = "0.33", features = ["wgpu"] }
+# image: TEST-ONLY (dev-dependency). NOT a new dependency family — `egui_kittest[wgpu]` already pulls
+# image 0.25 into the locked graph (it returns `image::RgbaImage` from `Harness::render()`), so this is
+# already compiled. Declared explicitly so the MT-027 screenshot proof can encode the rendered frame to
+# PNG and assert `image::load_from_memory` decodes it (the screenshot acceptance criterion). The
+# `png` feature is the same one egui_kittest enables. No runtime/product dependency is added.
+image = { version = "0.25", default-features = false, features = ["png"] }
 # Single-binary DLL audit (test_single_binary.rs). Reuses the MT-001 spike-proven `object` pin
 # (0.36) instead of the contract's pelite suggestion: `object` is already verified on this host
 # (dumpbin is absent — toolkit_spike_verdict.json), parses the PE import table the same way, and

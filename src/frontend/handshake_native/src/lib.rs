@@ -19,6 +19,7 @@ pub mod source_control;
 pub mod event_bus;
 pub mod layout_persistence;
 pub mod left_rail;
+pub mod mcp;
 pub mod module_switcher;
 pub mod pane_header;
 pub mod pane_registry;
