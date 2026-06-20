@@ -60,6 +60,19 @@ pub struct HsPalette {
     pub success_text: Color32,
     pub error_bg: Color32,
     pub error_text: Color32,
+    /// Split-divider line color when idle (no hover, no drag). Sourced from the React
+    /// `.main-divider` slate gradient (`app/src/App.css` ~3451–3469: `rgba(148,163,184,a)`); the
+    /// idle band uses the gradient's center alpha (0.45). Dark and light deliberately differ so a
+    /// model can tell the themes apart (MT-006 divider-token test).
+    pub divider_idle: Color32,
+    /// Split-divider line color on pointer hover / keyboard focus. A stronger slate than idle so the
+    /// grab affordance reads clearly (React has no explicit `:hover` divider rule; this is the
+    /// native strengthen-on-hover convention).
+    pub divider_hover: Color32,
+    /// Split-divider line color while actively dragging (grab). Uses the theme accent — React draws
+    /// the focus-visible affordance with `var(--hs-color-accent)` (`app/src/App.css` 3441–3443), so
+    /// the accent is the canonical "the operator is manipulating this divider" color.
+    pub divider_grab: Color32,
     pub syntax: HsSyntaxTokens,
 }
 
@@ -82,6 +95,11 @@ impl HsPalette {
             success_text: Color32::from_rgb(0x16, 0x65, 0x34),
             error_bg: Color32::from_rgb(0xfe, 0xe2, 0xe2),
             error_text: Color32::from_rgb(0xb9, 0x1c, 0x1c),
+            // Divider tokens: React slate gradient (148,163,184). Light theme: idle at the gradient
+            // center alpha (0.45), a stronger hover (0.7). Grab = the light accent (#2563eb).
+            divider_idle: rgba_premultiplied(148, 163, 184, 0.45),
+            divider_hover: rgba_premultiplied(148, 163, 184, 0.7),
+            divider_grab: Color32::from_rgb(0x25, 0x63, 0xeb),
             syntax: HsSyntaxTokens::light(text_subtle, bg),
         }
     }
@@ -108,6 +126,13 @@ impl HsPalette {
             // rgba(248,113,113,0.2) -> alpha8 51 -> premultiplied (49,22,22,51)
             error_bg: rgba_premultiplied(248, 113, 113, 0.2),
             error_text: Color32::from_rgb(0xfc, 0xa5, 0xa5),
+            // Divider tokens: React slate gradient (148,163,184). Dark theme needs a touch more
+            // luminance to read against the dark bg, so idle uses a higher alpha (0.55) than light
+            // (0.45) — making the two themes' idle premultiplied bytes genuinely differ (MT-006
+            // divider-token test). Hover strengthens to 0.85; grab = the dark accent (#22c55e).
+            divider_idle: rgba_premultiplied(148, 163, 184, 0.55),
+            divider_hover: rgba_premultiplied(148, 163, 184, 0.85),
+            divider_grab: Color32::from_rgb(0x22, 0xc5, 0x5e),
             syntax: HsSyntaxTokens::dark(text_subtle, bg),
         }
     }
@@ -138,6 +163,9 @@ impl HsPalette {
                 "success_text" => self.success_text = color,
                 "error_bg" => self.error_bg = color,
                 "error_text" => self.error_text = color,
+                "divider_idle" => self.divider_idle = color,
+                "divider_hover" => self.divider_hover = color,
+                "divider_grab" => self.divider_grab = color,
                 _ => {} // unknown key: silently ignored
             }
         }

@@ -28,6 +28,9 @@
 use egui::accesskit;
 
 use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
+use crate::split_layout::{
+    DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
+};
 
 /// Fixed AccessKit/egui id for the theme-toggle button (mirrors the private `THEME_TOGGLE_NODE_ID`
 /// in `app.rs`). Re-declared here as the registry's copy so the collision test can see it without
@@ -59,9 +62,11 @@ pub struct DeclaredIdentity {
 /// Every hand-assigned stable identity in the shell chrome. The single source of truth: a new fixed
 /// identity added anywhere in the shell MUST be added here so the collision test covers it.
 ///
-/// - theme toggle  -> id 10  (interactive Button, `app::theme_toggle`)
-/// - title bar     -> id 20  (`ChromeWidget::TitleBar`, `live::emit_chrome_node`)
-/// - status bar    -> id 21  (`ChromeWidget::StatusBar`, `live::emit_chrome_node`)
+/// - theme toggle      -> id 10  (interactive Button, `app::theme_toggle`)
+/// - title bar         -> id 20  (`ChromeWidget::TitleBar`, `live::emit_chrome_node`)
+/// - status bar        -> id 21  (`ChromeWidget::StatusBar`, `live::emit_chrome_node`)
+/// - divider horizontal -> id 30 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
+/// - divider vertical   -> id 31 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
 ///
 /// Panes occupy id >= 100 (see [`PANE_NODE_ID_BASE`]); they are validated by the disjointness
 /// assertion in the collision test rather than enumerated here.
@@ -77,6 +82,14 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: "shell.chrome.status-bar",
         node_id: STATUS_BAR_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: DIVIDER_H_AUTHOR_ID,
+        node_id: DIVIDER_H_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: DIVIDER_V_AUTHOR_ID,
+        node_id: DIVIDER_V_NODE_ID,
     },
 ];
 

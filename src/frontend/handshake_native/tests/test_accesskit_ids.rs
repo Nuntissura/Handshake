@@ -26,6 +26,9 @@ use handshake_native::backend_client::HealthInfo;
 const EXPECTED_PANE_AUTHOR_IDS: [&str; 4] = ["pane-a", "pane-b", "pane-c", "pane-d"];
 const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] =
     ["shell.chrome.title-bar", "shell.chrome.status-bar"];
+/// The two split dividers added by MT-006. They are LIVE `Role::Splitter` nodes addressable
+/// out-of-process by these stable author_ids, so the MT-025 live-tree snapshot now includes them.
+const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 2] = ["divider-horizontal", "divider-vertical"];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -325,10 +328,21 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "theme toggle missing from LIVE-FRAME snapshot; found {:?}",
         snapshot.author_ids()
     );
+    // The two MT-006 split dividers are present.
+    for expected in EXPECTED_DIVIDER_AUTHOR_IDS {
+        assert!(
+            snapshot.by_author_id(expected).is_some(),
+            "divider author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
+            snapshot.author_ids()
+        );
+    }
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of the
-    // seven stable-id nodes the shell emits, so a re-order or a dropped node fails loudly.
+    // nine stable-id nodes the shell emits (7 chrome+pane + 2 MT-006 dividers), so a re-order or a
+    // dropped node fails loudly.
     let expected_sorted = vec![
+        "divider-horizontal",
+        "divider-vertical",
         "pane-a",
         "pane-b",
         "pane-c",
@@ -340,19 +354,26 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 7 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 9 stable-id nodes in sorted order"
     );
 
-    // Roles survive the projection: chrome regions and the interactive toggle.
+    // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.
     assert_eq!(snapshot.by_author_id("shell.chrome.title-bar").unwrap().role, "TitleBar");
     assert_eq!(snapshot.by_author_id("shell.chrome.status-bar").unwrap().role, "Status");
     assert_eq!(snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role, "Button");
     for pane in EXPECTED_PANE_AUTHOR_IDS {
         assert_eq!(snapshot.by_author_id(pane).unwrap().role, "Group", "{pane} role");
     }
+    for divider in EXPECTED_DIVIDER_AUTHOR_IDS {
+        assert_eq!(
+            snapshot.by_author_id(divider).unwrap().role,
+            "Splitter",
+            "{divider} role"
+        );
+    }
 
     println!(
-        "PASS: LIVE-FRAME snapshot has all 6 chrome+pane nodes + the toggle, sorted ({} total)",
+        "PASS: LIVE-FRAME snapshot has all 6 chrome+pane nodes + the toggle + 2 dividers, sorted ({} total)",
         snapshot.nodes.len()
     );
 }

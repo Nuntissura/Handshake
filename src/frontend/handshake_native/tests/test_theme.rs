@@ -57,6 +57,55 @@ fn dark_palette_tokens_match_react_dark() {
     assert_eq!(p.error_text, Color32::from_rgb(0xfc, 0xa5, 0xa5), "dark.error_text");
 }
 
+// ---- MT-006 divider tokens (added to MT-003 palette) ----
+
+#[test]
+fn divider_tokens_exist_for_both_palettes_and_differ() {
+    let dark = HsPalette::dark();
+    let light = HsPalette::light();
+
+    // Light divider tokens: React slate gradient (148,163,184) at center alpha 0.45 idle / 0.7
+    // hover; grab = the light accent (#2563eb).
+    assert_eq!(
+        light.divider_idle,
+        Color32::from_rgba_unmultiplied(148, 163, 184, (0.45 * 255.0_f32).round() as u8),
+        "light.divider_idle",
+    );
+    assert_eq!(
+        light.divider_hover,
+        Color32::from_rgba_unmultiplied(148, 163, 184, (0.7 * 255.0_f32).round() as u8),
+        "light.divider_hover",
+    );
+    assert_eq!(light.divider_grab, Color32::from_rgb(0x25, 0x63, 0xeb), "light.divider_grab");
+
+    // Dark divider tokens: higher idle alpha (0.55) / hover (0.85) to read against the dark bg;
+    // grab = the dark accent (#22c55e).
+    assert_eq!(
+        dark.divider_idle,
+        Color32::from_rgba_unmultiplied(148, 163, 184, (0.55 * 255.0_f32).round() as u8),
+        "dark.divider_idle",
+    );
+    assert_eq!(
+        dark.divider_hover,
+        Color32::from_rgba_unmultiplied(148, 163, 184, (0.85 * 255.0_f32).round() as u8),
+        "dark.divider_hover",
+    );
+    assert_eq!(dark.divider_grab, Color32::from_rgb(0x22, 0xc5, 0x5e), "dark.divider_grab");
+
+    // Idle and grab must differ between themes so a model can tell the themes apart.
+    assert_ne!(dark.divider_idle, light.divider_idle, "divider_idle differs dark vs light");
+    assert_ne!(dark.divider_grab, light.divider_grab, "divider_grab differs dark vs light");
+}
+
+#[test]
+fn divider_token_overrides_apply() {
+    let overrides = HashMap::from([("divider_idle".to_string(), "#ff0000".to_string())]);
+    let p = HsPalette::dark().with_overrides(&overrides);
+    assert_eq!(p.divider_idle, Color32::from_rgb(255, 0, 0), "divider_idle override applies");
+    // other divider tokens unchanged
+    assert_eq!(p.divider_hover, HsPalette::dark().divider_hover, "divider_hover untouched");
+}
+
 // ---- rgba() -> premultiplied Color32 (CONTROL-2) ----
 
 #[test]

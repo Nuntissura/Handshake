@@ -8,4 +8,5 @@ pub mod app;
 pub mod backend_client;
 pub mod error;
 pub mod pane_registry;
+pub mod split_layout;
 pub mod theme;

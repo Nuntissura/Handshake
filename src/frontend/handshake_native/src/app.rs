@@ -10,9 +10,10 @@ use crate::accessibility::{self, ChromeWidget};
 use crate::backend_client::{self, HealthInfo, HEALTH_URL};
 use crate::error::AppError;
 use crate::pane_registry::{
-    DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneId, PaneRecord,
-    PaneRegistry, PaneType, PlaceholderPaneFactory,
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry, PaneType,
+    PlaceholderPaneFactory,
 };
+use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::theme::{self, HsTheme};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -52,6 +53,17 @@ pub struct HandshakeApp {
     /// real surface factory replaces it in a later MT, so an unhandled type can never blank/panic
     /// a pane (RISK-3 / CONTROL-3).
     factories: HashMap<PaneType, Box<dyn PaneFactory>>,
+    /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
+    /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
+    /// 0.55 }`).
+    split_weights: SplitWeights,
+    /// Per-frame pointer-drag state for the dividers (MT-006). Deliberately separate from
+    /// `split_weights` so transient drag flags are never serialized into a layout snapshot
+    /// (red-team RISK-5).
+    split_drag: SplitDragState,
+    /// The pane the operator last clicked. `None` until a pane is activated; later MTs use it to
+    /// highlight the focused pane / route operator actions.
+    active_pane: Option<PaneId>,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -156,6 +168,9 @@ impl HandshakeApp {
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories: build_default_factories(),
+            split_weights: SplitWeights::default(),
+            split_drag: SplitDragState::default(),
+            active_pane: None,
         }
     }
 
@@ -172,6 +187,9 @@ impl HandshakeApp {
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories: build_default_factories(),
+            split_weights: SplitWeights::default(),
+            split_drag: SplitDragState::default(),
+            active_pane: None,
         }
     }
 
@@ -389,26 +407,40 @@ impl HandshakeApp {
             self.status_indicator(ui, &text);
         });
 
+        // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
+        // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same
+        // time. The registry is the single source of truth (MT-005); MT-006 partitions the central
+        // panel into a 2x2 grid with two draggable/keyboard-resizable dividers around it.
+        let registry = &self.pane_registry;
+        let factories = &self.factories;
+        let split_weights = &mut self.split_weights;
+        let split_drag = &mut self.split_drag;
+        let active_pane = &mut self.active_pane;
+        // Catch-all factory for any PaneType without a dedicated entry: the empty-label Placeholder
+        // key registered in build_default_factories.
+        let fallback_key = PaneType::Placeholder(String::new());
+
+        // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
+        // dividers are themed and flip dark<->light with the rest of the shell (MT-006 contract).
+        let palette = self.current_theme.palette();
+        let divider_colors = DividerColors {
+            idle: palette.divider_idle,
+            hover: palette.divider_hover,
+            grab: palette.divider_grab,
+        };
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Render every registered pane through its factory. The registry is the single source
-            // of truth (MT-005); split/tab/pop-out/persistence MTs mutate it, not the view.
-            let registry = self
-                .pane_registry
-                .lock()
-                .expect("pane registry mutex poisoned");
-            let factories = &self.factories;
-            // Catch-all factory for any PaneType without a dedicated entry: the empty-label
-            // Placeholder key registered in build_default_factories.
-            let fallback_key = PaneType::Placeholder(String::new());
-            // LIVE AccessKit emission for panes (MT-025): for each pane, push a node into the frame's
-            // live accessibility tree carrying the pane's kebab-case author_id, the factory's role,
-            // and the pane label. This is the live counterpart to PaneRegistry::build_accesskit_node,
-            // closing the MT-005 gap where pane nodes existed only in memory. The closure runs inside
-            // PaneHostWidget::show after each pane's egui scope is pushed, so the node attaches under
-            // the correct accessibility parent.
-            PaneHostWidget::show_with_accesskit(
+            // SplitLayoutWidget renders the four panes into their split rects and the two dividers.
+            // The pane render path keeps LIVE AccessKit emission (MT-025): the emit callback is
+            // invoked once per pane inside its egui scope, so panes remain findable out-of-process
+            // by author_id and the MT-025 live-tree tests still pass.
+            SplitLayoutWidget::show(
                 ui,
-                &registry,
+                split_weights,
+                split_drag,
+                active_pane,
+                registry,
+                divider_colors,
                 |pane_type| {
                     factories
                         .get(pane_type)
