@@ -52,6 +52,10 @@ pub const ERR_METHOD_NOT_FOUND: i64 = -32601;
 pub const ERR_INVALID_PARAMS: i64 = -32602;
 /// JSON-RPC error: the tool ran but failed (e.g. unknown/disabled target, screenshot capture error).
 pub const ERR_TOOL_FAILED: i64 = -32000;
+/// JSON-RPC error (MT-028): an exclusive/shared lease on the target resource could not be acquired
+/// within the lease timeout because a concurrent agent held it. The caller should retry. The code
+/// `-32004` matches the MT-028 contract's `{error:{code:-32004,message:"Lease timeout"}}` acceptance.
+pub const ERR_LEASE_TIMEOUT: i64 = -32004;
 
 /// A per-session HMAC secret a caller must present (as 64 hex chars) in every request's
 /// `session_token` field. The secret bytes are the HMAC-SHA256 KEY; validation HMACs both the stored
@@ -207,6 +211,27 @@ impl McpResponse {
 
     fn err(id: serde_json::Value, error: McpError) -> Self {
         Self { id, payload: Err(error) }
+    }
+
+    /// Public constructor for an error response (MT-028): the [`crate::mcp::session::McpSession`] wrapper
+    /// builds a lease-timeout response without going through [`dispatch_request`]. Same shape as the
+    /// internal [`Self::err`].
+    pub fn error(id: serde_json::Value, error: McpError) -> Self {
+        Self { id, payload: Err(error) }
+    }
+
+    /// Public constructor for a success response (MT-028): the [`crate::mcp::session::McpSession`] wrapper
+    /// rebuilds a mutating result Value to add the acting `agent_id` (AC#2) after a successful enqueue.
+    /// Same shape as the internal [`Self::ok`].
+    pub fn ok_value(id: serde_json::Value, result: serde_json::Value) -> Self {
+        Self { id, payload: Ok(result) }
+    }
+
+    /// Borrow the success `result` value, or the error (MT-028): the session wrapper inspects a
+    /// successful enqueue's `{queued, node_id}` to decide whether to append an attribution entry, without
+    /// re-serializing to JSON.
+    pub fn result_ref(&self) -> Result<&serde_json::Value, &McpError> {
+        self.payload.as_ref()
     }
 
     /// Serialize to the JSON-RPC 2.0 response envelope a transport writes back.

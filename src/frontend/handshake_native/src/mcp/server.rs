@@ -43,9 +43,12 @@ use tokio::sync::broadcast;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
+use crate::mcp::attribution::ActionLog;
 use crate::mcp::binding::{self, McpBinding};
+use crate::mcp::leases::LeaseRegistry;
 use crate::mcp::screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult};
-use crate::mcp::tools::{dispatch_request, McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED};
+use crate::mcp::session::{McpSession, SwarmSafetyState};
+use crate::mcp::tools::{McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED};
 
 /// Max JSON-RPC requests one connection may issue per second before the server replies `-32003`
 /// (`Rate limited`). 100/sec is generous for multi-step steering yet bounds an adversarial flood.
@@ -65,14 +68,22 @@ pub struct SwarmMcpServer {
     shutdown_tx: broadcast::Sender<()>,
     /// Whether the binding file has already been removed (so shutdown is idempotent).
     binding_removed: bool,
+    /// MT-028: the shared swarm-safety state (lease registry + attribution log) every connection uses.
+    /// Exposed so the live shell / diagnostics can read the attributed action log and the concurrent
+    /// harness test can assert leasing + attribution after driving N clients over the wire.
+    safety: SwarmSafetyState,
 }
 
-/// The shared steering state the server's connection tasks read/write, cloned into each task.
+/// The shared steering state the server's connection tasks read/write, cloned into each task. MT-028:
+/// it now carries the [`SwarmSafetyState`] (lease registry + attribution log + token + shared snapshot/
+/// channel) so every connection dispatches through a per-connection [`McpSession`] that applies leasing
+/// and attribution consistently.
 #[derive(Clone)]
 struct ServerState {
-    token: SessionToken,
-    snapshot: Arc<Mutex<UiTreeSnapshot>>,
-    channel: Arc<Mutex<ActionChannel>>,
+    /// The shared swarm-safety state. Each connection derives its own [`McpSession`] from this; the
+    /// lease registry + attribution log are SHARED across connections (so leasing/attribution are
+    /// global), while `snapshot` + `channel` are the same `Arc<Mutex<_>>` the egui frame loop owns.
+    safety: SwarmSafetyState,
     /// The screenshot capture used by the `screenshot` tool. Boxed so tests can inject an
     /// offscreen-render closure in place of the OS-window grab.
     capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
@@ -91,14 +102,26 @@ impl SwarmMcpServer {
         channel: Arc<Mutex<ActionChannel>>,
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
     ) -> std::io::Result<Self> {
+        // MT-028: build the per-server swarm-safety state (fresh lease registry + attribution log) over
+        // the same token + shared snapshot/channel MT-027 used, then bind through the shared-safety path.
+        let safety = SwarmSafetyState::new(token, snapshot, channel);
+        Self::bind_with_safety(safety, capture).await
+    }
+
+    /// Bind a server over an EXISTING [`SwarmSafetyState`] (MT-028). Use this when multiple per-token
+    /// servers must SHARE one lease registry + attribution log (e.g. the concurrent harness binds N
+    /// servers — one per agent token — that all contend on one registry and append to one log). The
+    /// single-token live shell uses [`Self::bind`], which builds a per-server safety state.
+    pub async fn bind_with_safety(
+        safety: SwarmSafetyState,
+        capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+    ) -> std::io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let tcp_addr = listener.local_addr()?.to_string();
         let (shutdown_tx, _) = broadcast::channel(1);
 
         let state = ServerState {
-            token,
-            snapshot,
-            channel,
+            safety: safety.clone(),
             capture,
         };
 
@@ -135,7 +158,7 @@ impl SwarmMcpServer {
         let binding = McpBinding {
             tcp_addr,
             pipe_name,
-            token: state.token.as_hex().to_owned(),
+            token: state.safety.token.as_hex().to_owned(),
             pid: std::process::id(),
         };
         match binding::write_binding(&binding) {
@@ -147,6 +170,7 @@ impl SwarmMcpServer {
             binding,
             shutdown_tx,
             binding_removed: false,
+            safety,
         })
     }
 
@@ -237,6 +261,24 @@ impl SwarmMcpServer {
         &self.binding
     }
 
+    /// MT-028: the shared attributed-action audit log every connection appends to. The live shell /
+    /// diagnostics drain this for a post-hoc trace of which agent steered which widget; the concurrent
+    /// harness test asserts the entry count + per-agent attribution after driving N clients.
+    pub fn action_log(&self) -> &ActionLog {
+        self.safety.log()
+    }
+
+    /// MT-028: the shared lease registry every connection contends on (for diagnostics / tests).
+    pub fn leases(&self) -> &LeaseRegistry {
+        self.safety.leases()
+    }
+
+    /// MT-028: the full shared swarm-safety state (lease registry + attribution log + token + shared
+    /// snapshot/channel). Exposed so a diagnostic surface or test can reach all of it from one handle.
+    pub fn safety(&self) -> &SwarmSafetyState {
+        &self.safety
+    }
+
     /// Stop the accept loops and remove the discovery file. Idempotent.
     pub fn shutdown(&mut self) {
         // A send error just means there are no live receivers (loops already stopped) — fine.
@@ -266,6 +308,10 @@ where
     let mut reader = BufReader::new(read_half);
     let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
 
+    // MT-028: one McpSession PER CONNECTION, so its agent_id (derived from the session token) is stable
+    // for every request on this connection and the shared lease registry + attribution log are reused.
+    let session = state.safety.session();
+
     let mut line = String::new();
     loop {
         line.clear();
@@ -278,7 +324,7 @@ where
             continue;
         }
 
-        let response_json = handle_line(trimmed, &state, &mut limiter);
+        let response_json = handle_line(trimmed, &state, &session, &mut limiter).await;
         let mut out = serde_json::to_string(&response_json).unwrap_or_else(|_| {
             "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}".to_owned()
         });
@@ -289,9 +335,11 @@ where
     Ok(())
 }
 
-/// Parse + dispatch a single request line into a JSON-RPC response value. Pure (no IO) so it is unit
-/// testable. Rate-limit and envelope-parse failures map to well-formed JSON-RPC errors.
-fn handle_line(line: &str, state: &ServerState, limiter: &mut RateLimiter) -> serde_json::Value {
+/// Parse + dispatch a single request line into a JSON-RPC response value. `async` because the dispatch
+/// now AWAITS the per-widget lease (yielding the tokio worker instead of blocking it); the parse + rate
+/// limit path stays synchronous. Rate-limit and envelope-parse failures map to well-formed JSON-RPC
+/// errors. Tests `await` it on a current-thread runtime.
+async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limiter: &mut RateLimiter) -> serde_json::Value {
     // Rate limit BEFORE parsing/dispatch so a flood cannot even reach the auth/tool path.
     if !limiter.allow() {
         return serde_json::json!({
@@ -324,24 +372,35 @@ fn handle_line(line: &str, state: &ServerState, limiter: &mut RateLimiter) -> se
         }
     };
 
-    dispatch_locked(&request, state).to_json()
+    dispatch_with_session(&request, session, state).await.to_json()
 }
 
-/// Take the shared snapshot + channel locks for the minimum span needed to dispatch one request. The
-/// locks are released before the response is serialized/written so a slow client never blocks the egui
-/// frame loop's drain.
-fn dispatch_locked(request: &McpRequest, state: &ServerState) -> McpResponse {
+/// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
+/// shared lock for the MINIMUM span:
+///
+/// - the snapshot lock is taken only to CLONE the current-frame snapshot (a cheap, lock-free-thereafter
+///   read surface), then released immediately;
+/// - the channel lock is NOT taken here — [`McpSession::dispatch_shared_async`] takes it ONLY for the
+///   brief resolve+enqueue, AFTER acquiring the per-widget lease, and never across the lease wait. This
+///   is the MAJOR fix: the global channel lock no longer serializes all dispatch, so the per-widget
+///   lease is the real contention point (same widget serializes; different widgets proceed concurrently;
+///   reads interleave).
+///
+/// `async` because the lease wait is now `tokio::time::sleep`-based, yielding the worker thread.
+///
+/// The per-CONNECTION `session` is built once when the connection is accepted (so its `agent_id` is
+/// stable for the connection's whole lifetime) and reused for every request on that connection.
+async fn dispatch_with_session(request: &McpRequest, session: &McpSession, state: &ServerState) -> McpResponse {
     let snapshot = state
+        .safety
         .snapshot
         .lock()
         .map(|g| g.clone())
         .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
-    let mut channel = state
-        .channel
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let capture = state.capture.clone();
-    dispatch_request(request, &state.token, &snapshot, &mut channel, move || capture())
+    session
+        .dispatch_shared_async(request, &snapshot, &state.safety.channel, move || capture())
+        .await
 }
 
 /// Read one `\n`-terminated line into `buf`, but error out (rather than buffer unboundedly) once the
@@ -454,52 +513,73 @@ mod tests {
     }
 
     fn test_state(token: &str) -> ServerState {
+        let safety = SwarmSafetyState::new(
+            SessionToken::from_hex(token),
+            Arc::new(Mutex::new(snap())),
+            Arc::new(Mutex::new(ActionChannel::new())),
+        );
         ServerState {
-            token: SessionToken::from_hex(token),
-            snapshot: Arc::new(Mutex::new(snap())),
-            channel: Arc::new(Mutex::new(ActionChannel::new())),
+            safety,
             capture: Arc::new(|| {
                 Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))
             }),
         }
     }
 
-    #[test]
-    fn handle_line_dispatches_authed_list_widgets() {
+    #[tokio::test]
+    async fn handle_line_dispatches_authed_list_widgets() {
         let state = test_state("secret-token-1234567890");
+        let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
         let line = r#"{"jsonrpc":"2.0","id":1,"method":"list_widgets","params":{},"session_token":"secret-token-1234567890"}"#;
-        let resp = handle_line(line, &state, &mut limiter);
+        let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["result"]["widget_count"], 2);
         assert_eq!(resp["result"]["root"]["role"], "Window");
     }
 
-    #[test]
-    fn handle_line_rejects_bad_token_over_wire_shape() {
+    #[tokio::test]
+    async fn handle_line_rejects_bad_token_over_wire_shape() {
         let state = test_state("secret-token-1234567890");
+        let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
         let line = r#"{"jsonrpc":"2.0","id":2,"method":"list_widgets","params":{},"session_token":"WRONG"}"#;
-        let resp = handle_line(line, &state, &mut limiter);
+        let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["error"]["code"], -32001);
         assert_eq!(resp["error"]["message"], "Unauthorized");
         assert!(resp.get("result").is_none());
     }
 
-    #[test]
-    fn handle_line_click_enqueues_into_shared_channel() {
+    #[tokio::test]
+    async fn handle_line_click_enqueues_into_shared_channel_and_attributes() {
         let state = test_state("secret-token-1234567890");
+        let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
         let line = r#"{"jsonrpc":"2.0","id":3,"method":"click_widget","params":{"target":"btn"},"session_token":"secret-token-1234567890"}"#;
-        let resp = handle_line(line, &state, &mut limiter);
+        let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["result"]["queued"], true);
-        assert_eq!(state.channel.lock().unwrap().pending(), 1, "action landed in the shared channel");
+        // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
+        assert_eq!(
+            resp["result"]["agent_id"], session.agent_id(),
+            "the click result is stamped with the acting agent_id"
+        );
+        assert_eq!(
+            state.safety.channel.lock().unwrap().pending(),
+            1,
+            "action landed in the shared channel"
+        );
+        // MT-028: the click is attributed in the shared log with this connection's agent_id.
+        let entries = state.safety.log().drain_log();
+        assert_eq!(entries.len(), 1, "the click is recorded in the attribution log");
+        assert_eq!(entries[0].agent_id, session.agent_id());
+        assert_eq!(entries[0].target_key, "btn");
     }
 
-    #[test]
-    fn handle_line_invalid_json_is_minus_32602() {
+    #[tokio::test]
+    async fn handle_line_invalid_json_is_minus_32602() {
         let state = test_state("secret-token-1234567890");
+        let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let resp = handle_line("not json at all", &state, &mut limiter);
+        let resp = handle_line("not json at all", &state, &session, &mut limiter).await;
         assert_eq!(resp["error"]["code"], -32602);
     }
 
