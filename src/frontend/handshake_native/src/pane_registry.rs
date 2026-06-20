@@ -346,6 +346,34 @@ impl PaneHostWidget {
     where
         F: FnMut(&PaneType) -> &'f dyn PaneFactory,
     {
+        Self::show_with_accesskit(ui, registry, &mut factory_for, |_, _, _, _, _| {});
+    }
+
+    /// Like [`show`](Self::show) but also invokes `emit_accesskit` once per pane so the caller can
+    /// push a LIVE AccessKit node into the frame's accessibility tree (MT-025). The callback runs
+    /// inside the pane's own egui scope, after the pane's stable `egui_id` has been registered in
+    /// egui's interaction/parent map, so a node emitted at that id attaches under the correct
+    /// accessibility parent rather than floating at the root.
+    ///
+    /// `emit_accesskit` receives:
+    /// - the `egui::Context` (for `accesskit_node_builder`),
+    /// - the pane's stable `egui::Id` (== `PaneRenderContext::egui_id`),
+    /// - the pane's kebab-case `author_id` string,
+    /// - the factory's `accesskit_role()`,
+    /// - the pane's `PaneType::label()`.
+    ///
+    /// Splitting emission out as a callback keeps `pane_registry` free of any dependency on the
+    /// `accessibility` module (the app wires them together), so the registry stays a pure data +
+    /// layout surface.
+    pub fn show_with_accesskit<'f, F, A>(
+        ui: &mut egui::Ui,
+        registry: &PaneRegistry,
+        mut factory_for: F,
+        mut emit_accesskit: A,
+    ) where
+        F: FnMut(&PaneType) -> &'f dyn PaneFactory,
+        A: FnMut(&egui::Context, egui::Id, &str, accesskit::Role, &str),
+    {
         for (pane_id, record) in registry.iter() {
             let node_id = registry
                 .accesskit_id(pane_id)
@@ -355,10 +383,22 @@ impl PaneHostWidget {
                 .unwrap_or_else(|| hash_pane_id(pane_id));
             let egui_id = egui::Id::new(("handshake_pane", node_id));
             let factory = factory_for(&record.pane_type);
+            let role = factory.accesskit_role();
+            let label = record.pane_type.label();
             let ctx = PaneRenderContext { record, egui_id };
-            ui.push_id(node_id, |ui| {
+            // Render the pane inside a scope so its body has a stable id namespace.
+            let scope = ui.scope_builder(egui::UiBuilder::new().id_salt(node_id), |ui| {
                 factory.render(ui, &ctx);
+                // Register the pane's stable egui_id in the interaction/parent map on the pane's
+                // content rect, so the live AccessKit node attaches under this scope rather than the
+                // tree root. Sense::hover() keeps the pane container non-interactive (a model
+                // steers child widgets, not the container itself).
+                let rect = ui.min_rect();
+                ui.interact(rect, egui_id, egui::Sense::hover());
             });
+            // Emit the live node now that egui_id is in the parent map for this frame.
+            emit_accesskit(ui.ctx(), egui_id, pane_id.as_ref(), role, &label);
+            let _ = scope;
         }
     }
 }

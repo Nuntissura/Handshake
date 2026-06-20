@@ -3,6 +3,7 @@
 //! via egui_kittest. (The MT-002 contract said "bin only", but its own integration test needs to
 //! reach HandshakeApp, which a bin-only crate cannot expose — so a lib target is required.)
 
+pub mod accessibility;
 pub mod app;
 pub mod backend_client;
 pub mod error;

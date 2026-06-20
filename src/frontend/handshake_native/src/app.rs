@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::accessibility::{self, ChromeWidget};
 use crate::backend_client::{self, HealthInfo, HEALTH_URL};
 use crate::error::AppError;
 use crate::pane_registry::{
@@ -277,6 +278,61 @@ impl HandshakeApp {
         }
     }
 
+    /// Render the top-bar "Handshake" identity as a real egui widget with the fixed
+    /// `ChromeWidget::TitleBar` id, then emit a LIVE AccessKit node (Role::TitleBar +
+    /// author_id `shell.chrome.title-bar` + label) into the frame's accessibility tree.
+    ///
+    /// We allocate via `ui.interact` with the fixed id (rather than `ui.heading`, whose id is
+    /// auto-generated) so the node carries a stable `NodeId` AND is registered in egui's parent
+    /// map, which is what makes `emit_chrome_node` attach it under the title panel instead of the
+    /// root. This is the chrome counterpart to the MT-005 pane emission and closes the MT-002 gap
+    /// where the title existed visually but only carried egui's default (author_id-less) node.
+    fn title_identity(&self, ui: &mut egui::Ui) {
+        let label = "Handshake";
+        let chrome = ChromeWidget::TitleBar;
+        let id = chrome.egui_id();
+
+        let font = egui::FontId::proportional(20.0); // heading-sized
+        let galley = ui.painter().layout_no_wrap(
+            label.to_owned(),
+            font,
+            ui.visuals().text_color(),
+        );
+        let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
+        if ui.is_rect_visible(rect) {
+            ui.painter()
+                .galley(rect.min, galley, ui.visuals().text_color());
+        }
+        // Reserve the fixed id in egui's interaction/parent map so the live node attaches correctly.
+        ui.interact(rect, id, egui::Sense::hover());
+
+        accessibility::emit_chrome_node(ui.ctx(), chrome, id, label);
+    }
+
+    /// Render the bottom status bar's backend-health line as a real egui widget with the fixed
+    /// `ChromeWidget::StatusBar` id, then emit a LIVE AccessKit node (Role::Status + author_id
+    /// `shell.chrome.status-bar` + the current health text as label). Closes the MT-002 gap where
+    /// the status line was a plain `ui.label` with no stable author_id in the live tree.
+    fn status_indicator(&self, ui: &mut egui::Ui, text: &str) {
+        let chrome = ChromeWidget::StatusBar;
+        let id = chrome.egui_id();
+
+        let font = egui::TextStyle::Body.resolve(ui.style());
+        let galley = ui.painter().layout_no_wrap(
+            text.to_owned(),
+            font,
+            ui.visuals().text_color(),
+        );
+        let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
+        if ui.is_rect_visible(rect) {
+            ui.painter()
+                .galley(rect.min, galley, ui.visuals().text_color());
+        }
+        ui.interact(rect, id, egui::Sense::hover());
+
+        accessibility::emit_chrome_node(ui.ctx(), chrome, id, text);
+    }
+
     fn poll_health(&mut self) {
         let finished = self.health_handle.as_ref().is_some_and(|h| h.is_finished());
         if finished {
@@ -302,7 +358,7 @@ impl HandshakeApp {
 
         egui::TopBottomPanel::top("handshake_title_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("Handshake");
+                self.title_identity(ui);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     self.theme_toggle(ui);
                 });
@@ -317,7 +373,7 @@ impl HandshakeApp {
                 }
                 HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
             };
-            ui.label(text);
+            self.status_indicator(ui, &text);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -331,13 +387,26 @@ impl HandshakeApp {
             // Catch-all factory for any PaneType without a dedicated entry: the empty-label
             // Placeholder key registered in build_default_factories.
             let fallback_key = PaneType::Placeholder(String::new());
-            PaneHostWidget::show(ui, &registry, |pane_type| {
-                factories
-                    .get(pane_type)
-                    .or_else(|| factories.get(&fallback_key))
-                    .expect("placeholder fallback factory always registered")
-                    .as_ref()
-            });
+            // LIVE AccessKit emission for panes (MT-025): for each pane, push a node into the frame's
+            // live accessibility tree carrying the pane's kebab-case author_id, the factory's role,
+            // and the pane label. This is the live counterpart to PaneRegistry::build_accesskit_node,
+            // closing the MT-005 gap where pane nodes existed only in memory. The closure runs inside
+            // PaneHostWidget::show after each pane's egui scope is pushed, so the node attaches under
+            // the correct accessibility parent.
+            PaneHostWidget::show_with_accesskit(
+                ui,
+                &registry,
+                |pane_type| {
+                    factories
+                        .get(pane_type)
+                        .or_else(|| factories.get(&fallback_key))
+                        .expect("placeholder fallback factory always registered")
+                        .as_ref()
+                },
+                |ui_ctx, pane_egui_id, pane_author_id, role, label| {
+                    accessibility::emit_pane_node(ui_ctx, pane_egui_id, pane_author_id, role, label);
+                },
+            );
         });
 
         if matches!(self.health_status, HealthDisplayState::Loading) {
