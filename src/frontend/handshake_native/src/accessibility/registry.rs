@@ -59,8 +59,8 @@ use crate::search_rail::{
 };
 use crate::stash_shelf::{
     DRAWER_AFFORDANCE_AUTHOR_ID, DRAWER_AFFORDANCE_NODE_ID, DRAWER_CARD_AUTHOR_IDS,
-    DRAWER_CARD_NODE_IDS, DRAWER_RESIZE_AUTHOR_ID, DRAWER_RESIZE_NODE_ID, DRAWER_SHELF_AUTHOR_ID,
-    DRAWER_SHELF_NODE_ID,
+    DRAWER_CARD_NODE_IDS, DRAWER_OVERFLOW_AUTHOR_IDS, DRAWER_OVERFLOW_NODE_IDS, DRAWER_RESIZE_AUTHOR_ID,
+    DRAWER_RESIZE_NODE_ID, DRAWER_SHELF_AUTHOR_ID, DRAWER_SHELF_NODE_ID,
 };
 use crate::tab_bar::TABBAR_SLOTS;
 use crate::top_menu_bar::{MENU_BAR_NODE_ID_BASE, MENU_DEFINITIONS};
@@ -502,6 +502,31 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: DRAWER_RESIZE_AUTHOR_ID,
         node_id: DRAWER_RESIZE_NODE_ID,
+    },
+    // MT-024 per-card overflow buttons (Role::Button), fresh band 44..=47: above the MT-010 scrollbar
+    // band (40..=43), disjoint from the MT-023 drawer band (32..=38) and every other declared identity,
+    // strictly below the pane id base (100). The `...` overflow button opens each card's typed action
+    // menu (AC-024-1/2). The cards (and so their overflow buttons) render ONLY while the drawer is OPEN
+    // (collapsed by default), so they are absent from the default-seed frame; the collision test still
+    // covers all four fixed ids here so none can overlap any other declared identity. The action MENU
+    // ITEMS themselves are DYNAMIC (`ctx-menu.drawer.action.{snake}`, Role::MenuItem) in egui's hashed
+    // id space — they exist only while a menu is open — so they are not enumerated here (same pattern as
+    // the MT-019/021 context-menu items and the MT-007 per-tab nodes).
+    DeclaredIdentity {
+        author_id: DRAWER_OVERFLOW_AUTHOR_IDS[0],
+        node_id: DRAWER_OVERFLOW_NODE_IDS[0],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_OVERFLOW_AUTHOR_IDS[1],
+        node_id: DRAWER_OVERFLOW_NODE_IDS[1],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_OVERFLOW_AUTHOR_IDS[2],
+        node_id: DRAWER_OVERFLOW_NODE_IDS[2],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_OVERFLOW_AUTHOR_IDS[3],
+        node_id: DRAWER_OVERFLOW_NODE_IDS[3],
     },
 ];
 

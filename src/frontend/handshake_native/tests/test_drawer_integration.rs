@@ -14,7 +14,9 @@
 //! HBR-INT: this is the integration test the MT-023 contract mandates, marked `#[ignore]` so the default
 //! `cargo test` run (no backend) does not depend on a running server.
 
-use handshake_native::backend_client::{DrawerDataCell, DrawerDataClient, DrawerDataKind};
+use handshake_native::backend_client::{
+    DrawerActionCell, DrawerActionClient, DrawerDataCell, DrawerDataClient, DrawerDataKind,
+};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -62,4 +64,49 @@ fn notes_card_badge_count_is_at_least_one_from_real_pg() {
         "PASS: Notes card badge_count = {} from real PG-backed /loom/views/all?content_type=note",
         data.badge_count
     );
+}
+
+/// WP-KERNEL-011 MT-024 (C6) — PROOF-024-3: the REAL Stow dispatch path against a live PostgreSQL-backed
+/// handshake_core. Tags a known block into the workspace `stash` TagHub via `POST /loom/edges` and
+/// asserts the backend accepts it (2xx). `#[ignore]` by default; run with a live backend:
+///
+/// ```text
+/// cargo test -p handshake-native --test test_drawer_integration -- --ignored
+/// ```
+///
+/// Requires env `HSK_TEST_WORKSPACE_ID` (a workspace) and `HSK_TEST_BLOCK_ID` (a block in it to stow).
+/// HBR-INT: the integration test the MT-024 contract mandates for a persisting card action.
+#[test]
+#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501, HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID"]
+fn stow_dispatch_tags_block_into_stash_hub_on_real_pg() {
+    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
+        .expect("set HSK_TEST_WORKSPACE_ID to a workspace");
+    let block_id =
+        std::env::var("HSK_TEST_BLOCK_ID").expect("set HSK_TEST_BLOCK_ID to a block to stow");
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+
+    let client = DrawerActionClient::new(BACKEND_BASE_URL, rt.handle().clone());
+    let cell: DrawerActionCell = Arc::new(Mutex::new(None));
+
+    // The SAME off-thread dispatch apply_drawer_action(Stow) fires.
+    client.stow(&workspace_id, &block_id, cell.clone());
+
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let delivered = loop {
+        if let Some(v) = cell.lock().unwrap().take() {
+            break v;
+        }
+        if Instant::now() > deadline {
+            panic!("Stow dispatch did not deliver within 3s");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    delivered.expect("Stow tag-edge POST succeeded against the real backend (2xx)");
+    println!("PASS: Stow tagged block {block_id} into the stash hub via real PG-backed POST /loom/edges");
 }

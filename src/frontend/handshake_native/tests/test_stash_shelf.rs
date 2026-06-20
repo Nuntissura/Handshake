@@ -117,8 +117,18 @@ fn open_drawer_shows_seven_nodes_with_correct_roles() {
             "{aid} label"
         );
     }
-    // Exactly the four cards, plus affordance + shelf + resize = 7 drawer nodes.
-    assert_eq!(nodes.len(), 7, "exactly seven drawer nodes when open; found {:?}", nodes.keys());
+    // MT-024: each open card also renders an overflow `...` button (Role::Button) carrying the stable
+    // `hsk.drawer.card.{kind}.overflow` author_id (AC-024-1/12).
+    for kind in DrawerCardKind::all() {
+        let aid = kind.overflow_author_id();
+        let (role, _) = nodes
+            .get(aid)
+            .unwrap_or_else(|| panic!("overflow {aid} missing; found {:?}", nodes.keys().collect::<Vec<_>>()));
+        assert_eq!(role, "Button", "{aid} overflow role");
+    }
+    // Exactly the four cards + four overflow buttons + affordance + shelf + resize = 11 drawer nodes
+    // when open (MT-024 added the four overflow buttons to the MT-023 seven).
+    assert_eq!(nodes.len(), 11, "exactly eleven drawer nodes when open; found {:?}", nodes.keys());
 }
 
 #[test]

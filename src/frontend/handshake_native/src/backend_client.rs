@@ -1011,6 +1011,263 @@ impl LayoutTransport for WorkbenchLayoutClient {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-024 (C6) off-thread client for the bottom-drawer CARD ACTION backend mutations.
+//
+// The MT-023 drawer renders four TYPE cards (Agenda/Mail/Lists/Notes). MT-024 wires the typed action
+// menu the cards expose. The PERSISTING actions route through THIS client; every endpoint + body was
+// VERIFIED READ-ONLY against `src/backend/handshake_core` (the real running backend), NOT taken from
+// the MT-024 contract body (whose `binds_backend_api` was partly STALE — the MT-022/MT-023 lesson):
+//
+//   - PIN: `PUT /workspaces/:ws/loom/blocks/:block_id/pin-order` (handler `set_loom_block_pin_order`,
+//     MT-183). VERIFIED body field is `{ "pin_order": <i32|null> }` (struct `SetPinOrderRequest`) —
+//     NOT the contract's `{ "ordinal": 0 }`. To bring a card to the top we send `pin_order: 0`.
+//   - DISCARD: `DELETE /workspaces/:ws/loom/blocks/:block_id` (handler `delete_loom_block`). Bodyless.
+//   - STOW: the contract proposed `PATCH ... { metadata: { stash_state } }` OR `{ content_type }`.
+//     NEITHER is patchable: the VERIFIED `LoomBlockUpdate` (storage/loom.rs) has ONLY
+//     {title,pinned,favorite,journal_date,pin_order} — there is NO `metadata`, `stash_state`, or
+//     `content_type` field on the PATCH. The contract's OWN implementation_note names the fallback:
+//     the tag-edge approach. So STOW = `POST /workspaces/:ws/loom/edges` with
+//     `{ source_block_id, target_block_id:<stash hub>, edge_type:"tag", created_by:"user",
+//        target_title:"stash" }` (VERIFIED `CreateLoomEdgeRequest`; `ensure_edge_target_exists`
+//     get-or-creates the `stash` TagHub on first use, so no separate hub-creation call is needed).
+//   - ATTACH-EVIDENCE: `POST /diagnostics` (handler `create_diagnostic`, body `DiagnosticInput`).
+//     VERIFIED enum values: `source` ∈ {lsp,terminal,validator,engine,connector,system,plugin:*,
+//     matcher:*} and `surface` ∈ {monaco,canvas,sheet,terminal,connector,system} — the contract's
+//     `source:"user"` + `surface:"drawer"` do NOT exist and would HTTP-400. We send the honest closest
+//     valid values `source:"system"`, `surface:"system"`, severity `"info"`, and carry the stashed
+//     block id in `evidence_refs.artifact_hashes` (the VERIFIED `EvidenceRefs.artifact_hashes` field).
+//   - CONVERT-TO-ARTIFACT: there is NO backend surface to change a block's content_type (no PATCH
+//     field, no dedicated endpoint). It therefore CANNOT be wired honestly and remains a disabled V1
+//     menu item (same treatment as the existing MT-021 `convert_artifact` stub) — disclosed deviation.
+//
+// All follow the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the
+// outcome into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET —
+// the render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on
+// the `handshake_core` crate's types.
+
+/// One-slot delivery cell for an off-thread drawer-card action result. `Ok(())` on a 2xx (the card
+/// removes/refreshes optimistically AFTER the backend confirms), `Err(msg)` on failure (the card stays
+/// and the drawer surfaces the error). Same shape as the SCM/canvas receipt cells.
+pub type DrawerActionCell = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// The well-known title of the per-workspace "stash" TagHub a Stow action tags blocks into. The
+/// backend `ensure_edge_target_exists` get-or-creates a TagHub with this title on first tag-edge
+/// creation, so Stow never needs a separate hub-creation round-trip.
+pub const STASH_TAG_TITLE: &str = "stash";
+
+/// The deterministic block id of the per-workspace stash TagHub. A stable, content-addressable id
+/// (`stash` hub is a singleton per workspace) so repeated Stows tag the SAME hub and a swarm reader can
+/// address it. `ensure_edge_target_exists` creates it with `content_type=tag_hub` + `target_title` on
+/// the first Stow if absent.
+pub const STASH_TAG_HUB_BLOCK_ID: &str = "tag-hub-stash";
+
+/// REST client for the VERIFIED Loom-block + diagnostics surfaces the MT-024 drawer card ACTIONS
+/// mutate: pin-order (Pin), block delete (Discard), tag-edge (Stow), and diagnostic create
+/// (Attach-evidence). Mirrors the `LoomBlockClient`/`CanvasClient` shape exactly.
+#[derive(Clone)]
+pub struct DrawerActionClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl DrawerActionClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn pin_order_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}/pin-order",
+            self.base_url, workspace_id, block_id
+        )
+    }
+
+    fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    fn edges_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/edges", self.base_url, workspace_id)
+    }
+
+    fn diagnostics_url(&self) -> String {
+        format!("{}/diagnostics", self.base_url)
+    }
+
+    // ── Pin ─────────────────────────────────────────────────────────────────────────────────────────
+
+    /// Pure request builder for [`pin_to_top`](Self::pin_to_top): `PUT /loom/blocks/:id/pin-order` with
+    /// `{ "pin_order": <ordinal> }`. The field is `pin_order` (VERIFIED `SetPinOrderRequest`), NOT the
+    /// contract's `ordinal`. Bring-to-top sends ordinal 0.
+    pub fn pin_order_request(&self, workspace_id: &str, block_id: &str, ordinal: i32) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: self.pin_order_url(workspace_id, block_id),
+            body: Some(serde_json::json!({ "pin_order": ordinal })),
+        }
+    }
+
+    /// Bring a card's block to the top of the Pins grid (ordinal 0) off the UI thread, delivering the
+    /// result into `cell`.
+    pub fn pin_to_top(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+        let spec = self.pin_order_request(workspace_id, block_id, 0);
+        let body = spec.body.unwrap_or_default();
+        self.spawn_put_receipt(spec.url, body, cell);
+    }
+
+    // ── Discard ─────────────────────────────────────────────────────────────────────────────────────
+
+    /// Pure request builder for [`discard`](Self::discard): `DELETE /loom/blocks/:id`, bodyless.
+    pub fn discard_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: self.block_url(workspace_id, block_id),
+            body: None,
+        }
+    }
+
+    /// DELETE the card's block off the UI thread, delivering the result into `cell`. DESTRUCTIVE: the
+    /// caller MUST only invoke this after the confirm-discard guard is `true` (HBR-STOP / RISK-024-A).
+    pub fn discard(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+        let spec = self.discard_request(workspace_id, block_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = delete_expect_success(&client, &spec.url).await;
+            deliver_drawer_action(&cell, result);
+        });
+    }
+
+    // ── Stow (tag-edge to the stash TagHub) ───────────────────────────────────────────────────────────
+
+    /// Pure request builder for [`stow`](Self::stow): `POST /loom/edges` with a VERIFIED
+    /// `CreateLoomEdgeRequest` that tags the card's block into the per-workspace `stash` TagHub. The
+    /// `target_title` lets `ensure_edge_target_exists` get-or-create the hub on first use.
+    pub fn stow_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.edges_url(workspace_id),
+            body: Some(serde_json::json!({
+                "source_block_id": block_id,
+                "target_block_id": STASH_TAG_HUB_BLOCK_ID,
+                "edge_type": "tag",
+                "created_by": "user",
+                "target_title": STASH_TAG_TITLE,
+            })),
+        }
+    }
+
+    /// Tag the card's block into the `stash` TagHub off the UI thread, delivering the result into `cell`.
+    pub fn stow(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+        let spec = self.stow_request(workspace_id, block_id);
+        let body = spec.body.unwrap_or_default();
+        self.spawn_post_receipt(spec.url, body, cell);
+    }
+
+    // ── Attach evidence (diagnostic create) ──────────────────────────────────────────────────────────
+
+    /// Pure request builder for [`attach_evidence`](Self::attach_evidence): `POST /diagnostics` with a
+    /// VERIFIED `DiagnosticInput`. `source:"system"` + `surface:"system"` are the honest closest valid
+    /// enum values (the contract's `user`/`drawer` do not exist); the stashed block id is carried in
+    /// `evidence_refs.artifact_hashes`. `job_id` is the active job when present (AC-024-9).
+    pub fn attach_evidence_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        block_title: &str,
+        job_id: Option<&str>,
+    ) -> RequestSpec {
+        let mut body = serde_json::json!({
+            "title": format!("Evidence: {block_title}"),
+            "message": "Attached from drawer stash shelf",
+            "severity": "info",
+            "source": "system",
+            "surface": "system",
+            "wsid": workspace_id,
+            "evidence_refs": { "artifact_hashes": { block_id: block_id } },
+        });
+        if let Some(job_id) = job_id {
+            body["job_id"] = serde_json::Value::String(job_id.to_owned());
+        }
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.diagnostics_url(),
+            body: Some(body),
+        }
+    }
+
+    /// Record the card's block as an evidence diagnostic off the UI thread, delivering the result into
+    /// `cell`. The caller is responsible for the AC-024-9 "no active job" pre-check (it shows a tooltip
+    /// and makes NO call when there is no active job).
+    pub fn attach_evidence(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        block_title: &str,
+        job_id: Option<&str>,
+        cell: DrawerActionCell,
+    ) {
+        let spec = self.attach_evidence_request(workspace_id, block_id, block_title, job_id);
+        let body = spec.body.unwrap_or_default();
+        self.spawn_post_receipt(spec.url, body, cell);
+    }
+
+    // ── Shared spawns ────────────────────────────────────────────────────────────────────────────────
+
+    fn spawn_post_receipt(&self, url: String, body: serde_json::Value, cell: DrawerActionCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_expect_success(&client, &url, &body).await;
+            deliver_drawer_action(&cell, result);
+        });
+    }
+
+    fn spawn_put_receipt(&self, url: String, body: serde_json::Value, cell: DrawerActionCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = put_expect_success(&client, &url, &body).await;
+            deliver_drawer_action(&cell, result);
+        });
+    }
+}
+
+/// Write a drawer-action receipt result into a [`DrawerActionCell`].
+fn deliver_drawer_action(cell: &DrawerActionCell, result: Result<(), AppError>) {
+    if let Ok(mut slot) = cell.lock() {
+        *slot = Some(result.map_err(|e| e.to_string()));
+    }
+}
+
+/// PUT `body` and treat any 2xx as success (the pin-order receipt body is not needed by the card).
+async fn put_expect_success(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    let resp = client
+        .put(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("PUT non-success status {}", resp.status())));
+    }
+    Ok(())
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the
@@ -1391,6 +1648,143 @@ mod tests {
             (DrawerDataKind::Notes, Ok(DrawerCardData { badge_count: 2, subtitle: "2 items".to_owned() })),
             "blocks.len() parsed as the badge count from the verified response shape"
         );
+    }
+
+    // ── MT-024 DrawerActionClient: verified pin / discard / stow / attach-evidence requests ──────────
+
+    #[test]
+    fn drawer_action_pin_request_uses_pin_order_field_not_ordinal() {
+        let rt = rt();
+        let c = DrawerActionClient::new(BASE, rt.handle().clone());
+        let spec = c.pin_order_request("ws1", "b3", 0);
+        assert_eq!(spec.method, HttpMethod::Put);
+        // VERIFIED endpoint: /pin-order (MT-183 set_loom_block_pin_order).
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3/pin-order");
+        // VERIFIED body field: pin_order (NOT the contract's `ordinal`).
+        assert_eq!(spec.body.unwrap(), serde_json::json!({ "pin_order": 0 }));
+    }
+
+    #[test]
+    fn drawer_action_discard_request_is_delete_no_body() {
+        let rt = rt();
+        let c = DrawerActionClient::new(BASE, rt.handle().clone());
+        let spec = c.discard_request("ws1", "b3");
+        assert_eq!(spec.method, HttpMethod::Delete);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert!(spec.body.is_none(), "DELETE carries no body");
+    }
+
+    #[test]
+    fn drawer_action_stow_request_posts_a_tag_edge_to_the_stash_hub() {
+        let rt = rt();
+        let c = DrawerActionClient::new(BASE, rt.handle().clone());
+        let spec = c.stow_request("ws1", "b3");
+        assert_eq!(spec.method, HttpMethod::Post);
+        // VERIFIED endpoint: /loom/edges (the contract's metadata/content_type PATCH does not exist).
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/edges");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({
+                "source_block_id": "b3",
+                "target_block_id": STASH_TAG_HUB_BLOCK_ID,
+                "edge_type": "tag",
+                "created_by": "user",
+                "target_title": STASH_TAG_TITLE,
+            })
+        );
+    }
+
+    #[test]
+    fn drawer_action_attach_evidence_request_uses_valid_enums_and_carries_block_id() {
+        let rt = rt();
+        let c = DrawerActionClient::new(BASE, rt.handle().clone());
+        let spec = c.attach_evidence_request("ws1", "b3", "My Note", Some("job-9"));
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(spec.url, "http://test.local:1234/diagnostics");
+        let body = spec.body.unwrap();
+        assert_eq!(body["title"], serde_json::json!("Evidence: My Note"));
+        // VERIFIED enums: source/surface "user"/"drawer" do not exist; "system" is the honest valid value.
+        assert_eq!(body["source"], serde_json::json!("system"));
+        assert_eq!(body["surface"], serde_json::json!("system"));
+        assert_eq!(body["severity"], serde_json::json!("info"));
+        assert_eq!(body["job_id"], serde_json::json!("job-9"));
+        // The stashed block id is carried in the VERIFIED evidence_refs.artifact_hashes map.
+        assert_eq!(body["evidence_refs"]["artifact_hashes"]["b3"], serde_json::json!("b3"));
+    }
+
+    #[test]
+    fn drawer_action_attach_evidence_omits_job_id_when_none() {
+        let rt = rt();
+        let c = DrawerActionClient::new(BASE, rt.handle().clone());
+        let spec = c.attach_evidence_request("ws1", "b3", "My Note", None);
+        let body = spec.body.unwrap();
+        assert!(body.get("job_id").is_none(), "no job_id key when there is no active job");
+    }
+
+    #[test]
+    fn drawer_action_discard_spawn_sends_real_delete_on_the_wire() {
+        // The REAL discard spawn path: it must DELETE /workspaces/ws1/loom/blocks/b3 on the wire and
+        // deliver Ok(()) after the 200. Proves the client is genuinely CONSUMED end-to-end (the
+        // dispatch -> spawn -> reqwest -> wire -> cell path is real), the MT-021 capture pattern.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = DrawerActionClient::new(base, rt.handle().clone());
+        let cell: DrawerActionCell = Arc::new(Mutex::new(None));
+        client.discard("ws1", "b3", cell.clone());
+
+        let captured = capture_one_request(listener);
+        assert_eq!(captured.request_line, "DELETE /workspaces/ws1/loom/blocks/b3 HTTP/1.1");
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "discard round-trip delivered Ok(())");
+    }
+
+    #[test]
+    fn drawer_action_stow_spawn_sends_real_tag_edge_post_on_the_wire() {
+        // The REAL stow spawn path: POST /workspaces/ws1/loom/edges with the verified tag-edge body.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = DrawerActionClient::new(base, rt.handle().clone());
+        let cell: DrawerActionCell = Arc::new(Mutex::new(None));
+        client.stow("ws1", "b3", cell.clone());
+
+        let captured = capture_one_request(listener);
+        assert_eq!(captured.request_line, "POST /workspaces/ws1/loom/edges HTTP/1.1");
+        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(body["source_block_id"], serde_json::json!("b3"));
+        assert_eq!(body["edge_type"], serde_json::json!("tag"));
+        assert_eq!(body["target_block_id"], serde_json::json!(STASH_TAG_HUB_BLOCK_ID));
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "stow round-trip delivered Ok(())");
     }
 
     #[test]

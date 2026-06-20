@@ -62,6 +62,28 @@ pub const DRAWER_CARD_NODE_ID_BASE: u64 = 34;
 /// Fixed `NodeId` of the resize handle (Role::Slider). Fresh band slot 38. Open-only.
 pub const DRAWER_RESIZE_NODE_ID: u64 = 38;
 
+/// Fixed `NodeId` base for the four per-card overflow buttons (MT-024, Role::Button). Fresh band
+/// 44..=47 (Agenda=44, Mail=45, Lists=46, Notes=47) — disjoint from the drawer 32..=38 band and every
+/// other declared identity, all open-only. The `...` overflow button opens the typed action menu.
+pub const DRAWER_OVERFLOW_NODE_ID_BASE: u64 = 44;
+
+/// The four overflow-button AccessKit node_ids in fixed logical order, as a const slice the collision
+/// registry can enumerate.
+pub const DRAWER_OVERFLOW_NODE_IDS: [u64; 4] = [
+    DRAWER_OVERFLOW_NODE_ID_BASE,
+    DRAWER_OVERFLOW_NODE_ID_BASE + 1,
+    DRAWER_OVERFLOW_NODE_ID_BASE + 2,
+    DRAWER_OVERFLOW_NODE_ID_BASE + 3,
+];
+
+/// The four overflow-button AccessKit author_ids in fixed logical order (`hsk.drawer.card.{kind}.overflow`).
+pub const DRAWER_OVERFLOW_AUTHOR_IDS: [&str; 4] = [
+    "hsk.drawer.card.agenda.overflow",
+    "hsk.drawer.card.mail.overflow",
+    "hsk.drawer.card.lists.overflow",
+    "hsk.drawer.card.notes.overflow",
+];
+
 /// The four card AccessKit node_ids in fixed logical order (Agenda, Mail, Lists, Notes), as a const
 /// slice the collision registry can enumerate (a const slice cannot call the `node_id()` method).
 pub const DRAWER_CARD_NODE_IDS: [u64; 4] = [
@@ -158,6 +180,26 @@ impl DrawerCardKind {
         DRAWER_CARD_NODE_ID_BASE + idx
     }
 
+    /// The fixed logical index (0..=3) of this card kind (Agenda=0, Mail=1, Lists=2, Notes=3).
+    fn logical_index(self) -> usize {
+        match self {
+            DrawerCardKind::Agenda => 0,
+            DrawerCardKind::Mail => 1,
+            DrawerCardKind::Lists => 2,
+            DrawerCardKind::Notes => 3,
+        }
+    }
+
+    /// The card's overflow-button stable AccessKit author_id (`hsk.drawer.card.{snake}.overflow`).
+    pub fn overflow_author_id(self) -> &'static str {
+        DRAWER_OVERFLOW_AUTHOR_IDS[self.logical_index()]
+    }
+
+    /// The card's overflow-button fixed AccessKit `NodeId` (DRAWER_OVERFLOW_NODE_ID_BASE + index).
+    pub fn overflow_node_id(self) -> u64 {
+        DRAWER_OVERFLOW_NODE_IDS[self.logical_index()]
+    }
+
     /// A small unicode glyph for the card icon (no icon font dependency yet — contract note).
     pub fn glyph(self) -> &'static str {
         match self {
@@ -182,6 +224,157 @@ impl std::fmt::Display for DrawerCardKind {
 }
 
 // ===========================================================================
+// Card actions (MT-024, C6).
+// ===========================================================================
+
+/// The eight typed actions a drawer card's overflow menu offers (MT-024). The PERSISTING actions
+/// (Stow/Pin/Discard/AttachEvidence) route through [`crate::backend_client::DrawerActionClient`]; the
+/// LOCAL actions (Promote/SendToPane/CopyToPrompt) are pure AppState/clipboard mutations with NO backend
+/// call. `ConvertArtifact` has NO backend surface (no content_type PATCH field / endpoint exists), so it
+/// renders as a DISABLED V1 item and never produces an event (disclosed deviation; matches the MT-021
+/// `convert_artifact` stub). The id snake-case suffix is the AccessKit action-id segment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DrawerCardAction {
+    /// Archive the block by tagging it into the workspace `stash` TagHub (backend: POST /loom/edges).
+    Stow,
+    /// Bring the block to the top of the Pins grid (backend: PUT /loom/blocks/:id/pin-order).
+    Pin,
+    /// Promote the stashed block into the active pane (LOCAL: writes a PromoteIntent; no backend).
+    Promote,
+    /// Send the block to a chosen open pane (LOCAL: writes a SendToPaneIntent; no backend).
+    SendToPane,
+    /// Copy a coder-prompt string built from the card to the clipboard (LOCAL: egui clipboard).
+    CopyToPrompt,
+    /// Record the block as an evidence diagnostic on the active job (backend: POST /diagnostics).
+    AttachEvidence,
+    /// Convert the block into an artifact. NO backend surface exists — disabled V1 item.
+    ConvertArtifact,
+    /// Delete the block (backend: DELETE /loom/blocks/:id). Gated behind a confirm dialog (HBR-STOP).
+    Discard,
+}
+
+impl DrawerCardAction {
+    /// All eight actions in fixed menu order (Stow, Pin, Promote, Send to pane, Copy to prompt, Attach
+    /// evidence, Convert to artifact, Discard).
+    pub fn all() -> &'static [DrawerCardAction] {
+        &[
+            DrawerCardAction::Stow,
+            DrawerCardAction::Pin,
+            DrawerCardAction::Promote,
+            DrawerCardAction::SendToPane,
+            DrawerCardAction::CopyToPrompt,
+            DrawerCardAction::AttachEvidence,
+            DrawerCardAction::ConvertArtifact,
+            DrawerCardAction::Discard,
+        ]
+    }
+
+    /// The menu label (matches the contract's exact action labels).
+    pub fn label(self) -> &'static str {
+        match self {
+            DrawerCardAction::Stow => "Stow",
+            DrawerCardAction::Pin => "Pin",
+            DrawerCardAction::Promote => "Promote",
+            DrawerCardAction::SendToPane => "Send to pane",
+            DrawerCardAction::CopyToPrompt => "Copy to prompt",
+            DrawerCardAction::AttachEvidence => "Attach evidence",
+            DrawerCardAction::ConvertArtifact => "Convert to artifact",
+            DrawerCardAction::Discard => "Discard",
+        }
+    }
+
+    /// The snake_case id segment used in the action menu item id + AccessKit author_id.
+    pub fn snake(self) -> &'static str {
+        match self {
+            DrawerCardAction::Stow => "stow",
+            DrawerCardAction::Pin => "pin",
+            DrawerCardAction::Promote => "promote",
+            DrawerCardAction::SendToPane => "send_to_pane",
+            DrawerCardAction::CopyToPrompt => "copy_to_prompt",
+            DrawerCardAction::AttachEvidence => "attach_evidence",
+            DrawerCardAction::ConvertArtifact => "convert_artifact",
+            DrawerCardAction::Discard => "discard",
+        }
+    }
+
+    /// The stable context-menu item id this action uses (`drawer.action.{snake}`). The shared
+    /// [`crate::context_menu::ContextMenu`] derives the AccessKit author_id `ctx-menu.{id}` from this, so
+    /// the rendered item is `Role::MenuItem` with author_id `ctx-menu.drawer.action.{snake}` —
+    /// DETERMINISTIC given the action (RISK-024-F: not random), discoverable + clickable out-of-process.
+    pub fn menu_item_id(self) -> &'static str {
+        match self {
+            DrawerCardAction::Stow => "drawer.action.stow",
+            DrawerCardAction::Pin => "drawer.action.pin",
+            DrawerCardAction::Promote => "drawer.action.promote",
+            DrawerCardAction::SendToPane => "drawer.action.send_to_pane",
+            DrawerCardAction::CopyToPrompt => "drawer.action.copy_to_prompt",
+            DrawerCardAction::AttachEvidence => "drawer.action.attach_evidence",
+            DrawerCardAction::ConvertArtifact => "drawer.action.convert_artifact",
+            DrawerCardAction::Discard => "drawer.action.discard",
+        }
+    }
+
+    /// Map a confirmed context-menu item id back to its typed action (the inverse of [`menu_item_id`]).
+    pub fn from_menu_item_id(id: &str) -> Option<DrawerCardAction> {
+        Self::all().iter().copied().find(|a| a.menu_item_id() == id)
+    }
+
+    /// Whether this action requires a real backend block target. Local actions (Promote/SendToPane/
+    /// CopyToPrompt) and the disabled ConvertArtifact do NOT; the persisting actions DO.
+    pub fn needs_block_target(self) -> bool {
+        matches!(
+            self,
+            DrawerCardAction::Stow
+                | DrawerCardAction::Pin
+                | DrawerCardAction::AttachEvidence
+                | DrawerCardAction::Discard
+        )
+    }
+
+    /// Whether this action is a DESTRUCTIVE op that MUST be gated behind a confirm dialog before
+    /// dispatch (HBR-STOP / RISK-024-A). Only Discard (the irreversible DELETE) qualifies.
+    pub fn needs_confirm(self) -> bool {
+        matches!(self, DrawerCardAction::Discard)
+    }
+}
+
+/// The real backend target a persisting card action acts on: the workspace + block ids plus the
+/// display metadata the local actions (copy-to-prompt) need. A card only carries `Some(..)` when it is
+/// bound to a concrete Loom block; the four MT-023 TYPE cards (Agenda/Mail/Lists/Notes) are category
+/// summaries with NO single block, so they carry `None` and the block-requiring actions are correctly
+/// rendered DISABLED (never faked against a nonexistent block id — rubric end-to-end integrity).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DrawerActionTarget {
+    pub workspace_id: String,
+    pub block_id: String,
+    pub title: String,
+    pub content_type: String,
+    pub excerpt: String,
+}
+
+impl DrawerActionTarget {
+    /// Build the coder-prompt string copy-to-prompt writes to the clipboard (the contract's exact
+    /// format, ported from the React `copy_as_coder_prompt` pattern in EvidenceDrawer.tsx):
+    /// `"Block: {title}\nType: {content_type}\nID: {block_id}\n\n{excerpt}"`.
+    pub fn coder_prompt(&self) -> String {
+        format!(
+            "Block: {}\nType: {}\nID: {}\n\n{}",
+            self.title, self.content_type, self.block_id, self.excerpt
+        )
+    }
+}
+
+/// A confirmed drawer card action plus the card it targets. Returned by the drawer render so the host
+/// ([`crate::app::HandshakeApp::apply_drawer_action`]) dispatches the backend call / local mutation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DrawerCardActionEvent {
+    pub kind: DrawerCardKind,
+    pub action: DrawerCardAction,
+    /// The card's backend target, if it is bound to a concrete block. `None` for the TYPE cards.
+    pub target: Option<DrawerActionTarget>,
+}
+
+// ===========================================================================
 // Card.
 // ===========================================================================
 
@@ -197,6 +390,16 @@ pub struct DrawerCard {
     pub loading: bool,
     /// `Some(msg)` when the fetch failed (the card shows an error state without crashing — AC-023-4).
     pub error: Option<String>,
+    /// `Some(..)` when the card is bound to a concrete Loom block so its persisting actions
+    /// (Stow/Pin/Discard/AttachEvidence) have a real target (MT-024). The four MT-023 TYPE cards carry
+    /// `None` — they are category summaries, so block-requiring actions render DISABLED rather than
+    /// dispatch against a nonexistent block id.
+    pub action_target: Option<DrawerActionTarget>,
+    /// MT-024 MAJOR FIX (AC-024-4/5): `true` briefly after a card action SUCCEEDS, so the card renders a
+    /// success indicator. The contract's card-removal/reorder lifecycle assumes a per-block item list; the
+    /// MT-023 TYPE-card drawer's success effect is this FEEDBACK + a count refresh, not removal/reorder
+    /// (disclosed deviation). Cleared on the next fetch/apply_result so it does not persist indefinitely.
+    pub action_succeeded: bool,
 }
 
 impl DrawerCard {
@@ -210,6 +413,8 @@ impl DrawerCard {
                 subtitle: "Coming soon".to_owned(),
                 loading: false,
                 error: None,
+                action_target: None,
+                action_succeeded: false,
             },
             _ => Self {
                 kind,
@@ -217,8 +422,17 @@ impl DrawerCard {
                 subtitle: "—".to_owned(),
                 loading: false,
                 error: None,
+                action_target: None,
+                action_succeeded: false,
             },
         }
+    }
+
+    /// Bind this card to a concrete Loom block so its persisting actions have a real backend target
+    /// (MT-024). Builder-style so the host can attach a target when a card represents a single block.
+    pub fn with_action_target(mut self, target: DrawerActionTarget) -> Self {
+        self.action_target = Some(target);
+        self
     }
 
     /// Fold a delivered fetch result into the card: clears the loading flag, sets badge + subtitle on
@@ -226,6 +440,9 @@ impl DrawerCard {
     /// visibly rather than blanking).
     pub fn apply_result(&mut self, result: Result<DrawerCardData, String>) {
         self.loading = false;
+        // A fresh data refresh supersedes the transient post-action success indicator (the refreshed
+        // count IS the durable feedback; the success flag is the brief in-between signal).
+        self.action_succeeded = false;
         match result {
             Ok(data) => {
                 self.badge_count = data.badge_count;
@@ -238,17 +455,27 @@ impl DrawerCard {
         }
     }
 
+    /// MT-024 MAJOR FIX (AC-024-4/5): mark this card's last action as succeeded so it renders the success
+    /// indicator, and clear any stale error. Called by the host's receipt drain on an `Ok` action receipt.
+    pub fn mark_action_succeeded(&mut self) {
+        self.action_succeeded = true;
+        self.error = None;
+    }
+
     /// The AccessKit label the card exposes (`"{title} ({badge_count})"` per the contract).
     pub fn access_label(&self) -> String {
         format!("{} ({})", self.kind.title(), self.badge_count)
     }
 
     /// Render the card as a fixed-width frame at its STABLE AccessKit id (so its NodeId is stable across
-    /// frames/restarts). Returns `true` if the card was clicked this frame. Click detection is a single
-    /// `Sense::click()` on the card rect (CONTROL-023-E: never combined with a drag sense, so no
-    /// double-fire). The body shows the kind glyph + title, a badge chip, and the subtitle / loading /
-    /// error line.
-    pub fn show(&self, ui: &mut egui::Ui, colors: DrawerColors) -> bool {
+    /// frames/restarts). Returns a [`DrawerCardOutcome`] reporting whether the card body was clicked AND
+    /// whether a typed action was confirmed from the overflow menu this frame (MT-024). Card-body click
+    /// detection is a single `Sense::click()` on the card rect (CONTROL-023-E: never combined with a drag
+    /// sense, so no double-fire), with an ADDITIONAL `Sense::click()` interacted on the overflow button
+    /// rect and a right-click (`secondary_clicked`) sense that BOTH open the same action menu. The body
+    /// shows the kind glyph + title, an always-visible `...` overflow button (AC-024-1), a badge chip, and
+    /// the subtitle / loading / error line.
+    pub fn show(&self, ui: &mut egui::Ui, colors: DrawerColors) -> DrawerCardOutcome {
         let id = unsafe { egui::Id::from_high_entropy_bits(self.kind.node_id()) };
         let author_id = self.kind.author_id();
         let label = self.access_label();
@@ -263,6 +490,62 @@ impl DrawerCard {
         let (rect, _) =
             ui.allocate_exact_size(egui::vec2(DRAWER_CARD_WIDTH, height), egui::Sense::hover());
         let resp = ui.interact(rect, id, egui::Sense::click());
+
+        // ── Overflow `...` button (MT-024 AC-024-1): a fixed-id button anchored at the card's top-right,
+        //    ALWAYS visible (not hover-gated). Rendered in its OWN foreground `Area` (the same isolation
+        //    the affordance tab uses) so it sits on a DISTINCT interaction layer ABOVE the card body and
+        //    therefore reliably receives the click instead of having it swallowed by the larger card
+        //    `interact` rect underneath (proven necessary: an overlapping same-layer `ui.interact` lets
+        //    the card claim the click). The Area itself is non-interactable so it adds no anonymous node.
+        let overflow_id = unsafe { egui::Id::from_high_entropy_bits(self.kind.overflow_node_id()) };
+        let overflow_author = self.kind.overflow_author_id();
+        let overflow_size = egui::vec2(18.0, 18.0);
+        let overflow_rect = egui::Rect::from_min_size(
+            egui::pos2(rect.right() - overflow_size.x - 6.0, rect.top() + 6.0),
+            overflow_size,
+        );
+        let overflow_aria = format!("{} actions", self.kind.title());
+        let overflow_resp = egui::Area::new(
+            egui::Id::new(("hsk.drawer.overflow_area", self.kind.snake())),
+        )
+        .fixed_pos(overflow_rect.min)
+        .order(egui::Order::Foreground)
+        // interactable(false) on the AREA (the affordance-tab pattern): an interactable Area registers an
+        // anonymous (role Unknown, Action::Click) node that trips the MT-025 gate. The explicit
+        // `ui.interact` below is the ONE interactive node and carries the stable author_id.
+        .interactable(false)
+        .constrain(false)
+        .show(ui.ctx(), |ui| {
+            let (orect, _) = ui.allocate_exact_size(overflow_size, egui::Sense::hover());
+            let oresp = ui.interact(orect, overflow_id, egui::Sense::click());
+            let obg = if oresp.hovered() { colors.badge_bg } else { colors.card_bg };
+            ui.painter().rect_filled(orect, 4.0, obg);
+            let g = ui.painter().layout_no_wrap(
+                "⋯".to_owned(),
+                egui::FontId::proportional(14.0),
+                colors.card_text,
+            );
+            ui.painter().galley(
+                egui::pos2(
+                    orect.center().x - g.size().x * 0.5,
+                    orect.center().y - g.size().y * 0.5,
+                ),
+                g,
+                colors.card_text,
+            );
+            let aria = overflow_aria.clone();
+            oresp.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &aria)
+            });
+            let aria_node = overflow_aria.clone();
+            ui.ctx().accesskit_node_builder(overflow_id, move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(overflow_author.to_owned());
+                node.set_label(aria_node);
+            });
+            oresp.on_hover_text("Card actions")
+        })
+        .inner;
 
         if ui.is_rect_visible(rect) {
             let bg = if resp.hovered() {
@@ -304,6 +587,11 @@ impl DrawerCard {
                 ("Loading…".to_owned(), colors.muted_text)
             } else if let Some(err) = &self.error {
                 (format!("Error: {err}"), colors.error_text)
+            } else if self.action_succeeded {
+                // MT-024 MAJOR FIX (AC-024-4/5): the success indicator for a TYPE card (feedback, since
+                // there is no per-item card to remove/reorder). Shown briefly until the count refresh
+                // resolves and `apply_result` clears the flag.
+                ("✓ Done".to_owned(), colors.muted_text)
             } else {
                 (self.subtitle.clone(), colors.muted_text)
             };
@@ -319,6 +607,7 @@ impl DrawerCard {
             node.set_author_id(author_id);
             node.set_label(label);
         });
+
         // Mail: a "Coming soon" tooltip on hover (AC-023-7). The host treats a Mail CLICK as a tooltip,
         // not a navigation (DrawerEvent::MailTooltip); the hover text keeps the affordance discoverable.
         let resp = if self.kind == DrawerCardKind::Mail {
@@ -326,8 +615,71 @@ impl DrawerCard {
         } else {
             resp
         };
-        resp.clicked()
+
+        // ── Action menu (MT-024 AC-024-2/3): ONE popup anchored on the overflow button, opened by EITHER
+        //    trigger (AC-024-2): the overflow-button CLICK toggles it (egui's `Popup::menu` toggle-button
+        //    semantics, the SAME native primitive the MT-015 menu bar uses), and a RIGHT-CLICK of the
+        //    card body opens the SAME popup id (`Popup::open_id`). Built on the shared MT-019 ContextMenu
+        //    item model rendered via `render_into`, so every item is a Role::MenuItem with a stable
+        //    `ctx-menu.drawer.action.{snake}` author_id. `Popup::menu` is `CloseOnClickOutside` + Escape
+        //    by default (AC-024-3) and anchored to the button rect (CONTROL-024-B: never a raw Window, so
+        //    it can never open off-screen). The toggle path avoids egui's `context_menu` quirk where a
+        //    same-frame click ALSO issues a close — the bug that made a card-anchored popup never open.
+        let menu_popup_id = egui::Popup::default_response_id(&overflow_resp);
+        // A card-body RIGHT-CLICK opens the SAME menu id as the overflow-button CLICK (AC-024-2). The
+        // overflow click is handled by `Popup::menu`'s native toggle below (the overflow button is its own
+        // foreground Area, so its `clicked()` reads reliably); the right-click opens the id explicitly.
+        if resp.secondary_clicked() {
+            egui::Popup::open_id(ui.ctx(), menu_popup_id);
+        }
+        let menu = self.action_menu();
+        let confirmed = egui::Popup::menu(&overflow_resp)
+            .show(|ui| {
+                ui.set_min_width(180.0);
+                menu.render_into(ui)
+            })
+            .and_then(|r| r.inner);
+        let action = confirmed.and_then(DrawerCardAction::from_menu_item_id);
+
+        DrawerCardOutcome {
+            // The card body opens its pane only on a PRIMARY click (AC-023-12); a right-click opens the
+            // action menu instead, so it never counts as a nav (suppress nav when secondary-clicked).
+            clicked: resp.clicked() && !resp.secondary_clicked(),
+            action,
+        }
     }
+
+    /// Build the typed eight-item action menu for this card (MT-024). ConvertArtifact is always disabled
+    /// (no backend surface — disclosed). The four block-requiring actions (Stow/Pin/AttachEvidence/
+    /// Discard) are disabled when this card has NO concrete block target (the TYPE cards), so they are
+    /// never dispatched against a nonexistent block id (rubric end-to-end integrity / RISK-024-A safety).
+    fn action_menu(&self) -> crate::context_menu::ContextMenu {
+        use crate::context_menu::{ContextMenu, ContextMenuItem};
+        let has_target = self.action_target.is_some();
+        let mut menu = ContextMenu::new("drawer.action");
+        for &action in DrawerCardAction::all() {
+            let mut item = ContextMenuItem::action(action.menu_item_id(), action.label());
+            if action == DrawerCardAction::ConvertArtifact {
+                item = item.disabled("Artifact conversion has no backend surface yet (V1 stub)");
+            } else if action.needs_block_target() && !has_target {
+                item = item.disabled("This card has no single block to act on");
+            }
+            if action == DrawerCardAction::Discard {
+                // Visual separation before the destructive action (parity with the MT-021 menu).
+                menu = menu.separator();
+            }
+            menu = menu.item(item);
+        }
+        menu
+    }
+}
+
+/// What one card render produced this frame (MT-024): whether the card body was clicked (the MT-023
+/// open-pane / Mail-tooltip navigation) AND whether a typed action was confirmed from the overflow menu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DrawerCardOutcome {
+    pub clicked: bool,
+    pub action: Option<DrawerCardAction>,
 }
 
 /// Theme tokens the drawer paints with (from the active palette), so it flips dark<->light with the rest
@@ -487,9 +839,11 @@ impl DrawerStashShelf {
 
     /// Render the open drawer panel INSIDE an already-opened bottom panel `ui` (the host registers the
     /// `TopBottomPanel::bottom("hsk.drawer")` AFTER the rail panel so the drawer stacks ABOVE the rail in
-    /// this codebase's registration-order convention — see the module docs). Returns the first card event
-    /// produced this frame (None if no card was clicked). The resize handle drag updates `self.height`.
-    pub fn show_open_panel(&mut self, ui: &mut egui::Ui, colors: DrawerColors) -> Option<DrawerEvent> {
+    /// this codebase's registration-order convention — see the module docs). Returns a
+    /// [`DrawerPanelOutcome`] carrying the first card NAV event (MT-023 open-pane / Mail-tooltip) AND the
+    /// first confirmed card ACTION event (MT-024) produced this frame. The resize handle drag updates
+    /// `self.height`.
+    pub fn show_open_panel(&mut self, ui: &mut egui::Ui, colors: DrawerColors) -> DrawerPanelOutcome {
         // ── Resize handle: a 4px draggable strip at the very top (AC-023-8). ──
         let resize_id = unsafe { egui::Id::from_high_entropy_bits(DRAWER_RESIZE_NODE_ID) };
         let (resize_rect, _) =
@@ -540,7 +894,8 @@ impl DrawerStashShelf {
             node.set_label("Stash shelf".to_owned());
         });
 
-        let mut event = None;
+        let mut nav = None;
+        let mut action = None;
         // Horizontal scroll shelf. CONTROL-023-F: cards render right-to-left for the right-aligned
         // visual (Agenda rightmost) WITHOUT reversing the Vec — the AccessKit tree keeps the logical
         // Agenda→Notes order, so swarm agents read a stable card sequence.
@@ -549,18 +904,36 @@ impl DrawerStashShelf {
             .show(ui, |ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     for card in &self.cards {
-                        if card.show(ui, colors) {
-                            event = Some(match card.kind {
+                        let outcome = card.show(ui, colors);
+                        if outcome.clicked && nav.is_none() {
+                            nav = Some(match card.kind {
                                 DrawerCardKind::Mail => DrawerEvent::MailTooltip,
                                 other => DrawerEvent::OpenCard(other),
                             });
+                        }
+                        if let Some(act) = outcome.action {
+                            if action.is_none() {
+                                action = Some(DrawerCardActionEvent {
+                                    kind: card.kind,
+                                    action: act,
+                                    target: card.action_target.clone(),
+                                });
+                            }
                         }
                         ui.add_space(8.0);
                     }
                 });
             });
-        event
+        DrawerPanelOutcome { nav, action }
     }
+}
+
+/// What one open-drawer frame produced (MT-024): the first card NAV event (MT-023 open-pane / Mail
+/// tooltip) and the first confirmed card ACTION event. Both are `None` when nothing fired this frame.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DrawerPanelOutcome {
+    pub nav: Option<DrawerEvent>,
+    pub action: Option<DrawerCardActionEvent>,
 }
 
 #[cfg(test)]

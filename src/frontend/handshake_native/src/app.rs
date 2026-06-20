@@ -396,6 +396,52 @@ pub struct HandshakeApp {
     /// closed→open transition and fires the one-shot fetches exactly once per open (no matter which
     /// surface toggled `bottom_drawer_open`: the affordance, the left-rail stash button, or the palette).
     drawer_prev_open: bool,
+    /// MT-024 off-thread client for the drawer CARD ACTION backend mutations (pin/discard/stow/
+    /// attach-evidence — all VERIFIED endpoints). `None` in the no-runtime test shell; a test injects a
+    /// runtime via [`set_runtime_handle`](Self::set_runtime_handle). Genuinely CONSUMED by
+    /// [`apply_drawer_action`](Self::apply_drawer_action).
+    drawer_action_client: Option<crate::backend_client::DrawerActionClient>,
+    /// The cell the spawned drawer-action tasks write `Ok(())`/`Err(msg)` into; drained each frame into
+    /// [`drawer_action_error`](Self::drawer_action_error) (the SCM/canvas receipt-cell pattern).
+    drawer_action_cell: crate::backend_client::DrawerActionCell,
+    /// The last drawer-action error (drained from `drawer_action_cell`), surfaced on the drawer; `None`
+    /// when the last action succeeded or none has run. Readable out-of-process via the drawer debug state.
+    drawer_action_error: Option<String>,
+    /// MT-024: pending typed promote / send-to-pane intents a swarm reader can observe + the UI applies
+    /// (the LOCAL, no-backend actions). Wrapped in `Arc<Mutex<..>>` so a swarm agent reader does not race
+    /// the UI writer (HBR-SWARM). The most recent intent of each kind is retained until consumed.
+    drawer_intents: std::sync::Arc<std::sync::Mutex<DrawerIntents>>,
+    /// MT-024: the active job id (if any) an Attach-evidence action records the block against. `None` when
+    /// no job is active — Attach-evidence then shows a tooltip and makes NO backend call (AC-024-9).
+    active_job_id: Option<String>,
+    /// MT-024 BLOCKER FIX (HBR-STOP / RISK-024-A / AC-024-11 / CONTROL-024-A): the ARMED confirm-discard
+    /// state — the card kind plus its backend target. Selecting Discard does NOT dispatch the DELETE; it
+    /// sets this to `Some((kind, target))`, which makes [`drive_drawer`](Self::drive_drawer) render the
+    /// in-app "Confirm Discard" `egui::Window` (HBR-QUIET — never an OS dialog). The DELETE fires ONLY when
+    /// the window's OK is pressed; Cancel clears this with NO backend call. `None` when no discard is
+    /// awaiting confirmation.
+    confirm_discard:
+        Option<(crate::stash_shelf::DrawerCardKind, crate::stash_shelf::DrawerActionTarget)>,
+    /// MT-024 MAJOR FIX (AC-024-4/5): the kind of the card whose last action SUCCEEDED, retained so the
+    /// drawer shows a brief success indicator (the contract's card-removal/reorder lifecycle assumes a
+    /// per-block item list; the MT-023 TYPE-card drawer's success effect is feedback + count refresh, not
+    /// removal/reorder — disclosed deviation). `None` when the last action failed or none has run.
+    drawer_action_success: Option<crate::stash_shelf::DrawerCardKind>,
+    /// MT-024 MAJOR FIX (AC-024-4/5): the card kind whose persisting action is in flight, set at dispatch
+    /// so the receipt drain can attribute the success/failure to the right card (the `DrawerActionCell`
+    /// carries only `Result<(), String>`). Actions deliver sequentially and the UI drains between frames,
+    /// so the most-recent in-flight kind is the one the next receipt belongs to. `None` between actions.
+    drawer_action_in_flight: Option<crate::stash_shelf::DrawerCardKind>,
+}
+
+/// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
+/// reader observes and the host applies. Concurrency-safe (HBR-SWARM): held behind an `Arc<Mutex<..>>`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DrawerIntents {
+    /// `Some(block_id)` when a Promote action asked to promote a stashed block into the active pane.
+    pub promote_block_id: Option<String>,
+    /// `Some((block_id, pane_id))` when a Send-to-pane action asked to route a block to a pane.
+    pub send_to_pane: Option<(String, String)>,
 }
 
 /// An in-progress explorer-row rename (MT-020): the Loom block being renamed + the live edit buffer.
@@ -704,6 +750,18 @@ impl HandshakeApp {
             drawer_data_cell: Arc::new(Mutex::new(None)),
             drawer_fetch_pending: false,
             drawer_prev_open: false,
+            // MT-024: the card-action client bridged onto the app runtime (same pattern as the
+            // SCM/canvas/loom-block clients). Genuinely consumed by apply_drawer_action.
+            drawer_action_client: Some(crate::backend_client::DrawerActionClient::production(
+                rt_handle.clone(),
+            )),
+            drawer_action_cell: Arc::new(Mutex::new(None)),
+            drawer_action_error: None,
+            drawer_intents: Arc::new(Mutex::new(DrawerIntents::default())),
+            active_job_id: None,
+            confirm_discard: None,
+            drawer_action_success: None,
+            drawer_action_in_flight: None,
         }
     }
 
@@ -818,6 +876,17 @@ impl HandshakeApp {
             drawer_data_cell: Arc::new(Mutex::new(None)),
             drawer_fetch_pending: false,
             drawer_prev_open: false,
+            // MT-024: headless/test shell — no runtime, so the card-action client is None (the persisting
+            // actions then surface a disclosed "no backend runtime" error instead of panicking). A test
+            // injects a runtime via `set_runtime_handle` to drive live action dispatch.
+            drawer_action_client: None,
+            drawer_action_cell: Arc::new(Mutex::new(None)),
+            drawer_action_error: None,
+            drawer_intents: Arc::new(Mutex::new(DrawerIntents::default())),
+            active_job_id: None,
+            confirm_discard: None,
+            drawer_action_success: None,
+            drawer_action_in_flight: None,
         }
     }
 
@@ -1134,6 +1203,10 @@ impl HandshakeApp {
         // (kittest) gets live off-thread card fetches.
         self.drawer_data_client =
             Some(crate::backend_client::DrawerDataClient::production(handle.clone()));
+        // MT-024: bridge the drawer card-action client onto the injected runtime so an injected-runtime
+        // shell (kittest) gets live off-thread pin/discard/stow/attach-evidence dispatch.
+        self.drawer_action_client =
+            Some(crate::backend_client::DrawerActionClient::production(handle.clone()));
         self.runtime_handle = Some(handle);
     }
 
@@ -1164,6 +1237,10 @@ impl HandshakeApp {
         self.source_control_client =
             Some(crate::backend_client::SourceControlClient::new(base_url, handle.clone()));
         self.canvas_client = Some(crate::backend_client::CanvasClient::new(base_url, handle.clone()));
+        // MT-024: the drawer card-action client too, so the confirm-discard -> DELETE wire test (mirroring
+        // PROOF-024-2(e)) can drive the REAL dispatch path against a localhost capture server.
+        self.drawer_action_client =
+            Some(crate::backend_client::DrawerActionClient::new(base_url, handle.clone()));
         self.runtime_handle = Some(handle);
     }
 
@@ -1506,6 +1583,12 @@ impl HandshakeApp {
         &self.drawer
     }
 
+    /// Mutable view of the bottom drawer stash shelf (MT-024): tests + agents bind a card to a concrete
+    /// Loom block (via `card_mut(..).action_target = Some(..)`) so its persisting actions are enabled.
+    pub fn drawer_mut(&mut self) -> &mut crate::stash_shelf::DrawerStashShelf {
+        &mut self.drawer
+    }
+
     /// Drain any delivered drawer-card fetch result into the matching card, then render the MT-023 bottom
     /// drawer: the always-visible affordance tab (open or collapsed) plus — when open — the shelf panel
     /// ABOVE the rail with the four cards + the resize handle.
@@ -1570,10 +1653,47 @@ impl HandshakeApp {
             resize_hover: palette.divider_hover,
         };
 
+        // 3b) Drain a delivered card-action receipt (HBR-QUIET: the backend call already ran off the UI
+        //     thread). MAJOR FIX (AC-024-4/5): the contract's card-removal (Stow) / leftmost-reorder (Pin)
+        //     lifecycle assumes a per-block item list; the MT-023 drawer is FOUR FIXED TYPE cards
+        //     (Agenda/Mail/Lists/Notes), so there is no per-item card to remove or reorder. The honest
+        //     success effect for a TYPE card is FEEDBACK: on Ok, clear the affected card's error state, set
+        //     a brief success indicator, and refresh the affected count (re-fire the open fetches so the
+        //     badge reflects the mutation). On Err, surface the error and clear the success indicator
+        //     (disclosed deviation — feedback + count refresh, not removal/reorder).
+        if let Some(result) = self.drawer_action_cell.lock().ok().and_then(|mut s| s.take()) {
+            let kind = self.drawer_action_in_flight.take();
+            match result {
+                Ok(()) => {
+                    self.drawer_action_error = None;
+                    self.drawer_action_success = kind;
+                    if let Some(card_kind) = kind {
+                        // Set the card's success indicator + clear any stale error (success supersedes a
+                        // prior failure). The brief "✓ Done" line is cleared on the next count refresh.
+                        if let Some(card) = self.drawer.card_mut(card_kind) {
+                            card.mark_action_succeeded();
+                        }
+                    }
+                    // Refresh the affected counts: re-fire the open fetches so the badge reflects the
+                    // mutation (e.g. a Discard lowers a count). Only meaningful while the drawer is open.
+                    if self.bottom_drawer_open {
+                        self.drawer.mark_data_cards_loading();
+                        self.fire_drawer_fetches();
+                    }
+                }
+                Err(msg) => {
+                    self.drawer_action_error = Some(msg);
+                    self.drawer_action_success = None;
+                }
+            }
+            ctx.request_repaint();
+        }
+
         // 4) The open drawer panel, registered ABOVE the rail (after it). Re-clamp height first so the
         //    exact_height never starves the CentralPanel (RISK-023-B). The 32px rail + ~24px status bar
         //    are the reserved-below budget.
         let mut card_event: Option<crate::stash_shelf::DrawerEvent> = None;
+        let mut action_event: Option<crate::stash_shelf::DrawerCardActionEvent> = None;
         if open {
             let avail = ctx.available_rect().height();
             self.drawer.clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
@@ -1587,7 +1707,8 @@ impl HandshakeApp {
                 .frame(egui::Frame::new().fill(colors.panel_bg))
                 .show(ctx, |ui| drawer.show_open_panel(ui, colors))
                 .inner;
-            card_event = inner;
+            card_event = inner.nav;
+            action_event = inner.action;
         }
 
         // 5) The affordance tab overlay — ALWAYS visible (open or collapsed — AC-023-1).
@@ -1615,6 +1736,289 @@ impl HandshakeApp {
                 }
             }
         }
+
+        // 7) Apply a selected card ACTION (MT-024): dispatch the typed action through the action client
+        //    (non-destructive persisting actions) or as a local intent / clipboard write (local actions).
+        //    Selecting Discard does NOT dispatch — `apply_drawer_action` ARMS the confirm gate
+        //    (`self.confirm_discard`) and the DELETE fires only from the confirm window's OK below
+        //    (HBR-STOP / RISK-024-A / AC-024-11).
+        if let Some(event) = action_event {
+            self.apply_drawer_action(ctx, event);
+            ctx.request_repaint();
+        }
+
+        // 8) HBR-STOP / RISK-024-A / CONTROL-024-A: while a Discard is armed, render the IN-APP
+        //    "Confirm Discard" modal (HBR-QUIET — an egui::Window, never an OS dialog). OK dispatches the
+        //    real DELETE; Cancel clears the arm with NO backend call.
+        self.show_confirm_discard_window(ctx, colors);
+    }
+
+    /// Render the in-app "Confirm Discard" modal while a Discard is armed (HBR-STOP / RISK-024-A /
+    /// AC-024-11 / CONTROL-024-A). This is the ONLY surface that can trigger the destructive DELETE: the
+    /// menu's Discard item merely ARMS [`confirm_discard`](Self::confirm_discard); the actual
+    /// [`crate::backend_client::DrawerActionClient::discard`] call happens in
+    /// [`confirm_pending_discard`](Self::confirm_pending_discard) when OK is pressed. It is an
+    /// `egui::Window` (HBR-QUIET — in-app, never a focus-stealing OS dialog). The OK/Cancel buttons carry
+    /// stable AccessKit author_ids (`hsk.drawer.confirm.ok` / `.cancel`) so a swarm agent can drive the
+    /// confirmation out-of-process; the window container carries `hsk.drawer.confirm.window`.
+    fn show_confirm_discard_window(
+        &mut self,
+        ctx: &egui::Context,
+        colors: crate::stash_shelf::DrawerColors,
+    ) {
+        if self.confirm_discard.is_none() {
+            return;
+        }
+        let title = self
+            .confirm_discard
+            .as_ref()
+            .map(|(_, t)| t.title.clone())
+            .unwrap_or_default();
+        let mut do_confirm = false;
+        let mut do_cancel = false;
+        egui::Window::new("Confirm Discard")
+            .id(egui::Id::new("hsk.drawer.confirm.window"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ctx, |ui| {
+                // A stable container author_id on the window body (Role::Group) so the modal itself is
+                // addressable out-of-process by `hsk.drawer.confirm.window`.
+                let window_id = ui.id().with("hsk.drawer.confirm.body");
+                ui.ctx().accesskit_node_builder(window_id, |node| {
+                    node.set_role(egui::accesskit::Role::Group);
+                    node.set_author_id("hsk.drawer.confirm.window".to_owned());
+                    node.set_label("Confirm Discard".to_owned());
+                });
+                ui.label(format!(
+                    "Permanently delete \"{title}\"? This cannot be undone."
+                ));
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    // OK = the single destructive trigger. A fixed-id button carrying the stable
+                    // author_id `hsk.drawer.confirm.ok` (the codebase's fixed-id-button + node-builder
+                    // pattern, so the interactive node and the named node are the SAME node).
+                    if Self::confirm_button(ui, "Discard", "hsk.drawer.confirm.ok", colors.error_text) {
+                        do_confirm = true;
+                    }
+                    if Self::confirm_button(ui, "Cancel", "hsk.drawer.confirm.cancel", colors.card_text)
+                    {
+                        do_cancel = true;
+                    }
+                });
+            });
+
+        if do_confirm {
+            self.confirm_pending_discard(ctx);
+        } else if do_cancel {
+            // Cancel: clear the arm with NO backend call (the destructive op never runs).
+            self.confirm_discard = None;
+            ctx.request_repaint();
+        }
+    }
+
+    /// A confirm-window button: a labelled egui button carrying an explicit stable AccessKit author_id so
+    /// the `assert_no_unnamed_interactive` gate is satisfied AND a swarm agent can address it
+    /// out-of-process. Returns `true` when clicked.
+    fn confirm_button(
+        ui: &mut egui::Ui,
+        label: &str,
+        author_id: &'static str,
+        text_color: egui::Color32,
+    ) -> bool {
+        let resp = ui.button(egui::RichText::new(label).color(text_color));
+        let id = resp.id;
+        let label_owned = label.to_owned();
+        ui.ctx().accesskit_node_builder(id, move |node| {
+            node.set_role(egui::accesskit::Role::Button);
+            node.set_author_id(author_id.to_owned());
+            node.set_label(label_owned.clone());
+        });
+        resp.clicked()
+    }
+
+    /// Dispatch the DESTRUCTIVE DELETE for the armed discard (HBR-STOP / RISK-024-A). This is the ONLY
+    /// `DrawerActionClient::discard` call site, reached ONLY from the confirm window's OK. Clears the arm,
+    /// then routes through the verified off-thread client (the dispatch -> client -> reqwest -> cell path
+    /// is real). Returns `true` when a backend call was dispatched. A missing runtime/client surfaces a
+    /// disclosed error (the honest-failure path) rather than panicking.
+    fn confirm_pending_discard(&mut self, ctx: &egui::Context) -> bool {
+        let Some((kind, t)) = self.confirm_discard.take() else {
+            return false;
+        };
+        ctx.request_repaint();
+        let Some(client) = self.drawer_action_client.clone() else {
+            self.drawer_action_error =
+                Some("Drawer actions unavailable (no backend runtime)".to_owned());
+            return false;
+        };
+        self.drawer_action_error = None;
+        // Attribute the delivered receipt to this card (MAJOR FIX AC-024-4/5 success feedback).
+        self.drawer_action_in_flight = Some(kind);
+        client.discard(&t.workspace_id, &t.block_id, self.drawer_action_cell.clone());
+        true
+    }
+
+    /// Dispatch a confirmed drawer card action (MT-024). Persisting actions (Stow/Pin/Discard/
+    /// AttachEvidence) route through the VERIFIED [`crate::backend_client::DrawerActionClient`] off the UI
+    /// thread (genuinely CONSUMED here — the dispatch -> client -> reqwest -> cell path is real);
+    /// Promote/SendToPane write a typed intent into the concurrency-safe `drawer_intents` (HBR-SWARM);
+    /// CopyToPrompt writes the coder-prompt to the egui clipboard (no backend, headless-safe — no
+    /// `arboard` dependency); ConvertArtifact is a disabled item and never reaches here. Returns `true`
+    /// when a backend call was dispatched. Block-requiring actions with NO target are disabled in the
+    /// menu, so a target is present whenever they reach here; this method still re-checks defensively.
+    pub fn apply_drawer_action(
+        &mut self,
+        ctx: &egui::Context,
+        event: crate::stash_shelf::DrawerCardActionEvent,
+    ) -> bool {
+        use crate::stash_shelf::DrawerCardAction as A;
+        let target = event.target.clone();
+        match event.action {
+            // ── Local, no-backend actions ────────────────────────────────────────────────────────────
+            A::CopyToPrompt => {
+                if let Some(t) = &target {
+                    // egui's native clipboard (the established codebase pattern — debug_console, project
+                    // tree CopyPath). Headless-safe (no panic) and adds NO dependency, so it satisfies
+                    // CONTROL-024-D's graceful-degradation intent better than the contract's `arboard`.
+                    ctx.copy_text(t.coder_prompt());
+                }
+                false
+            }
+            A::Promote => {
+                if let (Some(t), Ok(mut intents)) = (&target, self.drawer_intents.lock()) {
+                    intents.promote_block_id = Some(t.block_id.clone());
+                }
+                false
+            }
+            A::SendToPane => {
+                // Route to the active pane (the host owns pane selection). The MT-023 cards are TYPE
+                // cards, so a per-block pane-PICKER popup is moot; the intent carries the destination the
+                // host resolves. Disclosed deviation from the contract's secondary picker popup.
+                let active_pane = self.active_pane_id();
+                if let (Some(t), Ok(mut intents)) = (&target, self.drawer_intents.lock()) {
+                    intents.send_to_pane = Some((t.block_id.clone(), active_pane));
+                }
+                false
+            }
+            A::ConvertArtifact => {
+                // No backend surface exists to change a block's content_type (disclosed). The menu item
+                // is disabled, so this branch is unreachable in normal flow; kept as an explicit no-op so
+                // the match is exhaustive and a future wiring has a single obvious home.
+                false
+            }
+            // ── Persisting, backend actions ──────────────────────────────────────────────────────────
+            A::Stow | A::Pin | A::AttachEvidence | A::Discard => {
+                let Some(t) = target else {
+                    self.drawer_action_error =
+                        Some("This card has no block to act on".to_owned());
+                    return false;
+                };
+                // HBR-STOP / RISK-024-A / AC-024-11 / CONTROL-024-A: a DESTRUCTIVE action
+                // (`needs_confirm()` — only Discard, the irreversible DELETE) must NOT dispatch on
+                // selection. ARM the in-app confirm gate instead: store the target so `drive_drawer`
+                // renders the "Confirm Discard" `egui::Window`. The DELETE fires ONLY from that window's
+                // OK button (see `confirm_pending_discard`). Selecting Discard here makes NO backend call.
+                if event.action.needs_confirm() {
+                    self.drawer_action_error = None;
+                    self.confirm_discard = Some((event.kind, t));
+                    return false;
+                }
+                // AC-024-9: Attach-evidence with no active job short-circuits with the contract message
+                // BEFORE any client/runtime check — it must make NO backend call regardless of runtime.
+                if event.action == A::AttachEvidence && self.active_job_id.is_none() {
+                    self.drawer_action_error =
+                        Some("No active job to attach evidence to".to_owned());
+                    return false;
+                }
+                let Some(client) = self.drawer_action_client.clone() else {
+                    self.drawer_action_error =
+                        Some("Drawer actions unavailable (no backend runtime)".to_owned());
+                    return false;
+                };
+                self.drawer_action_error = None;
+                // Attribute the delivered receipt to this card so the receipt drain shows the success
+                // indicator + refreshes the affected count (MAJOR FIX AC-024-4/5 success feedback).
+                self.drawer_action_in_flight = Some(event.kind);
+                let cell = self.drawer_action_cell.clone();
+                match event.action {
+                    A::Stow => {
+                        client.stow(&t.workspace_id, &t.block_id, cell);
+                        true
+                    }
+                    A::Pin => {
+                        client.pin_to_top(&t.workspace_id, &t.block_id, cell);
+                        true
+                    }
+                    A::AttachEvidence => {
+                        // The no-job case was handled above; here a job is guaranteed present.
+                        let job_id = self.active_job_id.clone().expect("active job checked above");
+                        client.attach_evidence(
+                            &t.workspace_id,
+                            &t.block_id,
+                            &t.title,
+                            Some(&job_id),
+                            cell,
+                        );
+                        true
+                    }
+                    // Discard returned early above via the `needs_confirm()` arm-gate (it ARMS the
+                    // confirm window instead of dispatching); the real DELETE call site is
+                    // `confirm_pending_discard`, reached only when the window's OK is pressed.
+                    A::Discard => unreachable!(
+                        "Discard is intercepted by the needs_confirm() gate before this match; the \
+                         DELETE is dispatched only from confirm_pending_discard on OK"
+                    ),
+                    _ => unreachable!("outer match already narrowed to the persisting actions"),
+                }
+            }
+        }
+    }
+
+    /// The active pane id the send-to-pane intent routes to (MT-024). Falls back to the first pane when
+    /// there is no explicit active pane, and to a stable placeholder when no pane exists yet.
+    fn active_pane_id(&self) -> String {
+        self.tab_bar_states()
+            .keys()
+            .next()
+            .map(|k| k.to_string())
+            .unwrap_or_else(|| "pane-a".to_owned())
+    }
+
+    /// The most recent LOCAL drawer-action intents (MT-024, HBR-SWARM): Promote / Send-to-pane signals a
+    /// swarm reader or test observes off the shared lock. Cloned snapshot.
+    pub fn drawer_intents(&self) -> DrawerIntents {
+        self.drawer_intents.lock().map(|i| i.clone()).unwrap_or_default()
+    }
+
+    /// A cheap clone of the concurrency-safe drawer-intents handle for a swarm reader (HBR-SWARM).
+    pub fn drawer_intents_handle(&self) -> std::sync::Arc<std::sync::Mutex<DrawerIntents>> {
+        self.drawer_intents.clone()
+    }
+
+    /// The last drawer card-action error (MT-024), surfaced to tests + the drawer debug state. `None`
+    /// when the last action succeeded or none has run.
+    pub fn drawer_action_error(&self) -> Option<&str> {
+        self.drawer_action_error.as_deref()
+    }
+
+    /// The card kind whose last drawer action SUCCEEDED (MT-024 MAJOR FIX AC-024-4/5), readable by tests
+    /// + the drawer debug state. `None` when the last action failed or none has run.
+    pub fn drawer_action_success(&self) -> Option<crate::stash_shelf::DrawerCardKind> {
+        self.drawer_action_success
+    }
+
+    /// Whether a Discard is currently ARMED awaiting in-app confirmation (MT-024 BLOCKER FIX / HBR-STOP /
+    /// RISK-024-A), with the target block id if so. Readable by tests: a `Some` proves the menu's Discard
+    /// item ARMED the confirm gate instead of dispatching the DELETE.
+    pub fn confirm_discard_block_id(&self) -> Option<&str> {
+        self.confirm_discard.as_ref().map(|(_, t)| t.block_id.as_str())
+    }
+
+    /// Set the active job id an Attach-evidence action records against (MT-024 AC-024-9). `None` disables
+    /// the backend call (the action then shows a "no active job" message).
+    pub fn set_active_job_id(&mut self, job_id: Option<String>) {
+        self.active_job_id = job_id;
     }
 
     /// Fire the three one-shot off-thread drawer-card fetches (Agenda/Lists/Notes) against the verified
