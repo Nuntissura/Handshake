@@ -29,6 +29,7 @@ use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
+use crate::top_menu_bar::{MenuBar, MenuBarAction, MenuBarState};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
 /// from an `egui::Id`'s u64 value (egui 0.33 `Id::accesskit_id`), so a fixed-value `Id`
@@ -41,6 +42,29 @@ const THEME_TOGGLE_NODE_ID: u64 = 10;
 /// interactive chrome widget; this is the out-of-process address a model uses to click it,
 /// independent of its display text ("Light"/"Dark") which flips with the active theme.
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
+
+/// The content-presentation mode the shell is in (MT-015 VIEW menu). Mirrors the React workspace
+/// `viewMode` (`NSFW`/`SFW`): NSFW shows adult content surfaces, SFW hides them. The native shell
+/// owns the flag (MT-015 toggles it from the VIEW menu); the surfaces that consume it land in later
+/// MTs, so this is an in-memory flag in MT-015 (not yet persisted), mirroring how MT-003 introduced
+/// the theme flag before the settings-persistence MT wired it to the backend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewMode {
+    /// Adult content surfaces shown (the production default).
+    Nsfw,
+    /// Adult content surfaces hidden.
+    Sfw,
+}
+
+impl ViewMode {
+    /// The other mode (the VIEW > View Mode menu toggles between the two).
+    pub fn toggled(self) -> Self {
+        match self {
+            ViewMode::Nsfw => ViewMode::Sfw,
+            ViewMode::Sfw => ViewMode::Nsfw,
+        }
+    }
+}
 
 /// The project id a fresh shell shows before any project switch. Must match the `project_id` the
 /// default panes are seeded with (see [`default_panes`]) so the captured snapshot is self-consistent.
@@ -160,7 +184,7 @@ pub struct HandshakeApp {
     workspaces_handle: Option<tokio::task::JoinHandle<Result<Vec<ProjectItem>, AppError>>>,
     /// The top-right MODULE switcher (MT-012): the six MAIN/CKC/INGEST/STAGE/LAB/STUDIO buttons. Owns
     /// only the active module id (the highlight); switching a module mutates the ACTIVE pane's tab list
-    /// + active tab via [`HandshakeApp::set_module`]. Serialized into the layout snapshot as
+    /// and active tab via [`HandshakeApp::set_module`]. Serialized into the layout snapshot as
     /// `active_module` by MT-009, so the module survives a project switch and an app restart.
     module_switcher: ModuleSwitcher,
     /// The LEFT activity rail (MT-014): activity icons + project tree + quick links + stash/agenda/
@@ -187,6 +211,25 @@ pub struct HandshakeApp {
     /// A clonable producer handle onto [`event_bus_rx`](Self::event_bus_rx). Stored so the app can hand
     /// copies to producers; the bus stays alive as long as the app does.
     event_bus_tx: ShellEventSender,
+    /// The content-presentation mode (MT-015 VIEW menu). In-memory in MT-015 (the consuming surfaces +
+    /// persistence land in later MTs). Defaults to NSFW (the production default).
+    view_mode: ViewMode,
+    /// Whether the command-palette overlay is requested open (MT-015 GO menu sets this; the overlay UI
+    /// is MT-016). A bool flag only — no overlay renders in MT-015 (HBR-QUIET: no foreground dialog).
+    command_palette_open: bool,
+    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu sets this; UI is MT-016).
+    quick_switcher_open: bool,
+    /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
+    settings_open: bool,
+    /// Whether the About box is requested open (MT-015 HELP menu sets this; UI is a later MT). Distinct
+    /// from settings so the two HELP actions are independently observable.
+    about_open: bool,
+    /// A pending Reset-Layout confirmation (MT-015 VIEW menu; red-team MC7). The VIEW > Reset Layout
+    /// item ARMS this flag instead of resetting immediately; the actual reset requires a second confirm
+    /// action (`confirm_reset_layout`) so a swarm agent arrow-keying the menu cannot wipe the layout by
+    /// accident (red-team R7). No foreground dialog is popped (HBR-QUIET) — the confirm is a flag a
+    /// future overlay/agent path reads.
+    reset_layout_pending: bool,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -359,6 +402,12 @@ impl HandshakeApp {
             runtime_handle: Some(rt_handle),
             event_bus_rx,
             event_bus_tx,
+            view_mode: ViewMode::Nsfw,
+            command_palette_open: false,
+            quick_switcher_open: false,
+            settings_open: false,
+            about_open: false,
+            reset_layout_pending: false,
         }
     }
 
@@ -411,6 +460,12 @@ impl HandshakeApp {
             runtime_handle: None,
             event_bus_rx,
             event_bus_tx,
+            view_mode: ViewMode::Nsfw,
+            command_palette_open: false,
+            quick_switcher_open: false,
+            settings_open: false,
+            about_open: false,
+            reset_layout_pending: false,
         }
     }
 
@@ -529,6 +584,211 @@ impl HandshakeApp {
     /// Whether the bottom stash drawer is open (MT-014). Persisted as `drawers.bottom`.
     pub fn bottom_drawer_open(&self) -> bool {
         self.bottom_drawer_open
+    }
+
+    // ── MT-015 top menu bar: state the VIEW/GO/HELP menus read + mutate ─────────────────────────────
+
+    /// The active content-presentation mode (MT-015 VIEW menu). Read by tests + the View Mode checkmark.
+    pub fn view_mode(&self) -> ViewMode {
+        self.view_mode
+    }
+
+    /// Whether the command-palette overlay is requested open (MT-015 GO menu; overlay UI is MT-016).
+    pub fn command_palette_open(&self) -> bool {
+        self.command_palette_open
+    }
+
+    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu; overlay UI is MT-016).
+    pub fn quick_switcher_open(&self) -> bool {
+        self.quick_switcher_open
+    }
+
+    /// Whether the settings overlay is requested open (MT-015 HELP menu; overlay UI is MT-018).
+    pub fn settings_open(&self) -> bool {
+        self.settings_open
+    }
+
+    /// Whether the About box is requested open (MT-015 HELP menu).
+    pub fn about_open(&self) -> bool {
+        self.about_open
+    }
+
+    /// Whether a Reset-Layout confirmation is currently armed (MT-015 VIEW menu; red-team MC7/R7). The
+    /// reset does not happen until [`confirm_reset_layout`](Self::confirm_reset_layout) is called.
+    pub fn reset_layout_pending(&self) -> bool {
+        self.reset_layout_pending
+    }
+
+    /// Confirm the armed Reset-Layout request (red-team MC7): resets the live work surface to the active
+    /// project's seeded default. No-op (returns `false`) when no reset is armed, so a stray confirm
+    /// cannot wipe the layout. The arm step is `MenuBarAction::ResetLayout`; this is the second,
+    /// deliberate confirm a future confirmation overlay / agent path triggers.
+    pub fn confirm_reset_layout(&mut self) -> bool {
+        if !self.reset_layout_pending {
+            return false;
+        }
+        self.reset_layout_pending = false;
+        let project = self.active_project_id.clone();
+        self.reset_to_default_layout(&project);
+        true
+    }
+
+    /// Cancel an armed Reset-Layout request without resetting (red-team MC7).
+    pub fn cancel_reset_layout(&mut self) {
+        self.reset_layout_pending = false;
+    }
+
+    /// Move the active pane focus to the next (or previous) pane in stable id order, wrapping at the
+    /// ends (MT-015 GO menu). Returns `true` if the active pane changed. With no panes it is a safe
+    /// no-op. When no pane is active yet, Next focuses the first pane and Prev focuses the last.
+    fn focus_pane(&mut self, forward: bool) -> bool {
+        let mut ids: Vec<PaneId> = self.tab_bar_states.keys().cloned().collect();
+        ids.sort();
+        if ids.is_empty() {
+            return false;
+        }
+        let next = match &self.active_pane {
+            Some(active) => match ids.iter().position(|p| p == active) {
+                Some(i) => {
+                    let len = ids.len();
+                    let ni = if forward { (i + 1) % len } else { (i + len - 1) % len };
+                    ids[ni].clone()
+                }
+                // Active pane not in the tab-bar set (shouldn't happen): fall back to the first/last.
+                None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+            },
+            None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+        };
+        let changed = self.active_pane.as_ref() != Some(&next);
+        self.active_pane = Some(next);
+        changed
+    }
+
+    /// Close the active tab on the active (or fallback) pane (MT-015 FILE > Close Tab). Returns `true`
+    /// if a tab was removed. Pinned tabs are protected by [`TabBarState::close_tab`] (no-op). With no
+    /// active pane, the deterministic fallback target ([`module_target_pane`](Self::module_target_pane))
+    /// is used so the menu item still acts on a sensible pane.
+    fn close_active_tab(&mut self) -> bool {
+        let Some(target) = self.module_target_pane() else {
+            return false;
+        };
+        if let Some(bar) = self.tab_bar_states.get_mut(&target) {
+            let index = bar.active().map(|_| bar.active_index);
+            if let Some(index) = index {
+                return bar.close_tab(index);
+            }
+        }
+        false
+    }
+
+    /// Map a `NavigateToTab` payload (the React `PaneTabId` string) onto the native [`PaneType`] and
+    /// open it on the active pane (MT-015 RUN/HELP menus). Returns `true` if the pane state changed.
+    /// An unknown id is a safe no-op (returns `false`) rather than a panic.
+    fn navigate_to_tab(&mut self, tab_id: &str) -> bool {
+        let pane_type = match tab_id {
+            "inference-lab" => PaneType::InferenceLab,
+            "flight-recorder" => PaneType::FlightRecorder,
+            "user-manual" => PaneType::UserManual,
+            "swarm" => PaneType::Swarm,
+            _ => return false,
+        };
+        self.open_content_on_active_pane(pane_type, None)
+    }
+
+    /// Dispatch a [`MenuBarAction`] returned by the top menu bar into the shell's existing state-
+    /// mutation paths (MT-015). Returns `true` if app state changed (so the caller can request a
+    /// repaint + let the layout change-detector schedule a save). EXHAUSTIVE on `MenuBarAction` so a
+    /// new menu action cannot be added without the shell handling it (compiler-enforced).
+    ///
+    /// `ctx` is needed for the genuine window action (Quit -> viewport Close). Disabled-leaf variants
+    /// (document/editor/file-drawer/terminal targets that do not exist yet) are matched but are
+    /// unreachable in MT-015 because their leaves render disabled; they are handled as explicit no-ops
+    /// so the exhaustive match is honest about which surfaces are not yet wired.
+    fn dispatch_menu_action(&mut self, ctx: &egui::Context, action: MenuBarAction) -> bool {
+        match action {
+            // ── Wired (target exists) ──────────────────────────────────────────────────────────────
+            MenuBarAction::ToggleTheme => {
+                self.current_theme = self.current_theme.toggled();
+                // Apply the new palette THIS frame so the menu's checkmark + the shell flip together
+                // with no one-frame flicker (red-team R4).
+                self.apply_theme_if_changed(ctx);
+                true
+            }
+            MenuBarAction::ToggleViewMode => {
+                self.view_mode = self.view_mode.toggled();
+                true
+            }
+            MenuBarAction::ToggleProjectDrawer => {
+                self.left_rail_open = !self.left_rail_open;
+                true
+            }
+            MenuBarAction::ToggleBottomPanel => {
+                self.bottom_drawer_open = !self.bottom_drawer_open;
+                true
+            }
+            MenuBarAction::ResetLayout => {
+                // Arm the confirmation (red-team MC7/R7) — do NOT reset here. The actual reset requires
+                // a deliberate second confirm via `confirm_reset_layout`.
+                self.reset_layout_pending = true;
+                true
+            }
+            MenuBarAction::OpenQuickSwitcher => {
+                self.quick_switcher_open = true;
+                true
+            }
+            MenuBarAction::OpenCommandPalette => {
+                self.command_palette_open = true;
+                true
+            }
+            MenuBarAction::OpenSettings => {
+                self.settings_open = true;
+                true
+            }
+            MenuBarAction::ShowAbout => {
+                self.about_open = true;
+                true
+            }
+            MenuBarAction::FocusNextPane => self.focus_pane(true),
+            MenuBarAction::FocusPrevPane => self.focus_pane(false),
+            MenuBarAction::CloseActiveTab => self.close_active_tab(),
+            MenuBarAction::OpenSwarmBoard => self.navigate_to_tab("swarm"),
+            MenuBarAction::NavigateToTab(tab_id) => self.navigate_to_tab(&tab_id),
+            MenuBarAction::QuitApp => {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                false
+            }
+            // ── Disabled in MT-015 (target surface is a future MT) — leaves render disabled, so these
+            //    are unreachable; handled as explicit no-ops to keep the match honest + exhaustive. ──
+            MenuBarAction::NewDocument
+            | MenuBarAction::OpenWorkspacePicker
+            | MenuBarAction::SaveActiveDocument
+            | MenuBarAction::SaveAllDocuments
+            | MenuBarAction::EditorUndo
+            | MenuBarAction::EditorRedo
+            | MenuBarAction::EditCut
+            | MenuBarAction::EditCopy
+            | MenuBarAction::EditPaste
+            | MenuBarAction::OpenFindReplace
+            | MenuBarAction::OpenWorkspaceSearch
+            | MenuBarAction::ToggleFileDrawer
+            | MenuBarAction::OpenTerminal => false,
+        }
+    }
+
+    /// Build the per-frame [`MenuBarState`] the menu bar reads for checkmarks + enable/disable.
+    fn menu_bar_state(&self) -> MenuBarState {
+        let has_active_tab = self
+            .module_target_pane()
+            .and_then(|p| self.tab_bar_states.get(&p))
+            .map(|bar| bar.active().is_some())
+            .unwrap_or(false);
+        MenuBarState {
+            theme_is_dark: self.current_theme == HsTheme::Dark,
+            view_mode_is_nsfw: self.view_mode == ViewMode::Nsfw,
+            project_drawer_open: self.left_rail_open,
+            bottom_drawer_open: self.bottom_drawer_open,
+            has_active_tab,
+        }
     }
 
     /// Read-only view of the left rail (tests assert the project tree / quick-links state).
@@ -1301,6 +1561,30 @@ impl HandshakeApp {
             RailColors::from_palette(&rail_palette),
             RailDimensions::default(),
         );
+
+        // ── Top application menu bar (MT-015) ───────────────────────────────────────────────────────
+        // Registered as the VERY FIRST panel in the frame, ABOVE the title bar / module switcher and the
+        // project-tab strip, so egui reserves the menu strip at the top edge before any other panel
+        // carves the remaining area (red-team MC5/R5: must come before the central panel). The bar
+        // returns the leaf action the user triggered this frame; we dispatch it into the existing
+        // state-mutation paths AFTER the panel closes so the menu closures never hold a `&mut self`.
+        //
+        // Alt+<letter> mnemonics (AC2): handle the access-key chords BEFORE the panel renders so the
+        // chosen menu's popup is already marked open in egui memory when `MenuBar::show` runs this frame.
+        // `handle_menu_mnemonics` consumes the chord (so the global keymap handler never double-fires the
+        // same Alt combo — red-team R3) and opens the popup; the open menu is then keyboard-navigable.
+        if crate::top_menu_bar::handle_menu_mnemonics(ctx).is_some() {
+            ctx.request_repaint();
+        }
+        let menu_state = self.menu_bar_state();
+        let menu_action = egui::TopBottomPanel::top("handshake_menu_bar")
+            .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
+            .inner;
+        if let Some(action) = menu_action {
+            if self.dispatch_menu_action(ctx, action) {
+                ctx.request_repaint();
+            }
+        }
 
         // The header row carries (left) the "Handshake" identity and (right, right-to-left) the theme
         // toggle followed by the MODULE switcher (MT-012). The switcher is right-aligned in the header —

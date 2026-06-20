@@ -391,8 +391,17 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     }
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
-    // stable-id nodes the fresh-seed shell emits (37 pre-MT-014 nodes + 20 MT-014 left-rail nodes = 57),
-    // so a re-order or a dropped node fails loudly. (The MT-014 left-rail node count rose from 18 to 20
+    // stable-id nodes the fresh-seed shell emits (37 pre-MT-014 nodes + 20 MT-014 left-rail nodes + 6
+    // MT-015 top-level menu-bar buttons = 63), so a re-order or a dropped node fails loudly.
+    //
+    // MT-015 top menu bar (6): the six top-level menu buttons (`menu-{file,edit,view,go,run,help}`, all
+    // Role::MenuItem) rendered in the menu strip above the title bar. The individual LEAF items inside
+    // each menu are DYNAMIC — they exist only while that menu is OPEN — so the fresh-seed shell (no menu
+    // open) emits no leaf nodes here; they appear (and carry their own `menu.{menu}.{leaf}` author_ids)
+    // only in the menu-open kittest in tests/test_top_menu_bar.rs, mirroring how the MT-008 merge-back /
+    // MT-010 scrollbar nodes are absent from the default-seed snapshot.
+    //
+    // (The MT-014 left-rail node count rose from 18 to 20
     // with the FIX-A Bookmarks group: the bookmarks container `project-tree.bookmarks` (Role::Tree) and
     // its always-rendered group header `project-tree.group.bookmarks` (Role::TreeItem). The bookmark
     // LEAF rows are dynamic and absent in the headless shell, which seeds no pins.)
@@ -429,6 +438,12 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "left-rail.mail",
         "left-rail.notes",
         "left-rail.stash-toggle",
+        "menu-edit",
+        "menu-file",
+        "menu-go",
+        "menu-help",
+        "menu-run",
+        "menu-view",
         "module-ckc",
         "module-ingest",
         "module-lab",
@@ -479,7 +494,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 57 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 63 stable-id nodes in sorted order"
     );
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.

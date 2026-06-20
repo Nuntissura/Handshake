@@ -304,15 +304,15 @@ mod tests {
     #[test]
     fn quick_links_node_id_in_fresh_band() {
         assert_eq!(QUICK_LINKS_NODE_ID, 90);
-        assert!(QUICK_LINKS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE);
+        const { assert!(QUICK_LINKS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE) };
         // Above the project-tree container (89), below the pane id base (100).
-        assert!(QUICK_LINKS_NODE_ID > crate::project_tree::PROJECT_TREE_NODE_ID);
+        const { assert!(QUICK_LINKS_NODE_ID > crate::project_tree::PROJECT_TREE_NODE_ID) };
     }
 
     #[test]
     fn collapsed_view_shows_only_active_entries() {
         // Two panes, two tabs each; only the active tab per pane should be visible when collapsed.
-        let entries = vec![
+        let entries = [
             entry("pane-a", 0, "Alpha", "Workspace", true),
             entry("pane-a", 1, "Alpha", "Problems", false),
             entry("pane-b", 0, "Alpha", "Inference Lab", true),

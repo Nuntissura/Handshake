@@ -34,10 +34,11 @@ fn ok_app() -> HandshakeApp {
     }))
 }
 
+/// One live AccessKit node summary: (author_id, role, label, selected, description).
+type LiveNode = (String, String, Option<String>, bool, Option<String>);
+
 /// Every (author_id, role, label, selected, description) tuple in the live AccessKit tree.
-fn live_nodes(
-    harness: &Harness<'_, HandshakeApp>,
-) -> Vec<(String, String, Option<String>, bool, Option<String>)> {
+fn live_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<LiveNode> {
     let mut found = Vec::new();
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();

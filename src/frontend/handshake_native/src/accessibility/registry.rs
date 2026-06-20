@@ -42,6 +42,7 @@ use crate::project_tree::{
 use crate::quick_links::{QUICK_LINKS_AUTHOR_ID, QUICK_LINKS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
 use crate::tab_bar::TABBAR_SLOTS;
+use crate::top_menu_bar::{MENU_BAR_NODE_ID_BASE, MENU_DEFINITIONS};
 
 /// Fixed AccessKit/egui id for the theme-toggle button (mirrors the private `THEME_TOGGLE_NODE_ID`
 /// in `app.rs`). Re-declared here as the registry's copy so the collision test can see it without
@@ -320,6 +321,40 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: BOOKMARKS_AUTHOR_ID,
         node_id: BOOKMARKS_NODE_ID,
+    },
+    // MT-015 top-level menu-bar buttons (Role::MenuItem), fresh band 92..=97: above the FIX-A bookmarks
+    // container (91), strictly below the pane id base (100). The menu count is FIXED at six, so each
+    // top-level menu button gets a fixed id (MENU_BAR_NODE_ID_BASE + index) and a fixed author_id (its
+    // `menu-{name}` key), both enumerated here so the collision test proves the six ids are disjoint from
+    // every other declared identity. (Const-context: the indices are spelled out because a const slice
+    // cannot iterate; the `menu_ids_sit_in_a_disjoint_fresh_band` unit test in `top_menu_bar` pins the
+    // band shape.) Individual LEAF menu items are DYNAMIC (they exist only while a menu is open) and are
+    // addressed by an egui::Id derived from their author_id STRING (`menu.{menu}.{leaf}`) in egui's
+    // hashed id space — NOT this fixed band — so they are not enumerated here (same pattern as the MT-007
+    // per-tab nodes).
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[0].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[1].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 1,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[2].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 2,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[3].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 3,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[4].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 4,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[5].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 5,
     },
 ];
 

@@ -1117,7 +1117,7 @@ mod tests {
     #[test]
     fn stabilize_preserves_relative_order_within_groups() {
         // [A(pin), B, C(pin), D] -> pinned group [A, C] then unpinned [B, D].
-        let mut bar = TabBarState::new(
+        let bar = TabBarState::new(
             pid(),
             vec![
                 {

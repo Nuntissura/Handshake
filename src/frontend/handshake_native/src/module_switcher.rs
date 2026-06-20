@@ -48,7 +48,7 @@ pub const MODULE_NODE_ID_BASE: u64 = 51;
 /// The work-surface MODULE a pane is showing. Ported from the React `ModuleId` union
 /// (`app/src/App.tsx` line 77). Serializes to the uppercase string the workbench layout persistence
 /// schema uses (`"MAIN"`, `"CKC"`, `"INGEST"`, `"STAGE"`, `"LAB"`, `"STUDIO"`) via [`ModuleId::as_str`]
-/// / [`ModuleId::from_str`] so the persisted `active_module` field matches the React blob exactly.
+/// / [`ModuleId::parse`] so the persisted `active_module` field matches the React blob exactly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModuleId {
     Main,
@@ -75,7 +75,11 @@ impl ModuleId {
 
     /// Parse a serialized module string back into a [`ModuleId`]. Returns `None` for an unknown string
     /// so a corrupt/foreign layout blob falls back to the default module rather than panicking.
-    pub fn from_str(s: &str) -> Option<Self> {
+    ///
+    /// Named `parse` (not `from_str`) deliberately: this returns `Option<Self>` (a missing-value
+    /// signal, not a typed error), so it is NOT the `std::str::FromStr` contract. Using the inherent
+    /// name `from_str` would shadow the std trait method and trips `clippy::should_implement_trait`.
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "MAIN" => Some(ModuleId::Main),
             "CKC" => Some(ModuleId::Ckc),
@@ -110,7 +114,7 @@ impl serde::Serialize for ModuleId {
 impl<'de> serde::Deserialize<'de> for ModuleId {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        ModuleId::from_str(&s).ok_or_else(|| {
+        ModuleId::parse(&s).ok_or_else(|| {
             serde::de::Error::custom(format!("unknown module id '{s}'"))
         })
     }
@@ -393,6 +397,37 @@ impl ModuleSwitcher {
     }
 }
 
+/// The React kebab-case `PaneTabId` string for a [`PaneType`] — the inverse of the React
+/// `TAB_LABEL_BY_ID` keys (`app/src/App.tsx` lines 175-195). Used by the `definitions_match_react`
+/// snapshot test and by [`crate::app`] to serialize `active_module`-adjacent tab ids if needed. Kept a
+/// free function (not a `PaneType` method) so it stays local to the module-switcher port and does not
+/// widen the `PaneType` public surface owned by MT-005.
+pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
+    match pane_type {
+        PaneType::Workspace => "workspace",
+        PaneType::MediaDownloader => "media-downloader",
+        PaneType::FontManager => "fonts",
+        PaneType::FlightRecorder => "flight-recorder",
+        PaneType::KernelDcc => "kernel-dcc",
+        PaneType::InferenceLab => "inference-lab",
+        PaneType::ModelRuntime => "model-runtime",
+        PaneType::Swarm => "swarm",
+        PaneType::Problems => "problems",
+        PaneType::Jobs => "jobs",
+        PaneType::Timeline => "timeline",
+        PaneType::UserManual => "user-manual",
+        PaneType::CodeSymbol => "code-symbol",
+        PaneType::SourceControl => "source-control",
+        PaneType::LoomDailyJournal => "loom-daily-journal",
+        PaneType::LoomBlock => "loom-block",
+        PaneType::LoomWikiPage => "loom-wiki-page",
+        PaneType::AtelierEditor => "atelier",
+        PaneType::VisualDebugger => "visual-debugger",
+        // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
+        PaneType::Placeholder(_) => "placeholder",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,9 +443,9 @@ mod tests {
             ModuleId::Lab,
             ModuleId::Studio,
         ] {
-            assert_eq!(ModuleId::from_str(module.as_str()), Some(module));
+            assert_eq!(ModuleId::parse(module.as_str()), Some(module));
         }
-        assert_eq!(ModuleId::from_str("NOPE"), None);
+        assert_eq!(ModuleId::parse("NOPE"), None);
     }
 
     #[test]
@@ -537,36 +572,5 @@ mod tests {
                 assert_ne!(id, fixed, "module id collides with fixed id {fixed}");
             }
         }
-    }
-}
-
-/// The React kebab-case `PaneTabId` string for a [`PaneType`] — the inverse of the React
-/// `TAB_LABEL_BY_ID` keys (`app/src/App.tsx` lines 175-195). Used by the `definitions_match_react`
-/// snapshot test and by [`crate::app`] to serialize `active_module`-adjacent tab ids if needed. Kept a
-/// free function (not a `PaneType` method) so it stays local to the module-switcher port and does not
-/// widen the `PaneType` public surface owned by MT-005.
-pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
-    match pane_type {
-        PaneType::Workspace => "workspace",
-        PaneType::MediaDownloader => "media-downloader",
-        PaneType::FontManager => "fonts",
-        PaneType::FlightRecorder => "flight-recorder",
-        PaneType::KernelDcc => "kernel-dcc",
-        PaneType::InferenceLab => "inference-lab",
-        PaneType::ModelRuntime => "model-runtime",
-        PaneType::Swarm => "swarm",
-        PaneType::Problems => "problems",
-        PaneType::Jobs => "jobs",
-        PaneType::Timeline => "timeline",
-        PaneType::UserManual => "user-manual",
-        PaneType::CodeSymbol => "code-symbol",
-        PaneType::SourceControl => "source-control",
-        PaneType::LoomDailyJournal => "loom-daily-journal",
-        PaneType::LoomBlock => "loom-block",
-        PaneType::LoomWikiPage => "loom-wiki-page",
-        PaneType::AtelierEditor => "atelier",
-        PaneType::VisualDebugger => "visual-debugger",
-        // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
-        PaneType::Placeholder(_) => "placeholder",
     }
 }

@@ -995,8 +995,8 @@ mod tests {
     fn bookmarks_container_id_in_fresh_band() {
         assert_eq!(BOOKMARKS_NODE_ID, 91);
         // Above the quick-links container (90), below the pane id base (100).
-        assert!(BOOKMARKS_NODE_ID > PROJECT_TREE_NODE_ID);
-        assert!(BOOKMARKS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE);
+        const { assert!(BOOKMARKS_NODE_ID > PROJECT_TREE_NODE_ID) };
+        const { assert!(BOOKMARKS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE) };
     }
 
     #[test]

@@ -125,7 +125,7 @@ fn bundled_inter_font_is_registered_in_context() {
     let ctx = egui::Context::default();
     HandshakeApp::install_fonts(&ctx);
     // Force the font set to materialize for this frame so `families()` reflects it.
-    ctx.run(Default::default(), |_| {});
+    let _ = ctx.run(Default::default(), |_| {});
 
     let families = ctx.fonts(|f| f.families());
     assert!(

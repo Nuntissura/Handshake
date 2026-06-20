@@ -21,3 +21,4 @@ pub mod rails;
 pub mod split_layout;
 pub mod tab_bar;
 pub mod theme;
+pub mod top_menu_bar;

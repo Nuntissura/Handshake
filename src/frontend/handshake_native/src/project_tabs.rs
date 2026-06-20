@@ -468,7 +468,7 @@ mod tests {
         // tab-bar containers (60..63), and strictly below the pane id base (100). Disjoint from every
         // other fixed id (10/20/21/30/31). The full collision proof is in accessibility::registry.
         assert_eq!(PROJECT_TABS_NODE_ID, 50);
-        assert!(PROJECT_TABS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE);
+        const { assert!(PROJECT_TABS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE) };
         for fixed in [10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 60, 61, 62, 63] {
             assert_ne!(PROJECT_TABS_NODE_ID, fixed, "container id collides with {fixed}");
         }
