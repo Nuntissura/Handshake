@@ -14,6 +14,7 @@ use crate::layout_persistence::{
     PopOutSnapshot,
 };
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
+use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
 use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
@@ -1182,6 +1183,11 @@ impl HandshakeApp {
         let popped_out: std::collections::HashSet<PaneId> =
             self.popout_manager.popped_out_ids().into_iter().collect();
         let mut merge_requests: Vec<PaneId> = Vec::new();
+        // MT-013: pane-header Lock/Unlock clicks collected from the split layout this frame, applied to
+        // the registry's LockState after the CentralPanel closes (single source of truth for pane
+        // state). The active module is read once for the tab-chip module/type badge.
+        let mut lock_requests: Vec<PaneId> = Vec::new();
+        let active_module = self.module_switcher.active();
 
         // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
         // dividers are themed and flip dark<->light with the rest of the shell (MT-006 contract).
@@ -1200,6 +1206,16 @@ impl HandshakeApp {
             text: palette.text,
             accent: palette.accent,
             drop_highlight: palette.accent_soft,
+        };
+        // MT-013 pane-header colors from the same MT-003 theme tokens so the header (active-tab title +
+        // lock control) flips dark<->light with the rest of the shell.
+        let header_colors = PaneHeaderColors {
+            bg: palette.surface,
+            title: palette.text,
+            lock_text: palette.text_subtle,
+            lock_bg: palette.surface_strong,
+            lock_hover_bg: palette.accent_soft,
+            locked_accent: palette.accent,
         };
         // The placeholder tile's label + Merge Back button paint with the active theme's text token.
         let placeholder_text = palette.text;
@@ -1220,6 +1236,9 @@ impl HandshakeApp {
                 divider_colors,
                 tab_bar_states,
                 tab_colors,
+                active_module,
+                header_colors,
+                &mut lock_requests,
                 |pane_id| popped_out.contains(pane_id),
                 &mut merge_requests,
                 placeholder_text,
@@ -1235,6 +1254,23 @@ impl HandshakeApp {
                 },
             );
         });
+
+        // ── Apply MT-013 pane-header Lock/Unlock requests ───────────────────────────────────────────
+        // A lock click from the pane header (pointer OR out-of-process AccessKit Click) toggles the
+        // pane record's LockState in the registry (single source of truth). The change is picked up by
+        // the MT-009 layout change-detector below (LockState is part of the captured pane record), so
+        // it persists through the debounced save with no synchronous save here.
+        if !lock_requests.is_empty() {
+            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            for pane_id in &lock_requests {
+                if let Some(record) = guard.get_mut(pane_id) {
+                    record.lock_state = match record.lock_state {
+                        LockState::Locked => LockState::Unlocked,
+                        LockState::Unlocked => LockState::Locked,
+                    };
+                }
+            }
+        }
 
         // ── Apply merge-back requests, then render detached pop-out windows (MT-008) ────────────────
         // A Merge Back click from the placeholder (pointer OR out-of-process AccessKit Click) marks
@@ -1276,6 +1312,8 @@ impl HandshakeApp {
                     &fallback_key,
                     tab_bar_states,
                     tab_colors,
+                    active_module,
+                    header_colors,
                 );
             });
 
@@ -1322,6 +1360,8 @@ impl HandshakeApp {
         fallback_key: &PaneType,
         tab_bar_states: &mut HashMap<PaneId, TabBarState>,
         tab_colors: TabBarColors,
+        active_module: ModuleId,
+        header_colors: PaneHeaderColors,
     ) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let guard = registry.lock().expect("pane registry mutex poisoned");
@@ -1339,16 +1379,50 @@ impl HandshakeApp {
                 .as_ref();
             let role = factory.accesskit_role();
             let label = record.pane_type.label();
+            let locked = record.lock_state == LockState::Locked;
 
-            // Tab bar strip on top (same as the docked pane), if this pane has tab state.
+            // Carve, from the TOP: MT-013 header strip, then MT-007 tab strip, then the body — the SAME
+            // stack the docked pane uses, so a popped-out pane keeps its header binding + tab badges.
             let full = ui.available_rect_before_wrap();
-            let tab_h = TAB_BAR_HEIGHT.min(full.height());
-            let tab_rect = egui::Rect::from_min_max(
+            let header_h = PANE_HEADER_HEIGHT.min(full.height());
+            let header_rect = egui::Rect::from_min_max(
                 full.min,
-                egui::pos2(full.right(), full.top() + tab_h),
+                egui::pos2(full.right(), full.top() + header_h),
             );
-            let body_rect =
-                egui::Rect::from_min_max(egui::pos2(full.left(), full.top() + tab_h), full.max);
+            let after_header_top = full.top() + header_h;
+            let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
+            let tab_rect = egui::Rect::from_min_max(
+                egui::pos2(full.left(), after_header_top),
+                egui::pos2(full.right(), after_header_top + tab_h),
+            );
+            let body_rect = egui::Rect::from_min_max(
+                egui::pos2(full.left(), after_header_top + tab_h),
+                full.max,
+            );
+
+            // MT-013 header: active-tab title binding + lock control (parity with the docked pane). The
+            // lock click inside a pop-out is reconciled by a later cross-window mutation MT (same as the
+            // tab interactions below); here the header is rendered for binding + accessibility parity.
+            {
+                let active_tab_label: String = tab_bar_states
+                    .get(pane_id)
+                    .and_then(|bar| bar.active().map(|t| t.label()))
+                    .unwrap_or_default();
+                let mut header_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("popout-pane-header", node_id))
+                        .max_rect(header_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                );
+                header_ui.set_clip_rect(header_rect);
+                let _resp = PaneHeader::show(
+                    &mut header_ui,
+                    pane_id.as_ref(),
+                    &active_tab_label,
+                    locked,
+                    header_colors,
+                );
+            }
 
             if let Some(tab_state) = tab_bar_states.get(pane_id) {
                 let mut tab_ui = ui.new_child(
@@ -1361,7 +1435,7 @@ impl HandshakeApp {
                 // Render the tab bar; tab interactions inside a pop-out are reconciled by a later MT
                 // (the detached-window tab mutation path). Here the bar is rendered for parity +
                 // accessibility; its interactions are intentionally not yet reconciled cross-window.
-                let _resp = TabBar::show(&mut tab_ui, tab_state, tab_colors);
+                let _resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
             }
 
             let render_ctx = PaneRenderContext {

@@ -43,6 +43,25 @@ const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 4] = [
     "tab-close-pane-c-0",
     "tab-close-pane-d-0",
 ];
+/// MT-013 per-pane LOCK buttons. The pane header (MT-013) adds one `Role::Button` lock control per
+/// pane (`pane-{pane_id}-lock`), so each of the four panes contributes a lock node. These are LIVE
+/// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers / tab nodes. The header
+/// TITLE is a presentational `Role::Label` (no author_id), so it is intentionally absent here.
+const EXPECTED_LOCK_AUTHOR_IDS: [&str; 4] = [
+    "pane-pane-a-lock",
+    "pane-pane-b-lock",
+    "pane-pane-c-lock",
+    "pane-pane-d-lock",
+];
+/// MT-013 per-pane header TITLE labels. The pane header binds its title to the pane's ACTIVE tab and
+/// emits it as an addressable `Role::Label` node (`pane-{pane_id}-title`), so a model reads the
+/// binding by a stable id. One per pane in the live tree.
+const EXPECTED_TITLE_AUTHOR_IDS: [&str; 4] = [
+    "pane-pane-a-title",
+    "pane-pane-b-title",
+    "pane-pane-c-title",
+    "pane-pane-d-title",
+];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -362,16 +381,27 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
             snapshot.author_ids()
         );
     }
+    // The MT-013 per-pane lock buttons + header titles are present (one each per pane).
+    for expected in EXPECTED_LOCK_AUTHOR_IDS.iter().chain(EXPECTED_TITLE_AUTHOR_IDS.iter()) {
+        assert!(
+            snapshot.by_author_id(expected).is_some(),
+            "MT-013 author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
+            snapshot.author_ids()
+        );
+    }
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
     // stable-id nodes the fresh-seed shell emits (7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab
-    // nodes + 2 MT-011 project-tab nodes + 6 MT-012 module-switcher buttons = 29), so a re-order or a
-    // dropped node fails loudly. The two MT-011 nodes are the project-tab-strip container
-    // (`project-tabs`, Role::TabList) and the single seeded default-project tab
-    // (`project-tab-default-project`, Role::Tab); the headless shell seeds one project tab before the
-    // `/workspaces` fetch (which never runs headlessly) would resolve. The six MT-012 nodes are the
-    // header module buttons (`module-main`..`module-studio`, Role::Button) — all six render every frame
-    // (fixed module set), unlike the dynamic project tabs.
+    // nodes + 4 MT-013 lock buttons + 4 MT-013 header titles + 2 MT-011 project-tab nodes + 6 MT-012
+    // module-switcher buttons = 37), so a re-order or a dropped node fails loudly. The two MT-011 nodes
+    // are the project-tab-strip container (`project-tabs`, Role::TabList) and the single seeded
+    // default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds one
+    // project tab before the `/workspaces` fetch (which never runs headlessly) would resolve. The six
+    // MT-012 nodes are the header module buttons (`module-main`..`module-studio`, Role::Button) — all
+    // six render every frame (fixed module set), unlike the dynamic project tabs. The eight MT-013
+    // nodes are the per-pane lock buttons (`pane-pane-{x}-lock`, Role::Button) + the per-pane header
+    // titles (`pane-pane-{x}-title`, Role::Label, bound to the active tab); the tab module/type badge
+    // rides the existing Tab node's description, so it adds no new stable-id node.
     let expected_sorted = vec![
         "divider-horizontal",
         "divider-vertical",
@@ -385,6 +415,14 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "pane-b",
         "pane-c",
         "pane-d",
+        "pane-pane-a-lock",
+        "pane-pane-a-title",
+        "pane-pane-b-lock",
+        "pane-pane-b-title",
+        "pane-pane-c-lock",
+        "pane-pane-c-title",
+        "pane-pane-d-lock",
+        "pane-pane-d-title",
         "project-tab-default-project",
         "project-tabs",
         "shell.chrome.status-bar",
@@ -406,7 +444,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 29 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 37 stable-id nodes in sorted order"
     );
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
@@ -445,9 +483,34 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     for close in EXPECTED_TAB_CLOSE_AUTHOR_IDS {
         assert_eq!(snapshot.by_author_id(close).unwrap().role, "Button", "{close} role");
     }
+    // MT-013 lock button roles: each is a Role::Button addressable out-of-process. Default seed panes
+    // are Unlocked, so the live label is "Lock".
+    for lock in EXPECTED_LOCK_AUTHOR_IDS {
+        let node = snapshot.by_author_id(lock).unwrap();
+        assert_eq!(node.role, "Button", "{lock} role");
+        assert_eq!(node.label.as_deref(), Some("Lock"), "{lock} default (unlocked) label");
+    }
+    // MT-013 header title roles + binding: each is a Role::Label bound to its pane's ACTIVE tab label.
+    // Seed: pane-a=Workspace, pane-b=Inference Lab, pane-c=Media Downloader, pane-d=Fonts (the SHORT
+    // tab labels from PaneType::default_label, NOT the longer pane labels).
+    let expected_title_text = [
+        ("pane-pane-a-title", "Workspace"),
+        ("pane-pane-b-title", "Inference Lab"),
+        ("pane-pane-c-title", "Media Downloader"),
+        ("pane-pane-d-title", "Fonts"),
+    ];
+    for (title_id, text) in expected_title_text {
+        let node = snapshot.by_author_id(title_id).unwrap();
+        assert_eq!(node.role, "Label", "{title_id} role");
+        assert_eq!(
+            node.label.as_deref(),
+            Some(text),
+            "{title_id} bound to its pane's active-tab label"
+        );
+    }
 
     println!(
-        "PASS: LIVE-FRAME snapshot has chrome+panes+toggle+dividers + MT-007 tab nodes, sorted ({} total)",
+        "PASS: LIVE-FRAME snapshot has chrome+panes+toggle+dividers + MT-007 tab nodes + MT-013 locks, sorted ({} total)",
         snapshot.nodes.len()
     );
 }

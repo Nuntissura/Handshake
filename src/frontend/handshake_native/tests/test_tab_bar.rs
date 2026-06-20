@@ -126,7 +126,10 @@ fn live_active_tab_is_selected_and_dirty_tab_carries_indicator() {
     assert_eq!(selected.len(), 1, "exactly one tab is selected (active), got {selected:?}");
 
     // The dirty InferenceLab tab carries the "dirty" indicator in its AccessKit description, so a
-    // model reads unsaved-state without pixels. Find the dirty tab by its label.
+    // model reads unsaved-state without pixels. Find the dirty tab by its label. NOTE (MT-013): the
+    // description now ALSO carries the module/type badge (e.g. "module: STAGE; dirty"), so the dirty
+    // indicator is asserted by `contains("dirty")` rather than an exact match — the dirty signal is
+    // still present and machine-readable, alongside the new module badge.
     let dirty_tab = nodes
         .iter()
         .find(|(a, role, label, _, _)| {
@@ -135,20 +138,25 @@ fn live_active_tab_is_selected_and_dirty_tab_carries_indicator() {
                 && label.as_deref() == Some("Inference Lab")
         })
         .expect("Inference Lab tab present");
-    assert_eq!(
-        dirty_tab.4.as_deref(),
-        Some("dirty"),
-        "dirty tab carries the 'dirty' indicator in the live AccessKit tree"
+    assert!(
+        dirty_tab.4.as_deref().unwrap_or_default().contains("dirty"),
+        "dirty tab carries the 'dirty' indicator in the live AccessKit tree (description: {:?})",
+        dirty_tab.4
     );
 
-    // A clean tab (Workspace) carries NO dirty indicator.
+    // A clean tab (Workspace) carries NO dirty indicator (its description may carry the module badge
+    // but never the dirty token).
     let clean_tab = nodes
         .iter()
         .find(|(a, role, label, _, _)| {
             role == "Tab" && a.starts_with("tab-pane-a-") && label.as_deref() == Some("Workspace")
         })
         .expect("Workspace tab present");
-    assert_ne!(clean_tab.4.as_deref(), Some("dirty"), "clean tab has no dirty indicator");
+    assert!(
+        !clean_tab.4.as_deref().unwrap_or_default().contains("dirty"),
+        "clean tab has no dirty indicator (description: {:?})",
+        clean_tab.4
+    );
     println!("PASS: active tab selected; dirty tab flagged, clean tab not");
 }
 
@@ -182,6 +190,9 @@ fn live_pinned_tab_has_no_close_button_node() {
 fn live_click_tab_activates_it() {
     let mut harness = Harness::builder()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    // Wide+tall window so the pane has room for the MT-013 header strip ABOVE the tab strip and the
+    // (now badge-widened) tab chips lay out with un-clipped, clickable bounding boxes.
+    harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
 
     // Click the last tab (tab-pane-a-2 = InferenceLab after stabilization) by its stable author_id,
@@ -224,6 +235,9 @@ fn live_click_tab_activates_it() {
 fn live_click_close_button_removes_tab() {
     let mut harness = Harness::builder()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_with_three_tabs_on_pane_a());
+    // Wide+tall window so the MT-013 header strip + badge-widened tab chips lay out with un-clipped,
+    // clickable close-button bounding boxes (the default size is now too tight after the header add).
+    harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
 
     let before = harness

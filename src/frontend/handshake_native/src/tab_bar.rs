@@ -42,6 +42,8 @@
 use egui::accesskit;
 use serde::{Deserialize, Serialize};
 
+use crate::module_switcher::ModuleId;
+use crate::pane_header::module_label_for_tab;
 use crate::pane_registry::{PaneId, PaneType};
 
 /// Tab bar height in logical pixels. Matches the React CSS tab bar (`app/src/App.css`).
@@ -89,6 +91,24 @@ pub fn tabbar_author_id(pane_id: &str) -> String {
 /// Stable out-of-process author_id for a single tab (`tab-{pane_id}-{index}`).
 pub fn tab_author_id(pane_id: &str, index: usize) -> String {
     format!("tab-{pane_id}-{index}")
+}
+
+/// The special stable id the React app gives the pane-a User Manual tab so the diagnostics/UserManual
+/// surface keeps ONE agent-stable handle regardless of its tab index (`app/src/App.tsx` lines
+/// 1847-1850 `USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID`). Adopted verbatim as the AccessKit author_id for
+/// that one tab (MT-013). Every other tab uses the index-based [`tab_author_id`].
+pub const USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID: &str = "hs-usermanual-diagnostics-tab";
+
+/// The author_id a tab should carry, honoring the MT-013 pane-a User-Manual override: pane-a's
+/// `UserManual` tab gets [`USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID`] instead of the index-based
+/// `tab-pane-a-{index}` id; every other (pane, tab) uses [`tab_author_id`]. This keeps the
+/// diagnostics surface addressable by ONE stable handle even as it moves index (the React contract).
+pub fn tab_author_id_for(pane_id: &str, index: usize, pane_type: &PaneType) -> String {
+    if pane_id == "pane-a" && *pane_type == PaneType::UserManual {
+        USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID.to_owned()
+    } else {
+        tab_author_id(pane_id, index)
+    }
 }
 
 /// Stable out-of-process author_id for a tab's close button (`tab-close-{pane_id}-{index}`).
@@ -581,7 +601,17 @@ impl TabBar {
     /// - each tab is a `Role::Tab` node with author_id `tab-{pane_id}-{index}` + `Action::Click`/
     ///   `Action::Focus`; the active tab is marked selected;
     /// - each close button is a `Role::Button` node with author_id `tab-close-{pane_id}-{index}`.
-    pub fn show(ui: &mut egui::Ui, state: &TabBarState, colors: TabBarColors) -> TabBarResponse {
+    ///
+    /// `active_module` (MT-013) is the work-surface MODULE the pane is currently showing; it drives
+    /// the per-tab module/type BADGE suffix (e.g. `Inference Lab (LAB)`) via
+    /// [`crate::pane_header::module_label_for_tab`], and the badge text is also written to the tab
+    /// node's AccessKit `description` so a model reads the module without pixels.
+    pub fn show(
+        ui: &mut egui::Ui,
+        state: &TabBarState,
+        colors: TabBarColors,
+        active_module: ModuleId,
+    ) -> TabBarResponse {
         let mut response = TabBarResponse::default();
         let pane_id = state.pane_id.as_ref().to_owned();
         let bar_egui_id = tabbar_egui_id(&pane_id);
@@ -607,7 +637,7 @@ impl TabBar {
                 egui::ScrollArea::horizontal()
                     .id_salt(("tab-bar-scroll", &pane_id))
                     .show(ui, |ui| {
-                        Self::render_tabs(ui, state, &pane_id, colors, &mut response);
+                        Self::render_tabs(ui, state, &pane_id, colors, active_module, &mut response);
                     });
             });
         });
@@ -630,7 +660,11 @@ impl TabBar {
         let bar_focused = ui.memory(|m| {
             m.focused().is_some_and(|f| {
                 f == bar_egui_id
-                    || (0..state.tabs.len()).any(|i| f == Self::tab_egui_id(&pane_id, i))
+                    || state
+                        .tabs
+                        .iter()
+                        .enumerate()
+                        .any(|(i, t)| f == Self::tab_egui_id(&pane_id, i, &t.pane_type))
             })
         });
         if bar_focused {
@@ -668,11 +702,12 @@ impl TabBar {
         response
     }
 
-    /// Stable `egui::Id` for a single tab. Derived from the author_id string (dynamic count) so a
-    /// tab's id is stable for a given (pane, index) across frames but stays clear of the fixed id
-    /// band used by chrome/dividers/tab-bar-containers.
-    fn tab_egui_id(pane_id: &str, index: usize) -> egui::Id {
-        egui::Id::new(tab_author_id(pane_id, index))
+    /// Stable `egui::Id` for a single tab. Derived from the (override-aware) author_id string so the
+    /// live egui/AccessKit node carries the SAME id the author_id implies — including the MT-013
+    /// pane-a User-Manual override ([`USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID`]). Dynamic count keeps it
+    /// clear of the fixed id band used by chrome/dividers/tab-bar-containers.
+    fn tab_egui_id(pane_id: &str, index: usize, pane_type: &PaneType) -> egui::Id {
+        egui::Id::new(tab_author_id_for(pane_id, index, pane_type))
     }
 
     /// Stable `egui::Id` for a tab's close button.
@@ -687,15 +722,22 @@ impl TabBar {
         state: &TabBarState,
         pane_id: &str,
         colors: TabBarColors,
+        active_module: ModuleId,
         response: &mut TabBarResponse,
     ) {
         for (index, tab) in state.tabs.iter().enumerate() {
             let is_active = index == state.active_index;
+            // The MT-013 module/type badge for this tab: derived from the tab's PaneType + the pane's
+            // active module. Rendered as a suffix `(LAB)` after the label and mirrored into the tab
+            // node's AccessKit description. Empty for a tab in no module (only Placeholder).
+            let module_badge = module_label_for_tab(&tab.pane_type, active_module);
             // Each tab is a horizontal group: [drag-source body] [close button]. The close button is
             // rendered as a SIBLING widget OUTSIDE the drag source so a click on it is never swallowed
             // by the body's drag/click sense (the two rects do not overlap).
             ui.horizontal(|ui| {
-                Self::render_tab_body(ui, state, tab, index, is_active, pane_id, colors, response);
+                Self::render_tab_body(
+                    ui, state, tab, index, is_active, pane_id, colors, module_badge, response,
+                );
                 if !tab.pinned {
                     Self::render_close_button(ui, &tab.label(), index, pane_id, colors, response);
                 }
@@ -765,18 +807,36 @@ impl TabBar {
         is_active: bool,
         pane_id: &str,
         colors: TabBarColors,
+        module_badge: &str,
         response: &mut TabBarResponse,
     ) {
-        let tab_id = Self::tab_egui_id(pane_id, index);
+        let tab_id = Self::tab_egui_id(pane_id, index, &tab.pane_type);
         let label = tab.label();
 
-        // Width of the body content = [pin glyph] [dirty dot] [label].
+        // Width of the body content = [pin glyph] [dirty dot] [label] [module badge suffix].
         let font = egui::FontId::proportional(13.0);
         let label_galley = ui.painter().layout_no_wrap(label.clone(), font, colors.text);
+        // MT-013 module/type badge, painted as a smaller, subtler `(LAB)` suffix after the label
+        // (the contract's "shorter suffix format for space efficiency"). Empty -> no badge, no width.
+        let badge_text = if module_badge.is_empty() {
+            String::new()
+        } else {
+            format!(" ({module_badge})")
+        };
+        let badge_galley = if badge_text.is_empty() {
+            None
+        } else {
+            Some(ui.painter().layout_no_wrap(
+                badge_text.clone(),
+                egui::FontId::proportional(10.0),
+                colors.accent,
+            ))
+        };
+        let badge_w = badge_galley.as_ref().map(|g| g.size().x).unwrap_or(0.0);
         let pad = 6.0;
         let glyph_w = if tab.pinned { 12.0 } else { 0.0 };
         let dot_w = if tab.dirty { DIRTY_DOT_RADIUS * 2.0 + 4.0 } else { 0.0 };
-        let content_w = pad + glyph_w + dot_w + label_galley.size().x + pad;
+        let content_w = pad + glyph_w + dot_w + label_galley.size().x + badge_w + pad;
         let height = TAB_BAR_HEIGHT - 6.0;
 
         // The body is the drag SOURCE: dragging it produces a TabDragPayload the drop zone consumes.
@@ -820,6 +880,15 @@ impl TabBar {
                     label_galley.clone(),
                     colors.text,
                 );
+                cursor_x += label_galley.size().x;
+                // MT-013 module/type badge suffix `(LAB)` in the accent color, after the label.
+                if let Some(bg) = &badge_galley {
+                    ui.painter().galley(
+                        egui::pos2(cursor_x, mid_y - bg.size().y * 0.5),
+                        bg.clone(),
+                        colors.accent,
+                    );
+                }
             }
         });
         let drag_resp = inner.response;
@@ -871,15 +940,23 @@ impl TabBar {
         });
         ui.ctx().accesskit_node_builder(tab_id, |node| {
             node.set_role(accesskit::Role::Tab);
-            node.set_author_id(tab_author_id(pane_id, index));
+            node.set_author_id(tab_author_id_for(pane_id, index, &tab.pane_type));
             node.set_label(label.clone());
             if is_active {
                 node.set_selected(true);
             }
+            // Description carries machine-readable, pixel-free metadata: the MT-013 module/type badge
+            // and the MT-007 dirty indicator. Combined into one description so a model reads both
+            // (e.g. "module: LAB; dirty") without scraping the suffix glyph or the dot.
+            let mut desc_parts: Vec<String> = Vec::new();
+            if !module_badge.is_empty() {
+                desc_parts.push(format!("module: {module_badge}"));
+            }
             if tab.dirty {
-                // Dirty surfaced to the AccessKit tree so a model can read unsaved-state without
-                // pixels: the description carries the indicator (acceptance criterion).
-                node.set_description("dirty");
+                desc_parts.push("dirty".to_owned());
+            }
+            if !desc_parts.is_empty() {
+                node.set_description(desc_parts.join("; "));
             }
         });
     }

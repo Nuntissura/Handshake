@@ -9,6 +9,7 @@ pub mod backend_client;
 pub mod error;
 pub mod layout_persistence;
 pub mod module_switcher;
+pub mod pane_header;
 pub mod pane_registry;
 pub mod popout_window;
 pub mod project_tabs;

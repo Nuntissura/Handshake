@@ -32,6 +32,7 @@ use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
 use crate::module_switcher::{MODULE_DEFINITIONS, MODULE_NODE_ID_BASE};
+use crate::pane_header::{PANE_LOCK_SLOTS, PANE_TITLE_SLOTS};
 use crate::popout_window::MERGE_BACK_SLOTS;
 use crate::project_tabs::{PROJECT_TABS_AUTHOR_ID, PROJECT_TABS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
@@ -199,6 +200,53 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: MODULE_DEFINITIONS[5].data_id,
         node_id: MODULE_NODE_ID_BASE + 5,
+    },
+    // MT-013 per-pane LOCK buttons (Role::Button), fresh 70..73 band: above the MT-008 merge-back band
+    // (64..67), below the pane id base (100). The lock button is the pane header's one interactive
+    // control; the four fixed grid panes each get a fixed id (PANE_LOCK_NODE_ID_BASE + slot) and a
+    // fixed author_id (`pane-{pane_id}-lock`), both enumerated here so the collision test proves the
+    // four ids are disjoint from every other declared identity. The MT-013 pane-header TITLE is a
+    // presentational Role::Label (no author_id, like the pane body label), so it is not declared here.
+    // Individual TAB nodes keep their MT-007 dynamic `tab-{pane}-{index}` ids (egui hashed id space);
+    // the MT-013 pane-a User-Manual override (`hs-usermanual-diagnostics-tab`) is likewise a dynamic
+    // per-tab node, not a fixed-band id, so it is not enumerated here either.
+    DeclaredIdentity {
+        author_id: "pane-pane-a-lock",
+        node_id: PANE_LOCK_SLOTS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-b-lock",
+        node_id: PANE_LOCK_SLOTS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-c-lock",
+        node_id: PANE_LOCK_SLOTS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-d-lock",
+        node_id: PANE_LOCK_SLOTS[3].1,
+    },
+    // MT-013 per-pane header TITLE labels (Role::Label), fresh 74..77 band: above the lock band
+    // (70..73), below the pane id base (100). The title is non-interactive (a Label) but is emitted as
+    // an ADDRESSABLE node so an out-of-process model reads a pane's active-tab binding by the stable
+    // `pane-{pane_id}-title` id. Declared here so the collision test proves the four ids + author_ids
+    // are disjoint from every other declared identity. (A Label carrying an author_id is allowed; the
+    // MT-025 interactive gate only flags clickable/focusable nodes that LACK an author_id.)
+    DeclaredIdentity {
+        author_id: "pane-pane-a-title",
+        node_id: PANE_TITLE_SLOTS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-b-title",
+        node_id: PANE_TITLE_SLOTS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-c-title",
+        node_id: PANE_TITLE_SLOTS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: "pane-pane-d-title",
+        node_id: PANE_TITLE_SLOTS[3].1,
     },
 ];
 

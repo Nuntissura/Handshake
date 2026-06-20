@@ -37,7 +37,11 @@ use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
-use crate::pane_registry::{PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType};
+use crate::module_switcher::ModuleId;
+use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
+use crate::pane_registry::{
+    LockState, PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType,
+};
 use crate::popout_window::PopOutPlaceholder;
 use crate::rails::{RailColors, RailDimensions, RailOrientation, SplitterRail};
 use crate::tab_bar::{
@@ -284,6 +288,12 @@ impl SplitLayoutWidget {
     ///   reconciled into this map after the pane loop, so a tab dragged from one pane to another moves
     ///   exactly once (see [`apply_drop`]).
     /// - `tab_colors`: the MT-003 theme-token colors the tab bar paints with.
+    /// - `active_module`: the work-surface MODULE the panes show (MT-012), threaded into the tab bar so
+    ///   each tab chip renders its module/type badge (MT-013 [`crate::pane_header::module_label_for_tab`]).
+    /// - `header_colors`: the MT-003 theme-token colors the MT-013 pane header (title + lock) paints with.
+    /// - `lock_requests`: sink for pane-header Lock/Unlock clicks. The header's lock button (and thus an
+    ///   out-of-process AccessKit `Click` on it) pushes the pane id here; the app toggles the record's
+    ///   [`crate::pane_registry::LockState`] after this call (single source of truth for pane state).
     /// - `is_popped_out`: predicate over a `PaneId` (wired by the app to
     ///   [`crate::popout_window::PopOutManager::is_popped_out`]). When it returns `true` for a pane,
     ///   the pane's grid rect renders a [`PopOutPlaceholder`] tile instead of the tab bar + body, so
@@ -302,6 +312,9 @@ impl SplitLayoutWidget {
         divider_colors: DividerColors,
         tab_bars: &mut HashMap<PaneId, TabBarState>,
         tab_colors: TabBarColors,
+        active_module: ModuleId,
+        header_colors: PaneHeaderColors,
+        lock_requests: &mut Vec<PaneId>,
         is_popped_out: P,
         merge_requests: &mut Vec<PaneId>,
         placeholder_text: egui::Color32,
@@ -378,17 +391,57 @@ impl SplitLayoutWidget {
                 continue;
             }
 
-            // Carve the tab-bar strip off the top of the pane rect. Guard against a degenerate pane
-            // shorter than the tab bar: in that case the body rect collapses but never inverts.
-            let tab_bar_height = TAB_BAR_HEIGHT.min(pane_rect.height());
-            let tab_bar_rect = egui::Rect::from_min_max(
+            // Carve, from the TOP of the pane rect: the MT-013 binding header strip, then the MT-007
+            // tab-bar strip, then the MT-006 body. Heights clamp to the pane height (degenerate small
+            // panes collapse the body but never invert a rect).
+            let header_height = PANE_HEADER_HEIGHT.min(pane_rect.height());
+            let header_rect = egui::Rect::from_min_max(
                 pane_rect.min,
-                egui::pos2(pane_rect.right(), pane_rect.top() + tab_bar_height),
+                egui::pos2(pane_rect.right(), pane_rect.top() + header_height),
+            );
+            let after_header_top = pane_rect.top() + header_height;
+            let tab_bar_height = TAB_BAR_HEIGHT.min((pane_rect.bottom() - after_header_top).max(0.0));
+            let tab_bar_rect = egui::Rect::from_min_max(
+                egui::pos2(pane_rect.left(), after_header_top),
+                egui::pos2(pane_rect.right(), after_header_top + tab_bar_height),
             );
             let body_rect = egui::Rect::from_min_max(
-                egui::pos2(pane_rect.left(), pane_rect.top() + tab_bar_height),
+                egui::pos2(pane_rect.left(), after_header_top + tab_bar_height),
                 pane_rect.max,
             );
+
+            // ── MT-013 pane header: active-tab title binding + lock control ─────────────────────────
+            // The title is read LIVE from the pane's active tab (no cached copy) so a tab click /
+            // module switch this frame re-titles the pane immediately. A lock click is collected into
+            // `lock_requests` and the pane is focused; the app toggles the record's LockState after the
+            // panel closes (single source of truth for pane state, like merge-back).
+            {
+                let active_tab_label: String = tab_bars
+                    .get(&pane_id)
+                    .and_then(|bar| bar.active().map(|t| t.label()))
+                    .unwrap_or_default();
+                let locked = record.lock_state == LockState::Locked;
+                let mut header_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("pane-header", node_id))
+                        .max_rect(header_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                );
+                header_ui.set_clip_rect(header_rect);
+                let header_resp = PaneHeader::show(
+                    &mut header_ui,
+                    pane_id.as_ref(),
+                    &active_tab_label,
+                    locked,
+                    header_colors,
+                );
+                if header_resp.lock_toggled {
+                    lock_requests.push(pane_id.clone());
+                }
+                if header_resp.focus_requested {
+                    *active_pane = Some(pane_id.clone());
+                }
+            }
 
             // Render the tab bar (if this pane has one) in its strip.
             if let Some(tab_state) = tab_bars.get(&pane_id) {
@@ -399,7 +452,7 @@ impl SplitLayoutWidget {
                         .layout(egui::Layout::left_to_right(egui::Align::Center)),
                 );
                 tab_ui.set_clip_rect(tab_bar_rect);
-                let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors);
+                let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
                 tab_responses.push((pane_id.clone(), resp));
             }
 
