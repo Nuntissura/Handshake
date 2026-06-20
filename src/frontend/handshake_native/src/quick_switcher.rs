@@ -81,6 +81,12 @@ pub const SWITCHER_DIALOG_AUTHOR_ID: &str = "quick-switcher.dialog";
 pub const SWITCHER_SEARCH_AUTHOR_ID: &str = "quick-switcher.search";
 /// Stable out-of-process author_id for the switcher list container.
 pub const SWITCHER_LIST_AUTHOR_ID: &str = "quick-switcher.list";
+/// Stable out-of-process author_id for the switcher header Close button. Like the result rows and the
+/// command-palette / settings Close buttons, it lives in egui's hashed id space (no fixed
+/// `DeclaredIdentity` slot), so it is addressed by this author_id via `emit_interactive_node`. Without
+/// it the Close button is an interactive control with no stable address — the gap the MT-029 overlay
+/// accessibility-invariant proof surfaces.
+pub const SWITCHER_CLOSE_AUTHOR_ID: &str = "quick-switcher.close";
 
 /// The author_id prefix for a result ROW (a `ListBoxOption`). Each row's full author_id is
 /// `{ROW_AUTHOR_ID_PREFIX}{source_kind}.{stable(ref_id)}`, in egui's hashed id space (dynamic count).
@@ -986,7 +992,11 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
                     ui.label(egui::RichText::new("Quick Switcher").heading());
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Close").clicked() {
+                    let close = ui.button("Close");
+                    // Tag the Close button with its stable author_id so it is a NAMED interactive
+                    // control out-of-process (egui already derived Role::Button + Click/Focus actions).
+                    emit_interactive_node(ui.ctx(), close.id, SWITCHER_CLOSE_AUTHOR_ID);
+                    if close.clicked() {
                         close_clicked = true;
                     }
                 });

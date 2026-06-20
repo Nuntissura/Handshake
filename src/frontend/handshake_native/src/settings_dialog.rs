@@ -97,6 +97,12 @@ pub const KEYBINDING_INPUT_AUTHOR_ID_PREFIX: &str = "settings.keybinding.";
 pub const KEYBINDING_RESET_AUTHOR_ID_PREFIX: &str = "settings.keybinding-reset.";
 /// Author_id prefix for a not-yet-wired row's disabled control (`{prefix}{setting_id}`).
 pub const NOT_WIRED_AUTHOR_ID_PREFIX: &str = "settings.not-wired.";
+/// Author_id prefix for a settings SECTION collapsing-header button (`{prefix}{section_key}`). Each
+/// section header (Appearance / Keybindings / Swarm / Terminal / Layout / About) renders as an
+/// interactive `Role::Button` in egui's hashed id space; tagging it gives an out-of-process model a
+/// stable handle to expand/collapse each section. Without it the header is an interactive control with
+/// no stable address — the gap the MT-029 overlay accessibility-invariant proof surfaces.
+pub const SECTION_HEADER_AUTHOR_ID_PREFIX: &str = "settings.section.";
 
 /// What the dialog wants the shell to do after a frame.
 ///
@@ -394,7 +400,7 @@ fn render_sections(
     let show_view_mode_row =
         setting_matches_query(query, &["appearance", "view", "mode", "sfw", "nsfw"]);
     if show_appearance {
-        egui::CollapsingHeader::new("Appearance")
+        let appearance_header = egui::CollapsingHeader::new("Appearance")
             .default_open(true)
             .show(ui, |ui| {
                 if show_view_mode_row {
@@ -446,6 +452,11 @@ fn render_sections(
                     });
                 }
             });
+        set_author_id(
+            ui,
+            appearance_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}appearance"),
+        );
     }
 
     // ── [2] Keybindings (editable + live conflict detection) ───────────────────────────────────────
@@ -461,7 +472,7 @@ fn render_sections(
     let show_keybindings = !visible_actions.is_empty()
         || setting_matches_query(query, &["keybinding", "keybindings", "shortcut", "shortcuts"]);
     if show_keybindings {
-        egui::CollapsingHeader::new("Keybindings")
+        let keybindings_header = egui::CollapsingHeader::new("Keybindings")
             .default_open(true)
             .show(ui, |ui| {
                 // Conflict banner computed from the CURRENT drafts (normalized — red-team R3/MC3).
@@ -558,13 +569,18 @@ fn render_sections(
                     });
                 }
             });
+        set_author_id(
+            ui,
+            keybindings_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}keybindings"),
+        );
     }
 
     // ── [3] Swarm (wired checkbox + not-yet-wired interval rows) ───────────────────────────────────
     let show_swarm =
         setting_matches_query(query, &["swarm", "board", "reconcile", "resource", "poll"]);
     if show_swarm {
-        egui::CollapsingHeader::new("Swarm")
+        let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
             .show(ui, |ui| {
                 not_yet_wired_row(ui, &SWARM_RECONCILE_INTERVAL_SETTING);
@@ -589,25 +605,35 @@ fn render_sections(
                     }
                 });
             });
+        set_author_id(
+            ui,
+            swarm_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}swarm"),
+        );
     }
 
     // ── [4] Terminal (not-yet-wired rows) ──────────────────────────────────────────────────────────
     let show_terminal =
         setting_matches_query(query, &["terminal", "shell", "scrollback", "logging"]);
     if show_terminal {
-        egui::CollapsingHeader::new("Terminal")
+        let terminal_header = egui::CollapsingHeader::new("Terminal")
             .default_open(true)
             .show(ui, |ui| {
                 not_yet_wired_row(ui, &TERMINAL_DEFAULT_SHELL_SETTING);
                 not_yet_wired_row(ui, &TERMINAL_MAX_SCROLLBACK_SETTING);
                 not_yet_wired_row(ui, &TERMINAL_OUTPUT_LOGGING_SETTING);
             });
+        set_author_id(
+            ui,
+            terminal_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}terminal"),
+        );
     }
 
     // ── [5] Layout (wired Reset panes & drawers button) ────────────────────────────────────────────
     let show_layout = setting_matches_query(query, &["layout", "reset", "panes", "drawers"]);
     if show_layout {
-        egui::CollapsingHeader::new("Layout")
+        let layout_header = egui::CollapsingHeader::new("Layout")
             .default_open(true)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -626,12 +652,17 @@ fn render_sections(
                     }
                 });
             });
+        set_author_id(
+            ui,
+            layout_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}layout"),
+        );
     }
 
     // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
     if show_about {
-        egui::CollapsingHeader::new("About")
+        let about_header = egui::CollapsingHeader::new("About")
             .default_open(true)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -643,6 +674,11 @@ fn render_sections(
                     ui.label(ABOUT_VERSION);
                 });
             });
+        set_author_id(
+            ui,
+            about_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}about"),
+        );
         // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
     }
 

@@ -51,6 +51,12 @@ pub const PALETTE_DIALOG_AUTHOR_ID: &str = "command-palette.dialog";
 pub const PALETTE_SEARCH_AUTHOR_ID: &str = "command-palette.search";
 /// Stable out-of-process author_id for the palette list container.
 pub const PALETTE_LIST_AUTHOR_ID: &str = "command-palette.list";
+/// Stable out-of-process author_id for the palette header Close button. The button lives in egui's
+/// hashed id space (it has no fixed `DeclaredIdentity` slot, like the command rows and the settings
+/// Close button), so it is addressed by this author_id via `emit_interactive_node` rather than a fixed
+/// registry NodeId. Without it the Close button is an interactive control with no stable address — the
+/// gap the MT-029 overlay accessibility-invariant proof surfaces.
+pub const PALETTE_CLOSE_AUTHOR_ID: &str = "command-palette.close";
 
 /// The author_id prefix for a command ROW (a `ListBoxOption`). Each row's full author_id is
 /// `{ROW_AUTHOR_ID_PREFIX}{cmd.stable_id}`, in egui's hashed id space (dynamic count).
@@ -217,7 +223,11 @@ pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
                     ui.label(egui::RichText::new("Command Palette").heading());
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Close").clicked() {
+                    let close = ui.button("Close");
+                    // Tag the Close button with its stable author_id so it is a NAMED interactive
+                    // control out-of-process (egui already derived Role::Button + Click/Focus actions).
+                    emit_interactive_node(ui.ctx(), close.id, PALETTE_CLOSE_AUTHOR_ID);
+                    if close.clicked() {
                         close_clicked = true;
                     }
                 });
