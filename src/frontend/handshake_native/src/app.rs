@@ -334,6 +334,40 @@ pub struct HandshakeApp {
     pending_rename: Option<PendingRename>,
     /// The last explorer-row rename error, surfaced on the rename dialog status row (HBR: visible).
     rename_error: Option<String>,
+    /// MT-021 source-control off-thread client (verified `/source-control/*` endpoints). `None` in the
+    /// no-runtime test app (the SCM menu is then a disclosed no-op rather than a panic). Wired so the
+    /// production shell can drive stage/unstage/diff/blame off the UI thread (HBR-QUIET) when the native
+    /// source-control panel is mounted by its owning pane-content WP.
+    source_control_client: Option<crate::backend_client::SourceControlClient>,
+    /// Delivery cell a spawned SCM write (stage/unstage/discard) result is written into; drained next
+    /// frame so the network POST runs OFF the egui UI thread (HBR-QUIET). `Err` surfaces on the panel.
+    scm_receipt_cell: crate::backend_client::ScmReceiptCell,
+    /// Delivery cell a spawned SCM diff/blame text result is written into (drained next frame).
+    scm_text_cell: crate::backend_client::ScmTextCell,
+    /// The last delivered SCM diff/blame text (drained from `scm_text_cell`); the live SCM panel host
+    /// (future content WP) reads this into its display area. Observable here so the off-thread path is
+    /// proven without the live host.
+    scm_display_text: Option<String>,
+    /// The last SCM write/read error (drained from the cells), surfaced on the SCM panel status row.
+    scm_error: Option<String>,
+    /// MT-021 canvas off-thread client (verified canvas-placement + visual-edge endpoints). `None` in
+    /// the no-runtime test app. Wired for the same interconnectivity reason as `source_control_client`.
+    canvas_client: Option<crate::backend_client::CanvasClient>,
+    /// Delivery cell a spawned canvas placement/edge mutation result is written into (drained next
+    /// frame, OFF the egui UI thread — HBR-QUIET).
+    canvas_op_cell: crate::backend_client::CanvasOpCell,
+    /// The last canvas mutation error (drained from `canvas_op_cell`), surfaced on the canvas board.
+    canvas_error: Option<String>,
+    /// Delivery cell a spawned Loom-block flag PATCH (pin/favorite) result is written into (drained next
+    /// frame). Reuses the receipt-cell shape (`Ok(())`/`Err(msg)`).
+    loom_flag_cell: crate::backend_client::ScmReceiptCell,
+    /// The last Loom-node flag-toggle error (drained from `loom_flag_cell`), surfaced on the graph view.
+    loom_flag_error: Option<String>,
+    /// MT-021 status-bar segment visibility (segment_id -> hidden). A segment whose id is in this set is
+    /// not rendered; `statusbar.toggle_visibility` flips membership. Empty by default (all visible).
+    /// TODO(MT-018): the settings dialog should expose a "Restore hidden status bar items" control so a
+    /// hidden segment can always be brought back (red-team status-bar-visibility control).
+    statusbar_hidden: std::collections::HashSet<String>,
 }
 
 /// An in-progress explorer-row rename (MT-020): the Loom block being renamed + the live edit buffer.
@@ -437,6 +471,31 @@ fn default_project_tabs() -> ProjectTabBar {
         vec![ProjectItem::new(DEFAULT_PROJECT_ID, "Default Project")],
         DEFAULT_PROJECT_ID,
     )
+}
+
+/// MT-021 status-bar `open_panel` mapping: the human-readable name of the panel a status-bar segment's
+/// "Open …" item opens. Returns `None` for a segment with no related panel (its `open_panel` item is
+/// then disabled + disclosed). The contract's lookup names ("System Status" for health, "Source
+/// Control" for branch); WP-011 has NO `PaneType::SystemStatus`, so the HEALTH segment maps to the REAL
+/// `Problems` pane (the system-status/diagnostics surface that exists) and the name is "Problems" so
+/// the menu label matches the pane actually opened. The BRANCH segment maps to the real `SourceControl`
+/// pane exactly as the contract intends. This keeps the menu honest (no fake "System Status" pane).
+fn statusbar_related_panel_name(segment_id: &str) -> Option<String> {
+    statusbar_related_pane_type(segment_id).map(|pt| pt.label())
+}
+
+/// MT-021 status-bar `open_panel` mapping: the REAL `PaneType` a status-bar segment's "Open …" item
+/// opens. `None` disables `open_panel`. See [`statusbar_related_panel_name`] for the SystemStatus
+/// deviation rationale.
+fn statusbar_related_pane_type(segment_id: &str) -> Option<PaneType> {
+    match segment_id {
+        // health → Problems (no PaneType::SystemStatus exists in WP-011; Problems is the real
+        // system-status/diagnostics surface — disclosed deviation).
+        "health" => Some(PaneType::Problems),
+        // branch → SourceControl (exactly the contract's mapping; SourceControl is a real PaneType).
+        "branch" => Some(PaneType::SourceControl),
+        _ => None,
+    }
 }
 
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
@@ -559,6 +618,19 @@ impl HandshakeApp {
             rename_cell: Arc::new(Mutex::new(None)),
             pending_rename: None,
             rename_error: None,
+            source_control_client: Some(crate::backend_client::SourceControlClient::production(
+                rt_handle.clone(),
+            )),
+            scm_receipt_cell: Arc::new(Mutex::new(None)),
+            scm_text_cell: Arc::new(Mutex::new(None)),
+            scm_display_text: None,
+            scm_error: None,
+            canvas_client: Some(crate::backend_client::CanvasClient::production(rt_handle.clone())),
+            canvas_op_cell: Arc::new(Mutex::new(None)),
+            canvas_error: None,
+            loom_flag_cell: Arc::new(Mutex::new(None)),
+            loom_flag_error: None,
+            statusbar_hidden: std::collections::HashSet::new(),
         }
     }
 
@@ -649,6 +721,19 @@ impl HandshakeApp {
             rename_cell: Arc::new(Mutex::new(None)),
             pending_rename: None,
             rename_error: None,
+            // Headless/test shell: no runtime to bridge the SCM/canvas clients onto. A test injects a
+            // runtime via `set_runtime_handle` if it wants live calls; without one these stay None.
+            source_control_client: None,
+            scm_receipt_cell: Arc::new(Mutex::new(None)),
+            scm_text_cell: Arc::new(Mutex::new(None)),
+            scm_display_text: None,
+            scm_error: None,
+            canvas_client: None,
+            canvas_op_cell: Arc::new(Mutex::new(None)),
+            canvas_error: None,
+            loom_flag_cell: Arc::new(Mutex::new(None)),
+            loom_flag_error: None,
+            statusbar_hidden: std::collections::HashSet::new(),
         }
     }
 
@@ -919,6 +1004,25 @@ impl HandshakeApp {
         // (kittest) gets live off-thread rename too (MT-020).
         self.loom_block_client =
             Some(crate::backend_client::LoomBlockClient::production(handle.clone()));
+        // MT-021: bridge the SCM + canvas off-thread clients onto the injected runtime too, so an
+        // injected-runtime shell (kittest) gets live source-control + canvas calls.
+        self.source_control_client =
+            Some(crate::backend_client::SourceControlClient::production(handle.clone()));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::production(handle.clone()));
+        self.runtime_handle = Some(handle);
+    }
+
+    /// Test-only: point the MT-021 backend clients (SCM, canvas, Loom-block) at an arbitrary `base_url`
+    /// bridged onto `handle`, so a test can drive `apply_*_event` against a localhost capture server and
+    /// assert the EXACT URL + body reaches the wire through the REAL app dispatch path. Production code
+    /// never calls this (it uses [`set_runtime_handle`](Self::set_runtime_handle) -> hardcoded backend
+    /// URL); it exists so the MAJOR #1/#2/#3 "client genuinely consumed by the app" proof is end-to-end.
+    pub fn set_backend_base_url_for_test(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
+        self.loom_block_client =
+            Some(crate::backend_client::LoomBlockClient::new(base_url, handle.clone()));
+        self.source_control_client =
+            Some(crate::backend_client::SourceControlClient::new(base_url, handle.clone()));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::new(base_url, handle.clone()));
         self.runtime_handle = Some(handle);
     }
 
@@ -1960,6 +2064,244 @@ impl HandshakeApp {
         }
     }
 
+    /// A canvas placement at the FRONT of the board gets this `z_index` (top of the stack); the BACK gets
+    /// [`CANVAS_Z_BACK`]. The live canvas-board host (future content WP) refines these to the actual
+    /// `max+1`/`min-1` of the loaded board; these sentinels are the V1 front/back the menu sends so the
+    /// PATCH is real and the ordering is correct relative to a freshly seeded board.
+    const CANVAS_Z_FRONT: i32 = 1_000_000;
+    const CANVAS_Z_BACK: i32 = -1_000_000;
+
+    /// Drain any delivered SCM write/read result into the panel display/error state (HBR-QUIET: the
+    /// network ran off the UI thread; this just reads the cells). Called per-frame. A delivered diff/blame
+    /// `Ok(text)` becomes `scm_display_text`; an `Err` becomes `scm_error`.
+    fn drive_source_control(&mut self, ctx: &egui::Context) {
+        if let Some(result) = self.scm_receipt_cell.lock().ok().and_then(|mut s| s.take()) {
+            match result {
+                Ok(()) => self.scm_error = None,
+                Err(msg) => self.scm_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+        if let Some(result) = self.scm_text_cell.lock().ok().and_then(|mut s| s.take()) {
+            match result {
+                Ok(text) => {
+                    self.scm_display_text = Some(text);
+                    self.scm_error = None;
+                }
+                Err(msg) => self.scm_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// Dispatch a confirmed source-control row menu event to the verified backend off the UI thread
+    /// (MT-021 MAJOR #1/#3 — the `source_control_client` is genuinely CONSUMED here). `repo_path` is the
+    /// git repo root the live SCM panel host (future content WP) supplies. Returns `true` if a backend
+    /// call was dispatched (so the caller can repaint). `CopyPath` is handled by the caller (clipboard,
+    /// no backend). A `None` client (headless/no-runtime) surfaces a disclosed error instead of panicking.
+    pub fn apply_source_control_event(
+        &mut self,
+        event: crate::source_control::SourceControlEvent,
+        repo_path: &str,
+    ) -> bool {
+        use crate::backend_client::ScmWriteOp;
+        use crate::source_control::SourceControlEvent as E;
+        let Some(client) = self.source_control_client.clone() else {
+            self.scm_error = Some("Source control unavailable (no backend runtime)".to_owned());
+            return false;
+        };
+        match event {
+            E::Stage { path } => {
+                self.scm_error = None;
+                client.stage_paths(ScmWriteOp::Stage, repo_path, &path, self.scm_receipt_cell.clone());
+                true
+            }
+            E::Unstage { path } => {
+                self.scm_error = None;
+                client.stage_paths(
+                    ScmWriteOp::Unstage,
+                    repo_path,
+                    &path,
+                    self.scm_receipt_cell.clone(),
+                );
+                true
+            }
+            E::Diff { path, scope } => {
+                self.scm_error = None;
+                // `scope` is already the verified `backend_client::ScmDiffScope` the event carries.
+                client.diff(repo_path, &path, scope, self.scm_text_cell.clone());
+                true
+            }
+            E::Blame { path } => {
+                self.scm_error = None;
+                client.blame(repo_path, &path, self.scm_text_cell.clone());
+                true
+            }
+            E::CopyPath { .. } => false, // clipboard is the caller's job; no backend call.
+        }
+    }
+
+    /// Drain any delivered canvas mutation result into the canvas error state (HBR-QUIET). Per-frame.
+    fn drive_canvas(&mut self, ctx: &egui::Context) {
+        if let Some(result) = self.canvas_op_cell.lock().ok().and_then(|mut s| s.take()) {
+            match result {
+                Ok(()) => self.canvas_error = None,
+                Err(msg) => self.canvas_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// Dispatch a confirmed canvas-node menu event to the verified backend off the UI thread (MT-021
+    /// MAJOR #1/#3 — the `canvas_client` is genuinely CONSUMED here). `workspace_id` is the active
+    /// workspace the live canvas host supplies. `MoveToFront`/`MoveToBack` PATCH the placement `z_index`
+    /// (front/back sentinels); `Remove` DELETEs the placement (NOT the block); `RemoveEdges` DELETEs the
+    /// placement's visual-only edges (`visual_edge_ids`, never a semantic Loom edge — red-team control).
+    /// `OpenBlock`/`EditCard`/`CopyBlockId` are local UI actions handled by the caller (no backend).
+    /// Returns `true` if a backend call was dispatched.
+    pub fn apply_canvas_event(
+        &mut self,
+        event: crate::canvas_board::CanvasBoardEvent,
+        workspace_id: &str,
+        visual_edge_ids: &[String],
+    ) -> bool {
+        use crate::canvas_board::CanvasBoardEvent as E;
+        let Some(client) = self.canvas_client.clone() else {
+            self.canvas_error = Some("Canvas backend unavailable (no runtime)".to_owned());
+            return false;
+        };
+        match event {
+            E::MoveToFront { placement_id } => {
+                self.canvas_error = None;
+                client.set_z_index(
+                    workspace_id,
+                    &placement_id,
+                    Self::CANVAS_Z_FRONT,
+                    self.canvas_op_cell.clone(),
+                );
+                true
+            }
+            E::MoveToBack { placement_id } => {
+                self.canvas_error = None;
+                client.set_z_index(
+                    workspace_id,
+                    &placement_id,
+                    Self::CANVAS_Z_BACK,
+                    self.canvas_op_cell.clone(),
+                );
+                true
+            }
+            E::Remove { placement_id } => {
+                self.canvas_error = None;
+                client.remove_placement(workspace_id, &placement_id, self.canvas_op_cell.clone());
+                true
+            }
+            E::RemoveEdges { placement_id: _ } => {
+                self.canvas_error = None;
+                // Remove only the VISUAL-only edges the live board already loaded for this placement.
+                // Each is DELETEd via the verified canvas-visual-edges endpoint; a semantic Loom edge is
+                // NEVER passed here (the caller enumerates `visual_edges` only — red-team control).
+                let mut dispatched = false;
+                for edge_id in visual_edge_ids {
+                    client.remove_visual_edge(workspace_id, edge_id, self.canvas_op_cell.clone());
+                    dispatched = true;
+                }
+                dispatched
+            }
+            // Local UI actions (open a tab / inline edit / clipboard): no backend call here.
+            E::OpenBlock { .. } | E::EditCard { .. } | E::CopyBlockId { .. } => false,
+        }
+    }
+
+    /// Drain any delivered Loom-node flag PATCH (pin/favorite) result into the flag error state. Per-frame.
+    fn drive_loom_node(&mut self, ctx: &egui::Context) {
+        if let Some(result) = self.loom_flag_cell.lock().ok().and_then(|mut s| s.take()) {
+            match result {
+                Ok(()) => self.loom_flag_error = None,
+                Err(msg) => self.loom_flag_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// Dispatch a confirmed Loom-graph-node menu event (MT-021 MAJOR #2, AC#73). `SetPinned`/`SetFavorite`
+    /// PATCH the single flag via the verified `LoomBlockClient::set_flag` (the `loom_block_client` is
+    /// CONSUMED for the flag toggle, not only for rename). `Rename` opens the inline rename dialog (reuses
+    /// the MT-020 path). `Open`/`OpenToSide`/`CopyBlockId`/`RevealInPanel` are local UI actions handled by
+    /// the caller (no backend). Returns `true` if a backend call was dispatched.
+    pub fn apply_loom_node_event(
+        &mut self,
+        event: crate::loom_graph::LoomGraphEvent,
+        workspace_id: &str,
+    ) -> bool {
+        use crate::backend_client::LoomBlockFlag;
+        use crate::loom_graph::LoomGraphEvent as E;
+        match event {
+            E::SetPinned { block_id, target } => {
+                let Some(client) = self.loom_block_client.clone() else {
+                    self.loom_flag_error =
+                        Some("Loom flag update unavailable (no backend runtime)".to_owned());
+                    return false;
+                };
+                self.loom_flag_error = None;
+                client.set_flag(
+                    workspace_id,
+                    &block_id,
+                    LoomBlockFlag::Pinned,
+                    target,
+                    self.loom_flag_cell.clone(),
+                );
+                true
+            }
+            E::SetFavorite { block_id, target } => {
+                let Some(client) = self.loom_block_client.clone() else {
+                    self.loom_flag_error =
+                        Some("Loom flag update unavailable (no backend runtime)".to_owned());
+                    return false;
+                };
+                self.loom_flag_error = None;
+                client.set_flag(
+                    workspace_id,
+                    &block_id,
+                    LoomBlockFlag::Favorite,
+                    target,
+                    self.loom_flag_cell.clone(),
+                );
+                true
+            }
+            E::Rename { block_id, current_title } => {
+                self.rename_error = None;
+                self.pending_rename = Some(PendingRename { block_id, text: current_title });
+                true
+            }
+            // Local UI actions (open a tab / clipboard / focus a pane): no backend call here.
+            E::Open { .. }
+            | E::OpenToSide { .. }
+            | E::CopyBlockId { .. }
+            | E::RevealInPanel { .. } => false,
+        }
+    }
+
+    /// The last delivered SCM diff/blame display text (MT-021), for the live SCM panel host + tests.
+    pub fn scm_display_text(&self) -> Option<&str> {
+        self.scm_display_text.as_deref()
+    }
+
+    /// The last SCM write/read error (MT-021), for the SCM panel status row + tests.
+    pub fn scm_error(&self) -> Option<&str> {
+        self.scm_error.as_deref()
+    }
+
+    /// The last canvas mutation error (MT-021), for the canvas board + tests.
+    pub fn canvas_error(&self) -> Option<&str> {
+        self.canvas_error.as_deref()
+    }
+
+    /// The last Loom-node flag-toggle error (MT-021), for the graph view + tests.
+    pub fn loom_flag_error(&self) -> Option<&str> {
+        self.loom_flag_error.as_deref()
+    }
+
     /// Open a tab for `pane_type` (carrying optional `content_id`) on the ACTIVE pane (MT-014), the
     /// native equivalent of React `setActiveTabForPane(activePaneId, tab)`. De-duplicates by
     /// `(pane_type, content_id)` (an already-open tab is re-activated, not duplicated) via the
@@ -2511,28 +2853,113 @@ impl HandshakeApp {
         accessibility::emit_chrome_node(ui.ctx(), chrome, id, label);
     }
 
-    /// Render the bottom status bar's backend-health line as a real egui widget with the fixed
-    /// `ChromeWidget::StatusBar` id, then emit a LIVE AccessKit node (Role::Status + author_id
-    /// `shell.chrome.status-bar` + the current health text as label). Closes the MT-002 gap where
-    /// the status line was a plain `ui.label` with no stable author_id in the live tree.
-    fn status_indicator(&self, ui: &mut egui::Ui, text: &str) {
+    /// MT-021 Surface 10: render the bottom status bar's health SEGMENT as a right-clickable widget
+    /// that opens the status-bar-segment context menu, and dispatch the confirmed action. Reuses the
+    /// EXISTING `ChromeWidget::StatusBar` fixed id + `shell.chrome.status-bar` author_id (so the MT-025
+    /// default snapshot does not gain a node — the menu is closed by default), but allocates the segment
+    /// with `Sense::click()` so it reports `secondary_clicked()` for the menu open. The node stays NAMED
+    /// (its author_id), so the MT-025 interactive gate stays green even though it is now clickable.
+    ///
+    /// Returns the typed menu action confirmed this frame (the caller applies it after the panel closes,
+    /// so the menu closure never holds `&mut self`).
+    fn status_bar_segment(
+        &self,
+        ui: &mut egui::Ui,
+        text: &str,
+    ) -> Option<crate::context_menu_surfaces::StatusBarMenuAction> {
+        use crate::context_menu_surfaces::{
+            status_bar_action_for_id, status_bar_context_items, StatusBarSegmentState,
+        };
         let chrome = ChromeWidget::StatusBar;
         let id = chrome.egui_id();
+        let segment_id = "health"; // the live status bar's one segment today (backend health).
 
         let font = egui::TextStyle::Body.resolve(ui.style());
-        let galley = ui.painter().layout_no_wrap(
-            text.to_owned(),
-            font,
-            ui.visuals().text_color(),
-        );
+        let galley =
+            ui.painter()
+                .layout_no_wrap(text.to_owned(), font, ui.visuals().text_color());
+        // Allocate with Sense::hover() (NOT click) so the auto-id allocation node is non-interactive;
+        // the ONE clickable node is the interact at the FIXED chrome id below (which carries the stable
+        // author_id), so the MT-025 interactive-naming gate stays green (no unnamed clickable node).
         let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
-            ui.painter()
-                .galley(rect.min, galley, ui.visuals().text_color());
+            ui.painter().galley(rect.min, galley, ui.visuals().text_color());
         }
-        ui.interact(rect, id, egui::Sense::hover());
-
+        // The addressable, secondary-clickable segment node at the FIXED chrome id (stable author_id).
+        let seg_resp = ui.interact(rect, id, egui::Sense::click());
+        // Keep the existing chrome node identity (Role::Status + stable author_id + live text).
         accessibility::emit_chrome_node(ui.ctx(), chrome, id, text);
+
+        let state = StatusBarSegmentState {
+            segment_id: segment_id.to_owned(),
+            segment_label: text.to_owned(),
+            visible: !self.statusbar_hidden.contains(segment_id),
+            related_panel_name: statusbar_related_panel_name(segment_id),
+        };
+        let mut action = None;
+        let menu =
+            crate::context_menu::ContextMenu::new("statusbar").items(status_bar_context_items(&state));
+        if let Some(confirmed_id) = menu.show_on(&seg_resp) {
+            action = status_bar_action_for_id(confirmed_id, &state);
+        }
+        // Shift+F10 keyboard-open parity when the segment is focused.
+        if seg_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+            crate::context_menu::request_open(ui.ctx(), seg_resp.id, seg_resp.rect.left_bottom());
+        }
+        action
+    }
+
+    /// Apply a confirmed status-bar-segment menu action (MT-021). `segment_id` is the right-clicked
+    /// segment; `display_text` its current text (for Copy). Returns `true` when app state changed (so
+    /// the caller can repaint). `OpenPanel` opens the segment's related pane on the active pane.
+    fn apply_status_bar_action(
+        &mut self,
+        ctx: &egui::Context,
+        segment_id: &str,
+        display_text: &str,
+        action: crate::context_menu_surfaces::StatusBarMenuAction,
+    ) -> bool {
+        use crate::context_menu_surfaces::StatusBarMenuAction as A;
+        match action {
+            A::CopySegment => {
+                ctx.copy_text(display_text.to_owned());
+                false
+            }
+            A::ToggleVisibility { target } => {
+                if target {
+                    self.statusbar_hidden.remove(segment_id);
+                } else {
+                    self.statusbar_hidden.insert(segment_id.to_owned());
+                }
+                true
+            }
+            A::OpenPanel => match statusbar_related_pane_type(segment_id) {
+                Some(pane_type) => self.open_content_on_active_pane(pane_type, None),
+                None => {
+                    tracing::warn!("statusbar.open_panel: segment {segment_id} has no related pane");
+                    false
+                }
+            },
+            A::Refresh => {
+                // Re-fetch the segment's data. For the health segment, spawn a fresh /health poll on
+                // the runtime (OFF the UI thread — HBR-QUIET), the same fire-once poll the ctor uses.
+                if segment_id == "health" {
+                    if let Some(handle) = self.runtime_handle.clone() {
+                        self.health_status = HealthDisplayState::Loading;
+                        self.health_handle = Some(
+                            handle.spawn(async { backend_client::fetch_health(HEALTH_URL).await }),
+                        );
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+
+    /// Whether a status-bar segment is currently hidden (MT-021; tests / a future settings surface).
+    pub fn statusbar_segment_hidden(&self, segment_id: &str) -> bool {
+        self.statusbar_hidden.contains(segment_id)
     }
 
     fn poll_health(&mut self) {
@@ -2693,16 +3120,32 @@ impl HandshakeApp {
             }
         }
 
-        egui::TopBottomPanel::bottom("handshake_status_bar").show(ctx, |ui| {
-            let text = match &self.health_status {
-                HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
-                HealthDisplayState::Ok(h) => {
-                    format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
+        let status_text = match &self.health_status {
+            HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
+            HealthDisplayState::Ok(h) => {
+                format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
+            }
+            HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
+        };
+        // The health segment is hidden iff the operator hid it via the status-bar menu (MT-021).
+        let health_hidden = self.statusbar_hidden.contains("health");
+        let status_action = egui::TopBottomPanel::bottom("handshake_status_bar")
+            .show(ctx, |ui| {
+                if health_hidden {
+                    // Hidden segment: render a neutral non-interactive placeholder so the bar is never
+                    // blank (and the segment can still be restored via a future settings surface).
+                    ui.label("");
+                    None
+                } else {
+                    self.status_bar_segment(ui, &status_text)
                 }
-                HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
-            };
-            self.status_indicator(ui, &text);
-        });
+            })
+            .inner;
+        if let Some(action) = status_action {
+            if self.apply_status_bar_action(ctx, "health", &status_text, action) {
+                ctx.request_repaint();
+            }
+        }
 
         // ── Apply a pending pop-out request (MT-008) ───────────────────────────────────────────────
         // A request set by `request_pop_out` (future MT-019 pane-header action / test / out-of-process
@@ -2787,6 +3230,11 @@ impl HandshakeApp {
         }
         // MT-020 explorer-row rename: drain any delivered PATCH result, then render the rename dialog.
         self.drive_rename(ctx);
+        // MT-021: drain any delivered SCM / canvas / Loom-node-flag off-thread results into panel state
+        // (the network already ran off the UI thread — these just read the delivery cells, HBR-QUIET).
+        self.drive_source_control(ctx);
+        self.drive_canvas(ctx);
+        self.drive_loom_node(ctx);
 
         // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
         // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same

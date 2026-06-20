@@ -94,6 +94,49 @@ impl WorkbenchLayoutClient {
     }
 }
 
+/// Which single flag a [`LoomBlockClient::set_flag`] call PATCHes (MT-021 AC#73). Exactly one flag is
+/// sent per request, mapping to the verified flattened `LoomBlockUpdate` field, so a typo can never
+/// reach the wrong backend field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoomBlockFlag {
+    /// `{ "pinned": <bool> }`.
+    Pinned,
+    /// `{ "favorite": <bool> }`.
+    Favorite,
+}
+
+/// The HTTP method a [`RequestSpec`] carries. Kept as a tiny typed enum (not a `reqwest::Method`) so a
+/// unit test can assert the method without depending on reqwest internals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HttpMethod {
+    Post,
+    Patch,
+    Delete,
+    Get,
+}
+
+/// The fully-resolved `(method, url, body)` a client method is about to send. Returned by the pure
+/// `*_request` builders so a unit test asserts the EXACT verified URL + JSON body (MT-021 MAJOR #1/#2/#3
+/// proof) without a live backend. The real spawn paths route through these SAME builders, so the test
+/// proves the production request construction, not a parallel reimplementation. `body` is `None` for a
+/// bodyless request (DELETE / GET) and `query` carries GET query params.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestSpec {
+    pub method: HttpMethod,
+    pub url: String,
+    pub body: Option<serde_json::Value>,
+}
+
+/// A `(method, url, query)` spec for a GET request (diff/blame), where the params live in the query
+/// string rather than a JSON body. Separate from [`RequestSpec`] so the query is asserted as typed
+/// pairs (order-stable) instead of being smuggled into the URL string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetRequestSpec {
+    pub method: HttpMethod,
+    pub url: String,
+    pub query: Vec<(String, String)>,
+}
+
 /// One-slot delivery cell for an off-thread Loom-block rename result (MT-020 explorer-row rename).
 /// The spawned tokio task writes the PATCH outcome here; the egui UI thread drains it next frame
 /// (the same `Arc<Mutex<Option<Result<..>>>>` pattern the settings save/load cells use). `Ok(title)`
@@ -136,6 +179,61 @@ impl LoomBlockClient {
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
         format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    /// PATCH a single Loom-block FLAG (`pinned` or `favorite`) off the UI thread, delivering the result
+    /// into `cell` (MT-021 AC#73). The body is `{ "pinned": <bool> }` or `{ "favorite": <bool> }` —
+    /// exactly ONE flag per request, flattened into the verified `LoomBlockUpdate` (the same PATCH
+    /// endpoint `rename_block` uses). `Ok(())` on a 2xx; `Err(msg)` on failure. This is what the
+    /// `loom.pin` / `loom.favorite` menu actions invoke, so the toggled flag actually persists.
+    pub fn set_flag(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        flag: LoomBlockFlag,
+        value: bool,
+        cell: ScmReceiptCell,
+    ) {
+        let spec = self.set_flag_request(workspace_id, block_id, flag, value);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = patch_expect_success(&client, &spec.url, &body).await;
+            let delivered = result.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(delivered);
+            }
+        });
+    }
+
+    /// Pure request builder for [`set_flag`](Self::set_flag): the `(PATCH, url, body)` it sends. Split
+    /// out so a unit test asserts the EXACT verified URL + single-flag JSON body without a live backend
+    /// (the spawn path above routes through this same builder, so the test proves the production path).
+    pub fn set_flag_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        flag: LoomBlockFlag,
+        value: bool,
+    ) -> RequestSpec {
+        let body = match flag {
+            LoomBlockFlag::Pinned => serde_json::json!({ "pinned": value }),
+            LoomBlockFlag::Favorite => serde_json::json!({ "favorite": value }),
+        };
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.block_url(workspace_id, block_id),
+            body: Some(body),
+        }
+    }
+
+    /// Pure request builder for [`rename_block`](Self::rename_block): the `(PATCH, url, body)` it sends.
+    pub fn rename_request(&self, workspace_id: &str, block_id: &str, new_title: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.block_url(workspace_id, block_id),
+            body: Some(serde_json::json!({ "title": new_title })),
+        }
     }
 
     /// PATCH the block's title off the UI thread, delivering the result into `cell`. The egui UI thread
@@ -196,6 +294,455 @@ async fn patch_block_title(
     Ok(title)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MT-021 (C5 part 2) off-thread clients for the source-control + canvas surfaces.
+//
+// Every endpoint here was VERIFIED READ-ONLY against `src/backend/handshake_core` (the real running
+// backend), NOT assumed from the contract body (whose URLs were partly stale):
+//   - source-control routes are mounted at `/source-control/{status,diff,stage,unstage,discard,blame}`
+//     with NO `/api` prefix (handshake_core::api::source_control::routes_with_event_recorder). The base
+//     URL has no `/api` either (BACKEND_BASE_URL + "/source-control/..."), matching the existing health
+//     + workbench-layout clients. `stage`/`unstage` POST `{repo_path, paths}` (PathsRequest); `discard`
+//     POSTs `{repo_path, paths, confirmed}` (DiscardRequest — the field is `confirmed`, NOT the
+//     contract's `force`, and `confirmed:false` returns HTTP 409 with NO mutation); `diff` is a GET with
+//     query `repo_path`,`path`,`scope` (scope ∈ {worktree,staged}); `blame` is a GET with
+//     `repo_path`,`path`.
+//   - canvas placement routes are `PATCH`/`DELETE /workspaces/:ws/loom/canvas-placements/:placement_id`
+//     (handshake_core::api::loom — NOT the contract's `.../loom/canvas/{cb}/placements/{p}`). The
+//     placement body supports a real `z_index` field (migration 0334 `loom_canvas_placements.z_index`),
+//     so canvas bring-to-front / send-to-back PERSIST (not local-only).
+//   - canvas visual-edge delete is `DELETE /workspaces/:ws/loom/canvas-visual-edges/:visual_edge_id`
+//     (visual-only edges; semantic Loom edges are a different surface and are NEVER touched here — the
+//     red-team `remove_edges` control).
+//
+// All follow the MT-020 `LoomBlockClient` shape: spawn the request on the app's tokio runtime and
+// deliver the outcome into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame, so
+// the render thread is NEVER blocked on the network (HBR-QUIET).
+
+/// One-slot delivery cell for an off-thread source-control receipt result. `Ok(())` on a successful
+/// stage/unstage/discard (the receipt body is not needed by the menu — the panel re-fetches status),
+/// `Err(msg)` on failure (surfaced on the panel status row).
+pub type ScmReceiptCell = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// One-slot delivery cell for an off-thread source-control diff/blame text result. `Ok(text)` carries
+/// the patch (diff) or rendered blame the panel displays; `Err(msg)` the failure.
+pub type ScmTextCell = Arc<Mutex<Option<Result<String, String>>>>;
+
+/// One-slot delivery cell for an off-thread canvas placement mutation result. `Ok(())` on a successful
+/// placement update/remove (the canvas re-fetches its board), `Err(msg)` the failure.
+pub type CanvasOpCell = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// REST client for the VERIFIED Handshake-native source-control surface (MT-253 backend). Drives the
+/// stage/unstage/discard write ops and the diff/blame read ops the MT-021 source-control change-row
+/// context menu dispatches. Speaks `serde_json::Value` so it never depends on the `handshake_core`
+/// crate's types.
+#[derive(Clone)]
+pub struct SourceControlClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl SourceControlClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    /// `POST /source-control/{stage|unstage}` with `{repo_path, paths:[path]}`, off the UI thread.
+    /// `op` is `"stage"` or `"unstage"` — the SAME path segment the verified backend route uses.
+    pub fn stage_paths(
+        &self,
+        op: ScmWriteOp,
+        repo_path: &str,
+        path: &str,
+        cell: ScmReceiptCell,
+    ) {
+        let spec = self.stage_request(op, repo_path, path);
+        self.spawn_receipt(spec.url, spec.body.unwrap_or_default(), cell);
+    }
+
+    /// Pure request builder for [`stage_paths`](Self::stage_paths).
+    pub fn stage_request(&self, op: ScmWriteOp, repo_path: &str, path: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/source-control/{}", self.base_url, op.path_segment()),
+            body: Some(serde_json::json!({ "repo_path": repo_path, "paths": [path] })),
+        }
+    }
+
+    /// `POST /source-control/discard` with `{repo_path, paths:[path], confirmed}`, off the UI thread.
+    /// `confirmed` MUST be true to mutate: the verified backend returns HTTP 409 (no mutation) when
+    /// `confirmed:false`. The MT-021 menu item is a STUB in V1 (no confirm dialog yet), so the panel
+    /// passes `confirmed:false` until a real confirm dialog exists — making an accidental dispatch a
+    /// safe 409 no-op, never a destructive discard (red-team discard control).
+    pub fn discard_paths(
+        &self,
+        repo_path: &str,
+        path: &str,
+        confirmed: bool,
+        cell: ScmReceiptCell,
+    ) {
+        let spec = self.discard_request(repo_path, path, confirmed);
+        self.spawn_receipt(spec.url, spec.body.unwrap_or_default(), cell);
+    }
+
+    /// Pure request builder for [`discard_paths`](Self::discard_paths).
+    pub fn discard_request(&self, repo_path: &str, path: &str, confirmed: bool) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/source-control/discard", self.base_url),
+            body: Some(serde_json::json!({
+                "repo_path": repo_path,
+                "paths": [path],
+                "confirmed": confirmed
+            })),
+        }
+    }
+
+    /// `GET /source-control/diff?repo_path&path&scope`, off the UI thread, delivering the patch text.
+    pub fn diff(&self, repo_path: &str, path: &str, scope: ScmDiffScope, cell: ScmTextCell) {
+        let spec = self.diff_request(repo_path, path, scope);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json_field(&client, &spec.url, &spec.query, "patch").await;
+            deliver_text(&cell, result);
+        });
+    }
+
+    /// Pure request builder for [`diff`](Self::diff).
+    pub fn diff_request(&self, repo_path: &str, path: &str, scope: ScmDiffScope) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/source-control/diff", self.base_url),
+            query: vec![
+                ("repo_path".to_owned(), repo_path.to_owned()),
+                ("path".to_owned(), path.to_owned()),
+                ("scope".to_owned(), scope.query_value().to_owned()),
+            ],
+        }
+    }
+
+    /// `GET /source-control/blame?repo_path&path`, off the UI thread, delivering a rendered blame text
+    /// (each line `"{short_commit}  {content}"`) for the V1 monospace blame display.
+    pub fn blame(&self, repo_path: &str, path: &str, cell: ScmTextCell) {
+        let spec = self.blame_request(repo_path, path);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_blame_text(&client, &spec.url, &spec.query).await;
+            deliver_text(&cell, result);
+        });
+    }
+
+    /// Pure request builder for [`blame`](Self::blame).
+    pub fn blame_request(&self, repo_path: &str, path: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/source-control/blame", self.base_url),
+            query: vec![
+                ("repo_path".to_owned(), repo_path.to_owned()),
+                ("path".to_owned(), path.to_owned()),
+            ],
+        }
+    }
+
+    /// Shared spawn for a write op (stage/unstage/discard): POST the body, deliver `Ok(())`/`Err(msg)`.
+    fn spawn_receipt(&self, url: String, body: serde_json::Value, cell: ScmReceiptCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_expect_success(&client, &url, &body).await;
+            let delivered = result.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(delivered);
+            }
+        });
+    }
+}
+
+/// Which source-control write op a [`SourceControlClient::stage_paths`] call performs. The variant maps
+/// to the verified backend route's path segment, so a typo can never reach a wrong endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScmWriteOp {
+    Stage,
+    Unstage,
+}
+
+impl ScmWriteOp {
+    fn path_segment(self) -> &'static str {
+        match self {
+            ScmWriteOp::Stage => "stage",
+            ScmWriteOp::Unstage => "unstage",
+        }
+    }
+}
+
+/// The diff scope a [`SourceControlClient::diff`] call requests — the verified backend `DiffScope`
+/// enum's two lowercase query values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScmDiffScope {
+    Worktree,
+    Staged,
+}
+
+impl ScmDiffScope {
+    fn query_value(self) -> &'static str {
+        match self {
+            ScmDiffScope::Worktree => "worktree",
+            ScmDiffScope::Staged => "staged",
+        }
+    }
+}
+
+/// REST client for the VERIFIED canvas placement + visual-edge surface (MT-261 backend). Drives the
+/// canvas-node context menu's `move_to_front`/`move_to_back` (PATCH `z_index`), `remove` (DELETE
+/// placement), and `remove_edges` (DELETE visual edges) off the UI thread.
+#[derive(Clone)]
+pub struct CanvasClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl CanvasClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn placement_url(&self, workspace_id: &str, placement_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/canvas-placements/{}",
+            self.base_url, workspace_id, placement_id
+        )
+    }
+
+    fn visual_edge_url(&self, workspace_id: &str, visual_edge_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/canvas-visual-edges/{}",
+            self.base_url, workspace_id, visual_edge_id
+        )
+    }
+
+    /// `PATCH /workspaces/:ws/loom/canvas-placements/:placement_id` with `{z_index}`, off the UI thread.
+    /// The verified backend persists `z_index`, so bring-to-front / send-to-back survives a reload (the
+    /// red-team z-order-persistence concern is resolved by the real backend field, not a local list).
+    pub fn set_z_index(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+        z_index: i32,
+        cell: CanvasOpCell,
+    ) {
+        let spec = self.set_z_index_request(workspace_id, placement_id, z_index);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = patch_expect_success(&client, &spec.url, &body).await;
+            deliver_op(&cell, result);
+        });
+    }
+
+    /// Pure request builder for [`set_z_index`](Self::set_z_index).
+    pub fn set_z_index_request(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+        z_index: i32,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.placement_url(workspace_id, placement_id),
+            body: Some(serde_json::json!({ "z_index": z_index })),
+        }
+    }
+
+    /// `DELETE /workspaces/:ws/loom/canvas-placements/:placement_id`, off the UI thread. Removes the
+    /// placement (the canvas reference), NOT the underlying LoomBlock (the contract's "Remove from
+    /// Canvas, NOT the block").
+    pub fn remove_placement(&self, workspace_id: &str, placement_id: &str, cell: CanvasOpCell) {
+        let spec = self.remove_placement_request(workspace_id, placement_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = delete_expect_success(&client, &spec.url).await;
+            deliver_op(&cell, result);
+        });
+    }
+
+    /// Pure request builder for [`remove_placement`](Self::remove_placement).
+    pub fn remove_placement_request(&self, workspace_id: &str, placement_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: self.placement_url(workspace_id, placement_id),
+            body: None,
+        }
+    }
+
+    /// `DELETE /workspaces/:ws/loom/canvas-visual-edges/:visual_edge_id`, off the UI thread. ONLY a
+    /// VISUAL-only edge is ever passed here — the canvas-node menu's `remove_edges` enumerates the
+    /// board's `visual_edges` and never touches a semantic Loom edge (red-team `remove_edges` control).
+    pub fn remove_visual_edge(&self, workspace_id: &str, visual_edge_id: &str, cell: CanvasOpCell) {
+        let spec = self.remove_visual_edge_request(workspace_id, visual_edge_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = delete_expect_success(&client, &spec.url).await;
+            deliver_op(&cell, result);
+        });
+    }
+
+    /// Pure request builder for [`remove_visual_edge`](Self::remove_visual_edge).
+    pub fn remove_visual_edge_request(
+        &self,
+        workspace_id: &str,
+        visual_edge_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: self.visual_edge_url(workspace_id, visual_edge_id),
+            body: None,
+        }
+    }
+}
+
+/// Write the receipt result into a [`ScmReceiptCell`]/[`CanvasOpCell`]-shaped cell.
+fn deliver_op(cell: &CanvasOpCell, result: Result<(), AppError>) {
+    if let Ok(mut slot) = cell.lock() {
+        *slot = Some(result.map_err(|e| e.to_string()));
+    }
+}
+
+/// Write a text result into a [`ScmTextCell`].
+fn deliver_text(cell: &ScmTextCell, result: Result<String, AppError>) {
+    if let Ok(mut slot) = cell.lock() {
+        *slot = Some(result.map_err(|e| e.to_string()));
+    }
+}
+
+/// POST `body` and treat any 2xx as success (the receipt body is not needed by the menu). A
+/// non-success status (e.g. discard's 409 when not confirmed) is an [`AppError`], never a panic.
+async fn post_expect_success(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("POST non-success status {}", resp.status())));
+    }
+    Ok(())
+}
+
+/// PATCH `body` and treat any 2xx as success.
+async fn patch_expect_success(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    let resp = client
+        .patch(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("PATCH non-success status {}", resp.status())));
+    }
+    Ok(())
+}
+
+/// DELETE `url` and treat any 2xx as success.
+async fn delete_expect_success(client: &reqwest::Client, url: &str) -> Result<(), AppError> {
+    let resp = client
+        .delete(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("DELETE non-success status {}", resp.status())));
+    }
+    Ok(())
+}
+
+/// GET `url?query` and return the string at top-level JSON `field` (e.g. the diff's `patch`).
+async fn get_json_field(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+    field: &str,
+) -> Result<String, AppError> {
+    let v = get_json(client, url, query).await?;
+    let text = v
+        .get(field)
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_owned();
+    Ok(text)
+}
+
+/// GET `url?query` and render the verified `SourceControlBlame.lines[]` (`{commit_id, content}`) into a
+/// monospace `"{short_commit}  {content}"` block for the V1 blame display.
+async fn fetch_blame_text(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<String, AppError> {
+    let v = get_json(client, url, query).await?;
+    let mut out = String::new();
+    if let Some(lines) = v.get("lines").and_then(|x| x.as_array()) {
+        for line in lines {
+            let commit = line.get("commit_id").and_then(|x| x.as_str()).unwrap_or("");
+            let short = commit.chars().take(8).collect::<String>();
+            let content = line.get("content").and_then(|x| x.as_str()).unwrap_or("");
+            out.push_str(&format!("{short}  {content}\n"));
+        }
+    }
+    Ok(out)
+}
+
+/// GET `url?query` and parse the JSON body. A non-success status or parse failure is an [`AppError`].
+async fn get_json(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .get(url)
+        .query(query)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("GET non-success status {}", resp.status())));
+    }
+    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+}
+
 impl LayoutTransport for WorkbenchLayoutClient {
     /// `GET /workspaces/:id/workbench/layout`. The backend's `WorkbenchLayoutResponse` carries
     /// `layout_state: Option<Value>` — `null`/absent means no layout stored yet (first run -> `Ok(None)`).
@@ -251,5 +798,257 @@ impl LayoutTransport for WorkbenchLayoutClient {
             }
             Ok(())
         })
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
+// verified URL + JSON body. Two layers:
+//   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the
+//      real spawn methods (`stage_paths`, `set_z_index`, `set_flag`, …) route through these SAME
+//      builders, asserting the builder asserts the production request construction.
+//   2. A live in-process HTTP CAPTURE server (std::net::TcpListener, no new deps) that the REAL spawn
+//      path of one representative write op (stage) actually sends to — proving the client is genuinely
+//      CONSUMED end-to-end (the dispatch -> client -> reqwest -> wire path is real, not just arithmetic).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A current-thread runtime whose handle the clients bridge onto. Kept alive for the test scope.
+    fn rt() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build current-thread runtime")
+    }
+
+    const BASE: &str = "http://test.local:1234";
+
+    // ── SourceControlClient: stage / unstage / discard / diff / blame ────────────────────────────────
+
+    #[test]
+    fn scm_stage_request_url_and_body() {
+        let rt = rt();
+        let c = SourceControlClient::new(BASE, rt.handle().clone());
+        let spec = c.stage_request(ScmWriteOp::Stage, "/repo", "src/x.rs");
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(spec.url, "http://test.local:1234/source-control/stage");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] })
+        );
+    }
+
+    #[test]
+    fn scm_unstage_request_uses_unstage_segment() {
+        let rt = rt();
+        let c = SourceControlClient::new(BASE, rt.handle().clone());
+        let spec = c.stage_request(ScmWriteOp::Unstage, "/repo", "src/x.rs");
+        assert_eq!(spec.url, "http://test.local:1234/source-control/unstage");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] })
+        );
+    }
+
+    #[test]
+    fn scm_discard_request_carries_confirmed_flag() {
+        let rt = rt();
+        let c = SourceControlClient::new(BASE, rt.handle().clone());
+        // confirmed:false is the V1 stub default — a safe 409 no-op, never a destructive discard.
+        let spec = c.discard_request("/repo", "src/x.rs", false);
+        assert_eq!(spec.url, "http://test.local:1234/source-control/discard");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"], "confirmed": false })
+        );
+    }
+
+    #[test]
+    fn scm_diff_request_query_carries_scope() {
+        let rt = rt();
+        let c = SourceControlClient::new(BASE, rt.handle().clone());
+        let worktree = c.diff_request("/repo", "src/x.rs", ScmDiffScope::Worktree);
+        assert_eq!(worktree.method, HttpMethod::Get);
+        assert_eq!(worktree.url, "http://test.local:1234/source-control/diff");
+        assert_eq!(
+            worktree.query,
+            vec![
+                ("repo_path".to_owned(), "/repo".to_owned()),
+                ("path".to_owned(), "src/x.rs".to_owned()),
+                ("scope".to_owned(), "worktree".to_owned()),
+            ]
+        );
+        let staged = c.diff_request("/repo", "src/x.rs", ScmDiffScope::Staged);
+        assert_eq!(staged.query.last().unwrap().1, "staged");
+    }
+
+    #[test]
+    fn scm_blame_request_url_and_query() {
+        let rt = rt();
+        let c = SourceControlClient::new(BASE, rt.handle().clone());
+        let spec = c.blame_request("/repo", "src/x.rs");
+        assert_eq!(spec.url, "http://test.local:1234/source-control/blame");
+        assert_eq!(
+            spec.query,
+            vec![
+                ("repo_path".to_owned(), "/repo".to_owned()),
+                ("path".to_owned(), "src/x.rs".to_owned()),
+            ]
+        );
+    }
+
+    // ── CanvasClient: set_z_index (front/back) / remove placement / remove visual edge ───────────────
+
+    #[test]
+    fn canvas_set_z_index_request_url_and_body() {
+        let rt = rt();
+        let c = CanvasClient::new(BASE, rt.handle().clone());
+        let spec = c.set_z_index_request("ws1", "p9", 1_000_000);
+        assert_eq!(spec.method, HttpMethod::Patch);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
+        assert_eq!(spec.body.unwrap(), serde_json::json!({ "z_index": 1_000_000 }));
+    }
+
+    #[test]
+    fn canvas_remove_placement_request_is_delete_no_body() {
+        let rt = rt();
+        let c = CanvasClient::new(BASE, rt.handle().clone());
+        let spec = c.remove_placement_request("ws1", "p9");
+        assert_eq!(spec.method, HttpMethod::Delete);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
+        assert!(spec.body.is_none());
+    }
+
+    #[test]
+    fn canvas_remove_visual_edge_request_targets_visual_edge_endpoint() {
+        let rt = rt();
+        let c = CanvasClient::new(BASE, rt.handle().clone());
+        let spec = c.remove_visual_edge_request("ws1", "ve7");
+        assert_eq!(spec.method, HttpMethod::Delete);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-visual-edges/ve7");
+        assert!(spec.body.is_none());
+    }
+
+    // ── LoomBlockClient: set_flag (AC#73) + rename ───────────────────────────────────────────────────
+
+    #[test]
+    fn loom_set_flag_pinned_body_contains_pinned() {
+        let rt = rt();
+        let c = LoomBlockClient::new(BASE, rt.handle().clone());
+        let spec = c.set_flag_request("ws1", "b3", LoomBlockFlag::Pinned, true);
+        assert_eq!(spec.method, HttpMethod::Patch);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        let body = spec.body.unwrap();
+        // AC#73: the serialized body contains the `pinned` flag, and ONLY that flag (not favorite).
+        assert_eq!(body, serde_json::json!({ "pinned": true }));
+        assert!(body.get("favorite").is_none());
+    }
+
+    #[test]
+    fn loom_set_flag_favorite_body_contains_favorite() {
+        let rt = rt();
+        let c = LoomBlockClient::new(BASE, rt.handle().clone());
+        let spec = c.set_flag_request("ws1", "b3", LoomBlockFlag::Favorite, false);
+        let body = spec.body.unwrap();
+        assert_eq!(body, serde_json::json!({ "favorite": false }));
+        assert!(body.get("pinned").is_none());
+    }
+
+    #[test]
+    fn loom_rename_request_body_contains_title() {
+        let rt = rt();
+        let c = LoomBlockClient::new(BASE, rt.handle().clone());
+        let spec = c.rename_request("ws1", "b3", "New Title");
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert_eq!(spec.body.unwrap(), serde_json::json!({ "title": "New Title" }));
+    }
+
+    // ── End-to-end live capture: the REAL spawn path sends the real request on the wire ─────────────
+
+    /// Captured raw HTTP request: the request line (`METHOD path HTTP/1.1`) + the body after the blank
+    /// line. Proves the client genuinely CONSTRUCTED and SENT the request (not just built a spec).
+    struct Captured {
+        request_line: String,
+        body: String,
+    }
+
+    /// Bind an ephemeral localhost port, accept ONE connection, read the request, reply `200 {}`, and
+    /// return the captured request line + body. No new deps — raw std::net + a tiny manual HTTP read.
+    fn capture_one_request(listener: std::net::TcpListener) -> Captured {
+        use std::io::{Read, Write};
+        let (mut stream, _) = listener.accept().expect("accept connection");
+        let mut buf = [0u8; 8192];
+        let mut data = Vec::new();
+        // Read until we have headers + the (small) JSON body. One read is enough for these tiny bodies,
+        // but loop until a blank line is seen and the declared Content-Length is satisfied.
+        loop {
+            let n = stream.read(&mut buf).expect("read request");
+            if n == 0 {
+                break;
+            }
+            data.extend_from_slice(&buf[..n]);
+            let text = String::from_utf8_lossy(&data);
+            if let Some(hdr_end) = text.find("\r\n\r\n") {
+                let header = &text[..hdr_end];
+                let body_so_far = &text[hdr_end + 4..];
+                let content_len = header
+                    .lines()
+                    .find_map(|l| {
+                        let l = l.to_ascii_lowercase();
+                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                    })
+                    .flatten()
+                    .unwrap_or(0);
+                if body_so_far.len() >= content_len {
+                    break;
+                }
+            }
+        }
+        let text = String::from_utf8_lossy(&data).into_owned();
+        let request_line = text.lines().next().unwrap_or("").to_owned();
+        let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned();
+        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}");
+        let _ = stream.flush();
+        Captured { request_line, body }
+    }
+
+    #[test]
+    fn scm_stage_spawn_sends_real_request_on_the_wire() {
+        // Real multi-thread runtime so the spawned task actually runs while the test thread blocks on
+        // the capture server (the production off-thread path).
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = SourceControlClient::new(base, rt.handle().clone());
+        let cell: ScmReceiptCell = Arc::new(Mutex::new(None));
+        // Drive the REAL spawn path (the same call apply_source_control_event makes).
+        client.stage_paths(ScmWriteOp::Stage, "/repo", "src/x.rs", cell.clone());
+
+        // Capture the request the spawned task sends on the wire.
+        let captured = capture_one_request(listener);
+        assert_eq!(captured.request_line, "POST /source-control/stage HTTP/1.1");
+        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(body, serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] }));
+
+        // The delivery cell receives Ok(()) after the 200 — proving the full round-trip is consumed.
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        let delivered = cell.lock().unwrap().take();
+        assert_eq!(delivered, Some(Ok(())), "stage round-trip delivered Ok(())");
     }
 }

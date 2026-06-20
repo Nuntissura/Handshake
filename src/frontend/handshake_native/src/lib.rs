@@ -6,11 +6,16 @@
 pub mod accessibility;
 pub mod app;
 pub mod backend_client;
+pub mod canvas_board;
 pub mod command_palette;
 pub mod command_registry;
 pub mod context_menu;
 pub mod context_menu_surfaces;
+pub mod debug_console;
+pub mod drawer;
 pub mod error;
+pub mod loom_graph;
+pub mod source_control;
 pub mod event_bus;
 pub mod layout_persistence;
 pub mod left_rail;
