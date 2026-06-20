@@ -222,8 +222,48 @@ pub struct HandshakeApp {
     /// whenever it sees a new value, so a re-open never shows the previous session's text (red-team
     /// R1/MC1). Set via [`open_command_palette`](Self::open_command_palette).
     command_palette_open_count: u64,
-    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu sets this; UI is MT-016).
+    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu / Ctrl+P; UI is MT-017).
+    /// The MT-017 overlay (`crate::quick_switcher`) renders when this is true.
     quick_switcher_open: bool,
+    /// Monotonic counter incremented each time [`quick_switcher_open`](Self::quick_switcher_open) flips
+    /// from closed to open (MT-017). The switcher resets its transient query/selection whenever it sees
+    /// a new value, so a re-open never shows the previous session's text. Set via
+    /// [`open_quick_switcher`](Self::open_quick_switcher).
+    quick_switcher_open_count: u64,
+    /// The Loom-graph search transport the quick switcher (MT-017) drives: `GET graph-search`,
+    /// `GET/POST quick-switcher/recents` against the REAL PostgreSQL backend. A synchronous seam
+    /// ([`crate::quick_switcher::LoomGraphSearchTransport`]) so the search state machine stays
+    /// unit-testable; the production [`crate::quick_switcher::LoomGraphSearchClient`] bridges async onto
+    /// the app's tokio runtime. `None` in the headless/test shell (no runtime) — a test injects a stub
+    /// via [`set_quick_switcher_transport`](Self::set_quick_switcher_transport).
+    quick_switcher_transport: Option<Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>>,
+    /// The MT-017 debounce/sequence state machine. Ticked each open frame with the live query; emits a
+    /// [`crate::quick_switcher::SearchAction`] the app spawns on the runtime.
+    quick_switcher_search: crate::quick_switcher::SearchManager,
+    /// The async results cell the spawned search task writes into; drained (try_lock) each frame and
+    /// folded into [`quick_switcher_search`](Self::quick_switcher_search) (red-team MC1/MC2). Shared
+    /// with the background task via `Arc`.
+    quick_switcher_results_cell: crate::quick_switcher::SearchDeliveryCell,
+    /// Most-recent-first list of `"{source_kind}:{ref_id}"` hit keys the quick switcher (MT-017) ranks
+    /// its rows by. Loaded from the durable backend recents store (`GET quick-switcher/recents`) on
+    /// open, then updated optimistically when a row is picked (the returned key is prepended,
+    /// de-duplicated, capped at 20).
+    quick_switcher_recents: Vec<String>,
+    /// Set true when the switcher opens so the recents load fires once (red-team: load on first open,
+    /// not every frame). Cleared after the load is dispatched.
+    quick_switcher_recents_pending: bool,
+    /// The async cell a spawned recents-load task writes into: `Ok(hit_keys)` or `Err(message)`.
+    /// Drained (try_lock) each frame and folded into `quick_switcher_recents` /
+    /// `quick_switcher_recents_error` (red-team MC1: never hold the lock across `ui.*`).
+    quick_switcher_recents_cell: crate::quick_switcher::RecentsDeliveryCell,
+    /// The async cell a spawned recents-RECORD (`POST recents`) task writes into: `Ok(hit_key)` or
+    /// `Err(message)`. Drained (try_lock) each frame so the `POST recents` network round-trip runs OFF
+    /// the egui UI thread (HBR-QUIET) — selecting a hit jumps immediately + prepends the recent
+    /// optimistically; this only reconciles the backend-confirmed key / surfaces the failure (MC3).
+    quick_switcher_record_recent_cell: crate::quick_switcher::RecordRecentDeliveryCell,
+    /// The last transient recents error (a failed `GET`/`POST quick-switcher/recents`), surfaced on the
+    /// status row so a recents failure degrades ordering visibly without a crash (red-team MC3).
+    quick_switcher_recents_error: Option<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
     /// Whether the About box is requested open (MT-015 HELP menu sets this; UI is a later MT). Distinct
@@ -372,6 +412,12 @@ impl HandshakeApp {
         // Clone the runtime handle BEFORE moving `rt` into the struct, so the left-rail project tree can
         // spawn its async document/canvas loads on the same multi-thread runtime (MT-014).
         let rt_handle = rt.handle().clone();
+        // MT-017: the REAL Loom-graph search transport, bridged onto the app runtime (MT-009 pattern).
+        let quick_switcher_transport: Option<
+            Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>,
+        > = Some(Arc::new(crate::quick_switcher::LoomGraphSearchClient::production(
+            rt_handle.clone(),
+        )));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
@@ -411,6 +457,15 @@ impl HandshakeApp {
             command_palette_open: false,
             command_palette_open_count: 0,
             quick_switcher_open: false,
+            quick_switcher_open_count: 0,
+            quick_switcher_transport,
+            quick_switcher_search: crate::quick_switcher::SearchManager::default(),
+            quick_switcher_results_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_recents: Vec::new(),
+            quick_switcher_recents_pending: false,
+            quick_switcher_recents_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_recents_error: None,
             settings_open: false,
             about_open: false,
             reset_layout_pending: false,
@@ -470,6 +525,18 @@ impl HandshakeApp {
             command_palette_open: false,
             command_palette_open_count: 0,
             quick_switcher_open: false,
+            quick_switcher_open_count: 0,
+            // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub
+            // via `set_quick_switcher_transport`; without one, the switcher shows the empty/no-result
+            // state and never performs I/O.
+            quick_switcher_transport: None,
+            quick_switcher_search: crate::quick_switcher::SearchManager::default(),
+            quick_switcher_results_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_recents: Vec::new(),
+            quick_switcher_recents_pending: false,
+            quick_switcher_recents_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
+            quick_switcher_recents_error: None,
             settings_open: false,
             about_open: false,
             reset_layout_pending: false,
@@ -698,9 +765,328 @@ impl HandshakeApp {
         }
     }
 
-    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu; overlay UI is MT-016).
+    /// Whether the quick-switcher overlay is requested open (MT-015 GO menu / Ctrl+P; overlay UI is
+    /// MT-017).
     pub fn quick_switcher_open(&self) -> bool {
         self.quick_switcher_open
+    }
+
+    /// The monotonic open generation of the quick switcher (MT-017). The switcher resets its transient
+    /// state when this changes; exposed for tests that assert a re-open bumps the counter.
+    pub fn quick_switcher_open_count(&self) -> u64 {
+        self.quick_switcher_open_count
+    }
+
+    /// Open the quick switcher (MT-017), bumping the open generation so the overlay resets its query +
+    /// selection on this open. Idempotent while already open (a second open does NOT bump the
+    /// generation, so it does not wipe an in-progress query). The GO menu, the Ctrl+P chord, and tests
+    /// all route through here.
+    pub fn open_quick_switcher(&mut self) {
+        if !self.quick_switcher_open {
+            self.quick_switcher_open = true;
+            self.quick_switcher_open_count = self.quick_switcher_open_count.wrapping_add(1);
+            // Fire the durable recents load once on this open (red-team: load on open, not per-frame).
+            self.quick_switcher_recents_pending = true;
+            // Fresh open: clear the previous open's search state so a re-open starts clean.
+            self.quick_switcher_search = crate::quick_switcher::SearchManager::default();
+            self.quick_switcher_recents_error = None;
+        }
+    }
+
+    /// Inject a quick-switcher transport (MT-017) for tests/headless: a stub
+    /// [`crate::quick_switcher::LoomGraphSearchTransport`] drives the switcher with no live backend.
+    pub fn set_quick_switcher_transport(
+        &mut self,
+        transport: Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>,
+    ) {
+        self.quick_switcher_transport = Some(transport);
+    }
+
+    /// Inject a tokio runtime handle (MT-017 tests): the headless `with_health` shell has no runtime, so
+    /// the quick switcher cannot spawn its async search/recents tasks. A kittest provides a real
+    /// multi-thread runtime handle so the stub-transport tasks actually run and deliver results.
+    pub fn set_runtime_handle(&mut self, handle: tokio::runtime::Handle) {
+        self.runtime_handle = Some(handle);
+    }
+
+    /// Directly seed the quick-switcher recents key list (MT-017) for tests asserting recents-first
+    /// ordering without a live backend.
+    pub fn set_quick_switcher_recents(&mut self, recents: Vec<String>) {
+        self.quick_switcher_recents = recents;
+    }
+
+    /// Close the quick switcher (MT-017). Used by the overlay's Escape / Close / backdrop dismiss and
+    /// after a jump. Safe to call when already closed.
+    pub fn close_quick_switcher(&mut self) {
+        self.quick_switcher_open = false;
+    }
+
+    /// Toggle the quick switcher open/closed (MT-017 Ctrl+P chord). Opening bumps the open generation
+    /// (state reset); closing does not.
+    pub fn toggle_quick_switcher(&mut self) {
+        if self.quick_switcher_open {
+            self.close_quick_switcher();
+        } else {
+            self.open_quick_switcher();
+        }
+    }
+
+    /// The most-recent-first quick-switcher recents key list (`"{source_kind}:{ref_id}"`), for tests +
+    /// the overlay's ordering. Loaded from the durable backend recents store on open and updated
+    /// optimistically on selection (MT-017).
+    pub fn quick_switcher_recents(&self) -> &[String] {
+        &self.quick_switcher_recents
+    }
+
+    /// The last transient quick-switcher recents error, if any (MT-017), for tests + the status row.
+    pub fn quick_switcher_recents_error(&self) -> Option<&str> {
+        self.quick_switcher_recents_error.as_deref()
+    }
+
+    /// The current quick-switcher graph-search results (MT-017), for tests asserting the search
+    /// delivered hits. Unordered (the overlay applies recents-first ordering at render time).
+    pub fn quick_switcher_search_results(&self) -> &[crate::quick_switcher::LoomGraphSearchHit] {
+        self.quick_switcher_search.results()
+    }
+
+    /// The active pane id, if any (MT-006 focus). Read by tests asserting a jump landed, and by future
+    /// agent/operator wiring.
+    pub fn active_pane(&self) -> Option<&PaneId> {
+        self.active_pane.as_ref()
+    }
+
+    /// Map a [`crate::quick_switcher::QuickSwitcherTarget`] to the `(PaneType, content_id)` tab that
+    /// realizes it on a pane (the native peer of the React `onOpen*` callbacks). `Unsupported` returns
+    /// `None` (the row was disabled, so this is never reached for it). The Kernel-DCC targets encode the
+    /// WP/MT focus in the tab `content_id` (`"WP:{id}"` / `"MT:{wp?}:{id}"`) so a single Kernel-DCC pane
+    /// can focus the right entity without a separate focus-state field.
+    fn target_to_tab(
+        target: &crate::quick_switcher::QuickSwitcherTarget,
+    ) -> Option<(PaneType, String)> {
+        use crate::quick_switcher::QuickSwitcherTarget as T;
+        match target {
+            T::UserManual { slug } => Some((PaneType::UserManual, slug.clone())),
+            T::WikiPage { projection_id } => {
+                Some((PaneType::LoomWikiPage, projection_id.clone()))
+            }
+            T::Document { document_id } => Some((PaneType::AtelierEditor, document_id.clone())),
+            T::LoomBlock { block_id } => Some((PaneType::LoomBlock, block_id.clone())),
+            T::CodeSymbol { symbol_entity_id } => {
+                Some((PaneType::CodeSymbol, symbol_entity_id.clone()))
+            }
+            T::WorkPacket { wp_id } => Some((PaneType::KernelDcc, format!("WP:{wp_id}"))),
+            T::MicroTask { mt_id, wp_id } => Some((
+                PaneType::KernelDcc,
+                format!("MT:{}:{mt_id}", wp_id.clone().unwrap_or_default()),
+            )),
+            T::Unsupported => None,
+        }
+    }
+
+    /// Open a selected Loom-graph hit (MT-017): record the durable recent (`POST recents`, OFF the egui
+    /// UI thread — HBR-QUIET) with an immediate optimistic local prepend, then JUMP by opening the hit's
+    /// typed target as a tab on the active (or fallback) pane. Returns `true` when the pane/tab state
+    /// changed (so the caller can repaint + let the layout change-detector schedule a save). An
+    /// `Unsupported` target is a safe no-op (the row was disabled and never reaches here).
+    ///
+    /// The network POST is NEVER awaited on the frame thread. The optimistic local recents update uses
+    /// the hit's own [`hit_key`](crate::quick_switcher::hit_key) (which equals the backend-confirmed key
+    /// for any well-formed hit) so the recents-first ordering is correct on the very next open without
+    /// waiting for the round-trip; the spawned task writes the backend-confirmed key (or an error) into
+    /// `quick_switcher_record_recent_cell`, drained next frame by [`drive_quick_switcher`] to reconcile
+    /// the key and surface failures via `recents_error` (red-team MC3).
+    fn open_switcher_hit(&mut self, hit: &crate::quick_switcher::LoomGraphSearchHit) -> bool {
+        // 1. Optimistic local recents prepend (immediate, no I/O): the hit_key matches what the backend
+        //    returns for a well-formed hit, so ordering is correct on the next open without blocking.
+        let optimistic_key = crate::quick_switcher::hit_key(hit);
+        self.quick_switcher_recents.retain(|k| k != &optimistic_key);
+        self.quick_switcher_recents.insert(0, optimistic_key);
+        self.quick_switcher_recents.truncate(20);
+
+        // 2. Record the durable recent through the backend OFF the egui UI thread (HBR-QUIET: the network
+        //    round-trip must not freeze the frame). Spawn on the runtime handle and write the result into
+        //    the delivery cell; drive_quick_switcher drains it next frame (red-team MC3 surfaces errors).
+        //    The same off-thread spawn pattern as the one-shot recents LOAD in drive_quick_switcher.
+        let workspace = self.active_project_id.clone();
+        if let (Some(transport), Some(handle)) =
+            (self.quick_switcher_transport.clone(), self.runtime_handle.clone())
+        {
+            let cell = self.quick_switcher_record_recent_cell.clone();
+            let hit = hit.clone();
+            handle.spawn(async move {
+                let result = transport
+                    .record_recent(&workspace, &hit)
+                    .map_err(|e| e.to_string());
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(result);
+                }
+            });
+        }
+
+        // 3. Navigate: open the hit's typed target as a tab on the target pane.
+        let target = crate::quick_switcher::open_target_for_hit(hit);
+        let Some((pane_type, content_id)) = Self::target_to_tab(&target) else {
+            return false;
+        };
+        let Some(pane_id) = self.module_target_pane() else {
+            tracing::warn!("quick switcher: no pane to open target on");
+            return false;
+        };
+        if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
+            let tab = TabState {
+                pane_type,
+                content_id: Some(content_id),
+                pinned: false,
+                dirty: false,
+                label_override: Some(hit.title.clone()),
+            };
+            // insert_tab de-duplicates by (pane_type, content_id) and returns the (existing or new)
+            // index; activate it so the jump lands on the opened tab.
+            let idx = bar.insert_tab(tab);
+            bar.activate(idx);
+        }
+        self.active_pane = Some(pane_id);
+        true
+    }
+
+    /// Drive one frame of the open quick switcher (MT-017): drain async deliveries, dispatch the
+    /// debounced graph-search + the one-shot recents load on the tokio runtime, render the overlay with
+    /// the recents-first ordered results, and apply the outcome (open a hit / close). All HTTP I/O runs
+    /// on a spawned runtime task; this method only does non-blocking try_lock drains + spawns, so the
+    /// egui frame thread is never blocked (HBR-QUIET). No-op-safe when there is no runtime/transport
+    /// (headless) — the overlay then shows the empty/no-result state and search never fires.
+    fn drive_quick_switcher(&mut self, ctx: &egui::Context) {
+        let workspace = self.active_project_id.clone();
+        let has_workspace = !workspace.is_empty();
+
+        // 1. Drain a delivered recents load (try_lock; never hold across ui.* — red-team MC1).
+        if let Ok(mut cell) = self.quick_switcher_recents_cell.try_lock() {
+            if let Some(result) = cell.take() {
+                match result {
+                    Ok(keys) => {
+                        self.quick_switcher_recents = keys;
+                        self.quick_switcher_recents_error = None;
+                    }
+                    Err(msg) => {
+                        // Keep whatever recents we had; surface the failure (red-team MC3).
+                        self.quick_switcher_recents_error = Some(msg);
+                    }
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // 2. Drain a delivered search result into the search manager (stale deliveries dropped — MC2).
+        if let Ok(mut cell) = self.quick_switcher_results_cell.try_lock() {
+            if let Some(delivery) = cell.take() {
+                if self.quick_switcher_search.drain(delivery) {
+                    ctx.request_repaint();
+                }
+            }
+        }
+
+        // 2b. Drain a delivered recents-RECORD result (the off-thread `POST recents` for a picked hit;
+        //     HBR-QUIET — the POST never blocked the frame). On success reconcile the backend-confirmed
+        //     key to the front (the optimistic prepend used the hit's own key, normally identical); on
+        //     failure surface it via recents_error without disturbing the optimistic local order (MC3).
+        if let Ok(mut cell) = self.quick_switcher_record_recent_cell.try_lock() {
+            if let Some(result) = cell.take() {
+                match result {
+                    Ok(key) => {
+                        self.quick_switcher_recents.retain(|k| k != &key);
+                        self.quick_switcher_recents.insert(0, key);
+                        self.quick_switcher_recents.truncate(20);
+                        self.quick_switcher_recents_error = None;
+                    }
+                    Err(msg) => {
+                        self.quick_switcher_recents_error = Some(msg);
+                    }
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // 3. Fire the one-shot durable recents load on open (red-team MC4: guard on workspace).
+        if self.quick_switcher_recents_pending {
+            self.quick_switcher_recents_pending = false;
+            if has_workspace {
+                if let (Some(transport), Some(handle)) = (
+                    self.quick_switcher_transport.clone(),
+                    self.runtime_handle.clone(),
+                ) {
+                    let cell = self.quick_switcher_recents_cell.clone();
+                    let ws = workspace.clone();
+                    handle.spawn(async move {
+                        let result = transport.list_recents(&ws).map_err(|e| e.to_string());
+                        if let Ok(mut slot) = cell.lock() {
+                            *slot = Some(result);
+                        }
+                    });
+                }
+            }
+        }
+
+        // 4. Render the overlay. The query is owned by egui memory; `show` returns it so the search
+        //    manager can be ticked with the live text after rendering.
+        let ordered = crate::quick_switcher::ordered_results(
+            self.quick_switcher_search.results(),
+            &self.quick_switcher_recents,
+        );
+        let frame = crate::quick_switcher::show(
+            ctx,
+            crate::quick_switcher::SwitcherView {
+                open_count: self.quick_switcher_open_count,
+                results: &ordered,
+                has_workspace,
+                loading: self.quick_switcher_search.loading(),
+                error: self.quick_switcher_search.error(),
+                recents_error: self.quick_switcher_recents_error.as_deref(),
+            },
+        );
+
+        // 5. Tick the debounce state machine with the live query; spawn the search when it says Fire
+        //    (red-team MC4: only with a workspace).
+        let trimmed = frame.query.trim().to_owned();
+        let action =
+            self.quick_switcher_search
+                .tick(&trimmed, has_workspace, std::time::Instant::now());
+        if let crate::quick_switcher::SearchAction::Fire { query, sequence } = action {
+            if let (Some(transport), Some(handle)) = (
+                self.quick_switcher_transport.clone(),
+                self.runtime_handle.clone(),
+            ) {
+                let cell = self.quick_switcher_results_cell.clone();
+                let ws = workspace.clone();
+                handle.spawn(async move {
+                    let outcome = transport.search(&ws, &query).map_err(|e| e.to_string());
+                    if let Ok(mut slot) = cell.lock() {
+                        *slot = Some(crate::quick_switcher::SearchDelivery { sequence, outcome });
+                    }
+                });
+            }
+            ctx.request_repaint();
+        } else if self.quick_switcher_search.loading()
+            || self.quick_switcher_search.debounce_pending()
+        {
+            // While a request is in flight OR the debounce is still timing out, keep repainting so the
+            // timer elapses + the delivery is drained promptly even with no further input events.
+            ctx.request_repaint();
+        }
+
+        // 6. Apply the outcome.
+        match frame.outcome {
+            crate::quick_switcher::SwitcherOutcome::Open(hit) => {
+                self.close_quick_switcher();
+                if self.open_switcher_hit(&hit) {
+                    ctx.request_repaint();
+                }
+            }
+            crate::quick_switcher::SwitcherOutcome::Close => {
+                self.close_quick_switcher();
+                ctx.request_repaint();
+            }
+            crate::quick_switcher::SwitcherOutcome::None => {}
+        }
     }
 
     /// Whether the settings overlay is requested open (MT-015 HELP menu; overlay UI is MT-018).
@@ -833,7 +1219,8 @@ impl HandshakeApp {
                 true
             }
             MenuBarAction::OpenQuickSwitcher => {
-                self.quick_switcher_open = true;
+                // MT-017: route through the opener so the open generation bumps (overlay state reset).
+                self.open_quick_switcher();
                 true
             }
             MenuBarAction::OpenCommandPalette => {
@@ -1694,6 +2081,20 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        // ── Quick switcher chord (MT-017): Ctrl+P (Mod-P) toggles the switcher ─────────────────────────
+        // "Mod" = Ctrl on Windows/Linux, Cmd on macOS — egui's `Modifiers::COMMAND` maps to the platform
+        // accelerator, so `COMMAND + P` is the cross-platform "Mod-P" chord (the React
+        // `app.quick_switcher.open` default). DISTINCT from the command-palette chord above (Mod-Shift-P),
+        // which is why this is handled separately and consumes its own key. `consume_key` swallows the
+        // chord so it does not also reach the global keymap / editor layer (no double-fire). Handled
+        // BEFORE the menu bar renders so the toggle is applied this frame.
+        let switcher_chord =
+            ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::P));
+        if switcher_chord {
+            self.toggle_quick_switcher();
+            ctx.request_repaint();
+        }
+
         let menu_state = self.menu_bar_state();
         let menu_action = egui::TopBottomPanel::top("handshake_menu_bar")
             .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
@@ -2026,6 +2427,17 @@ impl HandshakeApp {
                 }
                 crate::command_palette::PaletteOutcome::None => {}
             }
+        }
+
+        // ── Quick switcher overlay (MT-017) ─────────────────────────────────────────────────────────
+        // Rendered after the command palette so its backdrop + window sit on the Foreground order ABOVE
+        // the whole workspace. The overlay searches the REAL Loom graph over PostgreSQL: on open it
+        // loads durable recents (`GET quick-switcher/recents`); typing debounces (~150ms) then queries
+        // `GET graph-search`; selecting a hit records the visit (`POST recents`) + opens its typed
+        // target on a pane. All backend I/O happens on the tokio runtime off the egui frame thread
+        // (HBR-QUIET); the spawned tasks write into shared cells the frame drains with try_lock.
+        if self.quick_switcher_open {
+            self.drive_quick_switcher(ctx);
         }
 
         // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────

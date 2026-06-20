@@ -32,6 +32,10 @@ use crate::command_palette::{
     PALETTE_DIALOG_AUTHOR_ID, PALETTE_DIALOG_NODE_ID, PALETTE_LIST_AUTHOR_ID, PALETTE_LIST_NODE_ID,
     PALETTE_SEARCH_AUTHOR_ID, PALETTE_SEARCH_NODE_ID,
 };
+use crate::quick_switcher::{
+    SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_DIALOG_NODE_ID, SWITCHER_LIST_AUTHOR_ID,
+    SWITCHER_LIST_NODE_ID, SWITCHER_SEARCH_AUTHOR_ID, SWITCHER_SEARCH_NODE_ID,
+};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
@@ -380,6 +384,28 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: PALETTE_LIST_AUTHOR_ID,
         node_id: PALETTE_LIST_NODE_ID,
+    },
+    // MT-017 quick-switcher overlay container nodes, fresh band 14..=16: directly above the
+    // command-palette band (11..=13), below the chrome title bar (20) and the pane id base (100). The
+    // switcher renders ONLY while `quick_switcher_open` is true, so the default-seed live tree never
+    // contains them (like the palette / merge-back / scrollbar nodes); the collision test still covers
+    // their fixed ids here so they can never overlap any other declared identity. The three nodes are
+    // the dialog root (Role::Dialog, modal), the search box (Role::TextInput), and the list container
+    // (Role::ListBox). Individual result ROWS are DYNAMIC (count varies with open tabs + the filter) and
+    // are addressed by an egui::Id derived from their author_id STRING
+    // (`quick-switcher.option.{pane_id}.{tab_index}`) in egui's hashed id space — NOT this fixed band —
+    // so they are not enumerated here (same pattern as the MT-016 command rows).
+    DeclaredIdentity {
+        author_id: SWITCHER_DIALOG_AUTHOR_ID,
+        node_id: SWITCHER_DIALOG_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: SWITCHER_SEARCH_AUTHOR_ID,
+        node_id: SWITCHER_SEARCH_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: SWITCHER_LIST_AUTHOR_ID,
+        node_id: SWITCHER_LIST_NODE_ID,
     },
 ];
 
