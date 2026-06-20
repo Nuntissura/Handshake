@@ -42,6 +42,8 @@
 use egui::accesskit;
 use serde::{Deserialize, Serialize};
 
+use crate::context_menu::ContextMenu;
+use crate::context_menu_surfaces::{tab_action_for_id, tab_context_items, TabMenuAction};
 use crate::module_switcher::ModuleId;
 use crate::pane_header::module_label_for_tab;
 use crate::pane_registry::{PaneId, PaneType};
@@ -553,6 +555,14 @@ pub struct TabBarResponse {
     pub drag_started: Option<usize>,
     /// A drop COMPLETED on this bar this frame: (payload, drop target).
     pub drop_completed: Option<(TabDragPayload, TabDropTarget)>,
+    /// MT-020 context menu: "Close Others" was chosen for this tab (keep `index`, close the rest).
+    pub close_others_index: Option<usize>,
+    /// MT-020 context menu: "Close All" was chosen (close every tab in this bar).
+    pub close_all: bool,
+    /// MT-020 context menu: "Pop Out" was chosen for the pane hosting this bar (the app pops the pane
+    /// into its own OS window). Carries the right-clicked tab index for symmetry; the pop-out acts on
+    /// the whole pane (MT-008 pops a pane, not a single tab — see the MT-020 deviation note).
+    pub pop_out_requested: bool,
 }
 
 impl TabBarResponse {
@@ -562,6 +572,9 @@ impl TabBarResponse {
             || self.pin_toggled.is_some()
             || self.drag_started.is_some()
             || self.drop_completed.is_some()
+            || self.close_others_index.is_some()
+            || self.close_all
+            || self.pop_out_requested
     }
 }
 
@@ -905,29 +918,43 @@ impl TabBar {
         if tab_resp.clicked() {
             response.activated_index = Some(index);
         }
-        // Right-click context menu (Pin / Unpin / Close). Actions are wired in MT-019; here the menu
-        // records the chosen item into the response so the app can act on Pin/Close now.
-        tab_resp.context_menu(|ui| {
-            if tab.pinned {
-                if ui.button("Unpin").clicked() {
-                    response.pin_toggled = Some((index, false));
-                    ui.close();
+        // ── MT-020 right-click context menu (replaces the MT-019 ad-hoc stub) ────────────────────────
+        // Built from the SHARED MT-019 infra (`context_menu_surfaces::tab_context_items` +
+        // `ContextMenu::show_on`) so the menu paints via egui's hardened popup, emits `Role::MenuItem`
+        // AccessKit nodes (`ctx-menu.tab.*`) for out-of-process steering, supports keyboard nav, and is
+        // CLOSED by default (so the MT-025 default-frame snapshot is unchanged). `show_on` opens on
+        // `tab_resp.secondary_clicked()` and reuses the SAME `tab_id` response that already carries the
+        // named Tab node, so no new unnamed interactive node is created (MT-025 gate stays green).
+        //
+        // (pane_id, index) are captured by VALUE into the action mapping at the moment of confirm
+        // (red-team control: capture the right-clicked target as owned values, not a live-state ref),
+        // and the chosen action is recorded into `response` for the app/split-layout to apply this frame.
+        let tab_count = state.tabs.len();
+        let menu = ContextMenu::new("tab").items(tab_context_items(index, tab_count, tab.pinned));
+        if let Some(confirmed_id) = menu.show_on(&tab_resp) {
+            if let Some(action) = tab_action_for_id(confirmed_id) {
+                match action {
+                    TabMenuAction::Close => response.closed_index = Some(index),
+                    TabMenuAction::CloseOthers => response.close_others_index = Some(index),
+                    TabMenuAction::CloseAll => response.close_all = true,
+                    TabMenuAction::TogglePin => {
+                        response.pin_toggled = Some((index, !tab.pinned))
+                    }
+                    TabMenuAction::PopOut => response.pop_out_requested = true,
                 }
-            } else if ui.button("Pin").clicked() {
-                response.pin_toggled = Some((index, true));
-                ui.close();
             }
-            ui.add_enabled_ui(!tab.pinned, |ui| {
-                if ui.button("Close").clicked() {
-                    response.closed_index = Some(index);
-                    ui.close();
-                }
-            });
-            // "Close Others" / "Move to …" are MT-019 stubs (shown disabled so the menu shape is
-            // complete but no unwired action fires).
-            ui.add_enabled(false, egui::Button::new("Close Others"));
-            ui.add_enabled(false, egui::Button::new("Move to \u{2026}"));
-        });
+        }
+
+        // Shift+F10 opens the same context menu when the tab is focused (keyboard parity per the MT-020
+        // contract; egui 0.33 has no dedicated Menu/ContextMenu key, so Shift+F10 is the keyboard
+        // trigger). Red-team control: gate on `has_focus()` so the key never fires for an unfocused
+        // surface and never leaks to global shortcuts. `request_open` uses the SAME popup id `show_on`
+        // reads, so the keyboard-opened menu is the identical popup the right-click opens.
+        if tab_resp.has_focus()
+            && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        {
+            crate::context_menu::request_open(ui.ctx(), tab_resp.id, tab_resp.rect.left_bottom());
+        }
 
         // AccessKit: emit the Tab node enriched with role + author_id + selected state. egui already
         // derived Action::Click/Action::Focus from Sense::click(), so we only ADD identity here

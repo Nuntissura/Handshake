@@ -6,6 +6,7 @@
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
 use serde_json::Value;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// handshake_core listens here (hardcoded in handshake_core/src/main.rs).
@@ -91,6 +92,108 @@ impl WorkbenchLayoutClient {
     fn layout_url(&self, workspace_id: &str) -> String {
         format!("{}/workspaces/{}/workbench/layout", self.base_url, workspace_id)
     }
+}
+
+/// One-slot delivery cell for an off-thread Loom-block rename result (MT-020 explorer-row rename).
+/// The spawned tokio task writes the PATCH outcome here; the egui UI thread drains it next frame
+/// (the same `Arc<Mutex<Option<Result<..>>>>` pattern the settings save/load cells use). `Ok(title)`
+/// carries the renamed block's new title (the externally-meaningful result), `Err(msg)` the failure.
+pub type RenameDeliveryCell = Arc<Mutex<Option<Result<String, String>>>>;
+
+/// REST client for the Loom-block surface this shell mutates today: the rename PATCH on the VERIFIED
+/// backend endpoint `PATCH /workspaces/:workspace_id/loom/blocks/:block_id` (handler
+/// `handshake_core::api::loom::patch_loom_block`, body `LoomBlockPatchRequest` whose flattened
+/// `LoomBlockUpdate.title` is the rename field). The body sent is `{ "title": "<new title>" }`.
+///
+/// ## Off-thread (HBR-QUIET)
+///
+/// The egui UI thread must never block on the network, so [`rename_block`](Self::rename_block) spawns
+/// the PATCH on the app's tokio runtime and delivers the result into a [`RenameDeliveryCell`] the UI
+/// drains next frame — the MT-009 off-thread + delivery-cell pattern (the same shape
+/// `WorkbenchLayoutClient` + the settings cells use). It speaks `serde_json::Value` so it never depends
+/// on the `handshake_core` crate's types.
+#[derive(Clone)]
+pub struct LoomBlockClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomBlockClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    /// PATCH the block's title off the UI thread, delivering the result into `cell`. The egui UI thread
+    /// returns immediately; the spawned task writes `Ok(new_title)` / `Err(msg)` into `cell` and the UI
+    /// drains it next frame. The repaint is requested by the caller's normal frame loop (the cell is
+    /// drained at the top of `update`).
+    pub fn rename_block(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        new_title: &str,
+        cell: RenameDeliveryCell,
+    ) {
+        let url = self.block_url(workspace_id, block_id);
+        let client = self.client.clone();
+        let new_title = new_title.to_owned();
+        self.runtime.spawn(async move {
+            let result = patch_block_title(&client, &url, &new_title).await;
+            let delivered = match result {
+                Ok(title) => Ok(title),
+                Err(e) => Err(e.to_string()),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(delivered);
+            }
+        });
+    }
+}
+
+/// Send `PATCH {url}` with body `{ "title": <new_title> }` and return the renamed block's title from
+/// the response (`LoomBlock.title`), falling back to the sent title if the response omits it. A
+/// non-success status or a parse failure is an [`AppError`], never a panic.
+async fn patch_block_title(
+    client: &reqwest::Client,
+    url: &str,
+    new_title: &str,
+) -> Result<String, AppError> {
+    let body = serde_json::json!({ "title": new_title });
+    let resp = client
+        .patch(url)
+        .timeout(Duration::from_secs(5))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("PATCH block non-success status {}", resp.status())));
+    }
+    let v: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    let title = v
+        .get("title")
+        .and_then(|x| x.as_str())
+        .unwrap_or(new_title)
+        .to_owned();
+    Ok(title)
 }
 
 impl LayoutTransport for WorkbenchLayoutClient {

@@ -39,6 +39,10 @@ use std::sync::mpsc::{Receiver, Sender};
 use egui::accesskit;
 
 use crate::backend_client::BACKEND_BASE_URL;
+use crate::context_menu::ContextMenu;
+use crate::context_menu_surfaces::{
+    explorer_action_for_id, explorer_context_items, ExplorerMenuAction, ExplorerRowKind,
+};
 use crate::error::AppError;
 
 /// Fixed AccessKit/egui `NodeId` for the project-tree CONTAINER node (`Role::Tree`).
@@ -148,6 +152,19 @@ pub enum ProjectTreeEvent {
     OpenBookmark {
         document_id: Option<String>,
         block_id: String,
+    },
+    /// MT-020 explorer-row context menu: "Copy Path" — copy the row's stable id/path to the clipboard.
+    /// Carries the id the caller writes to the clipboard (the document/canvas id or the bookmark block
+    /// id), so no backend call is involved.
+    CopyPath(String),
+    /// MT-020 explorer-row context menu: "Rename" — rename the row's Loom block via the verified
+    /// `PATCH /workspaces/:id/loom/blocks/:block_id` endpoint. Carries the block id to PATCH and the
+    /// current title to seed the rename text field. Only produced for a BOOKMARK row, whose `id` IS a
+    /// genuine `LoomBlock.block_id`; document and canvas rows carry a different id space (a document/
+    /// canvas id), so their rename item is disabled and this event never fires for them.
+    RenameBlock {
+        block_id: String,
+        current_title: String,
     },
 }
 
@@ -491,8 +508,18 @@ impl ProjectTree {
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &doc.title));
-                if paper_strip_row(ui, &doc.title, &author_id, width, colors) {
+                let row_resp = paper_strip_row(ui, &doc.title, &author_id, width, colors);
+                if row_resp.clicked() {
                     event = Some(ProjectTreeEvent::OpenDocument(doc.id.clone()));
+                }
+                let target = ExplorerRowTarget {
+                    kind: ExplorerRowKind::Document,
+                    id: doc.id.clone(),
+                    title: doc.title.clone(),
+                    document_id: None,
+                };
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                    event = Some(menu_event);
                 }
             }
         }
@@ -515,8 +542,18 @@ impl ProjectTree {
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &canvas.title));
-                if paper_strip_row(ui, &canvas.title, &author_id, width, colors) {
+                let row_resp = paper_strip_row(ui, &canvas.title, &author_id, width, colors);
+                if row_resp.clicked() {
                     event = Some(ProjectTreeEvent::OpenCanvas(canvas.id.clone()));
+                }
+                let target = ExplorerRowTarget {
+                    kind: ExplorerRowKind::Canvas,
+                    id: canvas.id.clone(),
+                    title: canvas.title.clone(),
+                    document_id: None,
+                };
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                    event = Some(menu_event);
                 }
             }
         }
@@ -545,11 +582,23 @@ impl ProjectTree {
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &label_text));
-                if paper_strip_row(ui, &label_text, &author_id, width, colors) {
+                let row_resp = paper_strip_row(ui, &label_text, &author_id, width, colors);
+                if row_resp.clicked() {
                     event = Some(ProjectTreeEvent::OpenBookmark {
                         document_id: bookmark.document_id.clone(),
                         block_id: bookmark.block_id.clone(),
                     });
+                }
+                // The rename target is the bookmark's BLOCK id (the Loom block the PATCH renames), and
+                // the rename seed is the bookmark TITLE (not the badge-suffixed label).
+                let target = ExplorerRowTarget {
+                    kind: ExplorerRowKind::Bookmark,
+                    id: bookmark.block_id.clone(),
+                    title: bookmark.title.clone(),
+                    document_id: bookmark.document_id.clone(),
+                };
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                    event = Some(menu_event);
                 }
             }
         }
@@ -656,16 +705,20 @@ fn measure_label(ui: &egui::Ui, label: &str) -> f32 {
 /// Render ONE paper-strip leaf row: an off-white label background ONLY as wide as the label text
 /// (`label_width + padding`), with the label RIGHT-aligned within that strip via a
 /// `right_to_left` layout. This is the core visual differentiator from a full-row-fill sidebar (the
-/// MT-014 contract's paper-strip aesthetic). Returns `true` if the row was clicked.
+/// MT-014 contract's paper-strip aesthetic).
 ///
-/// The row is a `Role::TreeItem` with a click action, addressed by `author_id`.
+/// The row is a `Role::TreeItem` with a click action, addressed by `author_id`. Returns the row's
+/// [`egui::Response`] (built at the FIXED `author_id`-derived id) so the caller can read `.clicked()`
+/// AND attach the MT-020 right-click context menu to the SAME named node (no new unnamed interactive
+/// node, so the MT-025 gate stays green). The response carries `Sense::click()`, which egui derives
+/// `secondary_clicked()` from for the context-menu open path.
 fn paper_strip_row(
     ui: &mut egui::Ui,
     label: &str,
     author_id: &str,
     label_width: f32,
     colors: ProjectTreeColors,
-) -> bool {
+) -> egui::Response {
     let id = egui::Id::new(author_id);
     let pad = 6.0;
     let strip_w = (label_width + pad * 2.0).min(ui.available_width().max(0.0));
@@ -675,8 +728,7 @@ fn paper_strip_row(
     // width per the paper-strip design. Indent the strip from the left by a small chevron gutter so
     // it reads as a tree leaf under its group header.
     let indent = 16.0;
-    let mut clicked = false;
-    ui.horizontal(|ui| {
+    let inner = ui.horizontal(|ui| {
         ui.add_space(indent);
         let (rect, _) = ui.allocate_exact_size(egui::vec2(strip_w, height), egui::Sense::hover());
         let resp = ui.interact(rect, id, egui::Sense::click());
@@ -703,9 +755,70 @@ fn paper_strip_row(
             node.set_author_id(author_id.to_owned());
             node.set_label(label.to_owned());
         });
-        clicked = resp.clicked();
+        resp
     });
-    clicked
+    inner.inner
+}
+
+/// The identity of an explorer row for the MT-020 right-click menu: the row [`ExplorerRowKind`], the
+/// id the menu copies/opens (`content_id` for a document/canvas, `block_id` for a bookmark), the title
+/// for the rename seed, and the optional owning `document_id` (bookmark only) so the Open action can
+/// reuse the existing `OpenBookmark` event semantics.
+struct ExplorerRowTarget {
+    kind: ExplorerRowKind,
+    /// The stable id the menu copies + opens (document/canvas id or bookmark block id).
+    id: String,
+    /// The display title (rename seed).
+    title: String,
+    /// Bookmark-only: the owning document id (drives `OpenBookmark` open semantics).
+    document_id: Option<String>,
+}
+
+/// Attach the MT-020 explorer-row context menu to a project-tree row's `row_resp` (the named
+/// `Role::TreeItem` node) and return the menu-driven [`ProjectTreeEvent`] when an enabled item is
+/// confirmed this frame. Mirrors the tab/header surfaces: the menu is built from the SHARED MT-019
+/// infra ([`ContextMenu::show_on`]) so it paints via egui's hardened popup, emits `Role::MenuItem`
+/// AccessKit nodes (`ctx-menu.explorer.*`) for out-of-process steering, supports keyboard nav, and is
+/// CLOSED by default (so the MT-025 default-frame snapshot is unchanged). `show_on` opens on the row's
+/// `secondary_clicked()`; Shift+F10 opens the same popup when the row is focused (keyboard parity,
+/// gated on `has_focus()` so it never leaks to global shortcuts).
+fn row_context_menu(
+    ui: &mut egui::Ui,
+    row_resp: &egui::Response,
+    target: &ExplorerRowTarget,
+) -> Option<ProjectTreeEvent> {
+    let mut event = None;
+    let menu = ContextMenu::new("explorer").items(explorer_context_items(target.kind));
+    if let Some(confirmed_id) = menu.show_on(row_resp) {
+        if let Some(action) = explorer_action_for_id(confirmed_id, target.kind) {
+            event = Some(match action {
+                ExplorerMenuAction::Open => open_event_for(target),
+                ExplorerMenuAction::CopyPath => ProjectTreeEvent::CopyPath(target.id.clone()),
+                ExplorerMenuAction::Rename => ProjectTreeEvent::RenameBlock {
+                    block_id: target.id.clone(),
+                    current_title: target.title.clone(),
+                },
+            });
+        }
+    }
+    // Shift+F10 keyboard-open parity (egui 0.33 has no dedicated Menu/ContextMenu key).
+    if row_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+        crate::context_menu::request_open(ui.ctx(), row_resp.id, row_resp.rect.left_bottom());
+    }
+    event
+}
+
+/// The open event for an explorer row — the SAME event a left-click produces, so the menu's "Open"
+/// item reuses the existing open path (no new open semantics).
+fn open_event_for(target: &ExplorerRowTarget) -> ProjectTreeEvent {
+    match target.kind {
+        ExplorerRowKind::Document => ProjectTreeEvent::OpenDocument(target.id.clone()),
+        ExplorerRowKind::Canvas => ProjectTreeEvent::OpenCanvas(target.id.clone()),
+        ExplorerRowKind::Bookmark => ProjectTreeEvent::OpenBookmark {
+            document_id: target.document_id.clone(),
+            block_id: target.id.clone(),
+        },
+    }
 }
 
 /// Slugify a content id to `[a-z0-9-]` so a document/canvas id containing spaces, slashes, or UTF-8

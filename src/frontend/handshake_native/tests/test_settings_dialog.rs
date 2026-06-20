@@ -522,7 +522,7 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
     );
 }
 
-// ── Escape closes (AC12) + dialog absent by default (MT-025 snapshot stays at 63 nodes) ─────────────
+// ── Escape closes (AC12) + dialog absent by default (MT-025 snapshot stays at its baseline) ─────────
 #[test]
 fn dialog_closed_by_default_and_escape_closes() {
     let mut harness = Harness::builder().build_state(

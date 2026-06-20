@@ -321,6 +321,28 @@ pub struct HandshakeApp {
     /// accident (red-team R7). No foreground dialog is popped (HBR-QUIET) — the confirm is a flag a
     /// future overlay/agent path reads.
     reset_layout_pending: bool,
+    /// MT-020 explorer-row rename: the Loom-block rename client (PATCH off the UI thread). `None` in the
+    /// no-runtime test app (rename is then a disclosed no-op rather than a panic).
+    loom_block_client: Option<crate::backend_client::LoomBlockClient>,
+    /// The async cell a spawned explorer-row rename PATCH writes into: `Ok(new_title)` / `Err(message)`.
+    /// Drained (try_lock) each frame so the network `PATCH` runs OFF the egui UI thread (HBR-QUIET).
+    rename_cell: crate::backend_client::RenameDeliveryCell,
+    /// A pending explorer-row rename the operator is editing: the block id being renamed + the live text
+    /// buffer (seeded from the row's current title). `Some` while the small rename dialog is open; the
+    /// dialog confirms -> spawns the PATCH -> clears this. Kept as app state (not a foreground OS popup)
+    /// so it is observable + non-intrusive (HBR-QUIET).
+    pending_rename: Option<PendingRename>,
+    /// The last explorer-row rename error, surfaced on the rename dialog status row (HBR: visible).
+    rename_error: Option<String>,
+}
+
+/// An in-progress explorer-row rename (MT-020): the Loom block being renamed + the live edit buffer.
+#[derive(Debug, Clone)]
+pub struct PendingRename {
+    /// The Loom block id the rename PATCHes.
+    pub block_id: String,
+    /// The live text buffer, seeded from the row's current title and edited in the rename dialog.
+    pub text: String,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -501,7 +523,7 @@ impl HandshakeApp {
             left_rail: LeftRail::new(),
             left_rail_open: true,
             bottom_drawer_open: false,
-            runtime_handle: Some(rt_handle),
+            runtime_handle: Some(rt_handle.clone()),
             event_bus_rx,
             event_bus_tx,
             view_mode: ViewMode::Nsfw,
@@ -531,6 +553,12 @@ impl HandshakeApp {
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
+            loom_block_client: Some(crate::backend_client::LoomBlockClient::production(
+                rt_handle.clone(),
+            )),
+            rename_cell: Arc::new(Mutex::new(None)),
+            pending_rename: None,
+            rename_error: None,
         }
     }
 
@@ -615,6 +643,12 @@ impl HandshakeApp {
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
+            // Headless/test shell: no runtime to bridge the rename PATCH onto, so rename is a disclosed
+            // no-op (a test injects a runtime via `set_runtime_handle` if it wants live rename).
+            loom_block_client: None,
+            rename_cell: Arc::new(Mutex::new(None)),
+            pending_rename: None,
+            rename_error: None,
         }
     }
 
@@ -881,6 +915,10 @@ impl HandshakeApp {
     /// the quick switcher cannot spawn its async search/recents tasks. A kittest provides a real
     /// multi-thread runtime handle so the stub-transport tasks actually run and deliver results.
     pub fn set_runtime_handle(&mut self, handle: tokio::runtime::Handle) {
+        // Build the Loom-block rename client onto the injected runtime so an injected-runtime shell
+        // (kittest) gets live off-thread rename too (MT-020).
+        self.loom_block_client =
+            Some(crate::backend_client::LoomBlockClient::production(handle.clone()));
         self.runtime_handle = Some(handle);
     }
 
@@ -1751,7 +1789,7 @@ impl HandshakeApp {
     /// change-detector schedule a save). Mirrors the React handlers the WorkspaceSidebar/App wired:
     /// document/canvas open -> open a tab on the active pane; quick-link click -> focus pane + activate
     /// tab; stash/rail toggles -> flip the persisted drawer flags; agenda/mail/notes -> open the tab.
-    fn apply_left_rail_event(&mut self, event: LeftRailEvent) -> bool {
+    fn apply_left_rail_event(&mut self, ctx: &egui::Context, event: LeftRailEvent) -> bool {
         match event {
             LeftRailEvent::OpenDocument(doc_id) => {
                 self.open_content_on_active_pane(PaneType::Workspace, Some(doc_id))
@@ -1769,6 +1807,22 @@ impl HandshakeApp {
                     }
                     None => self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id)),
                 }
+            }
+            LeftRailEvent::CopyPath(id) => {
+                // Copy the row's stable id/path to the clipboard via egui's output clipboard (no
+                // backend). This is the externally-visible result — the clipboard now holds the id.
+                ctx.copy_text(id);
+                true
+            }
+            LeftRailEvent::RenameBlock { block_id, current_title } => {
+                // Open the small inline rename dialog seeded with the current title; the dialog confirm
+                // spawns the verified PATCH off the UI thread (see `drive_rename` + the dialog render).
+                self.rename_error = None;
+                self.pending_rename = Some(PendingRename {
+                    block_id,
+                    text: current_title,
+                });
+                true
             }
             LeftRailEvent::OpenModuleTab(pane_type) => {
                 self.open_content_on_active_pane(pane_type, None)
@@ -1795,6 +1849,114 @@ impl HandshakeApp {
                 }
                 false
             }
+        }
+    }
+
+    /// MT-020 explorer-row rename driver: drain any delivered rename PATCH result, then render the
+    /// small inline rename dialog while a rename is pending.
+    ///
+    /// Drain: a delivered `Ok(_)` clears the pending rename and triggers a project-tree RELOAD (the
+    /// renamed title is owned by the backend; reloading is what makes the new title appear in the tree —
+    /// the externally-meaningful result). A delivered `Err(msg)` is surfaced on the dialog status row
+    /// and leaves the dialog open so the operator can retry.
+    ///
+    /// Render: while `pending_rename` is `Some`, a non-foreground `egui::Window` shows a single-line
+    /// text edit seeded from the current title plus Rename / Cancel. Confirm spawns the verified PATCH
+    /// off the UI thread; Cancel/empty-title closes the dialog with no backend call.
+    fn drive_rename(&mut self, ctx: &egui::Context) {
+        // ── Drain a delivered PATCH result ───────────────────────────────────────────────────────────
+        let delivered = self.rename_cell.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(result) = delivered {
+            match result {
+                Ok(_new_title) => {
+                    self.pending_rename = None;
+                    self.rename_error = None;
+                    // Reload the tree so the backend-owned new title shows (the visible result).
+                    if let Some(handle) = self.runtime_handle.clone() {
+                        self.left_rail.project_tree.retry(&handle);
+                    }
+                    ctx.request_repaint();
+                }
+                Err(msg) => {
+                    self.rename_error = Some(msg);
+                    ctx.request_repaint();
+                }
+            }
+        }
+
+        // ── Render the rename dialog while a rename is pending ────────────────────────────────────────
+        let Some(mut pending) = self.pending_rename.take() else {
+            return;
+        };
+        // Source the error color from the active theme palette (theme-hygiene gate: no hardcoded
+        // Color32 outside the theme module).
+        let error_color = self.current_theme.palette().error_text;
+        let mut keep_open = true;
+        let mut confirm = false;
+        egui::Window::new("Rename")
+            .id(egui::Id::new("explorer-rename-dialog"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ctx, |ui| {
+                ui.label("New title:");
+                let edit = ui.add(
+                    egui::TextEdit::singleline(&mut pending.text)
+                        .id(egui::Id::new("explorer-rename-field"))
+                        .desired_width(240.0),
+                );
+                // Enter in the field confirms (keyboard parity).
+                if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    confirm = true;
+                }
+                if let Some(err) = &self.rename_error {
+                    ui.colored_label(error_color, format!("Rename failed: {err}"));
+                }
+                ui.horizontal(|ui| {
+                    if ui.button("Rename").clicked() {
+                        confirm = true;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        keep_open = false;
+                    }
+                });
+            });
+
+        if confirm {
+            let new_title = pending.text.trim().to_owned();
+            // An empty title is rejected (no backend call); keep the dialog open with a hint.
+            if new_title.is_empty() {
+                self.rename_error = Some("Title cannot be empty".to_owned());
+                self.pending_rename = Some(pending);
+                return;
+            }
+            let workspace_id = self
+                .left_rail
+                .project_tree
+                .workspace_id()
+                .map(|s| s.to_owned());
+            match (self.loom_block_client.clone(), workspace_id) {
+                (Some(client), Some(ws)) => {
+                    self.rename_error = None;
+                    client.rename_block(&ws, &pending.block_id, &new_title, self.rename_cell.clone());
+                    // Keep the dialog open until the delivered result clears it (or surfaces an error),
+                    // so a failed PATCH does not silently lose the operator's edit.
+                    self.pending_rename = Some(pending);
+                }
+                _ => {
+                    // No runtime/client or no workspace: rename is a disclosed no-op (the headless/test
+                    // shell), surfaced on the status row rather than silently dropped.
+                    self.rename_error =
+                        Some("Rename unavailable (no backend runtime/workspace)".to_owned());
+                    self.pending_rename = Some(pending);
+                }
+            }
+        } else if keep_open {
+            // Still editing: keep the buffer.
+            self.pending_rename = Some(pending);
+        } else {
+            // Cancel: drop the pending rename + clear any error.
+            self.rename_error = None;
         }
     }
 
@@ -2619,10 +2781,12 @@ impl HandshakeApp {
                 .inner
         };
         if let Some(event) = rail_event {
-            if self.apply_left_rail_event(event) {
+            if self.apply_left_rail_event(ctx, event) {
                 ctx.request_repaint();
             }
         }
+        // MT-020 explorer-row rename: drain any delivered PATCH result, then render the rename dialog.
+        self.drive_rename(ctx);
 
         // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
         // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same
@@ -2648,6 +2812,9 @@ impl HandshakeApp {
         // the registry's LockState after the CentralPanel closes (single source of truth for pane
         // state). The active module is read once for the tab-chip module/type badge.
         let mut lock_requests: Vec<PaneId> = Vec::new();
+        // MT-020: "Pop Out" chosen from a pane-tab or pane-header context menu, collected from the split
+        // layout this frame, applied via `request_pop_out` after the CentralPanel closes (MT-008).
+        let mut pop_out_requests: Vec<PaneId> = Vec::new();
         let active_module = self.module_switcher.active();
 
         // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
@@ -2700,6 +2867,7 @@ impl HandshakeApp {
                 active_module,
                 header_colors,
                 &mut lock_requests,
+                &mut pop_out_requests,
                 |pane_id| popped_out.contains(pane_id),
                 &mut merge_requests,
                 placeholder_text,
@@ -2731,6 +2899,15 @@ impl HandshakeApp {
                     };
                 }
             }
+        }
+
+        // ── Apply MT-020 pop-out requests (from a tab / pane-header context menu) ────────────────────
+        // "Pop Out" chosen from the tab or pane-header menu pops the whole pane into its own OS window
+        // (MT-008). Only one context menu is open at a time, so at most one request lands per frame; if
+        // several somehow arrive, the last wins (the single `pop_out_request` slot). Applied at the top
+        // of the next frame by the existing MT-008 pop-out lifecycle.
+        if let Some(pane_id) = pop_out_requests.last() {
+            self.request_pop_out(pane_id.clone());
         }
 
         // ── Apply merge-back requests, then render detached pop-out windows (MT-008) ────────────────
@@ -2821,7 +2998,7 @@ impl HandshakeApp {
         // changes persist THROUGH `PUT /workspaces/{id}/settings` (PostgreSQL-authoritative) on a tokio
         // task off the egui frame thread (HBR-QUIET), debounced 500ms (red-team R2); a dialog close
         // flushes a pending save immediately (red-team MC2). Closed by default, so the default-seed live
-        // tree is unchanged (MT-025 snapshot stays at 63 nodes).
+        // tree is unchanged (MT-025 default snapshot stays at its baseline node count).
         if self.settings_open {
             self.drive_settings_dialog(ctx);
         }
@@ -2924,11 +3101,16 @@ impl HandshakeApp {
                         .layout(egui::Layout::left_to_right(egui::Align::Center)),
                 );
                 header_ui.set_clip_rect(header_rect);
+                // A popped-out pane is by definition not the only pane (it detached FROM the grid), so
+                // `is_last_pane=false`; its header context menu's Close Pane stays future-target/disabled
+                // either way. Header interactions inside a pop-out are reconciled by a later cross-window
+                // MT (same as the tab interactions below); here the header is rendered for binding parity.
                 let _resp = PaneHeader::show(
                     &mut header_ui,
                     pane_id.as_ref(),
                     &active_tab_label,
                     locked,
+                    false,
                     header_colors,
                 );
             }

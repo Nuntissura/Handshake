@@ -47,6 +47,10 @@
 
 use egui::accesskit;
 
+use crate::context_menu::ContextMenu;
+use crate::context_menu_surfaces::{
+    pane_header_action_for_id, pane_header_context_items, PaneHeaderMenuAction,
+};
 use crate::module_switcher::{ModuleId, MODULE_DEFINITIONS};
 use crate::pane_registry::PaneType;
 
@@ -133,6 +137,24 @@ pub fn pane_title_author_id(pane_id: &str) -> String {
     format!("pane-{pane_id}-title")
 }
 
+/// Stable out-of-process author_id for a pane's HEADER right-click target (`pane-{pane_id}-header`).
+///
+/// The header strip is the MT-020 right-click surface (Lock / Pop Out / future split/set-type/close).
+/// Unlike the lock button + title (which hold fixed-band `NodeId`s 70..77 declared in
+/// [`crate::accessibility::registry::DECLARED_IDENTITIES`]), the header target is a DYNAMIC interactive
+/// node addressed by an `egui::Id` derived from this author_id STRING via `egui::Id::new` — the SAME
+/// convention the MT-007 per-tab nodes and MT-011 project tabs use. It is therefore NOT in the fixed
+/// id band; it lives in egui's hashed id space, carries `Role::Group` + `Action::Click` + this
+/// author_id (so it passes the MT-025 interactive-naming gate), and appears in the live snapshot.
+pub fn pane_header_author_id(pane_id: &str) -> String {
+    format!("pane-{pane_id}-header")
+}
+
+/// Stable `egui::Id` for a pane's header right-click target, derived from [`pane_header_author_id`].
+pub fn pane_header_egui_id(pane_id: &str) -> egui::Id {
+    egui::Id::new(pane_header_author_id(pane_id))
+}
+
 /// Stable `egui::Id` for a pane's header title. Fixed-value for the four grid panes (so its AccessKit
 /// `NodeId` equals [`pane_title_node_id`]); author-id-derived otherwise.
 pub fn pane_title_egui_id(pane_id: &str) -> egui::Id {
@@ -178,10 +200,14 @@ pub fn module_label_for_tab(tab: &PaneType, active_module: ModuleId) -> &'static
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct PaneHeaderResponse {
     /// The lock button was clicked this frame (the caller toggles `PaneRecord.lock_state`). The pane
-    /// should also become the active pane (mirrors React focusing the pane on a header action).
+    /// should also become the active pane (mirrors React focusing the pane on a header action). Also
+    /// set when the MT-020 header context menu's Lock/Unlock item is chosen.
     pub lock_toggled: bool,
     /// The header (title area or lock) was clicked, so this pane should become the focused pane.
     pub focus_requested: bool,
+    /// MT-020 header context menu: "Pop Out Pane" was chosen (the app pops the pane into its own OS
+    /// window via `HandshakeApp::request_pop_out`).
+    pub pop_out_requested: bool,
 }
 
 /// Colors the pane header paints with, sourced from the active theme tokens by the caller so the
@@ -213,17 +239,26 @@ impl PaneHeader {
     /// - `active_tab_label`: the label of the pane's ACTIVE tab, read from the live tab-bar state by
     ///   the caller every frame (so the title binding is never stale). Empty for a pane with no tabs.
     /// - `locked`: whether the pane record is currently locked (drives the Lock/Unlock label + accent).
+    /// - `is_last_pane`: whether this is the only pane (drives the header context menu's `Close Pane`
+    ///   disable reason; red-team: never offer to close the only pane).
     /// - `colors`: the MT-003 theme-token colors the header paints with.
     ///
     /// Layout: a horizontal row — the active-tab title on the LEFT (a presentational `Role::Label`),
     /// the Lock/Unlock button right-aligned (`right_to_left`), mirroring the React `.main-pane__header`
     /// flex row. The title is a label (NOT interactive) so it does not need a stable author_id; the
     /// lock button is the one interactive control and carries its fixed id + author_id.
+    ///
+    /// MT-020: the whole header strip is a SECONDARY-clickable target carrying the stable author_id
+    /// `pane-{pane_id}-header` (`Role::Group`); right-clicking it (or Shift+F10 while focused) opens the
+    /// shared MT-019 context menu (Lock/Unlock + Pop Out enabled; split/set-type/close future-target,
+    /// disabled+disclosed). A confirmed item is recorded into the returned [`PaneHeaderResponse`] for
+    /// the caller to apply (single source of truth for pane state).
     pub fn show(
         ui: &mut egui::Ui,
         pane_id: &str,
         active_tab_label: &str,
         locked: bool,
+        is_last_pane: bool,
         colors: PaneHeaderColors,
     ) -> PaneHeaderResponse {
         let mut response = PaneHeaderResponse::default();
@@ -232,6 +267,55 @@ impl PaneHeader {
         let header_rect = ui.available_rect_before_wrap();
         if ui.is_rect_visible(header_rect) {
             ui.painter().rect_filled(header_rect, 0.0, colors.bg);
+        }
+
+        // ── MT-020 right-click target: the whole header strip ────────────────────────────────────────
+        // Interact at the stable header id (Sense::click) so the strip reports `secondary_clicked()` for
+        // the context menu AND egui derives Action::Click on the node; then attach Role::Group + the
+        // `pane-{id}-header` author_id so the node is named (MT-025 gate) and out-of-process addressable.
+        // This is registered BEFORE the title/lock children so they paint over it; the children have
+        // their own ids, so the strip's own click sense does not swallow a lock-button click.
+        let header_id = pane_header_egui_id(pane_id);
+        let header_resp = ui.interact(header_rect, header_id, egui::Sense::click());
+        header_resp.widget_info(|| {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Other,
+                ui.is_enabled(),
+                format!("Pane header {pane_id}"),
+            )
+        });
+        ui.ctx().accesskit_node_builder(header_id, |node| {
+            node.set_role(accesskit::Role::Group);
+            node.set_author_id(pane_header_author_id(pane_id));
+            node.set_label(format!("Pane header {pane_id}"));
+        });
+        // Build + show the header context menu on the strip's response. CLOSED by default (so the
+        // MT-025 default snapshot only grows by the four header TARGET nodes, not menu items).
+        let menu = ContextMenu::new("pane")
+            .items(pane_header_context_items(locked, is_last_pane));
+        if let Some(confirmed_id) = menu.show_on(&header_resp) {
+            if let Some(action) = pane_header_action_for_id(confirmed_id) {
+                match action {
+                    PaneHeaderMenuAction::ToggleLock => {
+                        response.lock_toggled = true;
+                        response.focus_requested = true;
+                    }
+                    PaneHeaderMenuAction::PopOut => {
+                        response.pop_out_requested = true;
+                        response.focus_requested = true;
+                    }
+                }
+            }
+        }
+        // Shift+F10 opens the header menu when the strip is focused (keyboard parity; gate on focus so
+        // it never leaks to global shortcuts — red-team control).
+        if header_resp.has_focus()
+            && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        {
+            crate::context_menu::request_open(ui.ctx(), header_resp.id, header_resp.rect.left_bottom());
+        }
+        if header_resp.clicked() {
+            response.focus_requested = true;
         }
 
         ui.horizontal(|ui| {

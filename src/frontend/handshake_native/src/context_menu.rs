@@ -215,6 +215,14 @@ impl ContextMenu {
         &self.items
     }
 
+    /// Consume the builder and return just its item list. Lets a per-surface caller
+    /// ([`crate::context_menu_surfaces`]) describe a menu with the builder's ergonomics
+    /// (`.item()` / `.separator()`) but hand back a plain `Vec<ContextMenuItem>` the wiring site
+    /// re-wraps into a fresh [`ContextMenu`] at `show_on` time with the live `surface_id`.
+    pub fn into_items(self) -> Vec<ContextMenuItem> {
+        self.items
+    }
+
     /// Open + render this menu as the context menu of `response` (secondary-click / right-click).
     ///
     /// This is the primary call site for a right-clickable surface: pass the `Response` of the widget
@@ -445,16 +453,31 @@ fn popup_id_for(response_id: egui::Id) -> egui::Id {
 }
 
 /// Open the context menu for `response_id` WITHOUT a pointer event (the keyboard path: Shift+F10 / the
-/// Menu key, or an out-of-band / swarm-agent caller).
+/// Menu key, or an out-of-band / swarm-agent caller), anchored at `at` (screen-space position — pass the
+/// right-clickable widget's rect corner/center so the keyboard-opened menu appears at the widget).
 ///
-/// This marks the matching [`ContextMenu::show_on`] popup open in egui memory via the non-deprecated
-/// [`egui::Popup::open_id`], so it renders open on the next pass. It uses the SAME popup id the pointer
-/// path uses, so the keyboard and right-click opens drive one popup (single-open invariant). The popup
-/// then anchors at the widget's rect (egui's default open-without-pointer behavior); a caller that
-/// needs a precise pointer-position anchor should instead let the genuine `secondary_clicked()` path in
-/// [`ContextMenu::show_on`] open it (which anchors at the pointer via `at_pointer_fixed`).
-pub fn request_open(ctx: &egui::Context, response_id: egui::Id) {
-    egui::Popup::open_id(ctx, popup_id_for(response_id));
+/// ## Why a position is REQUIRED (the bug this fixes)
+///
+/// [`ContextMenu::show_on`] builds the popup with [`egui::Popup::context_menu`], which uses the
+/// `PointerFixed` anchor. A `PointerFixed` popup reads its anchor rect from the position STORED when the
+/// popup was opened ([`egui::Popup::position_of_id`]); the right-click path stores the pointer position
+/// (`open_popup_at(id, hover_pos)`). Plain [`egui::Popup::open_id`] opens the popup in memory with NO
+/// stored position, so a `PointerFixed` popup opened that way has `anchor.rect == None` and egui SILENTLY
+/// renders nothing — the keyboard menu never appears. This was the untested keyboard-open defect. So this
+/// helper stores an explicit anchor position (the SAME mechanism egui's own `Popup::show` uses for
+/// `PointerFixed`), guaranteeing the keyboard-opened popup has a valid anchor and actually renders.
+///
+/// It uses the SAME popup id the pointer path uses, so the keyboard and right-click opens drive one
+/// popup (single-open invariant).
+pub fn request_open(ctx: &egui::Context, response_id: egui::Id, at: egui::Pos2) {
+    let popup_id = popup_id_for(response_id);
+    // `open_popup_at` is the position-storing open egui itself calls for a PointerFixed popup (see
+    // `egui::containers::popup::Popup::show`); plain `open_popup`/`open_id` stores no position and a
+    // PointerFixed popup then cannot anchor. The deprecation points to `PopupAnchor::Position`, but
+    // `show_on` (via `context_menu`) is `PointerFixed`, so the position-storing memory open is the
+    // matching primitive for this id.
+    #[allow(deprecated)]
+    ctx.memory_mut(|mem| mem.open_popup_at(popup_id, Some(at)));
 }
 
 /// Dismiss the context menu for `response_id` (the explicit programmatic close path).
@@ -549,13 +572,23 @@ mod tests {
         let ctx = egui::Context::default();
         let response_id = egui::Id::new("ctx-menu-test-surface");
 
-        // Frame 1: request open, then assert it reads as open within the same pass.
+        // Frame 1: request open at an anchor position, then assert it reads as open AND stores the
+        // anchor position (the keyboard-open path needs the stored position to anchor a PointerFixed
+        // popup — opening with no position silently fails to render).
         let mut seen_open = false;
+        let mut seen_pos = None;
+        let anchor = egui::pos2(120.0, 48.0);
         let _ = ctx.run(Default::default(), |ctx| {
-            request_open(ctx, response_id);
+            request_open(ctx, response_id, anchor);
             seen_open = is_open(ctx, response_id);
+            seen_pos = egui::Popup::position_of_id(ctx, popup_id_for(response_id));
         });
         assert!(seen_open, "request_open marked the context-menu popup open");
+        assert_eq!(
+            seen_pos,
+            Some(anchor),
+            "request_open stored the anchor position so a PointerFixed popup can render"
+        );
 
         // Frame 2: dismiss, then assert it reads as closed within the same pass.
         let mut seen_open_after_dismiss = true;

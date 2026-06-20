@@ -294,6 +294,8 @@ impl SplitLayoutWidget {
     /// - `lock_requests`: sink for pane-header Lock/Unlock clicks. The header's lock button (and thus an
     ///   out-of-process AccessKit `Click` on it) pushes the pane id here; the app toggles the record's
     ///   [`crate::pane_registry::LockState`] after this call (single source of truth for pane state).
+    /// - `pop_out_requests`: MT-020 sink for "Pop Out" chosen from a pane-tab or pane-header context
+    ///   menu. The app pops each pane out into its own OS window (MT-008) after this call.
     /// - `is_popped_out`: predicate over a `PaneId` (wired by the app to
     ///   [`crate::popout_window::PopOutManager::is_popped_out`]). When it returns `true` for a pane,
     ///   the pane's grid rect renders a [`PopOutPlaceholder`] tile instead of the tab bar + body, so
@@ -315,6 +317,7 @@ impl SplitLayoutWidget {
         active_module: ModuleId,
         header_colors: PaneHeaderColors,
         lock_requests: &mut Vec<PaneId>,
+        pop_out_requests: &mut Vec<PaneId>,
         is_popped_out: P,
         merge_requests: &mut Vec<PaneId>,
         placeholder_text: egui::Color32,
@@ -428,15 +431,20 @@ impl SplitLayoutWidget {
                         .layout(egui::Layout::left_to_right(egui::Align::Center)),
                 );
                 header_ui.set_clip_rect(header_rect);
+                let is_last_pane = registry_guard.len() <= 1;
                 let header_resp = PaneHeader::show(
                     &mut header_ui,
                     pane_id.as_ref(),
                     &active_tab_label,
                     locked,
+                    is_last_pane,
                     header_colors,
                 );
                 if header_resp.lock_toggled {
                     lock_requests.push(pane_id.clone());
+                }
+                if header_resp.pop_out_requested {
+                    pop_out_requests.push(pane_id.clone());
                 }
                 if header_resp.focus_requested {
                     *active_pane = Some(pane_id.clone());
@@ -503,6 +511,27 @@ impl SplitLayoutWidget {
                 if let Some(idx) = resp.closed_index {
                     bar.close_tab(idx);
                 }
+                // MT-020 "Close Others": close every tab EXCEPT the right-clicked one. Iterate from the
+                // highest index downward so each removal does not shift the indices still to be visited,
+                // and skip `keep`. `close_tab` no-ops on pinned tabs (protected), so pinned tabs survive.
+                if let Some(keep) = resp.close_others_index {
+                    for idx in (0..bar.tabs.len()).rev() {
+                        if idx != keep {
+                            bar.close_tab(idx);
+                        }
+                    }
+                }
+                // MT-020 "Close All": close every tab (highest-index-first so indices stay valid).
+                if resp.close_all {
+                    for idx in (0..bar.tabs.len()).rev() {
+                        bar.close_tab(idx);
+                    }
+                }
+            }
+            // MT-020 "Pop Out" from a tab menu pops the whole pane out (MT-008). Collected outside the
+            // bar borrow so the app applies it after this call (single source of truth).
+            if resp.pop_out_requested {
+                pop_out_requests.push(pane_id.clone());
             }
         }
         // Drops second: each completed drop moves a tab from its source bar into the target bar.

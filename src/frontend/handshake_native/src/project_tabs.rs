@@ -35,6 +35,10 @@
 
 use egui::accesskit;
 
+use crate::context_menu::ContextMenu;
+use crate::context_menu_surfaces::{
+    project_tab_action_for_id, project_tab_context_items, ProjectTabMenuAction,
+};
 use crate::error::AppError;
 
 /// Fixed AccessKit/egui `NodeId` for the project-tab-strip CONTAINER (`Role::TabList`).
@@ -208,9 +212,12 @@ impl ProjectTabBar {
                         if self.projects.is_empty() {
                             Self::render_placeholder(ui, colors);
                         } else {
+                            let project_count = self.projects.len();
                             for project in &self.projects {
                                 let is_active = project.id == self.active_id;
-                                if Self::render_tab(ui, project, is_active, colors) && !is_active {
+                                if Self::render_tab(ui, project, is_active, project_count, colors)
+                                    && !is_active
+                                {
                                     switch_to = Some(project.id.clone());
                                 }
                             }
@@ -238,11 +245,19 @@ impl ProjectTabBar {
     }
 
     /// Render a single project tab as a real interactive egui widget and emit its `Role::Tab`
-    /// AccessKit node. Returns `true` if it was clicked this frame.
+    /// AccessKit node. Returns `true` if it was clicked this frame OR its context-menu "Switch to
+    /// Project" item was confirmed (both drive the same `active_project_id` switch).
+    ///
+    /// MT-020: the tab is also a SECONDARY-clickable target. The shared MT-019 context menu is opened on
+    /// `response.secondary_clicked()` with `Switch to Project` enabled for an inactive tab (new / rename
+    /// / close are future-target — disabled + disclosed since the native shell has no workspace CRUD
+    /// calls yet). The menu reuses the SAME `tab_id` response that carries the named `project-tab-{id}`
+    /// node, so no new unnamed interactive node is created (MT-025 gate stays green).
     fn render_tab(
         ui: &mut egui::Ui,
         project: &ProjectItem,
         is_active: bool,
+        project_count: usize,
         colors: ProjectTabColors,
     ) -> bool {
         let tab_id = project_tab_egui_id(&project.id);
@@ -317,7 +332,21 @@ impl ProjectTabBar {
             }
         });
 
-        response.clicked()
+        // MT-020 right-click context menu (CLOSED by default, so the default snapshot is unchanged).
+        let mut menu_switch = false;
+        let menu = ContextMenu::new("project")
+            .items(project_tab_context_items(is_active, project_count));
+        if let Some(confirmed_id) = menu.show_on(&response) {
+            if let Some(ProjectTabMenuAction::Activate) = project_tab_action_for_id(confirmed_id) {
+                menu_switch = true;
+            }
+        }
+        // Shift+F10 opens the project-tab menu when focused (keyboard parity; gated on focus).
+        if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+            crate::context_menu::request_open(ui.ctx(), response.id, response.rect.left_bottom());
+        }
+
+        response.clicked() || menu_switch
     }
 
     /// Render the single disabled "No projects" placeholder tab (empty workspace list). It is a

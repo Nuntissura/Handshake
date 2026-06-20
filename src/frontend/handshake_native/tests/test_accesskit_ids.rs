@@ -62,6 +62,17 @@ const EXPECTED_TITLE_AUTHOR_IDS: [&str; 4] = [
     "pane-pane-c-title",
     "pane-pane-d-title",
 ];
+/// MT-020 per-pane header right-click TARGET (`pane-{pane_id}-header`, `Role::Group` + `Action::Click`).
+/// The header strip is the MT-020 pane-header context-menu surface; it is a DYNAMIC interactive node
+/// (egui hashed id space, like the MT-007 tabs), so it is NOT in the fixed-band `DECLARED_IDENTITIES`
+/// registry but IS present + named in the live default frame (one per pane). The context-menu ITEMS
+/// themselves stay closed by default, so only these four target nodes grow the snapshot (63 -> 67).
+const EXPECTED_HEADER_AUTHOR_IDS: [&str; 4] = [
+    "pane-pane-a-header",
+    "pane-pane-b-header",
+    "pane-pane-c-header",
+    "pane-pane-d-header",
+];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -389,10 +400,23 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
             snapshot.author_ids()
         );
     }
+    // The MT-020 per-pane header right-click TARGETS are present (one per pane). The context-menu items
+    // they open are closed by default, so only the four target nodes are live here.
+    for expected in EXPECTED_HEADER_AUTHOR_IDS {
+        assert!(
+            snapshot.by_author_id(expected).is_some(),
+            "MT-020 header target author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
+            snapshot.author_ids()
+        );
+    }
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
-    // stable-id nodes the fresh-seed shell emits (37 pre-MT-014 nodes + 20 MT-014 left-rail nodes + 6
-    // MT-015 top-level menu-bar buttons = 63), so a re-order or a dropped node fails loudly.
+    // stable-id nodes the fresh-seed shell emits (41 pre-MT-014 nodes + 20 MT-014 left-rail nodes + 6
+    // MT-015 top-level menu-bar buttons = 67), so a re-order or a dropped node fails loudly. The four
+    // MT-020 per-pane header right-click TARGET nodes (`pane-pane-{x}-header`, Role::Group) raised the
+    // pre-MT-014 group from 37 to 41; the context-menu ITEMS those targets open stay CLOSED by default
+    // (dynamic `ctx-menu.*` MenuItem nodes appear only while a menu is open — see test_context_menu.rs
+    // and the MT-020 secondary-click kittests), so the default frame grows only by the four targets.
     //
     // MT-015 top menu bar (6): the six top-level menu buttons (`menu-{file,edit,view,go,run,help}`, all
     // Role::MenuItem) rendered in the menu strip above the title bar. The individual LEAF items inside
@@ -406,8 +430,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     // its always-rendered group header `project-tree.group.bookmarks` (Role::TreeItem). The bookmark
     // LEAF rows are dynamic and absent in the headless shell, which seeds no pins.)
     //
-    // Pre-MT-014 (37): 7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab nodes + 4 MT-013 lock buttons +
-    // 4 MT-013 header titles + 2 MT-011 project-tab nodes + 6 MT-012 module-switcher buttons. The two
+    // Pre-MT-014 (41): 7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab nodes + 4 MT-013 lock buttons +
+    // 4 MT-013 header titles + 4 MT-020 header right-click targets + 2 MT-011 project-tab nodes + 6
+    // MT-012 module-switcher buttons. The MT-020 nodes are the per-pane header targets
+    // (`pane-pane-{x}-header`, Role::Group). The two
     // MT-011 nodes are the project-tab-strip container (`project-tabs`, Role::TabList) and the single
     // seeded default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds one
     // project tab before the `/workspaces` fetch (which never runs headlessly) would resolve. The six
@@ -454,12 +480,16 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "pane-b",
         "pane-c",
         "pane-d",
+        "pane-pane-a-header",
         "pane-pane-a-lock",
         "pane-pane-a-title",
+        "pane-pane-b-header",
         "pane-pane-b-lock",
         "pane-pane-b-title",
+        "pane-pane-c-header",
         "pane-pane-c-lock",
         "pane-pane-c-title",
+        "pane-pane-d-header",
         "pane-pane-d-lock",
         "pane-pane-d-title",
         "project-tab-default-project",
@@ -494,7 +524,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 63 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 67 stable-id nodes in sorted order"
     );
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.

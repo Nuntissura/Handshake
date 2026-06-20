@@ -151,6 +151,14 @@ pub enum LeftRailEvent {
         document_id: Option<String>,
         block_id: String,
     },
+    /// MT-020 explorer-row context menu: "Copy Path" — copy this stable id/path to the clipboard.
+    CopyPath(String),
+    /// MT-020 explorer-row context menu: "Rename" — rename this Loom block via the verified backend
+    /// PATCH endpoint. Carries the block id + current title (the rename-field seed).
+    RenameBlock {
+        block_id: String,
+        current_title: String,
+    },
     /// The Retry button on a failed project-tree load was clicked.
     RetryProjectTree,
     /// A quick-link row was clicked: focus this pane and activate its tab at `tab_index`.
@@ -254,6 +262,10 @@ impl LeftRail {
                                 ProjectTreeEvent::OpenCanvas(id) => LeftRailEvent::OpenCanvas(id),
                                 ProjectTreeEvent::OpenBookmark { document_id, block_id } => {
                                     LeftRailEvent::OpenBookmark { document_id, block_id }
+                                }
+                                ProjectTreeEvent::CopyPath(id) => LeftRailEvent::CopyPath(id),
+                                ProjectTreeEvent::RenameBlock { block_id, current_title } => {
+                                    LeftRailEvent::RenameBlock { block_id, current_title }
                                 }
                             });
                         }
