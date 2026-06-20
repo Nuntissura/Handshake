@@ -14,6 +14,13 @@ publish = false
 name = "handshake-native"
 path = "src/main.rs"
 
+[features]
+# OFF by default in MT-003 so the crate compiles without the font asset present. MT-004 turns
+# this on once assets/fonts/Inter-Regular.ttf is bundled. When enabled, include_bytes! in app.rs
+# fails at compile time with a clear message if the asset is missing (RISK-6 / CONTROL-6).
+default = []
+bundled-fonts = []
+
 [dependencies]
 egui = "0.33"
 eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }

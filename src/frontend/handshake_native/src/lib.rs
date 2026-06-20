@@ -6,3 +6,4 @@
 pub mod app;
 pub mod backend_client;
 pub mod error;
+pub mod theme;
