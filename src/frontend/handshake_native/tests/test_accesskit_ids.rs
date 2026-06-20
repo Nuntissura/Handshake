@@ -29,6 +29,20 @@ const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] =
 /// The two split dividers added by MT-006. They are LIVE `Role::Splitter` nodes addressable
 /// out-of-process by these stable author_ids, so the MT-025 live-tree snapshot now includes them.
 const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 2] = ["divider-horizontal", "divider-vertical"];
+/// MT-007 per-pane tab bars. The fresh-seed shell opens ONE tab per pane, so each of the four panes
+/// contributes a `Role::TabList` container (`tabbar-pane-{x}`), one `Role::Tab` node
+/// (`tab-pane-{x}-0`), and one `Role::Button` close node (`tab-close-pane-{x}-0`). These are LIVE
+/// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers.
+const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 4] =
+    ["tabbar-pane-a", "tabbar-pane-b", "tabbar-pane-c", "tabbar-pane-d"];
+const EXPECTED_TAB_AUTHOR_IDS: [&str; 4] =
+    ["tab-pane-a-0", "tab-pane-b-0", "tab-pane-c-0", "tab-pane-d-0"];
+const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 4] = [
+    "tab-close-pane-a-0",
+    "tab-close-pane-b-0",
+    "tab-close-pane-c-0",
+    "tab-close-pane-d-0",
+];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -336,10 +350,22 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
             snapshot.author_ids()
         );
     }
+    // The MT-007 per-pane tab bars, tabs, and close buttons are present (one tab per pane on seed).
+    for expected in EXPECTED_TABBAR_AUTHOR_IDS
+        .iter()
+        .chain(EXPECTED_TAB_AUTHOR_IDS.iter())
+        .chain(EXPECTED_TAB_CLOSE_AUTHOR_IDS.iter())
+    {
+        assert!(
+            snapshot.by_author_id(expected).is_some(),
+            "tab author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
+            snapshot.author_ids()
+        );
+    }
 
-    // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of the
-    // nine stable-id nodes the shell emits (7 chrome+pane + 2 MT-006 dividers), so a re-order or a
-    // dropped node fails loudly.
+    // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
+    // stable-id nodes the fresh-seed shell emits (7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab
+    // nodes = 21), so a re-order or a dropped node fails loudly.
     let expected_sorted = vec![
         "divider-horizontal",
         "divider-vertical",
@@ -350,11 +376,23 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "shell.chrome.status-bar",
         "shell.chrome.theme-toggle",
         "shell.chrome.title-bar",
+        "tab-close-pane-a-0",
+        "tab-close-pane-b-0",
+        "tab-close-pane-c-0",
+        "tab-close-pane-d-0",
+        "tab-pane-a-0",
+        "tab-pane-b-0",
+        "tab-pane-c-0",
+        "tab-pane-d-0",
+        "tabbar-pane-a",
+        "tabbar-pane-b",
+        "tabbar-pane-c",
+        "tabbar-pane-d",
     ];
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 9 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 21 stable-id nodes in sorted order"
     );
 
     // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.
@@ -371,9 +409,20 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
             "{divider} role"
         );
     }
+    // MT-007 tab node roles: TabList containers, Tab tabs, Button close buttons.
+    for tabbar in EXPECTED_TABBAR_AUTHOR_IDS {
+        assert_eq!(snapshot.by_author_id(tabbar).unwrap().role, "TabList", "{tabbar} role");
+    }
+    for tab in EXPECTED_TAB_AUTHOR_IDS {
+        assert_eq!(snapshot.by_author_id(tab).unwrap().role, "Tab", "{tab} role");
+    }
+    for close in EXPECTED_TAB_CLOSE_AUTHOR_IDS {
+        assert_eq!(snapshot.by_author_id(close).unwrap().role, "Button", "{close} role");
+    }
 
     println!(
-        "PASS: LIVE-FRAME snapshot has all 6 chrome+pane nodes + the toggle + 2 dividers, sorted ({} total)",
+        "PASS: LIVE-FRAME snapshot has chrome+panes+toggle+dividers + MT-007 tab nodes, sorted ({} total)",
         snapshot.nodes.len()
     );
 }
+

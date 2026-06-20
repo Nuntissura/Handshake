@@ -84,6 +84,37 @@ impl PaneType {
             PaneType::Placeholder(name) => name.clone(),
         }
     }
+
+    /// The TAB label for this surface — the React `TAB_LABEL_BY_ID` mapping (`app/src/App.tsx`).
+    /// Deliberately distinct from [`PaneType::label`]: tabs use the SHORT React tab labels
+    /// (e.g. `Fonts`, `Journal`, `Atelier`) where the pane container uses the longer descriptive
+    /// label (`Font Manager`, `Loom Daily Journal`, `Atelier Editor`). MT-007's tab bar renders the
+    /// tab label; the pane AccessKit container keeps using `label()`. Returns a `&'static str` so the
+    /// non-placeholder variants are zero-allocation.
+    pub fn default_label(&self) -> &str {
+        match self {
+            PaneType::Workspace => "Workspace",
+            PaneType::MediaDownloader => "Media Downloader",
+            PaneType::FontManager => "Fonts",
+            PaneType::FlightRecorder => "Flight Recorder",
+            PaneType::KernelDcc => "Kernel DCC",
+            PaneType::InferenceLab => "Inference Lab",
+            PaneType::ModelRuntime => "Model Runtime",
+            PaneType::Swarm => "Swarm",
+            PaneType::Problems => "Problems",
+            PaneType::Jobs => "Jobs",
+            PaneType::Timeline => "Timeline",
+            PaneType::UserManual => "User Manual",
+            PaneType::CodeSymbol => "Code Symbol",
+            PaneType::SourceControl => "Source Control",
+            PaneType::LoomDailyJournal => "Journal",
+            PaneType::LoomBlock => "Loom Block",
+            PaneType::LoomWikiPage => "Wiki Page",
+            PaneType::AtelierEditor => "Atelier",
+            PaneType::VisualDebugger => "Visual Debugger",
+            PaneType::Placeholder(name) => name.as_str(),
+        }
+    }
 }
 
 /// Whether a pane is locked against edits. Ports the React `locked` boolean as an explicit enum so

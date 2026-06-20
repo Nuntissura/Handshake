@@ -14,6 +14,7 @@ use crate::pane_registry::{
     PlaceholderPaneFactory,
 };
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
+use crate::tab_bar::{TabBarColors, TabBarState, TabState};
 use crate::theme::{self, HsTheme};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
@@ -64,6 +65,11 @@ pub struct HandshakeApp {
     /// The pane the operator last clicked. `None` until a pane is activated; later MTs use it to
     /// highlight the focused pane / route operator actions.
     active_pane: Option<PaneId>,
+    /// Per-pane tab-bar state (MT-007). Keyed by `PaneId` so each pane region owns its own ordered
+    /// tab list + active index. Serialized into the layout snapshot by MT-009. Inter-pane tab drag
+    /// state is NOT stored here — it lives in egui's `DragAndDrop` payload while a drag is in flight
+    /// (the drop crosses pane boundaries, so it cannot belong to any single `TabBarState`).
+    tab_bar_states: HashMap<PaneId, TabBarState>,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -133,6 +139,21 @@ fn seeded_registry() -> PaneRegistry {
     reg
 }
 
+/// Seed one tab bar per default pane (MT-007). Each pane opens with a single tab matching its seed
+/// `PaneType`, so a fresh work surface shows a coherent "one tab per pane" state that the operator or
+/// an agent can then add/close/reorder/pin. Mirrors the registry's `default_panes` shape so the two
+/// stay aligned (the live-tree test asserts pane-a..pane-d each have a tab bar).
+fn default_tab_bar_states() -> HashMap<PaneId, TabBarState> {
+    default_panes()
+        .into_iter()
+        .map(|record| {
+            let tabs = vec![TabState::new(record.pane_type.clone())];
+            let bar = TabBarState::new(record.pane_id.clone(), tabs);
+            (record.pane_id.clone(), bar)
+        })
+        .collect()
+}
+
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
 /// (ON by default from MT-004). When the feature is OFF, font loading is skipped and eframe's
 /// default fonts are used — never a panic (RISK-6 / CONTROL-6). build.rs fails fast with a clear
@@ -171,6 +192,7 @@ impl HandshakeApp {
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
+            tab_bar_states: default_tab_bar_states(),
         }
     }
 
@@ -190,6 +212,7 @@ impl HandshakeApp {
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
+            tab_bar_states: default_tab_bar_states(),
         }
     }
 
@@ -201,6 +224,17 @@ impl HandshakeApp {
     /// Active base theme (for tests / future settings binding).
     pub fn current_theme(&self) -> HsTheme {
         self.current_theme
+    }
+
+    /// Read-only view of the per-pane tab-bar state (for tests / MT-009 snapshot wiring).
+    pub fn tab_bar_states(&self) -> &HashMap<PaneId, TabBarState> {
+        &self.tab_bar_states
+    }
+
+    /// Mutable view of the per-pane tab-bar state (for tests that seed a multi-tab pane before
+    /// driving a frame, and for future agent/operator tab mutation).
+    pub fn tab_bar_states_mut(&mut self) -> &mut HashMap<PaneId, TabBarState> {
+        &mut self.tab_bar_states
     }
 
     /// Register the bundled Inter font when the `bundled-fonts` feature is on; otherwise leave
@@ -416,6 +450,7 @@ impl HandshakeApp {
         let split_weights = &mut self.split_weights;
         let split_drag = &mut self.split_drag;
         let active_pane = &mut self.active_pane;
+        let tab_bar_states = &mut self.tab_bar_states;
         // Catch-all factory for any PaneType without a dedicated entry: the empty-label Placeholder
         // key registered in build_default_factories.
         let fallback_key = PaneType::Placeholder(String::new());
@@ -427,6 +462,16 @@ impl HandshakeApp {
             idle: palette.divider_idle,
             hover: palette.divider_hover,
             grab: palette.divider_grab,
+        };
+        // Tab-bar colors come from the same MT-003 theme tokens so the tab strip is themed and flips
+        // dark<->light with the rest of the shell (mirrors the divider token wiring above): the active
+        // tab uses the accent-soft fill, inactive tabs use the surface fill, glyphs/dots use accent.
+        let tab_colors = TabBarColors {
+            active_bg: palette.accent_soft,
+            inactive_bg: palette.surface,
+            text: palette.text,
+            accent: palette.accent,
+            drop_highlight: palette.accent_soft,
         };
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -441,6 +486,8 @@ impl HandshakeApp {
                 active_pane,
                 registry,
                 divider_colors,
+                tab_bar_states,
+                tab_colors,
                 |pane_type| {
                     factories
                         .get(pane_type)

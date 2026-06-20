@@ -31,6 +31,7 @@ use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
+use crate::tab_bar::TABBAR_SLOTS;
 
 /// Fixed AccessKit/egui id for the theme-toggle button (mirrors the private `THEME_TOGGLE_NODE_ID`
 /// in `app.rs`). Re-declared here as the registry's copy so the collision test can see it without
@@ -67,9 +68,14 @@ pub struct DeclaredIdentity {
 /// - status bar        -> id 21  (`ChromeWidget::StatusBar`, `live::emit_chrome_node`)
 /// - divider horizontal -> id 30 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
 /// - divider vertical   -> id 31 (`Role::Splitter`, `split_layout::SplitLayoutWidget`)
+/// - tab bar pane-a..d  -> id 60..63 (`Role::TabList`, `tab_bar::TabBar`)
 ///
 /// Panes occupy id >= 100 (see [`PANE_NODE_ID_BASE`]); they are validated by the disjointness
-/// assertion in the collision test rather than enumerated here.
+/// assertion in the collision test rather than enumerated here. Individual tab + tab-close nodes
+/// (MT-007) are DYNAMIC (count varies as tabs open/close) and are addressed by an `egui::Id` derived
+/// from their author_id STRING (`tab-{pane_id}-{index}`), so they live in egui's hashed id space —
+/// NOT the small fixed band — and are not enumerated here. Only the fixed per-pane tab-bar CONTAINER
+/// ids are declared.
 pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: THEME_TOGGLE_AUTHOR_ID,
@@ -90,6 +96,23 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: DIVIDER_V_AUTHOR_ID,
         node_id: DIVIDER_V_NODE_ID,
+    },
+    // MT-007 per-pane tab-bar containers (Role::TabList), fixed 60..63 band.
+    DeclaredIdentity {
+        author_id: "tabbar-pane-a",
+        node_id: TABBAR_SLOTS[0].1,
+    },
+    DeclaredIdentity {
+        author_id: "tabbar-pane-b",
+        node_id: TABBAR_SLOTS[1].1,
+    },
+    DeclaredIdentity {
+        author_id: "tabbar-pane-c",
+        node_id: TABBAR_SLOTS[2].1,
+    },
+    DeclaredIdentity {
+        author_id: "tabbar-pane-d",
+        node_id: TABBAR_SLOTS[3].1,
     },
 ];
 

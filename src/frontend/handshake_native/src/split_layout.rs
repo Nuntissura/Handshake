@@ -32,11 +32,15 @@
 //! can never be computed at zero or negative size — there is no window where an unclamped weight
 //! reaches the rect computation.
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
 use crate::pane_registry::{PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType};
+use crate::tab_bar::{
+    apply_drop, apply_drop_same_pane, TabBar, TabBarColors, TabBarState, TAB_BAR_HEIGHT,
+};
 
 /// Minimum fraction either pane may shrink to. Ported verbatim from `app/src/App.tsx`
 /// `SPLIT_MIN = 0.2`.
@@ -272,6 +276,12 @@ impl SplitLayoutWidget {
     /// - `emit_accesskit`: live AccessKit emission callback for panes (MT-025), invoked once per pane
     ///   inside the pane's own egui scope. Wired by the app to `accessibility::emit_pane_node` so live
     ///   pane emission is NOT regressed by moving panes into split rects.
+    /// - `tab_bars`: per-pane tab-bar state (MT-007), keyed by `PaneId`. The tab bar is rendered in a
+    ///   [`TAB_BAR_HEIGHT`]-tall strip carved off the TOP of each pane rect; the pane body renders in
+    ///   the remaining rect below it. Tab interactions (activate / close / pin / inter-pane drop) are
+    ///   reconciled into this map after the pane loop, so a tab dragged from one pane to another moves
+    ///   exactly once (see [`apply_drop`]).
+    /// - `tab_colors`: the MT-003 theme-token colors the tab bar paints with.
     #[allow(clippy::too_many_arguments)]
     pub fn show<'f, F, A>(
         ui: &mut egui::Ui,
@@ -280,6 +290,8 @@ impl SplitLayoutWidget {
         active_pane: &mut Option<PaneId>,
         registry: &Arc<Mutex<PaneRegistry>>,
         divider_colors: DividerColors,
+        tab_bars: &mut HashMap<PaneId, TabBarState>,
+        tab_colors: TabBarColors,
         mut factory_for: F,
         mut emit_accesskit: A,
     ) where
@@ -300,9 +312,13 @@ impl SplitLayoutWidget {
 
         let rects = compute_split_rects(area, *weights);
 
-        // ── Pane bodies ──────────────────────────────────────────────────────────────────────────
+        // ── Pane bodies + tab bars ─────────────────────────────────────────────────────────────────
         // Each pane is looked up by its spatial id and rendered into its rect. A missing pane (e.g.
         // a registry that does not seed the full 2x2) degrades to an empty rect rather than a panic.
+        // A TAB_BAR_HEIGHT-tall strip is carved off the TOP of each pane rect for the MT-007 tab bar;
+        // the pane body renders in the remaining rect below it. Tab interactions are collected here and
+        // reconciled into `tab_bars` AFTER the loop (a drop needs two distinct &mut bars, which is not
+        // possible while iterating).
         let registry_guard = registry.lock().expect("pane registry mutex poisoned");
         let pane_slots = [
             (PANE_A, rects.top_left),
@@ -310,6 +326,8 @@ impl SplitLayoutWidget {
             (PANE_C, rects.bottom_left),
             (PANE_D, rects.bottom_right),
         ];
+        // (pane_id, TabBarResponse) collected per pane this frame, reconciled below.
+        let mut tab_responses: Vec<(PaneId, crate::tab_bar::TabBarResponse)> = Vec::new();
         for (pane_key, pane_rect) in pane_slots {
             let pane_id: PaneId = Arc::from(pane_key);
             let Some(record) = registry_guard.get(&pane_id) else {
@@ -323,6 +341,31 @@ impl SplitLayoutWidget {
                 .unwrap_or_else(|| hash_pane_id(&pane_id));
             let pane_egui_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
 
+            // Carve the tab-bar strip off the top of the pane rect. Guard against a degenerate pane
+            // shorter than the tab bar: in that case the body rect collapses but never inverts.
+            let tab_bar_height = TAB_BAR_HEIGHT.min(pane_rect.height());
+            let tab_bar_rect = egui::Rect::from_min_max(
+                pane_rect.min,
+                egui::pos2(pane_rect.right(), pane_rect.top() + tab_bar_height),
+            );
+            let body_rect = egui::Rect::from_min_max(
+                egui::pos2(pane_rect.left(), pane_rect.top() + tab_bar_height),
+                pane_rect.max,
+            );
+
+            // Render the tab bar (if this pane has one) in its strip.
+            if let Some(tab_state) = tab_bars.get(&pane_id) {
+                let mut tab_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("tab-bar", node_id))
+                        .max_rect(tab_bar_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                );
+                tab_ui.set_clip_rect(tab_bar_rect);
+                let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors);
+                tab_responses.push((pane_id.clone(), resp));
+            }
+
             let factory = factory_for(&record.pane_type);
             let role = factory.accesskit_role();
             let label = record.pane_type.label();
@@ -334,20 +377,76 @@ impl SplitLayoutWidget {
             let mut child = ui.new_child(
                 egui::UiBuilder::new()
                     .id_salt(node_id)
-                    .max_rect(pane_rect)
+                    .max_rect(body_rect)
                     .layout(egui::Layout::top_down(egui::Align::Min)),
             );
-            child.set_clip_rect(pane_rect);
+            child.set_clip_rect(body_rect);
             factory.render(&mut child, &render_ctx);
             // Register the pane's stable id on its content rect so the live AccessKit node attaches
             // under this scope, and capture a click so the operator can activate a pane.
-            let pane_response = child.interact(pane_rect, pane_egui_id, egui::Sense::click());
+            let pane_response = child.interact(body_rect, pane_egui_id, egui::Sense::click());
             if pane_response.clicked() {
                 *active_pane = Some(pane_id.clone());
             }
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         }
         drop(registry_guard);
+
+        // ── Reconcile tab interactions ──────────────────────────────────────────────────────────────
+        // Apply each pane's tab interactions to `tab_bars`. Order matters: drops are applied LAST so a
+        // close/activate this frame does not shift indices a drop relies on. A drop is the only
+        // interaction that touches TWO bars, so it is the only one that needs the cross-bar
+        // `apply_drop`; everything else mutates the one owning bar.
+        for (pane_id, resp) in &tab_responses {
+            if let Some(bar) = tab_bars.get_mut(pane_id) {
+                if let Some(idx) = resp.activated_index {
+                    bar.activate(idx);
+                    *active_pane = Some(pane_id.clone());
+                }
+                if let Some((idx, pin)) = resp.pin_toggled {
+                    if pin {
+                        bar.pin_tab(idx);
+                    } else {
+                        bar.unpin_tab(idx);
+                    }
+                }
+                if let Some(idx) = resp.closed_index {
+                    bar.close_tab(idx);
+                }
+            }
+        }
+        // Drops second: each completed drop moves a tab from its source bar into the target bar.
+        for (target_pane_id, resp) in &tab_responses {
+            let Some((payload, target)) = &resp.drop_completed else {
+                continue;
+            };
+            if payload.source_pane_id == target.target_pane_id {
+                // Same-pane reorder: one bar.
+                if let Some(bar) = tab_bars.get_mut(target_pane_id) {
+                    apply_drop_same_pane(payload, target, bar);
+                }
+            } else {
+                // Cross-pane move: take BOTH bars out of the map so we hold two distinct &mut.
+                // Remove each independently so a missing bar never causes the OTHER (successfully
+                // removed) bar to be dropped — that would lose a whole pane's tabs.
+                let source_id = payload.source_pane_id.clone();
+                let target_id = target.target_pane_id.clone();
+                let mut source_opt = tab_bars.remove(&source_id);
+                let mut target_opt = tab_bars.remove(&target_id);
+                if let (Some(source_bar), Some(target_bar)) =
+                    (source_opt.as_mut(), target_opt.as_mut())
+                {
+                    apply_drop(payload, target, source_bar, target_bar);
+                }
+                // Re-insert whatever we removed (both on the happy path; the survivor otherwise).
+                if let Some(b) = source_opt {
+                    tab_bars.insert(source_id, b);
+                }
+                if let Some(b) = target_opt {
+                    tab_bars.insert(target_id, b);
+                }
+            }
+        }
 
         // ── Dividers ─────────────────────────────────────────────────────────────────────────────
         // CANONICAL (React): the horizontal LINE controls `weights.horizontal` (top/bottom row split,
