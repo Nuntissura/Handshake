@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WP-KERNEL-011 MT-004 - Handshake native Windows installer (WiX 4 scaffold).
+
+  Scaffold scope ONLY (MT-004): bundles the two product binaries (handshake-native.exe shell +
+  handshake_core.exe backend) into a single MSI under one install folder, with a Start Menu
+  shortcut to the shell and a standard uninstall entry (MajorUpgrade). No custom dialogs, no
+  registry writes beyond the uninstall metadata, no file associations, no code signing: those are
+  deferred to later MTs. Must pass WiX validation (wix build with validation) cleanly.
+
+  Two binaries are shipped together because the native shell delegates PostgreSQL cluster lifecycle
+  to handshake_core (handshake_core::managed_postgres::ManagedPostgres::ensure_running). PostgreSQL
+  itself is NOT bundled - see installer/windows/BUNDLED_DEPS_POLICY.md.
+
+  UpgradeCode GUID: 609E7B1F-D861-4353-A0D6-85B79B459614 - DO NOT CHANGE after first release
+  (changing it breaks the upgrade chain for already-installed users).
+
+  Binary sources are injected by build_installer.ps1 via env vars (keeps this file disk-agnostic,
+  [GLOBAL-PORTABILITY-004]):
+    $(env.HANDSHAKE_NATIVE_EXE) -> path to handshake-native.exe
+    $(env.HANDSHAKE_CORE_EXE)   -> path to handshake_core.exe
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Handshake"
+      Manufacturer="Handshake"
+      Version="0.1.0"
+      UpgradeCode="609E7B1F-D861-4353-A0D6-85B79B459614"
+      Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Handshake is already installed." />
+
+    <Feature Id="Main" Title="Handshake" Level="1">
+      <ComponentGroupRef Id="HandshakeComponents" />
+      <ComponentRef Id="ShellStartMenuShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <!-- Install layout: %ProgramFiles%\Handshake\ holding both binaries side by side. -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Handshake" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="HandshakeStartMenuDir" Name="Handshake" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="HandshakeComponents" Directory="INSTALLFOLDER">
+      <!-- Native GUI shell (statically linked single binary; fonts embedded). -->
+      <Component Id="HandshakeNativeExe" Bitness="always64">
+        <File Id="HandshakeNativeExeFile" Source="$(env.HANDSHAKE_NATIVE_EXE)" KeyPath="yes" />
+      </Component>
+      <!-- Backend / managed-postgres host binary, shipped alongside the shell. -->
+      <Component Id="HandshakeCoreExe" Bitness="always64">
+        <File Id="HandshakeCoreExeFile" Source="$(env.HANDSHAKE_CORE_EXE)" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <!-- Start Menu shortcut launches the native shell (which sidecar-launches the core in a later
+         MT; for MT-004 the shortcut targets the shell binary directly). -->
+    <Component Id="ShellStartMenuShortcut" Directory="HandshakeStartMenuDir" Guid="*">
+      <Shortcut Id="HandshakeShortcut"
+                Name="Handshake"
+                Description="Handshake native work surface"
+                Target="[INSTALLFOLDER]handshake-native.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveHandshakeStartMenuDir" Directory="HandshakeStartMenuDir" On="uninstall" />
+      <!-- Per-user keypath required for a shortcut-only component. -->
+      <RegistryValue Root="HKCU"
+                     Key="Software\Handshake\Native"
+                     Name="installed"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+  </Fragment>
+</Wix>

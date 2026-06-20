@@ -2,3 +2,11 @@
 # handshake-cargo-target and the toolkit-spike dir, to avoid build contention during dev.
 [build]
 target-dir = "../../../../Handshake_Artifacts/handshake-native-target"
+
+# MT-004 single-binary requirement (a): statically link the MSVC CRT so the shipped exe has NO
+# VCRUNTIME140.dll / MSVCP140.dll runtime dependency. This is a CRATE-LOCAL config (not the
+# workspace/repo root) on purpose (CONTROL-1 / RISK-1): placing crt-static at a shared root would
+# contaminate handshake_core. test_single_binary.rs asserts VCRUNTIME140.dll is absent from the
+# release-native import table to prove this flag actually took effect.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

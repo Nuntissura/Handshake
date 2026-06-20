@@ -31,12 +31,20 @@ pub struct HandshakeApp {
     last_applied_theme: Option<HsTheme>,
 }
 
-/// Inter-Regular font bytes, embedded at compile time. Gated behind `bundled-fonts` so MT-003
-/// compiles without the asset present (MT-004 bundles `assets/fonts/Inter-Regular.ttf` and turns
-/// the feature on). When the feature is OFF, font loading is skipped and eframe's default fonts
-/// are used — never a panic (RISK-6 / CONTROL-6).
+/// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
+/// (ON by default from MT-004). When the feature is OFF, font loading is skipped and eframe's
+/// default fonts are used — never a panic (RISK-6 / CONTROL-6). build.rs fails fast with a clear
+/// message if the asset is missing while the feature is enabled.
 #[cfg(feature = "bundled-fonts")]
 const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf");
+#[cfg(feature = "bundled-fonts")]
+const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
+
+/// AccessKit/egui font family name for the bold Inter face. A named family (rather than replacing
+/// the Proportional default) so callers can opt into bold text via `FontFamily::Name("Inter-Bold")`
+/// without changing the default proportional rendering.
+#[cfg(feature = "bundled-fonts")]
+pub const INTER_BOLD_FAMILY: &str = "Inter-Bold";
 
 impl HandshakeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -81,20 +89,39 @@ impl HandshakeApp {
     /// Register the bundled Inter font when the `bundled-fonts` feature is on; otherwise leave
     /// eframe's default fonts in place. Never panics: a missing asset is a compile-time error
     /// only when the feature is explicitly enabled (the operator opting into bundling).
-    fn install_fonts(ctx: &egui::Context) {
+    ///
+    /// Public so the MT-004 font-bundling proof can drive it on a headless `egui::Context` and
+    /// assert that Inter is actually registered as the active proportional font (rather than the
+    /// fallback). `HandshakeApp::new` calls this on the real eframe context at startup.
+    pub fn install_fonts(ctx: &egui::Context) {
         #[cfg(feature = "bundled-fonts")]
         {
             let mut fonts = egui::FontDefinitions::default();
-            fonts
-                .font_data
-                .insert("Inter".to_owned(), std::sync::Arc::new(egui::FontData::from_static(INTER_REGULAR)));
+            // Regular face: front of the Proportional family so all default UI text renders Inter.
+            fonts.font_data.insert(
+                "Inter".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_static(INTER_REGULAR)),
+            );
             fonts
                 .families
                 .entry(egui::FontFamily::Proportional)
                 .or_default()
                 .insert(0, "Inter".to_owned());
+
+            // Bold face: registered under a named family so callers can request bold explicitly via
+            // FontFamily::Name("Inter-Bold") without disturbing the default proportional rendering.
+            fonts.font_data.insert(
+                INTER_BOLD_FAMILY.to_owned(),
+                std::sync::Arc::new(egui::FontData::from_static(INTER_BOLD)),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Name(INTER_BOLD_FAMILY.into()))
+                .or_default()
+                .insert(0, INTER_BOLD_FAMILY.to_owned());
+
             ctx.set_fonts(fonts);
-            tracing::info!("bundled Inter font loaded");
+            tracing::info!("bundled Inter fonts loaded (Regular + Bold)");
         }
         #[cfg(not(feature = "bundled-fonts"))]
         {

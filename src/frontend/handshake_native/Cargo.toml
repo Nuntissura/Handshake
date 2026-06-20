@@ -2,23 +2,74 @@
 # no Tauri, no Electron). Versions are the MT-001 spike-verdict proven pins (egui 0.33 family;
 # rustc 1.91.1 forces 0.33, not 0.34). Standalone [workspace] for now: the repo has no root cargo
 # workspace, so this crate stands alone; forming a root workspace is a future CX-106 decision.
+#
+# MT-004 DEVIATION (root workspace): the MT-004 contract assumed a root Cargo.toml workspace with
+# handshake_core as a member, and asked for [profile.release-native] there. The repo has NO root
+# workspace, and handshake_core lives at src/backend/handshake_core which is forbidden_paths for
+# this MT (reuse-via-API only). Creating a root workspace would pull handshake_core + app/src-tauri
+# into one workspace and risk breaking their builds + contaminating their profiles/rustflags.
+# Per the orchestrator's minimal-approach instruction, the release-native profile lives in THIS
+# crate's own [workspace] table (this crate is its own workspace root), which is exactly the profile
+# location cargo reads for `cargo build --profile release-native -p handshake-native` run from here.
 [workspace]
+
+# release-native: for INSTALLER builds only. Dev builds use --profile dev. CI smoke tests use
+# --profile release. (CONTROL-2: lto='fat' + codegen-units=1 is slow; gate fat-LTO behind the
+# HANDSHAKE_LTO env var in the build pipeline — see installer/windows/BUNDLED_DEPS_POLICY.md.)
+# Does NOT modify [profile.release]; this is a separate named profile.
+[profile.release-native]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+# strip: the contract requested strip="symbols". On MSVC, debug info lives in a side .pdb (not the
+# .exe), so the shipped .exe is already lean; strip="symbols" is honored here.
+strip = "symbols"
+opt-level = 3
+# BUILD PATH NOTE (MAX_PATH): the `release-native` profile name is longer than `release`, which
+# pushes the deepest build-script output paths (icu_*, parking_lot_core, windows_x86_64_msvc) past
+# the Windows 260-char MAX_PATH limit when the crate's external target-dir (.cargo/config.toml) is
+# used, causing link.exe LNK1104 ("cannot open file build_script_build.exe"). link.exe does not
+# honor the registry LongPathsEnabled opt-in. The fix is to build release-native into a SHORT target
+# dir: build_installer.ps1 sets CARGO_TARGET_DIR to a short path, and the single-binary proof test
+# resolves the binary from CARGO_TARGET_DIR. This is an environment/path constraint, NOT a profile
+# defect — the contract profile settings (fat LTO, codegen-units=1, panic=abort, strip=symbols) all
+# build cleanly once the path is short. Documented in installer/windows/BUNDLED_DEPS_POLICY.md.
+
+[workspace.metadata.handshake-native]
+# Bundled-deps + installer metadata for no-context tooling. Authoritative human-readable policy is
+# installer/windows/BUNDLED_DEPS_POLICY.md (GOVARTIFACTS-019 operator-prose exception).
+single_binary = true
+crt_static = true
+bundled_fonts = ["Inter-Regular.ttf", "Inter-Bold.ttf"]
+installer = "installer/windows/handshake_native.wxs"
+# Two-binary install layout: native shell + the handshake_core backend (managed-postgres host).
+install_payload = ["handshake-native.exe", "handshake_core.exe"]
 
 [package]
 name = "handshake-native"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 publish = false
+
+# cargo-bundle-style metadata (cargo-bundle is NOT used — WiX 4 is the chosen Windows installer;
+# see BUNDLED_DEPS_POLICY.md "Installer tooling decision"). Kept for tooling discoverability.
+[package.metadata.bundle]
+name = "Handshake"
+identifier = "com.handshake.native"
+icon = []
+resources = ["assets/fonts"]
 
 [[bin]]
 name = "handshake-native"
 path = "src/main.rs"
 
 [features]
-# OFF by default in MT-003 so the crate compiles without the font asset present. MT-004 turns
-# this on once assets/fonts/Inter-Regular.ttf is bundled. When enabled, include_bytes! in app.rs
-# fails at compile time with a clear message if the asset is missing (RISK-6 / CONTROL-6).
-default = []
+# MT-004 bundles assets/fonts/Inter-{Regular,Bold}.ttf and turns this ON by default so the shipped
+# binary always renders the Inter UI font. include_bytes! in app.rs fails at compile time with a
+# clear message if the asset is missing (RISK-6 / CONTROL-6). Build without fonts via
+# `--no-default-features` to fall back to eframe's default fonts (used by the size-delta proof).
+default = ["bundled-fonts"]
 bundled-fonts = []
 
 [dependencies]
@@ -34,3 +85,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 egui_kittest = { version = "0.33", features = ["wgpu"] }
+# Single-binary DLL audit (test_single_binary.rs). Reuses the MT-001 spike-proven `object` pin
+# (0.36) instead of the contract's pelite suggestion: `object` is already verified on this host
+# (dumpbin is absent — toolkit_spike_verdict.json), parses the PE import table the same way, and
+# adds NO new dependency family. See test_single_binary.rs header for the deviation rationale.
+object = "0.36"
