@@ -28,6 +28,10 @@
 use egui::accesskit;
 
 use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
+use crate::command_palette::{
+    PALETTE_DIALOG_AUTHOR_ID, PALETTE_DIALOG_NODE_ID, PALETTE_LIST_AUTHOR_ID, PALETTE_LIST_NODE_ID,
+    PALETTE_SEARCH_AUTHOR_ID, PALETTE_SEARCH_NODE_ID,
+};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
@@ -356,6 +360,36 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
         author_id: MENU_DEFINITIONS[5].author_id(),
         node_id: MENU_BAR_NODE_ID_BASE + 5,
     },
+    // MT-016 command-palette overlay container nodes, fresh band 11..=13: above the theme toggle (10),
+    // below the chrome title bar (20) and the pane id base (100). The palette renders ONLY while
+    // `command_palette_open` is true, so the default-seed live tree never contains them (like the MT-008
+    // merge-back / MT-010 scrollbar nodes); the collision test still covers their fixed ids here so they
+    // can never overlap any other declared identity. The three nodes are the dialog root (Role::Dialog,
+    // modal), the search box (Role::TextInput), and the list container (Role::ListBox). Individual
+    // command ROWS are DYNAMIC (count varies with the filter) and are addressed by an egui::Id derived
+    // from their author_id STRING (`command-palette.option.{stable_id}`) in egui's hashed id space — NOT
+    // this fixed band — so they are not enumerated here (same pattern as the MT-007 per-tab nodes).
+    DeclaredIdentity {
+        author_id: PALETTE_DIALOG_AUTHOR_ID,
+        node_id: PALETTE_DIALOG_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: PALETTE_SEARCH_AUTHOR_ID,
+        node_id: PALETTE_SEARCH_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: PALETTE_LIST_AUTHOR_ID,
+        node_id: PALETTE_LIST_NODE_ID,
+    },
+];
+
+/// The three fixed palette container author_ids (dialog / search / list), for the palette module to
+/// reference so it stays tied to this collision-proven registry. Command ROW author_ids are dynamic
+/// (`command-palette.option.{stable_id}`) and are not listed here.
+pub const PALETTE_AUTHOR_IDS: &[&str] = &[
+    PALETTE_DIALOG_AUTHOR_ID,
+    PALETTE_SEARCH_AUTHOR_ID,
+    PALETTE_LIST_AUTHOR_ID,
 ];
 
 /// AccessKit roles that denote an interactive widget a model is expected to be able to address and

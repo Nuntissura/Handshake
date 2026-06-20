@@ -215,8 +215,13 @@ pub struct HandshakeApp {
     /// persistence land in later MTs). Defaults to NSFW (the production default).
     view_mode: ViewMode,
     /// Whether the command-palette overlay is requested open (MT-015 GO menu sets this; the overlay UI
-    /// is MT-016). A bool flag only — no overlay renders in MT-015 (HBR-QUIET: no foreground dialog).
+    /// is MT-016). The MT-016 overlay (`crate::command_palette`) renders when this is true.
     command_palette_open: bool,
+    /// Monotonic counter incremented each time [`command_palette_open`](Self::command_palette_open)
+    /// flips from closed to open (MT-016). The palette resets its transient query/selection state
+    /// whenever it sees a new value, so a re-open never shows the previous session's text (red-team
+    /// R1/MC1). Set via [`open_command_palette`](Self::open_command_palette).
+    command_palette_open_count: u64,
     /// Whether the quick-switcher overlay is requested open (MT-015 GO menu sets this; UI is MT-016).
     quick_switcher_open: bool,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
@@ -404,6 +409,7 @@ impl HandshakeApp {
             event_bus_tx,
             view_mode: ViewMode::Nsfw,
             command_palette_open: false,
+            command_palette_open_count: 0,
             quick_switcher_open: false,
             settings_open: false,
             about_open: false,
@@ -462,6 +468,7 @@ impl HandshakeApp {
             event_bus_tx,
             view_mode: ViewMode::Nsfw,
             command_palette_open: false,
+            command_palette_open_count: 0,
             quick_switcher_open: false,
             settings_open: false,
             about_open: false,
@@ -596,6 +603,99 @@ impl HandshakeApp {
     /// Whether the command-palette overlay is requested open (MT-015 GO menu; overlay UI is MT-016).
     pub fn command_palette_open(&self) -> bool {
         self.command_palette_open
+    }
+
+    /// The monotonic open generation of the command palette (MT-016). The palette resets its transient
+    /// state when this changes; exposed for tests that assert a re-open bumps the counter.
+    pub fn command_palette_open_count(&self) -> u64 {
+        self.command_palette_open_count
+    }
+
+    /// Open the command palette (MT-016), bumping the open generation so the overlay resets its query +
+    /// selection on this open (red-team R1/MC1). Idempotent while already open: a second open of an
+    /// already-open palette does NOT bump the generation (so it does not wipe the user's in-progress
+    /// query). The GO menu, the Ctrl+Shift+P chord, and tests all route through here.
+    pub fn open_command_palette(&mut self) {
+        if !self.command_palette_open {
+            self.command_palette_open = true;
+            self.command_palette_open_count = self.command_palette_open_count.wrapping_add(1);
+        }
+    }
+
+    /// Close the command palette (MT-016). Used by the overlay's Escape / Close / backdrop dismiss and
+    /// after a command runs. Safe to call when already closed.
+    pub fn close_command_palette(&mut self) {
+        self.command_palette_open = false;
+    }
+
+    /// Toggle the command palette open/closed (MT-016 Ctrl+Shift+P chord). Opening bumps the open
+    /// generation (state reset); closing does not.
+    pub fn toggle_command_palette(&mut self) {
+        if self.command_palette_open {
+            self.close_command_palette();
+        } else {
+            self.open_command_palette();
+        }
+    }
+
+    /// Dispatch a command id picked in the palette (MT-016) into the existing shell state-mutation
+    /// paths, the native mirror of the React `onAction` handler. Returns `true` if app state changed
+    /// (so the caller can request a repaint + let the layout change-detector schedule a save). Editor
+    /// (`editor.*`) commands are guarded on an active document (red-team R5/MC5); since the native
+    /// editor surface is a future MT, they are currently always skipped with a logged warning rather
+    /// than panicking. An unknown id is a safe no-op with a logged warning.
+    fn dispatch_palette_action(&mut self, ctx: &egui::Context, command_id: &str) -> bool {
+        match command_id {
+            "usermanual.open" => self.navigate_to_tab("user-manual"),
+            "usermanual.search" => {
+                // Open the UserManual tab; a dedicated search-focus flag lands with the UserManual
+                // search surface MT. Opening the tab is the runnable part now.
+                self.navigate_to_tab("user-manual")
+            }
+            "settings.open" => {
+                self.settings_open = true;
+                true
+            }
+            "theme.toggle" => {
+                self.current_theme = self.current_theme.toggled();
+                self.apply_theme_if_changed(ctx);
+                true
+            }
+            "viewmode.toggle" => {
+                self.view_mode = self.view_mode.toggled();
+                true
+            }
+            "layout.reset" => {
+                // Mirror the VIEW > Reset Layout arm-then-confirm safety (red-team MC7): arming, not an
+                // immediate wipe.
+                self.reset_layout_pending = true;
+                true
+            }
+            "swarmboard.open" => self.navigate_to_tab("swarm"),
+            "inferencelab.open" => self.navigate_to_tab("inference-lab"),
+            "flightrecorder.open" => self.navigate_to_tab("flight-recorder"),
+            "pane.next" => self.focus_pane(true),
+            "pane.prev" => self.focus_pane(false),
+            "drawer.project.toggle" => {
+                self.left_rail_open = !self.left_rail_open;
+                true
+            }
+            "drawer.bottom.toggle" => {
+                self.bottom_drawer_open = !self.bottom_drawer_open;
+                true
+            }
+            id if id.starts_with("editor.") => {
+                // The native editor surface is a future MT; an editor command dispatched through the
+                // palette is guarded (red-team R5/MC5) so it never panics with no active document. Today
+                // there is no active document, so we log + skip rather than fake an edit.
+                tracing::warn!("palette: editor command {id} skipped (no active editor document)");
+                false
+            }
+            other => {
+                tracing::warn!("palette: unknown command id {other}");
+                false
+            }
+        }
     }
 
     /// Whether the quick-switcher overlay is requested open (MT-015 GO menu; overlay UI is MT-016).
@@ -737,7 +837,7 @@ impl HandshakeApp {
                 true
             }
             MenuBarAction::OpenCommandPalette => {
-                self.command_palette_open = true;
+                self.open_command_palette();
                 true
             }
             MenuBarAction::OpenSettings => {
@@ -1576,6 +1676,24 @@ impl HandshakeApp {
         if crate::top_menu_bar::handle_menu_mnemonics(ctx).is_some() {
             ctx.request_repaint();
         }
+
+        // ── Command palette chord (MT-016): Ctrl+Shift+P toggles the palette ──────────────────────────
+        // "Mod" = Ctrl on Windows/Linux, Cmd on macOS — egui's `Modifiers::COMMAND` maps to the platform
+        // accelerator, so `COMMAND + SHIFT + P` is the cross-platform "Mod-Shift-P" chord from the React
+        // `APP_KEYBINDING_ACTIONS` default. `consume_key` swallows the chord so it does not also reach the
+        // global keymap / editor layer (red-team R4/MC4 — no double-fire). Handled BEFORE the menu bar
+        // renders so the toggle is applied this frame.
+        let palette_chord = ctx.input_mut(|i| {
+            i.consume_key(
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::P,
+            )
+        });
+        if palette_chord {
+            self.toggle_command_palette();
+            ctx.request_repaint();
+        }
+
         let menu_state = self.menu_bar_state();
         let menu_action = egui::TopBottomPanel::top("handshake_menu_bar")
             .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
@@ -1886,6 +2004,29 @@ impl HandshakeApp {
                     header_colors,
                 );
             });
+
+        // ── Command palette overlay (MT-016) ────────────────────────────────────────────────────────
+        // Rendered LAST (after the menu bar, the title/project strips, the left rail, the central pane
+        // grid, and the pop-outs) so its backdrop + window sit on the Foreground order ABOVE the whole
+        // workspace (AC10). The overlay owns only its transient query/selection state; it returns a
+        // PaletteOutcome the shell dispatches into the existing state-mutation paths (same split as the
+        // MT-015 menu bar). The shell owns the open flag, so a Run/Close outcome clears it here.
+        if self.command_palette_open {
+            let outcome = crate::command_palette::show(ctx, self.command_palette_open_count);
+            match outcome {
+                crate::command_palette::PaletteOutcome::Run(command_id) => {
+                    self.close_command_palette();
+                    if self.dispatch_palette_action(ctx, &command_id) {
+                        ctx.request_repaint();
+                    }
+                }
+                crate::command_palette::PaletteOutcome::Close => {
+                    self.close_command_palette();
+                    ctx.request_repaint();
+                }
+                crate::command_palette::PaletteOutcome::None => {}
+            }
+        }
 
         // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────
         // Runs AFTER the frame's interactions (split drag, tab reorder/active/pin, pop-out/merge) are

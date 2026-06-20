@@ -45,6 +45,6 @@ pub use live::{
 };
 pub use registry::{
     assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_IDENTITIES, INTERACTIVE_ROLES,
-    PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
+    PALETTE_AUTHOR_IDS, PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
 };
 pub use snapshot::{collect_tree_snapshot, AccessNodeSnapshot, AccessTreeSnapshot};
