@@ -71,6 +71,10 @@ path = "src/main.rs"
 # `--no-default-features` to fall back to eframe's default fonts (used by the size-delta proof).
 default = ["bundled-fonts"]
 bundled-fonts = []
+# integration_tests: enables the cfg-gated live-backend layout round-trip test in
+# tests/test_layout_persistence.rs (MT-009). OFF by default — that test needs managed-postgres +
+# handshake_core running on 127.0.0.1:37501; it is NOT part of the default `cargo test` run.
+integration_tests = []
 
 [dependencies]
 egui = "0.33"

@@ -7,8 +7,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility::{self, ChromeWidget};
-use crate::backend_client::{self, HealthInfo, HEALTH_URL};
+use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
 use crate::error::AppError;
+use crate::layout_persistence::{
+    LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
+    PopOutSnapshot,
+};
 use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
@@ -29,6 +33,35 @@ const THEME_TOGGLE_NODE_ID: u64 = 10;
 /// interactive chrome widget; this is the out-of-process address a model uses to click it,
 /// independent of its display text ("Light"/"Dark") which flips with the active theme.
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
+
+/// The project id a fresh shell shows before any project switch. Must match the `project_id` the
+/// default panes are seeded with (see [`default_panes`]) so the captured snapshot is self-consistent.
+pub const DEFAULT_PROJECT_ID: &str = "default-project";
+
+/// Debounce quiet period for the layout save: a flush fires this long after the LAST layout-affecting
+/// change, so rapid divider drags / tab reorders coalesce into one backend `PUT` (MT-009 contract:
+/// "a short debounce so rapid drags coalesce"). 600ms balances responsiveness against `PUT` volume.
+pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(600);
+
+/// A generous default all-monitors extent for the restore-time pop-out clamp before egui reports the
+/// real monitor size. Large enough that a legitimate position is never clamped on the first frame.
+const DEFAULT_MONITOR_EXTENT: egui::Rect =
+    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(10_000.0, 10_000.0));
+
+/// A transport that never persists, for headless/test shells with no running backend. `load` always
+/// reports "no stored layout" (first run) and `save` silently succeeds, so a test shell that does not
+/// inject a stub transport keeps the seeded default layout and never makes a network call.
+#[derive(Debug, Default)]
+struct NullLayoutTransport;
+
+impl LayoutTransport for NullLayoutTransport {
+    fn load(&self, _workspace_id: &str) -> Result<Option<serde_json::Value>, crate::layout_persistence::LayoutError> {
+        Ok(None)
+    }
+    fn save(&self, _workspace_id: &str, _layout_state: serde_json::Value) -> Result<(), crate::layout_persistence::LayoutError> {
+        Ok(())
+    }
+}
 
 pub enum HealthDisplayState {
     Loading,
@@ -79,6 +112,37 @@ pub struct HandshakeApp {
     /// by a test / out-of-process driver via [`HandshakeApp::request_pop_out`]). Applied at the top
     /// of the next `ui()` so the detached viewport is created cleanly before the frame renders.
     pop_out_request: Option<PaneId>,
+    /// The project (workspace) whose layout this shell currently shows. Drives the
+    /// `/workspaces/:id/workbench/layout` path (MT-009). Seeded to the same `default-project` the
+    /// default panes use; a project-switch changes this and triggers a load on the next frame.
+    active_project_id: String,
+    /// Per-project layout persistence manager (MT-009): debounce-on-change, retry-on-transient,
+    /// in-memory last-known-good, and a UI-readable status. Persists THROUGH the backend's
+    /// PostgreSQL-authoritative `/workspaces/:id/workbench/layout` REST endpoint — no local file.
+    /// Wrapped in `Arc<Mutex<_>>` so a debounced save can run on a short-lived worker off the egui UI
+    /// thread (HBR-QUIET) while the UI thread reads its status.
+    layout_manager: Arc<Mutex<LayoutPersistenceManager>>,
+    /// The project whose layout has been loaded into this shell. Drives the load-on-first-frame /
+    /// load-on-project-change lifecycle: when this differs from `active_project_id`, the next frame
+    /// loads the new project's layout. `None` until the first load runs.
+    loaded_project_id: Option<String>,
+    /// Whether the layout changed since the last save flush was scheduled. The UI sets this when a
+    /// layout-affecting field changes (split weight / tab order/active/pin / pop-out / active pane) so
+    /// the next frame marks the manager dirty and schedules a debounced save.
+    layout_dirty_signal: bool,
+    /// A debounced save flush is in flight on a worker thread. Prevents spawning a second overlapping
+    /// flush for the same coalesced change set.
+    save_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// The layout blob as of the last frame, used to DETECT a layout-affecting change without
+    /// instrumenting every divider/tab/pop-out call site: if this frame's captured `layout_state`
+    /// differs, the layout changed and a debounced save is scheduled. `None` until the first frame
+    /// settles (so the initial seed is not mistaken for a change). Set after a load so a restore does
+    /// not immediately re-save the just-loaded layout.
+    last_seen_layout: Option<serde_json::Value>,
+    /// The full all-monitors extent used for the restore-time pop-out clamp. Defaults to a generous
+    /// extent; `ui()` refreshes it from egui's monitor size each frame so the clamp uses the real
+    /// desktop bounds when a layout is restored.
+    monitor_extent: egui::Rect,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -96,7 +160,7 @@ fn default_panes() -> Vec<PaneRecord> {
             PaneRecord::new(
                 PaneId::from(id),
                 ty,
-                "default-project",
+                DEFAULT_PROJECT_ID,
                 None,
                 LockState::Unlocked,
                 DirtyState::Clean,
@@ -189,6 +253,13 @@ impl HandshakeApp {
             .expect("build tokio runtime");
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
         let health_handle = Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+        // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
+        // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
+        let transport = WorkbenchLayoutClient::production(rt.handle().clone());
+        let layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
+            Box::new(transport),
+            LAYOUT_SAVE_DEBOUNCE,
+        )));
         Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -204,14 +275,29 @@ impl HandshakeApp {
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
             pop_out_request: None,
+            active_project_id: DEFAULT_PROJECT_ID.to_owned(),
+            layout_manager,
+            loaded_project_id: None,
+            layout_dirty_signal: false,
+            save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            monitor_extent: DEFAULT_MONITOR_EXTENT,
+            last_seen_layout: None,
         }
     }
 
-    /// Test/headless constructor: preset health, no runtime spawn, no backend needed.
+    /// Test/headless constructor: preset health, no runtime spawn, no backend needed. The layout
+    /// manager is wired with a [`NullLayoutTransport`] (no network), so a headless shell keeps the
+    /// seeded default layout until a test injects a stub transport via [`set_layout_manager`].
+    ///
+    /// [`set_layout_manager`]: HandshakeApp::set_layout_manager
     pub fn with_health(state: HealthDisplayState) -> Self {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .expect("build tokio runtime");
+        let layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
+            Box::new(NullLayoutTransport),
+            LAYOUT_SAVE_DEBOUNCE,
+        )));
         Self {
             health_status: state,
             rt,
@@ -226,6 +312,13 @@ impl HandshakeApp {
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
             pop_out_request: None,
+            active_project_id: DEFAULT_PROJECT_ID.to_owned(),
+            layout_manager,
+            loaded_project_id: None,
+            layout_dirty_signal: false,
+            save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            monitor_extent: DEFAULT_MONITOR_EXTENT,
+            last_seen_layout: None,
         }
     }
 
@@ -266,6 +359,271 @@ impl HandshakeApp {
     /// Read-only view of the pop-out manager (tests / MT-009 snapshot wiring).
     pub fn popout_manager(&self) -> &PopOutManager {
         &self.popout_manager
+    }
+
+    /// The project whose layout this shell currently shows (MT-009).
+    pub fn active_project_id(&self) -> &str {
+        &self.active_project_id
+    }
+
+    /// Current 2x2 split divider fractions (MT-006). Read by tests / the MT-009 snapshot capture.
+    pub fn split_weights(&self) -> SplitWeights {
+        self.split_weights
+    }
+
+    /// Mutable split weights (for tests that change the layout before capturing a snapshot, and for
+    /// future agent/operator split mutation).
+    pub fn split_weights_mut(&mut self) -> &mut SplitWeights {
+        &mut self.split_weights
+    }
+
+    /// Replace the layout persistence manager (tests inject a manager wired with a stub transport so
+    /// the full capture -> save -> load -> apply round trip is provable with no live backend).
+    /// Production wires the real [`WorkbenchLayoutClient`] via `new`.
+    pub fn set_layout_manager(&mut self, manager: LayoutPersistenceManager) {
+        self.layout_manager = Arc::new(Mutex::new(manager));
+    }
+
+    /// Shared handle to the layout persistence manager (tests assert status / call counts; the save
+    /// worker clones this to run the flush off the UI thread).
+    pub fn layout_manager(&self) -> Arc<Mutex<LayoutPersistenceManager>> {
+        self.layout_manager.clone()
+    }
+
+    /// The current UI-readable persistence status (HBR: important state is visible). The status bar
+    /// can render this so the operator sees Saved / Pending / Error.
+    pub fn layout_persistence_status(&self) -> LayoutPersistenceStatus {
+        self.layout_manager
+            .lock()
+            .expect("layout manager mutex poisoned")
+            .status()
+            .clone()
+    }
+
+    /// Signal that a layout-affecting change happened this frame, so the next frame marks the manager
+    /// dirty and (re)starts the debounce window. Public so a future pane-header / divider / tab MT can
+    /// announce a change, and so tests can drive the save lifecycle directly. The actual `mark_dirty`
+    /// + debounced flush happens in [`drive_layout_persistence`](Self::drive_layout_persistence).
+    pub fn signal_layout_changed(&mut self) {
+        self.layout_dirty_signal = true;
+    }
+
+    /// The full all-monitors extent used for the restore-time pop-out clamp.
+    pub fn monitor_extent(&self) -> egui::Rect {
+        self.monitor_extent
+    }
+
+    /// Override the monitor extent (tests set a specific multi-monitor desktop so the restore clamp is
+    /// deterministic). Production refreshes it from egui each frame in `ui()`.
+    pub fn set_monitor_extent(&mut self, extent: egui::Rect) {
+        self.monitor_extent = extent;
+    }
+
+    /// Capture the FULL current work-surface layout into a [`LayoutSnapshot`] (MT-009).
+    ///
+    /// Collects, from the live shell state, every piece the earlier C2 MTs own:
+    /// - [`split_weights`](Self) (MT-006),
+    /// - [`active_pane`](Self) (MT-006),
+    /// - the pane registry records (MT-005),
+    /// - per-pane tab-bar state (MT-007),
+    /// - pop-out geometry + open flag (MT-008).
+    ///
+    /// Live `HashMap`s are converted to `BTreeMap` so the snapshot (and its JSON) has deterministic
+    /// key order. The pop-out `open` flag reflects the manager's current state; a popped-out pane
+    /// merged back this frame (`open == false`) is captured as closed.
+    pub fn capture_layout_snapshot(&self) -> LayoutSnapshot {
+        let panes: std::collections::BTreeMap<PaneId, PaneRecord> = {
+            let guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            guard.iter().map(|(id, rec)| (id.clone(), rec.clone())).collect()
+        };
+
+        let tab_bars: std::collections::BTreeMap<PaneId, TabBarState> = self
+            .tab_bar_states
+            .iter()
+            .map(|(id, bar)| (id.clone(), bar.clone()))
+            .collect();
+
+        let pop_outs: std::collections::BTreeMap<PaneId, PopOutSnapshot> = self
+            .popout_manager
+            .popped_out_ids()
+            .into_iter()
+            .filter_map(|id| {
+                self.popout_manager.get(&id).map(|state| {
+                    (
+                        id.clone(),
+                        PopOutSnapshot {
+                            geometry: state.geometry,
+                            open: state.open,
+                        },
+                    )
+                })
+            })
+            .collect();
+
+        LayoutSnapshot::new(
+            self.active_project_id.clone(),
+            self.split_weights,
+            self.active_pane.clone(),
+            panes,
+            tab_bars,
+            pop_outs,
+        )
+    }
+
+    /// Apply a restored [`LayoutSnapshot`] to the live shell (MT-009), the inverse of
+    /// [`capture_layout_snapshot`](Self::capture_layout_snapshot).
+    ///
+    /// `monitor_extent` is the FULL virtual-desktop / all-monitors bounding rect; every restored
+    /// pop-out geometry is clamped against it ONCE here (the MT-008-deferred restore clamp), so a
+    /// position saved off a now-disconnected monitor reopens at the fallback position instead of
+    /// off-screen, while a legitimate second-monitor position is preserved.
+    ///
+    /// Returns `Err(_)` (without mutating any state) if the snapshot fails validation, so a caller
+    /// can fall back to last-known-good / default rather than applying a corrupt layout. Applying is
+    /// all-or-nothing: validation happens before any field is written.
+    pub fn apply_layout_snapshot(
+        &mut self,
+        snapshot: LayoutSnapshot,
+        monitor_extent: egui::Rect,
+    ) -> Result<(), crate::layout_persistence::LayoutError> {
+        snapshot.validate()?;
+        // Clamp pop-out geometries once against the full desktop extent before applying.
+        let snapshot = snapshot.clamp_pop_outs_to(monitor_extent);
+
+        self.active_project_id = snapshot.project_id;
+        self.split_weights = snapshot.split_weights;
+        self.active_pane = snapshot.active_pane;
+
+        // Rebuild the registry from the snapshot records (single source of truth). `insert` reassigns
+        // stable AccessKit ids, so out-of-process steering keeps working after a restore.
+        {
+            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            *guard = PaneRegistry::new();
+            for (_id, record) in snapshot.panes {
+                guard.insert(record);
+            }
+        }
+
+        // Restore per-pane tab state.
+        self.tab_bar_states = snapshot.tab_bars.into_iter().collect();
+
+        // Restore pop-outs: reopen the ones that were open at their (clamped) geometry. A pop-out
+        // saved as closed is simply not reopened.
+        self.popout_manager = PopOutManager::new();
+        for (id, snap) in snapshot.pop_outs {
+            if snap.open {
+                self.popout_manager.pop_out(id, snap.geometry);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Persist the current layout for the active project NOW (MT-009), bypassing the debounce window.
+    /// Captures a snapshot and routes it through the persistence manager's retry/LKG `save_now` against
+    /// the backend's PostgreSQL-authoritative layout endpoint. Used by tests and for an explicit
+    /// save-on-exit; the steady-state path is the debounced flush in
+    /// [`drive_layout_persistence`](Self::drive_layout_persistence). Blocks until the save attempt(s)
+    /// resolve, so it is NOT called on the steady-state UI path.
+    pub fn save_layout_now(&self) {
+        let snapshot = self.capture_layout_snapshot();
+        self.layout_manager
+            .lock()
+            .expect("layout manager mutex poisoned")
+            .save_now(&snapshot);
+    }
+
+    /// Load and apply the persisted layout for `project_id` (MT-009), with the documented fallback
+    /// chain (delegated to the manager): a valid stored blob is applied; a corrupt/foreign/wrong-project
+    /// one falls back to the manager's in-memory last-known-good, then to the seeded default layout
+    /// (which is infallible). `monitor_extent` is the full all-monitors rect used for the restore
+    /// clamp. Returns `true` if a stored snapshot was applied, `false` if the default was kept.
+    ///
+    /// The manager never returns an unvalidated snapshot, so `apply_layout_snapshot` here is always
+    /// applied to a validated layout — no infinite restore loop. Marks `loaded_project_id` so the
+    /// lifecycle does not reload the same project every frame.
+    pub fn load_layout(&mut self, project_id: &str, monitor_extent: egui::Rect) -> bool {
+        let loaded = {
+            let mut mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
+            mgr.load(project_id)
+        };
+        self.loaded_project_id = Some(project_id.to_owned());
+        match loaded {
+            Ok(Some(snapshot)) => {
+                // The manager already validated it; apply (which re-validates + clamps, all-or-nothing).
+                self.apply_layout_snapshot(snapshot, monitor_extent).is_ok()
+            }
+            // No stored layout (first run) or a failed load with no LKG: keep the seeded default.
+            Ok(None) | Err(_) => false,
+        }
+    }
+
+    /// Drive the per-frame layout persistence lifecycle (MT-009 BLOCKER wiring):
+    ///
+    /// 1. LOAD on first frame / project change: when `active_project_id` differs from the last
+    ///    `loaded_project_id`, load + apply that project's layout (resolving the monitor extent for the
+    ///    restore clamp).
+    /// 2. mark dirty: if a layout-affecting change was signalled this frame
+    ///    ([`signal_layout_changed`](Self::signal_layout_changed)), mark the manager dirty (which
+    ///    (re)starts the debounce window so rapid drags coalesce).
+    /// 3. debounced SAVE: when the debounce quiet period has elapsed and no save is already in flight,
+    ///    capture the snapshot on the UI thread and run the manager's retry/LKG flush on a short-lived
+    ///    worker thread so the network `PUT` never blocks the egui UI thread (HBR-QUIET). The worker
+    ///    bridges to the tokio runtime via the transport's runtime handle.
+    ///
+    /// `now` is the current instant (the app passes `Instant::now()`; tests pass a controlled clock).
+    fn drive_layout_persistence(&mut self, now: std::time::Instant) {
+        // ── 1. Load on first frame / project change ─────────────────────────────────────────────
+        if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
+            let project = self.active_project_id.clone();
+            let extent = self.monitor_extent;
+            self.load_layout(&project, extent);
+            // Re-baseline change detection to the just-loaded layout so a restore does not immediately
+            // re-save itself as a "change".
+            self.last_seen_layout = Some(self.capture_layout_snapshot().to_layout_state());
+        }
+
+        // ── 2. Detect a layout-affecting change + mark dirty ────────────────────────────────────
+        // Change detection compares this frame's captured layout blob to last frame's, catching EVERY
+        // layout-affecting mutation (split weight / tab order/active/pin / pop-out / active pane)
+        // without instrumenting each call site. An explicit `signal_layout_changed` also forces dirty
+        // (so a future call site / a test can announce a change directly).
+        let current_layout = self.capture_layout_snapshot().to_layout_state();
+        let changed = match &self.last_seen_layout {
+            Some(prev) => prev != &current_layout,
+            // First settled frame: establish the baseline, do not treat the seed as a change.
+            None => false,
+        };
+        if changed || self.layout_dirty_signal {
+            self.layout_dirty_signal = false;
+            self.layout_manager
+                .lock()
+                .expect("layout manager mutex poisoned")
+                .mark_dirty(now);
+        }
+        self.last_seen_layout = Some(current_layout);
+
+        // ── 3. Debounced save off the UI thread ─────────────────────────────────────────────────
+        let due = {
+            let mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
+            mgr.due_to_flush(now)
+        };
+        if due && !self.save_in_flight.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            // Capture the snapshot on the UI thread (it reads live shell state), then flush on a worker.
+            let snapshot = self.capture_layout_snapshot();
+            let manager = self.layout_manager.clone();
+            let in_flight = self.save_in_flight.clone();
+            // A plain OS thread (not a runtime worker): the transport's `block_on` is valid off-runtime,
+            // so the network PUT runs here without blocking the egui UI thread. The manager handles
+            // retry/LKG/status; the UI thread reads status next frame.
+            std::thread::spawn(move || {
+                {
+                    let mut mgr = manager.lock().expect("layout manager mutex poisoned");
+                    mgr.flush_if_due(now, &snapshot);
+                }
+                in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
     }
 
     /// Drive the app's REAL `popout_manager` exactly as the immediate viewport callback does when the
@@ -625,6 +983,30 @@ impl HandshakeApp {
                     tab_colors,
                 );
             });
+
+        // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────
+        // Runs AFTER the frame's interactions (split drag, tab reorder/active/pin, pop-out/merge) are
+        // applied, so change detection sees this frame's final layout. Refresh the monitor extent from
+        // egui so the restore clamp uses the real desktop bounds; fall back to the generous default if
+        // egui has not reported a monitor size yet (headless).
+        if let Some(monitor) = ctx.input(|i| i.viewport().monitor_size) {
+            if monitor.x > 0.0 && monitor.y > 0.0 {
+                self.monitor_extent =
+                    egui::Rect::from_min_size(egui::Pos2::ZERO, monitor);
+            }
+        }
+        self.drive_layout_persistence(std::time::Instant::now());
+
+        // While a save is debounced/pending, keep frames coming so the debounce window actually
+        // elapses even without further input (otherwise a quiescent app would never flush).
+        let pending_save = self
+            .layout_manager
+            .lock()
+            .expect("layout manager mutex poisoned")
+            .is_dirty();
+        if pending_save {
+            ctx.request_repaint_after(LAYOUT_SAVE_DEBOUNCE);
+        }
 
         if matches!(self.health_status, HealthDisplayState::Loading) {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
