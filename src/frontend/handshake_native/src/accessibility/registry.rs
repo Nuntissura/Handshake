@@ -57,6 +57,11 @@ use crate::search_rail::{
     RAIL_CLEAR_AUTHOR_ID, RAIL_CLEAR_NODE_ID, RAIL_INPUT_AUTHOR_ID, RAIL_INPUT_NODE_ID,
     RAIL_LOOM_AUTHOR_ID, RAIL_LOOM_NODE_ID,
 };
+use crate::stash_shelf::{
+    DRAWER_AFFORDANCE_AUTHOR_ID, DRAWER_AFFORDANCE_NODE_ID, DRAWER_CARD_AUTHOR_IDS,
+    DRAWER_CARD_NODE_IDS, DRAWER_RESIZE_AUTHOR_ID, DRAWER_RESIZE_NODE_ID, DRAWER_SHELF_AUTHOR_ID,
+    DRAWER_SHELF_NODE_ID,
+};
 use crate::tab_bar::TABBAR_SLOTS;
 use crate::top_menu_bar::{MENU_BAR_NODE_ID_BASE, MENU_DEFINITIONS};
 
@@ -458,6 +463,45 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: RAIL_LOOM_AUTHOR_ID,
         node_id: RAIL_LOOM_NODE_ID,
+    },
+    // MT-023 bottom drawer stash shelf, fresh band 32..=38: above the rail controls (22..=24), below the
+    // dividers (30..=31) and the pane id base (100). The affordance tab (`hsk.drawer.affordance`,
+    // Role::Button, NodeId 32) is ALWAYS visible (collapsed or open), so it IS in the default-seed live
+    // tree every paint — like the rail controls and unlike the closed-by-default overlays. The shelf
+    // container (`hsk.drawer.shelf`, Role::Group, 33), the four cards (`hsk.drawer.card.{agenda,mail,
+    // lists,notes}`, Role::Button, 34..=37), and the resize handle (`hsk.drawer.resize_handle`,
+    // Role::Slider, 38) render ONLY while the drawer is OPEN (collapsed by default — AC-023-2), so they
+    // are absent from the default-seed frame (like the MT-008 merge-back / MT-016 palette nodes); the
+    // collision test still covers all seven fixed ids here so none can overlap any other declared
+    // identity. The cards are stored + traversed in LOGICAL order (Agenda→Notes, CONTROL-023-F); the
+    // visual right-alignment is a layout-only choice that never reverses the Vec.
+    DeclaredIdentity {
+        author_id: DRAWER_AFFORDANCE_AUTHOR_ID,
+        node_id: DRAWER_AFFORDANCE_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_SHELF_AUTHOR_ID,
+        node_id: DRAWER_SHELF_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_CARD_AUTHOR_IDS[0],
+        node_id: DRAWER_CARD_NODE_IDS[0],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_CARD_AUTHOR_IDS[1],
+        node_id: DRAWER_CARD_NODE_IDS[1],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_CARD_AUTHOR_IDS[2],
+        node_id: DRAWER_CARD_NODE_IDS[2],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_CARD_AUTHOR_IDS[3],
+        node_id: DRAWER_CARD_NODE_IDS[3],
+    },
+    DeclaredIdentity {
+        author_id: DRAWER_RESIZE_AUTHOR_ID,
+        node_id: DRAWER_RESIZE_NODE_ID,
     },
 ];
 

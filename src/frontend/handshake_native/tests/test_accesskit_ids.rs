@@ -477,6 +477,11 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "bottom-rail.scope.window",
         "divider-horizontal",
         "divider-vertical",
+        // MT-023 bottom drawer affordance tab (Role::Button, NodeId 32): the drawer is COLLAPSED by
+        // default (AC-023-2), so ONLY the always-visible affordance is in the default frame; the shelf
+        // container, the four cards, and the resize handle render open-only and are absent here (like the
+        // closed-by-default overlays). This is the single default-frame node MT-023 adds (79 → 80).
+        "hsk.drawer.affordance",
         "left-rail.activity.agenda",
         "left-rail.activity.files",
         "left-rail.activity.mail",
@@ -546,8 +551,16 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 79 stable-id nodes in sorted order (67 pre-MT-022 + \
-         12 MT-022 bottom-rail nodes)"
+        "LIVE-FRAME snapshot must list exactly the 80 stable-id nodes in sorted order (67 pre-MT-022 + \
+         12 MT-022 bottom-rail nodes + 1 MT-023 drawer-affordance node; the drawer's shelf/cards/resize \
+         nodes are open-only and absent from the collapsed-by-default frame)"
+    );
+
+    // MT-023: the always-visible affordance tab is a Role::Button in the default (collapsed) frame.
+    assert_eq!(
+        snapshot.by_author_id("hsk.drawer.affordance").unwrap().role,
+        "Button",
+        "drawer affordance tab role"
     );
 
     // MT-022 bottom-rail roles: the input is a TextInput; the clear + Loom controls + the nine scope

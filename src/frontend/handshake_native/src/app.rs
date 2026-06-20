@@ -375,6 +375,27 @@ pub struct HandshakeApp {
     /// clones-and-reads this slot off the same lock to EXECUTE the search and display results (search
     /// execution + results display are deferred to that consumer per the contract).
     search_rail_query: crate::search_rail::RailQuerySlot,
+    /// MT-023 bottom drawer stash shelf (C6): the collapsible panel ABOVE the MT-022 rail with the four
+    /// typed cards (Agenda/Mail/Lists/Notes). Owns the resizable height + per-card live data; the app
+    /// owns the persisted open flag ([`bottom_drawer_open`](Self::bottom_drawer_open), MT-014
+    /// `drawers.bottom`) and the off-thread fetch wiring below.
+    drawer: crate::stash_shelf::DrawerStashShelf,
+    /// MT-023 off-thread client for the drawer card data (verified `/loom/views/all` view-count +
+    /// `/loom/journals/{today}` daily-journal endpoints — the contract's `table`/`calendar`/`total` were
+    /// STALE). `None` in the no-runtime test shell (the cards then show their pre-fetch state and never do
+    /// I/O); a test injects a runtime via [`set_runtime_handle`](Self::set_runtime_handle).
+    drawer_data_client: Option<crate::backend_client::DrawerDataClient>,
+    /// The async cell the spawned drawer fetches write `(kind, Ok/Err)` into; drained (try_lock) each
+    /// frame and folded into the matching card (HBR-QUIET — the network ran off the UI thread). One slot:
+    /// the three fetches deliver sequentially and the UI drains between frames, so a single cell suffices.
+    drawer_data_cell: crate::backend_client::DrawerDataCell,
+    /// Set true when the drawer opens so the one-shot card fetches fire ONCE on open (not per frame —
+    /// RISK-023-C). Cleared after the fetches are dispatched.
+    drawer_fetch_pending: bool,
+    /// The drawer open flag as of the last frame, so [`drive_drawer`](Self::drive_drawer) detects the
+    /// closed→open transition and fires the one-shot fetches exactly once per open (no matter which
+    /// surface toggled `bottom_drawer_open`: the affordance, the left-rail stash button, or the palette).
+    drawer_prev_open: bool,
 }
 
 /// An in-progress explorer-row rename (MT-020): the Loom block being renamed + the live edit buffer.
@@ -503,6 +524,38 @@ fn statusbar_related_pane_type(segment_id: &str) -> Option<PaneType> {
         "branch" => Some(PaneType::SourceControl),
         _ => None,
     }
+}
+
+/// Today's date in `YYYY-MM-DD` (UTC), for the MT-023 Agenda daily-journal fetch
+/// (`PUT /loom/journals/{today}`). Computed from `SystemTime` without a chrono dependency (this crate
+/// has none — adding one for a single date format would be unnecessary) via the well-known days→civil
+/// algorithm (Howard Hinnant, public domain). The journal endpoint validates `%Y-%m-%d` exactly, so the
+/// format is zero-padded. UTC is the right basis: the daily-journal block is keyed by a calendar date,
+/// and the backend's `open_daily_journal` likewise works in calendar-date terms.
+fn today_utc_ymd() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+    let days = secs.div_euclid(86_400);
+    let (y, m, d) = civil_from_days(days);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Convert a count of days since the Unix epoch (1970-01-01) into a `(year, month, day)` civil date.
+/// Howard Hinnant's `civil_from_days` algorithm (public domain), valid for the full proleptic Gregorian
+/// range; here only ever called with present-day positive day counts.
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; // [0, 399]
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
+    (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
 /// Bundled Inter font bytes, embedded at compile time (MT-004). Gated behind `bundled-fonts`
@@ -641,6 +694,16 @@ impl HandshakeApp {
             // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9). It makes
             // NO backend call; a downstream search-results consumer reads the slot and executes the search.
             search_rail_query: Arc::new(Mutex::new(None)),
+            // MT-023: the bottom drawer + its off-thread card-data client bridged onto the app runtime
+            // (the MT-009 off-thread pattern). The drawer is collapsed by default (only the affordance
+            // shows); the fetches fire when it opens.
+            drawer: crate::stash_shelf::DrawerStashShelf::new(),
+            drawer_data_client: Some(crate::backend_client::DrawerDataClient::production(
+                rt_handle.clone(),
+            )),
+            drawer_data_cell: Arc::new(Mutex::new(None)),
+            drawer_fetch_pending: false,
+            drawer_prev_open: false,
         }
     }
 
@@ -747,6 +810,14 @@ impl HandshakeApp {
             // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9); it makes
             // no backend call, so the headless shell needs no transport — only the shared slot.
             search_rail_query: Arc::new(Mutex::new(None)),
+            // MT-023: headless/test shell — no runtime to bridge the drawer-data client onto, so card
+            // fetches are a disclosed no-op (the cards show their pre-fetch state). A test injects a
+            // runtime via `set_runtime_handle` to drive live fetches.
+            drawer: crate::stash_shelf::DrawerStashShelf::new(),
+            drawer_data_client: None,
+            drawer_data_cell: Arc::new(Mutex::new(None)),
+            drawer_fetch_pending: false,
+            drawer_prev_open: false,
         }
     }
 
@@ -865,6 +936,41 @@ impl HandshakeApp {
     /// Whether the bottom stash drawer is open (MT-014). Persisted as `drawers.bottom`.
     pub fn bottom_drawer_open(&self) -> bool {
         self.bottom_drawer_open
+    }
+
+    /// Set the bottom-drawer open flag directly (MT-023): the out-of-process/agent + test driver for the
+    /// drawer (HBR-MAN: drawer open/close state is settable/observable outside the UI). Setting it true
+    /// arms the one-shot card fetches on the next frame (via the open transition the drawer driver
+    /// detects), exactly as clicking the affordance does. The change is picked up by the MT-009 layout
+    /// change-detector (`drawers.bottom`), so it persists through the debounced save.
+    pub fn set_bottom_drawer_open(&mut self, open: bool) {
+        self.bottom_drawer_open = open;
+    }
+
+    /// A no-context debug projection of the MT-023 drawer state (HBR-MAN): the open flag, the resizable
+    /// height, and each card's `(title, badge_count, loading, error)` — readable from AppState without
+    /// scraping the UI, so a model can inspect the drawer (and the live card counts) out-of-process.
+    pub fn drawer_debug_state(&self) -> serde_json::Value {
+        let cards: Vec<serde_json::Value> = self
+            .drawer
+            .cards
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "kind": c.kind.snake(),
+                    "title": c.kind.title(),
+                    "badge_count": c.badge_count,
+                    "subtitle": c.subtitle,
+                    "loading": c.loading,
+                    "error": c.error,
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "open": self.bottom_drawer_open,
+            "height": self.drawer.height,
+            "cards": cards,
+        })
     }
 
     // ── MT-015 top menu bar: state the VIEW/GO/HELP menus read + mutate ─────────────────────────────
@@ -1024,6 +1130,10 @@ impl HandshakeApp {
         self.canvas_client = Some(crate::backend_client::CanvasClient::production(handle.clone()));
         // MT-022: the rail makes NO backend call (AC-022-9), so there is no rail transport to bridge onto
         // the runtime — the rail emits its RailQuery intent into `search_rail_query` silently.
+        // MT-023: bridge the drawer-data client onto the injected runtime so an injected-runtime shell
+        // (kittest) gets live off-thread card fetches.
+        self.drawer_data_client =
+            Some(crate::backend_client::DrawerDataClient::production(handle.clone()));
         self.runtime_handle = Some(handle);
     }
 
@@ -1388,6 +1498,178 @@ impl HandshakeApp {
                 }
             }
             crate::search_rail::RailOutcome::None => {}
+        }
+    }
+
+    /// Read-only view of the bottom drawer stash shelf (MT-023): tests assert card data + the open flag.
+    pub fn drawer(&self) -> &crate::stash_shelf::DrawerStashShelf {
+        &self.drawer
+    }
+
+    /// Drain any delivered drawer-card fetch result into the matching card, then render the MT-023 bottom
+    /// drawer: the always-visible affordance tab (open or collapsed) plus — when open — the shelf panel
+    /// ABOVE the rail with the four cards + the resize handle.
+    ///
+    /// PANEL ORDER (RISK-023-A): called AFTER [`drive_search_rail`](Self::drive_search_rail). In THIS
+    /// codebase egui stacks bottom panels in registration order with the LATER panel ABOVE the earlier
+    /// (the rail sits above the status bar because it registers after it), so registering the drawer
+    /// AFTER the rail puts the drawer ABOVE the rail — its required position. This is the egui-correct
+    /// order for this codebase; the contract's "drawer→rail→central" assumed the opposite egui
+    /// convention (disclosed deviation — see stash_shelf module docs).
+    fn drive_drawer(&mut self, ctx: &egui::Context) {
+        // 1) Drain a delivered fetch result into the matching card (HBR-QUIET: the network already ran
+        //    off the UI thread; this only reads the delivery cell + folds the result in).
+        if let Ok(mut slot) = self.drawer_data_cell.lock() {
+            if let Some((kind, result)) = slot.take() {
+                // Map the backend-data kind to the shelf card kind.
+                let card_kind = match kind {
+                    crate::backend_client::DrawerDataKind::Agenda => {
+                        crate::stash_shelf::DrawerCardKind::Agenda
+                    }
+                    crate::backend_client::DrawerDataKind::Lists => {
+                        crate::stash_shelf::DrawerCardKind::Lists
+                    }
+                    crate::backend_client::DrawerDataKind::Notes => {
+                        crate::stash_shelf::DrawerCardKind::Notes
+                    }
+                };
+                if let Some(card) = self.drawer.card_mut(card_kind) {
+                    card.apply_result(result);
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // 2) Detect the closed→open transition (from ANY toggle surface) and fire the one-shot fetches
+        //    ONCE (RISK-023-C: never per frame). Re-clamp the height to the window each frame so the
+        //    drawer + rail + status bar can never collapse the CentralPanel (CONTROL-023-B).
+        let open = self.bottom_drawer_open;
+        if open && !self.drawer_prev_open {
+            self.drawer_fetch_pending = true;
+        }
+        self.drawer_prev_open = open;
+        if self.drawer_fetch_pending {
+            self.drawer_fetch_pending = false;
+            self.fire_drawer_fetches();
+        }
+
+        // 3) Theme tokens for the drawer.
+        let palette = self.current_theme.palette();
+        let colors = crate::stash_shelf::DrawerColors {
+            panel_bg: palette.bg,
+            card_bg: palette.surface,
+            card_text: palette.text,
+            muted_text: palette.text_subtle,
+            badge_bg: palette.accent_soft,
+            badge_text: palette.text,
+            error_text: palette.error_text,
+            affordance_bg: palette.surface_strong,
+            affordance_hover_bg: palette.accent_soft,
+            affordance_text: palette.text,
+            resize_idle: palette.divider_idle,
+            resize_hover: palette.divider_hover,
+        };
+
+        // 4) The open drawer panel, registered ABOVE the rail (after it). Re-clamp height first so the
+        //    exact_height never starves the CentralPanel (RISK-023-B). The 32px rail + ~24px status bar
+        //    are the reserved-below budget.
+        let mut card_event: Option<crate::stash_shelf::DrawerEvent> = None;
+        if open {
+            let avail = ctx.available_rect().height();
+            self.drawer.clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
+            let height = self.drawer.height;
+            let drawer = &mut self.drawer;
+            // ORDER: drawer -> rail -> central -- do not reorder. (egui registration order in THIS
+            // codebase: the LATER bottom panel stacks ABOVE the earlier; the rail was registered in
+            // drive_search_rail above, so registering the drawer here puts it ABOVE the rail.)
+            let inner = egui::TopBottomPanel::bottom("hsk.drawer")
+                .exact_height(height)
+                .frame(egui::Frame::new().fill(colors.panel_bg))
+                .show(ctx, |ui| drawer.show_open_panel(ui, colors))
+                .inner;
+            card_event = inner;
+        }
+
+        // 5) The affordance tab overlay — ALWAYS visible (open or collapsed — AC-023-1).
+        if self.drawer.show_affordance(ctx, open, colors) {
+            self.bottom_drawer_open = !self.bottom_drawer_open;
+            ctx.request_repaint();
+        }
+
+        // 6) Apply a card click (AC-023-12): open the card's pane (Agenda/Lists/Notes) or show the Mail
+        //    "Coming soon" tooltip (no navigation).
+        if let Some(event) = card_event {
+            match event {
+                crate::stash_shelf::DrawerEvent::OpenCard(kind) => {
+                    self.open_drawer_card_pane(kind);
+                    ctx.request_repaint();
+                }
+                crate::stash_shelf::DrawerEvent::MailTooltip => {
+                    // The hover tooltip is shown by the card itself; a click is a no-op navigation
+                    // (AC-023-7) — Mail has no pane to open.
+                    tracing::debug!("drawer: Mail card clicked — no backend / pane yet (Coming soon)");
+                }
+                crate::stash_shelf::DrawerEvent::ToggleOpen => {
+                    self.bottom_drawer_open = !self.bottom_drawer_open;
+                    ctx.request_repaint();
+                }
+            }
+        }
+    }
+
+    /// Fire the three one-shot off-thread drawer-card fetches (Agenda/Lists/Notes) against the verified
+    /// backend, marking those cards as loading. Mail makes NO call (AC-023-7). A no-op (no loading flap)
+    /// when there is no workspace (all cards then show their "No workspace" pre-fetch state) or no runtime
+    /// (the headless shell has no client).
+    fn fire_drawer_fetches(&mut self) {
+        let workspace_id = self.active_project_id.clone();
+        if workspace_id.is_empty() {
+            // No workspace: show a "No workspace" state on the data cards, badge 0 (contract).
+            for kind in [
+                crate::stash_shelf::DrawerCardKind::Agenda,
+                crate::stash_shelf::DrawerCardKind::Lists,
+                crate::stash_shelf::DrawerCardKind::Notes,
+            ] {
+                if let Some(card) = self.drawer.card_mut(kind) {
+                    card.loading = false;
+                    card.badge_count = 0;
+                    card.subtitle = "No workspace".to_owned();
+                    card.error = None;
+                }
+            }
+            return;
+        }
+        let Some(client) = self.drawer_data_client.clone() else {
+            return;
+        };
+        self.drawer.mark_data_cards_loading();
+        let cell = self.drawer_data_cell.clone();
+        client.fetch_agenda(&workspace_id, &today_utc_ymd(), cell.clone());
+        client.fetch_count(
+            &workspace_id,
+            crate::backend_client::DrawerDataKind::Lists,
+            cell.clone(),
+        );
+        client.fetch_count(&workspace_id, crate::backend_client::DrawerDataKind::Notes, cell);
+    }
+
+    /// Open the pane a drawer card links to (AC-023-12): Agenda → the daily-journal pane, Lists/Notes →
+    /// a Loom-block collection pane. Routes through the same `open_content_on_active_pane` primitive the
+    /// command palette / menu navigation use, so the card opens a REAL pane (not a fake nav).
+    fn open_drawer_card_pane(&mut self, kind: crate::stash_shelf::DrawerCardKind) -> bool {
+        use crate::stash_shelf::DrawerCardKind;
+        match kind {
+            DrawerCardKind::Agenda => self.open_content_on_active_pane(PaneType::LoomDailyJournal, None),
+            // Lists/Notes open the Loom-block collection pane; the content_id carries the content_type
+            // filter the collection pane reads (its filtered content lands with the pane-content WP).
+            DrawerCardKind::Lists => {
+                self.open_content_on_active_pane(PaneType::LoomBlock, Some("view_def".to_owned()))
+            }
+            DrawerCardKind::Notes => {
+                self.open_content_on_active_pane(PaneType::LoomBlock, Some("note".to_owned()))
+            }
+            // Mail has no pane (handled as a tooltip upstream); never routed here.
+            DrawerCardKind::Mail => false,
         }
     }
 
@@ -3238,6 +3520,14 @@ impl HandshakeApp {
         // panel, so it claims its space first and never collapses (AC-022-1). It owns query input + scope
         // selection and emits a parsed RailQuery search intent; the result popup floats above the strip.
         self.drive_search_rail(ctx);
+
+        // ── Bottom drawer stash shelf (MT-023, C6) ───────────────────────────────────────────────────
+        // ORDER: drawer -> rail -> central -- do not reorder. Registered AFTER the rail so it stacks
+        // ABOVE the rail (this codebase's egui registration-order convention: the later bottom panel is
+        // higher), then BEFORE the CentralPanel so the open drawer compresses the tile area upward
+        // without overlapping it (AC-023-9). The always-visible affordance tab toggles the drawer; when
+        // open the shelf shows the four typed cards (Agenda/Mail/Lists/Notes) fed by off-thread fetches.
+        self.drive_drawer(ctx);
 
         // ── Apply a pending pop-out request (MT-008) ───────────────────────────────────────────────
         // A request set by `request_pop_out` (future MT-019 pane-header action / test / out-of-process

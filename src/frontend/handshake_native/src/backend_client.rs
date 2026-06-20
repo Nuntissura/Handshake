@@ -113,6 +113,8 @@ pub enum HttpMethod {
     Patch,
     Delete,
     Get,
+    /// MT-023: the daily-journal Agenda fetch is a get-or-create PUT (`open_daily_journal`).
+    Put,
 }
 
 /// The fully-resolved `(method, url, body)` a client method is about to send. Returned by the pure
@@ -743,6 +745,213 @@ async fn get_json(
     resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-023 (C6) off-thread client for the bottom-drawer stash-shelf card data.
+//
+// Every endpoint here was VERIFIED READ-ONLY against `src/backend/handshake_core` (the real running
+// backend), NOT taken from the MT-023 contract body (whose `binds_backend_api` was STALE, the MT-022
+// lesson):
+//   - The contract named `GET /workspaces/:ws/loom/views/table?content_type=list` and
+//     `GET /workspaces/:ws/loom/views/calendar` returning `{ "blocks": [...], "total": N }`. NONE of
+//     that exists. `parse_view_type` (handshake_core::api::loom) accepts ONLY
+//     {all,unlinked,sorted,pins,favorites} — `table`/`calendar` return HTTP 400 HSK-400-LOOM-VIEW-TYPE.
+//     `LoomViewResponse` is `#[serde(tag="view_type")]` with NO `total` field; the count is
+//     `blocks.len()`. And `content_type=list` is invalid — `LoomBlockContentType` has no `list`
+//     variant (valid: note,file,annotated_file,tag_hub,journal,canvas,view_def → HSK-400 otherwise).
+//   - The REAL countable surface is `GET /workspaces/:ws/loom/views/all?content_type=<ct>` (handler
+//     `query_loom_view`, `LoomViewQuery.content_type`), response `{ "view_type":"all","blocks":[...] }`.
+//     Notes card → content_type=note (exists); the contract's "Lists" maps to the saved
+//     block-collection views, whose real content_type is `view_def` (MT-262 BlockCollectionViews).
+//   - Agenda has no calendar view to read; the contract's own `ports_from_react` directs the daily
+//     journal as the data source: `PUT /workspaces/:ws/loom/journals/:date` (handler
+//     `open_daily_journal`, returns a single `LoomBlock`). Badge = 1 if today's journal block has a
+//     title/content, else 0; subtitle = its title.
+//
+// All follow the MT-020/021 off-thread shape: spawn on the app's tokio runtime, deliver the outcome
+// into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET — the render
+// thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on the
+// `handshake_core` crate's types.
+
+/// The four drawer card kinds whose badge data this client fetches. Mail makes NO backend call (the
+/// contract: no mail backend exists yet), so it has no variant here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DrawerDataKind {
+    /// Today's daily journal (`PUT /loom/journals/{today}`): badge = has-content, subtitle = title.
+    Agenda,
+    /// Saved block-collection views (`GET /loom/views/all?content_type=view_def`): badge = count.
+    Lists,
+    /// Note blocks (`GET /loom/views/all?content_type=note`): badge = count.
+    Notes,
+}
+
+impl DrawerDataKind {
+    /// The verified `content_type` query value for the count fetch. `Agenda` uses the journal endpoint
+    /// (not a view count), so it has no content_type and returns `None`.
+    pub fn content_type(self) -> Option<&'static str> {
+        match self {
+            DrawerDataKind::Agenda => None,
+            // The contract's "Lists" = saved block-collection views; their real content_type is
+            // `view_def` (no `list` content_type exists — disclosed MT-023 deviation).
+            DrawerDataKind::Lists => Some("view_def"),
+            DrawerDataKind::Notes => Some("note"),
+        }
+    }
+}
+
+/// The externally-meaningful result of one drawer card fetch: the badge count plus a one-line subtitle.
+/// `Ok` carries the live data; `Err(msg)` a failure the card surfaces without crashing the shell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DrawerCardData {
+    /// Badge count (CONTROL-023-D: a missing/empty result defaults to 0, never an error).
+    pub badge_count: u32,
+    /// One-line subtitle (e.g. the journal title, or a "N items" summary).
+    pub subtitle: String,
+}
+
+/// One-slot delivery cell for an off-thread drawer-card fetch result, keyed by which card it is. The
+/// spawned task writes `(kind, Ok(data))` / `(kind, Err(msg))`; the egui UI thread drains it next frame
+/// and folds it into the matching card (same `Arc<Mutex<Option<..>>>` pattern as the SCM/rename cells).
+pub type DrawerDataCell = Arc<Mutex<Option<(DrawerDataKind, Result<DrawerCardData, String>)>>>;
+
+/// REST client for the VERIFIED Loom view-count + daily-journal surfaces the MT-023 bottom drawer reads.
+#[derive(Clone)]
+pub struct DrawerDataClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl DrawerDataClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn views_all_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/views/all", self.base_url, workspace_id)
+    }
+
+    fn journal_url(&self, workspace_id: &str, journal_date: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/journals/{}",
+            self.base_url, workspace_id, journal_date
+        )
+    }
+
+    /// Pure request builder for a view-count fetch: `GET /loom/views/all?content_type=<ct>`. Split out so
+    /// a unit test asserts the EXACT verified URL + query without a live backend (the spawn path routes
+    /// through this same builder). `kind` must be `Lists` or `Notes` (Agenda has no content_type).
+    pub fn count_request(&self, workspace_id: &str, kind: DrawerDataKind) -> GetRequestSpec {
+        let content_type = kind
+            .content_type()
+            .expect("count_request requires a content_type kind (Lists/Notes), not Agenda");
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.views_all_url(workspace_id),
+            query: vec![("content_type".to_owned(), content_type.to_owned())],
+        }
+    }
+
+    /// Pure request builder for the Agenda fetch: `PUT /loom/journals/{today}` (the journal endpoint is a
+    /// PUT — `open_daily_journal` get-or-creates today's journal block). No body.
+    pub fn journal_request(&self, workspace_id: &str, journal_date: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: self.journal_url(workspace_id, journal_date),
+            body: None,
+        }
+    }
+
+    /// Fetch the Lists/Notes badge count off the UI thread, delivering `(kind, Ok/Err)` into `cell`. The
+    /// count is `blocks.len()` from the verified `{ "view_type":"all","blocks":[...] }` response
+    /// (CONTROL-023-D: an absent/empty `blocks` array yields 0, never an error).
+    pub fn fetch_count(&self, workspace_id: &str, kind: DrawerDataKind, cell: DrawerDataCell) {
+        let spec = self.count_request(workspace_id, kind);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_view_count(&client, &spec.url, &spec.query).await;
+            deliver_drawer(&cell, kind, result.map_err(|e| e.to_string()));
+        });
+    }
+
+    /// Fetch today's Agenda data off the UI thread, delivering `(Agenda, Ok/Err)` into `cell`. Badge = 1
+    /// if today's journal block has a non-empty title, else 0; subtitle = the title (or "No agenda today").
+    pub fn fetch_agenda(&self, workspace_id: &str, journal_date: &str, cell: DrawerDataCell) {
+        let spec = self.journal_request(workspace_id, journal_date);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_daily_journal(&client, &spec.url).await;
+            deliver_drawer(&cell, DrawerDataKind::Agenda, result.map_err(|e| e.to_string()));
+        });
+    }
+}
+
+/// Write a drawer fetch result into a [`DrawerDataCell`].
+fn deliver_drawer(cell: &DrawerDataCell, kind: DrawerDataKind, result: Result<DrawerCardData, String>) {
+    if let Ok(mut slot) = cell.lock() {
+        *slot = Some((kind, result));
+    }
+}
+
+/// `GET {url}?{query}` and count the `blocks` array length from the verified `LoomViewResponse::All`
+/// shape `{ "view_type":"all", "blocks":[...] }`. A missing/null `blocks` field counts as 0
+/// (CONTROL-023-D — never an error). A non-success status or parse failure is an [`AppError`].
+async fn fetch_view_count(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<DrawerCardData, AppError> {
+    let v = get_json(client, url, query).await?;
+    let count = v
+        .get("blocks")
+        .and_then(|b| b.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0) as u32;
+    let subtitle = if count == 1 {
+        "1 item".to_owned()
+    } else {
+        format!("{count} items")
+    };
+    Ok(DrawerCardData { badge_count: count, subtitle })
+}
+
+/// `PUT {url}` (no body) and read today's daily-journal block (the verified `open_daily_journal`
+/// response is a single `LoomBlock`). Badge = 1 if the block has a non-empty `title`, else 0; subtitle
+/// is the title (or a "No agenda today" fallback). A non-success status or parse failure is an
+/// [`AppError`], never a panic.
+async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<DrawerCardData, AppError> {
+    let resp = client
+        .put(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("PUT journal non-success status {}", resp.status())));
+    }
+    let v: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    let title = v
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty());
+    match title {
+        Some(t) => Ok(DrawerCardData { badge_count: 1, subtitle: t.to_owned() }),
+        None => Ok(DrawerCardData { badge_count: 0, subtitle: "No agenda today".to_owned() }),
+    }
+}
+
 impl LayoutTransport for WorkbenchLayoutClient {
     /// `GET /workspaces/:id/workbench/layout`. The backend's `WorkbenchLayoutResponse` carries
     /// `layout_state: Option<Value>` — `null`/absent means no layout stored yet (first run -> `Ok(None)`).
@@ -965,6 +1174,52 @@ mod tests {
         assert_eq!(spec.body.unwrap(), serde_json::json!({ "title": "New Title" }));
     }
 
+    // ── MT-023 DrawerDataClient: verified view-count + daily-journal requests ────────────────────────
+
+    #[test]
+    fn drawer_notes_count_request_targets_views_all_with_note_content_type() {
+        let rt = rt();
+        let c = DrawerDataClient::new(BASE, rt.handle().clone());
+        let spec = c.count_request("ws1", DrawerDataKind::Notes);
+        assert_eq!(spec.method, HttpMethod::Get);
+        // VERIFIED endpoint: /loom/views/all (NOT the contract's stale /loom/views/table).
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
+        // VERIFIED content_type: note (the contract's `list` does not exist as a content_type).
+        assert_eq!(spec.query, vec![("content_type".to_owned(), "note".to_owned())]);
+    }
+
+    #[test]
+    fn drawer_lists_count_request_maps_to_view_def_content_type() {
+        let rt = rt();
+        let c = DrawerDataClient::new(BASE, rt.handle().clone());
+        let spec = c.count_request("ws1", DrawerDataKind::Lists);
+        // The contract's "Lists" maps to saved block-collection views → content_type=view_def (the
+        // real, countable surface; `list` is not a valid LoomBlockContentType — disclosed deviation).
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
+        assert_eq!(spec.query, vec![("content_type".to_owned(), "view_def".to_owned())]);
+    }
+
+    #[test]
+    fn drawer_agenda_request_is_put_to_daily_journal() {
+        let rt = rt();
+        let c = DrawerDataClient::new(BASE, rt.handle().clone());
+        let spec = c.journal_request("ws1", "2026-06-20");
+        // VERIFIED endpoint: PUT /loom/journals/{date} (open_daily_journal, get-or-create, no body).
+        assert_eq!(spec.method, HttpMethod::Put);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/journals/2026-06-20");
+        assert!(spec.body.is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "count_request requires a content_type")]
+    fn drawer_count_request_rejects_agenda_kind() {
+        let rt = rt();
+        let c = DrawerDataClient::new(BASE, rt.handle().clone());
+        // Agenda has no content_type (it uses the journal PUT); building a count request for it is a
+        // programmer error, caught loudly rather than silently sending a malformed query.
+        let _ = c.count_request("ws1", DrawerDataKind::Agenda);
+    }
+
     // ── End-to-end live capture: the REAL spawn path sends the real request on the wire ─────────────
 
     /// Captured raw HTTP request: the request line (`METHOD path HTTP/1.1`) + the body after the blank
@@ -1050,5 +1305,127 @@ mod tests {
         });
         let delivered = cell.lock().unwrap().take();
         assert_eq!(delivered, Some(Ok(())), "stage round-trip delivered Ok(())");
+    }
+
+    /// Accept ONE connection, read the request, reply `200` with `reply_body`, and return the captured
+    /// request line. Variant of [`capture_one_request`] that lets the test control the response body so
+    /// the client's parse path (e.g. counting `blocks`) is proven end-to-end, not just the request line.
+    fn capture_one_request_reply(listener: std::net::TcpListener, reply_body: &str) -> String {
+        use std::io::{Read, Write};
+        let (mut stream, _) = listener.accept().expect("accept connection");
+        let mut buf = [0u8; 8192];
+        let mut data = Vec::new();
+        loop {
+            let n = stream.read(&mut buf).expect("read request");
+            if n == 0 {
+                break;
+            }
+            data.extend_from_slice(&buf[..n]);
+            let text = String::from_utf8_lossy(&data);
+            if let Some(hdr_end) = text.find("\r\n\r\n") {
+                let header = &text[..hdr_end];
+                let body_so_far = &text[hdr_end + 4..];
+                let content_len = header
+                    .lines()
+                    .find_map(|l| {
+                        let l = l.to_ascii_lowercase();
+                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                    })
+                    .flatten()
+                    .unwrap_or(0);
+                if body_so_far.len() >= content_len {
+                    break;
+                }
+            }
+        }
+        let text = String::from_utf8_lossy(&data).into_owned();
+        let request_line = text.lines().next().unwrap_or("").to_owned();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+            reply_body.len(),
+            reply_body
+        );
+        let _ = stream.write_all(response.as_bytes());
+        let _ = stream.flush();
+        request_line
+    }
+
+    #[test]
+    fn drawer_count_spawn_sends_real_get_and_parses_blocks_len() {
+        // The REAL fetch_count spawn path: it must GET /loom/views/all?content_type=note on the wire,
+        // parse `blocks.len()` from the verified LoomViewResponse::All shape, and deliver the count. This
+        // proves the client is genuinely CONSUMED end-to-end (dispatch → spawn → reqwest → parse → cell),
+        // not just that the request builder is correct.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = DrawerDataClient::new(base, rt.handle().clone());
+        let cell: DrawerDataCell = Arc::new(Mutex::new(None));
+        client.fetch_count("ws1", DrawerDataKind::Notes, cell.clone());
+
+        // The verified response shape: two note blocks → badge_count 2.
+        let reply = r#"{"view_type":"all","blocks":[{"block_id":"b1"},{"block_id":"b2"}]}"#;
+        let request_line = capture_one_request_reply(listener, reply);
+        assert_eq!(
+            request_line, "GET /workspaces/ws1/loom/views/all?content_type=note HTTP/1.1",
+            "REAL spawn path hits the VERIFIED /loom/views/all endpoint with content_type=note"
+        );
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
+        assert_eq!(
+            delivered,
+            (DrawerDataKind::Notes, Ok(DrawerCardData { badge_count: 2, subtitle: "2 items".to_owned() })),
+            "blocks.len() parsed as the badge count from the verified response shape"
+        );
+    }
+
+    #[test]
+    fn drawer_count_missing_blocks_field_defaults_to_zero() {
+        // CONTROL-023-D: a response that omits `blocks` (or has it null) must default the count to 0
+        // without erroring the card. Proven through the REAL spawn + parse path.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = DrawerDataClient::new(base, rt.handle().clone());
+        let cell: DrawerDataCell = Arc::new(Mutex::new(None));
+        client.fetch_count("ws1", DrawerDataKind::Lists, cell.clone());
+
+        // A response with NO blocks field (the red-team "API omits the field" case).
+        let _ = capture_one_request_reply(listener, r#"{"view_type":"all"}"#);
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
+        assert_eq!(
+            delivered,
+            (DrawerDataKind::Lists, Ok(DrawerCardData { badge_count: 0, subtitle: "0 items".to_owned() })),
+            "missing blocks field defaults to 0 (CONTROL-023-D), never an error"
+        );
     }
 }

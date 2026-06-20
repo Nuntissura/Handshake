@@ -31,6 +31,7 @@ pub mod rails;
 pub mod search_rail;
 pub mod settings_dialog;
 pub mod split_layout;
+pub mod stash_shelf;
 pub mod tab_bar;
 pub mod theme;
 pub mod top_menu_bar;
