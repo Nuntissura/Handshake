@@ -8,6 +8,7 @@ pub mod app;
 pub mod backend_client;
 pub mod command_palette;
 pub mod command_registry;
+pub mod context_menu;
 pub mod error;
 pub mod event_bus;
 pub mod layout_persistence;
