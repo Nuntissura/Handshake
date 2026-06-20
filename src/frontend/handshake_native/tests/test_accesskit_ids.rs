@@ -453,6 +453,28 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     // intentionally NOT emitted (the rail does not wrap content in an egui ScrollArea — see left_rail.rs
     // note), so it adds no stable-id node and no anonymous interactive node.
     let expected_sorted = vec![
+        // MT-022 bottom search rail (12): the rail is an ALWAYS-VISIBLE pinned bottom panel, so — unlike
+        // the closed-by-default overlays (palette / switcher / settings) — its nodes ARE in the default
+        // frame every paint. Three FIXED-band controls (`bottom-rail.input` Role::TextInput = NodeId 22,
+        // `bottom-rail.clear` Role::Button = 23, `bottom-rail.loom` Role::Button = 24, all enumerated in
+        // DECLARED_IDENTITIES) plus the nine scope PILLS (`bottom-rail.scope.{project,file,pane,window,
+        // stash,trace,terminal,stage,layout}`, Role::Button) — a fixed-count set addressed by stable
+        // author_id STRINGS in egui's hashed id space (the MT-007 dynamic-author_id pattern), so they are
+        // named + present here but NOT in the fixed-band registry. The dynamic result rows
+        // (`bottom-rail.result.{block_id}`) appear only while a query has results, so the empty-query
+        // default frame adds exactly these 12 rail nodes.
+        "bottom-rail.clear",
+        "bottom-rail.input",
+        "bottom-rail.loom",
+        "bottom-rail.scope.file",
+        "bottom-rail.scope.layout",
+        "bottom-rail.scope.pane",
+        "bottom-rail.scope.project",
+        "bottom-rail.scope.stage",
+        "bottom-rail.scope.stash",
+        "bottom-rail.scope.terminal",
+        "bottom-rail.scope.trace",
+        "bottom-rail.scope.window",
         "divider-horizontal",
         "divider-vertical",
         "left-rail.activity.agenda",
@@ -524,8 +546,33 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 67 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 79 stable-id nodes in sorted order (67 pre-MT-022 + \
+         12 MT-022 bottom-rail nodes)"
     );
+
+    // MT-022 bottom-rail roles: the input is a TextInput; the clear + Loom controls + the nine scope
+    // pills are Buttons. These are the always-visible default-frame nodes the swarm vision layer drives.
+    assert_eq!(
+        snapshot.by_author_id("bottom-rail.input").unwrap().role,
+        "TextInput",
+        "rail query input role"
+    );
+    for btn in ["bottom-rail.clear", "bottom-rail.loom"] {
+        assert_eq!(snapshot.by_author_id(btn).unwrap().role, "Button", "{btn} role");
+    }
+    for scope in [
+        "bottom-rail.scope.project",
+        "bottom-rail.scope.file",
+        "bottom-rail.scope.pane",
+        "bottom-rail.scope.window",
+        "bottom-rail.scope.stash",
+        "bottom-rail.scope.trace",
+        "bottom-rail.scope.terminal",
+        "bottom-rail.scope.stage",
+        "bottom-rail.scope.layout",
+    ] {
+        assert_eq!(snapshot.by_author_id(scope).unwrap().role, "Button", "{scope} pill role");
+    }
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
     assert_eq!(

@@ -67,6 +67,18 @@ fn harness_for(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
     harness
 }
 
+/// The explorer rename dialog's text field, if the dialog is open — disambiguated from the always-visible
+/// MT-022 bottom search rail input (which is ALSO a `Role::TextInput` in every frame). The rail input
+/// carries the stable author_id `bottom-rail.input`; the rename field does not, so the NON-rail
+/// TextInput is the rename field. `None` => the rename dialog is not open (only the rail input exists).
+/// (Before MT-022 the rename field was the only TextInput, so this test used a bare `query_by_role`; the
+/// always-visible rail made that ambiguous.)
+fn rename_field<'h>(harness: &'h Harness<'_, HandshakeApp>) -> Option<egui_kittest::Node<'h>> {
+    harness
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
+}
+
 /// Every live author-id node: (author_id, role, label).
 fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>)> {
     let mut found = Vec::new();
@@ -389,7 +401,7 @@ fn explorer_rename_opens_rename_dialog_seeded_with_title() {
     // The rename dialog is open: its text field is seeded with the current title and is findable.
     let nodes = live_author_nodes(&harness);
     let _ = nodes; // dialog widgets are egui-default-named; assert via the visible label instead.
-    let field = harness.query_by_role(egui::accesskit::Role::TextInput);
+    let field = rename_field(&harness);
     assert!(field.is_some(), "rename dialog text field is live");
     println!("PASS: explorer Rename (bookmark row) opened the inline rename dialog");
 }
@@ -419,7 +431,7 @@ fn explorer_document_rename_is_disabled() {
     harness.get_by_label("Rename").click();
     harness.run();
     assert!(
-        harness.query_by_role(egui::accesskit::Role::TextInput).is_none(),
+        rename_field(&harness).is_none(),
         "disabled document Rename did not open the rename dialog (no fake-enable; wrong id space)"
     );
     println!("PASS: document row Rename is addressable but disabled (document id is not a Loom-block id)");
@@ -448,7 +460,7 @@ fn explorer_canvas_rename_is_disabled() {
     harness.get_by_label("Rename").click();
     harness.run();
     assert!(
-        harness.query_by_role(egui::accesskit::Role::TextInput).is_none(),
+        rename_field(&harness).is_none(),
         "disabled canvas Rename did not open the rename dialog (no fake-enable)"
     );
     println!("PASS: canvas row Rename is addressable but disabled (no fake-enable)");

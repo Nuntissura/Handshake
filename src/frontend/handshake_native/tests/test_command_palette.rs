@@ -39,6 +39,18 @@ fn shell_harness() -> Harness<'static, HandshakeApp> {
     Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app())
 }
 
+/// The palette's search box, disambiguated from the always-visible MT-022 bottom search rail input
+/// (which is ALSO a `Role::TextInput` in every frame). The rail input carries the stable author_id
+/// `bottom-rail.input`; the palette search box does not, so we pick the non-rail TextInput. (Before
+/// MT-022 the palette search was the only TextInput on screen, so this test used a bare
+/// `get_by_role(TextInput)`; the rail made that ambiguous, hence this narrowing helper.)
+fn palette_search<'h>(harness: &'h Harness<'_, HandshakeApp>) -> egui_kittest::Node<'h> {
+    harness
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
+        .expect("the palette search TextInput (the non-rail one)")
+}
+
 /// Collect every live AccessKit node carrying an author_id: (author_id, role, label).
 fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>)> {
     let mut found = Vec::new();
@@ -116,7 +128,7 @@ fn search_input_is_focused_on_open() {
     harness.run();
     harness.run();
 
-    let search = harness.get_by_role(egui::accesskit::Role::TextInput);
+    let search = palette_search(&harness);
     // The palette's search box is the only TextInput on screen and it requested focus on open.
     assert!(search.is_focused(), "the search input has keyboard focus on open");
 }
@@ -132,7 +144,7 @@ fn typing_manual_filters_to_usermanual_rows() {
     harness.run();
 
     // Type into the focused search box (the genuine keyboard path).
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("manual");
+    palette_search(&harness).type_text("manual");
     harness.run();
     harness.run();
 
@@ -165,7 +177,7 @@ fn enter_runs_selected_command_and_closes() {
     harness.run();
 
     // Type "manual" so the first filtered row is UserManual: Open (selected_index defaults to 0).
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("manual");
+    palette_search(&harness).type_text("manual");
     harness.run();
     harness.run();
 
@@ -242,7 +254,7 @@ fn reopen_resets_query() {
     harness.state_mut().open_command_palette();
     harness.run();
     harness.run();
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("manual");
+    palette_search(&harness).type_text("manual");
     harness.run();
     let first_open_count = harness.state().command_palette_open_count();
     harness.key_press(egui::Key::Escape);
@@ -282,7 +294,7 @@ fn disabled_editor_row_cannot_run() {
     harness.run();
 
     // Filter to an editor command ("Bold"), which is disabled (no native editor surface yet).
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("bold");
+    palette_search(&harness).type_text("bold");
     harness.run();
     harness.run();
 

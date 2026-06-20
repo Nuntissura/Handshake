@@ -44,6 +44,17 @@ fn ok_app() -> HandshakeApp {
     }))
 }
 
+/// The switcher's search box, disambiguated from the always-visible MT-022 bottom search rail input
+/// (which is ALSO a `Role::TextInput` in every frame). The rail input carries the stable author_id
+/// `bottom-rail.input`; the switcher search box does not, so we pick the non-rail TextInput. (Before
+/// MT-022 the switcher search was the only TextInput on screen; the rail made that ambiguous.)
+fn switcher_search<'h>(harness: &'h Harness<'_, HandshakeApp>) -> egui_kittest::Node<'h> {
+    harness
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
+        .expect("the switcher search TextInput (the non-rail one)")
+}
+
 /// A canned, in-memory transport: returns the same hits for any query, a fixed recents list, and
 /// echoes the picked hit's key from `record_recent`. No network, deterministic.
 struct StubTransport {
@@ -191,7 +202,7 @@ fn search_input_is_focused_on_open() {
     harness.run();
     harness.run();
 
-    let search = harness.get_by_role(egui::accesskit::Role::TextInput);
+    let search = switcher_search(&harness);
     assert!(search.is_focused(), "the search input has keyboard focus on open");
 }
 
@@ -213,7 +224,7 @@ fn typing_fires_graph_search_and_renders_hits() {
     harness.run();
 
     // Type into the focused search box (the genuine keyboard path).
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("design");
+    switcher_search(&harness).type_text("design");
 
     // Pump single frames + wall-clock past the 150ms debounce until the search delivers and rows render.
     let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
@@ -260,7 +271,7 @@ fn enter_opens_hit_target_and_closes() {
     harness.run();
     harness.run();
 
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("shell");
+    switcher_search(&harness).type_text("shell");
     // Cross the debounce + let the delivery arrive so the single row is selectable (step, not run,
     // because the open switcher repaints continuously while loading/debouncing).
     let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
@@ -481,7 +492,7 @@ fn jump_does_not_block_on_recents_post() {
     harness.run();
     harness.run();
 
-    harness.get_by_role(egui::accesskit::Role::TextInput).type_text("shell");
+    switcher_search(&harness).type_text("shell");
     let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
     assert!(rendered, "graph-search delivered the work-packet hit");
     harness.step();

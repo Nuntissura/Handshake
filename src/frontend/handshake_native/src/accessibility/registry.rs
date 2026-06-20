@@ -53,6 +53,10 @@ use crate::project_tree::{
 };
 use crate::quick_links::{QUICK_LINKS_AUTHOR_ID, QUICK_LINKS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
+use crate::search_rail::{
+    RAIL_CLEAR_AUTHOR_ID, RAIL_CLEAR_NODE_ID, RAIL_INPUT_AUTHOR_ID, RAIL_INPUT_NODE_ID,
+    RAIL_LOOM_AUTHOR_ID, RAIL_LOOM_NODE_ID,
+};
 use crate::tab_bar::TABBAR_SLOTS;
 use crate::top_menu_bar::{MENU_BAR_NODE_ID_BASE, MENU_DEFINITIONS};
 
@@ -433,6 +437,27 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: SETTINGS_LIST_AUTHOR_ID,
         node_id: SETTINGS_LIST_NODE_ID,
+    },
+    // MT-022 bottom search rail fixed CONTROLS, fresh band 22..=24: above the theme toggle (10) /
+    // command-palette (11..=13) / quick-switcher (14..=16) / settings (17..=19) / chrome (20..=21)
+    // bands, below the dividers (30..=31) and the pane id base (100). The rail is ALWAYS VISIBLE (a
+    // pinned bottom panel), so — UNLIKE the overlay container nodes above — these three nodes ARE in the
+    // default-seed live tree every frame. The three fixed controls are the query input (Role::TextInput),
+    // the clear button (Role::Button), and the Loom shortcut (Role::Button). The nine scope PILLS are a
+    // fixed-count set but addressed by stable author_id STRINGS (`bottom-rail.scope.{name}`) in egui's
+    // hashed id space (the MT-007 dynamic-author_id pattern), as are the dynamic-count result rows
+    // (`bottom-rail.result.{block_id}`), so neither consumes a fixed band and neither is enumerated here.
+    DeclaredIdentity {
+        author_id: RAIL_INPUT_AUTHOR_ID,
+        node_id: RAIL_INPUT_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: RAIL_CLEAR_AUTHOR_ID,
+        node_id: RAIL_CLEAR_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: RAIL_LOOM_AUTHOR_ID,
+        node_id: RAIL_LOOM_NODE_ID,
     },
 ];
 

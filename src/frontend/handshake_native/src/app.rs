@@ -368,6 +368,13 @@ pub struct HandshakeApp {
     /// TODO(MT-018): the settings dialog should expose a "Restore hidden status bar items" control so a
     /// hidden segment can always be brought back (red-team status-bar-visibility control).
     statusbar_hidden: std::collections::HashSet<String>,
+    /// MT-022 bottom search rail emitted-intent slot (AC-022-9 / HBR-SWARM): the lock-guarded shared
+    /// `Arc<Mutex<Option<RailQuery>>>` the rail's fire path WRITES the parsed
+    /// [`crate::search_rail::RailQuery`] into on Enter / Loom (and writes `None` on clear — AC-022-6).
+    /// The rail makes NO backend call; a downstream search-results consumer / concurrent swarm thread
+    /// clones-and-reads this slot off the same lock to EXECUTE the search and display results (search
+    /// execution + results display are deferred to that consumer per the contract).
+    search_rail_query: crate::search_rail::RailQuerySlot,
 }
 
 /// An in-progress explorer-row rename (MT-020): the Loom block being renamed + the live edit buffer.
@@ -631,6 +638,9 @@ impl HandshakeApp {
             loom_flag_cell: Arc::new(Mutex::new(None)),
             loom_flag_error: None,
             statusbar_hidden: std::collections::HashSet::new(),
+            // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9). It makes
+            // NO backend call; a downstream search-results consumer reads the slot and executes the search.
+            search_rail_query: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -734,6 +744,9 @@ impl HandshakeApp {
             loom_flag_cell: Arc::new(Mutex::new(None)),
             loom_flag_error: None,
             statusbar_hidden: std::collections::HashSet::new(),
+            // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9); it makes
+            // no backend call, so the headless shell needs no transport — only the shared slot.
+            search_rail_query: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -1009,7 +1022,25 @@ impl HandshakeApp {
         self.source_control_client =
             Some(crate::backend_client::SourceControlClient::production(handle.clone()));
         self.canvas_client = Some(crate::backend_client::CanvasClient::production(handle.clone()));
+        // MT-022: the rail makes NO backend call (AC-022-9), so there is no rail transport to bridge onto
+        // the runtime — the rail emits its RailQuery intent into `search_rail_query` silently.
         self.runtime_handle = Some(handle);
+    }
+
+    /// A clone of the rail's emitted-intent slot (MT-022, the contract's `search_rail_query`:
+    /// `Arc<Mutex<Option<RailQuery>>>`). A downstream search-results consumer / concurrent swarm thread
+    /// holds this clone and reads the latest emitted intent off the shared lock to EXECUTE the search
+    /// (search execution + results display are deferred to that consumer per AC-022-9). Cheap `Arc` clone.
+    pub fn search_rail_query_slot(&self) -> crate::search_rail::RailQuerySlot {
+        self.search_rail_query.clone()
+    }
+
+    /// The rail's latest emitted-intent query (MT-022, the contract's `search_rail_query` slot), cloned
+    /// off the shared lock. `None` until the first rail fire (and after a clear). Read by tests + a
+    /// concurrent swarm reader to observe what the rail last emitted (free-text + scope + facets). The
+    /// rail does NOT execute the search — this is the emitted intent, not a result set.
+    pub fn search_rail_query(&self) -> Option<crate::search_rail::RailQuery> {
+        self.search_rail_query.lock().ok().and_then(|q| q.clone())
     }
 
     /// Test-only: point the MT-021 backend clients (SCM, canvas, Loom-block) at an arbitrary `base_url`
@@ -1303,6 +1334,60 @@ impl HandshakeApp {
                 ctx.request_repaint();
             }
             crate::quick_switcher::SwitcherOutcome::None => {}
+        }
+    }
+
+    /// Drive one frame of the always-visible bottom search rail (MT-022): register the pinned bottom
+    /// panel and render the rail (scope pills + query input + clear + Loom shortcut). The rail makes NO
+    /// backend call (AC-022-9) and renders NO results — on an explicit fire (Enter / Loom) it EMITS the
+    /// parsed [`crate::search_rail::RailQuery`] into the lock-guarded `search_rail_query` slot; on clear
+    /// it writes `None`. Search EXECUTION + results display are deferred to a downstream search-results
+    /// consumer that reads the slot. The slot write holds the lock only briefly and never across `ui.*`
+    /// (HBR-QUIET / HBR-SWARM lock-discipline: a concurrent swarm reader can clone-and-read it safely).
+    fn drive_search_rail(&mut self, ctx: &egui::Context) {
+        let has_workspace = !self.active_project_id.is_empty();
+
+        // Render the pinned bottom panel (registered before the central panel so it claims its space).
+        let palette = self.current_theme.palette();
+        let colors = crate::search_rail::RailVisuals {
+            active_pill_bg: palette.accent_soft,
+            inactive_pill_bg: palette.surface_strong,
+            text: palette.text,
+            accent: palette.accent,
+        };
+        let frame = egui::TopBottomPanel::bottom("handshake_bottom_search_rail")
+            .exact_height(crate::search_rail::RAIL_HEIGHT)
+            .show(ctx, |ui| {
+                crate::search_rail::show(
+                    ui,
+                    crate::search_rail::RailView {
+                        has_workspace,
+                        colors,
+                    },
+                )
+            })
+            .inner;
+
+        // Apply the rail outcome by WRITING the emitted intent into the shared slot (no backend call).
+        //   - Fire (Enter / Loom — AC-022-3: ONLY these fire) writes the parsed RailQuery intent.
+        //   - Clear writes None back (AC-022-6).
+        // The downstream search-results consumer reads this slot and executes the search (deferred).
+        match frame.outcome {
+            crate::search_rail::RailOutcome::Clear => {
+                if let Ok(mut slot) = self.search_rail_query.lock() {
+                    *slot = None;
+                }
+                ctx.request_repaint();
+            }
+            crate::search_rail::RailOutcome::Fire(query) => {
+                if has_workspace {
+                    if let Ok(mut slot) = self.search_rail_query.lock() {
+                        *slot = Some(*query);
+                    }
+                    ctx.request_repaint();
+                }
+            }
+            crate::search_rail::RailOutcome::None => {}
         }
     }
 
@@ -3146,6 +3231,13 @@ impl HandshakeApp {
                 ctx.request_repaint();
             }
         }
+
+        // ── Bottom search rail (MT-022) ─────────────────────────────────────────────────────────────
+        // A pinned, always-visible 32px bottom panel registered ABOVE the status bar (egui stacks bottom
+        // panels in registration order, so this sits just above the status strip) and BEFORE the central
+        // panel, so it claims its space first and never collapses (AC-022-1). It owns query input + scope
+        // selection and emits a parsed RailQuery search intent; the result popup floats above the strip.
+        self.drive_search_rail(ctx);
 
         // ── Apply a pending pop-out request (MT-008) ───────────────────────────────────────────────
         // A request set by `request_pop_out` (future MT-019 pane-header action / test / out-of-process
