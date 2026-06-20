@@ -21,6 +21,12 @@ use crate::theme::{self, HsTheme};
 /// steering.
 const THEME_TOGGLE_NODE_ID: u64 = 10;
 
+/// Stable, model-meaningful match key for the theme-toggle button (kebab-case, dot-namespaced
+/// under `shell.chrome.`, mirroring the title/status convention). The toggle is the shell's one
+/// interactive chrome widget; this is the out-of-process address a model uses to click it,
+/// independent of its display text ("Light"/"Dark") which flips with the active theme.
+const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
+
 pub enum HealthDisplayState {
     Loading,
     Ok(HealthInfo),
@@ -270,6 +276,13 @@ impl HandshakeApp {
         response.widget_info(|| {
             egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
         });
+
+        // Attach a stable author_id to the SAME live node egui builds from the widget_info above.
+        // `accesskit_node_builder` (via `emit_interactive_node`) only sets `author_id`, leaving the
+        // Role::Button + Action::Click + Action::Focus that egui derived from `widget_info`/`Sense`
+        // intact — so the toggle becomes addressable by `shell.chrome.theme-toggle` AND still passes
+        // the `assert_no_unnamed_interactive` gate (which flags clickable nodes without an author_id).
+        accessibility::emit_interactive_node(ui.ctx(), id, THEME_TOGGLE_AUTHOR_ID);
 
         if response.clicked() {
             self.current_theme = self.current_theme.toggled();

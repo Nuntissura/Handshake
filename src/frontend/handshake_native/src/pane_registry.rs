@@ -381,7 +381,13 @@ impl PaneHostWidget {
                 // A pane is always assigned a node id at insert; if a custom id override left it
                 // unset, fall back to a hash of the pane id rather than panic in the render path.
                 .unwrap_or_else(|| hash_pane_id(pane_id));
-            let egui_id = egui::Id::new(("handshake_pane", node_id));
+            // from_high_entropy_bits (NOT Id::new, which hashes its argument) so the LIVE AccessKit
+            // NodeId equals the registry node_id (100..103) — the same convention chrome (10/20/21)
+            // and the theme toggle (10) use. This makes the DECLARED_IDENTITIES collision space
+            // reflect the REAL live tree rather than an unused 100..103 space. Safe for fixed ids:
+            // a single fixed id per pane cannot self-collide; entropy only affects child IdMap
+            // distribution. (Custom-override fallback ids from hash_pane_id are already high-entropy.)
+            let egui_id = unsafe { egui::Id::from_high_entropy_bits(node_id) };
             let factory = factory_for(&record.pane_type);
             let role = factory.accesskit_role();
             let label = record.pane_type.label();

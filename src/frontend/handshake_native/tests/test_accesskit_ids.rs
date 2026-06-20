@@ -14,7 +14,8 @@
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::accessibility::{
-    collect_tree_snapshot, AccessTreeSnapshot, ChromeWidget,
+    assert_no_unnamed_interactive, collect_tree_snapshot, AccessTreeSnapshot, ChromeWidget,
+    THEME_TOGGLE_AUTHOR_ID,
 };
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -32,6 +33,23 @@ fn ok_app() -> HandshakeApp {
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }))
+}
+
+/// Run the REAL shell for exactly one frame on a plain `egui::Context` with AccessKit enabled, and
+/// return the live `accesskit::TreeUpdate` egui produced — the exact value the out-of-process
+/// Windows UIA adapter receives each frame (egui builds it in `Context::run` end-of-pass). This is
+/// the live-tree source for both the snapshot projection test and the interactive-naming gate; it
+/// goes through the same emission path the real window uses, so a node that was only built in memory
+/// (never emitted via `Context::accesskit_node_builder`) would be absent here.
+fn live_tree_update() -> egui::accesskit::TreeUpdate {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    let output = ctx.run(egui::RawInput::default(), |ctx| app.ui(ctx));
+    output
+        .platform_output
+        .accesskit_update
+        .expect("AccessKit update produced (accesskit enabled + one frame run)")
 }
 
 /// Walk the live consumer-side AccessKit tree and collect every (author_id, role, label) triple.
@@ -187,4 +205,154 @@ fn snapshot_projects_author_id_nodes_in_stable_order() {
     assert_eq!(a.label.as_deref(), Some("Workspace"));
     assert_eq!(a.node_id, 3);
     println!("PASS: snapshot projects {} author_id nodes in stable order", snapshot.nodes.len());
+}
+
+// ── Item 1: theme toggle author_id is live ───────────────────────────────────────────────────────
+
+#[test]
+fn live_tree_contains_theme_toggle_by_author_id() {
+    // The theme toggle is the shell's one interactive chrome widget. It must appear in the LIVE tree
+    // with its stable author_id `shell.chrome.theme-toggle`, Role::Button (egui's widget_info role),
+    // and the live label ("Light" while the default Dark theme is active). Proven via kittest's
+    // consumer-side tree, the same surface an out-of-process model reads.
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    harness.run();
+
+    let nodes = live_author_nodes(&harness);
+    let toggle = nodes
+        .iter()
+        .find(|(a, _, _)| a == THEME_TOGGLE_AUTHOR_ID)
+        .unwrap_or_else(|| {
+            panic!(
+                "theme-toggle author_id '{THEME_TOGGLE_AUTHOR_ID}' missing from LIVE tree; found {:?}",
+                nodes.iter().map(|(a, _, _)| a).collect::<Vec<_>>()
+            )
+        });
+    assert_eq!(toggle.1, "Button", "toggle keeps egui's Role::Button");
+    assert_eq!(
+        toggle.2.as_deref(),
+        Some("Light"),
+        "toggle carries its live button label (Dark default -> 'Light')"
+    );
+
+    // It is also findable by kittest's Queryable (the UIA-style locate path), proving the node is
+    // genuinely live and clickable, not just data in memory.
+    let _ = harness.get_by_label("Light");
+    println!("PASS: theme-toggle '{THEME_TOGGLE_AUTHOR_ID}' live (Role::Button, label 'Light')");
+}
+
+// ── Item 3: assert_no_unnamed_interactive gate (positive + negative) ──────────────────────────────
+
+#[test]
+fn assert_no_unnamed_interactive_passes_on_real_shell() {
+    // Positive proof: the real shell's live tree has NO unnamed interactive widget. The gate also
+    // returns the count of interactive nodes it inspected; it must be >= 1 (the theme toggle), so the
+    // gate is proven to actually examine an interactive widget rather than pass vacuously.
+    let update = live_tree_update();
+    let inspected = assert_no_unnamed_interactive(&update);
+    assert!(
+        inspected >= 1,
+        "gate must inspect at least the theme toggle; inspected {inspected}"
+    );
+    println!("PASS: real shell passes assert_no_unnamed_interactive ({inspected} interactive node(s) named)");
+}
+
+#[test]
+fn assert_no_unnamed_interactive_fires_on_deliberately_unnamed_widget() {
+    // Negative proof: render the real shell PLUS one deliberately-unnamed interactive button into the
+    // SAME live frame, then assert the gate panics. This proves the gate is a real enforcement check
+    // (catch_unwind sees the panic) and cannot be silently removed without this test going red.
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = ok_app();
+    let output = ctx.run(egui::RawInput::default(), |ctx| {
+        app.ui(ctx);
+        // A real interactive egui button with NO author_id assigned. egui gives it Role::Button +
+        // Action::Click via widget_info, exactly the shape the gate must catch.
+        egui::Area::new(egui::Id::new("unnamed_interactive_probe"))
+            .show(ctx, |ui| {
+                let _ = ui.button("Unnamed");
+            });
+    });
+    let update = output
+        .platform_output
+        .accesskit_update
+        .expect("AccessKit update produced");
+
+    let result = std::panic::catch_unwind(|| assert_no_unnamed_interactive(&update));
+    let err = result.expect_err("gate MUST panic when an interactive widget lacks an author_id");
+    let msg = err
+        .downcast_ref::<String>()
+        .map(|s| s.as_str())
+        .or_else(|| err.downcast_ref::<&str>().copied())
+        .unwrap_or("");
+    assert!(
+        msg.contains("no stable author_id"),
+        "panic message should name the missing author_id; got: {msg:?}"
+    );
+    println!("PASS: gate fires on a deliberately unnamed interactive widget: {msg}");
+}
+
+// ── Item 4: live-frame snapshot over the REAL tree ────────────────────────────────────────────────
+
+#[test]
+fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
+    // Closes the snapshot test gap: `collect_tree_snapshot` was previously only proven against a
+    // hand-built TreeUpdate. Here it runs over the REAL shell's one-frame live tree and must contain
+    // all six chrome+pane author_id nodes PLUS the theme toggle, sorted by author_id (the snapshot's
+    // stable order contract).
+    let update = live_tree_update();
+    let snapshot: AccessTreeSnapshot = collect_tree_snapshot(&update);
+
+    println!(
+        "LIVE-FRAME snapshot ({} author_id nodes): {:?}",
+        snapshot.nodes.len(),
+        snapshot.author_ids()
+    );
+
+    // All six chrome+pane nodes are present.
+    for expected in EXPECTED_CHROME_AUTHOR_IDS.iter().chain(EXPECTED_PANE_AUTHOR_IDS.iter()) {
+        assert!(
+            snapshot.by_author_id(expected).is_some(),
+            "author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
+            snapshot.author_ids()
+        );
+    }
+    // The interactive theme toggle is present too.
+    assert!(
+        snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).is_some(),
+        "theme toggle missing from LIVE-FRAME snapshot; found {:?}",
+        snapshot.author_ids()
+    );
+
+    // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of the
+    // seven stable-id nodes the shell emits, so a re-order or a dropped node fails loudly.
+    let expected_sorted = vec![
+        "pane-a",
+        "pane-b",
+        "pane-c",
+        "pane-d",
+        "shell.chrome.status-bar",
+        "shell.chrome.theme-toggle",
+        "shell.chrome.title-bar",
+    ];
+    assert_eq!(
+        snapshot.author_ids(),
+        expected_sorted,
+        "LIVE-FRAME snapshot must list exactly the 7 stable-id nodes in sorted order"
+    );
+
+    // Roles survive the projection: chrome regions and the interactive toggle.
+    assert_eq!(snapshot.by_author_id("shell.chrome.title-bar").unwrap().role, "TitleBar");
+    assert_eq!(snapshot.by_author_id("shell.chrome.status-bar").unwrap().role, "Status");
+    assert_eq!(snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role, "Button");
+    for pane in EXPECTED_PANE_AUTHOR_IDS {
+        assert_eq!(snapshot.by_author_id(pane).unwrap().role, "Group", "{pane} role");
+    }
+
+    println!(
+        "PASS: LIVE-FRAME snapshot has all 6 chrome+pane nodes + the toggle, sorted ({} total)",
+        snapshot.nodes.len()
+    );
 }

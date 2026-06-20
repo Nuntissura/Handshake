@@ -111,3 +111,22 @@ pub fn emit_pane_node(
         node.set_label(label.to_owned());
     });
 }
+
+/// Attach a stable `author_id` to an *already interactive* live node WITHOUT overwriting its role,
+/// label, or actions.
+///
+/// This is for interactive widgets (e.g. the theme toggle) that already populate their live node via
+/// egui's `Response::widget_info` + `Sense` — egui derives `Role::Button`, `Action::Click`, and
+/// `Action::Focus` for them. Calling `accesskit_node_builder` for the SAME `egui::Id` mutates that
+/// same node (egui keys node builders by id and composes writes), so setting only `author_id` here
+/// adds the stable out-of-process address while leaving egui's interactive role/actions intact.
+///
+/// Contrast with [`emit_chrome_node`] / [`emit_pane_node`], which OWN the whole node (role + label +
+/// author_id) for non-interactive chrome/pane containers that egui would otherwise leave anonymous.
+///
+/// No-op when AccessKit is not active this frame (`accesskit_node_builder` returns `None`).
+pub fn emit_interactive_node(ctx: &egui::Context, widget_id: egui::Id, author_id: &str) {
+    ctx.accesskit_node_builder(widget_id, |node| {
+        node.set_author_id(author_id.to_owned());
+    });
+}

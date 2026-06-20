@@ -36,9 +36,15 @@
 //! `PaneRenderContext::egui_id` (which is itself derived from the registry's monotonic NodeId).
 
 mod live;
+mod registry;
 mod snapshot;
 
 pub use live::{
-    emit_chrome_node, emit_pane_node, ChromeWidget, STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID,
+    emit_chrome_node, emit_interactive_node, emit_pane_node, ChromeWidget, STATUS_BAR_NODE_ID,
+    TITLE_BAR_NODE_ID,
+};
+pub use registry::{
+    assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_IDENTITIES, INTERACTIVE_ROLES,
+    PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
 };
 pub use snapshot::{collect_tree_snapshot, AccessNodeSnapshot, AccessTreeSnapshot};
