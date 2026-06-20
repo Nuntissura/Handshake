@@ -31,6 +31,7 @@ use super::live::{STATUS_BAR_NODE_ID, TITLE_BAR_NODE_ID};
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
 };
+use crate::module_switcher::{MODULE_DEFINITIONS, MODULE_NODE_ID_BASE};
 use crate::popout_window::MERGE_BACK_SLOTS;
 use crate::project_tabs::{PROJECT_TABS_AUTHOR_ID, PROJECT_TABS_NODE_ID};
 use crate::rails::SCROLLBAR_V_NODE_IDS;
@@ -166,6 +167,38 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: PROJECT_TABS_AUTHOR_ID,
         node_id: PROJECT_TABS_NODE_ID,
+    },
+    // MT-012 top-right module switcher buttons (Role::Button), fresh band 51..=56: above the
+    // project-tab strip container (50), below the per-pane tab-bar containers (60..63), strictly below
+    // the pane id base (100). The module count is FIXED at six, so — unlike the dynamic project tabs —
+    // each button gets a fixed id (MODULE_NODE_ID_BASE + index) and a fixed author_id (its data_id),
+    // both enumerated here so the collision test proves the six ids are disjoint from every other
+    // declared identity. (Const-context: the indices are spelled out because a const slice cannot
+    // iterate; the `module_node_ids_sit_in_a_disjoint_fresh_band` unit test in `module_switcher` plus
+    // this collision test together pin the band.)
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[0].data_id,
+        node_id: MODULE_NODE_ID_BASE,
+    },
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[1].data_id,
+        node_id: MODULE_NODE_ID_BASE + 1,
+    },
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[2].data_id,
+        node_id: MODULE_NODE_ID_BASE + 2,
+    },
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[3].data_id,
+        node_id: MODULE_NODE_ID_BASE + 3,
+    },
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[4].data_id,
+        node_id: MODULE_NODE_ID_BASE + 4,
+    },
+    DeclaredIdentity {
+        author_id: MODULE_DEFINITIONS[5].data_id,
+        node_id: MODULE_NODE_ID_BASE + 5,
     },
 ];
 

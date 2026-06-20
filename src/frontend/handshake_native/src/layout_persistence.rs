@@ -39,6 +39,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::module_switcher::ModuleId;
 use crate::pane_registry::{PaneId, PaneRecord};
 use crate::popout_window::PopOutGeometry;
 use crate::split_layout::SplitWeights;
@@ -54,6 +55,12 @@ pub const LAYOUT_SCHEMA_ID: &str = "hsk.native_worksurface_layout@1";
 /// Snapshot format version. Bumped only on a breaking field change; `LAYOUT_SCHEMA_ID` already
 /// encodes the major schema, so this guards minor in-schema evolution.
 pub const LAYOUT_SNAPSHOT_VERSION: u32 = 1;
+
+/// The default active module (`MAIN`) used when a layout blob predates MT-012 and carries no
+/// `active_module` key. Mirrors the React default module for a fresh pane (`DEFAULT_PANES[0].module`).
+fn default_module() -> ModuleId {
+    ModuleId::Main
+}
 
 /// One pop-out's persisted state: where the detached window sat and whether it was open. Geometry
 /// reuses the MT-008 [`PopOutGeometry`] (already serde) so the restore path can hand it straight to
@@ -89,6 +96,12 @@ pub struct LayoutSnapshot {
     pub split_weights: SplitWeights,
     /// The pane the operator last activated, if any (MT-006 active-pane highlight).
     pub active_pane: Option<PaneId>,
+    /// The active work-surface MODULE (MT-012). Serialized as the uppercase React string
+    /// (`"MAIN"`, …). `#[serde(default)]` so a layout blob written before MT-012 (no `active_module`
+    /// key) still deserializes — it falls back to [`default_module`] (`MAIN`) instead of failing schema
+    /// validation, keeping the version-1 schema backward compatible.
+    #[serde(default = "default_module")]
+    pub active_module: ModuleId,
     /// The pane registry records (MT-005), keyed by pane id for deterministic order.
     pub panes: BTreeMap<PaneId, PaneRecord>,
     /// Per-pane tab-bar state (MT-007): tab order, active index, pinned/dirty flags.
@@ -105,6 +118,7 @@ impl LayoutSnapshot {
         project_id: impl Into<String>,
         split_weights: SplitWeights,
         active_pane: Option<PaneId>,
+        active_module: ModuleId,
         panes: BTreeMap<PaneId, PaneRecord>,
         tab_bars: BTreeMap<PaneId, TabBarState>,
         pop_outs: BTreeMap<PaneId, PopOutSnapshot>,
@@ -115,6 +129,7 @@ impl LayoutSnapshot {
             project_id: project_id.into(),
             split_weights,
             active_pane,
+            active_module,
             panes,
             tab_bars,
             pop_outs,
@@ -500,6 +515,7 @@ mod tests {
                 horizontal: 0.66,
             },
             Some(pid("pane-a")),
+            ModuleId::Main,
             panes,
             tab_bars,
             pop_outs,

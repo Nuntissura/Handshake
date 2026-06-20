@@ -13,6 +13,7 @@ use crate::layout_persistence::{
     LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
     PopOutSnapshot,
 };
+use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
 use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
@@ -154,6 +155,11 @@ pub struct HandshakeApp {
     /// In-flight `GET /workspaces` fetch (MT-011). Spawned non-blocking so a slow/absent backend never
     /// stalls the render loop; polled each frame and folded into `project_tabs` when it resolves.
     workspaces_handle: Option<tokio::task::JoinHandle<Result<Vec<ProjectItem>, AppError>>>,
+    /// The top-right MODULE switcher (MT-012): the six MAIN/CKC/INGEST/STAGE/LAB/STUDIO buttons. Owns
+    /// only the active module id (the highlight); switching a module mutates the ACTIVE pane's tab list
+    /// + active tab via [`HandshakeApp::set_module`]. Serialized into the layout snapshot as
+    /// `active_module` by MT-009, so the module survives a project switch and an app restart.
+    module_switcher: ModuleSwitcher,
 }
 
 /// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
@@ -312,6 +318,8 @@ impl HandshakeApp {
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
             workspaces_handle,
+            // The default seed pane (`pane-a`) is the React `MAIN` module, so the switcher starts on MAIN.
+            module_switcher: ModuleSwitcher::new(ModuleId::Main),
         }
     }
 
@@ -353,6 +361,7 @@ impl HandshakeApp {
             // Headless/test shell: no background fetch (no runtime to spawn on). A test seeds tabs
             // directly via `project_tabs_mut`.
             workspaces_handle: None,
+            module_switcher: ModuleSwitcher::new(ModuleId::Main),
         }
     }
 
@@ -412,6 +421,80 @@ impl HandshakeApp {
         &mut self.project_tabs
     }
 
+    /// The active work-surface MODULE (MT-012) — the switcher's current highlight.
+    pub fn active_module(&self) -> ModuleId {
+        self.module_switcher.active()
+    }
+
+    /// Read-only view of the module switcher (tests / future settings binding).
+    pub fn module_switcher(&self) -> &ModuleSwitcher {
+        &self.module_switcher
+    }
+
+    /// The pane a module switch targets: the active pane if one is set, else the alphabetically-first
+    /// pane that has a tab bar (the seeded default is `pane-a`). Mirrors the React `activePaneId`
+    /// default — `setModule` always mutates exactly one pane, never zero. Returns `None` only when there
+    /// are no panes at all (which the seeded shell never is), so a switch on an empty surface is a safe
+    /// no-op rather than a panic.
+    fn module_target_pane(&self) -> Option<PaneId> {
+        if let Some(active) = &self.active_pane {
+            if self.tab_bar_states.contains_key(active) {
+                return Some(active.clone());
+            }
+        }
+        // Deterministic fallback: the lowest pane id (BTree-style order) that owns a tab bar.
+        self.tab_bar_states
+            .keys()
+            .min()
+            .cloned()
+    }
+
+    /// Switch the active MODULE (MT-012), mirroring the React `setModule` (`app/src/App.tsx` lines
+    /// 1463-1483) exactly:
+    ///
+    /// 1. set `active_module = module_id` (the switcher highlight);
+    /// 2. on the ACTIVE pane only, rebuild its tab list to
+    ///    `uniqueTabs([defaultTab, ...module.tabs, ...existing_pane_tabs])` and activate the module's
+    ///    default tab.
+    ///
+    /// Returns `true` when state changed. Switching to the already-active module is a NO-OP that returns
+    /// `false` (the contract's no-op acceptance criterion: no state change, no layout-save trigger). The
+    /// save is NOT triggered synchronously here — the existing MT-006/MT-009 change-detector (which
+    /// diffs the captured `layout_state` each frame) schedules the debounced save on the next frame, so
+    /// rapid module clicks coalesce into one save rather than a save storm (red-team control).
+    pub fn set_module(&mut self, module_id: ModuleId) -> bool {
+        if self.module_switcher.active() == module_id {
+            return false;
+        }
+        self.module_switcher.set_active(module_id);
+
+        // Mutate exactly the active (target) pane's tab bar.
+        let Some(target) = self.module_target_pane() else {
+            // No panes at all: the highlight moved but there is nothing to retab. Highlight already
+            // changed above, so report a change so the (degenerate) state still persists.
+            return true;
+        };
+        if let Some(bar) = self.tab_bar_states.get_mut(&target) {
+            let existing: Vec<PaneType> = bar.tabs.iter().map(|t| t.pane_type.clone()).collect();
+            let next_tabs = crate::module_switcher::module_tab_list(module_id, &existing);
+            let def = module_id.definition();
+            // Rebuild the bar from the new tab list (dedup + pin-stabilize via TabBarState::new), then
+            // activate the module's default tab (the first effective tab after the new() dedup).
+            let mut rebuilt = TabBarState::new(
+                target.clone(),
+                next_tabs.into_iter().map(TabState::new).collect(),
+            );
+            let default_index = rebuilt
+                .tabs
+                .iter()
+                .position(|t| t.pane_type == def.default_tab)
+                .unwrap_or(0);
+            rebuilt.activate(default_index);
+            *bar = rebuilt;
+        }
+        true
+    }
+
     /// Reset the live work-surface layout to the seeded default for `project_id` (MT-011), the native
     /// mirror of React's `defaultWorkbenchLayoutState(projectId)`. Rebuilds the four default panes
     /// (re-stamped to `project_id`), the default per-pane tab bars, the default split weights, clears
@@ -428,6 +511,10 @@ impl HandshakeApp {
         self.active_pane = None;
         self.popout_manager = PopOutManager::new();
         self.tab_bar_states = default_tab_bar_states();
+        // A fresh default work surface starts on the MAIN module (the default seed pane's module), so the
+        // switcher highlight resets too. A subsequent lifecycle load overwrites this if the entered
+        // project has a stored `active_module`.
+        self.module_switcher.set_active(ModuleId::Main);
         // Rebuild the registry from the default panes, re-stamped to the entered project so the captured
         // snapshot's pane records are self-consistent with `active_project_id`.
         {
@@ -595,6 +682,7 @@ impl HandshakeApp {
             self.active_project_id.clone(),
             self.split_weights,
             self.active_pane.clone(),
+            self.module_switcher.active(),
             panes,
             tab_bars,
             pop_outs,
@@ -624,6 +712,10 @@ impl HandshakeApp {
         self.active_project_id = snapshot.project_id;
         self.split_weights = snapshot.split_weights;
         self.active_pane = snapshot.active_pane;
+        // Restore the active MODULE highlight (MT-012) so a reopened project shows the module it was
+        // left on, not the default. The pane tab bars are restored from the snapshot below, so we only
+        // need to re-point the switcher highlight here.
+        self.module_switcher.set_active(snapshot.active_module);
 
         // Rebuild the registry from the snapshot records (single source of truth). `insert` reassigns
         // stable AccessKit ids, so out-of-process steering keeps working after a restore.
@@ -877,6 +969,21 @@ impl HandshakeApp {
         }
     }
 
+    /// Render the MT-012 module switcher in the header, returning the clicked module id (if a non-active
+    /// module button was clicked this frame). Splits the borrow so the switcher field is mutated while
+    /// the theme palette is read immutably (same pattern the project-tab colors use).
+    fn module_switcher_ui(&mut self, ui: &mut egui::Ui) -> Option<ModuleId> {
+        let palette = self.current_theme.palette();
+        let colors = ModuleSwitcherColors {
+            active_bg: palette.accent,
+            inactive_bg: palette.surface,
+            hover_bg: palette.surface_strong,
+            text: palette.text_subtle,
+            active_text: palette.bg,
+        };
+        self.module_switcher.show(ui, colors)
+    }
+
     /// Render the top-bar "Handshake" identity as a real egui widget with the fixed
     /// `ChromeWidget::TitleBar` id, then emit a LIVE AccessKit node (Role::TitleBar +
     /// author_id `shell.chrome.title-bar` + label) into the frame's accessibility tree.
@@ -967,14 +1074,31 @@ impl HandshakeApp {
             RailDimensions::default(),
         );
 
-        egui::TopBottomPanel::top("handshake_title_bar").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                self.title_identity(ui);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    self.theme_toggle(ui);
-                });
-            });
-        });
+        // The header row carries (left) the "Handshake" identity and (right, right-to-left) the theme
+        // toggle followed by the MODULE switcher (MT-012). The switcher is right-aligned in the header —
+        // DISTINCT from the project-tab strip below and the per-pane tab bars — per the WP design intent.
+        let module_switch_request = egui::TopBottomPanel::top("handshake_title_bar")
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    self.title_identity(ui);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        self.theme_toggle(ui);
+                        ui.add_space(12.0);
+                        self.module_switcher_ui(ui)
+                    })
+                    .inner
+                })
+                .inner
+            })
+            .inner;
+        if let Some(module_id) = module_switch_request {
+            // A non-active module button was clicked: retab the active pane + move the highlight. The
+            // change is detected by the MT-006/MT-009 layout change-detector below, which schedules the
+            // debounced save (no synchronous save here — rapid clicks coalesce).
+            if self.set_module(module_id) {
+                ctx.request_repaint();
+            }
+        }
 
         // ── Top project-tabs strip (MT-011) ─────────────────────────────────────────────────────────
         // Sits directly below the title bar and above the pane grid. Switching a project tab drives

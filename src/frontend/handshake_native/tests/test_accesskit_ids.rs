@@ -365,13 +365,22 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
 
     // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
     // stable-id nodes the fresh-seed shell emits (7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab
-    // nodes + 2 MT-011 project-tab nodes = 23), so a re-order or a dropped node fails loudly. The two
-    // MT-011 nodes are the project-tab-strip container (`project-tabs`, Role::TabList) and the single
-    // seeded default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds
-    // one project tab before the `/workspaces` fetch (which never runs headlessly) would resolve.
+    // nodes + 2 MT-011 project-tab nodes + 6 MT-012 module-switcher buttons = 29), so a re-order or a
+    // dropped node fails loudly. The two MT-011 nodes are the project-tab-strip container
+    // (`project-tabs`, Role::TabList) and the single seeded default-project tab
+    // (`project-tab-default-project`, Role::Tab); the headless shell seeds one project tab before the
+    // `/workspaces` fetch (which never runs headlessly) would resolve. The six MT-012 nodes are the
+    // header module buttons (`module-main`..`module-studio`, Role::Button) — all six render every frame
+    // (fixed module set), unlike the dynamic project tabs.
     let expected_sorted = vec![
         "divider-horizontal",
         "divider-vertical",
+        "module-ckc",
+        "module-ingest",
+        "module-lab",
+        "module-main",
+        "module-stage",
+        "module-studio",
         "pane-a",
         "pane-b",
         "pane-c",
@@ -397,7 +406,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 23 stable-id nodes in sorted order"
+        "LIVE-FRAME snapshot must list exactly the 29 stable-id nodes in sorted order"
     );
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
