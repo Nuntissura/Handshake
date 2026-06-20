@@ -75,6 +75,11 @@ pub const DEFAULT_PROJECT_ID: &str = "default-project";
 /// "a short debounce so rapid drags coalesce"). 600ms balances responsiveness against `PUT` volume.
 pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(600);
 
+/// Debounce quiet period for the settings save (MT-018, red-team R2): a `PUT /workspaces/{id}/settings`
+/// fires this long after the LAST settings change so rapid keybinding edits coalesce into one request.
+/// 500ms per the MT implementation note. A dialog close FLUSHES any pending save immediately (MC2).
+pub const SETTINGS_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(500);
+
 /// A generous default all-monitors extent for the restore-time pop-out clamp before egui reports the
 /// real monitor size. Large enough that a legitimate position is never clamped on the first frame.
 const DEFAULT_MONITOR_EXTENT: egui::Rect =
@@ -266,6 +271,47 @@ pub struct HandshakeApp {
     quick_switcher_recents_error: Option<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
+    /// Monotonic counter incremented each time [`settings_open`](Self::settings_open) flips from closed
+    /// to open (MT-018). The dialog resets its transient query/draft state whenever it sees a new value,
+    /// so a re-open never shows the previous session's text. Set via [`open_settings`](Self::open_settings).
+    settings_open_count: u64,
+    /// The live, persisted workspace settings (MT-018): theme, keybindings, view mode, swarm board flag.
+    /// Loaded from `GET /workspaces/{id}/settings` on open / workspace change and normalized through
+    /// [`crate::workspace_settings::normalize_workspace_settings_state`] (red-team R6/MC6). The settings
+    /// dialog reads from this; wired changes mutate it + schedule a debounced `PUT`. Seeded to the
+    /// default state so a fresh shell (no stored settings) shows coherent defaults, never empty chords.
+    workspace_settings: crate::workspace_settings::WorkspaceSettingsState,
+    /// The persisted settings transport (MT-018): the REAL `GET`/`PUT /workspaces/{id}/settings` REST
+    /// surface bridged onto the app runtime (the MT-009 `WorkbenchLayoutClient` pattern). `None` in the
+    /// headless/test shell (no runtime); a test injects a stub via [`set_settings_transport`].
+    ///
+    /// [`set_settings_transport`]: HandshakeApp::set_settings_transport
+    settings_transport: Option<Arc<dyn crate::workspace_settings::SettingsTransport>>,
+    /// The project whose settings have been loaded into `workspace_settings`. `None` until the first
+    /// load; when it differs from `active_project_id` the next frame loads the new project's settings.
+    settings_loaded_project_id: Option<String>,
+    /// Set true when the settings dialog opens so the one-shot settings LOAD fires once on open (not per
+    /// frame). Cleared after the load is dispatched.
+    settings_load_pending: bool,
+    /// The async cell a spawned settings-LOAD task writes into: `Ok(Some(blob))` / `Ok(None)` (first
+    /// run) / `Err(message)`. Drained (try_lock) each frame so the network `GET` runs OFF the egui UI
+    /// thread (HBR-QUIET).
+    settings_load_cell: crate::workspace_settings::SettingsLoadCell,
+    /// The async cell a spawned settings-SAVE task writes into: `Ok(())` / `Err(message)`. Drained
+    /// (try_lock) each frame so the network `PUT` runs OFF the egui UI thread (HBR-QUIET).
+    settings_save_cell: crate::workspace_settings::SettingsSaveCell,
+    /// A settings-affecting change happened and a debounced `PUT` is due at this instant (red-team R2:
+    /// 500ms after the last change). `None` when no save is pending. On dialog close, a pending save is
+    /// flushed IMMEDIATELY (red-team MC2) so a fast change-then-close never loses the change.
+    settings_save_due_at: Option<std::time::Instant>,
+    /// A settings save/load is in flight on a worker; prevents overlapping spawns for one change set.
+    settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
+    settings_persist_error: Option<String>,
+    /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
+    /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
+    /// for one frame. The settings ComboBox / the menu toggle set this; `ui()` applies it at the top.
+    pending_theme_change: Option<HsTheme>,
     /// Whether the About box is requested open (MT-015 HELP menu sets this; UI is a later MT). Distinct
     /// from settings so the two HELP actions are independently observable.
     about_open: bool,
@@ -418,6 +464,11 @@ impl HandshakeApp {
         > = Some(Arc::new(crate::quick_switcher::LoomGraphSearchClient::production(
             rt_handle.clone(),
         )));
+        // MT-018: the REAL settings transport, bridged onto the app runtime (MT-009 pattern).
+        let settings_transport: Option<Arc<dyn crate::workspace_settings::SettingsTransport>> =
+            Some(Arc::new(crate::workspace_settings::SettingsClient::production(
+                rt_handle.clone(),
+            )));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
@@ -467,6 +518,17 @@ impl HandshakeApp {
             quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
             quick_switcher_recents_error: None,
             settings_open: false,
+            settings_open_count: 0,
+            workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
+            settings_transport,
+            settings_loaded_project_id: None,
+            settings_load_pending: false,
+            settings_load_cell: Arc::new(Mutex::new(None)),
+            settings_save_cell: Arc::new(Mutex::new(None)),
+            settings_save_due_at: None,
+            settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_persist_error: None,
+            pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
         }
@@ -538,6 +600,19 @@ impl HandshakeApp {
             quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
             quick_switcher_recents_error: None,
             settings_open: false,
+            settings_open_count: 0,
+            workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
+            // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub via
+            // `set_settings_transport`; without one, the dialog shows the seeded defaults + never does I/O.
+            settings_transport: None,
+            settings_loaded_project_id: None,
+            settings_load_pending: false,
+            settings_load_cell: Arc::new(Mutex::new(None)),
+            settings_save_cell: Arc::new(Mutex::new(None)),
+            settings_save_due_at: None,
+            settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_persist_error: None,
+            pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
         }
@@ -720,7 +795,7 @@ impl HandshakeApp {
                 self.navigate_to_tab("user-manual")
             }
             "settings.open" => {
-                self.settings_open = true;
+                self.open_settings();
                 true
             }
             "theme.toggle" => {
@@ -1094,6 +1169,290 @@ impl HandshakeApp {
         self.settings_open
     }
 
+    /// The monotonic open generation of the settings dialog (MT-018). The dialog resets its transient
+    /// state when this changes; exposed for tests that assert a re-open bumps the counter.
+    pub fn settings_open_count(&self) -> u64 {
+        self.settings_open_count
+    }
+
+    /// Open the settings dialog (MT-018), bumping the open generation so the overlay reseeds its query +
+    /// keybinding drafts on this open. Idempotent while already open (a second open does NOT bump the
+    /// generation, so it does not wipe an in-progress draft). The HELP menu, the palette `settings.open`
+    /// action, and tests all route through here. Fires the one-shot settings LOAD on open.
+    pub fn open_settings(&mut self) {
+        if !self.settings_open {
+            self.settings_open = true;
+            self.settings_open_count = self.settings_open_count.wrapping_add(1);
+            // Reload the persisted settings on open so the dialog reflects the durable state (and so a
+            // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
+            self.settings_load_pending = true;
+            self.settings_loaded_project_id = None;
+        }
+    }
+
+    /// Close the settings dialog (MT-018). On close, FLUSH any pending debounced save IMMEDIATELY
+    /// (red-team MC2) so a fast change-then-close never loses the change. Safe to call when already
+    /// closed.
+    pub fn close_settings(&mut self) {
+        self.settings_open = false;
+        if self.settings_save_due_at.take().is_some() {
+            self.flush_settings_save_now();
+        }
+    }
+
+    /// The live, persisted workspace settings (MT-018), for tests + the dialog. Backs the in-memory
+    /// theme/view_mode flags where they map.
+    pub fn workspace_settings(&self) -> &crate::workspace_settings::WorkspaceSettingsState {
+        &self.workspace_settings
+    }
+
+    /// Inject a settings transport (MT-018) for tests/headless: a stub
+    /// [`crate::workspace_settings::SettingsTransport`] drives the persistence with no live backend.
+    pub fn set_settings_transport(
+        &mut self,
+        transport: Arc<dyn crate::workspace_settings::SettingsTransport>,
+    ) {
+        self.settings_transport = Some(transport);
+    }
+
+    /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
+    pub fn settings_persist_error(&self) -> Option<&str> {
+        self.settings_persist_error.as_deref()
+    }
+
+    /// Test helper (MT-018): seed the workspace + in-memory theme directly so a kittest starts from a
+    /// known theme before exercising a change. Sets both the persisted-settings theme and the in-memory
+    /// `current_theme` so the dialog + the shell agree from frame one.
+    #[doc(hidden)]
+    pub fn set_workspace_theme_for_test(&mut self, theme: crate::workspace_settings::WorkspaceTheme) {
+        self.workspace_settings.theme = theme;
+        self.current_theme = theme.to_hs_theme();
+        self.last_applied_theme = None;
+    }
+
+    /// Test helper (MT-018): set a keybinding chord directly in the live settings, BYPASSING the
+    /// conflict guard. Used to seed a deliberately-conflicting state so the dialog's conflict banner can
+    /// be asserted on open (the wired edit path refuses to commit a conflict, so a test cannot create the
+    /// conflicting state through it).
+    #[doc(hidden)]
+    pub fn set_keybinding_for_test(&mut self, action_id: &str, chord: &str) {
+        self.workspace_settings.set_chord(action_id, chord.to_owned());
+    }
+
+    /// Test helper (MT-018): apply a [`crate::settings_dialog::SettingsOutcome`] directly, the same way
+    /// `drive_settings_dialog` does after rendering. A kittest cannot reliably click into an egui
+    /// ComboBox popup item across frames, so the wired-change ACs (theme/view-mode) are exercised through
+    /// the same outcome path the live ComboBox produces. Returns whether app state changed.
+    #[doc(hidden)]
+    pub fn apply_settings_outcome_for_test(
+        &mut self,
+        outcome: crate::settings_dialog::SettingsOutcome,
+    ) -> bool {
+        self.apply_settings_outcome(outcome)
+    }
+
+    /// Schedule a debounced settings `PUT` (MT-018, red-team R2): a flush fires
+    /// [`SETTINGS_SAVE_DEBOUNCE`] after the LAST change so rapid keybinding edits coalesce. Called by
+    /// each wired settings mutation.
+    fn schedule_settings_save(&mut self) {
+        self.settings_save_due_at = Some(std::time::Instant::now() + SETTINGS_SAVE_DEBOUNCE);
+    }
+
+    /// Spawn the settings `PUT` for the active workspace OFF the egui UI thread (HBR-QUIET), capturing
+    /// the current settings blob on the UI thread. The result is drained next frame from
+    /// `settings_save_cell`. No-op when no transport/runtime (headless without an injected stub).
+    fn flush_settings_save_now(&mut self) {
+        let workspace = self.active_project_id.clone();
+        if workspace.is_empty() {
+            return;
+        }
+        let blob = self.workspace_settings.to_settings_state();
+        if let (Some(transport), Some(handle)) =
+            (self.settings_transport.clone(), self.runtime_handle.clone())
+        {
+            if self
+                .settings_io_in_flight
+                .swap(true, std::sync::atomic::Ordering::SeqCst)
+            {
+                // A save/load is already running; re-arm so the next frame retries after it clears.
+                self.schedule_settings_save();
+                return;
+            }
+            let cell = self.settings_save_cell.clone();
+            let in_flight = self.settings_io_in_flight.clone();
+            handle.spawn(async move {
+                let result = transport.save(&workspace, blob).map_err(|e| e.to_string());
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(result);
+                }
+                in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
+    }
+
+    /// Apply a wired [`crate::settings_dialog::SettingsOutcome`] against the live shell state (MT-018).
+    /// Returns `true` if app state changed (so the caller repaints). A wired change mutates
+    /// `workspace_settings` (and the in-memory theme/view_mode flags where they map) and schedules a
+    /// debounced `PUT`; `Close` clears the open flag (flushing a pending save); `None` is a no-op.
+    fn apply_settings_outcome(&mut self, outcome: crate::settings_dialog::SettingsOutcome) -> bool {
+        use crate::settings_dialog::SettingsOutcome as O;
+        match outcome {
+            O::None => false,
+            O::Close => {
+                self.close_settings();
+                true
+            }
+            O::ThemeChanged(theme) => {
+                self.workspace_settings.theme = theme;
+                // Back the in-memory MT-003 theme flag; apply at the START of next frame (red-team
+                // R4/MC4) so no widget renders with mixed visuals this frame.
+                self.pending_theme_change = Some(theme.to_hs_theme());
+                self.schedule_settings_save();
+                true
+            }
+            O::ViewModeChanged(mode) => {
+                self.workspace_settings.view_mode = mode;
+                // Back the in-memory MT-015 view_mode flag.
+                self.view_mode = match mode {
+                    crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
+                    crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
+                };
+                self.schedule_settings_save();
+                true
+            }
+            O::KeybindingChanged { action_id, chord } => {
+                self.workspace_settings.set_chord(&action_id, chord);
+                self.schedule_settings_save();
+                true
+            }
+            O::KeybindingReset { action_id } => {
+                if let Some(action) = crate::workspace_settings::APP_KEYBINDING_ACTIONS
+                    .iter()
+                    .find(|a| a.id == action_id)
+                {
+                    self.workspace_settings
+                        .set_chord(&action_id, action.default_chord.to_owned());
+                    self.schedule_settings_save();
+                    return true;
+                }
+                false
+            }
+            O::SwarmBoardDefaultOpenChanged(value) => {
+                self.workspace_settings.swarm_board_default_open = value;
+                self.schedule_settings_save();
+                true
+            }
+            O::ResetLayout => {
+                // Same action as VIEW > Reset Layout: arm the confirmation (red-team MC7), do not wipe
+                // here. A future confirmation overlay / agent path triggers `confirm_reset_layout`.
+                self.reset_layout_pending = true;
+                true
+            }
+        }
+    }
+
+    /// Drive one frame of the open settings dialog (MT-018): drain async load/save deliveries, dispatch
+    /// the one-shot load + the due debounced save on the tokio runtime (OFF the egui frame thread —
+    /// HBR-QUIET), render the overlay, and apply the outcome. No-op-safe when there is no
+    /// transport/runtime (headless) — the dialog then shows the seeded defaults and never does I/O.
+    fn drive_settings_dialog(&mut self, ctx: &egui::Context) {
+        // 1. Drain a delivered settings LOAD (try_lock; never hold across ui.* — red-team MC1).
+        if let Ok(mut cell) = self.settings_load_cell.try_lock() {
+            if let Some(result) = cell.take() {
+                match result {
+                    Ok(blob) => {
+                        let fallback = crate::workspace_settings::default_workspace_settings_state();
+                        self.workspace_settings = match blob {
+                            // A stored blob is normalized against defaults (red-team R6/MC6).
+                            Some(value) => {
+                                crate::workspace_settings::normalize_workspace_settings_state(
+                                    &value, &fallback,
+                                )
+                            }
+                            // First run (no settings yet): keep the defaults.
+                            None => fallback,
+                        };
+                        // Back the in-memory flags from the loaded settings (apply theme next frame).
+                        self.pending_theme_change = Some(self.workspace_settings.theme.to_hs_theme());
+                        self.view_mode = match self.workspace_settings.view_mode {
+                            crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
+                            crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
+                        };
+                        self.settings_persist_error = None;
+                    }
+                    Err(msg) => self.settings_persist_error = Some(msg),
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // 2. Drain a delivered settings SAVE result.
+        if let Ok(mut cell) = self.settings_save_cell.try_lock() {
+            if let Some(result) = cell.take() {
+                match result {
+                    Ok(()) => self.settings_persist_error = None,
+                    Err(msg) => self.settings_persist_error = Some(msg),
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // 3. Fire the one-shot settings LOAD on open (red-team: load on open, not per-frame). Guard on a
+        //    workspace + transport + runtime; spawn OFF the egui thread.
+        if self.settings_load_pending {
+            self.settings_load_pending = false;
+            let workspace = self.active_project_id.clone();
+            if !workspace.is_empty() {
+                if let (Some(transport), Some(handle)) =
+                    (self.settings_transport.clone(), self.runtime_handle.clone())
+                {
+                    if !self
+                        .settings_io_in_flight
+                        .swap(true, std::sync::atomic::Ordering::SeqCst)
+                    {
+                        let cell = self.settings_load_cell.clone();
+                        let in_flight = self.settings_io_in_flight.clone();
+                        let ws = workspace.clone();
+                        handle.spawn(async move {
+                            let result = transport.load(&ws).map_err(|e| e.to_string());
+                            if let Ok(mut slot) = cell.lock() {
+                                *slot = Some(result);
+                            }
+                            in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+                        });
+                        ctx.request_repaint();
+                    } else {
+                        // I/O busy: re-arm the load for the next frame.
+                        self.settings_load_pending = true;
+                    }
+                }
+            }
+            self.settings_loaded_project_id = Some(workspace);
+        }
+
+        // 4. Fire a DUE debounced save (red-team R2). When the quiet period has elapsed, spawn the PUT.
+        if let Some(due) = self.settings_save_due_at {
+            if std::time::Instant::now() >= due {
+                self.settings_save_due_at = None;
+                self.flush_settings_save_now();
+            } else {
+                // Keep repainting so the debounce window elapses even with no further input.
+                ctx.request_repaint_after(SETTINGS_SAVE_DEBOUNCE);
+            }
+        }
+
+        // 5. Render the dialog + apply the outcome.
+        let view = crate::settings_dialog::SettingsView {
+            open_count: self.settings_open_count,
+            settings: &self.workspace_settings,
+            persist_error: self.settings_persist_error.as_deref(),
+        };
+        let outcome = crate::settings_dialog::show(ctx, view);
+        if self.apply_settings_outcome(outcome) {
+            ctx.request_repaint();
+        }
+    }
+
     /// Whether the About box is requested open (MT-015 HELP menu).
     pub fn about_open(&self) -> bool {
         self.about_open
@@ -1228,7 +1587,7 @@ impl HandshakeApp {
                 true
             }
             MenuBarAction::OpenSettings => {
-                self.settings_open = true;
+                self.open_settings();
                 true
             }
             MenuBarAction::ShowAbout => {
@@ -2035,6 +2394,12 @@ impl HandshakeApp {
     pub fn ui(&mut self, ctx: &egui::Context) {
         self.poll_health();
         self.poll_workspaces();
+        // Apply a pending theme flip (MT-018, red-team R4/MC4) at the very TOP of the frame, BEFORE any
+        // panel renders, so a settings/menu theme change never leaves widgets on mixed visuals for a
+        // frame. `apply_theme_if_changed` below then pushes the new palette to egui this same frame.
+        if let Some(theme) = self.pending_theme_change.take() {
+            self.current_theme = theme;
+        }
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
 
@@ -2070,12 +2435,19 @@ impl HandshakeApp {
         // `APP_KEYBINDING_ACTIONS` default. `consume_key` swallows the chord so it does not also reach the
         // global keymap / editor layer (red-team R4/MC4 — no double-fire). Handled BEFORE the menu bar
         // renders so the toggle is applied this frame.
-        let palette_chord = ctx.input_mut(|i| {
-            i.consume_key(
-                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
-                egui::Key::P,
-            )
-        });
+        // RED-TEAM R1/MC1 (MT-018): while the settings dialog is open, a keybinding text input may be
+        // focused and the user may type a chord like "Mod-p" / "Mod-Shift-p" INTO it. Do not let the
+        // global chord handler steal those keystrokes (which would open the palette/switcher mid-edit and
+        // swallow the character). Skip global chord handling entirely while settings is open; the dialog
+        // owns keyboard input then.
+        let suppress_global_chords = self.settings_open;
+        let palette_chord = !suppress_global_chords
+            && ctx.input_mut(|i| {
+                i.consume_key(
+                    egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                    egui::Key::P,
+                )
+            });
         if palette_chord {
             self.toggle_command_palette();
             ctx.request_repaint();
@@ -2088,8 +2460,8 @@ impl HandshakeApp {
         // which is why this is handled separately and consumes its own key. `consume_key` swallows the
         // chord so it does not also reach the global keymap / editor layer (no double-fire). Handled
         // BEFORE the menu bar renders so the toggle is applied this frame.
-        let switcher_chord =
-            ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::P));
+        let switcher_chord = !suppress_global_chords
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::P));
         if switcher_chord {
             self.toggle_quick_switcher();
             ctx.request_repaint();
@@ -2438,6 +2810,20 @@ impl HandshakeApp {
         // (HBR-QUIET); the spawned tasks write into shared cells the frame drains with try_lock.
         if self.quick_switcher_open {
             self.drive_quick_switcher(ctx);
+        }
+
+        // ── Settings dialog overlay (MT-018) ────────────────────────────────────────────────────────
+        // Rendered LAST among the overlays so its backdrop + window sit on the Foreground order ABOVE the
+        // command palette + quick switcher and the whole workspace. The dialog ports
+        // app/src/components/SettingsMenu.tsx: Appearance (wired theme + view mode), Keybindings (editable
+        // with live conflict detection), Swarm (wired board-default-open checkbox + not-yet-wired
+        // intervals), Terminal (not-yet-wired), Layout (wired reset), About (real Cargo version). Wired
+        // changes persist THROUGH `PUT /workspaces/{id}/settings` (PostgreSQL-authoritative) on a tokio
+        // task off the egui frame thread (HBR-QUIET), debounced 500ms (red-team R2); a dialog close
+        // flushes a pending save immediately (red-team MC2). Closed by default, so the default-seed live
+        // tree is unchanged (MT-025 snapshot stays at 63 nodes).
+        if self.settings_open {
+            self.drive_settings_dialog(ctx);
         }
 
         // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────

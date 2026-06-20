@@ -577,3 +577,75 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     );
 }
 
+// ── FIX-B (MT-018 AC13): the settings dialog emits the CORRECT AccessKit ROLES on its controls ───────
+//
+// MT-025 proved chrome/pane/tab/lock roles live, but nothing proved the MT-018 settings dialog's own
+// control roles. An out-of-process model (and a screen reader) locates a control by role+name; a wrong
+// role (e.g. a ComboBox emitted as a plain Button, or the modal root emitted as a generic Group) breaks
+// that lookup. This opens the REAL dialog and asserts each control's role off the LIVE consumer-side
+// tree: the dialog root is Role::Dialog, the theme + view-mode selectors are Role::ComboBox, the search
+// + keybinding fields are Role::TextInput, the swarm checkbox is Role::CheckBox, and the Close / Reset
+// buttons are Role::Button. Roles are read from the same tree the Windows UIA adapter receives.
+#[test]
+fn settings_dialog_controls_carry_correct_accesskit_roles() {
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    harness.run();
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    // Collect (author_id -> role) for every settings node in the LIVE tree.
+    let root = harness.root();
+    let mut roles: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for node in root.children_recursive() {
+        let ak = node.accesskit_node();
+        if let Some(aid) = ak.author_id() {
+            if aid.starts_with("settings.") {
+                roles.insert(aid.to_owned(), format!("{:?}", ak.role()));
+            }
+        }
+    }
+
+    let role_of = |author_id: &str| -> String {
+        roles
+            .get(author_id)
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC13: settings control '{author_id}' missing from LIVE tree; found {:?}",
+                    roles.keys().collect::<Vec<_>>()
+                )
+            })
+            .clone()
+    };
+
+    // Dialog root = Role::Dialog (modal). The modal lookup an out-of-process model uses depends on this.
+    assert_eq!(role_of("settings.dialog"), "Dialog", "dialog root role");
+    // Theme + view-mode selectors = Role::ComboBox.
+    assert_eq!(role_of("settings.theme"), "ComboBox", "theme selector role");
+    assert_eq!(role_of("settings.view-mode"), "ComboBox", "view-mode selector role");
+    // A text field = Role::TextInput (the search box + the per-action keybinding inputs).
+    assert_eq!(role_of("settings.search"), "TextInput", "search field role");
+    assert_eq!(
+        role_of("settings.keybinding.app.quick_switcher.open"),
+        "TextInput",
+        "keybinding text field role"
+    );
+    // The checkbox = Role::CheckBox.
+    assert_eq!(
+        role_of("settings.swarm-board-default-open"),
+        "CheckBox",
+        "swarm board checkbox role"
+    );
+    // Buttons = Role::Button (Close, Reset-layout, and a per-action keybinding Reset).
+    assert_eq!(role_of("settings.close"), "Button", "close button role");
+    assert_eq!(role_of("settings.reset-layout"), "Button", "reset-layout button role");
+    assert_eq!(
+        role_of("settings.keybinding-reset.app.quick_switcher.open"),
+        "Button",
+        "keybinding reset button role"
+    );
+
+    println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
+}
+

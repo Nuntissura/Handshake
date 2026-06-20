@@ -36,6 +36,10 @@ use crate::quick_switcher::{
     SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_DIALOG_NODE_ID, SWITCHER_LIST_AUTHOR_ID,
     SWITCHER_LIST_NODE_ID, SWITCHER_SEARCH_AUTHOR_ID, SWITCHER_SEARCH_NODE_ID,
 };
+use crate::settings_dialog::{
+    SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID,
+    SETTINGS_LIST_NODE_ID, SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
+};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
@@ -406,6 +410,29 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: SWITCHER_LIST_AUTHOR_ID,
         node_id: SWITCHER_LIST_NODE_ID,
+    },
+    // MT-018 settings-dialog overlay container nodes, fresh band 17..=19: directly above the
+    // quick-switcher band (14..=16), below the chrome title bar (20) and the pane id base (100). The
+    // dialog renders ONLY while `settings_open` is true (closed by default), so the default-seed live
+    // tree never contains them (like the palette / switcher / merge-back / scrollbar nodes); the
+    // collision test still covers their fixed ids here so they can never overlap any other declared
+    // identity. The three nodes are the dialog root (Role::Dialog, modal), the search box
+    // (Role::TextInput), and the body/list region (Role::Group). Individual form CONTROLS (theme combo,
+    // view-mode combo, per-action keybinding inputs + reset buttons, swarm checkbox, reset-layout
+    // button, close button) are addressed by an egui::Id derived from their author_id STRING in egui's
+    // hashed id space — NOT this fixed band — so they are not enumerated here (same pattern as the
+    // MT-016 command rows / MT-017 result rows).
+    DeclaredIdentity {
+        author_id: SETTINGS_DIALOG_AUTHOR_ID,
+        node_id: SETTINGS_DIALOG_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: SETTINGS_SEARCH_AUTHOR_ID,
+        node_id: SETTINGS_SEARCH_NODE_ID,
+    },
+    DeclaredIdentity {
+        author_id: SETTINGS_LIST_AUTHOR_ID,
+        node_id: SETTINGS_LIST_NODE_ID,
     },
 ];
 
