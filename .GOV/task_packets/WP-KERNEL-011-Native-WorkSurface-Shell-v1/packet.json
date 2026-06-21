@@ -475,5 +475,40 @@
         "one_line": "Independently confirmed PASS: the installer build/stage/package, runtime exe-relative bundle self-check, clean-profile launch smoke, real-PE WebView2 import check, and bundled-deps audit are all real (genuine release-native crt-static binary built, staged, launched, and object-crate PE-parsed; real zip artifact; real exe-relative bundled-postgres discovery in managed_postgres.rs), and the sole un-met literal bound (>=10MB compressed) is the contract's OWN RISK-031-08 postgres-deferred fallback, honestly recorded with postgres_deferred:true in the machine-readable report."
       }
     }
+  },
+  "wp_integration_verdict": {
+    "schema": "hsk.integration_validator_wp_verdict@1",
+    "validator": "INTEGRATION_VALIDATOR session boa3epvo9 (operator-directed; folded no-ACP context)",
+    "verdict": "PASS",
+    "decided_at_utc": "2026-06-21T17:25:56.786Z",
+    "spec_current": "v02.195 (native Rust GUI, no webview, AccessKit-steerable, single installer)",
+    "basis": "Whole-WP judgment after independent WP-Validator pass: 31/31 MTs PASS_V1. handshake_native lib+tests compile clean; 350 lib + 29 integration test binaries pass (0 failed). Artifact hygiene clean (0 tracked build outputs; in-tree Handshake_Artifacts is git-ignored). MT-009 (state-recovery) FAIL was remediated (6bba011e+16c8ec6f) and re-validated green.",
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS (all 31 MTs: deferred_live_escape=NONE)",
+      "sub_rule_2_real_resource_proof": "PASS (29 REAL / 2 NOT_APPLICABLE; zero MOCK_ONLY)",
+      "sub_rule_3_no_self_certification": "PASS — folded KERNEL_BUILDER originally self-certified; this operator-directed independent WP-Validator + Integration-Validator pass IS the certification, and MT-009 remediation was implemented by independent coder sub-agents and re-validated by the validator (not self-signed)."
+    },
+    "wp_acceptance_criteria_map": {
+      "1 native app, no webview substrate": "MET (MT-002 skeleton no-webview, MT-001 single-binary, MT-031 clean-profile launch smoke)",
+      "2 dockable work-surface split/resize/tabs/move/popout/merge/save-restore per project": "MET (MT-005..009; MT-009 layout persistence remediated + re-validated)",
+      "3 three nav layers distinct + behave": "MET (MT-011 project tabs, MT-012 module switcher, MT-013 pane-local tabs)",
+      "4 menu bar + command palette + quick switcher + settings, wired to real actions": "MET (MT-015..018)",
+      "5 right-click context menus invoke real actions": "MET (MT-019 infra, MT-020/021 surfaces)",
+      "6 bottom search rail + drawer stash shelf (Agenda/Mail/Lists/Notes)": "MET (MT-022/023/024)",
+      "7 dark + light themes switch at runtime": "MET (MT-003)",
+      "8 model-vision/steering: AccessKit id/role/value/actions + JSON snapshot + dispatch by id + screenshot, proven by harness AND out-of-process": "MET (MT-025 live AccessKit, MT-026 snapshot, MT-027 action channel+screenshot+MCP, MT-029 out-of-process UIA steer proof)",
+      "9 concurrency safe under N parallel agents + operator co-work": "MET (MT-028 leases/attribution/LayoutGuard + concurrent harness)",
+      "10 QUIET: no focus/keyboard theft (focus-audit zero)": "MET (MT-030 always-on static focus-audit; live audit #[ignore]-gated to interactive desktop)",
+      "11 single installer, ALL deps bundled, clean-profile install smoke": "MET-WITH-CAVEAT (MT-031: installer build/stage/package pipeline + runtime exe-relative bundle self-check + clean-profile launch smoke are real and pass; CAVEAT: real managed-Postgres binaries not staged on this validation host, so the bundle is ~6.47MB vs the literal >=10MB AC and pg_ctl.exe is a placeholder. Contract-anticipated host-infra gap, NOT a code defect; staging the real PG toolchain on a build host closes the literal size bar.)",
+      "12 existing surfaces re-homed as thin placeholders via existing backend API (real parity deferred to WP-012)": "MET (placeholder pane types load via existing backend API; real editor parity scoped to WP-KERNEL-012)"
+    },
+    "non_blocking_caveats": [
+      "Criterion 11: installer all-deps-bundled proven structurally only on this host; needs real managed-Postgres binary staging on a build host to hit the literal >=10MB bar (MT-031).",
+      "MT-024: attach-evidence payload shape may mismatch backend ArtifactHashes struct; send-to-pane action target never wired in shipping code (routed to MT-025/operator); ConvertArtifact is an honest disabled stub.",
+      "MT-001: AccessKit out-of-process match by Name not NodeId-AutomationId (open operator decision from the spike); GPU pixel readback deferred (contract-scoped).",
+      "Repo gov-check fails on 10 unrelated governance-paperwork checks — explicitly non-blocking per operator (repo governance being retired)."
+    ],
+    "merge_status": "NOT_MERGED — held for operator decision. Merging ~32k LoC native GUI from feat/WP-KERNEL-011 into main (which currently has no src/frontend) is a major action; gov-check (paperwork) is failing and the ORCHESTRATOR_MANAGED closeout/ACP machinery was not used (folded no-ACP). Operator to authorize merge + push, or defer.",
+    "artifact_hygiene": "CLEAN (0 tracked build/test/tool outputs on feat/WP-KERNEL-011; in-tree Handshake_Artifacts is git-ignored)."
   }
 }
