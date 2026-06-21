@@ -311,12 +311,12 @@
   "wp_validator_pass": {
     "schema": "hsk.wp_validator_pass_summary@1",
     "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
-    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
     "method": "retro WP-Validator pass (no WP Validator was used during folded KERNEL_BUILDER implementation); 31 MTs reviewed via 2-stage deep-review + adversarial-verify; bar = good code vs MT/WP/Master-Spec; repo-governance paperwork explicitly non-blocking per operator.",
     "counts": {
       "total": 31,
-      "pass": 30,
-      "fail": 1
+      "pass": 31,
+      "fail": 0
     },
     "verdicts": {
       "MT-001": {
@@ -360,9 +360,9 @@
         "one_line": "Independent re-verification confirms PASS: pop-out/merge-back is honestly implemented over egui multi-viewport with one PaneRegistry source of truth, real consumer-side AccessKit integration tests, all red-team/state-recovery controls present, and no deferred-live escape on the required path; the contract's literal show_viewport_deferred wording is a documented, intent-preserving deviation forced by the Send+Sync+'static bound (the contract's own red-team risk #4), not a violation."
       },
       "MT-009": {
-        "verdict": "FAIL_V1",
-        "confidence": "MEDIUM",
-        "one_line": "I OVERTURN the first reviewer's AC#4 blocker (split-weight clamp-on-restore IS effectively delivered and tested via the per-frame defensive clamp at split_layout.rs:331-334 that writes back to app state, so no collapsed pane ever renders), but I UPHOLD a narrowed FAIL on AC#3: validate() (the contract's own named validate-before-restore gate) implements only 2 of its 5 specified checks - it has no pane-completeness check, no MissingPane variant, and no active_pane/active_tab membership check, with zero tests, so a schema+version-valid-but-structurally-corrupt native blob bypasses the LKG/default fallback and is applied raw on a surface the operator flagged STATE-RECOVERY-CRITICAL."
+        "verdict": "PASS_V1",
+        "confidence": "HIGH",
+        "one_line": "PASS after remediation: the previously-missing AC#3 validate-before-restore pane-completeness gate is now implemented (LayoutError::MissingPane + UnknownActivePane, CANONICAL_PANE_IDS check in validate()) and proven by real non-tautological tests (validate_rejects_missing_pane asserts MissingPane id=='pane-c' exactly as AC#3 names; load_blob_missing_pane_falls_back_to_default proves a schema-valid-but-pane-missing blob routes to default/LKG instead of being applied raw); independently re-verified by the validator running the full curated suite green (lib 352 + 29 integration binaries, 0 failed)."
       },
       "MT-010": {
         "verdict": "PASS_V1",

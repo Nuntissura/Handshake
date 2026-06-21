@@ -136,7 +136,7 @@
   "wp_validator_review": {
     "schema": "hsk.wp_validator_mt_review@1",
     "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
-    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
     "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
     "verdict": "PASS_V1",
     "confidence": "HIGH",
