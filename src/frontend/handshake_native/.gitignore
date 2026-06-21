@@ -1,0 +1,10 @@
+# WP-KERNEL-011 MT-031 — generated native-GUI proof artifacts.
+#
+# The integration tests (installer_build_smoke.rs, bundled_deps_audit.rs, focus-audit tests, etc.)
+# regenerate JSON reports under tests/native_gui/artifacts/ on every run. They are reproducible build
+# outputs, not source, so committing them dirties the tree on each test run. Ignore them here.
+#
+# NOTE: focus_audit_quiet_report.json (MT-030) was already committed before this rule existed; git keeps
+# tracking already-tracked files even when ignored, so that file is unaffected until KERNEL_BUILDER runs
+# `git rm --cached` on the generated reports at commit time. New report files stay untracked.
+/tests/native_gui/artifacts/*_report.json

@@ -17,6 +17,7 @@ pub mod error;
 pub mod loom_graph;
 pub mod source_control;
 pub mod event_bus;
+pub mod installer;
 pub mod layout_persistence;
 pub mod left_rail;
 pub mod mcp;

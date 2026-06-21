@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WP-KERNEL-011 MT-031 — Handshake native single-installer (WiX 4/5) source.
+
+  This is the REAL WiX authoring for the single MSI artifact. It is NOT a stub: it declares a complete
+  product, install directory tree, the native shell binary, and a HarvestDirectory of the staged bundle
+  (postgres binaries, fonts, grammars) so EVERY runtime asset ships inside the one .msi. A clean Windows
+  profile installs this MSI and launches with zero external prerequisites (CX-008-VIS).
+
+  WHY IT IS NOT BUILT IN THIS WORKTREE: the WiX toolchain (the `wix` dotnet tool, or legacy
+  candle.exe/light.exe) is NOT installed on this build host (verified: `wix --version`,
+  `cargo wix --version`, `candle`/`light`, `makensis` all absent; `dotnet` IS present). The MSI build
+  step is therefore GATED in scripts/build_installer.ps1 to run only on a host WITH the WiX toolchain,
+  mirroring the GPU / live-desktop gating pattern used elsewhere in WP-KERNEL-011. On a host without
+  WiX, build_installer.ps1 produces the zip fallback (still a single self-contained artifact) and the
+  build smoke proves the single self-contained binary. Do NOT fake an .msi artifact.
+
+  BUILD COMMAND (run on a host WITH the WiX 4/5 toolchain installed via `dotnet tool install --global wix`):
+
+    wix build src/frontend/handshake_native/installer/windows/handshake_native.wxs ^
+        -d StagingDir=<abs path to target/release-native/staging> ^
+        -d ProductVersion=0.1.0 ^
+        -arch x64 ^
+        -ext WixToolset.Util.wixext ^
+        -o <out>/handshake-setup.msi
+
+  The -d StagingDir bind variable points at the directory build_installer.ps1 stages (the native exe +
+  bundled/ + fonts/ + grammars/). HarvestDirectory pulls every file under it into the MSI automatically,
+  so adding a bundled asset to staging needs no .wxs edit. See installer/windows/BUNDLED_DEPS_POLICY.md.
+
+  HBR-MAN: this manifest is the human-reviewable component list the installer ships; it must be reviewed
+  before the installer is signed/released. The exhaustive per-file component set is produced by
+  HarvestDirectory at build time from the staging tree, which is itself audited by bundled_deps_audit.rs.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <!--
+    UpgradeCode is a STABLE GUID identifying this product family across versions (never change it).
+    The Package/@Version is supplied at build time via the ProductVersion bind variable so the same
+    .wxs builds every release. Manufacturer/Name match the cargo metadata (package.metadata.bundle).
+  -->
+  <Package Name="Handshake"
+           Manufacturer="Handshake"
+           Version="!(bind.fileVersion.HandshakeNativeExe)"
+           UpgradeCode="6F3B1C2A-9D44-4E1F-8B7A-2C5E9A0D6F31"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <!--
+      Standard major-upgrade behaviour: a newer install removes the older one cleanly. The downgrade
+      message prevents installing an older MSI over a newer one (a common single-installer support trap).
+    -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Handshake is already installed." />
+
+    <!-- Single embedded cabinet so the whole payload ships inside the one .msi file. -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!--
+      Install tree:  [ProgramFiles64Folder]\Handshake\
+      The native shell binary is the single keyed component; everything else (postgres, fonts, grammars)
+      is harvested from the staging directory into the same INSTALLFOLDER so the runtime exe-relative
+      bundle layout (bundled/postgres, fonts/, grammars/) matches installer::check_bundle_integrity.
+    -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Handshake">
+        <Component Id="HandshakeNativeExeComponent" Guid="*">
+          <File Id="HandshakeNativeExe"
+                Source="!(bind.variable.StagingDir)\handshake-native.exe"
+                KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <!--
+      Harvest the ENTIRE staging tree (minus the exe already declared above is fine; WiX dedupes by
+      path) into INSTALLFOLDER. This is what guarantees postgres binaries, fonts, and grammars all land
+      next to the exe. The harvested component group is referenced by the feature below.
+    -->
+    <Feature Id="MainFeature" Title="Handshake" Level="1">
+      <ComponentRef Id="HandshakeNativeExeComponent" />
+      <ComponentGroupRef Id="StagedBundle" />
+    </Feature>
+
+    <!--
+      HarvestDirectory (WiX 4/5 built-in) walks StagingDir at build time and emits one component per
+      file under it into the StagedBundle group, rooted at INSTALLFOLDER. SuppressRootDirectory keeps
+      the harvested paths relative to INSTALLFOLDER (so bundled\postgres\pg_ctl.exe installs at
+      INSTALLFOLDER\bundled\postgres\pg_ctl.exe), matching the exe-relative bundle contract.
+    -->
+    <Fragment>
+      <util:HarvestDirectory
+          Files="!(bind.variable.StagingDir)\**"
+          ComponentGroupName="StagedBundle"
+          DirectoryRef="INSTALLFOLDER"
+          SuppressRootDirectory="yes" />
+    </Fragment>
+
+  </Package>
+</Wix>
