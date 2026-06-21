@@ -159,7 +159,7 @@ Build, test, and tool outputs MUST NOT be committed to the repo. They belong at 
 
 **AI judgment layer:**
 - Detect committed build outputs, compiled binaries, test result caches, or tool-generated files that belong in the external artifact root.
-- Confirm the active WP worktree does not contain runtime/test/build output directories that should be emitted to `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`).
+- Confirm the active WP worktree does not contain runtime/test/build output directories that should be emitted to the external sibling root `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`).
 - Flag any new `CARGO_TARGET_DIR` or build path configuration that points inside the repo tree.
 
 ### Job 4: Per-MT Code Review (AI Judgment)

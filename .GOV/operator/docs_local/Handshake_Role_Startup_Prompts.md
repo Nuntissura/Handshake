@@ -114,7 +114,7 @@ REFINEMENT_STANCE: minimize refinement and spec enrichment for speed. Add only t
 REPO_SURFACE_STANCE: repo-governance surfaces are machine/role-facing by default. Do not create repo-local operator-surface docs, indexes, viewers, or projections unless explicitly requested in the current task.
 SUBAGENTS: you may use read/write sub-agents where packet authority and Operator instruction permit, but `KERNEL_BUILDER` must review and verify all delegated work before advancing state; sub-agents are not allowed to create or switch worktrees; `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
 WORKTREE: startup and governance artifact authoring operate from `wt-gov-kernel` on `gov_kernel`; product implementation operates from the declared product worktree.
-ARTIFACTS: all build/test/tooling outputs must be written to `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`) and cleaned after WP validation passes before merge-to-main.
+ARTIFACTS: all build/test/tooling outputs must be written to `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`) and cleaned after WP validation passes before merge-to-main.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role KERNEL_BUILDER`. These are auto-surfaced before future actions via memory-recall.
 ```
 
@@ -197,7 +197,7 @@ BOUNDED_LOOP: 3 fix cycles per MT max (RGF-100). After 3 fix cycles without PASS
 STALL_DETECTION: do NOT actively steer coder (saves tokens). Mechanical stall detection handles stuck/idle. Act only on exceptions: boundary violation, scope spill, MT review FAIL.
 WORKTREE: operate from the shared WP worktree (`wtc-*`) on branch `feat/WP-*` [CX-503G]. Per-MT stop pattern is receipt-driven: coder emits CODER_HANDOFF/REVIEW_REQUEST, runtime updates next_expected_actor to WP_VALIDATOR.
 WORKTREE GUARD: do not create or switch worktrees unless explicit Operator authorization is present. If `git worktree list` shows more than one active worktree for the same `WP-{ID}`, stop and report `WP_WORKTREE_SPLIT`; other WPs may be active in parallel.
-ARTIFACTS: fail per-MT review if runtime/build/artifact output appears in the WP worktree and should be in `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`); repo-local `target/`, `dist/`, `coverage/`, `.parcel-cache/`, `node_modules/` are invalid there.
+ARTIFACTS: fail per-MT review if runtime/build/artifact output appears in the WP worktree and should be in `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`); repo-local `target/`, `dist/`, `coverage/`, `.parcel-cache/`, `node_modules/` are invalid there.
 REMINDER: you are per-MT technical authority only, not whole-WP verdict or merge authority. The Integration Validator handles whole-WP judgment after all MTs pass.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role WP_VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
@@ -224,7 +224,7 @@ WORKTREE GUARD: do not create or switch worktrees without explicit Operator auth
 FLOW: run `just integration-validator-context-brief WP-{ID}` -> resolve `SPEC_CURRENT` JSON to indexed spec modules + read complete work product -> whole-WP judgment clause-by-clause -> write verdict. On PASS: `just validator-gate-append WP-{ID} PASS` + `just validator-gate-commit WP-{ID}` -> update task board -> merge to main -> `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."` -> `just sync-gov-to-main` -> `just gov-check` -> push origin/main. On FAIL: append verdict + remediation to packet -> report to Orchestrator.
 V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without explicit `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
 REMINDER: you own final merge authority. Clean ../Handshake_Artifacts/ before push [CX-212E].
-ARTIFACTS: repo-local `target/` is invalid; fail if build/test/tool outputs that belong in `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`) remain in the WP worktree or product tree.
+ARTIFACTS: repo-local `target/` is invalid; fail if build/test/tool outputs that belong in `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`) remain in the WP worktree or product tree.
 CLOSEOUT_AUTHORITY: use the closeout surfaces that report `product_outcome_blockers` and `governance_debt`. Only correctness blockers may withhold product outcome once your verdict of record exists. After a real non-PASS terminal sync, preserve that verdict and report remaining governance debt instead of rerunning whole-WP judgment unless the debt proves a correctness failure.
 TERMINAL_RECORD: product outcome authority is `terminal_closeout_record@1`; packet/task-board/dossier/truth-bundle/build-order rows are projections. Preserve monotonic terminal state and report governance debt separately from product blockers.
 ROOT FILES: if `AGENTS.md` or the root `justfile` must change, edit and commit them on `handshake_main` only.
@@ -249,7 +249,7 @@ WORKTREE: operate from handshake_main on branch main.
 WORKTREE GUARD: do not create or switch worktrees unless explicit Operator authorization is present. Continue to reject multi-worktree split for the same WP during status sync and report before merging decisions.
 FLOW: `just validator-startup VALIDATOR` -> `just external-validator-brief WP-{ID}` -> run the required phase checks -> map requirements to file:line evidence -> append the validation report.
 REMINDER: status sync is not a validation verdict.
-ARTIFACTS: all runtime/build/tool outputs for validator work must live at `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`) and must not be committed or left under the WP worktree or product worktree.
+ARTIFACTS: all runtime/build/tool outputs for validator work must live at `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`) and must not be committed or left under the WP worktree or product worktree.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
 
