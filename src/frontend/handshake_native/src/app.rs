@@ -3448,7 +3448,13 @@ impl HandshakeApp {
         let snapshot = snapshot.clamp_pop_outs_to(monitor_extent);
 
         self.active_project_id = snapshot.project_id;
-        self.split_weights = snapshot.split_weights;
+        // Belt-and-suspenders (MT-009): clamp both split axes in-range BEFORE the first render frame so
+        // a restored blob with out-of-range weights never shows even a one-frame raw window. The render
+        // seam also clamps, but clamping the in-memory weights here closes that one-frame gap.
+        self.split_weights = SplitWeights {
+            vertical: crate::split_layout::clamp_split(snapshot.split_weights.vertical),
+            horizontal: crate::split_layout::clamp_split(snapshot.split_weights.horizontal),
+        };
         self.active_pane = snapshot.active_pane;
         // Restore the collapsible-drawer flags (MT-014): the left-rail open flag and the bottom stash
         // drawer flag, so a reopened project shows the rail in the state it was left.

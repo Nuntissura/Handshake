@@ -178,6 +178,54 @@ fn first_run_keeps_default_layout() {
     assert_eq!(h.state().split_weights(), SplitWeights::default());
 }
 
+/// Structurally-corrupt-but-schema-valid blob through the app (MT-009 AC#3): a blob that passes the
+/// schema_id + version checks but is MISSING a canonical pane (pane-c) must NOT be applied. With no
+/// last-known-good held, the load path keeps the seeded default layout and reports `false` (did not
+/// apply persisted) — the validate-before-restore pane-completeness gate. Mirrors the corrupt-blob /
+/// fallback assertion style of the module-level `load_corrupt_blob_*` tests.
+#[test]
+fn load_blob_missing_pane_falls_back_to_default() {
+    let transport = MemoryTransport::new();
+
+    // Shell #1: capture a VALID snapshot, then drop pane-c so the stored blob is schema-valid but
+    // structurally corrupt, and store it directly under the default workspace id.
+    let mut h1 = shell(transport.clone());
+    h1.run();
+    let mut snap = h1.state().capture_layout_snapshot();
+    assert!(
+        snap.panes.contains_key(&pid("pane-c")),
+        "captured snapshot should seed pane-c before we remove it"
+    );
+    snap.panes.remove(&pid("pane-c"));
+    transport
+        .store
+        .lock()
+        .unwrap()
+        .insert(DEFAULT_PROJECT_ID.to_owned(), snap.to_layout_state());
+
+    // Shell #2 (fresh, no LKG): loading the corrupt blob must NOT apply the 3-pane layout.
+    let mut h2 = shell(transport.clone());
+    h2.run();
+    let applied = h2.state_mut().load_layout(DEFAULT_PROJECT_ID, big_desktop());
+    assert!(
+        !applied,
+        "a schema-valid but pane-incomplete blob must fall back to default, not be applied"
+    );
+    // The default seed has all four canonical panes; prove the corrupt 3-pane layout was not applied.
+    let app2 = h2.state();
+    for id in ["pane-a", "pane-b", "pane-c", "pane-d"] {
+        assert!(
+            app2.tab_bar_states().contains_key(&pid(id)),
+            "default layout (with {id}) kept, corrupt 3-pane layout rejected"
+        );
+    }
+    assert_eq!(
+        app2.split_weights(),
+        SplitWeights::default(),
+        "fallback keeps the seeded default split weights"
+    );
+}
+
 /// Restore clamp through the app: a pop-out saved OFF all monitors reopens at the fallback position;
 /// one on a legitimate second monitor survives. This is the MT-008-deferred restore-time clamp,
 /// applied once in `apply_layout_snapshot`.

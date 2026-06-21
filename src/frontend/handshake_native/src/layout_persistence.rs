@@ -56,6 +56,14 @@ pub const LAYOUT_SCHEMA_ID: &str = "hsk.native_worksurface_layout@1";
 /// encodes the major schema, so this guards minor in-schema evolution.
 pub const LAYOUT_SNAPSHOT_VERSION: u32 = 1;
 
+/// The single source of truth for the canonical pane ids the native shell seeds for a fresh work
+/// surface. Must stay aligned with [`crate::app`]'s `default_panes` (`pane-a`..`pane-d`, the React
+/// `DEFAULT_PANES` four-pane shape). [`LayoutSnapshot::validate`] uses this list for the
+/// pane-completeness and active-pane-membership checks, so a structurally-corrupt-but-schema-valid
+/// blob (e.g. one missing a pane) is rejected and falls back to last-known-good / default instead of
+/// being applied as a short-paned layout.
+pub const CANONICAL_PANE_IDS: [&str; 4] = ["pane-a", "pane-b", "pane-c", "pane-d"];
+
 /// The default active module (`MAIN`) used when a layout blob predates MT-012 and carries no
 /// `active_module` key. Mirrors the React default module for a fresh pane (`DEFAULT_PANES[0].module`).
 fn default_module() -> ModuleId {
@@ -198,6 +206,25 @@ impl LayoutSnapshot {
                 expected: LAYOUT_SNAPSHOT_VERSION,
             });
         }
+        // Pane-id completeness: every canonical pane must be present in the registry. A
+        // schema+version-valid blob that dropped a pane is structurally corrupt and must NOT be applied
+        // as a short-paned layout; reject it (PERMANENT data error) so the caller falls back to
+        // last-known-good / default. Iteration is in CANONICAL_PANE_IDS order, so the FIRST missing pane
+        // is the one named in the error.
+        for id in CANONICAL_PANE_IDS {
+            if !self.panes.contains_key(&PaneId::from(id)) {
+                return Err(LayoutError::MissingPane { id: id.to_owned() });
+            }
+        }
+        // Active-pane membership: a dangling `active_pane` (one not in the canonical set) is a
+        // corrupt reference. Reject so the restore never points the highlight at a non-existent pane.
+        if let Some(active) = &self.active_pane {
+            if !CANONICAL_PANE_IDS.iter().any(|id| active.as_ref() == *id) {
+                return Err(LayoutError::UnknownActivePane {
+                    id: active.as_ref().to_owned(),
+                });
+            }
+        }
         Ok(())
     }
 
@@ -247,6 +274,13 @@ pub enum LayoutError {
     VersionMismatch { found: u32, expected: u32 },
     /// The backend blob's `project_id` did not match the requested workspace id.
     ProjectMismatch { requested: String, snapshot: String },
+    /// A canonical pane id (`pane-a`..`pane-d`) is absent from the blob's `panes` registry. A
+    /// structurally-corrupt-but-schema-valid blob that dropped a pane would otherwise be applied as a
+    /// short-paned layout; this PERMANENT data error forces the LKG/default fallback instead.
+    MissingPane { id: String },
+    /// The blob's `active_pane` points at a pane id that is not one of the canonical panes — i.e. a
+    /// dangling active-pane reference. PERMANENT data error -> LKG/default fallback.
+    UnknownActivePane { id: String },
     /// `serde_json` parse/serialize failure on the blob.
     Serde(String),
     /// Transport (HTTP) failure talking to the backend layout endpoint. Treated as TRANSIENT by the
@@ -275,6 +309,12 @@ impl std::fmt::Display for LayoutError {
                 f,
                 "layout project mismatch: requested {requested:?}, blob holds {snapshot:?}"
             ),
+            LayoutError::MissingPane { id } => {
+                write!(f, "layout missing canonical pane: {id:?}")
+            }
+            LayoutError::UnknownActivePane { id } => {
+                write!(f, "layout active_pane references unknown pane: {id:?}")
+            }
             LayoutError::Serde(e) => write!(f, "layout serde error: {e}"),
             LayoutError::Transport(e) => write!(f, "layout transport error: {e}"),
         }
@@ -524,9 +564,13 @@ mod tests {
     /// active pane, and a popped-out pane with a specific geometry. Used by the round-trip tests so
     /// they prove EVERY composed MT's state survives the backend-JSON mapping, not just the default.
     fn sample_snapshot() -> LayoutSnapshot {
+        // Seed ALL FOUR canonical panes (pane-a..pane-d) so this snapshot passes the pane-completeness
+        // gate in `validate`. pane-a..pane-d mirror the app's `default_panes` seed types.
         let mut panes = BTreeMap::new();
         panes.insert(pid("pane-a"), sample_record("pane-a", PaneType::Workspace));
         panes.insert(pid("pane-b"), sample_record("pane-b", PaneType::InferenceLab));
+        panes.insert(pid("pane-c"), sample_record("pane-c", PaneType::MediaDownloader));
+        panes.insert(pid("pane-d"), sample_record("pane-d", PaneType::FontManager));
 
         let mut tab_bars = BTreeMap::new();
         let mut bar_a = TabBarState::new(
@@ -543,6 +587,14 @@ mod tests {
         tab_bars.insert(
             pid("pane-b"),
             TabBarState::new(pid("pane-b"), vec![TabState::new(PaneType::InferenceLab)]),
+        );
+        tab_bars.insert(
+            pid("pane-c"),
+            TabBarState::new(pid("pane-c"), vec![TabState::new(PaneType::MediaDownloader)]),
+        );
+        tab_bars.insert(
+            pid("pane-d"),
+            TabBarState::new(pid("pane-d"), vec![TabState::new(PaneType::FontManager)]),
         );
 
         let mut pop_outs = BTreeMap::new();
@@ -590,6 +642,34 @@ mod tests {
         let mut snap = sample_snapshot();
         snap.version = LAYOUT_SNAPSHOT_VERSION + 1;
         assert!(matches!(snap.validate(), Err(LayoutError::VersionMismatch { .. })));
+    }
+
+    #[test]
+    fn validate_rejects_missing_pane() {
+        // A schema+version-valid snapshot that dropped a canonical pane is structurally corrupt:
+        // `validate` must reject it (PERMANENT data error) so the caller falls back to LKG/default
+        // instead of applying a short-paned layout. pane-c is the named first-missing pane (AC#3).
+        let mut snap = sample_snapshot();
+        snap.panes.remove(&pid("pane-c"));
+        match snap.validate() {
+            Err(LayoutError::MissingPane { id }) => assert_eq!(id, "pane-c"),
+            other => panic!("expected MissingPane {{ id: \"pane-c\" }}, got {other:?}"),
+        }
+        // And it is a permanent (non-transient) error, so the manager triggers fallback, not retry.
+        assert!(!LayoutError::MissingPane { id: "pane-c".into() }.is_transient());
+    }
+
+    #[test]
+    fn validate_rejects_unknown_active_pane() {
+        // A dangling `active_pane` (not in the canonical set) is a corrupt reference: reject it so a
+        // restore never points the highlight at a non-existent pane.
+        let mut snap = sample_snapshot();
+        snap.active_pane = Some(pid("pane-z")); // non-canonical id
+        match snap.validate() {
+            Err(LayoutError::UnknownActivePane { id }) => assert_eq!(id, "pane-z"),
+            other => panic!("expected UnknownActivePane, got {other:?}"),
+        }
+        assert!(!LayoutError::UnknownActivePane { id: "pane-z".into() }.is_transient());
     }
 
     #[test]
