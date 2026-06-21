@@ -125,7 +125,10 @@ fn switching_project_saves_old_and_loads_new_layout() {
         let app_b = shell_with_transport(transport.clone());
         let mut snap = app_b.capture_layout_snapshot();
         snap.project_id = "b".to_string();
-        snap.split_weights = SplitWeights { vertical: 0.2, horizontal: 0.9 };
+        // Use IN-RANGE split fractions (SPLIT_MIN=0.2, SPLIT_MAX=0.8). `apply_layout_snapshot` clamps
+        // restored weights to `[SPLIT_MIN, SPLIT_MAX]` before the first frame, so an out-of-range stored
+        // value (e.g. 0.9) would be clamped on load and the round-trip assert below could never match.
+        snap.split_weights = SplitWeights { vertical: 0.2, horizontal: 0.7 };
         transport
             .store
             .lock()
@@ -156,7 +159,7 @@ fn switching_project_saves_old_and_loads_new_layout() {
     assert_eq!(harness.state().active_project_id(), "b", "active project is now b");
     assert_eq!(
         harness.state().split_weights(),
-        SplitWeights { vertical: 0.2, horizontal: 0.9 },
+        SplitWeights { vertical: 0.2, horizontal: 0.7 },
         "project b's previously-stored layout was loaded on switch"
     );
     // "a"'s layout must have been saved to the store on leaving it.

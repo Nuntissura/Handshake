@@ -104,22 +104,56 @@ impl Drop for LayoutGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout_persistence::LayoutSnapshot;
+    use crate::layout_persistence::{LayoutSnapshot, CANONICAL_PANE_IDS};
     use crate::module_switcher::ModuleId;
+    use crate::pane_registry::{
+        DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+    };
     use crate::split_layout::SplitWeights;
+    use crate::tab_bar::{TabBarState, TabState};
     use std::collections::BTreeMap;
+
+    fn pid(s: &str) -> PaneId {
+        std::sync::Arc::from(s)
+    }
 
     /// A minimal valid layout snapshot with a distinguishing split-weight value so before/after can be
     /// compared. Uses the real `LayoutSnapshot::new` so the checkpoint is the genuine layout authority.
+    ///
+    /// Seeds ALL FOUR canonical panes (`pane-a`..`pane-d`) with minimal valid pane records + tab bars so
+    /// the snapshot passes the pane-completeness gate in `LayoutSnapshot::validate` (MT-009 remediation):
+    /// a snapshot with empty `panes` would now be (correctly) rejected as structurally corrupt.
     fn layout_with_vertical_fraction(vertical: f32) -> LayoutSnapshot {
         let weights = SplitWeights { vertical, ..SplitWeights::default() };
+
+        let mut panes = BTreeMap::new();
+        let mut tab_bars = BTreeMap::new();
+        for id in CANONICAL_PANE_IDS {
+            panes.insert(
+                pid(id),
+                PaneRecord::new(
+                    pid(id),
+                    PaneType::Workspace,
+                    "proj-1",
+                    None,
+                    LockState::Unlocked,
+                    DirtyState::Clean,
+                    PaneAuthority::System,
+                ),
+            );
+            tab_bars.insert(
+                pid(id),
+                TabBarState::new(pid(id), vec![TabState::new(PaneType::Workspace)]),
+            );
+        }
+
         LayoutSnapshot::new(
             "proj-1",
             weights,
             None,
             ModuleId::Main,
-            BTreeMap::new(),
-            BTreeMap::new(),
+            panes,
+            tab_bars,
             BTreeMap::new(),
         )
     }
