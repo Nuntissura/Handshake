@@ -45,7 +45,15 @@
     "remote_backup_branch": "feat/WP-KERNEL-012",
     "worktree_status": "CREATED_SIBLING_GOV_SYMLINK_OK",
     "worktree_notes": "git worktree add -b feat/WP-KERNEL-012 ../wtc-native-editors-v1 97a22310; .GOV junction -> wt-gov-kernel/.GOV verified (Handshake_Codex_v1.4.md visible); 111 src/frontend files present. worktree-add exited 1 ONLY on the artifact-hygiene preflight (managed_pgdata noncanonical artifact dir under ../Handshake_Artifacts - the same pre-existing managed-Postgres allowlist quirk as WP-011; worktree + junction were created before that gate). No product code committed on the branch yet.",
-    "clone_topology_concern": "wt-gov-kernel clone main=d07cffcf and its origin/main fetch=d07cffcf, while handshake_main clone main=origin/main=97a22310 (WP-011 merged). GitHub origin/main may be d07cffcf (merge possibly unpushed) OR wt-gov-kernel remote tracking is stale. Operator should reconcile (push 97a22310 to origin and/or refresh wt-gov-kernel) so WP-012 can later merge cleanly onto a consistent main."
+    "clone_topology_concern": "RESOLVED. Audit (wf_29d00c37-f8b) confirmed via live ls-remote that GitHub origin/main IS 97a22310 - WP-KERNEL-011 is merged AND pushed. The only residue is the wt-gov-kernel clone's local origin/main tracking ref still showing the older d07cffcf (a clean ancestor of 97a22310; no divergence). Cosmetic; does not affect the worktree (already on 97a22310). Refresh with a full git fetch when convenient."
+  },
+  "build_target": {
+    "crate_package": "handshake-native",
+    "crate_lib": "handshake_native",
+    "code_root": "src/frontend/handshake_native/src/",
+    "test_root": "src/frontend/handshake_native/tests/",
+    "cargo_flag": "-p handshake-native",
+    "note": "CANONICAL build target for ALL WP-012 MTs - do not drift. The first MT-authoring workflow fabricated crate names (handshake_frontend / handshake_native_editors / handshake_native_frontend) and a nonexistent folder tree (src/frontend/code_editor|panes|panels|shared|interop|fems, tests/native_editors), none of which exist. The audit (wf_29d00c37-f8b) caught it; all 74 MTs were re-anchored to this real crate + flat module layout (wf_775937ef-e81, 2026-06-21: 346 crate refs + 734 paths corrected) and deterministically verified clean (0 fabricated crate names, 0 fabricated paths, contract-check OK). MTs REUSE existing WP-011 modules by their real flat names (command_registry.rs, command_palette.rs, event_bus.rs, pane_registry.rs, pane_header.rs, canvas_board.rs, loom_graph.rs, settings_dialog.rs, workspace_settings.rs, context_menu.rs, context_menu_surfaces.rs, search_rail.rs, top_menu_bar.rs, quick_switcher.rs, source_control.rs, backend_client.rs, layout_persistence.rs, split_layout.rs, tab_bar.rs, accessibility/*, mcp/*, theme/*, quiet_mode/*) and CREATE new editor modules under code_root."
   },
   "lifecycle": {
     "status": "Ready for Dev",

@@ -28,23 +28,81 @@
     "status": "PENDING",
     "active": false,
     "depends_on": [
-      "MT-001", "MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-007", "MT-008", "MT-009", "MT-010",
-      "MT-011", "MT-012", "MT-013", "MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019", "MT-020",
-      "MT-021", "MT-022", "MT-023", "MT-024", "MT-025", "MT-026", "MT-027",
-      "MT-028", "MT-029", "MT-030",
-      "MT-031", "MT-032", "MT-033", "MT-034", "MT-035", "MT-036",
-      "MT-037", "MT-038", "MT-039", "MT-040",
-      "MT-041", "MT-042", "MT-043"
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062"
     ],
-    "blocks": ["MT-045", "MT-046"],
+    "blocks": [
+      "MT-045",
+      "MT-046"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "GOAL: Author and execute the Parity Proof Suite — a structured runtime test harness that maps every KERNEL-009-delivered editor/knowledge feature to a passing native proof in the WP-KERNEL-012 Rust implementation. This is the parity gate: no feature is declared ported until it has a passing proof in this suite.\n\nEXPECTED DIFF SHAPE: Creates tests/native_editors/parity_suite/ containing (a) a machine-readable parity manifest (parity_manifest.json) that catalogs every KERNEL-009 feature, its source React file, its native impl location, and its proof status, and (b) Rust test modules (parity_code_editor.rs, parity_rich_editor.rs, parity_knowledge.rs, parity_search.rs) each with #[test] or #[tokio::test] functions that exercise the native implementation against a real PostgreSQL test database using the existing handshake_core backend APIs. NO mocks for any spec-required runtime behavior.\n\nFEATURE CATALOG TO PROVE (map each to a passing test):\n\nCLUSTER E1 — Code editor (VS Code parity). React reference: app/src/components/MonacoCodeBlockView.tsx, app/src/components/CodeSymbolPanel.tsx, app/src/components/FindReplacePanel.tsx. Features to prove: (1) syntax highlighting loads and applies a tree-sitter grammar for Rust, TypeScript, and Python without panic; (2) large-file virtualization: a 10 000-line synthetic file renders without freeze (timing assertion <= 200 ms first paint); (3) multi-cursor insert: insert text at 5 cursor positions simultaneously, result matches expected; (4) find/replace: search a 500-line buffer, collect match spans, apply replace-all, verify final content; (5) code folding: fold a function range, verify hidden-line count; (6) minimap glyph count matches buffer line count; (7) go-to-line: jump to line 42, verify cursor row; (8) gutter diagnostics: inject a fake LSP diagnostic, verify gutter badge appears at the correct line; (9) LSP round-trip: send a completion request via the tower-lsp client stub to the in-process LSP and receive at least one CompletionItem; (10) diff editor: open a two-buffer diff, verify added/removed line counts match expected.\n\nCLUSTER E2 — Rich-text editor (Obsidian/Notion parity). React reference: app/src/components/DocumentView.tsx, app/src/components/LoomTransclusionView.tsx, app/src/components/HsLinkView.tsx. Backend API: POST /workspaces/{id}/knowledge/documents (create), GET /…/{doc_id} (load), PUT /…/{doc_id} (save) from src/backend/handshake_core/src/api/knowledge_documents.rs. Features to prove: (11) block document model: create a doc with heading/paragraph/list/table/code-block nodes, serialize to JSON, reload, verify node count and types; (12) WYSIWYG heading render: H1-H6 render at visually distinct sizes (egui TextStyle check); (13) table: insert 3x3 table, set cell (1,1) text, read back via doc model; (14) embed image: insert an [[HS_images:assetId]] node pointing to a real PG-stored asset, verify embed resolves (HTTP GET /workspaces/{id}/assets/{asset_id}); (15) wikilink [[note:blockId]]: insert, verify typed node persisted, backend GET /workspaces/{id}/loom/blocks/{block_id} returns the linked block; (16) transclusion: create source doc, embed transclusion node, verify read-through resolves via GET /workspaces/{id}/loom/blocks/{block_id}/transclusion; (17) slash command: trigger '/' menu, select 'heading', verify node inserted; (18) properties panel: set a doc property key/value, save, reload, verify property present; (19) find/replace in rich doc: insert text, find 'foo', replace with 'bar', verify final content; (20) daily note: call open_daily_journal endpoint (PUT /workspaces/{id}/loom/journals/{date}), verify block created with date as title; (21) save-to-format HTML: export a doc to HTML projection via GET /workspaces/{id}/knowledge/documents/{doc_id}/projection?format=html, verify non-empty HTML string; (22) draft recovery: write a draft, simulate crash (drop in-memory state), reload, verify draft content restored.\n\nCLUSTER E3 — Knowledge surface (Obsidian graph parity). React reference: app/src/components/LoomBlockPanel.tsx, app/src/components/LoomWikiPagePanel.tsx, app/src/components/LoomCanvasBoard.tsx, app/src/components/BlockCollectionView.tsx. Backend API: GET /workspaces/{id}/loom/graph, GET /workspaces/{id}/loom/folders, POST /workspaces/{id}/loom/canvas-boards from src/backend/handshake_core/src/api/loom.rs. Features to prove: (23) local graph: create 3 blocks with edges, call graph API at depth 2, verify node+edge counts; (24) global graph: call graph API at depth 1 over workspace, verify workspace root appears; (25) folder tree: create folder, create child block, call list_loom_folders, verify hierarchy; (26) color labels: set color on folder, reload, verify color preserved; (27) tags + tag hubs: add a tag edge to a block, query tag hub, verify block appears in hub results; (28) pins: pin a block (set pinned flag), query pinned view, verify block in result; (29) backlinks: create block A -> B edge, call GET /…/B/backlinks, verify A appears; (30) unlinked mentions: insert block A content containing B's title, call scan_loom_block_unlinked_mentions for B, verify A surfaces; (31) breadcrumbs: create parent->child hierarchy, call GET /…/child/breadcrumbs, verify path; (32) wiki-page projection: call wiki-page endpoint for a block, verify wikilinks resolved; (33) canvas board: create canvas board, place a real Loom block via POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements, verify placement returned in board view; (34) block-collection table view: create a block_view (content_type='view_def'), call queryBlockViewResults, verify row count > 0; (35) block-collection Kanban: move a Kanban card (update tag edge), re-query, verify card appears in new column; (36) block-collection calendar: query calendar view for today's date, verify daily journal block appears.\n\nCLUSTER E4 — Search surfaces. React reference: app/src/components/LoomSearchV2Panel.tsx, app/src/components/FindReplacePanel.tsx. Backend API: POST /workspaces/{id}/loom/search-v2, GET /workspaces/{id}/loom/quick-switcher from src/backend/handshake_core/src/api/loom.rs. Features to prove: (37) full-text search: index a known string in a block content, call loom_search_v2 with that string, verify block_id in hits; (38) fuzzy search: call loom_search_v2 with a single typo in the query, verify same block still surfaces; (39) semantic search (pgvector): call loom_search_v2 with mode=semantic, verify hits list non-empty (requires pgvector extension and embedded vector on the test block — use the fixture from src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs); (40) faceted filter: call loom_search_v2 with content_type filter, verify all returned hits match that type; (41) save-results-as-view: after a search, call createBlockView with the query, verify the new view block has content_type='view_def' and query embedded; (42) find-in-files: call find-in-files endpoint for a known string across 3 code files, verify all 3 file paths appear in result; (43) quick-switcher: call quick-switcher endpoint with a partial block title, verify the matching block surfaces.\n\nCLUSTER E5-E7 — Interconnection and model-vision. Proved in MT-045 and MT-046 respectively; this suite contains stubs for E5-E7 features that cross-reference those MTs.\n\nPARITY MANIFEST FILE (tests/native_editors/parity_suite/parity_manifest.json): machine-readable record with one entry per feature: { feature_id, cluster, description, react_ref, native_impl_module, native_impl_fn, backend_api, proof_fn, status }. Status values: PASS, FAIL, STUB. The manifest is updated by the test runner (see implementation notes). A model running `cargo test -p handshake_native_editors -- parity` must be able to read the manifest and know exactly which features pass and which are still stubs.\n\nFILES TO CREATE:\n  - tests/native_editors/parity_suite/mod.rs (declares sub-modules)\n  - tests/native_editors/parity_suite/parity_manifest.json (initial skeleton; updated by test run)\n  - tests/native_editors/parity_suite/parity_code_editor.rs (E1 proofs #1-#10)\n  - tests/native_editors/parity_suite/parity_rich_editor.rs (E2 proofs #11-#22)\n  - tests/native_editors/parity_suite/parity_knowledge.rs (E3 proofs #23-#36)\n  - tests/native_editors/parity_suite/parity_search.rs (E4 proofs #37-#43)\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the existing test harness conventions in tests/native_editors/ (look for existing integration test helpers, DB setup macros, workspace fixture builders).\n2. In each parity_*.rs, import the relevant native frontend modules (e.g., handshake_native_editors::code_editor::*, ::rich_editor::*, ::knowledge_surface::*, ::search_surface::*) plus the backend HTTP client or direct AppState (reuse the pattern from src/backend/handshake_core/src/storage/tests.rs).\n3. For each feature, write one #[test] or #[tokio::test] function named parity_<feature_id> that: (a) sets up a real PG test DB via the existing fixture/workspace builder, (b) exercises the native impl against it, (c) asserts the expected result, (d) on success writes { feature_id, status: PASS } to the manifest JSON file (use std::fs::write with serde_json); on failure the test fails with a descriptive message.\n4. Create parity_manifest.json with all 43 entries in STUB status initially; each passing test upgrades its entry to PASS.\n5. Every interactive widget added by this MT (manifest viewer widget, if any) must have an AccessKit author_id (e.g., 'parity.manifest.feature.{feature_id}.row') with role=Row and action=Click.\n6. Register the parity suite in Cargo.toml under [[test]] with name = 'parity_suite' and harness = true.\n7. Run `cargo test -p handshake_native_editors -- parity 2>&1` and confirm all 43 proof functions compile and at least the trivial ones (struct/serialization proofs) pass. Real PG proofs require the test DB; mark them #[ignore] with a comment 'requires_pg' only when the CI environment truly cannot provide PG — the local dev run must pass all 43.",
+    "summary": "GOAL: Author and execute the Parity Proof Suite — a structured runtime test harness that maps every KERNEL-009-delivered editor/knowledge feature to a passing native proof in the WP-KERNEL-012 Rust implementation. This is the parity gate: no feature is declared ported until it has a passing proof in this suite.\n\nEXPECTED DIFF SHAPE: Creates flat integration test files under src/frontend/handshake_native/tests/ — (a) a machine-readable parity manifest (src/frontend/handshake_native/tests/parity_manifest.json) that catalogs every KERNEL-009 feature, its source React file, its native impl location, and its proof status, and (b) Rust test modules (src/frontend/handshake_native/tests/test_parity_code_editor.rs, test_parity_rich_editor.rs, test_parity_knowledge.rs, test_parity_search.rs) each with #[test] or #[tokio::test] functions that exercise the native implementation against a real PostgreSQL test database using the existing handshake_core backend APIs. NO mocks for any spec-required runtime behavior.\n\nFEATURE CATALOG TO PROVE (map each to a passing test):\n\nCLUSTER E1 — Code editor (VS Code parity). React reference: app/src/components/MonacoCodeBlockView.tsx, app/src/components/CodeSymbolPanel.tsx, app/src/components/FindReplacePanel.tsx. Features to prove: (1) syntax highlighting loads and applies a tree-sitter grammar for Rust, TypeScript, and Python without panic; (2) large-file virtualization: a 10 000-line synthetic file renders without freeze (timing assertion <= 200 ms first paint); (3) multi-cursor insert: insert text at 5 cursor positions simultaneously, result matches expected; (4) find/replace: search a 500-line buffer, collect match spans, apply replace-all, verify final content; (5) code folding: fold a function range, verify hidden-line count; (6) minimap glyph count matches buffer line count; (7) go-to-line: jump to line 42, verify cursor row; (8) gutter diagnostics: inject a fake LSP diagnostic, verify gutter badge appears at the correct line; (9) LSP round-trip: send a completion request via the tower-lsp client stub to the in-process LSP and receive at least one CompletionItem; (10) diff editor: open a two-buffer diff, verify added/removed line counts match expected.\n\nCLUSTER E2 — Rich-text editor (Obsidian/Notion parity). React reference: app/src/components/DocumentView.tsx, app/src/components/LoomTransclusionView.tsx, app/src/components/HsLinkView.tsx. Backend API: POST /workspaces/{id}/knowledge/documents (create), GET /…/{doc_id} (load), PUT /…/{doc_id} (save) from src/backend/handshake_core/src/api/knowledge_documents.rs. Features to prove: (11) block document model: create a doc with heading/paragraph/list/table/code-block nodes, serialize to JSON, reload, verify node count and types; (12) WYSIWYG heading render: H1-H6 render at visually distinct sizes (egui TextStyle check); (13) table: insert 3x3 table, set cell (1,1) text, read back via doc model; (14) embed image: insert an [[HS_images:assetId]] node pointing to a real PG-stored asset, verify embed resolves (HTTP GET /workspaces/{id}/assets/{asset_id}); (15) wikilink [[note:blockId]]: insert, verify typed node persisted, backend GET /workspaces/{id}/loom/blocks/{block_id} returns the linked block; (16) transclusion: create source doc, embed transclusion node, verify read-through resolves via GET /workspaces/{id}/loom/blocks/{block_id}/transclusion; (17) slash command: trigger '/' menu, select 'heading', verify node inserted; (18) properties panel: set a doc property key/value, save, reload, verify property present; (19) find/replace in rich doc: insert text, find 'foo', replace with 'bar', verify final content; (20) daily note: call open_daily_journal endpoint (PUT /workspaces/{id}/loom/journals/{date}), verify block created with date as title; (21) save-to-format HTML: export a doc to HTML projection via GET /workspaces/{id}/knowledge/documents/{doc_id}/projection?format=html, verify non-empty HTML string; (22) draft recovery: write a draft, simulate crash (drop in-memory state), reload, verify draft content restored.\n\nCLUSTER E3 — Knowledge surface (Obsidian graph parity). React reference: app/src/components/LoomBlockPanel.tsx, app/src/components/LoomWikiPagePanel.tsx, app/src/components/LoomCanvasBoard.tsx, app/src/components/BlockCollectionView.tsx. Backend API: GET /workspaces/{id}/loom/graph, GET /workspaces/{id}/loom/folders, POST /workspaces/{id}/loom/canvas-boards from src/backend/handshake_core/src/api/loom.rs. Features to prove: (23) local graph: create 3 blocks with edges, call graph API at depth 2, verify node+edge counts; (24) global graph: call graph API at depth 1 over workspace, verify workspace root appears; (25) folder tree: create folder, create child block, call list_loom_folders, verify hierarchy; (26) color labels: set color on folder, reload, verify color preserved; (27) tags + tag hubs: add a tag edge to a block, query tag hub, verify block appears in hub results; (28) pins: pin a block (set pinned flag), query pinned view, verify block in result; (29) backlinks: create block A -> B edge, call GET /…/B/backlinks, verify A appears; (30) unlinked mentions: insert block A content containing B's title, call scan_loom_block_unlinked_mentions for B, verify A surfaces; (31) breadcrumbs: create parent->child hierarchy, call GET /…/child/breadcrumbs, verify path; (32) wiki-page projection: call wiki-page endpoint for a block, verify wikilinks resolved; (33) canvas board: create canvas board, place a real Loom block via POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements, verify placement returned in board view; (34) block-collection table view: create a block_view (content_type='view_def'), call queryBlockViewResults, verify row count > 0; (35) block-collection Kanban: move a Kanban card (update tag edge), re-query, verify card appears in new column; (36) block-collection calendar: query calendar view for today's date, verify daily journal block appears.\n\nCLUSTER E4 — Search surfaces. React reference: app/src/components/LoomSearchV2Panel.tsx, app/src/components/FindReplacePanel.tsx. Backend API: POST /workspaces/{id}/loom/search-v2, GET /workspaces/{id}/loom/quick-switcher from src/backend/handshake_core/src/api/loom.rs. Features to prove: (37) full-text search: index a known string in a block content, call loom_search_v2 with that string, verify block_id in hits; (38) fuzzy search: call loom_search_v2 with a single typo in the query, verify same block still surfaces; (39) semantic search (pgvector): call loom_search_v2 with mode=semantic, verify hits list non-empty (requires pgvector extension and embedded vector on the test block — use the fixture from src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs); (40) faceted filter: call loom_search_v2 with content_type filter, verify all returned hits match that type; (41) save-results-as-view: after a search, call createBlockView with the query, verify the new view block has content_type='view_def' and query embedded; (42) find-in-files: call find-in-files endpoint for a known string across 3 code files, verify all 3 file paths appear in result; (43) quick-switcher: call quick-switcher endpoint with a partial block title, verify the matching block surfaces.\n\nCLUSTER E5-E7 — Interconnection and model-vision. Proved in MT-045 and MT-046 respectively; this suite contains stubs for E5-E7 features that cross-reference those MTs.\n\nPARITY MANIFEST FILE (src/frontend/handshake_native/tests/parity_manifest.json): machine-readable record with one entry per feature: { feature_id, cluster, description, react_ref, native_impl_module, native_impl_fn, backend_api, proof_fn, status }. Status values: PASS, FAIL, STUB. The manifest is updated by the test runner (see implementation notes). A model running `cargo test -p handshake-native -- parity` must be able to read the manifest and know exactly which features pass and which are still stubs.\n\nFILES TO CREATE:\n  - src/frontend/handshake_native/tests/test_parity_code_editor.rs (E1 proofs #1-#10)\n  - src/frontend/handshake_native/tests/test_parity_rich_editor.rs (E2 proofs #11-#22)\n  - src/frontend/handshake_native/tests/test_parity_knowledge.rs (E3 proofs #23-#36)\n  - src/frontend/handshake_native/tests/test_parity_search.rs (E4 proofs #37-#43)\n  - src/frontend/handshake_native/tests/parity_manifest.json (initial skeleton; updated by test run)\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the existing test harness conventions in src/frontend/handshake_native/tests/ (look for existing integration test helpers, DB setup macros, workspace fixture builders in the flat test_*.rs files).\n2. In each test_parity_*.rs, import the relevant native frontend modules (e.g., handshake_native::code_editor::*, handshake_native::rich_text::*, handshake_native::graph::*, and reuse handshake_native::loom_graph, handshake_native::canvas_board for knowledge-surface proofs) plus the backend HTTP client or direct AppState (reuse the pattern from src/backend/handshake_core/src/storage/tests.rs).\n3. For each feature, write one #[test] or #[tokio::test] function named parity_<feature_id> that: (a) sets up a real PG test DB via the existing fixture/workspace builder, (b) exercises the native impl against it, (c) asserts the expected result, (d) on success writes { feature_id, status: PASS } to the manifest JSON file (use std::fs::write with serde_json); on failure the test fails with a descriptive message.\n4. Create parity_manifest.json with all 43 entries in STUB status initially; each passing test upgrades its entry to PASS.\n5. Every interactive widget added by this MT (manifest viewer widget, if any) must register a stable AccessKit author_id via the existing handshake_native::accessibility/* registry (e.g., 'parity.manifest.feature.{feature_id}.row') with role=Row and action=Click.\n6. Register the parity suite test targets in src/frontend/handshake_native/Cargo.toml under [[test]] (one entry per flat test file, e.g. name = 'test_parity_code_editor', harness = true).\n7. Run `cargo test -p handshake-native -- parity 2>&1` and confirm all 43 proof functions compile and at least the trivial ones (struct/serialization proofs) pass. Real PG proofs require the test DB; mark them #[ignore] with a comment 'requires_pg' only when the CI environment truly cannot provide PG — the local dev run must pass all 43.",
     "allowed_paths": [
-      "tests/native_editors/parity_suite/**",
-      "tests/native_editors/mod.rs",
-      "Cargo.toml"
+      "src/frontend/handshake_native/tests/test_parity_code_editor.rs",
+      "src/frontend/handshake_native/tests/test_parity_rich_editor.rs",
+      "src/frontend/handshake_native/tests/test_parity_knowledge.rs",
+      "src/frontend/handshake_native/tests/test_parity_search.rs",
+      "src/frontend/handshake_native/tests/parity_manifest.json",
+      "src/frontend/handshake_native/Cargo.toml"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -52,10 +110,10 @@
       "src/backend/** (reuse via API only)"
     ],
     "acceptance_criteria": [
-      "tests/native_editors/parity_suite/ directory exists with mod.rs, parity_manifest.json, parity_code_editor.rs, parity_rich_editor.rs, parity_knowledge.rs, parity_search.rs.",
+      "src/frontend/handshake_native/tests/ contains test_parity_code_editor.rs, test_parity_rich_editor.rs, test_parity_knowledge.rs, test_parity_search.rs, and parity_manifest.json.",
       "parity_manifest.json contains exactly 43 entries (features #1-#43), each with fields: feature_id, cluster, description, react_ref, native_impl_module, native_impl_fn, backend_api, proof_fn, status.",
-      "Each of the 43 features has a corresponding #[test] or #[tokio::test] function in the appropriate parity_*.rs file. No feature is undeclared in the manifest.",
-      "`cargo test -p handshake_native_editors -- parity` compiles without error and reports 43 test functions recognized by the harness.",
+      "Each of the 43 features has a corresponding #[test] or #[tokio::test] function in the appropriate test_parity_*.rs file. No feature is undeclared in the manifest.",
+      "`cargo test -p handshake-native -- parity` compiles without error and reports 43 test functions recognized by the harness.",
       "All 43 tests pass or are explicitly marked #[ignore] with reason 'requires_pg' (only for tests that need a live PG instance unavailable in the current env). In a local dev environment with PG, ALL 43 must pass — no permanent ignores.",
       "Tests that are PASS update parity_manifest.json entry status to 'PASS'. After a full passing run, the manifest has 0 FAIL entries.",
       "No test uses mocks, in-memory stubs, or placeholder data for any spec-required runtime behavior (real PG, real block IDs, real content).",
@@ -63,25 +121,26 @@
       "E2 proof #16 (transclusion) calls the REAL GET /workspaces/{id}/loom/blocks/{block_id}/transclusion endpoint and verifies source content resolves, not a local copy.",
       "E3 proof #33 (canvas board placement) calls POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements with a real Loom block ID and verifies the placement is returned in the board GET response.",
       "E4 proof #39 (semantic search) calls the real loom_search_v2 with mode=semantic against a workspace with the pgvector fixture loaded, per the fixture at src/backend/handshake_core/src/bin/mt250_workspace_search_fixture.rs.",
-      "A model with no chat context can run `cargo test -p handshake_native_editors -- parity` and read parity_manifest.json to determine pass/fail status for each of the 43 KERNEL-009 features."
+      "A model with no chat context can run `cargo test -p handshake-native -- parity` and read parity_manifest.json to determine pass/fail status for each of the 43 KERNEL-009 features."
     ],
     "proof_targets": [
-      "cargo test -p handshake_native_editors -- parity --nocapture 2>&1 | tee /tmp/parity_suite_run.txt && grep -c 'test parity_' /tmp/parity_suite_run.txt | grep -q '^43'",
-      "cat tests/native_editors/parity_suite/parity_manifest.json | python -c \"import sys,json; m=json.load(sys.stdin); fails=[e for e in m if e['status']=='FAIL']; print('FAIL entries:',len(fails)); assert len(fails)==0\"",
-      "cargo test -p handshake_native_editors parity_large_file_virtualization --nocapture 2>&1 | grep -q 'PASS.*<= 200ms'",
-      "cargo test -p handshake_native_editors parity_transclusion_read_through --nocapture 2>&1 | grep -q 'resolved'",
-      "cargo test -p handshake_native_editors parity_semantic_search --nocapture 2>&1 | grep -q 'hits.*non-empty'"
+      "cargo test -p handshake-native -- parity --nocapture 2>&1 | tee /tmp/parity_suite_run.txt && grep -c 'test parity_' /tmp/parity_suite_run.txt | grep -q '^43'",
+      "cat src/frontend/handshake_native/tests/parity_manifest.json | python -c \"import sys,json; m=json.load(sys.stdin); fails=[e for e in m if e['status']=='FAIL']; print('FAIL entries:',len(fails)); assert len(fails)==0\"",
+      "cargo test -p handshake-native parity_large_file_virtualization --nocapture 2>&1 | grep -q 'PASS.*<= 200ms'",
+      "cargo test -p handshake-native parity_transclusion_read_through --nocapture 2>&1 | grep -q 'resolved'",
+      "cargo test -p handshake-native parity_semantic_search --nocapture 2>&1 | grep -q 'hits.*non-empty'"
     ],
     "implementation_notes": [
+      "CROSS-WP DEPENDENCY: This parity suite proves WP-012 native editors against the editor/knowledge feature set delivered by WP-KERNEL-009 (the React reference and backend APIs). It also reuses the WP-KERNEL-011 native shell modules already present under src/frontend/handshake_native/src/ (command_registry.rs, command_palette.rs, event_bus.rs, accessibility/*, loom_graph.rs, canvas_board.rs, mcp/*). Those WP-011 modules are prerequisites in source but are not WP-012 microtasks; do not add them to depends_on.",
       "Do NOT reinvent a test DB harness. Find and reuse the existing workspace/DB fixture builder used by src/backend/handshake_core/src/storage/tests.rs. Look for a fn setup_test_db() or similar that spins up a PG schema and returns an AppState or PostgresDatabase.",
-      "The parity manifest is a JSON array, not a nested object. Each entry: { 'feature_id': 'E1-01', 'cluster': 'E1', 'description': '...', 'react_ref': 'app/src/components/MonacoCodeBlockView.tsx', 'native_impl_module': 'handshake_native_editors::code_editor', 'native_impl_fn': 'CodeEditor::render_line_range', 'backend_api': 'N/A (frontend-only)', 'proof_fn': 'parity_syntax_highlighting', 'status': 'STUB' }.",
+      "The parity manifest is a JSON array, not a nested object. Each entry: { 'feature_id': 'E1-01', 'cluster': 'E1', 'description': '...', 'react_ref': 'app/src/components/MonacoCodeBlockView.tsx', 'native_impl_module': 'handshake_native::code_editor', 'native_impl_fn': 'CodeEditor::render_line_range', 'backend_api': 'N/A (frontend-only)', 'proof_fn': 'parity_syntax_highlighting', 'status': 'STUB' }.",
       "For E1 timing proofs, use std::time::Instant::now() before the render call and assert elapsed().as_millis() <= 200.",
       "For E2/E3/E4 backend-binding proofs, prefer using the handshake_core AppState + axum test client (axum::test) over raw reqwest, so the test stays in-process and does not need a running server.",
-      "The tree-sitter grammar loading test (E1 #1) must call the actual grammar load function in handshake_native_editors::code_editor::highlighting, not a mock. If the grammar file is not bundled yet, this surfaces as a typed blocker.",
+      "The tree-sitter grammar loading test (E1 #1) must call the actual grammar load function in handshake_native::code_editor (highlight module), not a mock. If the grammar file is not bundled yet, this surfaces as a typed blocker.",
       "For E2 #22 (draft recovery), the native editor must expose a DraftStore or equivalent that persists a draft to disk (or PG) and can reload it. The test simulates a crash by creating a DraftStore, writing a draft, dropping the DraftStore (freeing in-memory state), then creating a new DraftStore instance and calling load_draft(doc_id), asserting the content matches.",
-      "The parity_manifest.json write from tests must use a deterministic output path (tests/native_editors/parity_suite/parity_manifest.json) relative to CARGO_MANIFEST_DIR so it works from any working directory.",
+      "The parity_manifest.json write from tests must use a deterministic output path (src/frontend/handshake_native/tests/parity_manifest.json) relative to CARGO_MANIFEST_DIR so it works from any working directory.",
       "Use #[cfg(test)] guards on all manifest-write helpers so they do not compile into production binary.",
-      "Every widget this MT adds to the native frontend (e.g., a Parity Dashboard panel showing the manifest) MUST register stable AccessKit author_ids: e.g., author_id='parity.dashboard.feature.{feature_id}', role=Row, action=Activate."
+      "Every widget this MT adds to the native frontend (e.g., a Parity Dashboard panel showing the manifest) MUST register stable AccessKit author_ids via the existing handshake_native::accessibility/* registry: e.g., author_id='parity.dashboard.feature.{feature_id}', role=Row, action=Activate."
     ],
     "ports_from_react": [
       "app/src/components/MonacoCodeBlockView.tsx (E1 feature set: syntax, minimap, find/replace, go-to-line, gutter)",
@@ -119,7 +178,11 @@
       "GET /workspaces/{workspace_id}/assets/{asset_id} — asset bytes (for embed proof)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-STOP"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-STOP"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -143,7 +206,7 @@
       "CTRL-4 (RISK-4): Gate timing assertion with a generous ceiling (200ms) and document the expected hardware class in a comment. Accept environment override via env var PARITY_TIMING_BUDGET_MS.",
       "CTRL-5 (RISK-5): The semantic search proof must be #[ignore] only when an explicit env var SKIP_PGVECTOR_TESTS=1 is set, never silently. CI must set this var explicitly and report it in the run summary.",
       "CTRL-6 (RISK-6): The parity suite must report per-feature FAIL (not panic) when a dependency is incomplete, so the operator can see exactly which features are not yet proven.",
-      "CTRL-7 (RISK-7): The [[test]] entry in Cargo.toml must be verified with `cargo test --list -p handshake_native_editors 2>&1 | grep parity` returning >= 43 lines."
+      "CTRL-7 (RISK-7): The [[test]] entries in src/frontend/handshake_native/Cargo.toml must be verified with `cargo test --list -p handshake-native 2>&1 | grep parity` returning >= 43 lines."
     ]
   }
 }
