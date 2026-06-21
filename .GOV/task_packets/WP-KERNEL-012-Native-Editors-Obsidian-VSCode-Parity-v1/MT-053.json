@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-053",
+  "title": "E1-MT-053-GoToSymbolInFileAndStickyScroll",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-053.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-002", "MT-005", "MT-006", "MT-010"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: deliver two reuse-heavy editor-chrome wayfinding features over the existing tree-sitter scope data already produced by earlier E1 MTs, closing the modern VS Code navigation parity gap inside the native egui code editor. Feature (1) is 'Go to Symbol in file' (Ctrl+Shift+O): a fuzzy command palette scoped to the symbols of the CURRENTLY ACTIVE file only — this is explicitly DISTINCT from the global cross-file quick-switcher delivered by MT-030. Feature (2) is 'Sticky scroll': pinned enclosing-scope header lines rendered at the top of the editor viewport while the user scrolls inside a function, class, impl block, or other nested scope, so the signature/declaration lines of every enclosing scope remain visible (matching VS Code's `editor.stickyScroll`).\n\nThis MT is a pure reuse layer. It MUST NOT re-parse source or build its own symbol model. Feature (1) reuses the MT-006 OutlineProvider (the in-file symbol/outline tree built from tree-sitter), and feature (2) reuses the MT-005 fold regions plus the MT-006 outline to compute enclosing scopes. There is NO backend dependency; binds_backend_api is NONE. All scope/symbol data already lives in-process from MT-002 (virtualized text model / viewport), MT-005 (fold regions), and MT-006 (outline). MT-010 supplies the GO menu surface this MT wires the 'Go to Symbol...' item into.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/code_editor/symbol_palette.rs (~250-350 lines) — the in-file Go to Symbol palette. Defines `SymbolPalette` (egui modal state + fuzzy matcher) and a `FileSymbol { name: String, kind: SymbolKind, byte_range: Range<usize>, line: usize, container: Option<String> }` view-model adapted FROM the MT-006 OutlineProvider's outline nodes (do not redefine the outline data model; map from it). Exposes `SymbolPalette::open(outline: &OutlineProvider)`, `SymbolPalette::filter(query: &str) -> &[FileSymbol]`, and `SymbolPalette::show(&mut self, ui: &mut egui::Ui) -> Option<SymbolPaletteAction>` where the action is `JumpTo { line, byte_range }` on confirm.\n  - src/frontend/handshake_native/src/code_editor/sticky_scroll.rs (~200-300 lines) — computes the set of enclosing-scope header lines for a given viewport top line. Defines `StickyScroll` with `compute(&self, viewport_top_line: usize, fold_regions: &[FoldRegion], outline: &OutlineProvider) -> Vec<StickyHeader>` where `StickyHeader { line: usize, text: String, depth: usize }`. Walks the fold regions / outline nodes whose start line is at or above viewport_top_line and whose end line is at or below it (i.e. scopes that strictly enclose the first visible line) and returns their header (declaration) lines ordered outermost-first. Caps the number of pinned headers (config `max_sticky_lines`, default 5, matching VS Code) to bound viewport consumption.\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/code_editor/viewport.rs — render the sticky headers as a pinned overlay band at the top of the scroll viewport BEFORE the scrolled content (a fixed `egui::Area`/top strip inside the editor frame, not part of the scrolled galley). Reserve vertical space equal to `headers.len() * line_height` so the first scrolled line is not occluded. Clicking a sticky header scrolls the viewport to that header's line. Also: drive the symbol palette modal from this module — when `SymbolPaletteAction::JumpTo` fires, set the viewport scroll offset to the target line and place the caret/selection at the target byte_range (reusing the existing MT-002 viewport scroll-to-line and MT-010 caret APIs; do NOT introduce a new scroll mechanism).\n  - src/frontend/handshake_native/src/code_editor/mod.rs — declare `pub mod symbol_palette;` and `pub mod sticky_scroll;` if not already declared.\n\nMenu / command wiring:\n  - Wire the GO menu 'Go to Symbol...' item (the menu surface comes from MT-010, built on the WP-011 top_menu_bar.rs) to open the in-file `SymbolPalette`. Also register the Ctrl+Shift+O keyboard shortcut via `egui::KeyboardShortcut { modifiers: Modifiers::COMMAND | Modifiers::SHIFT, key: Key::O }`. Both the menu item and the shortcut call the same `open_symbol_palette()` entry point. Keep this distinct from MT-030's global quick-switcher binding (Ctrl+P / Ctrl+T).\n\nStep-by-step implementation notes:\n  1. In symbol_palette.rs, adapt MT-006 outline nodes into a flat `Vec<FileSymbol>` (flatten the outline tree depth-first; carry the parent name into `container` so the palette can show 'method — in ClassName'). Do not re-walk tree-sitter directly; the outline already encodes kind + range.\n  2. Reuse the SAME fuzzy matcher / palette interaction used by the MT-030 quick-switcher and MT-031 command palette, which are built on the WP-011 command_palette.rs (palette UI/fuzzy-filter) and command_registry.rs (command bus), rather than writing a second fuzzy algorithm; if no reusable fuzzy filter helper is exposed by command_palette.rs yet, implement a small subsequence-with-gap-penalty matcher and note it for later extraction into command_palette.rs.\n  3. Render the palette as an `egui::Window` anchored CENTER_TOP, opened only when `symbol_palette.open` is true; arrow keys move selection, Enter confirms (emit JumpTo), Escape closes. Mirror the keyboard-nav and overlay-modal pattern already established by MT-030/MT-031 (command_palette.rs).\n  4. In sticky_scroll.rs, compute enclosing scopes for the viewport top line by intersecting fold regions (MT-005) with outline nodes (MT-006): a scope is 'sticky' when region.start_line <= viewport_top_line < region.end_line. Order outermost (smallest start_line) first, truncate to `max_sticky_lines`. The header text is the source declaration line for region.start_line (slice it from the buffer via the MT-002 viewport/buffer API).\n  5. In viewport.rs, paint the sticky band: a top strip rendered with the editor's gutter/background color, each header a clickable row; clicking calls the same scroll-to-line path used by JumpTo. Recompute headers each frame from the current scroll offset (cheap; bounded by max_sticky_lines).\n  6. AccessKit: the symbol palette list container uses author_id='code_editor_symbol_palette' (Role::List); each result row uses author_id='symbol-{index}' (Role::ListItem); the search input uses author_id='code_editor_symbol_palette_search' (Role::TextInput). The sticky band container uses author_id='code_editor_sticky_scroll' (Role::GenericContainer) and each pinned header uses author_id='sticky-header-{depth}' (Role::Button) so swarm agents can address and click headers.\n\nReuse / shell primitives (WP-011): reuse the WP-011 shell modules — register the Ctrl+Shift+O command and the GO menu item through the existing command_registry.rs command bus (with event_bus.rs for the resulting action events) rather than an ad-hoc keybind table, route menu wiring through top_menu_bar.rs, and allocate all AccessKit author_ids through the shared accessibility/registry.rs id registry to avoid collisions.\n\nDependencies / unblock conditions:\n  - MT-002 (virtualized viewport + scroll-to-line + buffer slice API) merged.\n  - MT-005 (fold regions) merged — supplies enclosing-scope ranges for sticky scroll.\n  - MT-006 (OutlineProvider / in-file symbols) merged — supplies the symbol model for the palette AND the scope headers.\n  - MT-010 (GO menu + caret/selection API) merged — supplies the menu surface to wire and the caret placement used by JumpTo.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/symbol_palette.rs",
+      "src/frontend/handshake_native/src/code_editor/sticky_scroll.rs",
+      "src/frontend/handshake_native/src/code_editor/viewport.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/tests/test_symbol_palette.rs",
+      "src/frontend/handshake_native/tests/test_sticky_scroll.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake-native symbol_palette` passes a test proving the palette filters file symbols by a fuzzy query (subset of the active file's outline) and that selecting a result emits a JumpTo action with the correct line and byte_range — and that the palette source is the MT-006 OutlineProvider, not a re-parse.",
+      "AC-002: `cargo test -p handshake-native sticky_scroll` passes a test proving `StickyScroll::compute` returns the correct ordered (outermost-first) enclosing-scope header lines for a viewport positioned inside a nested fn (e.g. fn -> impl -> mod nesting yields the expected stack), and that the result is capped at max_sticky_lines.",
+      "AC-003: egui_kittest test: pressing Ctrl+Shift+O opens the file-scoped symbol palette (NOT the global MT-030 quick-switcher) — proven by the AccessKit tree containing a node with author_id='code_editor_symbol_palette'.",
+      "AC-004: egui_kittest test: sticky headers render pinned at the top of the viewport while scrolling inside a nested scope — proven by the AccessKit tree containing author_id='code_editor_sticky_scroll' with at least one 'sticky-header-{depth}' child, and by a screenshot pixel check showing the header band occupies the top strip while content has scrolled.",
+      "AC-005: The GO menu 'Go to Symbol...' item is wired and opens the same in-file SymbolPalette as the Ctrl+Shift+O shortcut — proven by grep of the menu wiring call site and the shared open_symbol_palette entry point.",
+      "AC-006: Clicking a sticky header scrolls the viewport to that header's declaration line — proven by an egui_kittest interaction asserting the scroll offset after clicking author_id='sticky-header-0'.",
+      "AC-007: No backend API calls are introduced; the symbol and scope data are sourced only from MT-005 fold regions and the MT-006 OutlineProvider in-process — proven by grep showing no handshake_native::backend_client / backend client calls in symbol_palette.rs or sticky_scroll.rs."
+    ],
+    "proof_targets": [
+      "PT-001: Run `cargo test -p handshake-native symbol_palette` — filter + JumpTo tests GREEN, output logged.",
+      "PT-002: Run `cargo test -p handshake-native sticky_scroll` — enclosing-scope header computation + cap test GREEN, output logged.",
+      "PT-003: Run egui_kittest test `code_editor_symbol_palette` (`cargo test -p handshake-native code_editor_symbol_palette`) — Ctrl+Shift+O opens the file-scoped palette; AccessKit dump contains author_id='code_editor_symbol_palette'; screenshot saved to test_output/MT-053-symbol-palette.png.",
+      "PT-004: Run egui_kittest test `code_editor_sticky_scroll` (`cargo test -p handshake-native code_editor_sticky_scroll`) — sticky headers render pinned while scrolling; AccessKit dump contains author_id='code_editor_sticky_scroll' and at least one 'sticky-header-{depth}'; screenshot saved to test_output/MT-053-sticky-scroll.png."
+    ],
+    "implementation_notes": [
+      "Do NOT re-parse with tree-sitter in this MT — both features read from already-built MT-006 outline and MT-005 fold regions. Adding a parse here is a defect.",
+      "Keep Ctrl+Shift+O (in-file Go to Symbol) strictly separate from MT-030's Ctrl+P / Ctrl+T global quick-switcher; they are different palettes with different data scopes.",
+      "Reuse the existing palette/fuzzy interaction in the WP-011 command_palette.rs (as used by MT-030/MT-031) rather than introducing a second fuzzy algorithm; if command_palette.rs does not yet expose a reusable fuzzy filter helper, implement a minimal subsequence matcher and flag it for extraction into command_palette.rs.",
+      "Sticky header text is the literal source declaration line — slice it from the buffer via the MT-002 viewport/buffer API; do not reconstruct signatures from the outline node label.",
+      "Cap pinned headers via `max_sticky_lines` (default 5, VS Code parity) and reserve viewport vertical space so the first scrolled line is never occluded by the sticky band.",
+      "Register the Ctrl+Shift+O command and the GO menu item through the WP-011 command bus (command_registry.rs / event_bus.rs, wired into top_menu_bar.rs) and allocate AccessKit author_ids through the shared id registry (accessibility/registry.rs); do not build an ad-hoc keybind table or hardcode ids.",
+      "Recompute sticky headers each frame from the current scroll offset — the computation is bounded by max_sticky_lines and is cheap; no caching needed for v1.",
+      "Cross-WP dependency: this MT consumes WP-011 shell primitives — command_registry.rs and event_bus.rs (command bus), command_palette.rs (palette/fuzzy interaction), top_menu_bar.rs (menu surface host), and accessibility/registry.rs (AccessKit id registry). These are delivered by WP-KERNEL-011 and are not represented as MT-level depends_on entries in this WP."
+    ],
+    "ports_from_react": [
+      "app/src/lib/monaco/* — the Monaco symbol quick-pick (Go to Symbol in file) behavior: query-to-symbol fuzzy matching, kind icons, jump-on-select; port the interaction shape to the native SymbolPalette at src/frontend/handshake_native/src/code_editor/symbol_palette.rs, replacing Monaco's internal symbol provider with the MT-006 OutlineProvider."
+    ],
+    "binds_backend_api": [
+      "NONE — this MT is pure frontend reuse over in-process MT-005 fold regions and MT-006 outline data; no handshake_native::backend_client or backend API calls. If any required scope/symbol datum is found to be missing from the MT-005/MT-006 in-process model, raise a typed blocker rather than calling the backend."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Drift from MT-030 — the in-file Go to Symbol palette (Ctrl+Shift+O) could be confused with or accidentally wired to the global quick-switcher (Ctrl+P/Ctrl+T), collapsing two distinct features into one and breaking parity.",
+      "RISK-002: Re-parse temptation — a coder may re-walk tree-sitter to get symbols/scopes instead of reusing MT-006 outline and MT-005 fold regions, duplicating the symbol model and causing inconsistency between the outline, the palette, and sticky scroll.",
+      "RISK-003: Viewport occlusion — the sticky header band can cover the first scrolled line(s) if vertical space is not reserved, hiding content and creating a visual/usability regression.",
+      "RISK-004: Stale scope after edits — fold regions / outline can lag a buffer edit; sticky headers or palette entries may point at wrong lines, sending JumpTo to an incorrect location.",
+      "RISK-005: AccessKit id collisions — symbol palette result rows and sticky header buttons generated per-index/per-depth can collide with other panes' ids if not allocated through the shared WP-011 id registry, breaking swarm addressing.",
+      "RISK-006: Unbounded sticky headers — deeply nested scopes could pin many headers and consume the whole viewport if max_sticky_lines is not enforced."
+    ],
+    "minimum_controls": [
+      "MC-001: An explicit test (AC-003) asserts Ctrl+Shift+O opens author_id='code_editor_symbol_palette' (the file-scoped palette), distinguishing it from the MT-030 quick-switcher.",
+      "MC-002: A test/grep gate (AC-007) confirms no tree-sitter re-parse and no backend calls in symbol_palette.rs / sticky_scroll.rs; data must come from MT-006 outline and MT-005 fold regions.",
+      "MC-003: viewport.rs reserves vertical space equal to headers.len() * line_height before the scrolled content; an egui_kittest screenshot (AC-004) verifies the first scrolled line is not occluded.",
+      "MC-004: JumpTo and sticky-header click resolve line numbers from the CURRENT (post-edit) outline/fold model each frame; recompute per frame rather than caching across edits.",
+      "MC-005: All AccessKit author_ids ('code_editor_symbol_palette', 'symbol-{index}', 'code_editor_sticky_scroll', 'sticky-header-{depth}', 'code_editor_symbol_palette_search') are allocated through the WP-011 shared id registry (accessibility/registry.rs); a test asserts uniqueness within the pane.",
+      "MC-006: StickyScroll::compute truncates to max_sticky_lines (default 5); AC-002 asserts the cap is applied for deeply nested input."
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-067",
+  "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
+  "group": "E10",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-019", "MT-030", "MT-037"],
+    "blocks": ["MT-073"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: build the editors <-> Calendar (Pillar 2) interop edge. This MT melts the daily-note system from MT-019 together with the EXISTING Calendar canonical backend so that (a) selecting a date in the calendar opens-or-creates that date's daily note idempotently, (b) an open daily note resolves and links its CalendarEvent window for that date, and (c) the panel surfaces a read-only ActivitySpan correlation showing which documents were edited during a calendar block. This is pure frontend wiring plus binding to already-shipped handshake_core REST endpoints — NO backend build, NO schema change, NO new SQL. If the ActivitySpan join endpoint is not exposed by the backend, this MT must raise a TYPED BLOCKER (do not stub a fake join, do not query the DB directly), keep the daily-note <-> CalendarEvent binding working, and render an empty-state for the correlation strip.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/calendar_interop.rs (~300-450 lines) — the interop layer. Defines: CalendarInteropService { http: Arc<dyn HttpClient>, workspace_id: WorkspaceId }; the domain types CalendarEvent { id: String, title: String, start_utc: DateTime<Utc>, end_utc: DateTime<Utc>, daily_note_doc_id: Option<DocId> }, ActivitySpan { span_id: String, calendar_event_id: Option<String>, started_utc: DateTime<Utc>, ended_utc: DateTime<Utc>, edited_doc_ids: Vec<DocId> }, and DailyNoteBinding { date: NaiveDate, doc_id: DocId, calendar_event_id: Option<String> }. Methods: events_for_range(from: NaiveDate, to: NaiveDate) -> Result<Vec<CalendarEvent>, InteropError>; activity_spans_for_event(event_id: &str) -> Result<Vec<ActivitySpan>, InteropError> (returns Err(InteropError::EndpointUnavailable) -> the typed blocker path when the activity-span route 404s / is absent); open_or_create_daily_note(date: NaiveDate) -> Result<DailyNoteBinding, InteropError> (MUST delegate to the MT-019 daily-note service rather than re-implement creation — see implementation_notes); resolve_event_for_daily_note(date: NaiveDate) -> Result<Option<CalendarEvent>, InteropError>.\n  - src/frontend/handshake_native/src/loom/daily_journal_panel.rs (~250-400 lines) — the egui panel that hosts the daily note view ported from the React LoomDailyJournalPanel.tsx. Renders: a date header with prev/next day nav (reuse MT-019 date navigation, do NOT build a second calendar widget), the linked CalendarEvent chip (clickable -> emits a command-bus event to focus/open the calendar event window for that date), and a read-only 'Edited during this block' correlation strip listing the ActivitySpan.edited_doc_ids as document chips. The correlation strip is strictly read-only: clicking a doc chip navigates to that document but the panel never writes ActivitySpan data.\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/interop/mod.rs — add `pub mod calendar_interop;` (create the interop module dir + mod.rs under src/frontend/handshake_native/src/ if it does not yet exist; interop is a NEW WP-012 module subdir).\n  - src/frontend/handshake_native/src/loom/mod.rs — add `pub mod daily_journal_panel;` and export DailyJournalPanel into the loom panel registry (create the loom module dir + mod.rs under src/frontend/handshake_native/src/ if it does not yet exist; this new loom panel work reuses the existing graph view in loom_graph.rs as its host module, it does not fork a second loom surface).\n  - Register the DailyJournalPanel as a pane in the WP-011 pane registry (pane_registry.rs), and register its commands (open-daily-note-for-date, link-calendar-event, focus-calendar-event) on the WP-011 command bus (command_registry.rs + event_bus.rs). Register AccessKit author_ids (see implementation_notes) using the WP-011 AccessKit id registry (accessibility/registry.rs). Do NOT fork new shell primitives — reuse pane_registry.rs, command_registry.rs + event_bus.rs, and accessibility/* shipped by WP-011.\n\nStep-by-step implementation notes:\n  1. Date -> daily note (idempotent open-or-create). open_or_create_daily_note(date) MUST call the MT-019 daily-note service entrypoint (the same path MT-019 exposes as openDailyJournal / open_daily_note) so a given date always maps to exactly ONE doc; calling it twice for the same date returns the same DocId without creating a duplicate. Do not re-derive the daily-note path or template here — that ownership belongs to MT-019; this MT only orchestrates the call and stores the returned DailyNoteBinding.\n  2. Date -> CalendarEvent window. When a date is selected in the calendar (the calendar widget itself is MT-030's territory — the React reference is a dumb view backed by React Big Calendar; here the native calendar emits a date-selected signal on the command bus / event_bus.rs), calendar_interop calls events_for_range(date, date), picks the event whose window contains the date (or the all-day event for that date), opens-or-creates the daily note, and writes daily_note_doc_id back into the in-memory CalendarEvent binding so the linkage is bidirectional in the session. Persisting the link back to the backend is OUT OF SCOPE unless the existing events endpoint already accepts a daily_note_doc_id field — if it does not, keep the link session-local and note it.\n  3. Daily note -> CalendarEvent. resolve_event_for_daily_note(date) calls events_for_range(date, date) and returns the matching event so the daily_journal_panel can render the clickable CalendarEvent chip. Clicking the chip emits a focus-calendar-event command on the WP-011 command bus (command_registry.rs + event_bus.rs) targeting MT-030's calendar pane (do not import calendar-pane internals; communicate via the command bus only).\n  4. ActivitySpan correlation (read-only). activity_spans_for_event(event_id) GETs the existing /calendar/activity-spans route filtered to the event. The panel renders ActivitySpan.edited_doc_ids as read-only document chips under an 'Edited during this block' heading. If the route is absent (404 / not registered / feature-not-enabled), the method returns Err(InteropError::EndpointUnavailable) and the panel shows a typed empty-state ('Activity correlation not available — backend endpoint not exposed') instead of failing the whole panel. This is the typed-blocker contract: surface the blocker, keep the rest of the panel alive, never fabricate spans, never hit the DB.\n  5. Backend binding (existing endpoints only). events_for_range -> GET /workspaces/{workspace_id}/calendar/events?from={from}&to={to} (existing). activity_spans_for_event -> GET /workspaces/{workspace_id}/calendar/activity-spans (read-only correlation; typed blocker if absent). All persistence is PostgreSQL/EventLedger via handshake_core — this MT NEVER opens a DB connection, NEVER touches SQLite (there is none in this product), and NEVER writes a new endpoint. Gaps in the backend surface are typed blockers, not backend work.\n  6. egui + AccessKit. The panel is native egui (no web view). Register AccessKit nodes: daily-journal-panel (GenericContainer), daily-journal-date-header (Label/Heading), daily-journal-prev-day (Button), daily-journal-next-day (Button), daily-journal-calendar-event-chip (Button, present only when an event resolves), daily-journal-activity-strip (List), and per item daily-journal-activity-item-{doc_id} (ListItem/Button). Use the WP-011 AccessKit id registry (accessibility/registry.rs) to allocate these stable ids so swarm agents can address them.\n  7. Command bus wiring. Register on the WP-011 command bus (command_registry.rs + event_bus.rs): 'loom.daily-note.open-for-date' (payload: NaiveDate), 'loom.daily-note.focus-calendar-event' (payload: event_id), 'loom.activity.open-document' (payload: DocId). The calendar pane (MT-030) and the daily journal panel communicate only through these bus commands.\n  8. Error model. Define InteropError enum: Http(reqwest-style status), Decode(serde error), EndpointUnavailable (the typed blocker for the missing activity-span join), DailyNoteServiceError (propagated from MT-019), NotFound. EndpointUnavailable MUST be distinguishable from a generic HTTP error so the panel renders the correct empty-state and the validator can prove the typed-blocker path.\n\nDependencies / unblock conditions:\n  - MT-019 (daily notes + date navigation) must be merged: this MT delegates open-or-create to MT-019's daily-note service and reuses its date nav rather than rebuilding either.\n  - MT-030 (calendar pane / date-selected signal) must be merged: this MT consumes the date-selected command and emits focus-calendar-event back to MT-030's pane via the command bus.\n  - MT-037 must be merged (prerequisite interop/shell primitive this edge builds on).\n  - WP-011 shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs command bus, accessibility/* AccessKit id registry) available — reuse, do not fork. (WP-011 is a cross-WP dependency satisfied by the merged kernel shell; it is not a depends_on MT id.)\n  - Existing handshake_core endpoints GET /calendar/events and GET /calendar/activity-spans reachable; if activity-spans is absent, that is the in-scope typed blocker, not a build task.\n\nRisk if missed: daily notes stay disconnected from the time-structured workspace; the Calendar force-multiplier edge (Pillar 2) is unbuilt, so the 'melt-together' invariant between editors and the calendar is broken and MT-073 (downstream) cannot proceed.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/interop/calendar_interop.rs",
+      "src/frontend/handshake_native/src/interop/mod.rs",
+      "src/frontend/handshake_native/src/loom/daily_journal_panel.rs",
+      "src/frontend/handshake_native/src/loom/mod.rs",
+      "src/frontend/handshake_native/tests/test_calendar_interop.rs",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Selecting a date opens-or-creates that day's daily note idempotently: calling open_or_create_daily_note(date) twice for the same date returns the same DocId and creates no duplicate document — proven by cargo test that delegates to the MT-019 daily-note service (no re-implemented creation path).",
+      "A daily note resolves and links its CalendarEvent window for the date: resolve_event_for_daily_note(date) returns the matching CalendarEvent and the daily_journal_panel renders a clickable calendar-event chip whose click emits the focus-calendar-event command on the WP-011 command bus — proven by cargo test.",
+      "ActivitySpan correlation lists documents edited during a calendar block, read-only: activity_spans_for_event(event_id) returns spans and the panel renders ActivitySpan.edited_doc_ids as read-only document chips; the panel performs no write to ActivitySpan data — proven by cargo test asserting no write call and read-only chip rendering.",
+      "Missing activity-span endpoint raises the typed blocker and shows empty-state: when /calendar/activity-spans is absent (404), activity_spans_for_event returns Err(InteropError::EndpointUnavailable) and the panel renders the typed empty-state while keeping the daily-note <-> CalendarEvent binding functional — proven by cargo test simulating a 404.",
+      "Backend binding uses only existing handshake_core REST endpoints (GET /calendar/events, GET /calendar/activity-spans); no DB connection is opened, no SQLite is referenced anywhere, and no new endpoint is authored — proven by grep showing only HttpClient calls and no sqlx/rusqlite/diesel usage in the new files.",
+      "Reuses WP-011 shell primitives: DailyJournalPanel is registered in the pane registry (pane_registry.rs), its commands are registered on the command bus (command_registry.rs + event_bus.rs), and its AccessKit ids are allocated via the WP-011 AccessKit id registry (accessibility/registry.rs) — no forked shell primitives — proven by grep of the registration call sites.",
+      "cargo test -p handshake-native calendar_interop passes with no failures across all four required tests."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native calendar_interop -- --nocapture  =>  all tests PASS, no panics",
+      "cargo test: open_or_create_daily_note(date) called twice returns identical DocId and zero duplicate documents (idempotency proof, delegates to MT-019)",
+      "cargo test: resolve_event_for_daily_note(date) returns the matching CalendarEvent and chip-click emits 'loom.daily-note.focus-calendar-event' on the command bus",
+      "cargo test: activity_spans_for_event returns Err(InteropError::EndpointUnavailable) on simulated 404 and the panel renders the typed empty-state (typed-blocker proof)",
+      "AccessKit tree snapshot: assert nodes 'daily-journal-panel', 'daily-journal-calendar-event-chip', 'daily-journal-activity-strip' present with correct roles"
+    ],
+    "implementation_notes": [
+      "Delegate daily-note creation to MT-019: do NOT re-derive the daily-note file path, template, or doc-id scheme here. open_or_create_daily_note must call the MT-019 daily-note service entrypoint (openDailyJournal / open_daily_note equivalent) so a date maps to exactly one doc and creation stays idempotent and single-owner.",
+      "Calendar widget ownership belongs to MT-030: communicate via the WP-011 command bus (command_registry.rs + event_bus.rs) — date-selected in, focus-calendar-event out. Do not import calendar-pane internals or build a second calendar/date-picker — reuse MT-019 date navigation for the daily-note prev/next-day controls.",
+      "Typed blocker pattern: InteropError::EndpointUnavailable must be a distinct enum variant returned specifically when the activity-spans route is absent (404 / not registered), distinguishable from generic Http errors, so the panel can render the correct empty-state and the validator can prove the blocker path.",
+      "Read-only correlation: the activity strip renders ActivitySpan.edited_doc_ids only; it must contain no mutation path. Clicking a doc chip emits 'loom.activity.open-document' (navigation) and never writes span data.",
+      "Use chrono NaiveDate/DateTime<Utc> for date handling; format the events query as ?from=YYYY-MM-DD&to=YYYY-MM-DD against the existing /calendar/events route.",
+      "PostgreSQL/EventLedger only: all persistence is via handshake_core's REST surface. The new files must not reference sqlx, rusqlite, diesel, or any direct DB driver — gaps are typed blockers, not local DB work.",
+      "AccessKit ids must be allocated through the WP-011 AccessKit id registry (accessibility/registry.rs, not hand-rolled string literals scattered in the panel) so swarm agents get stable, collision-free addresses.",
+      "React reference LoomDailyJournalPanel.tsx (app/src, reference only): port the date header + prev/next nav layout, the linked-event chip pattern, and the 'edited during this block' correlation list; the React calendar is a React Big Calendar dumb view — treat it as a layout/data-shape reference only, not a behavior spec for the native calendar.",
+      "Cross-WP dependency: this MT builds on the WP-011 kernel shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs, accessibility/*) and reuses loom_graph.rs as the host loom surface; WP-011 must be merged before this MT runs. This is a cross-WP dependency recorded as prose, not a depends_on MT id."
+    ],
+    "ports_from_react": [
+      "app/src/components/* Calendar (React Big Calendar dumb-view reference; app/src is legacy React, reference only) — event window shape (start/end/title), date-range query shape, all-day vs timed event handling; reference only, the native calendar behavior is MT-030's",
+      "app/src/components/LoomDailyJournalPanel.tsx (legacy React, reference only) — date header + prev/next-day nav layout, linked CalendarEvent chip pattern, 'edited during this block' read-only correlation list"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/calendar/events?from=&to= (existing) — calendar events for the date range; used by events_for_range and resolve_event_for_daily_note",
+      "GET /workspaces/{workspace_id}/calendar/activity-spans (read-only correlation) — ActivitySpan edit correlation; if absent the MT raises InteropError::EndpointUnavailable as a typed blocker and shows the empty-state (no backend build, no DB access)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "Duplicate daily notes: if open_or_create_daily_note re-implements creation instead of delegating to MT-019, the same date could spawn two docs, breaking idempotency and corrupting the date->doc mapping.",
+      "Hidden backend rewrite: a coder tempted to 'just add' the activity-span join in the backend or query PostgreSQL directly would violate the no-backend-rewrite and PostgreSQL-only-via-API constraints and introduce a SQLite/DB-driver dependency that must never exist.",
+      "Typed blocker swallowed as generic error: if EndpointUnavailable is collapsed into a generic Http error, the panel cannot distinguish 'feature not exposed' from 'transient failure', and the blocker becomes invisible to the validator and operator.",
+      "Tight coupling to calendar internals: importing MT-030 calendar-pane internals instead of using the command bus would fork the shell and break the WP-011 single-command-bus invariant.",
+      "Correlation strip becomes writable: if the activity strip ever gains a mutation path, the read-only contract for ActivitySpan data is broken and could corrupt audit/activity state owned by the backend.",
+      "Date/timezone drift: mixing local and UTC dates between the calendar query, the daily-note key, and ActivitySpan windows could mis-correlate edits to the wrong calendar block."
+    ],
+    "minimum_controls": [
+      "open_or_create_daily_note must delegate to the MT-019 daily-note service; a cargo test calls it twice for the same date and asserts identical DocId and zero new documents.",
+      "Grep gate: the new files must contain no sqlx/rusqlite/diesel/SQLite references and no direct DB connection; all backend access is via HttpClient against existing /calendar/* endpoints.",
+      "InteropError::EndpointUnavailable must be a distinct variant with a dedicated test that simulates a 404 on /calendar/activity-spans and asserts both the typed error and the panel empty-state while the daily-note binding still works.",
+      "Cross-pane communication must go through the WP-011 command bus only (command_registry.rs + event_bus.rs); a grep/test confirms no direct import of calendar-pane internals and that focus-calendar-event is emitted as a bus command.",
+      "The activity correlation strip must expose no mutation API; a test asserts the panel never calls any write path on ActivitySpan data and only emits navigation commands.",
+      "All date handling uses chrono UTC with explicit NaiveDate keys; a test asserts the events query, daily-note key, and activity correlation all resolve to the same calendar day for a boundary (e.g. 23:30 local) case."
+    ]
+  }
+}

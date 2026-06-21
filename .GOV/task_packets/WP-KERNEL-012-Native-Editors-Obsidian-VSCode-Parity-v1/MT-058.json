@@ -1,0 +1,112 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-058",
+  "title": "E2-MT-058-InlineTagsHashAuthoring",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-058.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012", "MT-015", "MT-023"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: bring Obsidian/Notion-style inline #tag authoring into the body of the native rich-text editor. Today a tag can only be assigned through the properties panel (MT-017); this MT lets the user type '#' inside prose to detect, autocomplete, insert, and render a tag inline, render it as a clickable chip that navigates to the tag hub, and converge inline tags with property tags on save so the whole product uses ONE tag identity (one tag, one hub).\n\nExpected diff shape: (a) one new parser module src/frontend/handshake_native/src/rich_text/inline_tags/parser.rs (~250-400 lines) that scans rich-text inline runs for '#tag' patterns at word boundaries and produces typed Tag tokens / Tag marks; (b) one new render+widget module src/frontend/handshake_native/src/rich_text/inline_tags/inline_chip.rs (~250-350 lines) that draws a Tag mark as an inline egui chip with AccessKit metadata and emits a navigation event on click; (c) edits to the existing input handler src/frontend/handshake_native/src/rich_text/renderer/input_handler.rs that detect the '#' trigger at a word boundary, open the autocomplete menu (reusing the MT-016 slash/menu pattern, itself built on command_palette.rs + command_registry.rs), and commit the chosen tag as a Tag mark. There is also a small mod wiring file edit (src/frontend/handshake_native/src/rich_text/inline_tags/mod.rs — create) and the rich_text module declaration (src/frontend/handshake_native/src/rich_text/mod.rs — add `pub mod inline_tags;` if not already present).\n\nExact files to CREATE:\n  - src/frontend/handshake_native/src/rich_text/inline_tags/mod.rs  -- declares `pub mod parser;` and `pub mod inline_chip;`; re-exports the public types (Tag, TagToken, parse_inline_tags, InlineTagChip, TagActivated).\n  - src/frontend/handshake_native/src/rich_text/inline_tags/parser.rs  -- pure parsing/detection logic, NO egui dependency so it is cheaply unit-testable.\n  - src/frontend/handshake_native/src/rich_text/inline_tags/inline_chip.rs  -- egui widget for rendering one Tag mark as a chip + AccessKit + click->TagActivated.\n\nExact files to EDIT:\n  - src/frontend/handshake_native/src/rich_text/renderer/input_handler.rs  -- add the '#' trigger detection + autocomplete + commit path.\n  - src/frontend/handshake_native/src/rich_text/mod.rs  -- add `pub mod inline_tags;` (only if the submodule is not already declared).\n\nParser design (parser.rs):\n  1. Define `Tag { name: String }` where `name` is the normalized tag string WITHOUT the leading '#' (e.g. '#rust' -> name='rust'). Normalize: trim, lowercase is NOT applied automatically (preserve author casing for display) but the canonical key used for edge identity and convergence MUST match MT-017 property-tag normalization exactly -- reuse the existing normalization fn from the MT-017 tag model rather than re-implementing it; if MT-017 exposes `normalize_tag(&str) -> String`, call it. If no such fn is exported, that is a typed blocker (see binds_backend_api / implementation_notes).\n  2. Define `TagToken { byte_range: Range<usize>, tag: Tag }` -- the span in the source paragraph text covered by the '#tag' literal (INCLUDING the leading '#').\n  3. Implement `parse_inline_tags(text: &str) -> Vec<TagToken>`: scan the text; a tag begins only at a WORD BOUNDARY -- i.e. the '#' is at byte offset 0 OR the byte immediately before it is whitespace or a non-word punctuation boundary. Reject mid-word '#': e.g. 'C#' must NOT produce a tag because '#' is preceded by a word char 'C'. The tag body after '#' matches the Obsidian tag charset: ASCII letters, digits, '_', '-', and '/' (for nested tags like #area/sub); the tag ends at the first char not in that set. A bare '#' with no valid body char following is NOT a tag. Empty body ('# foo') is NOT a tag.\n  4. Keep parser.rs free of egui/AccessKit imports so its tests are fast and headless.\n\nInline chip widget (inline_chip.rs):\n  5. Define `InlineTagChip<'a> { tag: &'a Tag }` implementing an egui draw fn `show(self, ui: &mut egui::Ui) -> InlineTagResponse` (do NOT implement egui::Widget if the editor renders inline runs manually -- match the inline-run rendering approach already used by the rich-text renderer; follow MT-012's inline mark rendering pattern). Render the chip as a rounded, tinted background pill containing the text '#'+tag.name, sized to fit the inline text run baseline so it flows with surrounding prose.\n  6. The chip is clickable: on click (primary button release inside the chip rect), return/emit `TagActivated { tag: Tag }`. Define `TagActivated { tag: Tag }` as the navigation event. The editor forwards TagActivated onto the WP-011 navigation/command bus (command_registry.rs + event_bus.rs) so the tag hub opens -- DO NOT open a window directly from the chip; emit the event and let the host route it (mirrors how wikilinks emit a navigation request rather than navigating themselves).\n  7. AccessKit: every rendered chip MUST register an AccessKit node with author_id = format!(\"inline-tag-{}\", tag.name), role = Role::Link, and an action that triggers TagActivated so swarm agents can click it deterministically. Use the WP-011 AccessKit id registry helper from the accessibility module (src/frontend/handshake_native/src/accessibility/registry.rs) to register the id (do not hand-roll an AccessKit tree).\n\nInput handler / autocomplete (input_handler.rs):\n  8. On every text-input frame, after the existing key handling, inspect the text immediately left of the caret. If the user just typed '#' AND that '#' is at a word boundary (offset 0 or preceded by whitespace), open the tag autocomplete menu. Reuse the MT-016 menu component (the same popup the slash command / wikilink autocomplete uses) -- pass it the tag list as its item source. Do NOT build a second bespoke popup.\n  9. Tag list source: load existing tags via the MT-023 tag-hub view source: GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub. Map each returned tag_hub row to an autocomplete item (display '#'+name). Cache the list for the open session; refresh on menu open. Filter the list live as the user types the body after '#'. Always allow committing a NEW tag that is not yet in the list (free-typed tag), because authoring a tag in the body is a valid create path.\n 10. Commit: when the user selects an item or types a valid tag body and presses the menu's confirm key (Enter/Tab, matching MT-016), replace the '#'+typed-body literal in the buffer with a committed Tag mark spanning that range, then close the menu and place the caret after the chip. The Tag mark carries the normalized tag identity from step 1.\n 11. Convergence (one tag, one hub): inline Tag marks and MT-017 property-panel tags MUST resolve to the same tag identity and the same hub. On document COMMIT/save, the set of distinct inline tag identities is unioned with the property-panel tag set and persisted as loom edges of edge_type='tag' via POST /workspaces/{workspace_id}/loom/edges (one edge per distinct tag, deduped by normalized identity). A tag that already exists as a property tag MUST NOT create a duplicate edge. This is what makes inline #tags index into the SAME tag system as property tags so clicking either lands on the same tag hub (MT-023).\n\nDependencies / unblock conditions:\n  - MT-011 (rich-text editor pane exists) merged.\n  - MT-012 (inline marks / inline run rendering model) merged -- the Tag mark is a new inline mark variant that reuses MT-012's mark rendering pipeline.\n  - MT-015 (caret / text-input + buffer mutation surface) merged -- needed for caret-relative trigger detection and range replacement.\n  - MT-023 (tag hub + tag_hub loom view + navigation to hub) merged -- supplies the tag list source and the hub the chip navigates to.\n  - WP-011 shell primitives reused (real modules under src/frontend/handshake_native/src/): pane registry (pane_registry.rs), command/navigation bus (command_registry.rs + event_bus.rs), AccessKit id registry (accessibility/registry.rs), tag-hub navigation surface (loom_graph.rs). PostgreSQL/EventLedger only -- no SQLite anywhere. No backend rewrite: bind the existing handshake_core loom view + edges APIs; any missing endpoint or missing normalize_tag export is a TYPED BLOCKER, not a backend change made here.\n\nRisk if missed: inline #tag authoring and inline tag navigation are absent; users can only set tags from the properties panel, never from the note body, breaking Obsidian/Notion parity and fragmenting tag identity (body tags vs property tags) so MT-044 parity proof cannot pass.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_text/inline_tags/mod.rs",
+      "src/frontend/handshake_native/src/rich_text/inline_tags/parser.rs",
+      "src/frontend/handshake_native/src/rich_text/inline_tags/inline_chip.rs",
+      "src/frontend/handshake_native/src/rich_text/renderer/input_handler.rs",
+      "src/frontend/handshake_native/src/rich_text/mod.rs",
+      "src/frontend/handshake_native/tests/test_inline_tags.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: Typing '#' at a word boundary (start of paragraph or after whitespace) opens the tag autocomplete menu; a '#' preceded by a word character (e.g. 'C#') does NOT open the menu and does NOT produce a tag — proven by unit test on parse_inline_tags and a kittest input-simulation test.",
+      "AC-002: parse_inline_tags('learning #rust and #wip today') returns exactly two TagTokens with tag.name 'rust' and 'wip' (in order), each byte_range covering the full '#tag' literal including the leading '#' — proven by cargo unit test.",
+      "AC-003: A committed inline Tag mark renders as a clickable inline chip; clicking it emits a TagActivated event carrying the tag identity (routed to the navigation bus) — proven by kittest that simulates a click and asserts the emitted event.",
+      "AC-004: Every rendered inline chip has an AccessKit node with author_id='inline-tag-{tag}' and role=Link present in the exported AccessKit tree — proven by kittest AccessKit dump.",
+      "AC-005: Inline tags converge with MT-017 property tags: a document containing inline #rust and a property tag 'rust' persists exactly ONE loom edge of edge_type='tag' for 'rust' (no duplicate) on commit; both the inline chip and the property tag navigate to the same MT-023 tag hub — proven by a test that inspects the committed edge set (or, if live POST is unavailable in test, asserts the deduped edge-payload builder output).",
+      "AC-006: The autocomplete list is sourced from GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub and a brand-new free-typed tag not in the list can still be committed — proven by kittest (mocked view source) plus a commit assertion.",
+      "AC-007: parser.rs has no egui/AccessKit imports (pure logic) and cargo test -p handshake-native passes with no failures across all MT-058 tests; no unwrap() on caret/range operations in production paths."
+    ],
+    "proof_targets": [
+      "PT-001: cargo test -p handshake-native inline_tags::parser -- boundary + extraction tests GREEN ('#' at word boundary opens; mid-word 'C#' does not; ['rust','wip'] extracted), output logged.",
+      "PT-002: kittest interaction test — simulate typing '#ru', select 'rust' from the (mocked) autocomplete, press Enter; assert buffer contains a Tag mark and an inline chip is rendered.",
+      "PT-003: kittest interaction test — click the rendered '#rust' chip; assert a TagActivated{tag:'rust'} event was emitted onto the navigation bus.",
+      "PT-004: kittest AccessKit dump test — assert node author_id='inline-tag-rust' with role=Link present.",
+      "PT-005: convergence test — build a doc with inline #rust + property tag 'rust'; assert the committed edge-payload contains exactly one edge_type='tag' edge for 'rust' (deduped)."
+    ],
+    "implementation_notes": [
+      "Reuse the MT-016 autocomplete/menu component as the '#' tag popup (the same popup pattern built on the WP-011 command_palette.rs + command_registry.rs primitives) — do NOT build a second popup; pass the tag list as its item source and reuse its keyboard nav (Arrow/Enter/Tab/Escape).",
+      "Reuse the MT-012 inline-mark rendering pipeline for the Tag mark; the chip is a new inline mark variant, not a separate render path.",
+      "Word-boundary rule mirrors the React wikilink trigger in app/src/lib/editor/wikilink.ts but uses '#' instead of '[[': a tag starts only when '#' is at offset 0 or preceded by whitespace/non-word punctuation; the body charset is [A-Za-z0-9_/-].",
+      "Tag identity normalization MUST reuse the MT-017 property-tag normalization (e.g. normalize_tag) so inline tags and property tags collapse to one identity; if that fn is not exported, raise a typed blocker rather than re-implementing normalization (divergent normalization would break the 'one tag, one hub' invariant).",
+      "The chip emits TagActivated and lets the host route it through the WP-011 navigation/command bus (command_registry.rs + event_bus.rs); it must NOT open the hub window directly (mirrors wikilink navigation-request pattern). The tag hub itself is the existing loom_graph.rs surface opened by MT-023.",
+      "tag_hub identity mirrors WorkspaceSidebar.tsx bookmarkKind()/tag_hub identity in React — the tag hub the chip navigates to is the SAME hub MT-023 opens for that tag.",
+      "Use the WP-011 AccessKit id registry helper (src/frontend/handshake_native/src/accessibility/registry.rs) to register 'inline-tag-{tag}' ids; do not hand-build AccessKit nodes.",
+      "PostgreSQL/EventLedger only — never introduce SQLite. Edge persistence goes through the existing loom edges API; do not write storage code in the frontend."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/wikilink.ts (boundary trigger, adapt for '#')",
+      "app/src/components/WorkspaceSidebar.tsx bookmarkKind() / tag_hub identity"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — source for the tag autocomplete list and the navigation target hub (MT-023).",
+      "POST /workspaces/{workspace_id}/loom/edges (edge_type='tag' on commit) — persists deduped tag edges; inline and property tags converge to one edge per distinct normalized tag.",
+      "NOTE: if MT-017 does not export a reusable normalize_tag(&str)->String, OR if no existing handshake_core endpoint backs the above, treat it as a TYPED BLOCKER (do not add/rewrite backend or storage; surface the gap)."
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Divergent normalization between inline #tags and MT-017 property tags would create two identities for the same tag (e.g. 'Rust' vs 'rust'), splitting the hub and producing duplicate loom edges — directly breaking the 'one tag, one hub' convergence invariant.",
+      "RISK-002: Word-boundary false positives/negatives — treating 'C#' or a URL fragment ('http://x#y') as a tag, or failing to fire on a legitimate '#' after punctuation — corrupting prose and tag indexing.",
+      "RISK-003: Caret-relative trigger detection on multi-byte UTF-8 text can mis-slice byte offsets (off-by-one on '#' position), inserting the Tag mark over the wrong range.",
+      "RISK-004: Duplicate edge spam on every keystroke or every save — committing a tag edge per render frame instead of one deduped edge per distinct tag at commit time.",
+      "RISK-005: Chip click navigates directly to the hub from the widget instead of emitting TagActivated, bypassing the WP-011 navigation bus and breaking swarm observability/attribution.",
+      "RISK-006: AccessKit id collision when the same tag appears multiple times in one document ('inline-tag-rust' registered twice), producing an invalid AccessKit tree.",
+      "RISK-007: Backend gap (missing tag_hub view filter or edges endpoint) silently swallowed, causing the feature to appear to work in the editor but never index into the tag system."
+    ],
+    "minimum_controls": [
+      "MC-001: Inline tag identity MUST be produced by the SAME normalization function as MT-017 property tags; a unit test asserts inline #Rust and property tag 'Rust' resolve to the identical canonical key.",
+      "MC-002: Unit-test the boundary rule against an adversarial corpus: '#rust' (yes), 'C#' (no), 'a#b' (no), '#' alone (no), '# foo' (no), 'see #wip,' (yes, trailing punctuation ends the tag), '#area/sub' (yes, nested), and a UTF-8 paragraph with emoji before '#tag'.",
+      "MC-003: All caret/range math uses byte-safe buffer APIs from MT-015; no unwrap() on offsets; out-of-range inputs clamp or return Result.",
+      "MC-004: Edge persistence dedupes by normalized identity and fires only at document commit/save, never per keystroke; a test asserts exactly one edge for a tag present both inline and as a property tag.",
+      "MC-005: The chip emits TagActivated onto the WP-011 navigation bus and never opens the hub directly; a kittest asserts the event is observed on the bus.",
+      "MC-006: AccessKit registration for repeated tags is idempotent or instance-suffixed so duplicate occurrences do not collide; a kittest with two '#rust' occurrences asserts a valid, non-colliding AccessKit tree.",
+      "MC-007: Any missing backend endpoint or missing normalize_tag export is raised as a typed blocker (logged + handoff note), not worked around with frontend storage or a backend rewrite."
+    ]
+  }
+}

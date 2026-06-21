@@ -1,0 +1,111 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-057",
+  "title": "E2-MT-057-WikilinkAliasResolveAndCreate",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-057.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-015", "MT-017", "MT-037", "MT-038"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Add two Obsidian-core wikilink behaviors on top of the MT-015 wikilink/transclusion engine in the native (egui) rich-text editor: (1) CREATE-FROM-UNRESOLVED — clicking an unresolved `[[Title]]` link offers a 'Create note \"Title\"' affordance that POSTs a new knowledge document via the MT-037 backend binding and then rewrites the in-document mark from unresolved to resolved; and (2) ALIAS RESOLUTION — resolve a wikilink target not only by exact title/ref but also against a per-document `aliases` list, and surface alias matches in the MT-015 autocomplete dropdown alongside exact-title matches. This MT is pure frontend logic layered on existing panes and existing backend APIs — NO backend rewrite. Backend gaps are TYPED BLOCKERS, not new endpoints.\n\nThis MT does NOT re-implement the wikilink mark, the `[[...]]` parser, or the autocomplete UI shell — those already exist from MT-015 (E2-MT015-WikilinksTransclusion). This MT adds: a richer resolver (resolver.rs) and the alias-aware autocomplete data path (autocomplete.rs) feeding the existing MT-015 dropdown widget.\n\nFiles to CREATE (new modules under src/frontend/handshake_native/src/):\n  - src/frontend/handshake_native/src/rich_text/wikilinks/resolver.rs  — the resolution engine. Define:\n      * enum WikilinkResolution { Resolved { document_id: String, matched_by: MatchKind }, Unresolved { title: String } }\n      * enum MatchKind { ExactRef, ExactTitle, Alias { alias: String } }\n      * struct ResolverIndex { by_title: HashMap<String, String /*doc_id*/>, by_alias: HashMap<String, String /*doc_id*/>, aliases_supported: bool }\n      * fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResolution — normalize target (trim, case-insensitive per Obsidian default), check exact ref/title first, then alias map; if no match return Unresolved.\n      * fn create_note_intent(title: &str) -> EditorIntent::CreateNote { title } — emit a command-bus intent (reuse the WP-011 command bus via command_registry.rs + event_bus.rs) rather than calling the network inline from the click handler.\n  - src/frontend/handshake_native/src/rich_text/wikilinks/autocomplete.rs  — alias-aware candidate provider. Define:\n      * struct WikilinkCandidate { document_id: String, display_title: String, matched_alias: Option<String>, score: i64 }\n      * fn candidates_for_query(index: &ResolverIndex, query: &str) -> Vec<WikilinkCandidate> — fuzzy-match query against both titles and aliases, dedupe by document_id (prefer the higher score; if matched by alias, set matched_alias so the dropdown can render 'Title (alias: \"foo\")'), sort by score desc.\n      This module feeds the EXISTING MT-015 autocomplete dropdown — do not build a new dropdown widget; produce the candidate list the MT-015 widget consumes.\n\nFiles to EDIT (extend, do not rewrite):\n  - src/frontend/handshake_native/src/rich_text/wikilinks/mod.rs  — add `pub mod resolver;` and `pub mod autocomplete;`; route link-activation (click) through resolver::resolve_wikilink and, on Unresolved, present the 'Create note' affordance.\n  - src/frontend/handshake_native/src/rich_text/wikilinks/mark.rs (or the MT-015 mark module that owns the rendered link span) — on an Unresolved mark, render the link in the 'unresolved' visual state (Obsidian renders these dimmed/dashed) and attach a click/context action that emits the create-note affordance. After a successful create, mutate the mark to Resolved { document_id } so it re-renders as a live link without a full document reload.\n\nStep-by-step implementation notes:\n  1. Build ResolverIndex from data already available via the MT-038 Loom search binding. Call GET /workspaces/{workspace_id}/loom/search to enumerate candidate documents (title + id). Populate by_title. For aliases: read a per-document `aliases` field if the search/document payload exposes one (it is set via the MT-017 PropertiesPanel). If the field is ABSENT from the backend payload, set ResolverIndex.aliases_supported = false and raise the typed blocker (see step 7).\n  2. Resolution order in resolve_wikilink: (a) exact ref/id match, (b) exact title match (case-insensitive, whitespace-normalized), (c) alias match against by_alias. First hit wins; record MatchKind accordingly. No match => Unresolved { title }.\n  3. Click activation: when the user clicks a wikilink mark, call resolve_wikilink. If Resolved, route the open through the existing MT-015 link-open path (navigate to document_id). If Unresolved, show a small inline affordance (egui button or popup) labeled 'Create note \"{title}\"'.\n  4. Create-from-unresolved: when the operator confirms, emit EditorIntent::CreateNote { title }. The intent handler calls POST /knowledge/documents (MT-037 binding) with the title and an empty body, receives the new document_id, inserts it into ResolverIndex.by_title, and rewrites the originating mark to Resolved { document_id }. The link must become live immediately (no manual refresh).\n  5. Alias autocomplete: while the user types `[[query`, the MT-015 autocomplete trigger calls candidates_for_query. Candidates matched by alias render with a secondary label (e.g. `Project Atlas — alias: \"atlas\"`). Selecting an alias candidate inserts the canonical `[[Title]]` (or `[[Title|displayed]]` if Obsidian alias-display syntax is in scope per MT-015) that resolves to document_id.\n  6. AccessKit: the 'Create note' affordance must register an AccessKit node with a STABLE author_id of the form `wikilink-create-{hash}` where {hash} is a short stable hash of the unresolved title (so swarm agents and kittest can address it deterministically), Role::Button, actions=[Press]. Reuse the WP-011 AccessKit id registry (accessibility/registry.rs) rather than minting ids ad hoc. Each alias autocomplete row should also carry a stable author_id (e.g. `wikilink-candidate-{document_id}`).\n  7. TYPED BLOCKER (aliases gap): if the backend Loom search / knowledge document payload does NOT expose an `aliases` field, do NOT silently no-op. (a) Raise a typed blocker record in the standard WP-012 blocker channel (the packet's typed-gap mechanism) naming the missing field and the two affected APIs; (b) stub alias resolution LOCAL-ONLY: keep a process-local alias map (empty unless populated by the MT-017 PropertiesPanel in-session) so the code path is exercised and testable; (c) render a VISIBLE banner in the rich editor stating alias resolution is running local-only / backend aliases unavailable, so the operator is never misled into thinking aliases are persisted. The CREATE-FROM-UNRESOLVED half is independent of aliases and MUST still proceed fully.\n  8. Reuse only — do NOT add SQLite or any local DB. All persistence is PostgreSQL/EventLedger through the existing handshake_core HTTP APIs. The local alias stub in step 7 is in-memory only and is explicitly NOT a persistence layer.\n\nReact reference to port: app/src/lib/editor/wikilink.ts holds classifyWikilink + the resolution function (exact vs unresolved classification) — port the classification and resolution branching into resolver.rs. app/src/components/RichDocumentView.tsx holds the link-activation routing (what happens on click for resolved vs unresolved) — port the routing decision into the click handler, but emit a command-bus intent instead of an inline fetch.\n\nDependencies / unblock conditions:\n  - MT-015 (E2-MT015-WikilinksTransclusion) must be merged: provides the wikilink mark, parser, and autocomplete dropdown shell this MT extends.\n  - MT-017 (E2-MT017-PropertiesPanel) must be merged: it is where per-document `aliases` are authored; the resolver reads them.\n  - MT-037 (E6-MT-037-BindKnowledgeDocumentsApi) must be merged: provides POST /knowledge/documents.\n  - MT-038 (E6-MT-038-BindLoomApi) must be merged: provides GET /workspaces/{workspace_id}/loom/search for title/alias enumeration.\n\nInterop edge: create-from-link writes through the MT-037 /knowledge/documents binding so the newly created note is immediately addressable as a Loom block (E5 interconnection) with live backlinks — growing the note graph from a single click.\n\nRisk if missed: without create-on-click and alias resolution, the note graph cannot grow from authoring flow and multi-name linking parity with Obsidian is broken; MT-044 (which depends on this) is blocked.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_text/wikilinks/resolver.rs",
+      "src/frontend/handshake_native/src/rich_text/wikilinks/autocomplete.rs",
+      "src/frontend/handshake_native/src/rich_text/wikilinks/mod.rs",
+      "src/frontend/handshake_native/src/rich_text/wikilinks/mark.rs",
+      "src/frontend/handshake_native/tests/test_wikilink_resolver.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: Clicking an unresolved `[[Title]]` wikilink emits a CreateNote intent carrying the link title — proven by a cargo test that activates an unresolved mark and asserts the emitted EditorIntent::CreateNote { title } matches the link text.",
+      "AC-002: After the CreateNote intent resolves (POST /knowledge/documents returns a document_id), the originating mark transitions from Unresolved to Resolved { document_id } and re-renders as a live link without a full document reload — proven by cargo test asserting mark state before/after.",
+      "AC-003: resolve_wikilink matches a target by a declared alias (not only exact ref/title) and returns MatchKind::Alias — proven by a cargo test seeding ResolverIndex.by_alias and asserting resolution.",
+      "AC-004: An unresolved wikilink renders a visible 'Create note' affordance, and an AccessKit node with author_id of the form 'wikilink-create-{hash}' (Role=Button) is present — proven by a kittest AccessKit tree dump.",
+      "AC-005: Alias autocomplete: typing a query that matches a document's alias surfaces that document as a candidate with matched_alias set, rendered with an alias secondary label — proven by cargo test on candidates_for_query plus a kittest dropdown assertion.",
+      "AC-006: Missing-aliases-backend path: when the backend payload lacks an `aliases` field, the typed-gap blocker is raised AND a visible local-only banner is shown AND the create-from-unresolved half still works — proven by a cargo test on the missing-aliases path asserting the banner state and that the path does not silently no-op.",
+      "AC-007: No SQLite or local DB introduced; all persistence routes through PostgreSQL/EventLedger via existing handshake_core HTTP APIs — proven by grep showing no sqlite/rusqlite usage and that creation calls the MT-037 binding.",
+      "AC-008: cargo test -p handshake-native passes with no failures across all wikilink resolver tests."
+    ],
+    "proof_targets": [
+      "PT-001: cargo test -p handshake-native wikilink_resolver -- --nocapture  =>  all tests GREEN, no panics",
+      "PT-002: cargo test asserting an unresolved-link click emits CreateNote intent and post-create mark becomes Resolved",
+      "PT-003: cargo test asserting resolve_wikilink returns MatchKind::Alias for an alias-only target",
+      "PT-004: kittest AccessKit tree snapshot asserting a 'wikilink-create-{hash}' Button node is present on an unresolved link",
+      "PT-005: cargo test on the missing-aliases backend path asserting the typed-gap banner is shown and the create half still proceeds"
+    ],
+    "implementation_notes": [
+      "Reuse the WP-011 shell primitives: emit the create-note action through the existing command bus (command_registry.rs + event_bus.rs) rather than calling fetch inline; pull AccessKit ids through the WP-011 AccessKit id registry (accessibility/registry.rs) rather than minting strings ad hoc.",
+      "Resolution normalization must match Obsidian defaults: trim, collapse internal whitespace, case-insensitive title/alias compare. Keep canonical (original-case) display titles for rendering.",
+      "candidates_for_query must dedupe by document_id: a doc that matches both by title and by alias appears once, with the higher score; set matched_alias only when the winning match was an alias.",
+      "The 'Create note {hash}' author_id hash must be STABLE for a given unresolved title within a session so kittest and swarm agents can target it deterministically; use a short hex hash of the normalized title.",
+      "Do NOT call POST /knowledge/documents directly from the egui click handler frame; emit an intent and let the intent handler perform the async call, then mutate the mark on completion to avoid blocking the egui frame thread.",
+      "The local-only alias stub (typed-blocker path) is in-memory only; it must be clearly NOT a persistence layer and must not write any file or DB.",
+      "Cross-WP dependency: this MT extends the WP-011 native shell — it relies on the existing command bus (command_registry.rs + event_bus.rs) and the AccessKit id registry (accessibility/registry.rs) delivered in WP-KERNEL-011; those modules already exist under src/frontend/handshake_native/src/ and are reused, not rebuilt.",
+      "React reference shapes: app/src/lib/editor/wikilink.ts classifyWikilink/resolution branching maps to resolver.rs; app/src/components/RichDocumentView.tsx link-activation routing maps to the click handler (but emit an intent, not an inline fetch)."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/wikilink.ts (classifyWikilink, resolution) — port the resolved-vs-unresolved classification and the resolution branching into src/frontend/handshake_native/src/rich_text/wikilinks/resolver.rs",
+      "app/src/components/RichDocumentView.tsx (link activation routing) — port the click-routing decision for resolved vs unresolved links into the egui click handler"
+    ],
+    "binds_backend_api": [
+      "POST /knowledge/documents (create note) — via the MT-037 binding; used by the create-from-unresolved-link path",
+      "GET /workspaces/{workspace_id}/loom/search (alias/title resolution) — via the MT-038 binding; used to build ResolverIndex (title + alias enumeration)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Create-from-unresolved races: rapid double-click could POST /knowledge/documents twice and create duplicate notes for the same title.",
+      "RISK-002: The aliases backend gap is silently swallowed — alias resolution returns no matches and the operator wrongly believes aliases are unsupported or broken, with no typed blocker and no banner.",
+      "RISK-003: After create, the originating mark is not rewritten to Resolved, so the link stays visually unresolved until a full document reload, breaking the immediate-live-link expectation.",
+      "RISK-004: Alias and title collisions: an alias on doc A equals a title on doc B; ambiguous resolution silently picks the wrong document.",
+      "RISK-005: AccessKit author_id collisions when multiple unresolved links share the same title, or non-stable hashes break kittest/swarm targeting.",
+      "RISK-006: Accidental backend rewrite or a new endpoint is added instead of binding the existing MT-037/MT-038 APIs, or SQLite is introduced for the alias stub, violating the PostgreSQL/EventLedger-only and no-backend-rewrite constraints.",
+      "RISK-007: Network call performed inline on the egui click frame blocks the UI thread and freezes the editor during note creation."
+    ],
+    "minimum_controls": [
+      "MC-001: Debounce/guard create-from-unresolved: disable the affordance and mark an in-flight state once CreateNote is emitted so a second click cannot fire a duplicate POST; key the guard on the normalized title.",
+      "MC-002: The missing-aliases path MUST raise the typed-gap blocker AND render the visible local-only banner — assert both in a test; never allow a silent no-op (enforced by AC-006).",
+      "MC-003: Post-create mark rewrite to Resolved { document_id } is covered by AC-002 and a regression test; the link must re-render live without reload.",
+      "MC-004: Resolution order is deterministic and documented (ref, then exact title, then alias); when an alias collides with a title, exact title wins and the decision is unit-tested.",
+      "MC-005: Use the WP-011 AccessKit id registry (accessibility/registry.rs) and a stable short hash of the normalized title for 'wikilink-create-{hash}'; unit-test hash stability and uniqueness across distinct titles.",
+      "MC-006: grep-gate proving no rusqlite/sqlite usage and that creation routes through the MT-037 binding (not a new endpoint) and resolution through the MT-038 binding (enforced by AC-007).",
+      "MC-007: All network I/O for create routes through an emitted intent + async handler, never inline on the egui frame thread (enforced by implementation note and reviewed in proof)."
+    ]
+  }
+}

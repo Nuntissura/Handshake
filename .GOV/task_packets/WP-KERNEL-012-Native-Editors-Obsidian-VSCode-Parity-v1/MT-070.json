@@ -1,0 +1,109 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-070",
+  "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
+  "group": "E11",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-008", "MT-030", "MT-048", "MT-049", "MT-050", "MT-057"],
+    "blocks": ["MT-072"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: complete the 'melt-together' click-through by wiring the WP-011 context-menu surfaces and the shell NavigationTarget bus to the REAL WP-012 editor actions. This MT is dispatch-only glue: it does NOT build new context-menu infrastructure (the context-menu primitive already exists from WP-011 as context_menu.rs / context_menu_surfaces.rs) and it does NOT build new editor actions (Rename Symbol, Quick Fix, Format Selection, Peek/Go-to-Def, Create-note-from-link already exist as MT-048/MT-049/MT-050/MT-008/MT-057). It connects the two: every context-menu entry must fire a real editor action handler, and every cross-surface click (quick-switcher, link click, node click) must route a NavigationTarget into the correct editor or pane addressed by stable id. The expected diff shape is: (a) EDIT the existing WP-011 module src/frontend/handshake_native/src/context_menu_surfaces.rs (~250-400 lines added) to define the two menu population functions (editor body menu, canvas/loom node menu) and bind each entry to the corresponding real action handler obtained from the pane registry (pane_registry.rs) and command bus (command_registry.rs + event_bus.rs), (b) one CREATED module src/frontend/handshake_native/src/navigation_bus.rs (~200-350 lines) that completes the NavigationTarget enum, the dispatch function, and the per-pane registration table so a NavigationTarget resolves to a live pane by stable id and focuses/scrolls it, and (c) egui_kittest integration tests proving the menus fire real handlers and the bus routes targets to the right pane.\n\nFiles to CREATE or EDIT (EDIT context_menu_surfaces.rs in place since it already exists from WP-011, never duplicate WP-011 infra; CREATE navigation_bus.rs):\n  - src/frontend/handshake_native/src/context_menu_surfaces.rs  -- EDIT the existing WP-011 module; this is the only place WP-012 context-menu wiring lives. Define `populate_editor_body_menu(ui: &mut egui::Ui, ctx: &AppContext, target: EditorMenuTarget)` and `populate_node_context_menu(ui: &mut egui::Ui, ctx: &AppContext, target: NodeMenuTarget)`. Each function adds entries by calling the WP-011 context-menu primitive (the existing context_menu.rs / context_menu_surfaces.rs builder API, e.g. an entry(label, accesskit_id, on_activate) call); the `on_activate` closure must call the REAL action handler resolved from the command bus (command_registry.rs) / pane registry (pane_registry.rs) -- never a placeholder, never a TODO, never a no-op.\n  - src/frontend/handshake_native/src/navigation_bus.rs  -- CREATE this new module to complete the NavigationTarget bus. Define `enum NavigationTarget { EditorAtSymbol { pane_id: PaneId, symbol: SymbolRef }, EditorAtLocation { pane_id: PaneId, byte_offset: usize }, OpenNote { note_id: String }, RevealNode { pane_id: PaneId, node_id: String }, FocusPane { pane_id: PaneId } }` (match the variants the depended-on MTs actually emit; reconcile names against the live pane_registry.rs types). Define `fn dispatch(&self, target: NavigationTarget) -> Result<(), NavError>` that looks the pane up by stable id in pane_registry.rs, calls `registry.focus(pane_id)`, then calls the pane's `reveal(target)` method. Define a registration hook `fn register_nav_handler(pane_id: PaneId, handler: Arc<dyn NavHandler>)` so each editor pane registers how it reveals a target.\n\nFiles to EDIT (thin call-site changes only; do NOT reimplement these modules):\n  - src/frontend/handshake_native/src/lib.rs  -- add `pub mod navigation_bus;` (and ensure `pub mod context_menu_surfaces;` is declared) if not already declared; expose the singletons through the existing AppContext.\n  - src/frontend/handshake_native/src/quick_switcher.rs (the quick-switcher module from MT-030) -- replace its placeholder navigation call with `navigation_bus.dispatch(NavigationTarget::FocusPane{..})` / `EditorAtSymbol{..}` so selecting a result actually focuses the target editor/pane by stable id.\n  - the code-editor pane module that owns the body context menu (the new WP-012 code_editor/ module created under src/frontend/handshake_native/src/code_editor/) -- ensure its right-click handler calls `populate_editor_body_menu(...)` (it must already register a `NavHandler` via `register_nav_handler` so the bus can reveal a location/symbol inside it).\n  - the canvas/loom node modules (src/frontend/handshake_native/src/canvas_board.rs and src/frontend/handshake_native/src/loom_graph.rs) -- ensure right-click on a node calls `populate_node_context_menu(...)` and that node click emits the corresponding NavigationTarget (RevealNode / OpenNote).\n\nExact action bindings each context-menu entry MUST fire (no dead handlers on the required path):\n  - 'Rename Symbol'    -> the real handler from MT-048 (rename-symbol command id, e.g. command_bus.dispatch_command(\"editor.rename_symbol\", ctx)).\n  - 'Quick Fix'        -> the real handler from MT-049 (quick-fix command).\n  - 'Format Selection' -> the real handler from MT-050 (format-selection command).\n  - 'Peek Definition' / 'Go to Definition' -> the real handler from MT-008 (peek / go-to-def code-nav, which is the only one of these that touches a backend API).\n  - 'Create note from link' -> the real handler from MT-057 (create-note-from-link).\nThe canvas/loom node menu must offer the node-appropriate subset (Open note, Reveal node, Create note from link) bound to the same real handlers.\n\nStep-by-step implementation notes:\n  1. Locate the WP-011 context-menu primitive (context_menu.rs and the existing context_menu_surfaces.rs builder/entry API). Do not rebuild it. Use its builder/entry API verbatim. Each entry takes a label, a stable AccessKit id, and an activation closure.\n  2. Locate the WP-011 pane registry (pane_registry.rs) and command bus (command_registry.rs + event_bus.rs) on AppContext. The pane registry maps stable PaneId -> live pane handle; the command bus dispatches command-id -> handler. Resolve every menu action through one of these two -- never inline the action logic here.\n  3. In context_menu_surfaces.rs, implement `populate_editor_body_menu`. For each of Rename Symbol, Quick Fix, Format Selection, Peek/Go-to-Def, Create-note-from-link, add an entry whose `on_activate` calls the real command via the command bus. Gate enablement on whether the action is available for the current selection (e.g. Rename Symbol disabled when no symbol under cursor) -- a disabled entry is acceptable, a dead-but-enabled entry is a FAIL.\n  4. Implement `populate_node_context_menu` the same way for canvas/loom nodes (Open note via OpenNote NavigationTarget, Reveal node via RevealNode, Create note from link via MT-057 handler).\n  5. In navigation_bus.rs, finalize the NavigationTarget enum to exactly cover what MT-008 (location/symbol), MT-030 (quick-switcher target), and MT-057/canvas (note/node) emit. Implement `dispatch`: resolve pane_id in pane_registry.rs; if absent return `Err(NavError::PaneNotFound)`; else focus the pane then call its registered NavHandler::reveal(target). For OpenNote, route through the note-open path that opens/focuses the note's pane then reveals it.\n  6. Each editor/canvas pane registers a NavHandler in its constructor/mount via `register_nav_handler(pane_id, handler)` so the bus has a live reveal path. The handler is owned by the pane (this MT only ensures registration call sites exist and are wired; the reveal bodies belong to the panes' own MTs and are reused, not rewritten).\n  7. Wire the MT-030 quick-switcher (quick_switcher.rs): on result confirm, build the NavigationTarget for the selected item (by its stable id) and call `navigation_bus.dispatch(target)`. Assert the correct pane is focused by stable id.\n  8. AccessKit: every context-menu entry uses a stable AccessKit author_id from the existing WP-011 id registry (accessibility/registry.rs) (e.g. \"ctxmenu-editor-rename-symbol\", \"ctxmenu-node-open-note\"); reuse the registry, do not invent a parallel id scheme. The menu container and each item carry role=Menu / role=MenuItem so swarm agents can address and activate them.\n  9. Keep this MT dispatch-only: NO new context-menu rendering infra, NO new editor-action logic, NO backend rewrite. The only backend touchpoint is indirect via MT-008's existing code-nav API; this module binds to that handler, it does not call the backend directly.\n  10. Tests: an egui_kittest test that right-clicks the code body and asserts the menu shows Rename Symbol / Quick Fix / Format Selection / Peek entries and that activating each fires the real handler (assert the handler side-effect, e.g. command dispatched / pane state changed). An egui_kittest test that drives the MT-030 quick-switcher and asserts a NavigationTarget routes into the correct editor pane addressed by stable id. A cargo test asserting canvas/loom node context-menu actions dispatch to real handlers. A cargo test asserting NO context-menu entry on the required path hits a dead/placeholder handler (e.g. scan that every required entry's on_activate resolves to a registered command id or registered NavHandler).\n\nDependencies / unblock conditions:\n  - MT-008 (Peek/Go-to-Definition code-nav, backend-bound) must be merged.\n  - MT-030 (quick-switcher) must be merged so there is a NavigationTarget producer to wire.\n  - MT-048 (Rename Symbol), MT-049 (Quick Fix), MT-050 (Format Selection), MT-057 (Create-note-from-link) must be merged so the real handlers exist to bind.\n  - WP-011 (cross-WP dependency) must provide the context-menu primitive (context_menu.rs / context_menu_surfaces.rs), the pane registry (pane_registry.rs), the command bus (command_registry.rs + event_bus.rs), and the AccessKit id registry (accessibility/registry.rs) -- reused, not rebuilt.\n\nRisk if missed: editor context menus and cross-surface navigation stay placeholder; right-click does nothing real and the quick-switcher cannot focus the right editor by id, leaving the 'melt-together' click-through incomplete and blocking MT-072.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/context_menu_surfaces.rs",
+      "src/frontend/handshake_native/src/navigation_bus.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_context_menu_surfaces.rs",
+      "src/frontend/handshake_native/tests/test_navigation_bus.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-070-1: Right-clicking the code editor body opens a context menu containing Rename Symbol, Quick Fix, Format Selection, and Peek/Go-to-Definition entries, and activating each fires the REAL editor action handler (MT-048/MT-049/MT-050/MT-008) — proven by egui_kittest asserting the handler side-effect, not a placeholder/no-op.",
+      "AC-070-2: The Create-note-from-link entry (present in editor body and/or node menu) fires the real MT-057 handler — proven by egui_kittest asserting a note-create dispatch.",
+      "AC-070-3: The NavigationTarget bus routes a quick-switcher (MT-030) selection into the correct editor/pane addressed by stable id — proven by egui_kittest asserting the focused pane id equals the target pane id.",
+      "AC-070-4: Canvas/loom node context-menu actions (Open note, Reveal node, Create note from link) dispatch to the real handlers — proven by cargo test asserting each entry resolves to a registered command id or registered NavHandler.",
+      "AC-070-5: No context-menu entry on the required path hits a dead/placeholder handler — proven by a cargo test that walks every required entry's on_activate and asserts it resolves to a live registered handler (FAIL if any required entry is a no-op/TODO).",
+      "AC-070-6: dispatch(NavigationTarget) returns Err(NavError::PaneNotFound) for an unknown pane id and Ok(()) after focusing+revealing for a known pane id — proven by unit test.",
+      "AC-070-7: No new context-menu infrastructure is introduced; this MT only calls the WP-011 context-menu primitive (context_menu.rs / context_menu_surfaces.rs), pane registry (pane_registry.rs), command bus (command_registry.rs + event_bus.rs), and AccessKit id registry (accessibility/registry.rs) — proven by grep showing entries are added via the WP-011 builder and ids come from the existing registry.",
+      "AC-070-8: cargo test -p handshake-native passes with no failures across test_context_menu_surfaces and test_navigation_bus.",
+      "AC-070-9: AccessKit nodes present for the menu container (role=Menu) and each required item (role=MenuItem) using stable author_ids from the WP-011 id registry (accessibility/registry.rs) — proven by AccessKit tree dump in kittest."
+    ],
+    "proof_targets": [
+      "PT-070-1: cargo test -p handshake-native context_menu_surfaces -- --nocapture  =>  all tests PASS, no panics",
+      "PT-070-2: cargo test -p handshake-native navigation_bus -- --nocapture  =>  all tests PASS, no panics",
+      "PT-070-3: egui_kittest harness: right-click code body, assert Rename/Quick Fix/Format/Peek entries present, activate each, assert real handler side-effect (command dispatched / state changed)",
+      "PT-070-4: egui_kittest harness: drive MT-030 quick-switcher, confirm a result, assert NavigationTarget routed into the correct pane (focused pane id == target pane id)",
+      "PT-070-5: cargo test: walk required context-menu entries and assert none resolves to a dead/placeholder handler",
+      "PT-070-6: AccessKit tree snapshot: assert menu container role=Menu and required MenuItems carry stable author_ids from the WP-011 id registry (accessibility/registry.rs)"
+    ],
+    "implementation_notes": [
+      "This MT is dispatch/glue only. Resolve every action through the WP-011 command bus (command_registry.rs + event_bus.rs: command-id -> handler) or pane registry (pane_registry.rs: PaneId -> live pane); never inline action logic and never duplicate WP-011 context-menu rendering.",
+      "Reuse the existing WP-011 context-menu builder/entry API from context_menu.rs / context_menu_surfaces.rs verbatim; reuse the WP-011 AccessKit id registry (accessibility/registry.rs) for every author_id (e.g. 'ctxmenu-editor-rename-symbol', 'ctxmenu-node-open-note').",
+      "NavigationTarget variants must exactly match what MT-008 (location/symbol), MT-030 (quick-switcher target), and MT-057/canvas (note/node) actually emit — reconcile names against the live pane_registry.rs types before finalizing the enum.",
+      "dispatch() flow: resolve pane_id in pane_registry.rs -> if absent return Err(NavError::PaneNotFound) -> else registry.focus(pane_id) then pane NavHandler::reveal(target). For OpenNote, route through the note-open path that opens/focuses the note pane then reveals.",
+      "Gate context-menu entry enablement on action availability for the current selection (e.g. Rename Symbol disabled when no symbol under cursor). A disabled entry is acceptable; a dead-but-enabled entry is a FAIL.",
+      "Each editor/canvas pane must register a NavHandler via register_nav_handler(pane_id, handler) at mount; this MT only ensures those registration call sites are wired — the reveal bodies are owned and reused from the panes' own MTs.",
+      "Only MT-008 (Peek/Go-to-Def) touches a backend API, and only indirectly via its existing handler; this MT performs NO direct backend calls and NO backend rewrite — any missing backend capability is a typed blocker, not a rewrite.",
+      "Cross-WP dependency (prose, not a depends_on id): WP-011 must provide the context-menu primitive (context_menu.rs / context_menu_surfaces.rs), pane registry (pane_registry.rs), command bus (command_registry.rs + event_bus.rs), and AccessKit id registry (accessibility/registry.rs); these are reused from WP-011, never rebuilt here."
+    ],
+    "ports_from_react": [
+      "WP-011 context-menu surfaces (context_menu.rs / context_menu_surfaces.rs) — the editor body context menu and canvas/loom node context menu shapes (entry labels, grouping, AccessKit ids) ported to bind WP-012 real actions instead of placeholders"
+    ],
+    "binds_backend_api": [
+      "NONE (dispatch only) — this MT binds existing in-process editor-action handlers and the pane registry/command bus; the only backend touch is indirect via the already-bound MT-008 code-nav handler. No new or direct backend API calls."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-070-1: A context-menu entry is wired to a placeholder/no-op or a command id that is not actually registered, so the menu looks complete but right-click does nothing real on the required path.",
+      "RISK-070-2: NavigationTarget variant names drift from what MT-008/MT-030/MT-057 actually emit, so dispatch silently routes to the wrong pane or no pane.",
+      "RISK-070-3: A NavigationTarget references a stale/closed pane_id (e.g. quick-switcher result for a pane that was closed), causing a panic or a focus on the wrong pane.",
+      "RISK-070-4: This MT rebuilds context-menu infrastructure or editor-action logic instead of reusing WP-011 context_menu.rs / context_menu_surfaces.rs primitives and the existing handlers, violating the dispatch-only scope and forking the 'melt-together' substrate.",
+      "RISK-070-5: AccessKit author_id collisions or a parallel id scheme are introduced instead of reusing the WP-011 id registry (accessibility/registry.rs), breaking swarm addressability of menu items.",
+      "RISK-070-6: A panic propagates out of an on_activate closure during an egui frame (e.g. handler unwrap), freezing the UI for all panes."
+    ],
+    "minimum_controls": [
+      "MC-070-1: A cargo test walks every required context-menu entry and asserts its on_activate resolves to a registered command id or registered NavHandler; FAIL if any required entry is a no-op/TODO (enforces AC-070-5).",
+      "MC-070-2: Reconcile the NavigationTarget enum against the live emitter types from MT-008/MT-030/MT-057 and add a unit test that round-trips each emitted target through dispatch into the expected pane id.",
+      "MC-070-3: dispatch() must guard pane lookup: unknown pane_id returns Err(NavError::PaneNotFound) (never panic); add a unit test for the stale/closed pane_id path.",
+      "MC-070-4: Grep/test that context-menu entries are added via the WP-011 context_menu.rs / context_menu_surfaces.rs builder and that every author_id comes from the existing WP-011 id registry (accessibility/registry.rs) — no new menu-rendering infra, no parallel id scheme (enforces AC-070-7).",
+      "MC-070-5: on_activate closures must not unwrap/expect on fallible handler results; surface errors as a logged warning or NavError, never a frame-thread panic.",
+      "MC-070-6: Any missing real handler or backend capability must be raised as a typed blocker (BLOCKER object) rather than satisfied with a placeholder; the required path may not ship with a dead entry."
+    ]
+  }
+}

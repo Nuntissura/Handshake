@@ -1,0 +1,109 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-054",
+  "title": "E1-MT-054-EditorChromeBracketIndentWrap",
+  "group": "E1",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-054.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-002"],
+    "blocks": ["MT-045"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: complete the VS Code editor-chrome rendering layer that sits on top of the MT-002 virtualized line renderer. Three render-only features are added in this MT: (1) matching-bracket highlight driven by cursor adjacency plus bracket-pair colorization across nesting depth, (2) vertical indent guides with an active-guide highlight for the block enclosing the cursor, and (3) a word-wrap mode toggled by Alt+Z that rewrites the visible-row layout math so a single logical buffer line can occupy multiple visual rows. This is strictly a render-layer / decoration addition: the underlying text buffer model (ropey Rope from MT-001) and the highlight span model are NOT changed; no buffer edit, no cursor-model change, no tree-sitter grammar change. The work hangs entirely off the existing viewport / line-painting code created in MT-002.\n\nExact files to CREATE:\n  - src/frontend/handshake_native/src/code_editor/render_decorations.rs  — bracket matching + bracket-pair colorization. Defines: `struct BracketMatch { open_byte: usize, close_byte: usize }`, `fn find_matching_bracket(buffer: &TextBuffer, cursor_byte: usize) -> Option<BracketMatch>` (scans left/right of the cursor for one of `()[]{}`, then walks the buffer with a depth counter to find the partner, honoring the same bracket family only), and `fn bracket_pair_colors(buffer: &TextBuffer, visible_byte_range: Range<usize>, palette: &[egui::Color32]) -> Vec<(Range<usize>, egui::Color32)>` (assigns each bracket a color by its nesting depth modulo palette length, matching VS Code's bracketPairColorization). Both functions are pure over a borrowed buffer slice; no mutation.\n  - src/frontend/handshake_native/src/code_editor/word_wrap.rs  — visible-row layout math for wrap mode. Defines: `struct WrapConfig { enabled: bool, wrap_column: Option<usize>, viewport_width_px: f32 }`, `struct VisualRow { logical_line: usize, byte_start: usize, byte_end: usize, wrap_index: usize }`, and `fn layout_visual_rows(buffer: &TextBuffer, line_range: Range<usize>, cfg: &WrapConfig, char_width_px: f32) -> Vec<VisualRow>`. When `cfg.enabled` is false, each logical line maps to exactly one VisualRow (wrap_index=0) so existing behavior is preserved. When enabled, a logical line wider than the wrap width is split at the last soft break (whitespace) before the width limit, falling back to a hard character break when no whitespace exists; each fragment becomes its own VisualRow.\n\nExact files to EDIT:\n  - src/frontend/handshake_native/src/code_editor/viewport.rs  — the MT-002 virtualization module. Today it computes which logical lines are visible and paints them. Change it to: (a) call `word_wrap::layout_visual_rows` to translate the visible logical-line range into a list of VisualRow entries and drive painting + scroll math off visual rows instead of raw logical lines (so the vertical scrollbar, first-visible-row and row-count computations all account for wrapped rows); (b) after painting each line's text + syntax spans, overlay the bracket-match highlight (a rounded rect or underline behind the two matched brackets returned by `find_matching_bracket`) and the bracket-pair colors from `bracket_pair_colors`; (c) paint vertical indent guides — for each visible row compute its leading-whitespace indent level (spaces / tab_width), draw a 1px vertical line via `ui.painter().vline` at x = gutter_right + indent_level * char_width_px * tab_width for each level, and draw the guide that encloses the cursor's block in the active-guide color (theme `visuals.indent_guide_active`) while the rest use `visuals.indent_guide`; (d) register the Alt+Z shortcut (egui::KeyboardShortcut { modifiers: Modifiers::ALT, key: Key::Z }) consumed via ui.input_mut(|i| i.consume_shortcut(..)) to flip `WrapConfig.enabled`, persisted on the editor state struct.\n\nExact crates / egui / AccessKit patterns:\n  - egui only (no new crate). Lines/guides drawn with `ui.painter().vline(x, y_range, egui::Stroke::new(1.0, color))`; bracket highlight rect with `ui.painter().rect_stroke(rect, rounding, stroke)` or `rect_filled` with a low-alpha fill; colored bracket glyphs by painting the bracket character galley with the depth color via `ui.painter().galley` rather than mutating the buffer text.\n  - Reuse the existing per-character / per-span layout produced in MT-002 to get glyph x-offsets; do not recompute font metrics independently — pull `char_width_px` and `row_height_px` from the same monospace `egui::FontId` the renderer already uses (`ui.fonts(|f| f.glyph_width(&font_id, ' '))`).\n  - AccessKit: word-wrap is a render-mode toggle; expose it as a togglable command. Reuse the existing AccessKit integration in src/frontend/handshake_native/src/accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs). If MT-002 already attaches an AccessKit node for the editor surface, add the wrap state as an AccessKit `Toggled` property on a child node with author_id=\"editor-wrap-toggle\" (Role::Button, actions=[Press]) registered through the accessibility/registry.rs node registry so swarm agents can flip wrap deterministically. Do not invent a second editor root node; attach under the MT-002 editor container.\n  - Theme tokens: add `indent_guide`, `indent_guide_active`, and a `bracket_pair_palette: Vec<Color32>` to the editor visuals struct if not already present (theme-aware, no hardcoded hex in the paint path). Source the palette/colors through the existing theme layer in src/frontend/handshake_native/src/theme/ (mod.rs, palette.rs, syntax.rs, egui_apply.rs).\n\nStep-by-step implementation notes:\n  1. Implement and unit-test `find_matching_bracket` first against the in-process TextBuffer (no egui). Cover: cursor immediately before an opening bracket, cursor immediately after a closing bracket (VS Code adjacency rule), nested pairs, unbalanced input returns None, and brackets inside strings/comments are still matched at the syntactic level for v1 (string-awareness is out of scope; note it as a limitation).\n  2. Implement and unit-test `bracket_pair_colors` — walk the visible range maintaining a depth counter per bracket family; map depth to `palette[depth % palette.len()]`.\n  3. Implement and unit-test `layout_visual_rows` with wrap disabled (1:1 mapping) and enabled (a 200-char line at wrap width ~80 produces ceil-style multiple VisualRows; assert byte ranges are contiguous and non-overlapping and cover the whole logical line).\n  4. Edit viewport.rs to consume VisualRows for paint + scroll math; verify the existing MT-002 non-wrap screenshot is unchanged when wrap is off (regression guard).\n  5. Overlay bracket-match highlight + bracket-pair colors + indent guides in the paint pass, in that z-order (text first, then decorations on top).\n  6. Wire the Alt+Z toggle and persist `WrapConfig.enabled` on the editor state.\n\nDependencies / unblock conditions:\n  - MT-001 (TextBuffer in src/frontend/handshake_native/src/code_editor/buffer.rs) must be merged — bracket scanning and indent computation read the buffer.\n  - MT-002 (virtualized line renderer / src/frontend/handshake_native/src/code_editor/viewport.rs) must be merged — all three features attach to its paint + visible-row math; without it there is no row layout to extend.\n  - Cross-WP reuse: the AccessKit integration (accessibility/*) and theme layer (theme/*) reused here are existing WP-011 modules already present under src/frontend/handshake_native/src/.\n\nRisk if missed: bracket matching, bracket-pair colorization, indent guides, and word wrap are absent, leaving the editor chrome visibly below modern VS Code parity (MT-045, the parity proof, is blocked).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/render_decorations.rs",
+      "src/frontend/handshake_native/src/code_editor/word_wrap.rs",
+      "src/frontend/handshake_native/src/code_editor/viewport.rs",
+      "src/frontend/handshake_native/tests/test_bracket_match.rs",
+      "src/frontend/handshake_native/tests/test_indent_guides.rs",
+      "src/frontend/handshake_native/tests/test_word_wrap.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `find_matching_bracket` returns the correct partner byte offset for cursor-adjacent brackets (both before-open and after-close adjacency), handles nested pairs, and returns None for unbalanced input — proven by cargo unit tests.",
+      "AC-002: `bracket_pair_colors` assigns a color per bracket by nesting depth (depth % palette.len()), producing distinct colors for at least three nesting levels — proven by cargo unit test asserting color indices.",
+      "AC-003: `layout_visual_rows` with wrap disabled maps each logical line to exactly one VisualRow (wrap_index=0); with wrap enabled, a long line is split into N>1 contiguous, non-overlapping VisualRows whose byte ranges cover the whole logical line — proven by cargo unit tests.",
+      "AC-004: viewport scroll math is correct under wrap mode: first-visible-row, total-row-count, and scrollbar extent are computed from VisualRows so scrolling a wrapped document lands on the expected content — proven by cargo unit test on the row-index math.",
+      "AC-005: Alt+Z toggles WrapConfig.enabled and the toggle is persisted on the editor state struct; the MT-002 non-wrap rendering is unchanged when wrap is off (regression guard) — proven by cargo test plus the unchanged baseline screenshot.",
+      "AC-006: An egui_kittest screenshot of a code snippet shows (a) a visible matching-bracket highlight when the cursor is adjacent to a bracket and (b) at least one vertical indent guide for an indented block — verified by pixel sampling of the test image.",
+      "AC-007: No buffer-model mutation introduced — all three features are render/decoration only; grep confirms no TextBuffer::insert/delete call sites added in render_decorations.rs, word_wrap.rs, or the new viewport.rs paint paths.",
+      "AC-008: `cargo test -p handshake-native` passes with no failures across the new bracket, indent-guide, and word-wrap tests."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake-native bracket_match` — finds the partner bracket and pair-colorization assigns nesting colors; all GREEN, output logged.",
+      "PT-002: `cargo test -p handshake-native indent_guides` — computes guide x-positions per indent level; all GREEN, output logged.",
+      "PT-003: `cargo test -p handshake-native word_wrap` — visible-row math wraps a long line into N rows and scroll stays correct; all GREEN, output logged.",
+      "PT-004: egui_kittest screenshot — shows matching bracket highlight + indent guides; screenshot saved to test_output/MT-054-chrome.png, pixel check passes."
+    ],
+    "implementation_notes": [
+      "VS Code cursor adjacency rule: a bracket is considered 'active' when the cursor is immediately before an opening bracket OR immediately after a closing bracket. Implement both directions in find_matching_bracket.",
+      "Bracket-pair colorization in VS Code is per-family depth-based; maintain one depth counter shared across families for the color index (VS Code increments depth on any open bracket), but match partners only within the same family — keep these two concerns separate in code.",
+      "When wrap is disabled, layout_visual_rows must be a strict 1:1 identity mapping so the MT-002 baseline screenshot does not regress; add a fast path that skips the wrap computation entirely.",
+      "Pull char_width_px and row_height_px from the SAME egui::FontId the MT-002 renderer uses (ui.fonts(|f| f.glyph_width(&font_id, ' '))); do not hardcode metrics — proportional drift breaks indent-guide x-positions and wrap break points.",
+      "Indent level = leading whitespace columns / tab_width (expand tabs to tab_width columns); active guide = the guide enclosing the cursor's current block. Draw guides with ui.painter().vline, theme tokens visuals.indent_guide and visuals.indent_guide_active sourced from the theme/ layer.",
+      "Alt+Z shortcut: egui::KeyboardShortcut { modifiers: egui::Modifiers::ALT, key: egui::Key::Z }; consume via ui.input_mut(|i| i.consume_shortcut(&sc)) before default handling to avoid inserting 'z'.",
+      "Bracket-pair colors are painted by re-drawing the bracket glyph in the depth color over the syntax-highlighted text (z-order: text, then bracket-pair color, then bracket-match highlight, then indent guides under text); do not mutate buffer text or the HighlightSpan list.",
+      "Cross-WP reuse pointer: the AccessKit toggle node attaches to the existing accessibility/registry.rs registry (WP-011 module under src/frontend/handshake_native/src/accessibility/), and editor visuals draw their colors through the existing theme/ layer (WP-011 module under src/frontend/handshake_native/src/theme/). Reuse these; do not stand up parallel accessibility or theme machinery."
+    ],
+    "ports_from_react": [
+      "app/src/lib/monaco/* (bracket pair / guides / wrap options) — port the Monaco editor option model for bracketPairColorization, guides.indentation/guides.bracketPairs, and wordWrap (off|on|wordWrapColumn) into the Rust WrapConfig + decoration palette; match the option semantics, not the Monaco internals."
+    ],
+    "binds_backend_api": [
+      "NONE — pure frontend render-layer MT; no handshake_core API call. Bracket scanning, indent computation, and wrap layout all read the in-process TextBuffer from MT-001."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Word-wrap visible-row math diverges from scroll math — if the scrollbar still counts logical lines while paint counts visual rows, scrolling a wrapped document jumps or clips content.",
+      "RISK-002: char_width_px / font-metric drift — recomputing metrics independently of the MT-002 renderer makes indent-guide x-positions and wrap break points misalign with the painted glyphs.",
+      "RISK-003: Bracket scan over a very large logical line (no partner) becomes O(n) per frame and stalls the egui frame on big files; unbounded scan with the cursor next to an unmatched bracket is the worst case.",
+      "RISK-004: Brackets inside strings/comments are matched syntactically in v1 (no string-awareness), producing visually wrong matches in code-heavy strings — a known parity gap if not bounded.",
+      "RISK-005: Alt+Z not consumed before default text input inserts a literal 'z' into the buffer, or collides with an OS/global Alt+Z binding.",
+      "RISK-006: Regression — turning the viewport into visual-row mode changes the non-wrap render path and silently breaks the MT-002 baseline screenshot.",
+      "RISK-007: Indent guides drawn over wrapped continuation rows can look wrong (continuation rows have no real leading whitespace), creating ghost guides."
+    ],
+    "minimum_controls": [
+      "MC-001: Drive scrollbar extent, first-visible-row, and total-row-count exclusively from the VisualRow list so paint and scroll math share one source of truth; unit-test the row-index math under wrap on and off.",
+      "MC-002: Pull char_width_px and row_height_px from the MT-002 renderer's egui::FontId; add a test asserting indent-guide x for level N equals gutter_right + N * tab_width * char_width_px.",
+      "MC-003: Bound the bracket scan to the visible byte range plus a fixed look-ahead/behind cap; return None past the cap instead of scanning the whole file every frame.",
+      "MC-004: Document the string/comment bracket-matching limitation in code comments and acceptance notes; scope string-awareness out of v1 explicitly.",
+      "MC-005: Consume the Alt+Z shortcut via ui.input_mut(|i| i.consume_shortcut(..)) before default text handling; unit-test that toggling does not insert a character.",
+      "MC-006: Keep a strict 1:1 fast path in layout_visual_rows when wrap is disabled and add a regression test that the MT-002 non-wrap baseline screenshot is byte-identical.",
+      "MC-007: Suppress indent guides on wrap continuation rows (wrap_index > 0) so only the first visual row of a logical line carries its indent guides."
+    ]
+  }
+}

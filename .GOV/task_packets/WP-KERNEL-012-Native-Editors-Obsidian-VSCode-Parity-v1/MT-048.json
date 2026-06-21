@@ -1,0 +1,112 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-048",
+  "title": "E1-MT-048-RenameSymbolWorkspaceEdit",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-048.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-008", "MT-009", "MT-010"],
+    "blocks": ["MT-049", "MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement VS Code parity 'Rename Symbol' (F2) for the native egui code editor. The operator places the cursor on an identifier, presses F2 (or chooses 'Rename Symbol' from the Editor Body Context Menu code-pane entry), an inline rename input opens pre-filled with the identifier text and fully selected; on confirm the editor sends an LSP `textDocument/rename` request, receives a `WorkspaceEdit`, shows a multi-file preview of every change, and on accept applies the edits atomically across all open buffers and writes-to-disk for files that are not currently open. When no LSP server is attached, the path degrades gracefully to a `handshake_core` references-based single-file rename (only occurrences in the current file are renamed) with an explicit warning banner reading 'LSP-required for cross-file rename'. This is the primary refactoring affordance — without it the VS Code parity claim fails.\n\nExpected diff shape: (a) one new Rust module `src/frontend/handshake_native/src/code_editor/rename.rs` (~400-600 lines) holding the rename state machine, the inline rename input widget, the WorkspaceEdit preview model, and the apply logic; (b) edits to `src/frontend/handshake_native/src/code_editor/lsp_client.rs` to add the `textDocument/rename` request/response wiring over the existing stdio LSP transport from MT-008; (c) edits to `src/frontend/handshake_native/src/code_editor/pane.rs` to add the F2 keybind hook (action arrives via the MT-010 keymap dispatcher), the inline rename input render call, and the new Editor Body Context Menu 'Rename Symbol' entry (build the context-menu surface via the existing WP-011 context_menu.rs + context_menu_surfaces.rs modules).\n\nFiles to CREATE:\n  - `src/frontend/handshake_native/src/code_editor/rename.rs`\n     * `pub struct RenameState` — holds the current phase: `Idle | Editing { entity_id: String, original: String, draft: String, anchor_byte: usize, ident_range: std::ops::Range<usize> } | Previewing { workspace_edit: WorkspaceEditPreview } | Error { message: String }`.\n     * `pub struct WorkspaceEditPreview { files: Vec<FileEditPreview> }` where `FileEditPreview { uri: String, is_open_buffer: bool, edits: Vec<TextEdit>, hunks: Vec<PreviewHunk> }`. `TextEdit { range: LspRange, new_text: String }`. `PreviewHunk { line: usize, before: String, after: String }` (used to render the before/after diff list in the preview, ported visually from the React references panel).\n     * `pub fn begin_rename(buffer: &TextBuffer, cursor_byte: usize) -> Option<RenameState>` — find the identifier under the cursor using tree-sitter node-at-byte from the MT-001 highlight tree (walk to the nearest `identifier`/`type_identifier`/`field_identifier` named node); return `Editing` with the ident text pre-filled and `ident_range` set, or `None` if the cursor is not on an identifier.\n     * `pub fn confirm_rename(...) -> RenameRequest` — build the LSP rename request (entity_id -> file uri + LSP position) OR, when no LSP is connected, build a `CoreReferencesRenameRequest`.\n     * `pub fn build_preview(workspace_edit: LspWorkspaceEdit, open_buffers: &OpenBufferRegistry) -> WorkspaceEditPreview` — sort edits per file descending by start offset so applying later edits does not shift earlier offsets; mark each file as `is_open_buffer` true/false.\n     * `pub fn apply_preview(preview: &WorkspaceEditPreview, buffers: &mut OpenBufferRegistry) -> Result<RenameApplyReport, RenameError>` — for open buffers, apply edits to the in-memory `TextBuffer` (descending offset order; adjust `ropey` byte offsets correctly); for unopened files, read file -> apply edits -> write atomically (write to temp + rename, never partial). Returns a report of files changed and total edit count.\n     * `pub fn render_inline_input(ui: &mut egui::Ui, state: &mut RenameState)` — draws the inline `egui::TextEdit::singleline` overlaid at the identifier screen position; set AccessKit `author_id = \"code_editor_rename_input\"`, `Role::TextInput`; request focus on first frame; select-all on open; Enter = confirm, Escape = cancel.\n     * `pub fn render_preview(ui: &mut egui::Ui, preview: &WorkspaceEditPreview) -> PreviewAction` — lists every changed file with its hunks before apply; an 'Apply' button (`author_id = \"code_editor_rename_apply\"`, `Role::Button`) and a 'Cancel' button (`author_id = \"code_editor_rename_cancel\"`, `Role::Button`).\n     * `pub fn render_no_lsp_banner(ui: &mut egui::Ui)` — a visible warning banner with `author_id = \"code_editor_rename_no_lsp_banner\"`, `Role::Label`, text 'LSP-required for cross-file rename'.\n\nFiles to EDIT:\n  - `src/frontend/handshake_native/src/code_editor/lsp_client.rs` — add `pub async fn rename(&mut self, uri: &str, position: LspPosition, new_name: &str) -> Result<LspWorkspaceEdit, LspError>`; serialize the JSON-RPC `textDocument/rename` params `{ textDocument: { uri }, position: { line, character }, newName }`; deserialize the `WorkspaceEdit` response (support both the `changes` map form `{ [uri]: TextEdit[] }` and the `documentChanges` array form `[{ textDocument, edits }]`). Reuse the existing stdio JSON-RPC framing/transport added in MT-008 — do NOT add a second transport. Map a null/empty WorkspaceEdit to `Ok(LspWorkspaceEdit::empty())` (no-op rename), and any LSP error to `LspError`.\n  - `src/frontend/handshake_native/src/code_editor/pane.rs` — (1) handle the `CodeEditorAction::RenameSymbol` action dispatched by the MT-010 keymap (F2); call `rename::begin_rename`. (2) Add the Editor Body Context Menu code-pane entry 'Rename Symbol' (this MT introduces that context-menu entry on the code pane; build it through the existing WP-011 context_menu.rs + context_menu_surfaces.rs surfaces, e.g. `response.context_menu(|ui| { if ui.button(\"Rename Symbol\").clicked() { ... } })`, AccessKit `author_id = \"code_editor_ctx_rename_symbol\"`, `Role::MenuItem`). (3) Each frame, route `RenameState` to `rename::render_inline_input` / `rename::render_preview` / `rename::render_no_lsp_banner`. (4) Detect LSP-attached vs not via the `lsp_client` handle being `Some(connected)`; if not connected, use the `handshake_core` references fallback.\n\nExact crates/egui/AccessKit patterns:\n  - tree-sitter (from MT-001): use `Tree::root_node().named_descendant_for_byte_range(start, end)` then walk up to the nearest identifier-kind node to resolve the symbol under the cursor; use the byte range as `ident_range`.\n  - ropey (from MT-001): apply edits with `TextBuffer::delete(range)` + `TextBuffer::insert(offset, new_text)`; ALWAYS apply edits in descending start-offset order within a file so earlier offsets are not invalidated.\n  - egui: inline input via `egui::TextEdit::singleline(&mut state.draft).id(egui::Id::new(\"code_editor_rename_input\"))`; position with `egui::Area::new(...).fixed_pos(ident_screen_pos)`; request focus once via `response.request_focus()` guarded by a `focus_requested` flag; select-all by setting the cursor range on first open through `egui::text_edit::TextEditState`.\n  - egui preview: `egui::Window::new(\"Rename Preview\").collapsible(false)` or an inline panel listing `FileEditPreview` rows with before/after hunk text.\n  - AccessKit: set `author_id` on each interactive node exactly as listed above so swarm agents can drive rename without keystrokes: `code_editor_rename_input` (TextInput), `code_editor_rename_apply` (Button), `code_editor_rename_cancel` (Button), `code_editor_rename_no_lsp_banner` (Label), `code_editor_ctx_rename_symbol` (MenuItem).\n  - Reuse WP-011 shell primitives: register the rename input/preview/apply via the existing pane_registry.rs and the AccessKit id registry in accessibility/registry.rs from WP-011; route the 'Rename Symbol' command and the apply/cancel actions through the WP-011 command bus (command_registry.rs + event_bus.rs) rather than ad-hoc state. Do not invent a parallel registry.\n\nExact handshake_core API bound (single-file fallback): `GET /knowledge/code/symbols/{entity_id}/references` returns the references of the symbol within the current file (and others, but the fallback only renames same-file occurrences). Use the returned reference byte/char ranges that fall inside the current file's uri to build a single-file WorkspaceEditPreview; render the 'LSP-required for cross-file rename' banner so the operator knows cross-file occurrences were NOT touched. Bind only this existing API; do NOT add or rewrite any backend endpoint — if the references API lacks a needed field (e.g. precise byte ranges), record it as a typed blocker in the validator notes, do not patch the backend.\n\nStep-by-step implementation notes:\n  1. Wire `CodeEditorAction::RenameSymbol` (F2) into the MT-010 keymap dispatch; on dispatch call `rename::begin_rename(buffer, primary_cursor_byte)`.\n  2. `begin_rename`: resolve identifier via tree-sitter; if `None`, do nothing (no rename popup on non-identifiers). Else set `RenameState::Editing` with `draft = original` and request input focus + select-all next frame.\n  3. On Enter in the inline input: if `draft == original` or `draft` is empty/whitespace -> cancel (no-op). Else call `confirm_rename`.\n  4. If LSP connected: send `lsp_client.rename(uri, position, draft)`; on `Ok(workspace_edit)` build the preview; on `Err` set `RenameState::Error` and show the message (do not panic). If the WorkspaceEdit is empty -> show 'no changes' and return to Idle.\n  5. If LSP NOT connected: call `GET /knowledge/code/symbols/{entity_id}/references`, filter to current-file references, build a single-file preview, and set a flag so `render_no_lsp_banner` is shown in the preview.\n  6. Preview render lists each file (open vs to-disk noted) with before/after hunks; 'Apply' calls `apply_preview`; 'Cancel' returns to Idle.\n  7. `apply_preview`: for open buffers apply edits to the in-memory `TextBuffer` in descending offset order; for unopened files perform atomic disk writes (temp file + rename); never leave a file half-written. Return `RenameApplyReport`. On any per-file failure, stop and report which files were already applied (best-effort rollback is out of scope but the report must be accurate).\n  8. After apply, re-highlight affected open buffers (tree-sitter incremental re-parse) and clear `RenameState` to Idle.\n\nDependencies/unblock conditions: MT-008 (LSP stdio client + code-nav backend binding) must be merged — provides the JSON-RPC transport and the `entity_id -> uri/position` mapping. MT-009 (references / find-all-references surface) must be merged — its references display panel is reused as the rename preview list. MT-010 (Monaco parity keymap) must be merged — provides the `CodeEditorAction::RenameSymbol` action and F2 binding. This MT blocks MT-049 and MT-044.\n\nRisk if missed: No safe multi-file symbol rename; the primary refactoring affordance is missing and the VS Code parity claim fails.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/rename.rs",
+      "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+      "src/frontend/handshake_native/src/code_editor/pane.rs",
+      "src/frontend/handshake_native/tests/test_rename_workspace_edit.rs",
+      "src/frontend/handshake_native/tests/test_rename_graceful.rs",
+      "src/frontend/handshake_native/tests/test_rename_preview.rs",
+      "src/frontend/handshake_native/tests/test_rename_inline_input.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: F2 (or the 'Rename Symbol' context-menu entry) with the cursor on an identifier opens an inline rename input pre-filled with the identifier text and fully selected — proven by egui_kittest: input node author_id='code_editor_rename_input', role=TextInput, initial value equals the identifier under the cursor.",
+      "AC-002: `cargo test -p handshake-native rename_workspace_edit` passes — a mocked LSP `WorkspaceEdit` spanning 2 files is applied to 2 open buffers, with edit offsets adjusted correctly (descending-offset apply order verified, resulting buffer text exact-matches expected).",
+      "AC-003: `cargo test -p handshake-native rename_graceful` passes — with no LSP connected, rename performs a single-file `handshake_core` references-based rename, the 'LSP-required for cross-file rename' banner is present, and there is no panic.",
+      "AC-004: `cargo test -p handshake-native rename_preview` passes — `build_preview` lists every changed file (open vs to-disk noted) with before/after hunks BEFORE any edit is applied; nothing is mutated until 'Apply'.",
+      "AC-005: The Editor Body Context Menu code-pane 'Rename Symbol' entry exists (author_id='code_editor_ctx_rename_symbol', role=MenuItem) and triggers the same `begin_rename` path as F2 — proven by egui_kittest.",
+      "AC-006: AccessKit tree contains the rename nodes: 'code_editor_rename_input' (TextInput), 'code_editor_rename_apply' (Button), 'code_editor_rename_cancel' (Button), and in the no-LSP path 'code_editor_rename_no_lsp_banner' (Label) — proven by AccessKit tree dump.",
+      "AC-007: The `textDocument/rename` request reuses the existing MT-008 stdio JSON-RPC transport (no second transport added) and parses both the `changes` map form and the `documentChanges` array form of WorkspaceEdit — proven by unit tests over both response shapes.",
+      "AC-008: Unopened-file edits are written atomically (temp+rename, never partial) — proven by a test that simulates a write interruption and asserts the original file is intact or fully replaced, never half-written.",
+      "AC-009: No backend endpoint is added or modified; the single-file fallback binds only the existing `GET /knowledge/code/symbols/{entity_id}/references`. Any missing field is recorded as a typed blocker, not patched into src/backend/**."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake-native rename_workspace_edit -- --nocapture` => GREEN, 2-file WorkspaceEdit applied to 2 buffers, offsets correct, output logged.",
+      "PT-002: `cargo test -p handshake-native rename_graceful -- --nocapture` => GREEN, no-LSP single-file rename, banner present, no panic, output logged.",
+      "PT-003: `cargo test -p handshake-native rename_preview -- --nocapture` => GREEN, preview lists changed files before apply, output logged.",
+      "PT-004: egui_kittest test `rename_inline_input_opens` => inline input node author_id='code_editor_rename_input', role=TextInput, value pre-filled with the identifier, fully selected.",
+      "PT-005: egui_kittest AccessKit dump => nodes 'code_editor_rename_input', 'code_editor_rename_apply', 'code_editor_rename_cancel', 'code_editor_ctx_rename_symbol' present with correct roles.",
+      "PT-006: Unit test over both WorkspaceEdit shapes (`changes` map and `documentChanges` array) => both deserialize to the same FileEditPreview set."
+    ],
+    "implementation_notes": [
+      "Apply edits in descending start-offset order within each file so earlier byte offsets are not invalidated by later edits; this is the single most common rename bug — cover it explicitly in `rename_workspace_edit`.",
+      "Resolve the identifier under the cursor with tree-sitter `named_descendant_for_byte_range` then walk to the nearest identifier-kind node; do not regex-scan for the word — that breaks on shadowed/qualified names and is exactly why LSP is required for cross-file.",
+      "Reuse the MT-009 references display widget for the rename preview hunk list; do not author a second diff renderer.",
+      "Reuse the MT-008 `lsp_client` stdio JSON-RPC framing/transport for `textDocument/rename`; adding a second transport is forbidden (AC-007).",
+      "Reuse WP-011 shell primitives: register the 'Rename Symbol' command on the WP-011 command bus (command_registry.rs + event_bus.rs), register all rename AccessKit ids via the WP-011 AccessKit id registry (accessibility/registry.rs), and mount via the WP-011 pane registry (pane_registry.rs). Build the code-pane context-menu entry through context_menu.rs + context_menu_surfaces.rs. Do not create a parallel command bus or id registry.",
+      "Atomic disk write for unopened files: write to a sibling temp file then `std::fs::rename` over the target (rename is atomic on the same volume); never write edits in place.",
+      "The inline input must select-all on open so typing replaces the identifier (VS Code F2 behavior); set the cursor range via egui's TextEditState on the first frame the input is shown.",
+      "Guard `request_focus()` with a one-shot flag so the input does not steal focus every frame (respect HBR-QUIET / non-intrusive operation)."
+    ],
+    "ports_from_react": [
+      "app/src/components/CodeSymbolPanel.tsx — references display reused for the rename multi-file preview list (file rows, before/after hunks, open-vs-disk indicator)"
+    ],
+    "binds_backend_api": [
+      "GET /knowledge/code/symbols/{entity_id}/references — single-file references-based rename fallback when no LSP is attached (existing handshake_core API, reuse only; no backend rewrite)",
+      "LSP textDocument/rename (stdio JSON-RPC over the existing MT-008 transport) — returns a WorkspaceEdit; this is the LSP server, not a handshake_core endpoint"
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Edits applied in ascending offset order shift later offsets and corrupt the buffer — silent data loss in the operator's source files. This is the highest-severity rename failure.",
+      "RISK-002: Partial/half-written disk file for an unopened target if the process is interrupted mid-write — corrupts source code on disk with no open buffer to recover from.",
+      "RISK-003: WorkspaceEdit arrives in the `documentChanges` array form (with optional versioned text-document identifiers) but the client only handles the `changes` map form, so a correct LSP rename is silently dropped.",
+      "RISK-004: No-LSP fallback silently renames only the current file while the operator believes a project-wide rename happened — cross-file references left stale, breaking the build invisibly.",
+      "RISK-005: Inline rename input steals egui focus every frame or pops/steals foreground attention, violating non-intrusive operation and disrupting swarm/operator work.",
+      "RISK-006: `begin_rename` resolves the wrong token (e.g. a keyword, string contents, or whitespace under the cursor) and renames the wrong symbol because it word-scans instead of using the tree-sitter node kind."
+    ],
+    "minimum_controls": [
+      "MC-001: `rename_workspace_edit` test MUST assert descending-offset apply correctness across 2 files; an ascending-order regression must fail the test.",
+      "MC-002: Unopened-file writes MUST be atomic (temp + rename); AC-008 test asserts the file is never half-written.",
+      "MC-003: WorkspaceEdit deserialization MUST handle both `changes` map and `documentChanges` array shapes; AC-007 / PT-006 cover both.",
+      "MC-004: The no-LSP path MUST render the 'LSP-required for cross-file rename' banner (author_id='code_editor_rename_no_lsp_banner'); AC-003 asserts its presence so the operator is never misled about scope.",
+      "MC-005: `request_focus()` MUST be guarded by a one-shot flag (HBR-QUIET); no foreground/attention stealing.",
+      "MC-006: `begin_rename` MUST resolve the symbol via the tree-sitter identifier-kind node and return None on non-identifiers; no word-scan fallback."
+    ]
+  }
+}

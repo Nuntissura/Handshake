@@ -1,0 +1,72 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1",
+  "base_wp_id": "WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1.contract.json",
+    "discovered_by": "WP-KERNEL-012 activation refinement (workflow wf_01ae2073-72e, 2026-06-21); KERNEL_BUILDER-reviewed",
+    "markdown_projection": "NOT_GENERATED_JSON_AUTHORITY_ONLY"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "status": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "note": "JSON contract is authority per the operator no-.md directive (KERNEL stub convention)."
+  },
+  "lifecycle": {
+    "status": "READY_FOR_REFINEMENT",
+    "activation_required": true,
+    "user_signature_required": true,
+    "refinement_required_before_execution": true,
+    "spec_status": "Master Spec 10-product-surfaces (~lines 412/441/444) MANDATES DOCX import/export via AST + a dual RichView+Monaco StructuredTextView. WP-012 deliberately scopes this OUT (export is HTML/MD/TXT/JSON per React parity). This stub carries the spec-mandated scope; refinement reconciles spec vs scope (operator decision).",
+    "next_in_build_order_after": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1"
+  },
+  "draft_scope": {
+    "intent": "Carries the spec-mandated DOCX import/export via AST (Master Spec 10-product-surfaces ~lines 412/441/444) and the dual RichView + Monaco StructuredTextView that are deliberately OUT of the WP-KERNEL-012 React-parity export scope (HTML/MD/TXT/JSON). Separates a large AST-fidelity surface from the parity rebuild. This is reconciliation-debt item (b) recorded in the WP-012 refinement: the spec requires DOCX/dual-view but WP-012 excludes it - so it is parked here and MUST NOT be silently dropped; an operator decision is required (build as this WP vs amend the spec).",
+    "scope_sketch": "IN (subject to refinement): DOCX import/export via a faithful AST round-trip; the dual RichView + structured-text (Monaco-class) view of the same document. OUT: re-doing WP-012 rich-text parity; backend rewrite (typed blockers for gaps); SQLite. Native Rust under src/frontend/**, hosted in the WP-011 shell, reusing handshake_core document + the existing export/ArtifactService contract where present.",
+    "key_open_questions": [
+      "Operator decision: keep DOCX/dual-view as a later WP or expand WP-012 - the spec requires it but WP-012 scope excludes it; do not silently drop.",
+      "Which Rust DOCX library reaches the spec AST fidelity bar, and does export route through the existing unified ExportGuard/ArtifactService contract?",
+      "Is the dual structured-text view a third editor surface or a projection of the existing WP-012 block document model?"
+    ],
+    "acceptance_criteria": "STUB-LEVEL ONLY. Full AC list deferred to refinement. ACTIVATION-AC: refinement records the operator's spec-vs-scope decision, selects the DOCX AST library, defines the dual-view model (third surface vs projection), derives SPEC_ANCHOR/DONE_MEANS, obtains operator signature, and pre-creates the full-detail MT set before execution."
+  },
+  "build_order": {
+    "domain": "PRODUCT_FRONTEND",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": ["WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1"],
+    "blocks": [],
+    "sequencing_note": "Builds on the native rich-text editor + export surface delivered by WP-012. Activate after WP-012 lands; resolves WP-012 reconciliation-debt (b)."
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "active_bundle_at_stub_time": ".GOV/spec/master-spec-v02.195",
+    "roadmap_pointer": "Spec-mandated DOCX/dual-view scope (Master Spec 10-product-surfaces ~412/441/444) scoped out of WP-012; parked here pending operator spec-vs-scope decision."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "The spec mandates DOCX/dual-view; silently dropping it is a spec-vs-code drift (must be an explicit operator decision).",
+      "DOCX export must route through the existing ExportGuard/ArtifactService contract, not a parallel path.",
+      "No SQLite; PostgreSQL/EventLedger authority only."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB until a signed official packet exists.",
+      "Refinement must record the operator's keep-as-WP vs amend-spec decision before MT authoring.",
+      "Require operator signature before packet creation and worktree preparation."
+    ]
+  }
+}
