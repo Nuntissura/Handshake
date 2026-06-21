@@ -8,3 +8,9 @@
 # tracking already-tracked files even when ignored, so that file is unaffected until KERNEL_BUILDER runs
 # `git rm --cached` on the generated reports at commit time. New report files stay untracked.
 /tests/native_gui/artifacts/*_report.json
+
+# WP-KERNEL-012 MT-001 — code-editor panel screenshot proof (PT-003).
+# tests/test_code_editor_panel.rs regenerates MT-001-panel-basic.png under test_output/ on every run
+# and ALSO mirrors it to the external artifacts root (../Handshake_Artifacts/handshake-test/...). The
+# PNG is a reproducible test output, not source (CX-212E), so it must not be committed into the repo.
+/test_output/

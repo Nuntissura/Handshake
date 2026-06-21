@@ -7,6 +7,7 @@ pub mod accessibility;
 pub mod app;
 pub mod backend_client;
 pub mod canvas_board;
+pub mod code_editor;
 pub mod command_palette;
 pub mod command_registry;
 pub mod context_menu;
