@@ -1,0 +1,21 @@
+{
+  "allow_list": [
+    "mcp/screenshot.rs: PrintWindow(PW_RENDERFULLCONTENT)/BitBlt over an offscreen memory DC — focus-safe by construction (no Z-order/activation change)"
+  ],
+  "audit_method": "static_source_scan_comments_and_literals_stripped",
+  "audit_status": "audited",
+  "banned_apis": [
+    "SetForegroundWindow",
+    "BringWindowToTop",
+    "SetActiveWindow",
+    "SwitchToThisWindow",
+    "AllowSetForegroundWindow",
+    "keybd_event",
+    "mouse_event",
+    "SendInput"
+  ],
+  "files_scanned": 53,
+  "handshake_owned_events": [],
+  "run_id": "focus-audit-61452",
+  "total_foreground_events": 0
+}

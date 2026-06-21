@@ -109,10 +109,28 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # it is declared with the GDI + window-enumeration features the focus-safe capture needs. Windows-only
 # (the offscreen render path covers headless proof on every OS).
 [target.'cfg(windows)'.dependencies]
+# MT-030 ADDS the `Win32_UI_Accessibility` feature (NOT a new crate — windows-sys is already the dep)
+# so the LIVE focus audit (tests/test_focus_audit_live.rs, #[ignore]) can install a REAL
+# WINEVENT_SYSTEM_FOREGROUND hook via SetWinEventHook / UnhookWinEvent / WINEVENTPROC / HWINEVENTHOOK
+# (those items live under Win32::UI::Accessibility in windows-sys 0.61). The WH_KEYBOARD_LL keyboard
+# hook, its KBDLLHOOKSTRUCT / LLKHF_INJECTED constants, and the message-pump fns (GetMessageW /
+# PeekMessageW / TranslateMessage / DispatchMessageW / PostThreadMessageW) already live under the
+# Win32_UI_WindowsAndMessaging feature enabled below. No new dependency family is introduced.
+#
+# MT-030 HARDENING ADDS the `Win32_UI_Input_KeyboardAndMouse` feature so the LIVE audit's TEST HARNESS
+# (tests/test_focus_audit_live.rs, #[ignore]) can emit exactly ONE controlled real keystroke via
+# `SendInput` (carrying a known TEST dwExtraInfo cookie) to PROVE the WH_KEYBOARD_LL hook is genuinely
+# live (CTRL-030-05: total_key_events > 0) before trusting an empty app-injection result. This is
+# TEST-HARNESS code under tests/ only — the product focus-ban (clippy disallowed-methods + the
+# tests/test_focus_audit_quiet.rs source scan, which walks only src/) still forbids SendInput in
+# product src/. NOT a new dependency family: windows-sys is already the dep; this only enables an
+# additional feature module that was previously listed in clippy.toml as a not-yet-reachable ban path.
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_Threading",
     "Win32_Storage_Xps",
 ] }

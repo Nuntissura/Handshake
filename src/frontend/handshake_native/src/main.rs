@@ -2,6 +2,7 @@
 // Opens a real native wgpu window (no webview/Tauri/Electron) and runs the egui shell.
 
 use handshake_native::app::HandshakeApp;
+use handshake_native::quiet_mode::focus_guard;
 
 fn main() -> eframe::Result<()> {
     tracing_subscriber::fmt()
@@ -10,6 +11,11 @@ fn main() -> eframe::Result<()> {
                 .unwrap_or_else(|_| "handshake_native=debug,eframe=info".into()),
         )
         .init();
+
+    // HBR-QUIET (MT-030): assert the quiet-operation guard is installed before the event loop. In
+    // debug builds this logs the active invariant; the binding enforcement is the source audit in
+    // tests/test_focus_audit_quiet.rs (the shell makes no Win32 foreground/input-injection call).
+    focus_guard::assert_quiet_mode_installed();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

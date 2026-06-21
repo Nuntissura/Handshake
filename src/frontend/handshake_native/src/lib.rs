@@ -27,6 +27,7 @@ pub mod popout_window;
 pub mod project_tabs;
 pub mod project_tree;
 pub mod quick_links;
+pub mod quiet_mode;
 pub mod quick_switcher;
 pub mod rails;
 pub mod search_rail;

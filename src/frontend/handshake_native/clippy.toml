@@ -1,0 +1,30 @@
+# WP-KERNEL-011 MT-030 — HBR-QUIET disallowed-methods list (GLOBAL-BUILD-046..054).
+#
+# Bans direct calls to Win32 focus-stealing / foreground / input-injection APIs in this crate. The
+# native shell must never steal OS focus, foreground a window, or hijack keyboard input during
+# automated/background operation; any legitimate future foreground feature must route through
+# quiet_mode::focus_guard::request_foreground_exception (a ForegroundExceptionToken) and be added to
+# the focus-audit allow-list (tests/test_focus_audit_quiet.rs).
+#
+# The crate links `windows-sys` (not `windows`), so the paths below are the windows-sys FFI fn items.
+# clippy's `disallowed_methods` resolves these by their fully-qualified path AT THE CALL SITE; there is
+# no such call site today (the shell is focus-safe by construction), so the lint correctly emits ZERO
+# warnings. It becomes load-bearing the moment someone introduces one of these calls. The static
+# source audit in tests/test_focus_audit_quiet.rs is the belt-and-suspenders second gate that also
+# catches re-exported / macro-generated references the typed lint can miss (RISK-030-03).
+# `allow-invalid = true`: several of these Win32 fns live behind windows-sys cargo features the crate
+# does NOT currently enable (e.g. Win32_UI_Input_KeyboardAndMouse), so their paths are not "reachable"
+# functions in the current build. Without this flag clippy emits a "does not refer to a reachable
+# function" warning that would fail `clippy --all-targets -D warnings`. With it, the ban stays armed:
+# it fires the instant the feature is enabled AND the fn is called. The static source audit
+# (tests/test_focus_audit_quiet.rs) is the always-on second gate that catches these by name regardless
+# of which windows-sys features are active.
+disallowed-methods = [
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetForegroundWindow", reason = "HBR-QUIET: use quiet_mode::focus_guard::request_foreground_exception (ForegroundExceptionToken)", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::BringWindowToTop", reason = "HBR-QUIET: use quiet_mode::focus_guard::request_foreground_exception (ForegroundExceptionToken)", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SetActiveWindow", reason = "HBR-QUIET: use quiet_mode::focus_guard::request_foreground_exception (ForegroundExceptionToken)", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::WindowsAndMessaging::SwitchToThisWindow", reason = "HBR-QUIET: foregrounding a window steals focus", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::keybd_event", reason = "HBR-QUIET: never inject synthetic keyboard input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::mouse_event", reason = "HBR-QUIET: never inject synthetic mouse input", allow-invalid = true },
+    { path = "windows_sys::Win32::UI::Input::KeyboardAndMouse::SendInput", reason = "HBR-QUIET: never inject synthetic input", allow-invalid = true },
+]
