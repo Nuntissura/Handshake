@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-004",
+  "title": "E1-MT-004-FindReplaceInFile",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-004.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-003"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement in-file find/replace with regex support, matching the feature set of the React editor's find panel (driven by `app/src/lib/editor/editor_find_request.ts` and `app/src/lib/editor/code_block_find_registry.ts`). The panel appears at the top of the CodeEditorPanel when triggered (Ctrl+F / Ctrl+H). Expected diff shape: new module `src/frontend/code_editor/find_replace.rs` (search engine + match model), edits to `src/frontend/code_editor/mod.rs` (find panel state), and `src/frontend/panels/code_editor_panel.rs` (find panel UI rendering).\n\nExact files to create/edit:\n- CREATE `src/frontend/code_editor/find_replace.rs` — defines `FindQuery { pattern: String, case_sensitive: bool, whole_word: bool, is_regex: bool }` (matches `EditorFindOptions` in the React reference). Implements `FindEngine::search(query: &FindQuery, buffer: &TextBuffer) -> Vec<Match>` where `Match { byte_range: Range<usize>, line: usize, col: usize }`. For regex: use the `regex` crate. For plain text: use `memchr` or `str::find` iteration. For whole-word: check that chars immediately before and after the match are not alphanumeric or `_`. For case-insensitive plain: lowercase both needle and haystack. `FindEngine::replace_one(buffer: &mut TextBuffer, m: &Match, replacement: &str)` and `replace_all(buffer: &mut TextBuffer, matches: &[Match], replacement: &str)` — replace_all processes matches in reverse order to preserve byte offsets.\n- EDIT `src/frontend/code_editor/mod.rs` — add `find_state: Option<FindState>` to `CodeEditorPanel`. `FindState { query: FindQuery, matches: Vec<Match>, current_match: usize, replace_text: String, show_replace: bool }`. Methods: `open_find(show_replace: bool)`, `close_find()`, `next_match()`, `prev_match()`, `replace_current()`, `replace_all()`. Opening find with an active cursor selection pre-populates the query with the selected text.\n- EDIT `src/frontend/panels/code_editor_panel.rs` — render the find bar as a `egui::Frame` pinned to the top-right of the editor area (VS Code style: Ctrl+F opens in a floating widget, not a side panel). The bar contains: a `egui::TextEdit` for the query, toggle buttons for case/whole-word/regex, Next/Prev buttons, a match counter (`N of M`), and when `show_replace=true` a second TextEdit for replacement and Replace/Replace-All buttons. Render match highlights in the text area as colored overlays (use a distinct highlight color from selection color, e.g. yellow for matches, orange for current match).\n\nExact crates/functions/APIs to use:\n- `regex = \"1\"` — for regex pattern compilation and matching; compile once per query change, cache in `FindState`.\n- `memchr` — optional but fast for plain-text byte search.\n- `egui::TextEdit::singleline` — for the find/replace input fields.\n- `egui::Button` — for Next, Prev, Replace, Replace-All.\n- AccessKit: `author_id = \"code_editor_find_bar\"` `Role::SearchBox` on the find input; `author_id = \"code_editor_replace_bar\"` `Role::TextInput` on the replace input; `author_id = \"code_editor_find_next\"` `Role::Button` on the Next button.\n\nReact reference files:\n- `app/src/lib/editor/editor_find_request.ts` — `EditorFindOptions` type: `{ query: string, caseSensitive: boolean, wholeWord: boolean, isRegex: boolean }`. Port this as the Rust `FindQuery` struct (field names use snake_case).\n- `app/src/lib/editor/code_block_find_registry.ts` — the registry that lets the document-wide find panel reveal matches inside a Monaco code block. The native equivalent is that `FindEngine::search` operates on the `TextBuffer` directly; no registry needed since the editor owns its buffer.\n- `app/src/lib/editor/editor_keymap.ts` lines 38-40 — `FIND_OPEN_ACTION = 'find.open'`, `REPLACE_OPEN_ACTION = 'replace.open'`. Wire these as Ctrl+F and Ctrl+H in the code editor keymap (MT-010 will formalize; pre-wire here as direct key handlers).\n- `app/src/components/MonacoCodeBlockView.tsx` lines 241-245 — Monaco's find widget: `!findWidgetVisible` in the escape handler shows there is a find widget state. Native equivalent is `find_state.is_some()`.\n\nStep-by-step implementation notes:\n1. Implement `FindEngine` in `find_replace.rs`. For regex: `regex::Regex::new(&query.pattern)` — return empty match list on compile error and surface the error string in `FindState`. For whole-word: add `\\b` anchors around the pattern or check adjacent chars after match.\n2. In `CodeEditorPanel::show()`: intercept `Ctrl+F` -> `open_find(false)`, `Ctrl+H` -> `open_find(true)`, `Escape` when find is open -> `close_find()`. Also intercept `Enter` and `Shift+Enter` inside the find bar -> `next_match()` / `prev_match()`.\n3. On `query` change (detect via string diff from previous frame): re-run `FindEngine::search` and reset `current_match = 0`. Scroll the editor viewport to `matches[current_match].line`.\n4. For match highlights: iterate `find_state.matches` and render a semi-transparent yellow rect over each match's pixel range. Render the current match in orange. Clip to the visible viewport line range for performance.\n5. For replace: `replace_current()` calls `FindEngine::replace_one`, then re-searches. `replace_all()` calls `FindEngine::replace_all` then re-searches.\n6. Find bar position: use `ui.put(Rect::from_min_size(panel_rect.right_top() - vec2(400, 0), vec2(400, find_bar_height)), ...)` to pin to top-right corner inside the panel.\n\nDependencies/unblock conditions: MT-001 (TextBuffer), MT-003 (CursorSet for pre-populating query from selection). The `regex` crate must be added to Cargo.toml.\nRisk if missed: Operators cannot search large files — a critical workflow blocker for code review and editing.",
+    "allowed_paths": [
+      "src/frontend/code_editor/find_replace.rs",
+      "src/frontend/code_editor/mod.rs",
+      "src/frontend/panels/code_editor_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake_frontend find_engine` passes — tests: plain text find (case sensitive, case insensitive, whole word), regex find, find with no matches returns empty vec, find wrapping at end of buffer.",
+      "AC-002: `cargo test -p handshake_frontend find_replace` passes — tests: replace_one replaces correct match and adjusts buffer, replace_all replaces all N occurrences.",
+      "AC-003: `cargo test -p handshake_frontend find_regex_error` passes — test: invalid regex pattern results in empty match list and non-empty error string in FindState (no panic).",
+      "AC-004: egui_kittest interactive test: open find bar via Ctrl+F, type 'fn', verify AccessKit tree has node author_id='code_editor_find_bar' with role=SearchBox.",
+      "AC-005: egui_kittest screenshot with find bar open and query 'fn' on a Rust snippet shows at least one yellow highlight rect in the text area.",
+      "AC-006: Closing find bar with Escape removes find_state (no highlights rendered in subsequent frame)."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend find_engine` — GREEN, logged.",
+      "PT-002: `cargo test -p handshake_frontend find_replace` — GREEN, logged.",
+      "PT-003: `cargo test -p handshake_frontend find_regex_error` — GREEN, logged.",
+      "PT-004: egui_kittest test `find_bar_accesskit` — AccessKit JSON contains code_editor_find_bar node.",
+      "PT-005: egui_kittest screenshot `test_output/MT-004-find-highlight.png` pixel-verified for yellow highlight."
+    ],
+    "implementation_notes": [
+      "Compile the regex once per query string change — do not recompile every frame. Cache `compiled: Option<regex::Regex>` in FindState.",
+      "Match highlights for large files: iterate only matches that fall in the visible line range (use VirtualLineLayout from MT-002's visible_range). Skip rendering invisible matches.",
+      "The replace_all operation may modify a large buffer — run it on a background thread or at minimum do it in one frame (ropey batch edits are efficient). Block UI during replace_all with a progress indicator if > 1000 replacements.",
+      "Pre-populate query from selection: in `open_find()`, check if `cursor_set.primary_cursor().has_selection()` and if so, extract buffer.slice(anchor..head) and set as the initial query string."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/editor_find_request.ts — EditorFindOptions (query, caseSensitive, wholeWord, isRegex) maps directly to FindQuery struct",
+      "app/src/lib/editor/code_block_find_registry.ts — reveals the reveal(start, end) pattern for scrolling to a match; native equivalent is scrolling the VirtualLineLayout to match.line",
+      "app/src/lib/editor/editor_keymap.ts lines 38-42 — FIND_OPEN_ACTION and REPLACE_OPEN_ACTION key constants"
+    ],
+    "binds_backend_api": [
+      "None — find/replace is purely in-process. No backend calls."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-001: Catastrophic regex — a user types `.*` or `(a+)+` and the regex engine hangs. Mitigate: use `regex` crate with a timeout or `fancy-regex` with backtrack limit; or cap input length to 512 chars.",
+      "RISK-002: Replace-all on a 1M-byte buffer with 10k matches causes a multi-second freeze. Mitigate: run replace_all in a Rayon task and show a spinner; or limit to 10k replacements per operation with user confirmation.",
+      "RISK-003: Match offsets invalidated after a replace but before re-search — stale match list could replace wrong bytes. Mitigate: always re-search immediately after any replace operation before using the match list again.",
+      "RISK-004: Find bar obscures code it is searching — top-right float may cover the current match. Mitigate: auto-scroll the editor so the current match is below the find bar height."
+    ],
+    "minimum_controls": [
+      "MC-001: Invalid regex test is a required AC — no panics allowed.",
+      "MC-002: replace_all offset-correctness test is required.",
+      "MC-003: Document the regex crate choice and backtrack mitigation in a code comment in find_replace.rs."
+    ]
+  }
+}

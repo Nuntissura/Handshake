@@ -1,0 +1,111 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-021",
+  "title": "E3-MT021-LocalGlobalGraph",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-021.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": ["MT-022", "MT-023", "MT-024"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a local + global Loom graph view panel in the native Rust/egui frontend. The panel renders a force-directed node-link diagram of LoomBlocks (nodes) and LoomEdges (links) fetched from the real PostgreSQL/EventLedger backend via the existing loom graph-search and views APIs. The expected diff shape is: one new file src/frontend/loom/graph_view.rs containing the LoomGraphView widget, plus wiring in src/frontend/loom/mod.rs to expose it.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/graph_view.rs — the graph panel widget\n- EDIT src/frontend/loom/mod.rs — pub mod graph_view; + re-export LoomGraphView\n\nExact APIs / React reference:\n- Ports from: no dedicated React graph component exists; the loom graph-search API is used inline across components. The React side relies on queryLoomView (viewType='all', limit=500) to enumerate all blocks, then createLoomEdge/getLoomBlock. Backend route: GET /workspaces/{id}/loom/graph-search?q=&limit=500 (loom_graph_search, lib/api.ts:1341). Also uses GET /workspaces/{id}/loom/views/all for flat block enumeration.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/graph-search?q=&limit=500 — returns LoomGraphSearchResult array; use with empty q to enumerate the full graph neighbourhood of the focused block\n  - GET /workspaces/{workspace_id}/loom/views/all — LoomViewResponse {view_type:'all', blocks:LoomBlock[]} for global mode (all nodes)\n  - POST /workspaces/{workspace_id}/loom/edges — createLoomEdge for future edge creation (out-of-scope here but wire the callback slot)\n\nStep-by-step implementation notes:\n1. Define GraphNode { block_id: String, title: String, content_type: String, x: f32, y: f32 } and GraphEdge { source: String, target: String, edge_type: String } in graph_view.rs.\n2. Define LoomGraphView { workspace_id, mode: GraphMode (Local {block_id} | Global), nodes: Vec<GraphNode>, edges: Vec<GraphEdge>, pan: Vec2, zoom: f32, selected: Option<String>, loading: bool, error: Option<String>, on_open: Callback<String> } as the widget state struct.\n3. On first show (or when workspace_id/mode changes), fire an async Tauri command or HTTP fetch to GET /workspaces/{id}/loom/views/all (global) or GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=2&limit=200 (local). Deserialize into GraphNode/GraphEdge lists. Store in widget state.\n4. Run a simple spring/force layout iteration each frame until stable: repulse every node pair (Coulomb k=1000/d^2), attract connected pairs (spring k=0.05 * (d-150)). Cap iterations at 300 total; store stable positions in node state.\n5. In egui show(): allocate the full panel Rect. Draw a dotted grid background via Painter::line_segment calls. Apply pan+zoom transform (translate then scale around centre). For each edge, draw painter.line_segment from source centre to target centre with stroke(1.5, Color32::from_gray(170)). For each node draw painter.circle_filled(pos, radius, color_by_content_type). If selected, draw a 2px blue ring. Add painter.text for the title label beneath each node. Handle pointer input: drag on empty area -> pan, scroll wheel -> zoom (clamp 0.1..4.0), click on node -> emit on_open callback with block_id.\n6. Show a toolbar strip at top: 'Local' / 'Global' mode toggle buttons (AccessKit author_id='graph.mode.local'/'graph.mode.global'), zoom-in/zoom-out buttons (author_id='graph.zoom.in'/'graph.zoom.out'), 'Re-layout' button (author_id='graph.relayout'), node count label.\n7. Show a loading spinner or error label over the canvas when loading=true or error.is_some().\n8. Every interactive element must register AccessKit node with a stable author_id (see model-accessibility requirement below).\n\nAccessKit requirements: register every toolbar button (mode-local, mode-global, zoom-in, zoom-out, relayout) and each graph node circle (author_id='graph.node.{block_id}', role=Button, label=title, actions=[DefaultAction=open]).\n\nDependencies / unblock conditions: no earlier E3 MTs required; requires that the Tauri/HTTP fetch bridge used by earlier WP-012 MTs (e.g. E1 or E2 cluster) already provides a typed HTTP client or Tauri invoke wrapper. If that wrapper does not exist yet, inline a minimal reqwest call. Must NOT depend on any E3 MTs (MT-022+).\n\nRisk if missed: all other E3 MTs lose their navigation backbone. The graph is the primary wayfinding surface for the Loom knowledge layer.",
+    "allowed_paths": [
+      "src/frontend/loom/graph_view.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: Launching the app and opening the graph panel in Global mode shows at least all LoomBlocks from a real PostgreSQL workspace (verified with >=3 blocks inserted beforehand); node count label matches the block count returned by GET /workspaces/{id}/loom/views/all.",
+      "AC2: Switching to Local mode with a block_id focused loads graph-search results for that block and displays only the neighbourhood (different node set from global).",
+      "AC3: Pan works: dragging on empty canvas translates all nodes; releasing preserves position.",
+      "AC4: Zoom works: scroll wheel changes zoom level between 0.1 and 4.0; node positions remain correct in canvas space.",
+      "AC5: Clicking a node fires the on_open callback with the correct block_id (verified via kittest AccessKit event log).",
+      "AC6: AccessKit tree for the graph panel includes nodes with author_ids 'graph.mode.local', 'graph.mode.global', 'graph.zoom.in', 'graph.zoom.out', 'graph.relayout', and 'graph.node.{block_id}' for each rendered node.",
+      "AC7: With no blocks in the workspace the panel shows an empty canvas with '0 nodes' label and no panic.",
+      "AC8: Loading error (backend unreachable) shows an error label in the panel rather than a crash."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::graph_view -- --nocapture passes all unit tests for force-layout convergence (position change < 1px after 300 iterations for a 5-node graph).",
+      "PROOF2: egui_kittest harness test opens LoomGraphView in Global mode against a real PG test database with 5 seeded LoomBlocks; asserts AccessKit node count >= 5 graph.node.* entries.",
+      "PROOF3: kittest click on 'graph.node.block-001' asserts on_open callback fires with block_id='block-001'.",
+      "PROOF4: Screenshot captured by kittest shows a non-white canvas with at least one circle rendered (pixel color != background).",
+      "PROOF5: kittest scroll-event zoom test: zoom starts at 1.0, two scroll-up events, assert zoom > 1.0 and <= 4.0."
+    ],
+    "implementation_notes": [
+      "Use egui::Painter for all graph rendering — no third-party graph library.",
+      "Force layout: run in a background thread or limit to 10 iterations per frame to avoid blocking the UI thread. Store iteration count in widget state; stop when max_iter reached.",
+      "Color-code nodes by content_type: note=blue, file=gray, tag_hub=green, journal=orange, canvas=purple, other=slate.",
+      "Edge stroke: 1.5px, Color32::from_gray(160). Draw edges before nodes so nodes render on top.",
+      "Pan: track pointer delta on drag over empty area (no node under pointer). Store pan as Vec2 in widget state.",
+      "Zoom: on scroll event multiply zoom by 1.15^delta_y, clamp to [0.1, 4.0]. Zoom around pointer position (subtract pointer, scale, add back).",
+      "Node click detection: check if pointer_pos is within node circle radius (default 18px) after inverse-transform by current pan+zoom.",
+      "AccessKit: call ui.ctx().accesskit_node_builder(author_id).with_role(Role::Button).with_label(title).with_default_action_verb(DefaultActionVerb::Click) for each node in the painter pass.",
+      "Toolbar: use egui::TopBottomPanel or a manual strip at top of the allocated rect. Mode toggle = two SelectableLabel widgets. Use stable string author_ids not runtime indices.",
+      "Do not store node positions in backend; they are ephemeral UI state only (layout is re-run on open)."
+    ],
+    "ports_from_react": [
+      "No dedicated React graph panel file. React uses queryLoomView + getLoomBlock inline in WorkspaceSidebar.tsx and loom_bookmarks_harness.tsx.",
+      "Graph-search API usage: app/src/lib/api.ts line 1341 GET /workspaces/{id}/loom/graph-search",
+      "LoomViewType 'all' and queryLoomView: app/src/lib/api.ts lines 1058-1088"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/all — enumerate all blocks (global graph)",
+      "GET /workspaces/{workspace_id}/loom/graph-search?q=&limit=200&backlink_depth=2 — local neighbourhood",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id} — resolve individual block details on hover/select"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Force layout runs on UI thread blocking egui at 60fps for large graphs (>200 nodes). Mitigation: cap to 10 iterations per frame; spawn layout in a thread with Arc<Mutex<Vec<GraphNode>>>.",
+      "RISK-2: Graph-search with empty q may return incomplete results if the backend paginates. Mitigation: loop with offset until total_returned < limit; cap at 1000 nodes.",
+      "RISK-3: AccessKit author_ids with block_ids containing special characters may break AccessKit tree integrity. Mitigation: sanitize block_id to alphanumeric+hyphen before using as author_id suffix.",
+      "RISK-4: Zoom-to-pointer math incorrect after pan, causing nodes to jump on scroll. Mitigation: apply transform as: world = (screen - pan) / zoom; invert correctly in click detection.",
+      "RISK-5: Large workspaces (>500 nodes) make the panel unusable with naive O(n^2) repulsion. Mitigation: implement Barnes-Hut quad-tree or limit graph to 200 nodes with a 'showing N of M' label."
+    ],
+    "minimum_controls": [
+      "MC-1: Frame-rate guard: if layout not converged, limit to 10 force iterations per frame. Acceptance criteria AC1 proves real data loads.",
+      "MC-2: Node cap: clamp loaded nodes to 200 in global mode with visible truncation notice. Covered by AC7 (0-node case) and AC1 (real data).",
+      "MC-3: AccessKit id sanitization: unit test that block_ids with slashes/colons are sanitized correctly. Covered by PROOF2.",
+      "MC-4: Error surface: backend 5xx shows error label not panic. Covered by AC8."
+    ]
+  }
+}

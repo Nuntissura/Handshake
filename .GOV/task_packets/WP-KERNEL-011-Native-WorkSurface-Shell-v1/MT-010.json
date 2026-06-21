@@ -1,0 +1,203 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-010",
+  "title": "C2-MT010-IntegratedSplitterScrollbarRails",
+  "group": "C2 Dockable work-surface",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-010.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-006",
+      "MT-009"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Replace the default egui splitter and scrollbar visuals with Handshake's thin integrated rail style: dark-family palette, enlarged hit targets, four visual states (idle/hover/grab/disabled), and a unified rail widget that serves double duty as both a splitter divider and a scrollbar track. The existing MT-006 ResizeDivider and egui ScrollArea scrollbars are both replaced with this rail widget. Expected diff shape: one new file `src/frontend/shell/rails.rs` (~300–400 lines), edits to `src/frontend/shell/split_layout.rs` (swap ResizeDivider for RailDivider), and a global egui style override in `src/frontend/shell/app.rs` (or the theme module from MT-003) that points scrollbar rendering to the rail style.\n\nFILES TO CREATE/EDIT:\n- CREATE: `src/frontend/shell/rails.rs` — `RailState`, `RailColors`, `RailDimensions`, `RailWidget`, `ScrollbarRail`, `SplitterRail`.\n- EDIT: `src/frontend/shell/mod.rs` — add `pub mod rails;`.\n- EDIT: `src/frontend/shell/split_layout.rs` — replace `ResizeDivider` rendering with `SplitterRail::show()`.\n- EDIT: `src/frontend/shell/app.rs` (or theme module) — apply `RailStyle` to `egui::Style::visuals.widgets` and `egui::Style::visuals.window_rounding` etc. to make egui's built-in scroll areas use rail colors.\n\nDESIGN SPECIFICATION (dark-family defaults; must also work in light theme via theme tokens from MT-003):\n```\nRail thickness (visual):        4px\nRail hit target thickness:      8px   (centered over visual strip)\nRail corner radius:             2px\nRail minimum length (thumb):    20px\n\nColor palette (dark theme):\n  idle:     #2A2A2F with alpha 0.6   (thin, barely visible at rest)\n  hover:    #4A4A55 with alpha 0.85  (appears on pointer enter)\n  grab:     #7A7AFF with alpha 1.0   (accent color during drag)\n  disabled: #1E1E22 with alpha 0.3   (non-interactive, e.g. content fits)\n\nColor palette (light theme):\n  idle:     #C8C8D0 with alpha 0.6\n  hover:    #9898A8 with alpha 0.85\n  grab:     #5050FF with alpha 1.0\n  disabled: #E0E0E8 with alpha 0.3\n```\n\nCORE TYPES:\n```rust\n#[derive(Debug, Clone, Copy, PartialEq)]\npub enum RailState { Idle, Hover, Grab, Disabled }\n\n#[derive(Debug, Clone)]\npub struct RailColors {\n    pub idle:     egui::Color32,\n    pub hover:    egui::Color32,\n    pub grab:     egui::Color32,\n    pub disabled: egui::Color32,\n}\n\nimpl RailColors {\n    pub fn for_state(&self, state: RailState) -> egui::Color32 { ... }\n    pub fn dark_theme() -> Self { ... }\n    pub fn light_theme() -> Self { ... }\n}\n\n#[derive(Debug, Clone)]\npub struct RailDimensions {\n    pub visual_thickness:    f32,  // 4.0\n    pub hit_thickness:       f32,  // 8.0\n    pub corner_radius:       f32,  // 2.0\n    pub min_thumb_length:    f32,  // 20.0\n}\n\nimpl Default for RailDimensions {\n    fn default() -> Self { Self { visual_thickness: 4.0, hit_thickness: 8.0, corner_radius: 2.0, min_thumb_length: 20.0 } }\n}\n```\n\nSPLITTER RAIL (replaces MT-006 ResizeDivider):\n```rust\npub struct SplitterRail {\n    pub id: egui::Id,\n    pub axis: SplitAxis,         // Horizontal or Vertical\n    pub track_rect: egui::Rect,  // the full available rect the divider occupies\n    pub colors: RailColors,\n    pub dims: RailDimensions,\n    pub author_id: &'static str, // e.g. \"divider-horizontal\"\n}\n\nimpl SplitterRail {\n    /// Returns the updated split weight (0.0..1.0, clamped by caller)\n    pub fn show(&self, ui: &mut egui::Ui) -> SplitterRailResponse { ... }\n}\n\npub struct SplitterRailResponse {\n    pub drag_delta_normalized: f32,  // positive = drag toward max\n    pub hovered: bool,\n    pub dragged: bool,\n    pub focused: bool,\n}\n```\n\nSCROLLBAR RAIL:\n```rust\npub struct ScrollbarRail {\n    pub id: egui::Id,\n    pub axis: egui::scroll_area::ScrollBarVisibility, // repurpose: Horizontal or Vertical direction\n    pub track_rect: egui::Rect,\n    pub scroll_range: std::ops::Range<f32>,  // content_height or content_width\n    pub scroll_offset: f32,\n    pub viewport_size: f32,\n    pub colors: RailColors,\n    pub dims: RailDimensions,\n    pub author_id: String,  // e.g. \"scrollbar-v-pane-a-workspace\"\n}\n\nimpl ScrollbarRail {\n    pub fn show(&self, ui: &mut egui::Ui) -> ScrollbarRailResponse { ... }\n}\n\npub struct ScrollbarRailResponse {\n    pub new_offset: f32,  // caller should apply to scroll area\n    pub hovered: bool,\n    pub dragged: bool,\n}\n```\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Define all types and enums in `rails.rs`.\n2. Implement `RailColors::for_state`, `dark_theme()`, `light_theme()`.\n3. Implement `SplitterRail::show()`: (a) compute the visual rect (centered 4px strip inside the 8px hit rect); (b) allocate the hit rect with `ui.allocate_rect(hit_rect, Sense::click_and_drag())`; (c) determine `RailState` from response: if disabled (not applicable for splitters), Grab if dragged, Hover if hovered, else Idle; (d) paint the visual rect with the state color and corner_radius 2px; (e) return `SplitterRailResponse`.\n4. Implement `ScrollbarRail::show()`: (a) compute the thumb rect from `scroll_offset`, `viewport_size`, and `scroll_range` — `thumb_length = max(min_thumb_length, viewport_size / content_size * track_length)`, `thumb_pos = scroll_offset / (content_size - viewport_size) * (track_length - thumb_length)`; (b) allocate the thumb rect with `Sense::click_and_drag()`; (c) if dragged, compute `new_offset = clamp(scroll_offset + drag_delta * (content_size - viewport_size) / (track_length - thumb_length), 0.0, content_size - viewport_size)`; (d) paint track rect in `Idle` color (dim), paint thumb rect in state color; (e) return `ScrollbarRailResponse { new_offset, hovered, dragged }`.\n5. If `scroll_range.end - scroll_range.start <= viewport_size` (content fits), set state to `Disabled` and do not sense drag — render the disabled color track with no thumb.\n6. Integrate `SplitterRail` into `split_layout.rs`: replace the existing `ui.allocate_rect + painter.rect_filled` divider code from MT-006 with `SplitterRail::show()`. The response `drag_delta_normalized` maps back to weight delta.\n7. Global scrollbar style override in `app.rs` or theme module: call `egui_ctx.style_mut(|style| { style.visuals.extreme_bg_color = rail_colors.idle; style.visuals.widgets.inactive.bg_fill = rail_colors.idle; style.visuals.widgets.hovered.bg_fill = rail_colors.hover; style.visuals.widgets.active.bg_fill = rail_colors.grab; style.visuals.scroll_bar_width = 8.0; style.visuals.scroll_bar_inner_margin = 2.0; })`. This makes egui's built-in `ScrollArea` use the rail colors without replacing every `ScrollArea` call site with `ScrollbarRail`.\n8. AccessKit for splitter rails: role `Splitter`, author_id from `SplitterRail.author_id`, actions `[SetValue]` (0.0–1.0), already specified in MT-006. No change needed — MT-010 just refines the visual rendering, the AccessKit registration from MT-006 remains.\n9. AccessKit for scrollbar rails: role `ScrollBar`, author_id from `ScrollbarRail.author_id`, value `scroll_offset / (content_size - viewport_size)` as 0.0–1.0, actions `[SetValue, ScrollUp, ScrollDown]`.\n10. Both SplitterRail and ScrollbarRail must use `#[cfg(test)]` unit tests covering: state color selection, thumb rect computation, disabled state when content fits.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n- MT-006 must be complete (ResizeDivider exists to be replaced by SplitterRail).\n- MT-003 must have the theme token structs with at least `accent_color` (used as `grab` color). MT-010 extends the theme with `divider_idle`, `divider_hover`, `divider_grab`, `divider_disabled` if not already added by MT-006.\n- MT-009 should be complete first (no hard dependency, but MT-010 is the last C2 MT and should not be started before the cluster is otherwise stable).\n\nRISK IF MISSED:\n- Without this MT, the default egui scrollbars are OS-native styled (light, large, or platform-dependent) — visually inconsistent with the Handshake dark-family design. Splitter dividers also lack the enlarged hit target and proper state colors. Both degrade usability for operator and agents.",
+    "allowed_paths": [
+      "src/frontend/shell/rails.rs",
+      "src/frontend/shell/mod.rs",
+      "src/frontend/shell/split_layout.rs",
+      "src/frontend/shell/app.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`RailColors::dark_theme().for_state(RailState::Idle)` returns a color with RGBA matching the dark idle spec (#2A2A2F, alpha ~153). `for_state(RailState::Grab)` returns #7A7AFF fully opaque. Verified by unit test.",
+      "`ScrollbarRail::show()` with `scroll_range=0.0..1000.0`, `viewport_size=200.0`, `scroll_offset=0.0`, `track_length=200.0` computes `thumb_length = max(20, 200/1000*200) = 40px` and `thumb_pos = 0`. Verified by unit test.",
+      "`ScrollbarRail::show()` with content fitting the viewport (`scroll_range.end - scroll_range.start <= viewport_size`) sets `RailState::Disabled` and `new_offset == scroll_offset` (no movement). Verified by unit test.",
+      "The egui style override sets `scroll_bar_width == 8.0` in a headless egui context after calling the override function. Verified by reading back `ctx.style().visuals.scroll_bar_width`.",
+      "`SplitterRail::show()` for a horizontal divider with `drag_delta_y = +50px` on a `track_rect.height() = 600px` returns `drag_delta_normalized = 50.0/600.0`. Verified by unit test.",
+      "The AccessKit tree for a pane with vertical content overflow contains one `ScrollBar` node with role `ScrollBar` and author_id matching `\"scrollbar-v-pane-{id}-{type}\"`. Confirmed by egui_kittest AccessKit snapshot.",
+      "Dark theme screenshot shows dividers as thin (4px visual) dark strips that become bright accent-colored during drag. Light theme screenshot shows the corresponding light palette. Both confirmed by egui_kittest screenshots.",
+      "`SplitterRail` correctly fills the hit target (8px) while painting only the visual strip (4px centered). Confirmed by unit test comparing allocated rect size vs painter call rect size.",
+      "`cargo test -p handshake_frontend rails` passes all tests.",
+      "`cargo build -p handshake_frontend --release` succeeds."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend rails -- --nocapture` and show all tests PASS.",
+      "Egui_kittest headless: render a pane with overflow content; capture AccessKit tree; find the `ScrollBar` node for that pane; simulate `SetValue(0.5)` action; assert scroll offset is `0.5 * (content_size - viewport_size)`.",
+      "Screenshot (dark theme): a horizontal divider at rest (thin dark strip), on hover (slightly brighter), during grab (accent blue). Provide three screenshots from a kittest that simulates each state."
+    ],
+    "implementation_notes": [
+      "egui does not expose a direct hook to replace the scrollbar renderer; the closest approach is to override `egui::Style::visuals` widget colors and scroll_bar_width so all ScrollArea instances pick up the rail style automatically. This avoids replacing every ScrollArea call site but means the visual is still the egui default shape (rectangle). For the exact 4px-visual/8px-hit design, the `ScrollbarRail` widget is provided for use at call sites where per-area custom rendering is needed (e.g. the main editor pane). The global style override handles the rest.",
+      "The thumb length formula: `thumb_length = (viewport_size / content_size).max(min_thumb_length_fraction) * track_length` where `min_thumb_length_fraction = min_thumb_length / track_length`. Clamp result to `[min_thumb_length, track_length]`.",
+      "Color constants: use `egui::Color32::from_rgba_unmultiplied(r, g, b, a)` for all rail colors. Do not use `egui::Color32::from_rgb` (no alpha). The alpha values: idle=153 (0.6*255), hover=217 (0.85*255), grab=255 (1.0), disabled=77 (0.3*255).",
+      "State transition logic for SplitterRail: `if response.dragged() { Grab } else if response.hovered() { Hover } else { Idle }`. Disabled is N/A for splitters.",
+      "State transition logic for ScrollbarRail thumb: same as SplitterRail. The track (non-thumb area) always renders as Idle.",
+      "The SplitterRail replaces MT-006's inline divider rendering code. After MT-010, `split_layout.rs` should have zero direct `painter.rect_filled` calls for dividers — all divider painting goes through `SplitterRail::show()`.",
+      "Do not replace egui's built-in scrollbar rendering for every scroll area; only the visual defaults are overridden via style. If in future MTs a specific pane requires custom scroll behavior, use `ScrollbarRail` there explicitly.",
+      "There is no React reference for this MT — the React app used CSS-styled browser scrollbars and no custom divider. This is a pure native capability."
+    ],
+    "ports_from_react": [
+      "No direct React equivalent — React used browser native scrollbars (CSS) and CSS-styled dividers. This MT designs the Handshake native rail widget from scratch using the dark-family color palette specified in the GUI look-and-behavior doc."
+    ],
+    "binds_backend_api": [
+      "None — this MT is pure frontend rendering. No backend API calls."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Thumb rect extends outside the track rect if `scroll_offset` is near max and the clamp logic is off-by-one: thumb visually overflows the track lane.",
+      "Division by zero in thumb computation when `content_size == viewport_size` (content exactly fits) — must check for disabled state BEFORE computing thumb position.",
+      "Global style override affects egui's own internal popups, tooltip scrollbars, and combo-box dropdowns — these may look broken if their background colors are also affected by the extreme_bg_color change.",
+      "SplitterRail hit target (8px) vs visual (4px): if the hit rect is allocated but the painter uses the hit rect dimensions instead of the visual rect, the divider appears 8px wide — twice as thick as spec.",
+      "Rail colors not updating when theme toggles at runtime: if `RailColors` is computed once at startup and not re-derived from the live theme tokens, the rails stay dark after switching to light theme."
+    ],
+    "minimum_controls": [
+      "Unit test: `ScrollbarRail` with `scroll_range=0..200, viewport_size=200` (content fits exactly) must not panic and must return `RailState::Disabled`.",
+      "Unit test: thumb_pos + thumb_length <= track_length for all inputs in a property test with random (scroll_range, viewport_size, scroll_offset) within valid ranges.",
+      "The global style override must NOT change `egui::Visuals::panel_fill` or `window_fill` — only scroll-bar-specific visuals. Add a unit test that asserts `panel_fill` is unchanged after the override.",
+      "At render time, derive `RailColors` from the current `ThemeTokens` (from MT-003), not from a static constructor call. The theme may change between frames. If `HandshakeApp.theme` is updated mid-session, `RailColors` must reflect the new theme on the next frame."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independently confirmed: the integrated rail primitive (shared 4px-visual-in-8px-hit geometry, idle/hover/grab/disabled state model, live-theme-derived colors) is honestly and correctly implemented with REAL egui_kittest AccessKit end-to-end steering (SetValue/ScrollUp/ScrollDown through a genuine Harness, not an implementer mock), real divider painting routed through the shared SplitterRail with zero rect_filled, and every red-team minimum-control backed by a non-tautological test; the first reviewer's PASS_V1 stands.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-010.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/rails.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_rails.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/split_layout.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/theme/palette.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC-1: dark idle #2A2A2F a~153; grab #7A7AFF opaque; unit-tested",
+        "status": "MET",
+        "evidence": "theme/palette.rs:154-157 defines dark scrollbar tokens exactly (scrollbar_idle 2A2A2F@0.6, scrollbar_hover 4A4A55@0.85, scrollbar_grab 7A7AFF opaque via from_rgb, scrollbar_disabled 1E1E22@0.3). rails.rs:118-125 from_palette reads them; rails.rs:649-675 dark_rail_colors_match_spec asserts unmultiplied RGBA within +-1 (premultiplied round-trip) for idle/hover/disabled and exact opaque grab. Light spec also verified rails.rs:692-706."
+      },
+      {
+        "criterion": "AC-2: thumb_length=max(20,200/1000*200)=40, thumb_pos=0; unit-tested",
+        "status": "MET",
+        "evidence": "rails.rs:311 raw_len=(viewport/content)*track=(200/1000)*200=40; floored at min(20). rails.rs:723-729 thumb_length_and_pos_at_top asserts thumb_length 40.0, thumb_pos 0.0, scrollable=true via ScrollbarThumb::compute(1000,200,0,200,default)."
+      },
+      {
+        "criterion": "AC-3: content fits -> Disabled and new_offset==scroll_offset; unit-tested",
+        "status": "MET",
+        "evidence": "rails.rs:303-309 compute() early-returns scrollable=false (no division) when content<=viewport OR track<=0. rails.rs:450-468 show() paints Disabled, no sensing, returns new_offset==scroll_offset. Tests content_fits_is_disabled_and_no_thumb (rails.rs:733) covers content==viewport AND content<viewport; content_exactly_fits_no_panic_no_movement (rails.rs:746) proves no panic + zero movement."
+      },
+      {
+        "criterion": "AC-4: egui style override sets scroll_bar_width==8.0, read back from headless ctx",
+        "status": "MET",
+        "evidence": "test_rails.rs:199-242 global_scrollbar_style_sets_bar_width_and_preserves_panel_fill asserts spacing.scroll.bar_width==8.0 and handle_min_length==20.0 on a real egui::Context. Contract's literal visuals.scroll_bar_width does not exist in pinned egui 0.33; implementer correctly used spacing.scroll.bar_width and documented the field move (rails.rs:606-621). Justified, behaviorally equivalent deviation."
+      },
+      {
+        "criterion": "AC-5: horizontal divider drag_delta_y=+50 on 600px track -> normalized 50/600",
+        "status": "MET",
+        "evidence": "split_layout.rs:622-630 divider() computes delta = response.drag_delta().y / area.height() (the 50/600 normalization) then clamp_split(weight+delta). Painting is the only thing MT-010 routes through SplitterRail::paint (split_layout.rs:730-738); drag/clamp/AccessKit ownership deliberately kept in MT-006 to avoid duplicating tested logic. Sound unified-shape-not-forked-control design; behavioral AC met."
+      },
+      {
+        "criterion": "AC-6: AccessKit tree has one ScrollBar node, role ScrollBar + stable author_id; egui_kittest",
+        "status": "MET",
+        "evidence": "test_rails.rs:115-131 overflow_pane_emits_one_scrollbar_node_with_contract_author_id walks the LIVE consumer-side AccessKit tree, asserts exactly one ScrollBar node with author_id 'scrollbar-v-pane-a' and numeric value in [0,1]. Node emitted rails.rs:580-598 emit_node (Role::ScrollBar, author_id, SetValue/ScrollUp/ScrollDown). Band 40..43 registered in registry.rs:169-187 and proven disjoint by declared_identities_have_no_node_id_or_author_id_collision (registry.rs:627-658). The '-{type}' suffix in the AC wording is omitted (documented MINOR, nil impact on fixed vertical-only panes); the AC's concrete assertion target 'scrollbar-v-pane-a' is met by real live-tree evidence."
+      },
+      {
+        "criterion": "AC-7: dark/light divider screenshots (idle/hover/grab)",
+        "status": "PARTIAL",
+        "evidence": "test_rails.rs:302-331 renders idle/hover/grab through the REAL integrated-rail paint path (drives the live divider, captures frames) and writes PNGs under the external artifacts root; literal pixel-diff is explicitly deferred to MT-029 per the contract. No-wgpu-adapter case is recorded honestly (no fake pass). Acceptable PARTIAL: render path exercised, pixel-diff contractually deferred."
+      },
+      {
+        "criterion": "AC-8: fills 8px hit while painting 4px centered visual; unit-tested rect comparison",
+        "status": "MET",
+        "evidence": "rails.rs:186-203 RailWidget::visual_rect computes a visual_thickness strip centered in the hit_rect, spanning the full long axis. rails.rs:811-828 visual_rect_is_thin_strip_centered_in_hit_rect asserts visual width==4, hit width==8, centered, full long-axis span for both orientations."
+      },
+      {
+        "criterion": "AC-9: cargo test rails passes",
+        "status": "MET",
+        "evidence": "Ground truth (relied upon): curated suite passes; rails.rs unit tests + tests/test_rails.rs (no #[ignore] on any of its 6 tests, confirmed) are in the green set."
+      },
+      {
+        "criterion": "AC-10: cargo build --release succeeds",
+        "status": "MET",
+        "evidence": "Ground truth (relied upon): handshake_native crate + all test binaries compile clean."
+      },
+      {
+        "criterion": "Red-team controls: div-by-zero guard, thumb-no-overflow property, backgrounds preserved, live-theme derivation",
+        "status": "MET",
+        "evidence": "Div-by-zero guarded before any (content-viewport) division (rails.rs:303-309); thumb_never_overflows_track_property 5000-iter deterministic over-range sweep asserts thumb_pos+thumb_length<=track (rails.rs:757-782); panel_fill/window_fill/extreme_bg_color asserted unchanged after override (test_rails.rs:229-235, plus rails.rs:632-634 only touches widget bg_fill); RailColors::from_palette(&self.current_theme.palette()) called every frame inside HandshakeApp::ui (app.rs:3896 fn ui, 3912-3917), proven wired by handshake_app_applies_rail_scrollbar_style_each_frame (test_rails.rs:244)."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Independent grep of the touched code + tests found no todo!/unimplemented!/unreachable/stub/Unavailable on the required behavior path; the only 'deferred to' hits are test comments about literal pixel-diff (AC-7), which the contract itself defers to MT-029. The MT claims a real out-of-process-driveable AccessKit ScrollBar resource; test_rails.rs proves it END-TO-END: setvalue_half_moves_offset_to_half_of_scroll_range (test_rails.rs:134) dispatches egui::Event::AccessKitActionRequest{SetValue,NodeId(40),0.5} through a real egui_kittest Harness and asserts the LIVE frame offset moved to 0.5*(1000-200)=400 and the live node value reads ~0.5 -- exactly the egui+AccessKit path the Windows UIA adapter uses, NOT an implementer-authored mock. scrollup_scrolldown_actions_step_the_offset (test_rails.rs:168) proves the load-bearing ordering correctness (rails.rs:480-488 reads ScrollUp/ScrollDown from the input queue BEFORE ui.interact, which egui would otherwise auto-consume). The ScrollHost is a thin REAL egui host (allocates real rects, senses real input, emits a real live node) justified by the contract note that default panes fit-and-emit-no-scrollbar (MT-025 frozen snapshot). None of the 6 live proof tests is #[ignore]'d. Tests are substantive, not tautological. Spec-Realism sub-rule 3 (implementer self-certification) is satisfied by this independent review per the operator directive."
+    },
+    "concerns_non_blocking": [
+      "AC-6 author_id is 'scrollbar-v-pane-{id}' (no '-{type}' suffix the AC wording shows). Documented MINOR with nil impact on the fixed vertical-only panes; the AC's concrete assertion target 'scrollbar-v-pane-a' is met by real live-tree evidence. Worth a one-line note in the WP packet's MT-010 row.",
+      "API-shape deviation (documented, accepted): contract specs SplitterRail::show()->SplitterRailResponse and ScrollbarRail.axis as ScrollBarVisibility; implementer provided SplitterRail::paint (paint-only) + a RailOrientation enum and kept the divider's drag/clamp/AccessKit ownership in MT-006 split_layout to avoid duplicating tested logic. Sound unified-shape design; literal type signatures differ. Worth a packet-row note.",
+      "AC-4 uses spacing.scroll.bar_width (egui 0.33) because the contract's literal visuals.scroll_bar_width does not exist in the pinned egui family. Behaviorally equivalent and documented at rails.rs:606-621.",
+      "AC-7 literal pixel-screenshot capture is best-effort and contractually deferred to MT-029; the render path is exercised but no pixel-diff oracle exists yet. Track under MT-029 as already planned.",
+      "File paths are src/frontend/handshake_native/src/... not the contract's literal src/frontend/shell/...; this is the established WP-KERNEL-011 crate layout, not an MT-010 regression.",
+      "capture_divider_state writes PNGs to ../../../../Handshake_Artifacts/handshake-test/mt010-rails (external sibling root, correct per CX-212E); create_dir_all there is best-effort and does not land outputs inside the repo tree. Not an MT-010 build-config artifact-hygiene fault."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

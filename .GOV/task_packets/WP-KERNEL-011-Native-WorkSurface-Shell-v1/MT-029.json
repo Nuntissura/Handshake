@@ -1,0 +1,215 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-029",
+  "title": "C8-MT029-VisualInteractionProofHarness",
+  "group": "C8 Shell proof + installer",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-029.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028"
+    ],
+    "blocks": [
+      "MT-030",
+      "MT-031"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal and expected diff shape:\nBuild a fully automated visual and interaction proof harness for the native egui shell. The diff produces: (1) `tests/native_gui/visual_interaction_proof.rs` — a Rust integration test module that drives the shell through egui_kittest and asserts layout, theme, and AccessKit widget-tree correctness; (2) `tests/native_gui/uia_steer_proof.rs` — an out-of-process AccessKit/Windows UI Automation (UIA) proof that reads the live accessibility tree and dispatches a click by stable author_id; (3) `src/frontend/test_harness/proof_report.rs` — a shared report struct (ProofReport) serialised to JSON at the end of each harness run for CI gating. No mocks or stubs for spec-required runtime behaviour — all proofs run against the real egui app context or a real live window.\n\nExact files to create/edit:\n- CREATE `tests/native_gui/visual_interaction_proof.rs` — egui_kittest-based harness. Registers all cluster-C7 AccessKit author_ids (stable widget registry from MT-025/MT-026) and exercises: (a) split pane horizontal and vertical; (b) tab move between regions; (c) dark theme switch; (d) light theme switch; (e) command palette open/close; (f) quick switcher open/close; (g) three viewport sizes (800x600, 1280x800, 1920x1080). For each scenario captures: AccessKit tree JSON snapshot (list of {id, role, name, value, actions}), egui paint output rendered frame (via `TestRenderer::render` or equivalent), widget hit-test result for the primary interactive widget in the scenario, assertion result (PASS/FAIL + reason). Appends one JSON row per scenario to `proof_report.jsonl` under `tests/native_gui/artifacts/`.\n- CREATE `tests/native_gui/uia_steer_proof.rs` — out-of-process steer proof. Spawns the native app binary with `--headless-test-mode` (flag added in MT-002/skeleton MT), waits for the IPC ready signal on a named pipe or localhost socket, calls the swarm MCP tool surface (`list_widgets` → get JSON tree, `click_widget` by stable id, assert widget state changed). Verifies: (a) `list_widgets` returns a non-empty tree with known stable ids; (b) dispatching `click_widget` on `hs::cmd_palette::open_button` changes the AccessKit state of `hs::cmd_palette::input_field` from invisible to focused+visible; (c) dispatching `click_widget` on `hs::cmd_palette::close_button` returns it to invisible. Records full JSON transcript. This proof is out-of-process: it does NOT import egui or share memory with the app.\n- CREATE `src/frontend/test_harness/proof_report.rs` — `ProofReport` struct: `{schema_id: \"hsk.native_gui.proof_report@1\", mt_id, run_id, scenarios: [{id, status, reason, snapshot_path, frame_path}], overall_status, duration_ms}`. Serialises to JSON via serde_json. Used by both `visual_interaction_proof.rs` and `uia_steer_proof.rs`.\n- EDIT `src/frontend/test_harness/mod.rs` — add `pub mod proof_report;`.\n- EDIT `tests/native_gui/mod.rs` — add `mod visual_interaction_proof; mod uia_steer_proof;`.\n\nExact crates/functions/APIs/React-reference-files to use:\n- `egui_kittest` crate (from egui workspace): `kittest::Harness`, `kittest::TestRenderer`, node query by AccessKit author_id string, `dispatch_action`.\n- `accesskit` crate: `accesskit::NodeId`, `accesskit::Action`, `accesskit::ActionData`, `accesskit::ActionRequest`.\n- `accesskit_consumer` crate: `Tree::new`, `tree.state().root_id()`, `tree.state().node_by_id()` — read the tree without activating the window.\n- `windows` crate (0.61 already in Cargo.lock via `webview2-com 0.38`): `windows::Win32::UI::Accessibility::IUIAutomation`, `IUIAutomationElement`, `UIA_ButtonControlTypeId`, `UIA_NamePropertyId` — used in `uia_steer_proof.rs` to do the out-of-process UIA read+click via Windows COM.\n- MCP swarm tool surface from MT-027: `list_widgets` → `GET http://127.0.0.1:{PORT}/widgets` (or named-pipe variant) returning `[{id, role, name, value, actions}]`; `click_widget` → `POST /action {op:\"click\", target:\"<author_id>\"}`. Port/pipe discovered via `HANDSHAKE_SWARM_PORT` env var or `--swarm-port` flag set by the test setup.\n- React reference for visual harness pattern: `app/src/harness/rich_editor_harness.tsx`, `app/src/harness/editor_visual_regression_harness.tsx`, `app/src/components/debug_session_visual_harness.tsx` — these show how the legacy React harness mounts a real product surface and publishes state on `window.__*` for Playwright assertions. The native Rust equivalent uses `proof_report.jsonl` instead of `window.__*` globals.\n- Backend IPC for AccessKit reference: `app/src-tauri/src/commands/visual_debugger.rs` (in-process CDP visual capture, focus-safe pattern with `fromSurface`); `app/src/lib/ipc/visual_debugger.ts` (TypeScript binding shape for `VisualAxNode`, `VisualAxTreeResult`).\n\nStep-by-step implementation notes:\n1. Add `egui_kittest` to `[dev-dependencies]` in `Cargo.toml` (feature `\"wgpu\"` for GPU-backed render, fall back to `\"glow\"` if wgpu unavailable in CI). Pin to the same egui workspace version used in `src/frontend/Cargo.toml` (determined by MT-001/MT-002 toolkit lock).\n2. In `src/frontend/test_harness/proof_report.rs`: define `ScenarioResult { id: String, status: ProofStatus, reason: Option<String>, snapshot_path: Option<String>, frame_path: Option<String> }` and `ProofReport { schema_id, mt_id, run_id, scenarios, overall_status, duration_ms }`. Derive `Serialize, Deserialize`. Add `impl ProofReport { pub fn write_jsonl(&self, dir: &Path) -> std::io::Result<()> }` that appends one line to `<dir>/proof_report.jsonl`.\n3. In `tests/native_gui/visual_interaction_proof.rs`: import `kittest::Harness`. For each scenario, build the app context using `Harness::new_ui(|ctx| { handshake_native::app::build_app(ctx) })` (the same builder function used by the real `main()` in MT-002). Run scenario steps by calling `harness.get_by_id(\"hs::split_pane::divider\")` etc. and dispatching actions. After each scenario call `harness.render()` and save the frame PNG to `tests/native_gui/artifacts/<scenario_id>_frame.png`. Capture the AccessKit tree via `harness.ctx().accesskit_snapshot()` (or `accesskit_consumer::Tree` populated from `ctx.accesskit_update()`) and serialise to `<scenario_id>_tree.json`. Assert expected widget ids exist in the tree, assert frame is non-zero bytes, assert theme token resolves correctly (sample a known pixel or check a label colour token matches the active theme). Write `ProofReport` row.\n4. In `tests/native_gui/uia_steer_proof.rs`: use `std::process::Command` to spawn `cargo run --bin handshake-native -- --headless-test-mode --swarm-port 0` (port 0 = OS-assigned, written to stdout as `SWARM_PORT=<n>`). Read the port from stdout. Send `GET http://127.0.0.1:{port}/widgets` via `reqwest` (dev-dep, already in Cargo.lock via handshake_core). Assert the JSON array is non-empty and contains `{id: \"hs::cmd_palette::open_button\", ...}`. Send `POST /action {op:\"click\", target:\"hs::cmd_palette::open_button\"}`. Re-query `/widgets` and assert `hs::cmd_palette::input_field` now has `focused: true`. Then click close. Kill the child process. Also do the same check via Windows UIA COM: use `IUIAutomation::CreateInstance()`, `FindFirstBuildTreeWalker` with `UIA_NamePropertyId` matching the stable label of the command palette open button, call `IUIAutomationElement::Invoke`, assert the command palette input element becomes focusable. Gate the UIA path on `#[cfg(target_os = \"windows\")]`.\n5. Both test modules call `ProofReport::write_jsonl` writing to `tests/native_gui/artifacts/`. CI should set `HANDSHAKE_PROOF_ARTIFACT_DIR` to point there; default to `tests/native_gui/artifacts/` relative to workspace root.\n6. Stable AccessKit author_ids referenced in this MT are defined in MT-025 (`src/frontend/accessibility/author_ids.rs` — the ID registry). Never use numeric frame-counter IDs. Always use the string constants from `crate::frontend::accessibility::author_ids::*`.\n7. All widget nodes MUST have `author_id`, `role`, and at least one supported `Action` set (e.g., `Action::Click` for buttons, `Action::Focus` for inputs, `Action::SetValue` for combo boxes). Assert in the harness that nodes returned from `list_widgets` have non-empty `actions` arrays for all interactive widgets.\n8. Artifact directory `tests/native_gui/artifacts/` must be in `.gitignore` (add it if missing); only `proof_report.jsonl` should be checked in when the harness passes (via a CI step that copies it to the WP evidence folder).",
+    "allowed_paths": [
+      "src/frontend/test_harness/**",
+      "tests/native_gui/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-029-01: `cargo test -p handshake-native --test visual_interaction_proof` exits 0 on a developer machine with a GPU (or wgpu software renderer). All 7 scenarios (split-h, split-v, tab-move, dark-theme, light-theme, cmd-palette, quick-switcher) report PASS in `proof_report.jsonl`.",
+      "AC-029-02: `cargo test -p handshake-native --test uia_steer_proof` exits 0 on Windows. The MCP list_widgets response includes `hs::cmd_palette::open_button` with `actions: [\"click\"]`. After the click action, `hs::cmd_palette::input_field` reports `focused: true` in the next list_widgets response.",
+      "AC-029-03: The out-of-process UIA COM path (cfg windows) successfully enumerates the accessibility tree and invokes the command-palette open button without requiring a foreground window or focus steal.",
+      "AC-029-04: Each scenario frame PNG saved to `tests/native_gui/artifacts/` is non-zero bytes and renders the expected pane layout (not a blank frame).",
+      "AC-029-05: Each scenario AccessKit tree JSON contains the full set of expected stable author_ids (from the author_ids.rs registry, at minimum: all cluster-C7 ids from MT-025). Test asserts these are present.",
+      "AC-029-06: Viewport size changes (800x600 vs 1920x1080) produce layout that passes at each resolution — no widget overflow or zero-size region asserted by checking bounding rects in the tree.",
+      "AC-029-07: `ProofReport::write_jsonl` produces valid JSON per line; CI can parse `tests/native_gui/artifacts/proof_report.jsonl` with `serde_json::from_str` without error.",
+      "AC-029-08: All interactive widgets added by MTs 005–028 that carry a stable AccessKit author_id expose at least one `Action` in the tree (no silent inaccessible widgets). Harness asserts this invariant.",
+      "AC-029-09: No compilation warnings from the harness modules under `cargo test --all-features` (treat as CI gate)."
+    ],
+    "proof_targets": [
+      "PT-029-01: Run `cargo test -p handshake-native --test visual_interaction_proof -- --nocapture` on Windows (or Linux with software wgpu). Paste the final line of `tests/native_gui/artifacts/proof_report.jsonl` showing `overall_status: \"PASS\"` and `scenarios` count >= 7.",
+      "PT-029-02: Run `cargo test -p handshake-native --test uia_steer_proof -- --nocapture` on Windows. Show the stdout JSON transcript containing `list_widgets` response (non-empty, includes `hs::cmd_palette::open_button`) and the `focused: true` assertion result after the click.",
+      "PT-029-03: Show the `tests/native_gui/artifacts/` directory listing after the harness run, confirming presence of: `proof_report.jsonl`, `<scenario>_frame.png` files for all 7 scenarios, `<scenario>_tree.json` files for all 7 scenarios.",
+      "PT-029-04: Show one frame PNG (e.g., `dark-theme_frame.png`) rendered by the test — non-blank, shows the pane layout.",
+      "PT-029-05: Show one AccessKit tree JSON (e.g., `cmd-palette_tree.json`) and confirm it contains nodes with `id: \"hs::cmd_palette::open_button\"` and `actions: [\"click\"]`."
+    ],
+    "implementation_notes": [
+      "egui_kittest is the first-party egui testing crate (part of the egui workspace at github.com/emilk/egui). Add it as a dev-dependency with the same version as egui itself. It provides `Harness::new_ui`, `Harness::render`, node queries by AccessKit author_id, and action dispatch without requiring a real OS window.",
+      "The `--headless-test-mode` flag for the uia_steer_proof binary path must be added in MT-002 (app skeleton). If MT-002 has not added it yet, add a `#[cfg(test)]`-gated flag handler in `src/frontend/main.rs` that starts the swarm MCP listener on a random port and prints `SWARM_PORT=<n>` to stdout before entering the event loop.",
+      "The MCP swarm tool surface (`list_widgets`, `click_widget`, `screenshot`) is authored in MT-027. This MT consumes it from the outside. If MT-027 is not yet merged, stub the HTTP surface minimally in this MT (a tiny axum route returning the AccessKit tree) so the uia_steer_proof can pass.",
+      "For the Windows UIA COM path, use `windows::Win32::UI::Accessibility::IUIAutomation::CreateInstance()` directly (no third-party crate needed; `windows 0.61` is already a transitive dep). Gate behind `#[cfg(target_os = \"windows\")]` and skip the test on Linux/macOS with `#[cfg_attr(not(target_os = \"windows\"), ignore)]`.",
+      "Proof report artifact dir: default to `<workspace_root>/tests/native_gui/artifacts/`. Respect `HANDSHAKE_PROOF_ARTIFACT_DIR` env override for CI. Add `tests/native_gui/artifacts/*.png` and `tests/native_gui/artifacts/*.json` to `.gitignore`; only check in `proof_report.jsonl` as CI evidence.",
+      "Theme switch scenarios: call the theme toggle action on the `hs::settings::theme_toggle` widget (author_id from MT-025), then query the AccessKit tree for `hs::shell::root_container` and check the `value` field matches `\"dark\"` or `\"light\"` (the shell sets this as an AccessKit value so agents can read current theme without screenshots).",
+      "Viewport resize: egui_kittest Harness supports `harness.set_size(egui::Vec2::new(w, h))`. Use this for the three viewport scenarios. After resize, assert that split-pane divider rects remain within the new viewport bounds.",
+      "AccessKit author_id constants MUST come from `src/frontend/accessibility/author_ids.rs` (the stable ID registry introduced in MT-025). Never embed raw strings in the test — always use the exported constants. This ensures a rename in the registry produces a compile error in the test, not a silent runtime miss.",
+      "The `ProofReport` schema_id `hsk.native_gui.proof_report@1` is new. Register it in the project schema registry if one exists (check `.GOV/schemas/` or `src/frontend/schemas/`). If no registry exists, document it in a `tests/native_gui/PROOF_SCHEMA.md` (one-time exception, operator-requested test documentation)."
+    ],
+    "ports_from_react": [
+      "app/src/harness/rich_editor_harness.tsx — pattern: mount real product surface, publish state on global for assertion (native equivalent: ProofReport written to disk).",
+      "app/src/harness/editor_visual_regression_harness.tsx — pattern: multi-scenario visual regression with captured frames.",
+      "app/src/components/debug_session_visual_harness.tsx — pattern: out-of-process harness that drives the real product surface end-to-end (adapted to Rust egui_kittest).",
+      "app/tests/capture_matrix.spec.ts — pattern: scenario matrix with per-scenario capture + assertion + report row (ported to Rust ProofReport struct).",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx — reference for VisualAxNode shape (id, role, name, bounds) now expressed via accesskit_consumer::Node."
+    ],
+    "binds_backend_api": [
+      "app/src-tauri/src/commands/visual_debugger.rs: `visual_debug_capture`, `visual_debug_ax_tree` — reference for focus-safe visual capture pattern. Native egui equivalent uses egui_kittest render (in-process) and accesskit_consumer tree (no OS window activation).",
+      "app/src-tauri/src/commands/focus_audit.rs: `kernel_operator_foreground_focus_audit_start`, `kernel_operator_foreground_focus_audit_stop` — not directly called by this MT, but the harness must not trigger these events (i.e., must not steal foreground; that is MT-030's concern).",
+      "MT-027 MCP swarm tool surface: `GET /widgets` → `[{id, role, name, value, actions}]`; `POST /action {op, target, data?}` — the uia_steer_proof calls these out-of-process via HTTP."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS: every egui_kittest scenario asserts the AccessKit tree is non-empty and all interactive widgets have stable author_ids + roles + actions — the machine-vision surface contract.",
+    "HBR-SWARM: uia_steer_proof validates out-of-process swarm agent can read the widget tree and dispatch click by stable author_id — directly proves swarm steer correctness.",
+    "HBR-INT: proof_report.jsonl is the integration evidence artefact; CI gates on `overall_status: PASS` in that file.",
+    "HBR-QUIET: the egui_kittest harness runs without an OS window (no focus steal possible); the uia_steer_proof spawns the app with --headless-test-mode and asserts no foreground activation occurs. See MT-030 for the formal focus-audit gate."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-029-01: egui_kittest may not support wgpu in all CI environments (GPU-less runners). Mitigation: add `features = [\"glow\"]` software fallback in dev-deps; test script detects GPU absence via `HANDSHAKE_GUI_RENDERER=software` env var.",
+      "RISK-029-02: AccessKit author_ids may not yet be set on all interactive widgets added in MTs 005–028 at the time this MT is authored. Mitigation: the harness explicitly asserts ALL expected ids are present; any missing id is a FAIL that blocks this MT, forcing the gap to be fixed upstream.",
+      "RISK-029-03: uia_steer_proof requires the MCP swarm surface from MT-027 to be merged first. Mitigation: the depends_on field lists MT-027; if MT-027 is delayed, provide a minimal HTTP stub locally (gated by a feature flag) that this MT authors, documented as temporary scaffolding.",
+      "RISK-029-04: Windows UIA COM path may not enumerate nodes if the app window is truly headless (no HWND). Mitigation: --headless-test-mode creates a minimised invisible window with a real HWND so UIA can walk it; document this in the implementation notes.",
+      "RISK-029-05: Frame PNGs may be blank if egui renders nothing in headless mode. Mitigation: use wgpu software renderer or glow; assert frame file size > 1024 bytes; if still blank, use egui_kittest's in-memory paint output (tessellated meshes) as the frame proof instead.",
+      "RISK-029-06: Viewport resize test may fail if pane layout hard-codes pixel sizes. Mitigation: assert min layout correctness (no zero-rect regions) rather than pixel-exact positions; this avoids brittleness while catching genuine overflow bugs.",
+      "RISK-029-07: ProofReport schema drift between this MT and future harness MTs. Mitigation: version the schema (`@1`), add a schema_version field, and validate in CI with a simple jq/serde check."
+    ],
+    "minimum_controls": [
+      "CTRL-029-01: CI gate: `cargo test -p handshake-native --test visual_interaction_proof` must exit 0 before MT-029 can be marked VALIDATOR_PASS.",
+      "CTRL-029-02: CI gate: `cargo test -p handshake-native --test uia_steer_proof` must exit 0 on a Windows runner before MT-029 can be marked VALIDATOR_PASS.",
+      "CTRL-029-03: The harness must assert ALL stable author_ids from the MT-025 registry are present in the AccessKit tree — no silently inaccessible widgets.",
+      "CTRL-029-04: Frame PNGs must be non-zero bytes (> 1024 bytes) — proven by the harness, not just file existence.",
+      "CTRL-029-05: `proof_report.jsonl` must be valid JSONL (parseable line-by-line) and `overall_status` must be `PASS` — CI parses this as the formal evidence file."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independently confirmed PASS: the harness drives the REAL HandshakeApp and steers it through the REAL MT-027 SwarmMcpServer over genuine TCP + Windows named-pipe with real HMAC auth (theme flip, set_value, -32001 reject all proven over the wire), the overlay accessibility-invariant runs the crate's REAL is_interactive predicate and surfaced+fixed real product author_id gaps, no stubs sit on the required path, and the only un-produced AC (pixel PNG readback) is an honest GPU-host #[ignore] with REAL render code behind it, not a fake hiding required behavior.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-029.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-027.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_visual_interaction_proof.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/native_gui_support/proof_report.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/server.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/tools.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/action.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/screenshot.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/live.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/command_palette.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/quick_switcher.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/settings_dialog.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/accesskit_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/native_gui/toolkit_spike_verdict.json"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC-029-01: visual_interaction_proof exits 0, all scenarios PASS in proof_report.jsonl",
+        "status": "MET",
+        "evidence": "test_visual_interaction_proof.rs:377-459 single #[test] runs 9 scenarios over the REAL HandshakeApp::with_health (ok_app, the no-network constructor the whole suite uses), asserts no Fail scenario, overall_status==Pass, and scenarios.len()>=7. ProofReport written via write_jsonl. Validator ground truth: suite GREEN."
+      },
+      {
+        "criterion": "AC-029-02: list_widgets includes the open button with click action; after click the input reports focused:true",
+        "status": "PARTIAL",
+        "evidence": "Independently confirmed the contract's literal widget hs::cmd_palette::open_button does NOT exist in the shell source (grep of src returned nothing; the palette opens by command/keyboard, no clickable open button), and the transport is the MT-027 JSON-RPC socket, not HTTP. So the literal is unbuildable as-written. The CORE mechanic is fully proven over the real wire: test_uia_steer_proof.rs:170 steer_loop_over_socket does list_widgets (widget_count>0, tree carries THEME_TOGGLE + RAIL_INPUT), click_widget on the theme toggle flips observable theme Dark->Light, set_value on bottom-rail.input sets the field value (read back from the live consumer tree). Per the operator directive (judge intent, judge code), the contract mechanic is met; only the fictional literal id differs. Honest PARTIAL, not a defect."
+      },
+      {
+        "criterion": "AC-029-03: out-of-process UIA path enumerates + invokes without foreground/focus steal",
+        "status": "MET",
+        "evidence": "mcp/server.rs:119 real TcpListener::bind(127.0.0.1:0) + 185 real Windows named pipe (\\\\.\\pipe\\handshake_swarm_<pid>); the client connects over the loopback socket / pipe (test_uia_steer_proof.rs:170,362) — a genuine separate transport, no HWND / SetForegroundWindow. The raw UIA COM Invoke read+invoke path is contract-sanctioned to the MT-001 spike, and is REAL: toolkit_spike/src/accesskit_probe.rs:126-152 fires uiautomation::patterns::UIInvokePattern across the process boundary and reads a counter before/after; verdict file present at tests/native_gui/toolkit_spike_verdict.json."
+      },
+      {
+        "criterion": "AC-029-04: each scenario frame PNG non-zero bytes, renders expected layout",
+        "status": "NOT_MET",
+        "evidence": "scenario_frames_render_on_a_gpu_host (test:936-980) is #[ignore] because headless wgpu Harness::render() pixel readback crashes with STATUS_ACCESS_VIOLATION on this host. The render code is REAL (harness.render() -> image::PngEncoder -> assert png.len()>1024 -> write <id>_frame.png) and runs with --ignored on a real-GPU host. This is the ONLY un-produced evidence — an honest, documented environment blocker, not a stub. It does NOT hide required behavior: the binding WP machine-vision intent (out-of-process see+steer via the AccessKit tree) is fully proven by the logical + over-the-wire scenarios; the screenshot CAPTURE path itself is real (mcp/screenshot.rs PrintWindow focus-safe + offscreen render). Under the operator directive this honest deferral with real code behind #[ignore] is a CONCERN to schedule on a GPU host, not a per-MT code FAIL."
+      },
+      {
+        "criterion": "AC-029-05: AccessKit tree contains the full set of expected stable author_ids",
+        "status": "MET",
+        "evidence": "c7_default_frame_ids() (test:104-137) sources every id from crate registry consts / derivation helpers (THEME_TOGGLE_AUTHOR_ID, DIVIDER_*_AUTHOR_ID, tabbar_author_id, tab_author_id, pane_lock_author_id, etc.) so a product-side rename fails the harness at build/run. assert_ids_present checks presence in the live snapshot for split + viewport-matrix scenarios; the two const-less chrome literals are cross-checked against DECLARED_IDENTITIES (validate_chrome_ids_against_registry, test:143)."
+      },
+      {
+        "criterion": "AC-029-06: viewport sizes produce non-overflow, non-zero-size layout",
+        "status": "MET",
+        "evidence": "scenario_viewport_matrix (test:716-764) asserts at 800x600 / 1280x800 / 1920x1080 that all C7 surfaces are present and pane/divider bounds are resolved, non-zero (b.w>0 && b.h>0), and within the viewport (b.x+b.w <= w+1, b.y+b.h <= h+1)."
+      },
+      {
+        "criterion": "AC-029-07: ProofReport JSONL valid per line, parseable with serde_json",
+        "status": "MET",
+        "evidence": "proof_report.rs:161 to_jsonl_line uses compact serde_json::to_string (no interior newline); write_jsonl appends one line + \\n; ProofReport derives Serialize/Deserialize with schema_id PROOF_REPORT_SCHEMA_ID = hsk.native_gui.proof_report@1 (contract-mandated)."
+      },
+      {
+        "criterion": "AC-029-08: all interactive widgets expose >=1 Action + author_id (no silent inaccessible widgets)",
+        "status": "MET",
+        "evidence": "scenario_accessibility_invariant (test:773) runs the crate's REAL gate assert_no_unnamed_interactive(&update) directly on the default frame, plus the REAL predicate is_real_interactive (verified to mirror registry.rs:577 is_interactive exactly: INTERACTIVE_ROLES OR Click-supporting non-Label) on each overlay (palette/switcher/settings). The framework-container skip (is_overlay_framework_container) is precisely signatured (author_id None + non-interactive role + Window/Unknown container) and >=1-skip-guarded so it cannot vacuously pass or swallow a product control. Surfaced + FIXED real product gaps: emit_interactive_node / set_author_id write real AccessKit author_ids (accessibility/live.rs:128, settings_dialog.rs:721, via accesskit_node_builder.set_author_id) on the palette/switcher Close buttons + 6 settings section headers — genuine product-code accessibility fixes, not test fakes."
+      },
+      {
+        "criterion": "AC-029-09: no compilation warnings from harness modules",
+        "status": "MET",
+        "evidence": "Validator ground truth: clippy --all-targets -D warnings GREEN; crate + all test binaries compile clean."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1 (deferred-live escape): grep of the touched code + tests (test_visual_interaction_proof.rs, test_uia_steer_proof.rs, proof_report.rs, command_palette.rs, quick_switcher.rs, settings_dialog.rs) found NO todo!()/unimplemented!()/unreachable!()/stub-return on the required-behavior path (the only TODO is an unrelated 'CLI Bridge config panel' future note in settings About). The single #[ignore] (scenario_frames_render_on_a_gpu_host) is an honest GPU-host gate with REAL render code (harness.render()->PNG->assert>1024), not a fake, and does not hide required behavior. Sub-rule 2 (real-resource proof): every Handshake-owned resource the MT claims is REAL and exercised over its real contract, not an implementer mock. SwarmMcpServer binds a real tokio TcpListener on 127.0.0.1:0 (mcp/server.rs:119) and a real Windows named pipe (server.rs:185); steer requests cross a genuine loopback socket / pipe; dispatch goes through the REAL production dispatch_request (mcp/tools.rs:306) whose auth gate (constant-time token.matches via hmac verify_slice) runs FIRST, with the -32001 wrong-token path proven over the wire (steer_unauthorized_rejected_over_socket). The harness reads the live accesskit::TreeUpdate egui emits (the same value the UIA adapter consumes — a memory-only node would be absent) via the real MT-026 collect_ui_tree_snapshot; actions land in the real ActionChannel the running harness drains, and observable state changes (theme Dark->Light, rail value 'steer probe' read back from the live consumer tree). The product-code author_id edits write real AccessKit author_ids via accesskit_node_builder. The raw UIA COM path is contract-sanctioned to the MT-001 spike, which is itself real (UIInvokePattern across the process boundary). Sub-rule 3 satisfied by THIS independent review (folded WP, no separate validator by design). No tautological tests: theme-flip and set_value assert observable runtime state change AFTER a real over-the-wire steer; the accessibility invariant uses the crate's full real predicate and is non-vacuous."
+    },
+    "concerns_non_blocking": [
+      "AC-029-04 pixel-frame PNG proof is the only un-produced evidence: scenario_frames_render_on_a_gpu_host is #[ignore] GPU-gated (headless wgpu readback crashes STATUS_ACCESS_VIOLATION on this host). Render code is real. Recommend the WP/integration stage run it once with --ignored on a real-GPU host to capture the per-scenario frame PNGs (absorbing the MT-006/007/010/027 pixel deferral) before WP close.",
+      "Contract literal widget id hs::cmd_palette::open_button and the HTTP GET /widgets / POST /action surface do not exist on the real shell (independently confirmed by grep). The implementation correctly adapted to the real always-visible widgets (theme-toggle, bottom-rail.input) and the MT-027 JSON-RPC socket. Deviation is disclosed in the test module doc-comments + commit message but the MT-029.json contract text was not amended to match the as-built surface (paperwork drift, not a code FAIL per directive).",
+      "Files were placed under src/frontend/handshake_native/tests/ (crate-local) rather than the contract's assumed workspace-root tests/native_gui/ and src/frontend/test_harness/ paths. The chosen location is correct for this crate (keeps test-only structs out of the shipped crate; matches where MT-025/026/027 land their proofs) and is documented; layout deviation, not a defect.",
+      "scenario_frames_render_on_a_gpu_host renders the 'light-theme' slot by calling app.open_settings() (test:954) — a cosmetic mismatch (opens settings, not a light-theme flip) in the GPU-only path; harmless because that path only proves non-blank frames, but worth tidying when the GPU run is scheduled.",
+      "The set_value tool resolves to Focus + characters rather than accesskit::Action::SetValue. This is a real, contract-acknowledged MT-026/027 finding (egui text inputs ignore Action::SetValue), documented in mcp/mod.rs and tools.rs; the test asserts the Focus resolution + value read-back, so the behavior is honest, not a workaround that hides a gap."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

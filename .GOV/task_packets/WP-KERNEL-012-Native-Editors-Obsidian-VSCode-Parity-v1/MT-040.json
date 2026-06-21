@@ -1,0 +1,117 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-040",
+  "title": "E6-MT-040-BindCrdtSync",
+  "group": "E6 Backend reuse wiring",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-040.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-037"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Bind the native Rust editor layer to the existing /knowledge/crdt/* backend APIs for collaborative editing: Yjs update push, Yjs update pull (replay feed), and conflict state query. No backend changes are permitted; this MT is pure frontend wiring.\n\nGoal: create a typed Rust client module at src/frontend/backend/knowledge_crdt.rs that exposes three async functions mirroring the backend CRDT push/pull/conflict_state surface. The diff shape is one new file plus a re-export from src/frontend/backend/mod.rs.\n\nThe backend HTTP surface (read from handshake_core/src/api/knowledge_crdt.rs) exposes three routes:\n  POST /knowledge/crdt/updates/push  -> push_update\n  GET  /knowledge/crdt/updates/pull  -> pull_updates\n  GET  /knowledge/crdt/conflict_state -> conflict_state\n\nAll three routes enforce the spec 2.3.13.11 backend-navigation receipt law:\n  push: actor_id, session_id, trace_id inside the YjsUpdateEnvelopeV1 body.\n  pull: actor_id, session_id, correlation_id as query params.\n  conflict_state: actor_id, session_id, correlation_id as query params.\nMissing required identity fields return 400. This is NOT the x-hsk-* header contract of knowledge_documents; it is an in-body / query-param identity scheme specific to the CRDT routes.\n\nRequest and response shapes (derived directly from knowledge_crdt.rs):\n\nPUSH:\n  Request body: PushUpdateRequest { envelope: YjsUpdateEnvelopeV1 }\n  YjsUpdateEnvelopeV1 { crdt_document_id, update_id, actor_id, session_id, trace_id, base_update_seq: u64, update_bytes: Vec<u8> (base64-encoded in JSON), update_schema_id }\n  Response (200 or 409): PushUpdateResponse { result: YjsPushOutcomeV1, receipt: KnowledgeNavigationReceiptV1 }\n  YjsPushOutcomeV1 is a tagged enum:\n    Stored { update_seq, update_id, event_ledger_event_id, head_state_vector }\n    AlreadyStored { update_seq, update_id, event_ledger_event_id, head_state_vector }\n    Denied { denial: YjsPushDenialV1 }\n  YjsPushDenialV1 { schema_id, crdt_document_id, update_id, actor_id, reason: YjsPushDenialReasonV1 }\n  YjsPushDenialReasonV1 is a tagged enum:\n    StaleBase { head_update_seq, head_state_vector, ordering }\n    EnvelopeInvalid { messages: Vec<String> }\n  Backend returns 200 for Stored/AlreadyStored, 409 for Denied.\n\nPULL:\n  Query params: workspace_id, document_id, crdt_document_id, since_update_seq (u64, default 0), document_schema_id, actor_id, session_id, correlation_id\n  Response: PullUpdatesResponse { result: YjsUpdatePullResponseV1, receipt: KnowledgeNavigationReceiptV1 }\n  YjsUpdatePullResponseV1 { crdt_document_id, updates: Vec<StoredYjsUpdate>, head_update_seq: u64, head_state_vector }\n  StoredYjsUpdate { update_seq, update_id, update_bytes: Vec<u8> (base64 in JSON), actor_id, session_id, trace_id, created_at }\n\nCONFLICT_STATE:\n  Query params: workspace_id, document_id, crdt_document_id, actor_id, session_id, correlation_id\n  Response: ConflictStateResponse { result: ConflictUiStateV1, receipt: KnowledgeNavigationReceiptV1 }\n  ConflictUiStateV1 { has_conflict: bool, conflict_kind?: String, head_update_seq: u64, head_state_vector, denial_count: u32, latest_denial? }\n\nKnowledgeNavigationReceiptV1 (common to all three): { receipt_kind, actor_id, session_id, correlation_id, target_authority_ref, operation, served_at_utc }\n\nExact files to create/edit:\n  - CREATE: src/frontend/backend/knowledge_crdt.rs\n  - EDIT:   src/frontend/backend/mod.rs (add `pub mod knowledge_crdt;`)\n\nStep-by-step implementation notes:\n  1. Define YjsUpdateEnvelopeV1 in Rust. The update_bytes field is Vec<u8> in Rust but base64-encoded in JSON. Use #[serde(with = \"base64_bytes\")] or a custom serde module that calls base64::engine::general_purpose::STANDARD encode/decode.\n  2. Define the YjsPushOutcomeV1 enum as a serde tagged union matching the backend variant names: 'Stored', 'AlreadyStored', 'Denied'.\n  3. Define YjsPushDenialReasonV1 as a tagged enum: 'StaleBase', 'EnvelopeInvalid'.\n  4. Implement push_update:\n     a. POST to /knowledge/crdt/updates/push.\n     b. Body: PushUpdateRequest { envelope }.\n     c. Content-Type: application/json.\n     d. On 200: deserialize PushUpdateResponse -> return Ok(YjsPushOutcomeV1::Stored or AlreadyStored).\n     e. On 409: deserialize PushUpdateResponse -> return Ok(YjsPushOutcomeV1::Denied) (NOT an Err; 409 is a valid domain outcome, not a network error).\n     f. On other non-2xx: return Err(CrdtError::HttpError { status, body }).\n  5. Implement pull_updates:\n     a. GET /knowledge/crdt/updates/pull with query params.\n     b. since_update_seq defaults to 0 when caller passes None.\n     c. Return YjsUpdatePullResponseV1 (the caller uses updates Vec<StoredYjsUpdate> to replay Yjs operations).\n     d. StoredYjsUpdate.update_bytes must be base64-decoded from the JSON string back to Vec<u8>.\n  6. Implement conflict_state:\n     a. GET /knowledge/crdt/conflict_state with query params.\n     b. Return ConflictUiStateV1 (has_conflict, conflict_kind, denial counts).\n     c. This is a read-only diagnostic query; the result drives the conflict UI shown to the operator.\n  7. The receipt field (KnowledgeNavigationReceiptV1) is present in all responses. Preserve it in the typed response struct even if the initial consumer does not use it (spec 2.3.13.11 audit requirement).\n  8. CrdtError enum: { HttpError { status: u16, body: String }, SerializationError(String), IdentityMissing(String) }.\n  9. AccessKit note: this MT creates backend client code only. When the collaborative editing UI surface is built, the conflict resolution panel MUST expose each conflict item as an AccessKit node with Role::Alert (for unseen conflicts) or Role::ListItem, with Action::Click to accept/reject. Add this note in the module doc comment.\n  10. Emit a local in-process event or call a provided callback when push_update returns YjsPushOutcomeV1::Denied so that the calling editor layer can trigger the conflict UI immediately. Do not silently swallow denials.\n  11. Register the module in src/frontend/backend/mod.rs.",
+    "allowed_paths": [
+      "src/frontend/backend/knowledge_crdt.rs",
+      "src/frontend/backend/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "src/frontend/backend/knowledge_crdt.rs compiles with `cargo build` (no errors).",
+      "A cargo test calling push_update against a mock returning 200 with a Stored outcome returns Ok(YjsPushOutcomeV1::Stored { ... }) with update_seq set.",
+      "A cargo test calling push_update against a mock returning 409 with a Denied outcome returns Ok(YjsPushOutcomeV1::Denied { ... }) NOT an Err variant (409 is a valid domain outcome).",
+      "A cargo test calling pull_updates against a mock returning one StoredYjsUpdate correctly deserializes update_bytes from base64 back to Vec<u8> with the correct byte length.",
+      "A cargo test calling conflict_state against a mock returning has_conflict=true returns ConflictUiStateV1 with has_conflict==true.",
+      "YjsUpdateEnvelopeV1 update_bytes field serializes to a base64 string in JSON and deserializes back to Vec<u8> without data loss.",
+      "KnowledgeNavigationReceiptV1 is present in all three response types and all fields are deserialized (receipt_kind, actor_id, session_id, correlation_id, target_authority_ref, operation, served_at_utc).",
+      "Module is re-exported from src/frontend/backend/mod.rs.",
+      "Missing actor_id in push envelope results in a 400 from a real backend test or a pre-flight IdentityMissing error from the client (do not send requests with empty identity fields)."
+    ],
+    "proof_targets": [
+      "cargo build --package handshake_frontend 2>&1 | tail -5  ->  no errors",
+      "cargo test -p handshake_frontend knowledge_crdt 2>&1  ->  all tests pass",
+      "grep -n 'pub mod knowledge_crdt' src/frontend/backend/mod.rs  ->  line present",
+      "cargo test -p handshake_frontend crdt_push_409_is_ok 2>&1  ->  specific 409-is-Ok test passes",
+      "cargo test -p handshake_frontend crdt_base64_roundtrip 2>&1  ->  base64 roundtrip test passes"
+    ],
+    "implementation_notes": [
+      "update_bytes base64 encoding: the backend uses base64::engine::general_purpose::STANDARD encode/decode (from the base64 crate). Use the same engine on the client to ensure byte-level compatibility. Do NOT use base64url or padding-stripped variants.",
+      "The CRDT identity scheme is different from knowledge_documents: actor_id/session_id/trace_id are inside the envelope body for push, and in query params for pull/conflict_state. There are no x-hsk-* HTTP headers on these routes.",
+      "A push denial (409) is a valid domain outcome that the editor layer must handle by showing a conflict UI. It MUST NOT be converted to Err in the client's return type. Return Ok(YjsPushOutcomeV1::Denied { denial }).",
+      "The head_state_vector in push and pull responses is an opaque Yjs state vector (Vec<u8> base64-encoded). Preserve it as Vec<u8> in Rust; the CRDT engine consumes it opaquely.",
+      "The since_update_seq parameter for pull_updates is a monotonically increasing u64 sequence number. The client must track the last seen update_seq and pass it on subsequent pulls to avoid replaying old updates.",
+      "MT-037 depends_on relationship: if MT-037's BackendClient is not yet merged, define a minimal LocalBackendClient { base_url: String, client: reqwest::Client } inline in this module and add a TODO to consolidate with MT-037.",
+      "Do not implement CRDT merge/apply logic in this MT. This MT is ONLY the HTTP client for the CRDT push/pull/conflict_state transport layer. The Yjs merge engine (yrs crate or equivalent) is a separate concern for a later MT.",
+      "The document_schema_id query param for pull_updates is the schema version string (e.g. 'prosemirror-v1'); pass it through from the calling editor context."
+    ],
+    "ports_from_react": [
+      "No direct React port: the React app has no CRDT push/pull client (the CRDT transport was handled server-side). The knowledge_crdt.rs backend API is the authoritative reference; this MT creates the first native Rust client for it.",
+      "app/src/lib/editor/document_diff_merge.ts - reference for RichDocumentMergePlan and RichDocumentMergeBlock types that the conflict UI (ConflictUiStateV1) feeds into at the presentation layer.",
+      "app/src/harness/rich_document_diff_harness.tsx - visual reference for the conflict/diff panel that ConflictUiStateV1 drives.",
+      "app/src/components/AtelierCollaborationPanel.tsx - reference for how the React collaboration panel presents multi-session document state; the native equivalent must surface the same conflict and session awareness."
+    ],
+    "binds_backend_api": [
+      "POST /knowledge/crdt/updates/push      (knowledge_crdt.rs:push_update)",
+      "GET  /knowledge/crdt/updates/pull      (knowledge_crdt.rs:pull_updates)",
+      "GET  /knowledge/crdt/conflict_state    (knowledge_crdt.rs:conflict_state)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "409 Denied push outcome converted to Err by the client causes the editor to display a generic error instead of the conflict resolution UI, hiding data-loss risk from the operator.",
+      "base64 encoding mismatch (url-safe vs standard, padding differences) causes update_bytes to fail deserialization on the backend, silently dropping updates.",
+      "since_update_seq not tracked correctly by the caller causes pull_updates to replay all updates from seq=0 on every call, creating redundant CRDT operations that corrupt document state.",
+      "head_state_vector mishandled as a JSON string instead of Vec<u8> causes the CRDT engine to fail state comparison and always see conflicts.",
+      "actor_id / session_id empty strings sent to the backend return 400; the client must pre-flight-check non-empty before sending.",
+      "Concurrent push calls from parallel model swarm lanes without sequencing can cause concurrent CRDT forks (StaleBase denials); the client layer must surface this to the swarm coordinator.",
+      "Receipt fields dropped from the response struct causes spec 2.3.13.11 audit trail gap, making it impossible to trace which agent performed a CRDT operation.",
+      "CRDT pull response for a document not yet in the CRDT store returns an empty updates list but with a head_update_seq of 0; client must not interpret this as an error."
+    ],
+    "minimum_controls": [
+      "YjsPushOutcomeV1::Denied returned as Ok variant; cargo test `crdt_push_409_is_ok` enforces this.",
+      "base64 roundtrip cargo test: encode random bytes -> JSON -> decode -> compare byte-for-byte.",
+      "Pre-flight guard in push_update: return Err(CrdtError::IdentityMissing) if actor_id or session_id or trace_id is empty.",
+      "KnowledgeNavigationReceiptV1 preserved in all three response structs with all seven fields.",
+      "Cargo test: pull_updates with since_update_seq=5 sends '?since_update_seq=5' in the outgoing request URL.",
+      "Cargo test: head_state_vector is deserialized as Vec<u8> (base64 -> bytes), not as a String.",
+      "Module-level doc comment calls out the 409-is-Ok pattern so future contributors do not accidentally change it."
+    ]
+  }
+}

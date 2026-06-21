@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-038",
+  "title": "E6-MT-038-BindLoomApi",
+  "group": "E6 Backend reuse wiring",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-038.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Bind the native Rust editor/notes layer to the existing /workspaces/:id/loom/* backend APIs. No backend changes are permitted; this MT is pure frontend wiring.\n\nGoal: create a typed Rust client module at src/frontend/backend/loom.rs that exposes async functions for the Loom block, graph, tag, view, and edge routes used by native Loom navigation and editor panes. The diff shape is one new file plus a re-export from src/frontend/backend/mod.rs.\n\nThe backend HTTP surface (read from handshake_core/src/api/loom.rs) exposes a large route set. This MT covers the subset relevant to native editor and navigator panes:\n\nBlock CRUD:\n  POST   /workspaces/:ws/loom/blocks                            -> create_loom_block\n  GET    /workspaces/:ws/loom/blocks/:block_id                  -> get_loom_block\n  PATCH  /workspaces/:ws/loom/blocks/:block_id                  -> patch_loom_block\n  DELETE /workspaces/:ws/loom/blocks/:block_id                  -> delete_loom_block\n  GET    /workspaces/:ws/loom/blocks/:block_id/knowledge        -> get_loom_block_knowledge_bridge\n  GET    /workspaces/:ws/loom/blocks/:block_id/transclusion     -> get_loom_block_transclusion\n  PUT    /workspaces/:ws/loom/blocks/:block_id/pin-order        -> set_loom_block_pin_order\n  GET    /workspaces/:ws/loom/blocks/:block_id/breadcrumbs      -> get_loom_block_breadcrumbs\n  GET    /workspaces/:ws/loom/blocks/:block_id/backlinks        -> get_loom_block_backlinks\n  GET    /workspaces/:ws/loom/blocks/:block_id/unlinked-mentions -> scan_loom_block_unlinked_mentions\n\nDaily journal:\n  PUT    /workspaces/:ws/loom/journals/:journal_date            -> open_daily_journal\n\nFolders:\n  GET    /workspaces/:ws/loom/folders                          -> list_loom_folders\n  POST   /workspaces/:ws/loom/folders                          -> create_loom_folder\n  GET    /workspaces/:ws/loom/folders/:folder_id               -> get_loom_folder\n  PATCH  /workspaces/:ws/loom/folders/:folder_id               -> update_loom_folder\n  DELETE /workspaces/:ws/loom/folders/:folder_id               -> delete_loom_folder\n  GET    /workspaces/:ws/loom/folders/:folder_id/blocks        -> list_loom_folder_blocks\n  PUT    /workspaces/:ws/loom/folders/:folder_id/blocks/:block_id -> add_block_to_loom_folder\n  DELETE /workspaces/:ws/loom/folders/:folder_id/blocks/:block_id -> remove_block_from_loom_folder\n\nTags:\n  GET    /workspaces/:ws/loom/tags                             -> list_loom_tag_hubs\n  GET    /workspaces/:ws/loom/tags/:tag_block_id               -> get_loom_tag_hub\n  GET    /workspaces/:ws/loom/tags/:tag_block_id/blocks        -> list_loom_blocks_for_tag\n\nEdges:\n  POST   /workspaces/:ws/loom/edges                           -> create_loom_edge\n  DELETE /workspaces/:ws/loom/edges/:edge_id                  -> delete_loom_edge\n\nGraph:\n  GET    /workspaces/:ws/loom/graph/traverse                  -> traverse_loom_graph\n  GET    /workspaces/:ws/loom/graph/local                     -> local_loom_graph\n  GET    /workspaces/:ws/loom/graph/global                    -> global_loom_graph\n\nViews and search:\n  GET    /workspaces/:ws/loom/views/:view_type                -> query_loom_view\n  GET    /workspaces/:ws/loom/search                          -> search_loom_blocks\n  POST   /workspaces/:ws/loom/search-v2                       -> loom_search_v2\n  GET    /workspaces/:ws/loom/quick-switcher/recents          -> list_quick_switcher_recents\n  POST   /workspaces/:ws/loom/quick-switcher/recents          -> record_quick_switcher_recent\n  GET    /workspaces/:ws/loom/visual-debug                    -> loom_visual_debug_snapshot\n\nBlock Collection Views (MT-262):\n  POST   /workspaces/:ws/loom/views/definitions               -> create_block_view\n  GET    /workspaces/:ws/loom/views/definitions/:block_id     -> get_block_view\n  PATCH  /workspaces/:ws/loom/views/definitions/:block_id     -> update_block_view\n  POST   /workspaces/:ws/loom/views/definitions/:block_id/results -> query_block_view_results\n\nWiki projection (MT-184/241):\n  GET    /workspaces/:ws/loom/wiki                            -> list_loom_wiki_pages\n  POST   /workspaces/:ws/loom/wiki                            -> compile_loom_wiki_projection\n  POST   /workspaces/:ws/loom/wiki/bootstrap                  -> bootstrap_project_wiki\n  POST   /workspaces/:ws/loom/wiki/drift-check                -> project_wiki_drift_check\n  POST   /workspaces/:ws/loom/wiki/fanout                     -> project_wiki_fanout\n  GET    /workspaces/:ws/loom/wiki/:projection_id             -> get_loom_wiki_projection\n  DELETE /workspaces/:ws/loom/wiki/:projection_id             -> delete_loom_wiki_projection\n  POST   /workspaces/:ws/loom/wiki/:projection_id/regenerate  -> regenerate_loom_wiki_projection\n  GET    /workspaces/:ws/loom/wiki/:projection_id/stale       -> loom_wiki_projection_stale\n\nMarkdown import:\n  POST   /workspaces/:ws/loom/import/markdown                 -> import_markdown_to_loom\n\nExact files to create/edit:\n  - CREATE: src/frontend/backend/loom.rs\n  - EDIT:   src/frontend/backend/mod.rs (add `pub mod loom;`)\n\nStep-by-step implementation notes:\n  1. Define Rust structs for core types:\n     - LoomBlock { block_id, workspace_id, content_type (LoomBlockContentType enum), title?, pinned, journal_date?, derived (LoomBlockDerived), asset_id?, document_id?, ... }\n     - LoomEdge { edge_id, workspace_id, source_block_id, target_block_id, edge_type (LoomEdgeType enum), ... }\n     - LoomFolder { folder_id, workspace_id, name, color?, sort_mode, parent_folder_id?, project_ref?, ... }\n     - LoomTagHub { block, sub_tags, tagged_block_count, backlinks }\n     - LoomGraphSearchResult and LoomSearchFilters for search responses\n     - LoomBreadcrumbTrail, LoomBacklink, LoomUnlinkedMention\n     - LoomKnowledgeBridge { entity_id, receipt_id, ... }\n     - LoomTransclusionResponse { block_id, workspace_id, source_document_id?, source_doc_version?, content_json?, resolved, unresolved_reason? }\n     - BlockViewDefinition, BlockViewResults for MT-262 views\n  2. Define request types:\n     - CreateLoomBlockRequest { block_id?, content_type, document_id?, asset_id?, title?, pinned?, journal_date? }\n     - LoomBlockPatchRequest { title?, pinned?, favorite?, journal_date?, pin_order?, add_tags: Vec<String>, remove_tags: Vec<String> }\n     - CreateLoomFolderRequest { name, parent_folder_id?, color?, sort_mode?, sort_order?, project_ref? }\n     - LoomFolderUpdate (matches backend patch fields)\n     - CreateLoomEdgeRequest { source_block_id, target_block_id, edge_type }\n     - CompileWikiRequest { title, block_ids: Vec<String> }\n     - ImportMarkdownRequest { title, markdown }\n     - LoomSearchV2Request (POST body matching backend loom_search_v2 handler)\n  3. Implement one async fn per route using the shared BackendClient (see MT-037 for the BackendClient pattern). Workspace_id is always a path parameter.\n  4. The loom.rs module does NOT require identity headers (x-hsk-actor-*): the loom routes use WriteContext::human(None) server-side and do not enforce the actor-header contract. Do not add headers that the backend does not require.\n  5. For the patch_loom_block handler: add_tags / remove_tags are Vec<String> tag hub block IDs. These are NOT edge IDs; the backend resolves them to edges internally.\n  6. For search-v2 (POST /loom/search-v2): the request body mirrors LoomSearchFilters + optional pgvector query embedding. Use serde_json::Value for the embedding field to avoid coupling to the embedding dimension.\n  7. AccessKit note: this MT creates backend client code only, no widgets. When a calling widget (e.g. block navigator, graph panel, tag filter) is built, each interactive element must receive a stable AccessKit author_id, role, and actions. Document this requirement in the module-level doc comment so the widget author sees it.\n  8. Register the module in src/frontend/backend/mod.rs.",
+    "allowed_paths": [
+      "src/frontend/backend/loom.rs",
+      "src/frontend/backend/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "src/frontend/backend/loom.rs compiles with `cargo build` (no errors).",
+      "A cargo test calling get_loom_block against a mock HTTP server returning a valid LoomBlock JSON returns a typed LoomBlock without panicking.",
+      "A cargo test calling loom_search_v2 with a mock returning a search result JSON returns a non-empty result list.",
+      "A cargo test calling get_loom_block_transclusion with resolved=false returns a typed LoomTransclusionResponse with resolved==false and unresolved_reason set.",
+      "All public async functions have a one-line doc comment citing the backend route.",
+      "Module is re-exported from src/frontend/backend/mod.rs.",
+      "LoomBlockContentType, LoomEdgeType enums compile without unknown variant panics for the types present in the backend storage definitions (note, document, asset, journal, tag, canvas_board, collection)."
+    ],
+    "proof_targets": [
+      "cargo build --package handshake_frontend 2>&1 | tail -5  ->  no errors",
+      "cargo test -p handshake_frontend loom 2>&1  ->  all tests pass",
+      "grep -n 'pub mod loom' src/frontend/backend/mod.rs  ->  line present",
+      "grep -n 'pub async fn get_loom_block' src/frontend/backend/loom.rs  ->  present"
+    ],
+    "implementation_notes": [
+      "The backend loom API does NOT require x-hsk identity headers on read paths (unlike knowledge_documents). Do not add unnecessary headers.",
+      "LoomBlockContentType variants to cover: Note, Asset, Journal, Tag, CanvasBoard, Collection (check loom.rs for the full set from storage).",
+      "The wiki projection endpoints return a ServedWikiPage with a staleness_verdict field attached (compile-time fail-closed on the backend). Represent staleness_verdict as serde_json::Value in the client to avoid tight coupling to the WikiStalenessVerdict enum.",
+      "For graph endpoints (traverse/local/global): use serde_json::Value for the graph result body initially; a typed graph model can be extracted in a later MT when the graph pane widget is built.",
+      "The quick-switcher recent POST body needs { block_id, workspace_id } at minimum; check backend for the full QuickSwitcherRecentInput shape.",
+      "Do not hold workspace state in this module. All functions accept workspace_id as a parameter.",
+      "Pagination parameters (limit/offset) are passed as query params; use Option<u32> for optional params with sane defaults documented in comments."
+    ],
+    "ports_from_react": [
+      "app/src/components/BlockCollectionView.tsx - reference for block list rendering and the view_type query pattern (views/:view_type route).",
+      "app/src/components/loom_block_collection_visual_harness.tsx - reference for block collection interactions.",
+      "app/src/lib/loom_search_query.ts - reference for search filter shape passed to /loom/search and /loom/search-v2.",
+      "app/src/lib/loom_search_open_target.ts - reference for what the search result target fields look like.",
+      "app/src/components/loom_canvas_visual_harness.tsx - reference for canvas board placement interaction pattern.",
+      "app/src/harness/loom_bookmarks_harness.tsx - reference for pinned/favorite block patterns.",
+      "app/src/harness/loom_transclusion_harness.tsx - reference for transclusion resolution rendering.",
+      "app/src/lib/tiptap/loom_transclusion_node.ts - reference for how transclusion block_id is embedded in a document node."
+    ],
+    "binds_backend_api": [
+      "POST   /workspaces/:ws/loom/blocks                             (loom.rs:create_loom_block)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id                   (loom.rs:get_loom_block)",
+      "PATCH  /workspaces/:ws/loom/blocks/:block_id                   (loom.rs:patch_loom_block)",
+      "DELETE /workspaces/:ws/loom/blocks/:block_id                   (loom.rs:delete_loom_block)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id/knowledge         (loom.rs:get_loom_block_knowledge_bridge)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id/transclusion      (loom.rs:get_loom_block_transclusion)",
+      "PUT    /workspaces/:ws/loom/blocks/:block_id/pin-order         (loom.rs:set_loom_block_pin_order)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id/breadcrumbs       (loom.rs:get_loom_block_breadcrumbs)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id/backlinks         (loom.rs:get_loom_block_backlinks)",
+      "GET    /workspaces/:ws/loom/blocks/:block_id/unlinked-mentions (loom.rs:scan_loom_block_unlinked_mentions)",
+      "PUT    /workspaces/:ws/loom/journals/:journal_date             (loom.rs:open_daily_journal)",
+      "GET    /workspaces/:ws/loom/folders                           (loom.rs:list_loom_folders)",
+      "POST   /workspaces/:ws/loom/folders                           (loom.rs:create_loom_folder)",
+      "GET    /workspaces/:ws/loom/folders/:folder_id                (loom.rs:get_loom_folder)",
+      "PATCH  /workspaces/:ws/loom/folders/:folder_id                (loom.rs:update_loom_folder)",
+      "DELETE /workspaces/:ws/loom/folders/:folder_id                (loom.rs:delete_loom_folder)",
+      "GET    /workspaces/:ws/loom/folders/:folder_id/blocks         (loom.rs:list_loom_folder_blocks)",
+      "PUT    /workspaces/:ws/loom/folders/:folder_id/blocks/:block_id (loom.rs:add_block_to_loom_folder)",
+      "DELETE /workspaces/:ws/loom/folders/:folder_id/blocks/:block_id (loom.rs:remove_block_from_loom_folder)",
+      "GET    /workspaces/:ws/loom/tags                              (loom.rs:list_loom_tag_hubs)",
+      "GET    /workspaces/:ws/loom/tags/:tag_block_id                (loom.rs:get_loom_tag_hub)",
+      "GET    /workspaces/:ws/loom/tags/:tag_block_id/blocks         (loom.rs:list_loom_blocks_for_tag)",
+      "POST   /workspaces/:ws/loom/edges                            (loom.rs:create_loom_edge)",
+      "DELETE /workspaces/:ws/loom/edges/:edge_id                   (loom.rs:delete_loom_edge)",
+      "GET    /workspaces/:ws/loom/graph/traverse                   (loom.rs:traverse_loom_graph)",
+      "GET    /workspaces/:ws/loom/graph/local                      (loom.rs:local_loom_graph)",
+      "GET    /workspaces/:ws/loom/graph/global                     (loom.rs:global_loom_graph)",
+      "GET    /workspaces/:ws/loom/views/:view_type                 (loom.rs:query_loom_view)",
+      "GET    /workspaces/:ws/loom/search                           (loom.rs:search_loom_blocks)",
+      "POST   /workspaces/:ws/loom/search-v2                        (loom.rs:loom_search_v2)",
+      "GET    /workspaces/:ws/loom/quick-switcher/recents           (loom.rs:list_quick_switcher_recents)",
+      "POST   /workspaces/:ws/loom/quick-switcher/recents           (loom.rs:record_quick_switcher_recent)",
+      "GET    /workspaces/:ws/loom/visual-debug                     (loom.rs:loom_visual_debug_snapshot)",
+      "POST   /workspaces/:ws/loom/views/definitions                (loom.rs:create_block_view)",
+      "GET    /workspaces/:ws/loom/views/definitions/:block_id      (loom.rs:get_block_view)",
+      "PATCH  /workspaces/:ws/loom/views/definitions/:block_id      (loom.rs:update_block_view)",
+      "POST   /workspaces/:ws/loom/views/definitions/:block_id/results (loom.rs:query_block_view_results)",
+      "GET    /workspaces/:ws/loom/wiki                             (loom.rs:list_loom_wiki_pages)",
+      "POST   /workspaces/:ws/loom/wiki                             (loom.rs:compile_loom_wiki_projection)",
+      "POST   /workspaces/:ws/loom/wiki/bootstrap                   (loom.rs:bootstrap_project_wiki)",
+      "POST   /workspaces/:ws/loom/wiki/drift-check                 (loom.rs:project_wiki_drift_check)",
+      "POST   /workspaces/:ws/loom/wiki/fanout                      (loom.rs:project_wiki_fanout)",
+      "GET    /workspaces/:ws/loom/wiki/:projection_id              (loom.rs:get_loom_wiki_projection)",
+      "DELETE /workspaces/:ws/loom/wiki/:projection_id              (loom.rs:delete_loom_wiki_projection)",
+      "POST   /workspaces/:ws/loom/wiki/:projection_id/regenerate   (loom.rs:regenerate_loom_wiki_projection)",
+      "GET    /workspaces/:ws/loom/wiki/:projection_id/stale        (loom.rs:loom_wiki_projection_stale)",
+      "POST   /workspaces/:ws/loom/import/markdown                  (loom.rs:import_markdown_to_loom)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "LoomBlockContentType or LoomEdgeType enum variant mismatch between client and backend causes deserialization failure when new variants are added to the backend.",
+      "patch_loom_block add_tags/remove_tags treated as edge IDs instead of tag hub block IDs causes backend 404/validation errors silently.",
+      "Transclusion response with resolved=false treated as a network error instead of a typed unresolved state causes blank renders instead of 'unresolved' indicator.",
+      "wiki staleness_verdict tightly coupled to a Rust struct causes compile failure when backend verdict shape changes; using serde_json::Value prevents this.",
+      "Workspace_id path parameter URL-encoded incorrectly causes 404 from the backend (workspace IDs may contain hyphens but not slashes; still require URL encoding in path segments).",
+      "Graph endpoints returning large result sets can stall the UI thread if deserialized synchronously; JSON body can be very large for global graph.",
+      "Search-v2 POST with a malformed pgvector embedding field causes backend 400; client must not fabricate embeddings."
+    ],
+    "minimum_controls": [
+      "LoomBlockContentType and LoomEdgeType use #[serde(rename_all = \"snake_case\")] and #[serde(other)] or #[non_exhaustive] to tolerate unknown variants without panicking.",
+      "LoomTransclusionResponse resolved=false handled as a first-class Ok result, not mapped to an error variant.",
+      "wiki staleness_verdict field typed as serde_json::Value in client struct.",
+      "Graph result bodies typed as serde_json::Value initially; graph pane widgets consume them through typed extractors added per-widget.",
+      "Cargo tests cover: block CRUD roundtrip, tag patch with add_tags/remove_tags, transclusion unresolved case, search-v2 response parsing."
+    ]
+  }
+}

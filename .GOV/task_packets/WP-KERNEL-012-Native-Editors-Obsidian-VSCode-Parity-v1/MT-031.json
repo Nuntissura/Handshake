@@ -1,0 +1,104 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-031",
+  "title": "E5-MT-031-SharedSelectionClipboardCommandBus",
+  "group": "E5 Interconnection / melt-together",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-031.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-011", "MT-021"],
+    "blocks": ["MT-032", "MT-033", "MT-034", "MT-035"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: implement a single app-wide SharedInteractionBus — the substrate that lets all editor panes (code, rich-text, graph, canvas) share one selection model, one clipboard, and one command registry. The expected diff shape is: (a) one new Rust module src/frontend/shared/interaction_bus.rs (~350–500 lines) defining the bus types and an egui-integrated singleton, (b) thin adapter shims in each existing pane module (src/frontend/panes/code_editor.rs, rich_text_editor.rs, graph_pane.rs, canvas_pane.rs) that register into the bus rather than own ad-hoc clipboard/command state, (c) a kittest integration test src/frontend/tests/interaction_bus_tests.rs proving cross-pane selection propagation and clipboard round-trip.\n\nFiles to CREATE:\n  - src/frontend/shared/interaction_bus.rs  — defines SharedSelection, ClipboardPayload, CommandBus, CommandDescriptor, CommandHandler; holds an Arc<Mutex<InteractionBus>> accessible through egui's app data storage via Context::data_mut.\n\nFiles to EDIT:\n  - src/frontend/shared/mod.rs  — add `pub mod interaction_bus;`\n  - src/frontend/panes/code_editor.rs  — replace per-pane clipboard + keybinding dispatch with bus calls; call bus.clipboard_write / bus.clipboard_read; register editor commands (Copy, Cut, Paste, SelectAll, Find) via bus.register_command.\n  - src/frontend/panes/rich_text_editor.rs  — same pattern.\n  - src/frontend/panes/graph_pane.rs  — register node-selection into SharedSelection; clipboard writes (copy node ref as loom:// URI).\n  - src/frontend/panes/canvas_pane.rs  — same as graph_pane; canvas node selection feeds SharedSelection.\n\nStep-by-step implementation notes:\n  1. Define SharedSelection as an enum: None | TextRange { pane_id: PaneId, start: usize, end: usize, text: String } | BlockRef { pane_id: PaneId, block_id: String } | NodeRef { pane_id: PaneId, node_id: String }. Pane that holds focus owns the active variant; others observe.\n  2. Define ClipboardPayload as an enum: PlainText(String) | LoomBlockRef(String) | AtelierRef(String) | RichContent { mime: String, bytes: Vec<u8> }. Write through arboard (add to Cargo.toml if not present; it is pure Rust, MIT licensed). On read, return the richest available variant the pane can consume.\n  3. Define CommandDescriptor { id: &'static str, label: String, keybind: Option<egui::KeyboardShortcut>, handler: CommandHandler } where CommandHandler = Arc<dyn Fn(&mut egui::Ui, &mut InteractionBus) + Send + Sync>. CommandBus is Vec<CommandDescriptor>.\n  4. CommandPalette (ported from React CommandPalette.tsx) drives the command bus: collect all registered descriptors, display in a fuzzy-searchable egui modal with AccessKit id \"command-palette-list\" + role List; on confirm call handler.\n  5. Store the InteractionBus in egui Context app data: ctx.data_mut(|d| d.insert_temp(egui::Id::new(\"handshake_interaction_bus\"), bus.clone())). Every pane retrieves it the same way.\n  6. Keybind dispatch: each pane, in its update() call, calls bus.dispatch_keybind(ctx, ui) after its own event handling. The bus iterates registered descriptors and checks egui::InputState::consume_shortcut.\n  7. AccessKit: register the command palette trigger button with AccessKit author_id=\"command-palette-trigger\", role=Button, actions=[Press]. Register the search input with author_id=\"command-palette-search\", role=TextField. Each command list item uses author_id=\"cmd-{descriptor.id}\", role=ListItem.\n  8. Add a pane_focus_changed notification: when a pane receives click focus, it calls bus.set_focus_owner(pane_id) so SharedSelection.pane_id tracks which pane currently owns selection.\n  9. Cross-pane Copy: when the user presses Ctrl+C in any pane, that pane builds a ClipboardPayload and calls bus.clipboard_write(payload). The bus calls arboard::Clipboard::set_text for PlainText, and also caches the richest variant in-memory for same-session cross-pane Paste.\n  10. Tests: src/frontend/tests/interaction_bus_tests.rs — (a) unit: build a bus, register two panes, simulate selection change in pane A, read SharedSelection and assert it reflects pane A; (b) kittest harness: open code pane, select text, Ctrl+C, focus rich-text pane, Ctrl+V, assert pasted text equals source; (c) command bus: register a test command, call dispatch_command by id, assert handler invoked.\n\nDependencies / unblock conditions:\n  - MT-001 (code editor pane exists in src/frontend/panes/code_editor.rs) must be merged first.\n  - MT-011 (rich-text editor pane) must be merged.\n  - MT-021 (graph pane) must be merged.\n  - arboard crate (^3.x, pure Rust, MIT) must be added to Cargo.toml if not already present.\n\nRisk if missed: every downstream E5 MT (MT-032 through MT-036) requires the bus as a common substrate. Without it, each subsequent MT would build its own ad-hoc selection/clipboard, fragmenting the 'melt-together' invariant and making the parity proof suite impossible.",
+    "allowed_paths": [
+      "src/frontend/shared/interaction_bus.rs",
+      "src/frontend/shared/mod.rs",
+      "src/frontend/panes/code_editor.rs",
+      "src/frontend/panes/rich_text_editor.rs",
+      "src/frontend/panes/graph_pane.rs",
+      "src/frontend/panes/canvas_pane.rs",
+      "src/frontend/tests/interaction_bus_tests.rs",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "SharedSelection propagates: selecting text in the code pane and reading SharedSelection from any other pane returns the correct TextRange with matching text and pane_id — proven by kittest harness.",
+      "Clipboard round-trip: Ctrl+C in code pane then Ctrl+V in rich-text pane pastes the identical text — proven by kittest harness; arboard::Clipboard also receives the write (verified by reading system clipboard in the test).",
+      "Command palette modal opens with Ctrl+Shift+P (or OS-appropriate shortcut), lists all registered commands, filters by fuzzy query, and fires the selected command handler — proven by kittest interaction test.",
+      "All four pane types (code, rich-text, graph, canvas) register at least one command into the bus and at least one clipboard write path — proven by grep of bus.register_command and bus.clipboard_write call sites.",
+      "AccessKit nodes present: 'command-palette-trigger' (Button), 'command-palette-search' (TextField), and at least one 'cmd-{id}' (ListItem) — proven by AccessKit tree dump in kittest.",
+      "cargo test --package handshake_native_frontend passes with no failures across all interaction_bus_tests.",
+      "No per-pane ad-hoc clipboard state or separate keybind dispatch tables remain after the refactor (old ad-hoc code removed, not duplicated alongside)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_native_frontend interaction_bus -- --nocapture  =>  all tests PASS, no panics",
+      "kittest harness: simulate Ctrl+C in code pane, Ctrl+V in rich-text pane, assert pasted text equals source selection",
+      "kittest harness: open command palette via Ctrl+Shift+P, type partial command name, assert filtered list, press Enter, assert handler side-effect",
+      "AccessKit tree snapshot: assert nodes 'command-palette-trigger', 'command-palette-search', 'cmd-Copy' present with correct roles"
+    ],
+    "implementation_notes": [
+      "Use egui::Id::new(\"handshake_interaction_bus\") as the stable key for ctx.data_mut storage; every pane retrieves the bus by this id in its update() fn.",
+      "arboard ^3 is cross-platform (Windows/macOS/Linux) pure Rust; add under [dependencies] in Cargo.toml.",
+      "CommandDescriptor.keybind uses egui::KeyboardShortcut { modifiers, key }; standard VS Code bindings: Copy=Ctrl+C, Cut=Ctrl+X, Paste=Ctrl+V, SelectAll=Ctrl+A, Find=Ctrl+F, CommandPalette=Ctrl+Shift+P.",
+      "The egui modal for the CommandPalette: use egui::Window::new(\"Command Palette\").anchor(egui::Align2::CENTER_TOP, [0.0, 48.0]).show(ctx, |ui| { ... }); open only when bus.command_palette_open flag is true.",
+      "Pane focus: each pane's update() fn calls bus.set_focus_owner(self.pane_id) only when ui.memory(|m| m.has_focus(self.pane_egui_id)) is true, avoiding spurious resets.",
+      "React reference: CommandPalette.tsx defines CommandPaletteAction { id, label, description, keywords, disabled, stableId }; match this shape in CommandDescriptor; stableId maps to AccessKit author_id."
+    ],
+    "ports_from_react": [
+      "app/src/components/CommandPalette.tsx — CommandPaletteAction shape, fuzzy filter logic (matchesQuery), keyboard nav (ArrowUp/Down/Enter/Escape), overlay modal pattern"
+    ],
+    "binds_backend_api": [
+      "None — this MT is pure frontend bus; clipboard write uses arboard (OS clipboard); no backend API calls required"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-QUIET"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Arc<Mutex<InteractionBus>> contention: multiple panes calling bus methods in the same egui frame could deadlock if a handler re-enters the lock.",
+      "arboard fails on headless CI (no clipboard daemon on Linux); tests that assert system clipboard content will hang or fail.",
+      "Keybind conflicts: registering Ctrl+C in the bus conflicts with egui's default text-widget copy if panes do not suppress the default handler.",
+      "Stale pane_id after a pane is closed: SharedSelection may reference a closed pane; consumers must guard against dangling pane_id.",
+      "AccessKit author_id collisions if two command palette instances are ever rendered (e.g. in kittest harness with multiple windows)."
+    ],
+    "minimum_controls": [
+      "Use a try_lock pattern in update() paths and log a warning on contention; never block the egui frame thread.",
+      "Gate arboard system-clipboard assertions behind a #[cfg(not(ci))] feature flag or check for DISPLAY env var; fallback to in-memory clipboard assertion only in CI.",
+      "Each pane calls ui.input_mut(|i| i.consume_shortcut(&shortcut)) before bus.dispatch_keybind to suppress egui default handling.",
+      "SharedSelection read must check pane_id exists in the live pane registry before use; return None if pane is gone.",
+      "Ensure the egui::Id for the command palette modal is scoped to the window id so multi-window harness tests do not collide."
+    ]
+  }
+}

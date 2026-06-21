@@ -1,0 +1,217 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-019",
+  "title": "C5-MT-019-ContextMenuInfra",
+  "group": "C5 Context menus",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-019.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006",
+      "MT-007"
+    ],
+    "blocks": [
+      "MT-020",
+      "MT-021"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal: Create a reusable, keyboard-accessible context-menu infrastructure module that all other C5 MTs will import. No native OS browser/webview menu is available in a pure Rust egui app — the context menu must be a first-class egui popup painted by the app itself.\n\nExpected diff shape: Create ONE new source file `src/frontend/context_menu/mod.rs` (and register it in `src/frontend/mod.rs` or the crate root). Optionally split into `src/frontend/context_menu/types.rs` + `src/frontend/context_menu/widget.rs` if lines exceed ~300, but the public API surface must live in `src/frontend/context_menu/mod.rs`.\n\nFiles to create/edit:\n- CREATE `src/frontend/context_menu/mod.rs` — the entire infra lives here.\n- EDIT `src/frontend/mod.rs` (or `src/frontend/lib.rs`) to add `pub mod context_menu;`.\n\nPublic API to expose (all types and functions must be `pub`):\n\n```rust\n// A single menu item. `id` must be globally stable per surface type + action.\npub struct ContextMenuItem {\n    pub id: &'static str,          // stable author_id used for AccessKit node\n    pub label: &'static str,\n    pub shortcut_hint: Option<&'static str>,\n    pub enabled: bool,\n    pub kind: MenuItemKind,\n}\n\npub enum MenuItemKind {\n    Action,             // fires immediately on confirm\n    Submenu(Vec<ContextMenuItem>),  // opens a nested popup\n    Separator,          // visual divider, not interactive\n}\n\n// Open request: caller sets anchor point (screen pos) and the item list.\npub struct ContextMenuRequest {\n    pub anchor: egui::Pos2,\n    pub items: Vec<ContextMenuItem>,\n}\n\n// State stored in the egui Context's memory (keyed by a stable TypeId).\npub struct ContextMenuState {\n    pub open: bool,\n    pub request: Option<ContextMenuRequest>,\n    pub active_submenu: Option<usize>,  // index of the item whose submenu is open\n    pub keyboard_cursor: Option<usize>, // keyboard-navigated item index\n}\nimpl Default for ContextMenuState { ... }\n\n// Call site: show context menu if one is requested. Returns the id of the\n// activated item, or None.\npub fn show_context_menu(\n    ctx: &egui::Context,\n    ui: &mut egui::Ui,\n    state: &mut ContextMenuState,\n) -> Option<&'static str>;\n\n// Trigger: call on secondary-click (right-click) or Shift+F10 / the Menu key.\npub fn request_context_menu(ctx: &egui::Context, anchor: egui::Pos2, items: Vec<ContextMenuItem>);\n\n// Dismiss the open menu without firing an action.\npub fn dismiss_context_menu(ctx: &egui::Context);\n```\n\nStep-by-step implementation notes:\n1. Add the `context_menu` module to `src/frontend/mod.rs`.\n2. In `mod.rs`, define `MenuItemKind`, `ContextMenuItem`, `ContextMenuRequest`, `ContextMenuState` structs/enums.\n3. Store `ContextMenuState` in `egui::Context::memory_mut` using a unique `Id` derived from `egui::Id::new(\"hs_context_menu_global\")`. This ensures only ONE context menu is open at a time across the whole app (standard desktop behavior).\n4. `request_context_menu`: mutates the stored state to set `open=true`, saves the `ContextMenuRequest`.\n5. `dismiss_context_menu`: sets `open=false`, clears `request`.\n6. `show_context_menu`: must be called once per frame from the root-level egui paint pass (not inside a pane, so the popup can overflow pane boundaries). Implementation:\n   a. Read `ContextMenuState` from memory. If `!state.open` or `state.request.is_none()`, return `None`.\n   b. Create an `egui::Area` with `order(egui::Order::Foreground)` anchored at `request.anchor`, constrained to stay inside the screen rect (clamp if near edge).\n   c. Inside the Area, show an `egui::Frame` with a background fill, a thin border, and a drop shadow (use the theme's `ContextMenu` fill; fall back to `egui::Visuals::window_fill`).\n   d. Iterate items: separators use `ui.separator()`; regular items use `ui.add_enabled(item.enabled, egui::Button::new(item.label).shortcut_text(item.shortcut_hint.unwrap_or(\"\")))`; submenu items show a trailing chevron `\">\"` suffix.\n   e. Keyboard navigation: on each frame, read `egui::Key::ArrowDown`/`ArrowUp` to move `keyboard_cursor`; `Enter` or `Space` activates the cursor item; `Escape` dismisses; `ArrowRight` opens a submenu.\n   f. Submenus: when a submenu item is hovered or keyboard-activated, open a SECOND `egui::Area` offset to the right of the first, rendering the sub-items using the same pattern recursively (only one level of recursion is required for V1; deeper nesting is not needed).\n   g. Click-outside dismissal: if the user clicks outside all open menu Areas in the current frame, call `dismiss_context_menu`.\n   h. Return the `id` of the activated item if one was clicked or Enter-confirmed; otherwise `None`.\n7. AccessKit obligations: every rendered menu item button must have its `egui::Response` extended with an AccessKit `author_id` of the form `format!(\"ctx_menu_item_{}\", item.id)`. Use `egui::Response::on_hover_text` to expose the label for accessibility, and mark enabled/disabled state via `egui::Button::sense(Sense::click())` vs. none. In V1, the AccessKit node for each item is role `MenuItem`, name = `item.label`, action = `Default` (click). This is set by calling the AccessKit node-building helper established in MT-025 (`set_accesskit_author_id`) if it exists; otherwise add a TODO comment referencing MT-025.\n8. There is NO React equivalent of this component — the React app has no context menu system at all. This is a net-new Handshake-native capability. The closest analog for behavior reference is VS Code's context menu (keyboard navigation, submenu nesting, click-outside dismiss) and the egui `popup_below_widget` pattern.\n9. No backend API call in this MT — the infra is pure UI state. Backend calls happen when an action is confirmed and routed by MT-020 / MT-021.\n\nDependencies/unblock conditions:\n- MT-005 (Pane registry) must exist so the root paint pass is known.\n- MT-006 or MT-007 (split/tab system) establishes the egui render loop structure this MT hooks into.\n- MT-025 (AccessKit author_id helper) is referenced but not required before merge — add TODO if MT-025 not yet merged.\n\nRisk if missed: MT-020 and MT-021 have no shared primitive to build on and would each reinvent divergent popup logic, making them inconsistent and impossible to style/test centrally.",
+    "allowed_paths": [
+      "src/frontend/context_menu/mod.rs",
+      "src/frontend/context_menu/types.rs",
+      "src/frontend/context_menu/widget.rs",
+      "src/frontend/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "File `src/frontend/context_menu/mod.rs` exists and is registered in the crate module tree (`pub mod context_menu` in `src/frontend/mod.rs`).",
+      "`cargo check` (or `cargo build`) on the frontend crate passes with no errors introduced by this MT.",
+      "`show_context_menu`, `request_context_menu`, and `dismiss_context_menu` are all `pub` and importable from sibling modules.",
+      "`ContextMenuItem`, `ContextMenuRequest`, `ContextMenuState`, and `MenuItemKind` are all `pub` with the field/variant layout defined in the implementation notes.",
+      "A unit test in the same file (or `src/frontend/context_menu/tests.rs`) proves that calling `request_context_menu` followed by `dismiss_context_menu` leaves `ContextMenuState.open == false` and `request == None` (can use egui's headless context via `egui::Context::default()`).",
+      "Keyboard navigation: arrow keys move cursor, Escape dismisses, Enter confirms — proven by an egui_kittest harness test OR a unit test that simulates key events via `egui::RawInput`.",
+      "A submenu item with `MenuItemKind::Submenu(vec![...])` renders a child Area when hovered (proven by egui_kittest or a screenshot test that shows the child popup).",
+      "Click-outside a menu dismisses it within one frame (egui_kittest or unit test verifying state after synthetic pointer press outside the menu rect).",
+      "Every menu item button has an AccessKit `author_id` of the form `ctx_menu_item_{item.id}` set on the egui Response (or a `// TODO MT-025` comment if the MT-025 helper is not yet merged).",
+      "No native OS/browser context menu APIs are used; the entire system is egui-drawn.",
+      "The module compiles and the test suite passes: `cargo test -p handshake_frontend context_menu`."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend context_menu -- --nocapture` and paste the passing output. All tests green.",
+      "Run `cargo check` or `cargo build --workspace` (excluding backend targets if needed) and show zero new errors.",
+      "If egui_kittest is available: run a harness test that opens a menu, presses ArrowDown twice, presses Enter, and asserts the returned item id matches the third item. Paste the passing test output.",
+      "Screenshot (egui_kittest rendered frame or manual run) showing: a context menu popup with at least 3 items, separator visible, keyboard cursor highlighted on an item, and no native OS context menu UI."
+    ],
+    "implementation_notes": [
+      "Use `egui::Area::new(egui::Id::new(\"hs_ctx_menu_root\")).order(egui::Order::Foreground)` for the main menu popup.",
+      "Use `egui::Context::memory_mut` to read/write `ContextMenuState` keyed by `egui::Id::new(\"hs_ctx_menu_state\")`.",
+      "Screen-edge clamping: after determining the Area rect, if it extends past `ctx.screen_rect().right()`, shift left; if past `.bottom()`, shift up. This prevents menus from opening off-screen.",
+      "Submenu Area id: `egui::Id::new(\"hs_ctx_menu_sub_{parent_item_id}\")` to avoid id collisions.",
+      "For the click-outside check: collect the combined bounding rect of all open menu Areas; if `ctx.input(|i| i.pointer.any_click())` is true and the click position is outside that rect, dismiss.",
+      "Theme integration: use `ui.visuals().window_fill` for background, `ui.visuals().window_stroke` for border. When the dark/light theme system (MT-003) is available, it will automatically apply.",
+      "Separator: `ui.separator()` with a small vertical margin.",
+      "Shortcut hint: render as a right-aligned dimmed label inside the item row using `ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(hint); })` BEFORE the item button, so the layout order puts the hint on the right.",
+      "Do NOT use `egui::popup_below_widget` — that ties the popup to a widget rect and does not support absolute anchor positioning needed for right-click.",
+      "Avoid `egui::modal` — context menus must not be modal; the user can click outside to dismiss.",
+      "V1 scope: only ONE context menu + ONE level of submenu open at a time. Do not implement cascading multi-level submenus."
+    ],
+    "ports_from_react": [
+      "NONE — no context-menu system exists in the React app (app/src/**). This is a net-new Handshake-native primitive. Behavioral reference only: VS Code context menu (keyboard nav, submenu, click-outside), not React source."
+    ],
+    "binds_backend_api": [
+      "NONE in this MT — the infra is pure UI state. Backend calls are made by callers in MT-020 and MT-021 when a menu item action is activated."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Menu popup renders outside the egui clip rect of its parent pane and gets clipped/invisible if not using Foreground order and a top-level Area.",
+      "Multiple callers simultaneously call `request_context_menu` in the same frame, causing last-write-wins to silently drop one menu open request — user right-clicks in two panes concurrently (swarm agents) and only one menu appears.",
+      "Keyboard events consumed by the context menu bleed into the underlying focused widget (e.g. ArrowDown in a list also moves the list selection).",
+      "Screen-edge clamping is skipped, menus open partially off-screen on small monitors or near taskbar.",
+      "AccessKit node ids for menu items collide if two different menus share the same item.id string (both menus open at once — impossible in V1 but becomes a risk if the global-single constraint is later relaxed).",
+      "Submenu opens but is itself clipped by the main menu Area rect if not placed in a separate top-level Area.",
+      "Click-outside detection misses the frame the menu opened (first-frame false-positive dismiss).",
+      "The module is not registered in `src/frontend/mod.rs`, so MT-020/MT-021 cannot import it (`use crate::context_menu::...` fails at compile time)."
+    ],
+    "minimum_controls": [
+      "Use `egui::Order::Foreground` for ALL menu Areas — this is required to paint above all other content and bypass pane clipping.",
+      "Enforce a single-open invariant: `request_context_menu` always replaces any existing open request. Document this constraint in the module-level doc comment.",
+      "Consume key events with `ctx.input_mut(|i| i.consume_key(...))` so ArrowDown/Up/Enter/Escape are not forwarded to underlying widgets.",
+      "Apply screen-edge clamping as described in implementation_notes — covered by the acceptance criterion requiring a screenshot showing the menu is not clipped.",
+      "Use per-item stable `id: &'static str` in `ContextMenuItem` — callers MUST use namespaced ids (e.g. `tab.close`, `editor.cut`) documented in MT-020/MT-021.",
+      "Place submenu in a separate `egui::Area` (not inside the parent Area) to avoid clipping.",
+      "Guard click-outside dismiss with a one-frame grace: skip the dismiss check on the very frame the menu was opened (track `opened_this_frame: bool` in `ContextMenuState`).",
+      "Add a compile-time test (`cargo test`) that panics if `context_menu` is not reachable as `crate::context_menu` from the frontend crate root."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification confirms PASS: the reusable egui-Popup-drawn context-menu primitive honestly delivers the MT-019 intent (typed item model, builder, secondary-click open, wrapping keyboard nav with real AccessKit focus cursor, one-level submenu, Escape/click-away dismiss, stable ctx-menu.{id} MenuItem author_ids) all proven LIVE through egui_kittest reading the real AccessKit tree and real key_press dispatch — no stubs, no #[ignore]'d required behavior, no mock-only proof; the API-name divergence from the literal contract is a disclosed, downstream-consumed (MT-020 context_menu_surfaces), architecturally superior egui::Popup choice, not a code failure under the GOOD-CODE-vs-INTENT bar.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-019.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/context_menu.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_context_menu.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs (context_menu + context_menu_surfaces registration lines 12-13)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/top_menu_bar.rs (name_node / accesskit_node_builder reference pattern lines 360-362, 528-534)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/context_menu_surfaces.rs (MT-020 downstream consumer)",
+      "git show --stat dc6e1457 (MT-019 origin commit: context_menu.rs + lib.rs + test_context_menu.rs, no build config)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "context_menu module exists and is registered (pub mod context_menu in crate tree)",
+        "status": "MET",
+        "evidence": "src/frontend/handshake_native/src/context_menu.rs (663 lines) present; lib.rs:12 `pub mod context_menu;`. Contract said src/frontend/context_menu/mod.rs + src/frontend/mod.rs, but the real native crate layout is src/frontend/handshake_native/src/context_menu.rs registered in that crate's lib.rs — same registration intent, correct crate location. Compile-time reachability is implicitly proven because tests/test_context_menu.rs imports `handshake_native::context_menu::{ContextMenu, ContextMenuItem}` and compiles."
+      },
+      {
+        "criterion": "cargo check/build passes with no new errors",
+        "status": "MET",
+        "evidence": "Validator ground-truth (relied on per directive): cargo build --tests exit 0 for the whole handshake_native crate; this file + its test binary are part of it."
+      },
+      {
+        "criterion": "Open / dismiss / is-open helpers are pub and importable",
+        "status": "MET",
+        "evidence": "context_menu.rs:472 `pub fn request_open`, :484 `pub fn dismiss`, :489 `pub fn is_open`, :236 `pub fn show_on`. Names differ from contract's show_context_menu/request_context_menu/dismiss_context_menu but the open/render/dismiss/is-open behavior is fully present, pub, and consumed by context_menu_surfaces (MT-020, grep-confirmed)."
+      },
+      {
+        "criterion": "ContextMenuItem / kind / model types are pub with the intended field/variant layout",
+        "status": "MET",
+        "evidence": "context_menu.rs:79 `pub enum MenuItemKind { Action, Submenu(Vec<ContextMenuItem>), Separator }`; :98 `pub struct ContextMenuItem { id:&'static str, label, shortcut_hint:Option<&'static str>, enabled:bool, disabled_reason, kind }`. Contract's ContextMenuRequest/ContextMenuState replaced by egui Popup memory + a private MenuNavState — the contract's own implementation_notes explicitly say to store state in egui Context memory, so state-in-egui-memory is the contract's stated intent. Unit test model_carries_typed_items (:518) asserts the layout."
+      },
+      {
+        "criterion": "Unit test proves request->dismiss leaves the menu closed",
+        "status": "MET",
+        "evidence": "tests::request_open_then_dismiss_round_trips (context_menu.rs:570) drives a real headless egui::Context through two ctx.run frames: after request_open is_open==true AND egui::Popup::position_of_id stores the anchor; after dismiss is_open==false. Non-tautological: reads real egui Popup memory, not a hand-set bool."
+      },
+      {
+        "criterion": "Keyboard nav: arrows move cursor, Escape dismisses, Enter confirms (kittest or RawInput)",
+        "status": "MET",
+        "evidence": "test_context_menu.rs LIVE kittest: arrow_down_twice_then_enter_dispatches_third_leaf (3-leaf menu, ArrowDown x2 + Enter -> 'triple.three' as one gesture, proof_target #3 literal), arrow_down_then_enter_confirms_third_actionable_item, arrow_up_wraps_to_last_actionable_item (reads live AccessKit is_focused()), escape_closes_menu_without_action — all real key_press events driving real render_menu_root nav + real dispatch. Plus unit tests step_highlight_skips_and_wraps / first_navigable_picks_first_actionable for the pure logic."
+      },
+      {
+        "criterion": "Submenu item renders a child Area when opened",
+        "status": "MET",
+        "evidence": "render_items (context_menu.rs:381) uses ui.menu_button for Submenu kind (separate Foreground Area, not clipped — red-team R5/R6); kittest submenu_opens_and_child_dispatches opens 'Move to' and dispatches child 'tab.move-to.pane-b' read from the live tree."
+      },
+      {
+        "criterion": "Click-outside dismisses within a frame",
+        "status": "MET",
+        "evidence": "egui Popup provides click-outside + one-frame grace (was_open_last_frame, doc'd at context_menu.rs:44-45); kittest click_away_closes_menu opens then primary-clicks the surface outside the popup and asserts all ctx-menu.* nodes gone."
+      },
+      {
+        "criterion": "Every menu item button has AccessKit author_id ctx-menu.{id} (or TODO MT-025)",
+        "status": "MET",
+        "evidence": "name_menu_node (context_menu.rs:438) calls the genuine egui ctx.accesskit_node_builder setting Role::MenuItem + set_author_id(`ctx-menu.{id}`) + label — byte-for-byte mirroring top_menu_bar::name_node:528-534 (verified). kittest open_menu_items_are_all_named + secondary_click_opens_menu_with_named_items read the LIVE AccessKit tree and assert every MenuItem node is named. Contract allowed a // TODO MT-025 fallback; instead the real established pattern is used directly — strictly stronger than the contract minimum."
+      },
+      {
+        "criterion": "No native OS/browser context menu APIs; entire system egui-drawn",
+        "status": "MET",
+        "evidence": "Built on egui::Popup::context_menu + egui::Button/menu_button; module doc (context_menu.rs:29-30) explicitly states no native/OS/webview menu. No webview/OS-menu calls present."
+      },
+      {
+        "criterion": "Module + tests pass (cargo test context_menu)",
+        "status": "MET",
+        "evidence": "Validator ground-truth: curated suite green incl. all 29 integration binaries; test_context_menu.rs has 11 tests, NONE marked #[ignore] (verified by reading the whole file), and the in-file unit tests mod (7 tests) compiles + runs. 0 failures."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1: independent grep of context_menu.rs for todo!()/unimplemented!()/unreachable!()/'not yet wired'/'deferred to'/'pending MT-'/'Unavailable' on the required path = NO MATCHES. The only panic!() in the module is a legitimate test-assertion branch (tests::model_carries_typed_items expected-submenu else-arm). No early stub returns on the open/render/dispatch path. Sub-rule 2: the MT claims a Handshake-owned AccessKit-tree resource (Role::MenuItem nodes with stable author_ids for out-of-process steering). Proof is REAL not mock-only: name_menu_node uses the genuine egui::Context::accesskit_node_builder API (confirmed identical to the already-shipped top_menu_bar::name_node), and egui_kittest tests read the ACTUAL produced AccessKit tree via harness.root().children_recursive().accesskit_node().author_id()/role()/is_focused(). Keyboard nav is proven by real harness.key_press events driving the real render_menu_root highlight + FAKE_PRIMARY_CLICKED dispatch — not a state poke. No #[ignore] hides required behavior. Sub-rule 3 (implementer self-cert): waived per operator directive — THIS independent review is the certification; lifecycle.status PENDING is paperwork, not a code FAIL."
+    },
+    "concerns_non_blocking": [
+      "API-surface deviation from the literal contract (NOT a blocker under the GOOD-CODE-vs-INTENT bar): the contract named show_context_menu/request_context_menu/dismiss_context_menu/ContextMenuState/ContextMenuRequest; the implementation exposes a ContextMenu builder + show_on/render_into and request_open/dismiss/is_open, with state in egui Popup memory + a private MenuNavState. Independently confirmed the deviation is (a) openly disclosed in the module doc with rationale, (b) consumed by the real downstream MT-020 context_menu_surfaces.rs (grep-confirmed: ContextMenu::new/ContextMenuItem/show_on all used), so it is a coherent live API, not dead code. The contract's own implementation_notes already mandated storing state in egui Context memory, so 'state-in-egui-memory' matches contract intent; only the public symbol names diverge.",
+      "Red-team R3 (arrow-key bleed): render_menu_root consume_key's the arrows but the doc honestly states egui's own directional focus already fired in begin_pass before the closure runs, landing harmlessly on the same menu-focusable items. consume_key still stops the arrow events leaking to other widgets in-frame. There is no dedicated test asserting an UNDERLYING list/widget does NOT also move on ArrowDown while the menu is open. Honest V1 tradeoff, candidate isolation test for a later MT — not a bug.",
+      "proof_target #4 (pixel screenshot of the rendered popup: separator + keyboard-cursor highlight) was explicitly punted to MT-029 per the commit message; the kittest AccessKit-tree + is_focused() assertions substitute for V1. Acceptable; the pixel-level visual proof remains owed by MT-029.",
+      "Paperwork only (per operator directive, NOT a code FAIL): MT-019.json lifecycle.status is still PENDING and validator_verdict PENDING (folded-build self-cert). This independent review is the certification.",
+      "This MT touched no build config (git show --stat confirms only context_menu.rs + lib.rs + test_context_menu.rs), so the Handshake_Artifacts-in-tree artifact-hygiene concern does not originate here, and this MT does not touch state-recovery / layout-persistence (pure egui-memory popup state)."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

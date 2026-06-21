@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-018",
+  "title": "E2-MT018-RichFindReplace",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-018.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement document-wide find/replace across prose and embedded code blocks, achieving VS Code-class parity with the React FindReplacePanel (app/src/components/FindReplacePanel.tsx, MT-244). The panel opens via Ctrl+F (find) or Ctrl+H (find+replace), floats above the content, and highlights all matches in real time.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/find_replace/mod.rs\n- src/frontend/rich_editor/find_replace/scanner.rs (scans the DocModel tree for text matches across all TextLeafs and code_block content)\n- src/frontend/rich_editor/find_replace/panel.rs (egui panel widget: find input, options toggles, match count, next/prev, replace input, replace-one, replace-all, close)\n- src/frontend/rich_editor/find_replace/highlight_layer.rs (paints match highlight rects over the rendered content)\n- Extend src/frontend/rich_editor/renderer/rich_editor_widget.rs to host the panel and highlight layer.\n- Extend src/frontend/rich_editor/renderer/input_handler.rs to handle Ctrl+F and Ctrl+H shortcuts.\n\nSCANNER (scanner.rs - port find_replace.ts logic):\n- FindQuery { pattern: String, case_sensitive: bool, whole_word: bool, is_regex: bool }\n- fn scan(doc: &DocNode, query: &FindQuery) -> FindScanResult where FindScanResult { matches: Vec<FindMatch>, truncated: bool } capped at MAX_MATCHES = 1000 (matching React EMPTY_SCAN pattern).\n- FindMatch { kind: MatchKind, node_path: Vec<usize>, char_start: usize, char_end: usize } where MatchKind = Prose | CodeBlock { block_index: usize }.\n- Prose matches: iterate all TextLeaf ropes, collect char ranges where the pattern occurs. For whole_word, check that the chars before/after the match range are not word chars.\n- Regex matches: use the regex crate; on invalid regex, return FindScanResult::invalid_regex(error_message).\n- CodeBlock matches: scan the raw text content of code_block nodes (code_block stores text as a single rope in a TextLeaf).\n- Each call to scan rebuilds the full match list (called on every document change while panel is open, mirroring React's 'recompute on every document change').\n\nPANEL WIDGET (panel.rs - port FindReplacePanel.tsx):\n- Layout: floating egui Window at top-right of the content area, non-blocking.\n  Row 1 (find): [TextEdit: find input] [Aa toggle: case-sensitive] [W toggle: whole-word] [.* toggle: regex] [count: '3 of 17'] [prev ◄] [next ►] [close ✕]\n  Row 2 (replace, only when with_replace=true): [TextEdit: replace input] [Replace] [Replace All]\n- Keyboard: Enter = next match; Shift+Enter = prev match; Escape = close panel and return focus to editor.\n- Match count display: '{current+1} of {total}' or '{total} matches' if no active selection; truncation marker '1000+ matches' when truncated.\n- Regex error: inline red text below the find input (role=alert), matches cleared.\n- Current match is highlighted differently (bright accent) vs other matches (dim highlight).\n- AccessKit: panel = 'find-panel', find-input = 'find-input', replace-input = 'replace-input', count = 'find-count', next = 'find-next', prev = 'find-prev', case toggle = 'find-toggle-case', whole-word = 'find-toggle-word', regex = 'find-toggle-regex', error = 'find-error', replace-one = 'replace-one', replace-all = 'replace-all', close = 'find-close'.\n\nHIGHLIGHT LAYER (highlight_layer.rs):\n- After block_renderer paints the content, iterate FindScanResult.matches. For each match, resolve the char range to pixel rects using the cosmic-text glyph layout (same mechanism as wikilink chip painting in MT-015). Paint semi-transparent colored rects over the content.\n- Current match: accent color at 60% opacity. Other matches: accent color at 25% opacity.\n- Highlights update on every scan rebuild (i.e. every document change while panel is open).\n\nREPLACE LOGIC:\n- Replace One: find the current match's char range in its TextLeaf rope; issue a DeleteText + InsertText transaction pair as a SINGLE atomic Transaction (one undo step). Advance to the next match.\n- Replace All: iterate all matches IN REVERSE order (to preserve char positions of earlier matches); issue one Transaction containing all replace steps.\n- CodeBlock replace: the code_block text is stored as a rope in a TextLeaf; the same DeleteText/InsertText steps apply.\n\nKEYBOARD INTEGRATION:\n- Ctrl+F: open panel in find-only mode (with_replace=false); if already open, re-focus the find input.\n- Ctrl+H: open panel in find+replace mode (with_replace=true).\n- These shortcuts are added to keymap.rs from MT-013 (or handled in input_handler.rs if MT-013 is not yet present; this MT does not depend on MT-013).\n\nSTEP-BY-STEP:\n1. Implement scanner.rs with the FindQuery/FindScanResult/FindMatch types and the scan() fn.\n2. Add regex = '1' to Cargo.toml (may already be present from MT-015).\n3. Implement highlight_layer.rs. Wire into block_renderer.rs after content painting.\n4. Implement panel.rs as a floating egui::Window. Store FindReplaceState in RichEditorState.\n5. Extend input_handler.rs: on Ctrl+F, set find_replace = Some(FindReplaceState { with_replace: false, ... }). On Ctrl+H, with_replace: true.\n6. On panel Escape or close button: clear find_replace, clear all highlights.\n7. Cargo tests: scan() finds all occurrences of 'foo' in a multi-paragraph doc. Whole-word mode skips 'foobar'. Regex mode returns error message for invalid pattern. Replace-all replaces all occurrences in a single Transaction (undo restores all). Replace-one advances to next match.\n\nDEPENDENCIES: MT-011 (DocModel tree traversal + Transaction for replace), MT-012 (highlight layer integration with block_renderer, glyph position resolution, floating window placement).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/find_replace/**",
+      "src/frontend/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/rich_editor/renderer/input_handler.rs",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Ctrl+F opens the find panel in find-only mode (no replace row visible) (kittest interaction).",
+      "Ctrl+H opens the find panel with the replace row visible (kittest interaction).",
+      "Typing 'foo' in the find input highlights all 'foo' occurrences in a test document; match count shows '0 of N' initially then advances on Enter (kittest + cargo test).",
+      "Case-insensitive mode matches 'Foo', 'FOO', 'foo' (cargo test on scanner).",
+      "Whole-word mode does not match 'foobar' when searching for 'foo' (cargo test).",
+      "Invalid regex shows a red error message in 'find-error' area and clears all highlights (cargo test).",
+      "Replace One replaces the current match and advances to the next; undo restores the text in a single Ctrl+Z (cargo test).",
+      "Replace All replaces all matches across the whole document in one Transaction (undo restores all at once) (cargo test).",
+      "Escape closes the panel and removes all highlight rects (kittest).",
+      "AccessKit: all stable ids (find-panel, find-input, find-count, etc.) are present in the kittest accessibility tree when the panel is open.",
+      "All cargo tests for find_replace module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- find_replace outputs 'test result: ok'.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt018_find_panel.png showing the panel with a match count.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt018_replace_panel.png showing the replace row.",
+      "cargo test -- find_replace::scanner::test_replace_all_single_undo passes."
+    ],
+    "implementation_notes": [
+      "The scanner must walk the DocModel tree recursively and collect char positions RELATIVE TO EACH TextLeaf ROPE, not absolute document positions. This is because replace operations target specific rope positions within a leaf.",
+      "Replace-all in reverse order: sort matches by (node_path descending, char_start descending) before applying; this ensures earlier matches are not invalidated by later replacements.",
+      "The highlight layer paints AFTER all block content is painted, so highlights appear on top of the text. Use painter.add(epaint::Shape::Rect) with a semi-transparent fill.",
+      "The panel must NOT steal keyboard focus from the editor content; egui::Window does not auto-steal focus. The find input is focused explicitly only when the panel opens (call ui.memory().request_focus(find_input_id)).",
+      "For code_block matches, the highlight is painted over the code_block egui widget's bounding rect region corresponding to the matched char range in the rope."
+    ],
+    "ports_from_react": [
+      "app/src/components/FindReplacePanel.tsx (panel layout: find input, toggle buttons, count display, next/prev/replace-one/replace-all/close; AccessKit stable ids; keyboard: Enter/Shift+Enter/Escape)",
+      "app/src/lib/editor/find_replace.ts (buildFindMatches, applyReplaceAll, applyReplaceMatch, indexAfterSelection, EMPTY_SCAN, FindScanResult, FindMatch kinds)",
+      "app/src/lib/tiptap/find_decorations.ts (FindHighlightPayload pattern: split into prose matches and code-block matches by kind)"
+    ],
+    "binds_backend_api": [
+      "No backend API calls. Find/replace operates entirely on the in-memory DocModel."
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Replace-all with a 1000-match document applies steps in forward order, causing each step to shift char positions and make all subsequent steps target wrong positions.",
+      "Scanner runs on every document change while the panel is open; on a very large document (100k+ chars) this causes visible frame lag.",
+      "Regex with catastrophic backtracking (e.g. '(a+)+$') causes the scanner thread to hang indefinitely.",
+      "Highlight rects computed before a document mutation are stale after the mutation and paint in wrong positions until the next rescan."
+    ],
+    "minimum_controls": [
+      "Replace-all MUST sort matches in descending char position order before applying; a cargo test with 3 overlapping-safe matches verifies all 3 are replaced correctly and positions do not drift.",
+      "Scanner runs on a background thread (tokio::spawn_blocking); if a scan takes >50 ms the result is marked as 'stale' and the panel shows 'Scanning...' rather than a wrong count; the UI thread is never blocked.",
+      "Wrap the regex match call in a timeout using the regex crate's 'size-limit' feature or a std::thread::spawn with a 200 ms channel timeout; on timeout, return FindScanResult::regex_timeout_error.",
+      "After any document mutation (Transaction applied), immediately clear highlight_layer highlights and set a 'scan_needed' flag; highlights are repainted only after the next scan completes."
+    ]
+  }
+}

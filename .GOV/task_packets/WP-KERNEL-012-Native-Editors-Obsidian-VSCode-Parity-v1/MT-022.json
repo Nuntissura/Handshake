@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-022",
+  "title": "E3-MT022-FolderTreeColorLabels",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-022.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021"],
+    "blocks": ["MT-024"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a folder tree panel with color labels for loom folders (blocks with content_type='folder' or grouped by folder_ref field) in the native egui frontend. The panel renders a collapsible tree of folder nodes; each folder node has a color swatch (stored in LoomBlock metadata) and a label. Expanding a folder loads its child blocks from the backend. Clicking a folder or leaf navigates (fires on_open). The expected diff shape: one new file src/frontend/loom/folder_tree.rs, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/folder_tree.rs — LoomFolderTree widget\n- EDIT src/frontend/loom/mod.rs — pub mod folder_tree; + re-export LoomFolderTree\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) renders flat document/canvas lists but not a recursive folder tree. The folder_ref field is defined on LoomBlock (api.ts line 3042: folder_ref: string | null). Folder-grouped views use queryLoomView with the 'sorted' view type which returns LoomViewGroup[] (api.ts line 1080).\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/sorted — returns {view_type:'sorted', groups: LoomViewGroup[]} where each group.edge_type identifies grouping; use to get folder-grouped block lists\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=folder — enumerate folder blocks\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock; used to write color label metadata into LoomBlock (stored in a metadata JSON field or via add_tags)\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — getLoomBlock; load individual folder block for color/metadata\n\nStep-by-step implementation notes:\n1. Define FolderNode { block_id: String, title: String, color: Option<Color32>, children: Vec<FolderNode>, expanded: bool, loading: bool } in folder_tree.rs.\n2. Define LoomFolderTree { workspace_id: String, root_nodes: Vec<FolderNode>, on_open: Callback<String>, on_color_change: Callback<(String, Color32)>, error: Option<String>, loading: bool }.\n3. On init, call GET /workspaces/{id}/loom/views/all filtered to content_type=folder (or use 'sorted' groups) to populate root_nodes. Each block's metadata JSON (LoomBlock.content_json or a dedicated metadata field) stores the color as a hex string; parse into Color32.\n4. Render the tree using egui::CollapsingHeader or manual indented rows. For each folder node:\n   a. Draw a small 12x12 filled rectangle (color swatch) using painter.rect_filled before the label.\n   b. Render a collapsible row: click on folder name -> toggle expanded; if expanding and children not loaded, fire GET /workspaces/{id}/loom/views/sorted with tag_ids=[block_id] to load children.\n   c. Indent children by 16px per depth level.\n5. Right-click context menu on a folder row: 'Change color' -> open a color picker popup (egui::color_picker::color_edit_button_srgba). On color pick, call PATCH /workspaces/{id}/loom/blocks/{block_id} to persist color in block metadata (encode as hex string in the block's content_json or a dedicated 'color_label' metadata key). Fire on_color_change callback.\n6. Leaf block rows (non-folder children): show block title + content_type icon character. Click -> fire on_open(block_id).\n7. AccessKit: each folder row gets author_id='folder-tree.node.{block_id}', role=TreeItem, actions=[Expand, Collapse, DefaultAction=open]. Color swatch button gets author_id='folder-tree.color.{block_id}', role=Button.\n8. Error banner at top of panel if load fails. Retry button author_id='folder-tree.retry'.\n\nDependencies / unblock conditions: MT-021 must be complete only for shared loom/mod.rs infrastructure. The folder tree does not directly depend on graph view logic; however the mod.rs shared infrastructure (HTTP client, Tauri invoke wrapper) established in MT-021 is a prerequisite.\n\nRisk if missed: Users lose the Obsidian-parity folder navigation. Without this, the knowledge surface has no hierarchical navigation, reducing it to flat list + graph only.",
+    "allowed_paths": [
+      "src/frontend/loom/folder_tree.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: The folder tree panel loads and displays all LoomBlocks with content_type='folder' from a real PG workspace containing >=2 folder blocks. Each folder shows its title.",
+      "AC2: Expanding a folder node loads its child blocks from the backend and displays them indented beneath the folder. Loading spinner appears while children are loading.",
+      "AC3: Each folder node with a stored color label shows a color swatch rectangle of the correct color next to its title.",
+      "AC4: Right-clicking a folder row and selecting 'Change color' opens a color picker. Picking a color persists it via PATCH /workspaces/{id}/loom/blocks/{block_id} and the swatch updates to the new color without a full reload.",
+      "AC5: Clicking a leaf block (non-folder child) fires the on_open callback with the correct block_id.",
+      "AC6: AccessKit tree contains 'folder-tree.node.{block_id}' entries for each rendered folder node, with role=TreeItem.",
+      "AC7: With no folder blocks in workspace, panel shows 'No folders' message and no panic.",
+      "AC8: Backend error on load shows an error message with a Retry button that re-fires the load."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::folder_tree -- --nocapture passes all unit tests for FolderNode tree building from flat LoomBlock list.",
+      "PROOF2: kittest harness test with 2 seeded folder blocks + 3 child blocks in real PG: asserts 2 'folder-tree.node.*' AccessKit nodes in initial render.",
+      "PROOF3: kittest expand-folder test: click 'folder-tree.node.folder-001', assert children load (child block count > 0 in AccessKit tree).",
+      "PROOF4: kittest color-change test: right-click 'folder-tree.node.folder-001', pick red (#ff0000), assert PATCH request fired with color in body (mock via Tauri command intercept), assert swatch pixel color == red in screenshot.",
+      "PROOF5: kittest leaf-click test: click leaf 'folder-tree.node.child-001', assert on_open fired with 'child-001'."
+    ],
+    "implementation_notes": [
+      "Use egui::CollapsingHeader for expand/collapse or implement manually with stored expanded bool per node for full control over AccessKit attributes.",
+      "Color storage: encode as '#rrggbb' hex string. Store in LoomBlock via PATCH body as { metadata: { color_label: '#rrggbb' } } — backend stores this in the block's content_json JSONB column. On load, parse the field from content_json.",
+      "Lazy child loading: only fire backend call when a folder is first expanded. Cache results in FolderNode.children; do not re-fetch on every expand.",
+      "Color picker: use egui::color_picker::color_edit_button_srgba in a popup window. Only persist on close (not live while dragging picker).",
+      "Depth limit: support up to 5 levels of nesting. Beyond that, show a '...(deep)' truncation row.",
+      "Folder detection: a block is a folder if content_type == 'folder'. If backend does not use this content_type, fall back to blocks returned in the 'sorted' group with edge_type='parent'.",
+      "Do not duplicate folder discovery logic — use the same HTTP client/invoke wrapper established by MT-021's infrastructure."
+    ],
+    "ports_from_react": [
+      "WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) — document/canvas list sections show the flat navigation pattern; folder_ref field on LoomBlock (api.ts:3042)",
+      "queryLoomView 'sorted' returning LoomViewGroup[]: app/src/lib/api.ts lines 1868-1888"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/all?content_type=folder — list folder blocks",
+      "GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={folder_block_id} — load children of a folder",
+      "PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — persist color label in block metadata",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id} — reload block after color update"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Infinite folder loop if the backend returns cyclic parent edges (folder A parent of folder B, B parent of A). Mitigation: track visited block_ids during tree traversal; break cycle at depth >20.",
+      "RISK-2: Color persisted in content_json may be overwritten by an editor save that replaces the whole content_json. Mitigation: PATCH only the specific metadata key, not the whole JSON blob; use JSON merge-patch semantics.",
+      "RISK-3: Lazy loading adds latency on expand; user may click multiple folders quickly, causing concurrent fetches that race. Mitigation: per-node loading flag prevents duplicate fetches; cancel in-flight on workspace change.",
+      "RISK-4: egui::CollapsingHeader does not expose stable AccessKit author_ids natively. Mitigation: use manual row rendering with Id::new(block_id) to control AccessKit identity.",
+      "RISK-5: 'sorted' view may not return folder-child relationships if edge_type is not 'parent'. Mitigation: fallback to content_type filter; document expected backend edge_type in implementation notes."
+    ],
+    "minimum_controls": [
+      "MC-1: Cycle guard: visited set during tree build; depth limit 20. Covered by RISK-1 mitigation.",
+      "MC-2: Merge-patch color write: PATCH body targets only metadata.color_label key. Covered by AC4.",
+      "MC-3: Per-node loading flag prevents duplicate fetches. Covered by AC2 loading spinner requirement.",
+      "MC-4: AccessKit manual row rendering: use egui::Id::new(block_id) for stable identity. Covered by AC6."
+    ]
+  }
+}

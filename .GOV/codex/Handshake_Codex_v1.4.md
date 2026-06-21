@@ -8,6 +8,26 @@
 
 ---
 
+## 0A. Product Vision (North Star)
+
+This section is the product north star. Everyone (human or model) working on Handshake MUST align to it. It states intent; where it changes durable product law it is enforced through the governed Master Spec change path ([CX-009-VIS]).
+
+[CX-003-VIS] VISION_ONE_WORKSURFACE: Handshake is ONE handmade, local-first, AI-native creative+execution workspace where every surface melts together and everything can access everything. A single work surface unifies document/rich-text (Obsidian/Notion-class), code (VS Code-class), image/photo editing (Photoshop/Lightroom/Affinity-class), visual canvas/moodboards, spreadsheets, a built-in webviewer, and the mechanical creative engines — over one shared typed-state substrate (PostgreSQL/EventLedger authority + CRDT collaboration).
+
+[CX-004-VIS] VISION_HANDMADE_OWNED: Surfaces are handmade and user-owned, NOT stitched-together legacy third-party apps. Legacy editors were built for the pre-LLM age as isolated silos; in Handshake they are reference/migration evidence only. Handshake's own primitives replace them so every surface shares one selection, undo, event ledger, and model-accessibility model, enabling deep interconnection (the force-multiplier principle).
+
+[CX-005-VIS] VISION_LLM_COCREATOR: LLMs are first-class co-creators, not autocomplete. Every tool and surface exposes native, governed model access, and models can SEE what they are doing (machine-readable UI surface + visual capture) and can steer or co-create in parallel as a swarm alongside the Operator.
+
+[CX-006-VIS] VISION_STRICT_HARNESS: Model autonomy runs inside a strict mechanical harness. The LLM plans; Handshake executes, gates, tracks, and recovers mechanically — capability/consent gates, tool-call tracking, Flight Recorder observability, deterministic state recovery, and lasting per-project memory. The machine holds the workflow so models do not have to remember it.
+
+[CX-007-VIS] VISION_LIBRARIES: Handshake keeps durable, owned libraries — taste, stories, images, CUI/renders, workflows, and artifacts (Loom) — that feed every surface and the retrieval/memory systems.
+
+[CX-008-VIS] VISION_NATIVE_APP: Handshake is a real native application, not a webview-hosted UI. A webview may be embedded ONLY for the in-app browser/webviewer surface; it is never the UI substrate. The product ships as a single installer that bundles all dependencies, with everything user-owned as much as possible. The backend/kernel is Rust; the GUI is being moved to a native Rust surface so the whole product is one owned, interconnected substrate (no Electron; not a system/bundled webview as the shell).
+
+[CX-009-VIS] VISION_SPEC_ALIGNMENT: This north star supersedes prior stack assumptions where they conflict (e.g., a React/Tauri webview GUI). Sections of the Master Spec / Product Reference that still describe the superseded web-UI stack are spec debt to be reconciled through the governed spec-change path; until reconciled, this block is the binding statement of intent and conflicting web-UI-stack text MUST be flagged, not followed, for new GUI work.
+
+---
+
 ## 1. LAW Stack and Precedence
 
 [CX-010] LAW_1: This codex (`Handshake Codex v1.4`) is the primary implementation + behaviour reference.

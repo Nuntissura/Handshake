@@ -1,0 +1,109 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-015",
+  "title": "E2-MT015-WikilinksTransclusion",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-015.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": ["MT-016"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement wikilinks, transclusion, and backlinks in the native rich-text editor, binding to the backend loom edge + knowledge document backlink APIs. This MT ports the React wikilink.ts parsing logic, the LoomTransclusionView component, and the backlinks panel from RichDocumentView.tsx.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/wikilinks/mod.rs\n- src/frontend/rich_editor/wikilinks/parser.rs (ports app/src/lib/editor/wikilink.ts)\n- src/frontend/rich_editor/wikilinks/inline_view.rs (renders a Mark::Wikilink as a colored clickable chip inline in the paragraph)\n- src/frontend/rich_editor/wikilinks/autocomplete.rs (as the operator types '[[', show a popup with loom block / document search results)\n- src/frontend/rich_editor/wikilinks/transclusion_view.rs (renders a BlockNode::Transclusion as a read-through embedded block preview)\n- src/frontend/rich_editor/wikilinks/backlinks_panel.rs (side panel listing all documents that link to the current document)\n- Extend block_renderer.rs to call transclusion_view for TransclusionNode kind.\n- Extend inline_view dispatch in renderer to paint wikilink marks as chips.\n\nWIKILINK SYNTAX (parser.rs - port wikilink.ts):\n- Regex: [[prefix:value]] or [[prefix:value|label]]\n- Known prefixes (port WP009_WIKILINK_KIND_BY_PREFIX from extension_inventory.ts):\n  'block' -> LoomBlock ref, 'doc' -> RichDocument ref, 'wp' -> WorkPacket ref, 'file' -> file ref, 'tag' -> tag ref\n- Unknown prefix -> WikilinkKind::Unknown (not silently dropped; renders with a warning chip color)\n- Parse fn: fn parse_wikilink(raw: &str) -> Option<ParsedWikilink> where ParsedWikilink { kind: WikilinkKind, ref_value: String, label: String, resolved: bool }\n- Input handling: when the operator types '[[' in the editor, parser.rs sets an autocomplete_mode flag in RichEditorState; the autocomplete popup (autocomplete.rs) appears.\n\nINLINE WIKILINK CHIP (inline_view.rs):\n- Wikilink mark in the DocModel renders as a colored rounded-rect inline chip: text = label (or ref_value if no label), background = accent color from egui theme.\n- Chip is clickable: on click, emit a WikilinkActivated event (stored in RichEditorState.pending_events: Vec<EditorEvent>) for the host shell to route to Loom or the document viewer.\n- Unresolved/unknown wikilinks render with a warning-yellow background and a '?' prefix.\n- AccessKit: each chip = author_id = format!('wikilink-chip-{ref_value_hash}'), Role::Link, Actions::Click.\n\nAUTOCOMPLETE (autocomplete.rs):\n- On '[['  keypress, open an egui popup below the caret.\n- Query: call GET /workspaces/{workspace_id}/loom/search?q={typed_text}&limit=10 (search API from LoomSearchV2Panel reference) or GET /knowledge/documents?q={typed_text}&limit=10 depending on the prefix hint.\n- Display results as a selectable list (egui::SelectableLabel). Arrow keys move selection; Enter/Tab inserts the wikilink mark and closes the popup. Escape cancels.\n- AccessKit: popup = author_id = 'wikilink-autocomplete', each result row = 'wikilink-result-{i}'.\n\nTRANSCLUSION VIEW (transclusion_view.rs - port LoomTransclusionView):\n- A TransclusionNode in the DocModel (kind = Transclusion, attrs = { block_id: String }) renders as a read-only embedded preview of the target LoomBlock.\n- Async fetch: GET /workspaces/{workspace_id}/loom/blocks/{block_id}/transclusion -> LoomBlockTransclusion (from api.ts: title, content_preview, content_type, last_updated).\n- Render: rounded border rect, title in bold, content_preview as plain text truncated to 3 lines, 'Open block ->' link button.\n- Error states: loading spinner, typed error chip for 404/network failure.\n- AccessKit: container = 'transclusion-{block_id}', open button = 'transclusion-open-{block_id}'.\n\nBACKLINKS PANEL (backlinks_panel.rs - port RichDocumentView.tsx backlinks section):\n- Async fetch: GET /knowledge/documents/{document_id}/backlinks -> { source_document_id, backlinks: [{ source_doc_id, source_title, link_kind, ref_value, ... }] }\n- Render as a collapsible egui::CollapsingHeader ('Backlinks (N)'). Each entry = clickable label (document title). Click emits BacklinkActivated event for the shell to navigate.\n- Empty state: 'No backlinks yet.' text.\n- AccessKit: panel = 'backlinks-panel', each entry = 'backlink-{source_doc_id}'.\n\nBACKLINK CREATION (persistence):\n- When a document containing wikilinks is saved (MT-020 calls saveRichDocument), the backend AUTOMATICALLY persists backlinks from the content_json (backend knowledge_document/backlinks.rs). No separate API call is needed from this MT; the wikilink marks in the DocJson output carry the ref_value that the backend indexes.\n- Document this explicitly in backlinks_panel.rs as a code comment: 'Backlinks are written by the backend on save, not by this MT.'\n\nSTEP-BY-STEP:\n1. Port wikilink.ts WIKILINK_REGEX and classifyWikilink to Rust in parser.rs using the regex crate.\n2. Add regex = '1' to Cargo.toml.\n3. Implement inline rendering in block_renderer.rs: when painting a TextLeaf, check for Wikilink marks; for each, compute the pixel span from cosmic-text glyph positions and paint a colored Rect with the label text on top.\n4. In autocomplete.rs, detect the '[['  trigger in input_handler.rs and set RichEditorState.wikilink_autocomplete = Some(AutocompleteState { query: String, results: Vec<WikilinkResult>, selected: usize }).\n5. autocomplete.rs renders an egui popup window at the caret pixel position; async queries the search API.\n6. On Enter in autocomplete: remove the '[['  text, insert a Wikilink mark via AddMark transaction.\n7. Implement transclusion_view.rs and wire to BlockNode::Transclusion in block_renderer.rs.\n8. Implement backlinks_panel.rs and mount it in rich_editor_widget.rs as a collapsible panel below the content area.\n9. Cargo tests: parse_wikilink('[[block:BLK-001|My Note]]') returns kind=Block, ref_value='BLK-001', label='My Note'. parse_wikilink('[[unknown:xyz]]') returns kind=Unknown, resolved=false. Autocomplete state transitions (mock API).\n\nDEPENDENCIES: MT-011 (Wikilink mark in Mark enum, Transclusion node kind), MT-012 (inline chip painting in block_renderer, caret pixel position for autocomplete popup).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/wikilinks/**",
+      "src/frontend/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/rich_editor/renderer/input_handler.rs",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "parse_wikilink('[[block:BLK-001|My Note]]') returns WikilinkKind::Block, ref_value='BLK-001', label='My Note' (unit test).",
+      "parse_wikilink('[[unknown:xyz]]') returns WikilinkKind::Unknown, resolved=false (unit test).",
+      "Wikilink mark renders as a visible colored chip inline in a paragraph in the kittest screenshot.",
+      "Clicking a wikilink chip emits a WikilinkActivated event in RichEditorState.pending_events (cargo test with a simulated click).",
+      "Typing '[[' in the editor opens the autocomplete popup (kittest interaction test).",
+      "Autocomplete popup closes on Escape and removes the '[['  text trigger (kittest).",
+      "TransclusionNode renders a bordered preview box with a title and content_preview (kittest screenshot with mock transclusion response).",
+      "Backlinks panel renders a collapsible header 'Backlinks (N)' and lists source document titles (kittest with mock backlinks response).",
+      "AccessKit: 'wikilink-autocomplete' popup is present in the accessibility tree when autocomplete is open.",
+      "All cargo tests for the wikilinks module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- wikilinks outputs 'test result: ok'.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt015_wikilink_chip.png.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt015_transclusion_view.png.",
+      "Integration test (real backend): cargo test --test native_editors -- wikilinks::test_real_backlinks -- --ignored shows backlinks fetched for a seeded document."
+    ],
+    "implementation_notes": [
+      "The wikilink chip painting must happen INSIDE the cosmic-text text run: pause the text rendering, paint the chip Rect at the glyph span coordinates, then continue rendering. Do not try to insert the chip into the text flow; overlay it on the exact glyph positions.",
+      "The autocomplete popup must be positioned at the caret pixel position (from caret.rs), not at the mouse position. This ensures it opens correctly even when using keyboard-only input.",
+      "Backlinks are fetched once when the document loads and refreshed only on explicit user action (a refresh button in the panel header) to avoid constant background polling.",
+      "The WikilinkActivated event is not handled inside this MT; it is placed in RichEditorState.pending_events for the parent shell (WP-011) to drain and route. Document the expected event shape in a comment in the event enum.",
+      "regex crate is already in most Rust projects; if not in Cargo.toml, add it. Use once_cell::sync::Lazy to compile the wikilink regex once."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/wikilink.ts (WIKILINK_REGEX, classifyWikilink, ParsedWikilink, WP009_WIKILINK_KIND_BY_PREFIX)",
+      "app/src/components/LoomTransclusionView.tsx (transclusion block rendering: title, preview text, open button, loading/error states)",
+      "app/src/components/RichDocumentView.tsx (backlinks panel: collapsing header, backlink list, BacklinkActivated navigation)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id}/transclusion -> LoomBlockTransclusion (getLoomBlockTransclusion in api.ts)",
+      "GET /knowledge/documents/{document_id}/backlinks -> { source_document_id, backlinks[] } (listRichDocumentBacklinks in api.ts)",
+      "Search for autocomplete: GET /workspaces/{workspace_id}/loom/search (loom search API from LoomSearchV2Panel) or GET /knowledge/documents?q= (knowledge document list with query param)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Wikilink chip painted at wrong pixel coordinates when the paragraph is scrolled and the caret Y offset is not adjusted for scroll position.",
+      "Autocomplete popup issues a search API call on every keystroke inside the '[[ ...' token, causing request flooding on slow backend.",
+      "Transclusion of a deleted block returns 404 but the TransclusionNode stays in the doc forever with no operator affordance to remove it.",
+      "Backlinks panel fetches on every frame when the document_id prop changes rapidly (doc switching), causing N concurrent in-flight requests.",
+      "Unknown wikilink kind causes a panic in the WikilinkKind enum match if an exhaustive match is used without a wildcard arm."
+    ],
+    "minimum_controls": [
+      "Chip pixel Y coordinate must be relative to the scroll-adjusted paint origin; block_renderer must subtract the scroll offset from absolute glyph positions before painting chips.",
+      "Autocomplete must debounce queries with a 150 ms delay (tokio::time::sleep or egui timer) and cancel in-flight requests when the query changes; cargo test asserts only 1 HTTP call for 5 rapid keystrokes.",
+      "404 on transclusion fetch renders an error chip with action button 'Remove embed' that issues a DeleteNode transaction; cargo test with a 404 mock verifies the chip appears.",
+      "Backlinks fetch is triggered by document_id change via a watch mechanism; use a generation counter to cancel stale requests; only the latest request's result is applied.",
+      "WikilinkKind enum must have an Unknown(String) variant; all match arms must be exhaustive; cargo test verifies parsing an unrecognized prefix does not panic."
+    ]
+  }
+}

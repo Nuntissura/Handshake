@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-029",
+  "title": "E4-MT029-FindInFiles",
+  "group": "E4 Search",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": ["MT-030", "MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Build the native Rust/egui Find-in-Files + Replace-in-Files surface, porting the React WorkspaceSearchPanel (app/src/components/WorkspaceSearchPanel.tsx, MT-250). This is a workspace-wide search across all rich documents and Loom blocks, with a two-phase replace-preview-then-apply flow. It is distinct from the single-document FindReplacePanel (MT-004 / FindReplacePanel.tsx which is a code-editor-local feature).\n\nDiff shape: create src/frontend/panels/find_in_files.rs (~550 lines). Register in src/frontend/panels/mod.rs. Add FindInFiles variant to the shell panel enum. Wire HTTP calls in src/frontend/api/loom.rs (searchLoomGraph -> GET /workspaces/{id}/loom/search) and src/frontend/api/knowledge.rs (loadRichDocument -> GET, saveRichDocument -> PATCH).\n\nPanel features to implement (parity with React WorkspaceSearchPanel):\n\n1. QUERY BAR: egui::TextEdit for query. Match-option toggle buttons: case-sensitive (Aa), whole-word (W), regex (.*) - each aria-pressed with active visual state. Kind-filter dropdown (egui::ComboBox): All / Documents / Loom blocks / Files / Tags / Symbols / Work Packets / Microtasks / UserManual / Wiki pages. Tag-filter text input. Path-filter text input.\n\n2. SEARCH: 'Search' button fires GET /workspaces/{workspace_id}/loom/search with query params {q, limit: 500, offset, sourceKinds?, tagIds?, caseSensitive, wholeWord, isRegex, path?}. Paginate: keep requesting with offset+=500 until page.len() < 500. Collect all LoomGraphSearchHit {source_kind, result_kind, ref_id, title, excerpt, metadata, block?} into results Vec. Client-side filter: for case/word/regex options, apply hitMatchesClientOptions (same logic as React: build regex over title+excerpt haystack, skip wholeWord=false early-exit).\n\n3. REPLACE-PREVIEW phase: 'Preview Replace' button enabled after a search with results. On click: compile the search regex (same compileSearchRegex logic: wrap non-regex query in escapeRegex, apply flags); for each hit with a documentId (extracted via documentIdFromLoomSearchHit logic: metadata.rich_document_id or metadata.document_id or block.document_id, must start with 'KRD-'), GET the rich document (GET /workspaces/{workspace_id}/loom/blocks/{block_id}/knowledge or GET /knowledge/rich-documents/{document_id}), walk the content_json tree (visit all text nodes and attrs.code strings), apply replaceSegment (regex exec loop with wholeWord boundary check, group expansion for regex mode via $1..$9/$&/$$), accumulate per-document ReplacementPlan {document_id, title, expected_version, content_json_after, match_count, before_preview, after_preview, match_previews}. Show preview list in a scrollable panel: each plan shows title, match count, before/after preview snippets, and per-match before/after previews.\n\n4. REPLACE-APPLY phase: 'Apply' button enabled when previewPlans non-empty and plan key matches current search+replace key (stale guard). For each plan, PATCH the rich document (PATCH /knowledge/rich-documents/{document_id} with {doc_version: expected_version, content_json: replaced_content}). Collect save_receipt_event_ids. Show status: 'Applied N plans; receipts: ...'. On success re-run search to refresh results.\n\n5. BOOKMARKS (saved searches): on panel open, GET /workspaces/{workspace_id}/search-bookmarks (returns JSON with schema_id 'hsk.workspace_search_bookmark_state@1', key 'bookmarks': array). Show saved searches as a list; each has restore and remove buttons. 'Bookmark Search' button saves current query+options via PUT /workspaces/{workspace_id}/search-bookmarks. Max 20 bookmarks.\n\n6. STATE KEYS: searchPlanKey = hash of {query, sourceKinds, tagIds, path, options}; replacePlanKey = hash of {searchPlanKey, replacement}. Guard preview freshness: if resultSetKey != searchPlanKey, show 'Search results are stale; run Search again'. Guard apply freshness: if previewPlanKey != replacePlanKey, show 'Preview is stale; run Preview Replace again'.\n\nFiles to create/edit:\n- CREATE: src/frontend/panels/find_in_files.rs\n- EDIT: src/frontend/panels/mod.rs\n- EDIT: src/frontend/shell.rs\n- EDIT (or CREATE): src/frontend/api/loom.rs (search_loom_graph, get/save workspace search bookmarks)\n- EDIT (or CREATE): src/frontend/api/knowledge.rs (load_rich_document, save_rich_document)\n\nImplementation steps:\n1. Define FindInFilesPanelState with all fields from the React component: query, replacement, kind, tag_filter, path_filter, case_sensitive, whole_word, is_regex, results (Vec<LoomGraphSearchHit>), loading, error, replace_status, preview_plans (Vec<ReplacementPlan>), preview_plan_key, result_set_key, bookmarks, bookmark_status.\n2. Define LoomGraphSearchHit struct: source_kind, result_kind, ref_id, title, excerpt, metadata (serde_json::Value), block (Option<LoomBlock>).\n3. Implement search_loom_graph() HTTP fn. GET /workspaces/{id}/loom/search with query string params. Note: this is the LEGACY /loom/search endpoint (not /loom/search-v2); check api/loom.rs route at line 278 for the exact params contract.\n4. Implement compile_search_regex(query, opts) -> Result<Regex, String> using the 'regex' crate. For non-regex mode, escape special chars first (regex::escape). Flags: case-insensitive if not case_sensitive (Regex::new with (?i) prefix or RegexBuilder).\n5. Implement hit_matches_client_options(hit, query, opts): build regex, search title+excerpt, apply whole_word boundary check (check char before start and after end using Unicode word-char property via regex \\b or manual check).\n6. Implement document_id_from_hit(hit): mirror the React documentIdFromLoomSearchHit logic - check metadata.rich_document_id, metadata.document_id, block.document_id, fallback if source_kind == 'document' use ref_id; only accept if starts with 'KRD-'.\n7. Implement replaceSegment(text, regex, replacement, opts) -> (new_text, count, before_preview, after_preview, match_previews). Iterate regex matches; handle zero-length match guard (advance by 1); check whole_word boundary; expand replacement groups for isRegex ($1..$9, $&, $$); collect 24-char context previews per match.\n8. Implement visit_content_json(node, regex, replacement, opts): recurse through content_json (ProseMirror-style AST as serde_json::Value). For text nodes (node.text), apply replaceSegment. For code block attrs (node.attrs.code), apply replaceSegment. Recurse into node.content array.\n9. Render preview list in a ScrollArea: for each ReplacementPlan, show a collapsible section with title, match_count, before/after text, and per-match previews. Use egui::CollapsingHeader.\n10. Assign AccessKit author_ids: 'find-in-files.query', 'find-in-files.replace', 'find-in-files.toggle-case', 'find-in-files.toggle-word', 'find-in-files.toggle-regex', 'find-in-files.kind-filter', 'find-in-files.tag-filter', 'find-in-files.path-filter', 'find-in-files.search', 'find-in-files.preview-replace', 'find-in-files.apply', 'find-in-files.cancel', 'find-in-files.save-bookmark', result rows 'find-in-files.result.{source_kind}.{stable_ref_id}', preview items 'find-in-files.preview.{document_id}'.\n\nDependencies/unblock conditions: no depends_on within WP-012. The backend /loom/search endpoint and /knowledge/rich-documents endpoints are live from KERNEL-009. The workspace search bookmarks endpoint (/workspaces/{id}/search-bookmarks) is live (api/workspaces.rs:62). All HTTP calls are to existing endpoints.\n\nRisk if missed: Find-in-files is a core VS-Code-class parity requirement. Missing it means the E4 parity gate cannot pass and the interconnection proof (MT-030) cannot demonstrate workspace-wide document discovery.",
+    "allowed_paths": [
+      "src/frontend/panels/find_in_files.rs",
+      "src/frontend/panels/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/api/loom.rs",
+      "src/frontend/api/knowledge.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "FindInFilesPanelState struct exists in src/frontend/panels/find_in_files.rs with all state fields: query, replacement, kind, case_sensitive, whole_word, is_regex, tag_filter, path_filter, results, loading, error, replace_status, preview_plans, preview_plan_key, result_set_key, bookmarks, bookmark_status.",
+      "Typing a query and clicking 'Search' fires real HTTP GET requests to /workspaces/{id}/loom/search with correct params; results populate the results Vec and appear in the UI list.",
+      "The case-sensitive, whole-word, and regex toggle buttons change aria-pressed state visually and filter results on re-search.",
+      "Kind-filter dropdown correctly passes sourceKinds to the backend (or omits it for 'all').",
+      "'Preview Replace' button is disabled until a search has run; clicking it loads rich documents for hits with KRD-prefixed document_ids and produces ReplacementPlans with correct match counts.",
+      "Preview list renders each plan with title, match count, and before/after text snippets (at minimum 24-char context around first match).",
+      "Stale-result guard: if query changes after search and before preview, 'Preview Replace' shows 'Search results are stale; run Search again'.",
+      "'Apply' button is disabled until a non-stale preview exists; clicking it PATCHes all planned documents and shows receipt event ids in the replace_status label.",
+      "Bookmark save/restore/remove cycle works end-to-end against a real backend: save a search, reload the panel, restore it, verify query+options are restored.",
+      "All AccessKit author_ids listed in implementation_notes are present in the panel's egui_kittest snapshot.",
+      "cargo build succeeds with no new warnings from this MT."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend find_in_files_search -- --nocapture: real-PG integration test. Seeds at least 3 rich documents in a workspace. Calls GET /workspaces/{id}/loom/search with q matching the seeded content. Asserts hits.len() >= 1, each hit has title and source_kind.",
+      "cargo test -p handshake_frontend find_in_files_replace_cycle -- --nocapture: real-PG test. Seeds 2 rich documents each containing the text 'FIND_TARGET'. Runs search, runs preview-replace with replacement 'REPLACED', asserts 2 ReplacementPlans each with match_count >= 1 and after_preview containing 'REPLACED'. Applies replace, re-runs search, asserts hits no longer contain the original text.",
+      "cargo test -p handshake_frontend find_in_files_bookmark_roundtrip -- --nocapture: saves a bookmark via PUT /workspaces/{id}/search-bookmarks, GETs it back, asserts the bookmark appears with correct query and options.",
+      "cargo test -p handshake_frontend find_in_files_regex_compile_error -- --nocapture: unit test. Calls compile_search_regex('[invalid', {is_regex: true, ...}), asserts Err result with a non-empty error string.",
+      "egui_kittest snapshot: render FindInFilesPanel with injected results (3 hits) and a preview plan (2 plans), assert AccessKit tree contains 'find-in-files.query', 'find-in-files.search', 'find-in-files.toggle-case', 'find-in-files.preview-replace', 'find-in-files.apply', and at least one result-row node."
+    ],
+    "implementation_notes": [
+      "React reference for the LEGACY search endpoint (not v2): WorkspaceSearchPanel calls searchLoomGraph() which maps to GET /workspaces/{id}/loom/search (route at api/loom.rs:278). The legacy endpoint accepts q, limit, offset, sourceKinds (repeated or comma-separated), tagIds, mentionIds, caseSensitive, wholeWord, isRegex, path as query string params. Confirm the exact param names from the backend route handler before coding.",
+      "RichDocument load: the React WorkspaceSearchPanel uses loadRichDocument(documentId). This calls GET /knowledge/rich-documents/{id} (KERNEL-009). The Rust frontend should call the same endpoint. Response: {document: {doc_version, title, content_json, crdt_document_id}}.",
+      "RichDocument save: saveRichDocument(id, doc_version, content_json, context, metadata) maps to PATCH /knowledge/rich-documents/{id} with body {doc_version, content_json, ...metadata}. Response: {save_receipt_event_id}.",
+      "Content JSON walking: content_json is a ProseMirror-style tree serialized as JSON (serde_json::Value). Node shape: {type: String, text?: String, attrs?: {code?: String, ...}, content?: [Node], ...}. Use a recursive Rust fn that traverses by checking 'text' key and 'attrs.code' key, then recursing into 'content' array.",
+      "Replace expansion: for regex mode, implement $1..$9, $&, $$ group expansion in the replacement string after each match. For non-regex mode, use literal replacement. Mirror the React expandReplacement fn (WorkspaceSearchPanel.tsx:232-239).",
+      "Plan key for stale guard: use a deterministic string hash of the search params as result_set_key, and hash of {result_set_key, replacement} as preview_plan_key. A simple approach: serde_json::to_string of a normalized struct, then take its std::collections::hash_map sha or just store a counter that increments on each search run.",
+      "Bookmarks endpoint: GET /workspaces/{id}/search-bookmarks returns WorkspaceSearchBookmarkState {schema_id, bookmark_state: {bookmarks: [...]}}. PUT /workspaces/{id}/search-bookmarks takes the same shape. The schema_id must be 'hsk.workspace_search_bookmark_state@1' (backend validates this). See api/workspaces.rs:819 and :846.",
+      "Client-side hitMatchesClientOptions: only applied when at least one of case_sensitive, whole_word, or is_regex is true (otherwise all hits pass). Build the regex, search title+newline+excerpt, check whole_word boundaries manually if needed (check char class \\w around the match boundaries using Unicode properties).",
+      "Pagination: the React reference paginates with SEARCH_PAGE_SIZE=500 (WorkspaceSearchPanel.tsx:30,568-583). Implement the same loop: offset=0, increment by 500, stop when page.len() < 500.",
+      "Whole-word boundary: mirror the React isWordBoundary fn (WorkspaceSearchPanel.tsx:222-230). Check the character immediately before match.start and immediately after match.end; if either is a Unicode word character (letter, number, or underscore) and the match edge is on a word character, the boundary fails.",
+      "AccessKit: assign all IDs listed in the summary. For result rows, stable ref: source_kind + ':' + ref_id with non-alphanumeric replaced by '-'. For preview items, use document_id."
+    ],
+    "ports_from_react": [
+      "app/src/components/WorkspaceSearchPanel.tsx (primary reference - full find-in-files + replace + bookmarks)",
+      "app/src/lib/loom_search_open_target.ts (documentIdFromLoomSearchHit logic - port the KRD- prefix check and metadata key priority)",
+      "app/src/lib/loom_search_query.ts (parseLoomSearchOperators - the tag:/mention:/path:/kind: operator parser; implement equivalent if needed for future; not required for MT-029 baseline as the UI has explicit filter fields)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/search - legacy graph search endpoint (src/backend/handshake_core/src/api/loom.rs:278). Params: q, limit, offset, sourceKinds, tagIds, mentionIds, caseSensitive, wholeWord, isRegex, path.",
+      "GET /workspaces/{workspace_id}/search-bookmarks - read saved search bookmark state (api/workspaces.rs:819). Returns WorkspaceSearchBookmarkState.",
+      "PUT /workspaces/{workspace_id}/search-bookmarks - save bookmark state (api/workspaces.rs:846). Body: {schema_id: 'hsk.workspace_search_bookmark_state@1', bookmark_state: {bookmarks: [...]}}.",
+      "GET /knowledge/rich-documents/{document_id} - load a rich document for replace preview (KERNEL-009 endpoint).",
+      "PATCH /knowledge/rich-documents/{document_id} - save replaced content (KERNEL-009 endpoint). Body: {doc_version, content_json}. Response: {save_receipt_event_id}."
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Replace-apply partial failure: if documents 1 and 2 are patched but document 3 fails (version conflict, network), the panel must not silently lose the partial-success receipt list; the React reference explicitly handles this (WorkspaceSearchPanel.tsx:705-712).",
+      "Stale-plan guard bypass: if plan key comparison is not implemented or uses a mutable key that gets overwritten, the user can apply a stale replace plan to a document that has since been edited by another session, causing data loss.",
+      "Zero-length regex match infinite loop: the regex exec loop must advance lastIndex by 1 on a zero-length match to avoid infinite looping. The React reference implements this guard (WorkspaceSearchPanel.tsx:263-266).",
+      "content_json walk missing attrs.code: if the AST visitor only walks .text nodes and not .attrs.code (code block content), code block matches will be missed, breaking VS-Code-class parity.",
+      "documentId extraction wrong prefix: if the KRD- prefix check is omitted, non-rich-document hits (loom_block IDs, file refs) will be incorrectly loaded as rich documents and fail with 404.",
+      "Bookmark schema_id validation: the backend rejects bookmark PUT if schema_id != 'hsk.workspace_search_bookmark_state@1'; if the frontend sends a different schema_id, bookmarks will silently fail to save.",
+      "Pagination not implemented: if only the first page (500 items) is fetched, large workspaces will show incomplete results without indication, breaking find-all replace.",
+      "Replace regex escaping: for non-regex mode, the query string must be escaped before compiling into a regex. If escapeRegExp is omitted, queries containing '.' or '*' will match more than intended."
+    ],
+    "minimum_controls": [
+      "Partial-failure receipt test: the integration test must simulate a second document PATCH returning 409 (version conflict) and assert that the first document's receipt is still shown and no data is silently lost.",
+      "Plan key staleness test: unit test that after changing the query post-search, clicking Preview Replace shows the stale warning rather than computing a preview.",
+      "Zero-length match guard: unit test for compile_search_regex + replaceSegment with a zero-length match pattern (e.g. 'a*') and assert the result terminates.",
+      "Code block replacement test: in the real-PG integration test, seed a document with an embedded code block containing 'FIND_TARGET', verify that the replace plan captures it.",
+      "KRD- prefix check: unit test that document_id_from_hit returns None for a hit whose metadata contains a document_id not starting with 'KRD-'.",
+      "Bookmark schema_id: assert the PUT body always includes schema_id: 'hsk.workspace_search_bookmark_state@1'.",
+      "Pagination test: seed 501 documents in the real-PG test and assert the search result Vec has >= 501 items.",
+      "Escape non-regex: unit test that compileSearchRegex('a.b', {is_regex: false}) does not match 'acb' (the dot must be escaped)."
+    ]
+  }
+}

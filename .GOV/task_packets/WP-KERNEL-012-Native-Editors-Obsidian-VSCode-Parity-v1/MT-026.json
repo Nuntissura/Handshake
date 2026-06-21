@@ -1,0 +1,126 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-026",
+  "title": "E3-MT026-CanvasBoardLoomBlocks",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Port the React LoomCanvasBoard (MT-261 parity) to the native egui frontend. The canvas board is a spatial canvas where LoomBlocks are placed as reference cards (not copies) with real pan/zoom, drag-to-place, edge drawing (semantic and visual), grouping, and viewport persistence. The board itself is a typed LoomBlock (content_type=canvas); placements and edges are authoritative PostgreSQL/EventLedger state. Expected diff shape: one new file src/frontend/loom/canvas_board.rs containing LoomCanvasBoard widget, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/canvas_board.rs — LoomCanvasBoard widget\n- EDIT src/frontend/loom/mod.rs — pub mod canvas_board; + re-export\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/LoomCanvasBoard.tsx — the complete React implementation. Key behaviors to port exactly:\n  (a) placeBlockOnCanvas(workspaceId, canvasBlockId, {placedBlockId, x, y, w, h}) on drop (api.ts ~1617+)\n  (b) createCanvasCard(workspaceId, canvasBlockId, {title, body, x, y, w, h}) for free-text cards\n  (c) updateCanvasBoardViewport(workspaceId, canvasBlockId, {pan_x, pan_y, zoom}) on viewport change\n  (d) updateCanvasPlacement(workspaceId, placementId, {groupId}) for grouping\n  (e) removeCanvasPlacement(workspaceId, placementId) for removal (source block kept)\n  (f) createLoomEdge(workspaceId, {sourceBlockId, targetBlockId, edgeType:'mention'}) for semantic edges\n  (g) addCanvasVisualEdge(workspaceId, canvasBlockId, {fromPlacementId, toPlacementId}) for visual edges\n  (h) getCanvasBoard(workspaceId, canvasBlockId) -> LoomCanvasBoardView {board, placements, visual_edges}\n  (i) getLoomBlock(workspaceId, blockId) to resolve live block previews (reference, not copy)\n- Backend bindings: all functions from app/src/lib/api.ts in the section starting at line 1617 (LOOM_CANVAS_BOARD_SCHEMA_ID block)\n\nStep-by-step implementation notes:\n1. Define CanvasPlacementCard { placement_id: String, placed_block_id: String, x: f32, y: f32, w: f32, h: f32, z_index: i32, group_id: Option<String>, live_title: Option<String>, live_content_type: Option<String>, selected: bool }.\n2. Define VisualEdge { visual_edge_id: String, from_placement_id: String, to_placement_id: String }.\n3. Define LoomCanvasBoard widget state: { workspace_id, canvas_block_id, placements: Vec<CanvasPlacementCard>, visual_edges: Vec<VisualEdge>, pan: Vec2, zoom: f32, selected: HashSet<String>, edge_mode: EdgeMode (Semantic | Visual), edge_from: Option<String>, status: String, loading: bool, error: Option<String> }.\n4. On init: call getCanvasBoard -> populate placements + visual_edges + pan + zoom. Then for each placement, call getLoomBlock to resolve live_title + live_content_type. Store results in placements (ref semantics: a missing block shows '(stale reference)', never a copy).\n5. Render loop in show():\n   a. Top toolbar strip (using egui::TopBottomPanel or manual strip at top of allocated rect):\n      - Pan-left / Pan-right buttons (author_id='canvas.pan-left'/'canvas.pan-right'): adjust pan.x by ±40; call updateCanvasBoardViewport on release.\n      - Zoom-out / Zoom-in buttons (author_id='canvas.zoom-out'/'canvas.zoom-in'): adjust zoom by ±0.25 clamped [0.25, 4.0]; call updateCanvasBoardViewport.\n      - Zoom value label (author_id='canvas.zoom-value').\n      - '+ Text card' button (author_id='canvas.add-card'): calls createCanvasCard with default position (40, 40) and title=timestamp.\n      - 'Group (N)' button (author_id='canvas.group'): enabled only if selected.len() >= 2; calls updateCanvasPlacement for each selected with a new group_id.\n      - Edge mode dropdown/toggle (author_id='canvas.edge-mode'): Semantic | Visual.\n      - 'Draw edge from selected' button (author_id='canvas.start-edge'): enabled if selected.len()==1; on click sets edge_from = selected[0].\n   b. Status bar: single line of status text (author_id='canvas.status').\n   c. Canvas surface (fills remaining rect):\n      - Background: draw a dotted grid pattern using Painter::circle_filled at 24px spacing with radius 1px, color gray(203).\n      - Apply pan+zoom transform: translate by pan, then scale by zoom (use Painter with transform via egui::emath::RectTransform or manual coordinate math).\n      - Draw visual edges: for each VisualEdge, find from/to placements, draw dashed line between card centers (stroke 2px, Color32::from_gray(148), dash pattern 6/4).\n      - Draw placement cards: for each CanvasPlacementCard, draw a rounded rect at (x,y,w,h) * zoom + pan. Border: if selected 2px blue, else 1px gray(203). White fill. Show live_title (bold 13px) and live_content_type (muted 11px). Show a remove button ('x') at top-right of card.\n      - Click on empty area: deselect all + start pan drag.\n      - Drag on empty area: pan (mouse delta added to pan; persist on release via updateCanvasBoardViewport).\n      - Scroll wheel: zoom (multiply zoom by 1.15^delta; clamp; zoom toward pointer; persist).\n      - Click on card: toggle selection (shift=additive); if edge_from is set and this card != edge_from, call drawEdge(edge_from, this placement_id); clear edge_from.\n      - Drag FROM external source (egui DragAndDrop or OS drop): accept MIME 'application/x-handshake-loom-block' JSON {blockId, title}; compute drop position in canvas space = (screen_pos - pan) / zoom; call placeBlockOnCanvas; refresh.\n6. Edge drawing: if edge_mode=Semantic, call createLoomEdge(source_block_id, target_block_id, 'mention'); if edge_mode=Visual, call addCanvasVisualEdge(from_placement_id, to_placement_id). Always refresh after.\n7. AccessKit: each placement card gets author_id='canvas.placement.{placement_id}' role=Group, label=live_title, actions=[DefaultAction=select, Remove]. Remove button 'canvas.placement.{placement_id}.remove'. Toolbar buttons as listed above. Status bar 'canvas.status' role=Status.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client. No dependency on MT-022 through MT-025.\n\nRisk if missed: Canvas board (Obsidian Canvas parity, MT-261) is absent from native frontend. This is a key differentiator surface.",
+    "allowed_paths": [
+      "src/frontend/loom/canvas_board.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: Opening a canvas block loads the board from real PG (with >=2 placements seeded). Placements render as cards showing live block titles (reference, not copy text). The zoom value label shows '1.00x'.",
+      "AC2: Pan buttons adjust pan by 40px and the placements visibly shift. Viewport is persisted to backend via updateCanvasBoardViewport.",
+      "AC3: Zoom-in button increases zoom; zoom-out decreases it; zoom value label updates. Both clamp at [0.25, 4.0].",
+      "AC4: Dropping a Loom block (via drag with MIME 'application/x-handshake-loom-block') onto the canvas calls placeBlockOnCanvas and the new placement appears in the next refresh. The new card shows the live block title (proves reference not copy).",
+      "AC5: Clicking '+ Text card' calls createCanvasCard, a new placement appears, and its title reflects the created block's title (timestamp-based from React reference).",
+      "AC6: Selecting 2 cards (shift-click) and clicking 'Group (2)' calls updateCanvasPlacement for each with a shared group_id. The group_id attribute is visible in the AccessKit data-group-id of each affected card.",
+      "AC7: Drawing a Semantic edge (edge_mode=Semantic): click 'Draw edge from selected', click a second card, assert createLoomEdge API called with source and target block_ids. Drawing a Visual edge: same flow with edge_mode=Visual, assert addCanvasVisualEdge API called.",
+      "AC8: Clicking the remove 'x' button on a card calls removeCanvasPlacement and the card disappears from the board. Source block is NOT deleted (verify getLoomBlock still returns it).",
+      "AC9: AccessKit tree includes 'canvas.pan-left', 'canvas.pan-right', 'canvas.zoom-in', 'canvas.zoom-out', 'canvas.add-card', 'canvas.edge-mode', 'canvas.placement.{placement_id}' for each card.",
+      "AC10: Board with zero placements shows empty canvas with no panic and no 'stale reference' text."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::canvas_board -- --nocapture passes unit tests for canvas-space coordinate transform ((screen-pan)/zoom) round-trip accuracy (<1px error).",
+      "PROOF2: kittest test with 2 seeded placements in real PG: assert 2 'canvas.placement.*' AccessKit nodes and their labels match the live block titles.",
+      "PROOF3: kittest drop-to-place test: simulate drop event at canvas position (100,100) with block_id='block-drop-1', assert placeBlockOnCanvas API call fired with correct x/y, assert 3 placement AccessKit nodes after refresh.",
+      "PROOF4: kittest edge-semantic test: select 'canvas.placement.p-001', click 'canvas.start-edge', click 'canvas.placement.p-002', assert createLoomEdge API call with correct source/target block_ids.",
+      "PROOF5: kittest remove test: click 'canvas.placement.p-001.remove', assert removeCanvasPlacement called and 'canvas.placement.p-001' absent from AccessKit tree; assert getLoomBlock('block-001') still returns 200.",
+      "PROOF6: Screenshot from kittest shows a non-white canvas with at least one card shape visible (rect with rounded corners)."
+    ],
+    "implementation_notes": [
+      "Canvas coordinate transform: canvas_pos = (screen_pos - pan) / zoom. Apply this to convert mouse position to canvas space for drop placement and card hit testing.",
+      "Card hit testing: check if canvas_pos is within placement rect [x, y, x+w, y+h]. Iterate placements in reverse z_index order for correct hit priority.",
+      "Pan drag: detect pointer press on empty canvas (no card hit), track pointer delta each frame while button held, add to pan. On release, call updateCanvasBoardViewport.",
+      "Zoom to pointer: new_pan = pointer - (pointer - pan) * (new_zoom / old_zoom). This keeps the canvas point under the pointer stationary.",
+      "Grid drawing: iterate x from 0 to canvas_width step 24, y from 0 to canvas_height step 24; painter.circle_filled(canvas_to_screen(x,y), 1.0, gray(203)).",
+      "Dashed line for visual edges: egui::Painter does not have a native dash API. Implement by splitting the line segment into dash/gap segments manually: for a line from A to B, compute unit vector, alternate drawing solid segments of length 6 and skipping segments of length 4.",
+      "MIME drag: egui does not natively handle OS file drops but egui_winit exposes dropped files. For inter-panel drag, use egui::DragAndDrop payload with a custom type wrapping the block_id. Fall back to external OS drop via egui::ViewportCommand if available.",
+      "Avoid re-fetching live blocks on every frame: fetch once on load and on explicit refresh. Do not store live block content — only title and content_type (reference-only display).",
+      "Refresh after every mutation: all mutating API calls (place, create, remove, edge, group, viewport) are followed by a getCanvasBoard + getLoomBlock re-resolve cycle."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomCanvasBoard.tsx — entire component (primary reference). All behaviors listed in the step-by-step notes above map 1:1 to this file.",
+      "CANVAS_DRAG_MIME='application/x-handshake-loom-block': LoomCanvasBoard.tsx line 42",
+      "DEFAULT_CARD_W=200, DEFAULT_CARD_H=120: LoomCanvasBoard.tsx lines 31-32",
+      "persistViewport -> updateCanvasBoardViewport: LoomCanvasBoard.tsx lines 120-135",
+      "drawEdge logic: LoomCanvasBoard.tsx lines 246-273",
+      "removeCanvasPlacement: LoomCanvasBoard.tsx lines 275-286",
+      "Canvas board API types: app/src/lib/api.ts lines 1617-1750 (approximate)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/canvas/{canvas_block_id} — getCanvasBoard (LoomCanvasBoardView)",
+      "POST /workspaces/{workspace_id}/loom/canvas/{canvas_block_id}/placements — placeBlockOnCanvas",
+      "POST /workspaces/{workspace_id}/loom/canvas/{canvas_block_id}/cards — createCanvasCard",
+      "PUT /workspaces/{workspace_id}/loom/canvas/{canvas_block_id}/viewport — updateCanvasBoardViewport",
+      "PATCH /workspaces/{workspace_id}/loom/canvas/placements/{placement_id} — updateCanvasPlacement (groupId)",
+      "DELETE /workspaces/{workspace_id}/loom/canvas/placements/{placement_id} — removeCanvasPlacement",
+      "POST /workspaces/{workspace_id}/loom/edges — createLoomEdge (semantic edge)",
+      "POST /workspaces/{workspace_id}/loom/canvas/{canvas_block_id}/visual-edges — addCanvasVisualEdge",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id} — getLoomBlock (live block preview)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Canvas coordinates drift if pan and zoom are applied inconsistently between drawing pass and hit-test pass. Mitigation: define a single canvas_to_screen(pos) and screen_to_canvas(pos) function pair and use them exclusively; unit test the round-trip.",
+      "RISK-2: egui's DragAndDrop API may not support external OS drops or inter-panel drags in all backends. Mitigation: implement a fallback where a 'Drag block here' instruction panel is shown and the user can also paste a block_id via a text field.",
+      "RISK-3: Viewport persistence (updateCanvasBoardViewport) fires too frequently during smooth pan/zoom, causing excessive API load. Mitigation: debounce viewport persistence 300ms after last pan/zoom event; do not fire on every frame.",
+      "RISK-4: removeCanvasPlacement might be confused with block deletion by the user. Mitigation: status bar must confirm 'Removed placement {id} (source block kept)' exactly as in the React reference.",
+      "RISK-5: Dashed-line manual implementation may produce incorrect segment counts for very short edges (< one dash). Mitigation: if line length < 10px, draw as a solid short line.",
+      "RISK-6: Simultaneous semantic edge creation and visual edge creation with the same selection could double-mutate. Mitigation: edge_from is cleared immediately on second card click before any async call; the async call is fire-and-forget with error surface only."
+    ],
+    "minimum_controls": [
+      "MC-1: canvas_to_screen / screen_to_canvas pair tested round-trip. Covered by PROOF1.",
+      "MC-2: Fallback text-field block placement in case OS drag is unavailable. Covered by AC4 (drop test) + implementation notes.",
+      "MC-3: 300ms debounce on viewport persistence. Covered by AC2 (viewport persisted).",
+      "MC-4: Status bar confirms placement removal not block deletion. Covered by AC8 and PROOF5.",
+      "MC-5: Short edge solid line fallback. Covered by PROOF6 (visual smoke test)."
+    ]
+  }
+}

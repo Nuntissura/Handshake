@@ -1,0 +1,121 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-020",
+  "title": "E2-MT020-SaveToFormatDraftRecovery",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-020.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement save-to-format export and draft/crash recovery for the native rich-text editor. This MT delivers: (1) a SaveManager that persists the document to the backend (the canonical authority), (2) export projections to HTML (self-contained and reference-linked), Markdown, plain text, and ProseMirror JSON, (3) draft/crash recovery via the backend draft endpoint so in-progress edits survive a crash or forced close, and (4) a conflict/merge UI for concurrent edits. This is the native Rust port of app/src/lib/editor/export_formats.ts + app/src/components/RichDocumentView.tsx save/draft/recovery logic (MT-244/MT-255).\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/save/mod.rs\n- src/frontend/rich_editor/save/save_manager.rs (canonical save: PUT /knowledge/documents/{id}/save with optimistic concurrency)\n- src/frontend/rich_editor/save/draft_manager.rs (draft upsert + draft recovery on mount)\n- src/frontend/rich_editor/save/export.rs (export projections: HTML self-contained, HTML reference-linked, Markdown, plain text, ProseMirror JSON)\n- src/frontend/rich_editor/save/conflict_ui.rs (egui conflict resolution panel: show diff, choose operator or server version, or merge)\n- Extend src/frontend/rich_editor/renderer/rich_editor_widget.rs to host the conflict UI and wire Ctrl+S.\n\nSAVE MANAGER (save_manager.rs - port RichDocumentView.tsx save flow):\n- fn save_document(doc_id: &str, content_json: &DocJson, expected_version: u64, ctx: &RichDocContext) -> Result<RichDocSaveResult, SaveError>\n- HTTP call: PUT /knowledge/documents/{doc_id}/save { content_json, expected_version, ... }\n- On 409 Conflict (version mismatch): transition to ConflictState { server_doc: RichDocLoad, local_content: DocJson }. Show conflict_ui.\n- On 200 Ok: update doc_version to result.document.doc_version, clear dirty flag, update updated_at.\n- SaveError variants: VersionConflict(RichDocLoad), Network(String), Server(u16, String), SchemaRejected(String).\n- Ctrl+S keyboard shortcut (SAVE_ACTION from editor_keymap.ts equivalent) calls save_document.\n\nDRAFT MANAGER (draft_manager.rs - port RichDocumentView.tsx draft flow):\n- On document mount: call GET /knowledge/documents/{id}/draft (loadRichDocumentDraft). If a draft exists and draft.base_doc_version matches the current doc_version AND the draft content differs from the server content: show a 'Draft recovery' banner with [Restore draft] [Discard] buttons.\n- On every document change (dirty): debounced 5-second upsert: PUT /knowledge/documents/{id}/draft { base_doc_version, base_content_sha256, content_json } (upsertRichDocumentDraft).\n- On successful canonical save: call DELETE /knowledge/documents/{id}/draft (clearRichDocumentDraft) to clean up.\n- On Discard draft: call clearRichDocumentDraft.\n- DraftState: None, Checking, Available { draft: RichDocumentDraft, shown: bool }, Discarded.\n- SHA256 of content_json: use the sha2 crate to compute base_content_sha256.\n\nEXPORT (export.rs - port export_formats.ts):\n- ExportFormat enum: HtmlSelfContained, HtmlReferenceLiked, Markdown, PlainText, ProseMirrorJson.\n- fn export_document(doc: &DocNode, format: ExportFormat, workspace_id: &str, title: &str) -> Result<ExportOutput, ExportError> where ExportOutput { content: Vec<u8>, filename: String, mime: String }.\n- HTML Self-contained: walk the DocNode tree, emit HTML5 markup. For image embeds: fetch the asset bytes (GET /workspaces/{workspace_id}/assets/{asset_id}/content) and base64-inline as data: URLs. Size guards (mirroring export_formats.ts): images up to 10 MB each; total base64 data cap 50 MB; video NEVER inlined. Unresolvable embeds: emit a visible <p data-hs-export-error=\"{error_kind}\"> placeholder, never silent blank.\n- HTML Reference-linked: same structure but media elements use the backend asset content URL (http://127.0.0.1:37501/workspaces/{workspace_id}/assets/{asset_id}/content) instead of data: URLs.\n- Markdown: walk DocNode tree, emit CommonMark. Lossy (matches the React markdown export: drops underline/strikethrough nuance, flattens table col widths, converts wikilinks to [[kind:value]] tokens, converts task items to '- [ ]'/'- [x]'). Never panics on unsupported nodes; emit a '<!-- unsupported: {kind} -->' comment.\n- PlainText: walk all TextLeafs and concatenate their rope content with newlines between blocks.\n- ProseMirrorJson: use MT-011 doc_json.rs serialization with a typed envelope { schema_version: 'rich_document_v1', projection_disclaimer: 'This is a read-only export projection. The canonical authority is the Postgres RichDocument record.', content: DocJson }.\n- File save: use the native OS file save dialog (rfd crate: rfd::FileDialog::new().save_file()) OR write to a specified path. On success, show a toast 'Exported to {filename}'.\n\nCONFLICT UI (conflict_ui.rs - port RichDocumentView.tsx conflict handling):\n- Floating egui::Window 'Save conflict'.\n- Show: 'Server version (v{N})' panel (read-only rendered block list) vs 'Your version' panel (current DocModel rendered).\n- Three choices: [Keep yours] (force-save with the operator's content at the server version), [Keep server] (reload server content, discard local), [Open merge] (open a side-by-side merge view, deferred to a future MT - for now show 'Merge not yet available' text).\n- AccessKit: window = 'conflict-dialog', keep-yours = 'conflict-keep-yours', keep-server = 'conflict-keep-server'.\n\nFILE SAVE DIALOG:\n- Add crate: rfd = '0.14' (Rust file dialog, async-capable, no wry/webview dependency).\n- Add crate: sha2 = '0.10'.\n- Add crate: base64 = '0.22'.\n\nSTEP-BY-STEP:\n1. Implement save_manager.rs with the save_document fn and the Ctrl+S wiring in rich_editor_widget.rs.\n2. Implement draft_manager.rs: on mount call loadRichDocumentDraft; on dirty changes debounce upsertRichDocumentDraft; on save call clearRichDocumentDraft.\n3. Implement export.rs: start with PlainText (simplest), then ProseMirrorJson, then Markdown, then HTML (both modes). Each export fn is independently callable.\n4. Implement conflict_ui.rs: show when ConflictState is set. Wire Keep yours / Keep server buttons.\n5. Add a menu button 'Export...' in the toolbar (toolbar.rs from MT-013 or as a standalone button if MT-013 is not yet done) that opens an export format picker popup.\n6. Cargo tests: save_document 409 -> ConflictState set. Draft recovery: loadRichDocumentDraft returns a draft -> DraftState::Available. export_document PlainText extracts all text correctly. export_document Markdown produces valid CommonMark for a heading + paragraph + bold mark. SHA256 of DocJson matches base_content_sha256 in the draft upsert body.\n7. Integration test (real backend): save, then save again with wrong expected_version, assert 409 -> ConflictState.\n\nDEPENDENCIES: MT-011 (DocJson serialization for save + export, doc_version tracking), MT-012 (Ctrl+S keyboard handling in input_handler.rs for the save shortcut).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/save/**",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/renderer/input_handler.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Ctrl+S triggers save_document; a successful save clears the dirty flag and updates doc_version in RichEditorState (cargo test with mock HTTP 200 response).",
+      "A 409 response from the save endpoint sets ConflictState and displays the conflict_ui window (cargo test with mock 409 + kittest screenshot).",
+      "'Keep server' in the conflict UI reloads the server content into the DocModel and clears ConflictState (cargo test).",
+      "'Keep yours' re-saves with the server's doc_version, overwriting the server content (cargo test with mock HTTP).",
+      "Draft recovery: on mount with a loadRichDocumentDraft response containing a draft, DraftState::Available is set and a 'Draft recovery' banner appears (cargo test + kittest screenshot).",
+      "'Restore draft' button loads the draft content into the DocModel (cargo test).",
+      "'Discard' button calls clearRichDocumentDraft and sets DraftState::Discarded (cargo test with mock HTTP).",
+      "Draft upsert fires after 5 seconds of dirty state; computed SHA256 in the request body matches the actual content_json bytes (cargo test with mock clock).",
+      "export_document(PlainText) returns a Vec<u8> that is the plain concatenation of all text content with newlines (cargo test).",
+      "export_document(Markdown) for a doc with h1 + paragraph + bold mark produces '# Heading\\n\\nSome **bold** text\\n' (cargo test asserting the output string).",
+      "export_document(ProseMirrorJson) produces a JSON object with schema_version='rich_document_v1' and the correct content tree (cargo test).",
+      "export_document(HtmlSelfContained) for a doc with a plain paragraph (no embeds) produces valid HTML5 with a <p> tag containing the text (cargo test).",
+      "HTML export with a 15 MB image asset falls back to reference-linked for that asset and emits data-hs-export-error='size_exceeded' on the img element (cargo test with a mock 15 MB byte vec).",
+      "All cargo tests for the save module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- save outputs 'test result: ok' with test count >= 10.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt020_conflict_ui.png showing the conflict window.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt020_draft_banner.png showing the draft recovery banner.",
+      "Integration test (real Postgres backend): cargo test --test native_editors -- save::test_real_save_conflict -- --ignored; asserts 409 conflict is received and ConflictState is set.",
+      "Exported Markdown file opened in a text editor or validated with a CommonMark parser has no syntax errors."
+    ],
+    "implementation_notes": [
+      "The HTML export must use a tree walker (recursive fn walk_node_to_html) that writes to a String buffer with proper HTML escaping (use the html-escape crate or manual entity encoding for &, <, >, \", '); NEVER use string concatenation of untrusted content.",
+      "For HTML self-contained, asset fetching is synchronous (blocking) within the export fn (called on a background thread via tokio::spawn_blocking when triggered from the toolbar). Do not block the egui UI thread.",
+      "expected_version for the save call MUST come from the RichEditorState.doc_version field (set on load and updated after each successful save). Never hardcode 0.",
+      "Draft upsert computes base_content_sha256 over the raw JSON bytes of the DocJson (serde_json::to_vec -> sha2::Sha256::digest). The exact same computation must be done in a cargo test to verify the value matches.",
+      "The rfd file save dialog is async; use rfd::AsyncFileDialog in the egui async context or spawn a std::thread for the dialog if egui is single-threaded. Do NOT block the frame loop waiting for the dialog.",
+      "Export format picker popup: a simple egui popup list with the 5 format options; clicking one runs the export and opens the file save dialog. This popup can be a minimal button group in this MT without full toolbar integration.",
+      "base64 encoding for HTML self-contained: use the base64 crate with the STANDARD engine. The data: URL format is: data:{mime};base64,{encoded_bytes}.",
+      "The Markdown exporter must handle ALL node kinds without panicking; for unsupported/future kinds, emit the comment placeholder and continue. A cargo test passes a document containing every supported node kind and produces non-empty output with no panics."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/export_formats.ts (all export formats: HTML self-contained/reference-linked with size guards and fail-closed embed errors, Markdown lossy, PlainText, ProseMirrorJson envelope; XSS-safe HTML assembly; importProseMirrorJson sanitization pattern)",
+      "app/src/components/RichDocumentView.tsx (save flow: optimistic concurrency expected_version, 409 conflict handling, LocalSnapshot conflict/merge UI; draft load on mount, upsertRichDocumentDraft on dirty, clearRichDocumentDraft on save; DraftState transitions)",
+      "app/src/lib/editor/export_formats.ts (HTML_INLINE_IMAGE_MAX_BYTES, HTML_INLINE_TOTAL_MAX_BYTES size guard constants; video never inlined rule; data-hs-export-error attribute on failed embeds)"
+    ],
+    "binds_backend_api": [
+      "PUT /knowledge/documents/{document_id}/save { content_json, expected_version } -> RichDocSaveResult (saveRichDocument); 409 on version conflict",
+      "GET /knowledge/documents/{document_id}/draft -> RichDocumentDraftLoad (loadRichDocumentDraft)",
+      "PUT /knowledge/documents/{document_id}/draft { base_doc_version, base_content_sha256, content_json } -> RichDocumentDraftWriteResult (upsertRichDocumentDraft)",
+      "DELETE /knowledge/documents/{document_id}/draft -> RichDocumentDraftClearResult (clearRichDocumentDraft)",
+      "GET /knowledge/documents/{document_id}/projection?format={format} -> export bytes (exportRichDocumentProjection; may use backend-side export if available, otherwise client-side export in this MT)",
+      "GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes (for HTML self-contained image inlining)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-STOP"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "HTML export builds a 500 MB file by inlining too many large images, making it unopenable; the size guard logic has an off-by-one where the per-image check passes but the total cap is exceeded.",
+      "Draft upsert fires during an in-progress canonical save, causing a race where the draft's base_doc_version is stale and the backend rejects it.",
+      "Conflict 'Keep yours' re-saves at the server's doc_version but with the operator's content, silently discarding another user's concurrent edits without any merge or warning.",
+      "The rfd file dialog blocks the egui event loop on some OS configurations (Windows), causing the app to appear frozen for the duration of the dialog.",
+      "SHA256 computation produces a different result than the backend's expected hash if the JSON serialization is not deterministic (key ordering may vary between serde_json versions).",
+      "Markdown export panics on a table node with empty cells because the column-width computation divides by zero."
+    ],
+    "minimum_controls": [
+      "HTML size guard: check per-image AND cumulative total BEFORE fetching; a cargo test with 6 x 9 MB images verifies that total cap (50 MB) stops after 5 images and the 6th gets data-hs-export-error='size_exceeded'.",
+      "Draft upsert must be blocked while a canonical save is in-flight; use a is_saving: bool flag; resume draft upsert only after the save resolves. Cargo test verifies upsert is not called during save.",
+      "'Keep yours' must display a secondary confirmation: 'This will overwrite the server version permanently. Continue?' before re-saving; accessibility id 'conflict-keep-yours-confirm'. Cargo test verifies confirmation is required.",
+      "rfd file dialog must be launched in a dedicated std::thread (not on the egui frame thread) with a oneshot channel returning the selected path; the egui thread polls the channel non-blockingly each frame.",
+      "DocJson serialization for SHA256 must use serde_json::to_string_pretty with a deterministic key order (serde_json preserves struct field declaration order); a cargo test asserts that serializing the same DocNode twice produces identical bytes.",
+      "Markdown table renderer must guard against empty column-width vectors: if table has 0 columns, emit '<!-- empty table -->' and continue; cargo test verifies no panic on a table with 0 rows or 0 cols."
+    ]
+  }
+}

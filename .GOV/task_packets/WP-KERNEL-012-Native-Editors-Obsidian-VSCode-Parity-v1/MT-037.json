@@ -1,0 +1,125 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-037",
+  "title": "E6-MT-037-BindKnowledgeDocumentsApi",
+  "group": "E6 Backend reuse wiring",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-037.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": ["MT-040"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Bind the native Rust editor layer to the existing /knowledge/documents/* backend APIs. No backend changes are permitted; this MT is pure frontend wiring.\n\nGoal: create a typed Rust client module at src/frontend/backend/knowledge_documents.rs that exposes async functions for every route in the backend knowledge_documents API. The diff shape is one new file plus a re-export from src/frontend/backend/mod.rs.\n\nExact files to create/edit:\n  - CREATE: src/frontend/backend/knowledge_documents.rs\n  - EDIT:   src/frontend/backend/mod.rs  (add `pub mod knowledge_documents;`)\n\nThe backend HTTP surface (read from handshake_core/src/api/knowledge_documents.rs) exposes these routes, all under the base URL served by the running handshake_core server (obtained from AppConfig or a shared BackendClient):\n  POST   /knowledge/documents                          -> create_document\n  POST   /knowledge/documents/import                   -> import_document\n  GET    /knowledge/documents/:document_id             -> load_document (returns document + tree + code_nodes)\n  GET    /knowledge/documents/:document_id/draft       -> load_document_draft\n  PUT    /knowledge/documents/:document_id/draft       -> upsert_document_draft\n  DELETE /knowledge/documents/:document_id/draft       -> clear_document_draft\n  PUT    /knowledge/documents/:document_id/save        -> save_document (optimistic-concurrency, expected_version field)\n  GET    /knowledge/documents/:document_id/blocks      -> load_blocks\n  GET    /knowledge/documents/:document_id/history     -> load_history (paginated: ?limit=&offset=)\n  GET    /knowledge/documents/:document_id/history/:v  -> load_history_version\n  GET    /knowledge/documents/:document_id/projection  -> export_projection (?format=markdown|html|plain_text|wiki_loom|context_bundle)\n  GET    /knowledge/documents/:document_id/embeds      -> list_embeds\n  GET    /knowledge/documents/:document_id/embeds/broken -> list_broken_embeds\n  POST   /knowledge/documents/embeds/:embed_id/repair  -> repair_embed\n  GET    /knowledge/documents/:document_id/backlinks   -> list_backlinks\n  POST   /knowledge/documents/:document_id/backlinks   -> rebuild_backlinks\n  POST   /knowledge/documents/:document_id/rename      -> rename_document\n  POST   /knowledge/documents/:document_id/move        -> move_document\n  POST   /knowledge/documents/batch                    -> batch_documents\n\nEvery request MUST include the mandatory identity headers:\n  x-hsk-actor-id           (required)\n  x-hsk-kernel-task-run-id (required)\n  x-hsk-session-run-id     (required)\n  x-hsk-actor-kind         (optional; omit for least-privileged read-only)\n  x-hsk-correlation-id     (optional)\nMissing required headers cause the backend to return 400. Provide a HskDocumentHeaders struct and a helper that populates them from editor session context.\n\nStep-by-step implementation notes:\n  1. Define Rust structs mirroring the backend request/response bodies (use serde::Deserialize/Serialize):\n     - CreateDocumentRequest { workspace_id, title, content_json?, schema_version?, project_ref?, folder_ref? }\n     - SaveDocumentRequest { expected_version: i64, content_json, crdt_document_id?, crdt_snapshot_id?, promotion_receipt_event_id? }\n     - UpsertDraftRequest { base_doc_version: i64, base_content_sha256, content_json }\n     - ImportDocumentRequest { workspace_id, title, format, snippet }\n     - MoveDocumentRequest { project_ref?, folder_ref? }  // double-option semantics\n     - BatchOperation (serde tagged union: rename/move/set_authority_label)\n     - BatchRequest { operations: Vec<BatchOperation> }\n  2. Define the response projection types:\n     - RichDocumentResponse (contains all KnowledgeRichDocument fields; use serde_json::Value for content_json to avoid schema coupling)\n     - BlockTreeResponse { schema_version, schema_matches, block_ids, blocks }\n     - DocumentLoadResponse { document, tree, code_nodes }\n     - DocumentDraftResponse { rich_document_id, current_doc_version, current_content_sha256, draft? }\n     - SaveDocumentResponse { document, save_receipt_event_id?, receipt_error?, backlinks_persisted, embeds_persisted, knowledge_indexed, ... }\n     - HistoryListResponse { rich_document_id, current_version, versions, total_versions, limit, offset }\n     - ProjectionResponse { rich_document_id, projection }\n  3. Define HskDocumentHeaders struct and a build_headers(ctx: &EditorSessionContext) -> HeaderMap helper.\n  4. Implement one async fn per route using reqwest (or the project-standard HTTP client if already established). Each fn:\n     a. Accepts typed request arguments.\n     b. Builds the URL from a base_url parameter or shared BackendClient.\n     c. Attaches HskDocumentHeaders.\n     d. Deserializes the response body into the typed response struct.\n     e. Maps HTTP error codes (400/403/404/409/500) to a typed KnowledgeDocumentsError enum.\n  5. Handle the 409 Conflict response from save_document specially: return a SaveConflict variant carrying the current server version so the editor layer can show a conflict UI.\n  6. The draft endpoint (PUT) uses double-option semantics for project_ref/folder_ref in MoveDocumentRequest: use Option<Option<String>> with a custom serializer that omits the field when outer is None and serializes null when inner is None.\n  7. Add AccessKit accessibility metadata note: this MT creates backend client code only, no widgets. Accessibility annotations apply when a calling widget (editor toolbar, save button, history panel) is built in later MTs.\n  8. Register the module in src/frontend/backend/mod.rs with `pub mod knowledge_documents;`.",
+    "allowed_paths": [
+      "src/frontend/backend/knowledge_documents.rs",
+      "src/frontend/backend/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "src/frontend/backend/knowledge_documents.rs compiles with `cargo build` (no warnings promoted to errors).",
+      "A cargo test that creates a mock HTTP server responding with a valid JSON payload and calls `load_document` returns a typed DocumentLoadResponse without panicking.",
+      "A cargo test that sends a SaveDocumentRequest with wrong expected_version (mock returns 409) returns SaveConflict error variant, not a generic error.",
+      "A cargo test that omits an actor-id header (mock returns 400) returns a typed BadRequest error variant.",
+      "All public async functions are documented with a one-line doc comment citing the backend route they call.",
+      "HskDocumentHeaders struct covers all five header fields with correct field names matching the backend constants (x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id, x-hsk-actor-kind, x-hsk-correlation-id).",
+      "The module is re-exported from src/frontend/backend/mod.rs."
+    ],
+    "proof_targets": [
+      "cargo build --package handshake_frontend 2>&1 | tail -5  ->  must show no errors",
+      "cargo test -p handshake_frontend knowledge_documents 2>&1  ->  all tests pass",
+      "grep -n 'pub mod knowledge_documents' src/frontend/backend/mod.rs  ->  line present",
+      "grep -n 'x-hsk-actor-id' src/frontend/backend/knowledge_documents.rs  ->  header constant present"
+    ],
+    "implementation_notes": [
+      "The backend base URL is NOT hardcoded: read from a BackendClient or AppConfig struct already established in the frontend crate (check src/frontend/backend/mod.rs or src/frontend/config.rs first; if no such struct exists, define a BackendClient { base_url: String } and use it).",
+      "Use reqwest::Client for HTTP. Import it as a dev-dependency if only needed in tests; add as a regular dependency if the BackendClient holds it.",
+      "Content-Type: application/json on all requests with a body.",
+      "The save_document route (PUT /knowledge/documents/:id/save) uses `expected_version` for optimistic concurrency; a 409 response means version conflict. Surface this as SaveConflict { server_version: Option<i64> } by parsing the 409 response body.",
+      "Move document uses double-option: `project_ref: Option<Option<String>>` serialized as: absent field when outer=None, `null` when inner=None, string when inner=Some(s). Use a custom serde helper or #[serde(skip_serializing_if)] on the outer option.",
+      "Do not hold any document state in this module. It is a stateless HTTP adapter only.",
+      "All route functions are public (pub async fn). No internal state."
+    ],
+    "ports_from_react": [
+      "No direct React port: the React app does not have a dedicated knowledge_documents API client file. The backend routes are the authoritative source; this MT creates the first native Rust client for them.",
+      "app/src/lib/editor/document_diff_merge.ts - reference for RichDocumentJson shape (type: string, content: unknown[]) used in save payloads.",
+      "app/src/components/AtelierCollaborationPanel.tsx - reference for how the React layer consumes document history and draft recovery flows."
+    ],
+    "binds_backend_api": [
+      "POST   /knowledge/documents                           (knowledge_documents.rs:create_document)",
+      "POST   /knowledge/documents/import                    (knowledge_documents.rs:import_document)",
+      "GET    /knowledge/documents/:document_id              (knowledge_documents.rs:load_document)",
+      "GET    /knowledge/documents/:document_id/draft        (knowledge_documents.rs:load_document_draft)",
+      "PUT    /knowledge/documents/:document_id/draft        (knowledge_documents.rs:upsert_document_draft)",
+      "DELETE /knowledge/documents/:document_id/draft        (knowledge_documents.rs:clear_document_draft)",
+      "PUT    /knowledge/documents/:document_id/save         (knowledge_documents.rs:save_document)",
+      "GET    /knowledge/documents/:document_id/blocks       (knowledge_documents.rs:load_blocks)",
+      "GET    /knowledge/documents/:document_id/history      (knowledge_documents.rs:load_history)",
+      "GET    /knowledge/documents/:document_id/history/:v   (knowledge_documents.rs:load_history_version)",
+      "GET    /knowledge/documents/:document_id/projection   (knowledge_documents.rs:export_projection)",
+      "GET    /knowledge/documents/:document_id/embeds       (knowledge_documents.rs:list_embeds)",
+      "GET    /knowledge/documents/:document_id/embeds/broken (knowledge_documents.rs:list_broken_embeds)",
+      "POST   /knowledge/documents/embeds/:embed_id/repair   (knowledge_documents.rs:repair_embed)",
+      "GET    /knowledge/documents/:document_id/backlinks    (knowledge_documents.rs:list_backlinks)",
+      "POST   /knowledge/documents/:document_id/backlinks    (knowledge_documents.rs:rebuild_backlinks)",
+      "POST   /knowledge/documents/:document_id/rename       (knowledge_documents.rs:rename_document)",
+      "POST   /knowledge/documents/:document_id/move         (knowledge_documents.rs:move_document)",
+      "POST   /knowledge/documents/batch                     (knowledge_documents.rs:batch_documents)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Hardcoded base URL breaks disk-agnostic portability ([GLOBAL-PORTABILITY-005]).",
+      "Missing x-hsk-actor-id header on any request causes backend to return 400; easy to forget when constructing test calls.",
+      "409 Conflict from save_document silently treated as generic error causes data loss: editor cannot present conflict UI.",
+      "Double-option MoveDocumentRequest serialized incorrectly can silently clear project_ref or folder_ref when the intent was 'leave unchanged' (absent != null distinction from backend adversarial-v2 MT-157).",
+      "Exposing content_json as serde_json::Value defers schema validation to runtime; a malformed block tree sent to save causes backend 400 that the client layer misreads.",
+      "BatchOperation Vec with >100 items causes backend 400; no client-side guard means runtime errors on large batches.",
+      "History endpoint paginated but client does not enforce the cap (default 50, max 200) leading to over-fetch or truncation confusion."
+    ],
+    "minimum_controls": [
+      "BackendClient reads base_url from config/environment, never hardcoded (enforces [GLOBAL-PORTABILITY-004]).",
+      "SaveConflict is a distinct error variant, not folded into a generic HTTP error, so callers cannot accidentally ignore it.",
+      "MoveDocumentRequest serializer test: field absent -> omitted in JSON, field null -> explicit null, field string -> string value.",
+      "Client-side batch size guard: return BatchTooLarge error before sending if operations.len() > 100.",
+      "history limit parameter clamped to 1..=200 client-side before sending.",
+      "All acceptance criteria are enforced by cargo tests against a mock HTTP server, not just by compilation."
+    ]
+  }
+}

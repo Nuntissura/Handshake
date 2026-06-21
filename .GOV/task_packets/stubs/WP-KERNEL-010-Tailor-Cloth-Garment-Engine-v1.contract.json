@@ -107,6 +107,17 @@
     "roadmap_pointer": "Forward creative-module research (NOT in the original reset-brief Week-1..6 build order). Operator-directed 2026-06-17. Full landscape + architecture in the committed research package .GOV/reference/cloth_engine_research/ (index.yaml; feature named 'Tailor'). Roadmap module T-ROADMAP defines six kernel-gated build slices.",
     "roadmap_add_coverage": "Tailor: a fully-featured, Handshake-native, model-steerable cloth/garment authoring + simulation engine (a Marvelous-Designer-equivalent 'detailer') delivered as a creative module on the kernel. Standalone tailor-solver Rust crate (XPBD, GPU compute in WGSL via wgpu, parry rigid proxies) consumed by a handshake_core::tailor module that binds garments to PostgreSQL/EventLedger authority, CRDT collaborative pattern editing, and the sandbox->validation->promotion lifecycle for model-authored garments, driven by model lanes (LLM-steerable authoring). Outputs geometry caches (glTF/USD/OBJ-sequence) for photoreal render in Blender/UE. Differentiator vs Marvelous Designer: model-steerability (the crate public API is the model API), not human-UI-first."
   },
+  "native_shell_toolkit_integration": {
+    "added_at_utc": "2026-06-19T00:00:00Z",
+    "operator_note": "Operator 2026-06-19: WP-KERNEL-010 Tailor IS the native-Rust Marvelous Designer rebuild. Its operator surface + 3D garment viewport are hosted by the WP-KERNEL-011 native work-surface shell on the chosen native toolkit (recommended egui + wgpu).",
+    "shell_packet": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+    "gui_reference": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md (extension-points table lists Tailor pane type)",
+    "toolkit_viewport_probe": "WP-KERNEL-011 MT-001 includes a custom wgpu viewport embed probe (probe e: rotating 3D mesh + painted 2D texture + model-driven parameter via AccessKit) that de-risks the Tailor 3D garment viewport (and the future Affinity/Photoshop 2D canvas) before Tailor build; a toolkit that cannot host a custom wgpu viewport is disqualified for Tailor.",
+    "pane_type": "tailor (registered in the shell pane registry as a creative-surface extension point)",
+    "model_steering": "Aligns with CX-005-VIS/CX-006-VIS: the model edits the parametric GarmentSpec (pattern pieces + seams + fabric + measurements); Handshake mechanically runs the deterministic cloth solver; the panel/tool chrome is steered via AccessKit; viewport/sim state is exposed as model-readable visual capture per HBR_VIS. The model never manipulates raw vertices (deterministic, replayable, inspectable).",
+    "native_no_webview": "Aligns with CX-008-VIS: Tailor renders in the native wgpu viewport, not a webview.",
+    "build_gating": "Unchanged: creative module gated on KERNEL-001..004; refinement + signature required before execution (see activation_contract). This linkage is additive metadata; it does not change the 448 pre-created MTs or Section 13 authority."
+  },
   "session_policy": {
     "session_start_authority": "ORCHESTRATOR_ONLY",
     "session_host_preference": "HANDSHAKE_ACP_BROKER",

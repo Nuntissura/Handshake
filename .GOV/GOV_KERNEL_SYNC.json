@@ -1,8 +1,8 @@
 {
   "schema_id": "hsk.gov_kernel_sync@0.1",
-  "source_commit": "a4d69fd9e32acc19bb0cb27a599067f7e219a67c",
+  "source_commit": "99b7e3699405e29f6f7b21534c70da006ada654d",
   "source_branch": "gov_kernel",
   "source_worktree": "../wt-gov-kernel",
-  "sync_timestamp": "2026-06-18T22:01:06.439Z",
+  "sync_timestamp": "2026-06-21T18:09:29.195Z",
   "synced_by": "sync-gov-to-main.mjs"
 }

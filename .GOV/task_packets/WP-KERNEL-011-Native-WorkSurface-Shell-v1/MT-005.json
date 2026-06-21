@@ -1,0 +1,186 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-005",
+  "title": "C2-MT005-TypedPaneRegistry",
+  "group": "C2 Dockable work-surface",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-005.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004"
+    ],
+    "blocks": [
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the typed pane registry — the central authority for every pane in the native Handshake work surface. This is the foundational data model and factory that all later C2 MTs (splits, tabs, pop-out, persistence) read and write. Expected diff shape: one new file `src/frontend/shell/pane_registry.rs` (~250–350 lines) plus registration in `src/frontend/shell/mod.rs`.\n\nFILES TO CREATE/EDIT:\n- CREATE: `src/frontend/shell/pane_registry.rs` — defines `PaneId`, `PaneType`, `LockState`, `DirtyState`, `PaneAuthority`, `PaneRecord`, `PaneRegistry`, `PaneFactory` trait, `PaneHostWidget`.\n- EDIT: `src/frontend/shell/mod.rs` — add `pub mod pane_registry;`.\n- EDIT: `src/frontend/shell/app.rs` — instantiate `PaneRegistry` in `HandshakeApp` struct and render `PaneHostWidget` in the update loop.\n\nTYPES TO DEFINE:\n```rust\n// Stable string key, kebab-case, e.g. \"pane-a\"\npub type PaneId = Arc<str>;\n\n#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]\npub enum PaneType {\n    Workspace,\n    LoomDailyJournal,\n    LoomBlock,\n    LoomWikiPage,\n    AtelierEditor,\n    KernelDcc,\n    InferenceLab,\n    ModelRuntime,\n    Swarm,\n    Problems,\n    Jobs,\n    Timeline,\n    UserManual,\n    CodeSymbol,\n    SourceControl,\n    MediaDownloader,\n    FontManager,\n    FlightRecorder,\n    VisualDebugger,\n    Placeholder(String), // for future surfaces not yet built\n}\n\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\npub enum LockState { Unlocked, Locked }\n\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\npub enum DirtyState { Clean, Dirty }\n\n/// Who last modified this pane record\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\npub enum PaneAuthority { Human, Agent(String), System }\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct PaneRecord {\n    pub pane_id: PaneId,\n    pub pane_type: PaneType,\n    pub project_id: String,      // workspace/project UUID\n    pub content_id: Option<String>, // document_id / canvas_id / block_id etc.\n    pub lock_state: LockState,\n    pub dirty: DirtyState,\n    pub authority: PaneAuthority,\n    pub last_update: std::time::Instant, // NOT serialized; use chrono::DateTime for persisted snapshots\n}\n\n/// Central registry; wraps a BTreeMap for stable iteration order\npub struct PaneRegistry {\n    records: BTreeMap<PaneId, PaneRecord>,\n    // AccessKit node IDs keyed by pane_id for model-visibility\n    accesskit_ids: BTreeMap<PaneId, accesskit::NodeId>,\n}\n```\n\nFACTORY TRAIT:\n```rust\npub trait PaneFactory: Send + Sync {\n    fn pane_type(&self) -> PaneType;\n    fn render(&self, ui: &mut egui::Ui, record: &PaneRecord, ctx: &PaneRenderContext);\n    fn accesskit_role(&self) -> accesskit::Role { accesskit::Role::Group }\n}\n```\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Define all types above in `pane_registry.rs`.\n2. Implement `PaneRegistry::new() -> Self`, `PaneRegistry::insert(record: PaneRecord)`, `PaneRegistry::get(id: &PaneId) -> Option<&PaneRecord>`, `PaneRegistry::get_mut(...)`, `PaneRegistry::remove(id: &PaneId)`, `PaneRegistry::iter() -> impl Iterator<Item=(&PaneId, &PaneRecord)>`, `PaneRegistry::pane_ids() -> Vec<PaneId>`.\n3. Implement `PaneRegistry::assign_accesskit_id(pane_id: &PaneId, node_id: accesskit::NodeId)` and `PaneRegistry::accesskit_id(pane_id: &PaneId) -> Option<accesskit::NodeId>`.\n4. Implement a concrete `PlaceholderPaneFactory` that renders a centered label with the pane_type name and pane_id. This is used for every surface not yet built in this WP.\n5. Implement `PaneHostWidget` as an egui widget: given a `&PaneRegistry` and a list of factory lookup closures, for each registered pane it calls the matching factory's `render()`. The host widget does NOT own factories; it takes `&dyn PaneFactory` references at render time.\n6. Seed `DEFAULT_PANES` in `app.rs` matching the legacy React DEFAULT_PANES four panes (pane-a through pane-d) with `PaneType::Workspace`, `PaneType::InferenceLab`, `PaneType::MediaDownloader`, `PaneType::FontManager` respectively, all with `LockState::Unlocked`, `DirtyState::Clean`, `PaneAuthority::System`.\n7. In `HandshakeApp::update()`, call `PaneHostWidget::show(ui, &self.pane_registry, &self.factories)` inside the egui central panel.\n8. Assign a stable `accesskit::NodeId` to each pane at insert time using a monotonic counter stored in `PaneRegistry`. Set the AccessKit node `author_id` field to the kebab-case pane_id string.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n- MT-001 through MT-004 must be complete: the native app skeleton (window, render loop, egui context, AccessKit integration) must exist before this MT can add the registry and render panes.\n- Cargo.toml must already include `egui`, `accesskit`, `serde`, `serde_json`. If missing, add them (they are expected from MT-002).\n\nRISK IF MISSED:\n- All C2 MTs (split/resize, tabs, pop-out, persistence) depend on `PaneRegistry` being the single source of truth. Without this, each later MT would invent its own pane state — leading to fragmentation, conflicts during concurrent agent work, and inability to serialize layout for MT-009.",
+    "allowed_paths": [
+      "src/frontend/shell/pane_registry.rs",
+      "src/frontend/shell/mod.rs",
+      "src/frontend/shell/app.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`cargo test -p handshake_frontend pane_registry` passes: at minimum a test that inserts four PaneRecords (pane-a..pane-d), retrieves each by id, verifies pane_type, lock_state, dirty, authority, and that accesskit_id is assigned and non-zero.",
+      "Every inserted PaneRecord has a non-empty `pane_id`, a valid `PaneType`, and a non-None `accesskit_ids` entry after `assign_accesskit_id` is called.",
+      "The PlaceholderPaneFactory renders without panic for every PaneType variant including `Placeholder(String)`.",
+      "The app compiles (`cargo build -p handshake_frontend`) without errors or unused-import warnings related to pane_registry.",
+      "`PaneRegistry::iter()` returns panes in stable BTreeMap order (alphabetical by pane_id), confirmed by a test.",
+      "A `PaneRecord` round-trips through `serde_json::to_string` + `from_str` without data loss for all fields except `last_update` (which is excluded from serde).",
+      "The AccessKit author_id set on each node equals the pane_id string (e.g. `\"pane-a\"`), confirmed by a unit test that reads back the node tree."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend pane_registry -- --nocapture` on a real Postgres-connected dev build and show PASS output for all sub-tests.",
+      "Run `cargo build -p handshake_frontend --release` with zero errors.",
+      "Run the app, open the AccessKit JSON snapshot endpoint (from MT-025 once available; for now a unit-test consumer), and confirm each of the four default panes appears with its correct role and author_id."
+    ],
+    "implementation_notes": [
+      "Use `Arc<str>` not `String` for `PaneId` so clones are cheap; all registry keys and lookups use `PaneId`.",
+      "Do NOT use frame-counter-based ids for AccessKit. Use a `u64` monotonic counter in `PaneRegistry` incremented at each `insert`. The `NodeId` wraps this u64.",
+      "The `last_update` field must be `#[serde(skip)]` so the struct derives `Serialize`/`Deserialize` cleanly.",
+      "For persisted layout snapshots (MT-009), replace `last_update: Instant` with a separate `last_update_utc: chrono::DateTime<Utc>` in the `LayoutSnapshotPane` struct — do not conflate the two.",
+      "The `PaneFactory` trait's `render` method receives a `PaneRenderContext` that carries `egui::Ui`, the record, and a `BackendClient` handle for API calls (to be fleshed out when real surfaces are built). Define `PaneRenderContext` as a struct with those three fields, even if BackendClient is a stub now.",
+      "Keep factories in a `HashMap<PaneType, Box<dyn PaneFactory>>` in `HandshakeApp`. Register `PlaceholderPaneFactory` for every variant at startup.",
+      "All public types must derive `Debug`; registry and record types must derive `Clone` where feasible."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx: `type PaneId = 'pane-a' | 'pane-b' | 'pane-c' | 'pane-d'` — ported as `Arc<str>` with the same four default ids.",
+      "app/src/App.tsx: `type PaneState = { id, module, activeTab, tabs, locked, projectRef, activeDocumentId, activeCanvasId, openDocuments }` — the Rust `PaneRecord` ports `locked` as `LockState`, adds `dirty: DirtyState` and `authority: PaneAuthority`, and removes `module`/`activeTab`/`tabs` (those belong to MT-007 tabbed regions).",
+      "app/src/App.tsx: `const DEFAULT_PANES` array — ported as the four seed records in `HandshakeApp::new()`.",
+      "app/src/App.tsx: `type PaneTabId` enum — the set of 19 tab types is the basis for `PaneType` variants; all are ported."
+    ],
+    "binds_backend_api": [
+      "None directly — this MT builds the in-memory registry only. Backend API binding (workspace layout GET/PUT) is MT-009's responsibility."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Frame-counter NodeIds cause AccessKit identity instability across redraws — swarm agents lose their widget targets after any repaint.",
+      "Forgetting `#[serde(skip)]` on `last_update: Instant` causes a compile error or silent data loss during layout snapshots.",
+      "PaneType enum exhaustiveness: adding a new surface later and forgetting to add it to the factory registry silently shows a blank/panic pane.",
+      "Using `String` instead of `Arc<str>` for PaneId causes needless allocations across the hot render path.",
+      "Registry mutation from two concurrent agent threads without interior mutability or a mutex causes data races."
+    ],
+    "minimum_controls": [
+      "Unit test: insert four panes, verify `accesskit_ids` are unique, non-zero, and match the stable counter sequence — not frame counters.",
+      "CI must not have any `unwrap()` on registry lookups in render paths; use `if let` or `expect` with a clear message.",
+      "`PaneType::Placeholder` variant must be handled in every match on PaneType (use `_` as fallback to PlaceholderPaneFactory, tested by inserting an unknown type).",
+      "Wrap `PaneRegistry` in `Arc<Mutex<PaneRegistry>>` in `HandshakeApp` now, even if MT-005 is single-threaded, so MT-028 concurrency work does not require a structural refactor."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification against the real current worktree confirms PASS: the typed pane registry keystone is honestly and correctly implemented, all 7 acceptance criteria map to real (non-tautological) passing tests, AccessKit ids are stable monotonic base-100 (not frame counters), serde-skip on last_update is correct, and the registry is the LIVE single source of truth consumed by the docked render, pop-out render, and layout persistence paths with real consumer-side AccessKit proof.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-005.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/pane_registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (default_panes L478-499, build_default_factories L504-532, registry field/wiring L120-127 + L683-712, docked render L4225-4261, pop-out render L4417-4524)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs (L26 module registration)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/live.rs (emit_pane_node L101-113)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs (live consumer-side tree proof)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "Test inserts four PaneRecords (pane-a..pane-d), retrieves each, verifies pane_type/lock_state/dirty/authority and accesskit_id assigned non-zero",
+        "status": "MET",
+        "evidence": "pane_registry.rs `inserts_and_retrieves_four_default_panes` (L506-525) asserts pane-a type=Workspace, Unlocked, Clean, System, project-1, and accesskit id != 0 for all four panes. Seeds match contract: pane-b=InferenceLab, pane-c=MediaDownloader, pane-d=FontManager (app.rs default_panes L478-499)."
+      },
+      {
+        "criterion": "Every inserted record has non-empty pane_id, valid PaneType, non-None accesskit_ids after assign",
+        "status": "MET",
+        "evidence": "`PaneRegistry::insert` (L232-240) auto-assigns a NodeId from the monotonic counter (base 100) on first insert; tests assert accesskit_id(...).is_some() and != 0 for every seeded pane. `accesskit_ids_are_unique_and_follow_monotonic_counter_not_frame_counter` (L527-543) asserts ids == [100,101,102,103] and unique."
+      },
+      {
+        "criterion": "PlaceholderPaneFactory renders without panic for every PaneType variant including Placeholder(String)",
+        "status": "MET",
+        "evidence": "`placeholder_factory_renders_every_pane_type_without_panic` (L632-681) drives all 20 variants (incl. Placeholder) through a real egui Context run; render (L357-363) reads the record's own pane_type label so no panic/blank for any variant."
+      },
+      {
+        "criterion": "App compiles without errors or unused-import warnings related to pane_registry",
+        "status": "MET",
+        "evidence": "Ground-truth clean cargo build --tests (exit 0, established by validator). All pane_registry imports (app.rs L20-22) are used in the docked render (L4234-4260), pop-out render (L4417-4524), factory map (L504-532), and seed records (L478-499). lib.rs L26 registers `pub mod pane_registry;`."
+      },
+      {
+        "criterion": "PaneRegistry::iter() returns stable BTreeMap (alphabetical) order, confirmed by test",
+        "status": "MET",
+        "evidence": "records is a BTreeMap (L198); `iter_returns_stable_btreemap_order` (L545-562) inserts d/b/a/c out of order and asserts a/b/c/d iteration order."
+      },
+      {
+        "criterion": "PaneRecord round-trips through serde_json without data loss except last_update",
+        "status": "MET",
+        "evidence": "`#[serde(skip, default=PaneRecord::now)]` on last_update (L161-162); `pane_record_round_trips_through_serde_except_last_update` (L594-616) asserts json !contains last_update and every other field (pane_id, pane_type incl Placeholder, project_id, content_id, lock_state, dirty, authority) survives round-trip. Non-tautological: distinct constructed values are read back and compared."
+      },
+      {
+        "criterion": "AccessKit author_id on each node equals the pane_id string, confirmed by a unit test reading the node tree",
+        "status": "MET",
+        "evidence": "`build_accesskit_node` (L290-302) sets author_id = pane_id; `accesskit_node_author_id_equals_pane_id_string` (L618-630) reads back node.author_id()==id and role==Group for all four. LIVE proof: accessibility/live.rs::emit_pane_node (L101-113) wires author_id/role/label into the real frame accesskit_state; tests/test_accesskit_ids.rs `live_tree_contains_chrome_and_panes_by_author_id` (L121-182) walks the REAL consumer-side AccessKit tree (harness.root().children_recursive()) and confirms pane-a..pane-d appear with Group role + label. A node only built in memory would be absent there."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "No todo!/unimplemented!/unreachable!/stub/'pending MT-' on the MT-005 required path (grep of pane_registry.rs clean). The disclosed commit-message MAJOR (pane author_id/role built but not emitted into the LIVE AccessKit tree) is NOT an open gap in the current worktree: accessibility/live.rs::emit_pane_node wires the registry's egui_id/role/author_id into the real frame accesskit_state, and the docked render (app.rs L4257-4259) and pop-out render (app.rs L4523) both invoke it; tests/test_accesskit_ids.rs walks the REAL accesskit consumer tree (not an implementer-authored mock) to confirm the panes carry their stable author_ids. No #[ignore] hides the pane behavior. AccessKit ids use the registry's monotonic u64 counter (ACCESSKIT_ID_BASE=100), explicitly NOT frame counters (RISK-1/CONTROL-1, proven by accesskit_ids_are_unique_and_follow_monotonic_counter_not_frame_counter). The unsafe from_high_entropy_bits on a single fixed per-pane id is sound (a single fixed id cannot self-collide; entropy only affects child IdMap distribution). Registry is wrapped in Arc<Mutex<PaneRegistry>> in HandshakeApp (app.rs L123, CONTROL-4) and the Placeholder catch-all factory key resolves via .or_else(factories.get(fallback_key)) with render reading the record's own type (CONTROL-3). No backend/Postgres resource is claimed by this MT: binds_backend_api=None; the registry is in-memory only. The proof_targets[0]/[2] Postgres + MT-025 snapshot-endpoint lines are boilerplate copy-paste, not a real-resource obligation for MT-005 — the actual AC set is correctly in-memory + AccessKit unit/integration tested."
+    },
+    "concerns_non_blocking": [
+      "MT-005 proof_targets[0] and [2] reference a 'real Postgres-connected dev build' and 'MT-025 AccessKit JSON snapshot endpoint'; for an in-memory registry MT (binds_backend_api=None) this is boilerplate copy-paste in the contract, not a real obligation. The actual AC set is correctly in-memory + AccessKit unit/integration tested. Non-blocking paperwork artifact.",
+      "Commit message discloses implementer self-certification (coder subagent, adversarial self-review). Per the operator directive this is NOT a FAIL reason; this independent review IS the certification.",
+      "The contract's literal 'EXACT FILES TO CREATE' named src/frontend/shell/pane_registry.rs; the implementation lives at src/frontend/handshake_native/src/pane_registry.rs (flat crate layout, disclosed in the commit). The path deviation is cosmetic and consistently applied across the crate; module/wiring/tests all align. Non-blocking.",
+      "app.rs has grown to 4500+ lines as later C2 MTs (006-023) built on the keystone; expected for a single-source-of-truth registry consumer but the file is large enough to warrant future modularization. Out of MT-005 scope.",
+      "MT-005's own unit tests build_accesskit_node + author_id readback are the contract-required proof; the broader LIVE-emission tests in test_accesskit_ids.rs belong to MT-025 but are reused here as the strongest available proof that pane-a..pane-d are live-addressable, which strengthens (not weakens) the MET verdict."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

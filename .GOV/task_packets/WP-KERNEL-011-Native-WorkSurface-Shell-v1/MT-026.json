@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-026",
+  "title": "C7-MT026-InProcessConsumerJsonSnapshot",
+  "group": "C7 Model-vision/steering + swarm",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-026.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-025"
+    ],
+    "blocks": [
+      "MT-027",
+      "MT-028"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal and expected diff shape:\nBuild an in-process `accesskit_consumer` that, on demand, walks the AccessKit tree built by MT-025 and serializes the full UI widget tree to a structured JSON document. This is the native equivalent of `document.querySelectorAll('*')` + Chrome DevTools DOM snapshot -- the data source that lets a swarm agent or external tool enumerate every widget, its role, its displayed label/value, its supported actions, and its children, without any OS accessibility API call. The output diff is: one new module `src/frontend/accessibility/consumer.rs` containing the `UiTreeConsumer` struct and a `snapshot() -> UiTreeSnapshot` method; a JSON-serializable `UiTreeNode` type (serde-derived); and a test in `tests/native_gui/test_ui_snapshot.rs` that renders a real egui frame, calls `snapshot()`, deserializes the JSON, and asserts structural correctness.\n\nExact files to create or edit:\n- CREATE `src/frontend/accessibility/consumer.rs` -- the `UiTreeConsumer` struct and its `snapshot()` method.\n- EDIT `src/frontend/accessibility/mod.rs` -- add `pub mod consumer; pub use consumer::{UiTreeConsumer, UiTreeSnapshot, UiTreeNode};`.\n- CREATE `src/frontend/accessibility/snapshot_types.rs` -- the serde-serializable types: `UiTreeSnapshot { root: UiTreeNode, captured_at_utc: String, widget_count: usize }`, `UiTreeNode { id: String, role: String, name: Option<String>, value: Option<String>, actions: Vec<String>, children: Vec<UiTreeNode>, bounds: Option<UiNodeBounds> }`, `UiNodeBounds { x: f32, y: f32, w: f32, h: f32 }`.\n- CREATE `tests/native_gui/test_ui_snapshot.rs` -- integration test described in proof_targets.\n- EDIT `Cargo.toml` (frontend crate) -- add `serde = { version = \"1\", features = [\"derive\"] }`, `serde_json = \"1\"` if not already present.\n\nExact crates and APIs:\n- `accesskit_consumer` crate: `accesskit_consumer::{Node as ConsumerNode, Tree as ConsumerTree}`. The consumer crate provides a `Tree` that you feed `TreeUpdate` events into, and then lets you walk nodes via `Tree::node(NodeId) -> Option<Node<'_>>`, `Node::children() -> impl Iterator<Item=NodeId>`, `Node::role() -> Role`, `Node::name() -> Option<&str>`, `Node::value() -> Option<&str>`, `Node::actions() -> impl Iterator<Item=Action>`, `Node::raw_bounds() -> Option<Rect>`. See: https://docs.rs/accesskit_consumer.\n- `serde` and `serde_json` for JSON serialization.\n- `chrono` or `std::time::SystemTime` for `captured_at_utc` (prefer `std::time::SystemTime::now()` formatted as RFC3339 to avoid a chrono dep if not already in Cargo.toml).\n- The `IdRegistry` from MT-025 (reverse-lookup: `NodeId -> &'static str` logical key) -- add a reverse map `HashMap<NodeId, &'static str>` to `IdRegistry` so the snapshot can embed the human-readable logical key as the `id` field instead of a raw u64.\n\nStep-by-step implementation:\n1. Add `accesskit_consumer` to `src/frontend/Cargo.toml`.\n2. Add `serde/serde_json` to `src/frontend/Cargo.toml`.\n3. Add reverse-lookup to `IdRegistry`: `fn key_for(id: NodeId) -> Option<&'static str>`. Populate by inserting both directions in `get_or_insert`.\n4. Implement `UiTreeConsumer`: holds an `accesskit_consumer::Tree` (initialized with the root `TreeUpdate` from the current frame). Expose `fn feed(&mut self, update: TreeUpdate)` (called each frame to keep the consumer in sync with the live tree) and `fn snapshot(&self, registry: &IdRegistry) -> UiTreeSnapshot`.\n5. `snapshot()` does a depth-first walk: start from `self.tree.root()`, recursively call `walk_node(node, registry) -> UiTreeNode`. For each node: id = `registry.key_for(node.id()).unwrap_or(\"<unknown>\")` (never panic -- unknown ids surface as `\"<unknown>\"` for debugging); role = `format!(\"{:?}\", node.role())`; name = `node.name().map(str::to_owned)`; value = `node.value().map(str::to_owned)`; actions = `node.actions().map(|a| format!(\"{:?}\", a)).collect()`; bounds = `node.raw_bounds().map(|r| UiNodeBounds { x: r.x0 as f32, y: r.y0 as f32, w: (r.x1 - r.x0) as f32, h: (r.y1 - r.y0) as f32 })`; children = recursively walk children.\n6. `UiTreeSnapshot::to_json(&self) -> String` -- `serde_json::to_string_pretty(self).unwrap_or_default()`.\n7. Expose `UiTreeConsumer` as a shared resource: store in `Arc<Mutex<UiTreeConsumer>>` on the application state struct (introduced in MT-002 skeleton). The frame loop feeds it after building the AccessKit update; the MCP server (MT-027) reads it from the same `Arc`.\n8. Write the test (see proof_targets).\n\nRisk if missed: MT-027 (MCP tool surface) needs `list_widgets` to return a JSON tree. If the consumer is not built, the action channel cannot enumerate targets and the swarm has no way to discover widget ids without OS-level UIA calls, which violates the HBR-QUIET and HBR-SWARM requirements.",
+    "allowed_paths": [
+      "src/frontend/accessibility/consumer.rs",
+      "src/frontend/accessibility/snapshot_types.rs",
+      "src/frontend/accessibility/mod.rs",
+      "src/frontend/shell/**",
+      "tests/native_gui/test_ui_snapshot.rs",
+      "src/frontend/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Calling `UiTreeConsumer::snapshot()` on a live egui frame that contains at least one Button, one TextInput, and one Tab widget returns a `UiTreeSnapshot` with `widget_count >= 3`.",
+      "The returned JSON (via `to_json()`) is valid: parseable by `serde_json::from_str`, contains a `\"root\"` key, and each node has `\"id\"`, `\"role\"`, `\"actions\"` fields.",
+      "Every interactive node in the snapshot has a non-empty `\"id\"` field that matches its logical key from `IdRegistry` (no `\"<unknown>\"` ids for widgets declared in MT-025's `DECLARED_KEYS`).",
+      "The `\"actions\"` array for a Button node includes `\"Default\"` (the AccessKit default action, equivalent to click); for a TextInput it includes `\"SetValue\"`.",
+      "Children are correctly nested: a pane container node's children array includes its tab bar node, which includes individual tab nodes.",
+      "`cargo test -p handshake_frontend -- ui_snapshot` passes.",
+      "`cargo clippy -p handshake_frontend -- -D warnings` passes on the new module.",
+      "Snapshot round-trips: `serde_json::from_str::<UiTreeSnapshot>(&snapshot.to_json())` succeeds without error."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend test_ui_snapshot_structure -- --nocapture` and paste output showing: widget_count, root role, count of nodes with non-empty id, count of Button nodes with 'Default' in actions.",
+      "Run `cargo test -p handshake_frontend test_ui_snapshot_json_roundtrip -- --nocapture` showing deserialization succeeds.",
+      "Paste first 60 lines of the JSON output from the test (truncated with `...` after line 60) to confirm schema shape: `{\"root\":{\"id\":\"...\",\"role\":\"...\",\"children\":[...],...},\"captured_at_utc\":\"...\",\"widget_count\":N}`.",
+      "Run `cargo build -p handshake_frontend` and paste the final line showing success with zero errors."
+    ],
+    "implementation_notes": [
+      "React analog: in the React app, agents use `visualDebugAxTree()` (lib/ipc/visual_debugger.ts) to get AX node list, and `data-testid` / `data-stable-id` attributes to address elements. The `UiTreeSnapshot` JSON is the native equivalent -- it combines the AX tree walk with the stable-id registry in one structure. The `VisualAxNode` shape in the React codebase (`{id, role, name, bounds}`) maps to `UiTreeNode` with additional `value`, `actions`, `children` fields.",
+      "The `accesskit_consumer::Tree` is a stateful data structure that must be fed every `TreeUpdate` (not just the first). In the egui frame loop, after building the `TreeUpdate`, call `consumer.lock().unwrap().feed(update.clone())` before pushing it to the platform adapter. Cloning the TreeUpdate is acceptable (it is cheaply cloneable via Arc-internals in accesskit).",
+      "For the reverse-lookup map: add `reverse: HashMap<NodeId, &'static str>` to `IdRegistry`. In `get_or_insert(key)`, after inserting `key -> id`, also insert `id -> key`. This is safe because each key maps to exactly one id (deterministic hash).",
+      "The `UiNodeBounds` coords use the same coordinate space as AccessKit: logical pixels, top-left origin. The platform adapter translates from physical pixels. Do not apply any additional DPI scaling inside the consumer.",
+      "Thread safety: `UiTreeConsumer` is stored in `Arc<Mutex<UiTreeConsumer>>`. The `feed()` call happens on the egui render thread (holding the lock for a brief update). The `snapshot()` call from the MCP thread (MT-027) also acquires the same lock. This is safe as long as `feed()` is fast (it is -- accesskit_consumer::Tree::update is O(changed nodes)). Do not hold the lock across I/O.",
+      "The `captured_at_utc` field: use `std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default()` and format as ISO8601 string: `format!(\"{}Z\", chrono::Utc::now().to_rfc3339())` if chrono is available, otherwise format manually from the duration.",
+      "Do not call `Node::raw_bounds()` on the root window node (it is typically `None` or the full screen rect). Only populate bounds for leaf and mid-level pane nodes that have meaningful layout bounds."
+    ],
+    "ports_from_react": [
+      "app/src/lib/ipc/visual_debugger.ts -- `VisualAxNode` and `VisualAxTreeResult` types; the `visualDebugAxTree()` function calling `visual_debug_ax_tree` Tauri command. The native `UiTreeSnapshot` replaces this: it is in-process (no Tauri IPC round-trip), includes children nesting, and adds `value` and `actions` fields missing from the React AX node shape.",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx -- the AX tree walk and display logic (lines 190-203: `loadAxTree` -> `visualDebugAxTree()` -> `axNodes`). The consumer replaces the CDP-over-webview AX tree pull with a direct accesskit_consumer walk."
+    ],
+    "binds_backend_api": [
+      "None -- `UiTreeConsumer` is purely in-process. It reads the AccessKit tree built by the egui render thread (MT-025). The JSON snapshot is served by the MCP server (MT-027) which exposes it over localhost/named-pipe. No handshake_core backend API is called."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-INT",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Stale snapshot: if `feed()` is not called every frame, the consumer tree lags behind the live UI and agents operate on outdated widget state (e.g. a widget that was removed is still in the snapshot).",
+      "Lock contention: the egui render thread calls `feed()` at 60 fps; a slow MCP `snapshot()` call on the same mutex blocks the render thread, causing frame drops.",
+      "Unknown ids in snapshot: if any widget from MT-025's DECLARED_KEYS appears as `<unknown>` in the snapshot output, the reverse-lookup is broken and agents cannot address that widget.",
+      "Deep tree stack overflow: a very deep widget tree (many nested panes) could overflow the recursive `walk_node` implementation.",
+      "JSON size explosion: a full tree snapshot of a complex layout could be very large (hundreds of nodes), making the MCP response slow or hitting protocol buffer limits.",
+      "accesskit_consumer API churn: the crate is in active development; `Node::raw_bounds()` method name or return type may differ between versions."
+    ],
+    "minimum_controls": [
+      "Integration test must assert `widget_count` matches the number of widgets in the test frame (no stale nodes from a prior frame).",
+      "Add a `try_lock()` with immediate fallback in the MCP handler (MT-027): if the lock is contended, return the last cached snapshot rather than blocking the render thread.",
+      "Test must assert zero `<unknown>` id nodes for any key in `DECLARED_KEYS`.",
+      "Use an iterative (stack-based) tree walk instead of recursion to prevent stack overflow on deep trees.",
+      "Add a node count cap (e.g. 2000 nodes max) in `walk_node`: if exceeded, truncate children and add a synthetic `{id:\"...\",role:\"Overflow\",name:\"snapshot truncated\"}` leaf so agents know the tree was cut.",
+      "Pin `accesskit_consumer` to a specific version in Cargo.lock and review API on upgrade."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Upheld: collect_ui_tree_snapshot honestly projects egui 0.33's live accesskit 0.21.1 TreeUpdate (the same value MT-025 proves reaches the UIA adapter) into a full nested JSON UI tree with real safety controls and real tests; AC#4's literal 'Default'/'SetValue' strings are version-impossible/non-emitted (verified against accesskit 0.21.1's enum where the variant is 'Click' and egui drives text inputs via Focus), so reporting 'Click'/'Focus' is correct honest enumeration, not a cover for a missing action.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-026.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/snapshot.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/mod.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/live.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/search_rail.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_ui_snapshot.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.lock",
+      "C:/Users/Ilja Smets/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/accesskit-0.21.1/src/lib.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "snapshot() on a live egui frame with Button+TextInput+Tab returns widget_count >= 3",
+        "status": "MET",
+        "evidence": "test_ui_snapshot_structure (test_ui_snapshot.rs:57-192) runs the REAL HandshakeApp via ctx.run with enable_accesskit, calls collect_ui_tree_snapshot over the live TreeUpdate, asserts widget_count >= 3 and the presence of >=1 Button, >=1 TextInput, >=1 Tab role node. widget_count is asserted equal to the actual flattened node count (snapshot.rs count_nodes), so it is not a fabricated scalar. Commit reports 179 widgets / root Window / 37 Buttons on the real shell frame; validator ground truth confirms the suite is green."
+      },
+      {
+        "criterion": "to_json() valid: parseable, has \"root\" key, each node has id/role/actions",
+        "status": "MET",
+        "evidence": "test_ui_snapshot_json_roundtrip (test_ui_snapshot.rs:194-233) parses to serde_json::Value and asserts top-level root/captured_at_utc/widget_count plus root node id/role/actions/children. UiTreeNode (snapshot.rs:137-167) derives Serialize/Deserialize with exactly id/author_id/node_id/role/label/value/disabled/actions/bounds/children. to_json (snapshot.rs:187-189) is infallible (falls back to {} rather than panic)."
+      },
+      {
+        "criterion": "Every interactive node has a non-empty id matching its IdRegistry logical key; no <unknown> for DECLARED_KEYS widgets",
+        "status": "MET",
+        "evidence": "leaf_node (snapshot.rs:251-286) sets id = author_id, else synthetic 'node:<u64>' fallback; never empty, never panics. Test asserts every node id non-empty AND that the six declared MT-025 widgets (shell.chrome.title-bar, shell.chrome.status-bar, shell.chrome.theme-toggle, pane-a, tabbar-pane-a, bottom-rail.input) appear with node.id == author_id (no synthetic fallback). The contract's prescribed IdRegistry.key_for() reverse-map is an intent-preserving deviation: the snapshot reads author_id directly off the live AccessKit node, and author_id IS the logical key (confirmed: RAIL_INPUT_AUTHOR_ID = 'bottom-rail.input' in search_rail.rs:60, emitted live at search_rail.rs:537; declared identities in registry.rs:112-531). No reverse map needed because the live node already carries the key."
+      },
+      {
+        "criterion": "Button actions include \"Default\" (click); TextInput includes \"SetValue\"",
+        "status": "MET",
+        "evidence": "Met on INTENT (enumerate each node's real steerable actions) with a version-verified honest deviation on the literal strings. Verified against the actual dependency: egui 0.33.3 -> accesskit 0.21.1 (Cargo.lock). In accesskit 0.21.1's Action enum the click action is named 'Click', NOT 'Default' (the 'Default' variant existed only in older accesskit e.g. 0.12.3 and was renamed); so AC#4's literal 'Default' is impossible in the version in use, and 'Click' is its exact equivalent. ALL_ACTIONS (snapshot.rs:216-239) probes every real 0.21.1 action via supports_action, INCLUDING SetValue, so if egui emitted SetValue it would appear. egui's TextEdit does not emit SetValue; it drives text entry via Focus + synthetic chars (live.rs:118-122 documents egui derives Role/Click/Focus). The test asserts a Button carries 'Click' and bottom-rail.input (TextInput) carries 'Focus' (the real steerable capability MT-027 uses). Surfacing a fabricated 'SetValue' would be dishonest and mislead MT-027. Per operator directive (code vs intent), the textual mismatch is a paperwork-vocabulary concern, not a code defect; the code correctly enumerates the node's REAL actions."
+      },
+      {
+        "criterion": "Children correctly nested: pane container -> tab bar -> tab nodes",
+        "status": "MET",
+        "evidence": "build_tree (snapshot.rs:380-459) builds a genuinely nested arena tree in declared child order via a two-phase iterative (non-recursive), cycle-guarded walk. test_ui_snapshot_structure asserts tab-pane-a-0 is nested depth >= 4 below root, is role Tab, and shares a non-root ancestor (shared prefix >= 2) with tabbar-pane-a -- real topology assertions, not a tautology. Unit test builds_nested_tree_with_actions_bounds_and_ids (snapshot.rs:488-542) proves tab nested under tabbar on a controlled input."
+      },
+      {
+        "criterion": "cargo test -p handshake_frontend -- ui_snapshot passes",
+        "status": "MET",
+        "evidence": "Validator ground truth: curated deterministic suite green (29 integration binaries incl. this, 0 failures). Three integration tests + 5 unit tests, none #[ignore]'d (grep confirmed NO escape hatches / no #[ignore])."
+      },
+      {
+        "criterion": "cargo clippy -D warnings passes on new module",
+        "status": "MET",
+        "evidence": "Commit records clippy --all-targets -D warnings GREEN; validator ground truth confirms clean compile (cargo build --tests exit 0)."
+      },
+      {
+        "criterion": "Snapshot round-trips: serde_json::from_str::<UiTreeSnapshot> succeeds",
+        "status": "MET",
+        "evidence": "test_ui_snapshot_json_roundtrip and the unit tests assert from_str(&to_json()) == original (structural equality, not a no-op). Non-finite bounds are dropped (snapshot.rs:261-273) specifically so NaN never serializes to JSON null and breaks the f32 round-trip; non_finite_bounds_are_dropped (snapshot.rs:545-565) proves this on a NaN rect."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1 (deferred-live escape): grep of snapshot.rs + test_ui_snapshot.rs found NO todo!/unimplemented!/unreachable!/'not yet'/'deferred'/'pending MT'/#[ignore] on the required path. collect_ui_tree_snapshot is fully implemented (iterative arena build, cycle guard via visited HashSet, MAX_SNAPSHOT_NODES=4000 cap with a visible overflow marker, NaN-bounds drop). Sub-rule 2 (real-resource proof): the claimed Handshake-owned resource is the live AccessKit tree. The proof tests render the REAL HandshakeApp shell for one frame on a real egui::Context with enable_accesskit() and snapshot the actual emitted accesskit::TreeUpdate (the same value eframe hands the Windows UIA adapter and the same source MT-025 proves) -- NOT an implementer-authored mock. A second test drives the real shell through egui_kittest's Harness. The contract's accesskit_consumer::Tree / Arc<Mutex<UiTreeConsumer>> shape was replaced by directly walking egui's own live TreeUpdate; this is an intent-preserving deviation (in-process the full node set + children topology is already present, so re-deriving topology via accesskit_consumer would add a dep for zero benefit and risk forking the snapshot away from the live tree), explicitly justified in the module doc and honoring the contract intent of a stable, machine-readable, in-process full-tree consumer. Sub-rule 3 (self-cert): satisfied by this independent review per operator directive; the implementer self-certification / PENDING lifecycle is not a blocker."
+    },
+    "concerns_non_blocking": [
+      "AC#4 textual vocabulary mismatch: the contract literally names 'Default' (Button) and 'SetValue' (TextInput), written against the accesskit_consumer crate model. The version actually in use (accesskit 0.21.1 via egui 0.33.3) renames the click action to 'Click' and egui does not emit SetValue on text inputs (Focus + chars instead). The implementation's 'Click'/'Focus' is the correct honest emission. The WP acceptance-matrix AC#4 row text SHOULD be reconciled to egui's real action vocabulary so a future reader does not flag it as unmet -- paperwork hygiene, not a code defect.",
+      "Contract file layout (new consumer.rs + snapshot_types.rs + IdRegistry reverse-map + per-frame feed() into Arc<Mutex<UiTreeConsumer>>) was not followed literally; the stateless collect_ui_tree_snapshot(update) design plus the existing snapshot.rs module is functionally equivalent and arguably superior in-process. MT-027 wiring will read from the live TreeUpdate path rather than a shared consumer Arc, so the MT-027 contract's 'reads from the same Arc' assumption should be updated to avoid confusion.",
+      "Per-MT lifecycle.status is still PENDING / validator_verdict PENDING in MT-026.json (paperwork only; this review is the independent certification per operator directive and is not a blocker)."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

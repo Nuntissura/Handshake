@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-016",
+  "title": "E2-MT016-SlashCommands",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-016.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012", "MT-013", "MT-014", "MT-015"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the slash command menu: when the operator types '/' at the start of a blank line or after whitespace, an egui popup menu appears listing all insertable block types, embed kinds, templates, and manual-insert commands. Selecting a command executes it via the MT-013 formatting commands or inserts the appropriate node. This is the primary keyboard-driven block-creation surface (Obsidian / Notion parity).\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/slash_commands/mod.rs\n- src/frontend/rich_editor/slash_commands/registry.rs (static catalog of all slash commands)\n- src/frontend/rich_editor/slash_commands/menu.rs (egui popup widget)\n- src/frontend/rich_editor/slash_commands/executor.rs (dispatches a selected SlashCommand to the correct MT-013/MT-014/MT-015 handler)\n- Extend src/frontend/rich_editor/renderer/input_handler.rs to detect '/' trigger and open slash menu.\n\nSLASH COMMAND CATALOG (registry.rs) - must cover:\n  BLOCKS: Paragraph, Heading 1/2/3, Bullet List, Ordered List, Task List, Blockquote, Code Block (prompts for language), Table (prompts for rows/cols), Horizontal Rule.\n  EMBEDS: Image embed, Slideshow embed, Album embed, Video embed (each prompts for asset_id / ref_value).\n  WIKILINKS: Insert Link ([[...]] wikilink - opens autocomplete from MT-015), Insert Transclusion.\n  TEMPLATES: (extensible stub) 'Daily Note Template', 'Meeting Notes Template' - insert predefined DocJson snippets.\n  MANUAL INSERT: any raw node JSON (advanced; for swarm agent use).\n\nEach SlashCommand { id: &'static str, label: &'static str, description: &'static str, keywords: &'static [&'static str], category: SlashCategory, action: SlashAction } where SlashAction is an enum variant (SetBlock(NodeKind), InsertNode(fn() -> BlockNode), OpenEmbedPrompt(EmbedKind), OpenWikilinkAutocomplete, InsertTemplate(TemplateId)).\n\nMENU WIDGET (menu.rs):\n- Trigger: '/' typed at start of empty paragraph or after whitespace. The '/' character itself is kept in the text until the command is selected or Escape is pressed.\n- Filter: as the operator continues typing after '/', filter the catalog by label/keywords (case-insensitive substring match).\n- Render: egui popup window at caret position. Items grouped by SlashCategory. Each row: icon glyph (text placeholder) + label + description in smaller text. Up/Down arrows move selection; Enter executes; Escape cancels and leaves the '/' in the text.\n- Fuzzy match: implement a simple 2-pass filter (exact prefix match ranked first, then substring match).\n- AccessKit: popup = author_id = 'slash-menu', each item row = 'slash-item-{id}', Role::MenuItem, Actions::Click.\n- Max 20 items shown; scrollable if more match.\n\nEXECUTOR (executor.rs):\n- Before executing, remove the '/' trigger text (and any typed filter text) from the DocModel via a DeleteText transaction.\n- Then dispatch: SetBlock -> call MT-013 formatting::commands::set_block_kind; InsertNode -> build the node and issue an InsertNode transaction; OpenEmbedPrompt -> open a modal dialog (egui::Window) with an input field for ref_value then call MT-014 logic; OpenWikilinkAutocomplete -> activate MT-015 autocomplete state; InsertTemplate -> fetch the template DocJson snippet and insert its blocks.\n\nSTEP-BY-STEP:\n1. Define SlashCommand structs and the static SLASH_COMMANDS slice in registry.rs.\n2. In input_handler.rs, detect '/' keypress: check that the char immediately before the caret is whitespace or the paragraph is empty; if so, set RichEditorState.slash_menu = Some(SlashMenuState { filter: String::new(), selected: 0, items: SLASH_COMMANDS.to_vec() }).\n3. While slash_menu is Some, subsequent printable keys append to filter and re-run the filter; Backspace that deletes the '/' closes the menu.\n4. In menu.rs, render the popup with the filtered + ranked items.\n5. On Enter/click, call executor::execute_slash_command(selected_command, doc, undo, selection).\n6. Cargo tests: detect '/' trigger sets slash_menu; filter 'head' returns only Heading commands; Enter on 'Heading 1' sets block kind; Escape clears slash_menu.\n7. Assign AccessKit ids to all menu items.\n\nDEPENDENCIES: MT-011 (InsertNode/DeleteText transactions), MT-012 (caret position for popup), MT-013 (formatting commands for block type changes), MT-014 (embed insertion), MT-015 (wikilink autocomplete activation).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/slash_commands/**",
+      "src/frontend/rich_editor/renderer/input_handler.rs",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Typing '/' at the start of an empty paragraph opens the slash menu popup (kittest interaction test).",
+      "Typing '/' in the middle of existing text does NOT open the slash menu (cargo test verifying the trigger condition).",
+      "Filtering by 'head' shows only the Heading 1/2/3 entries (cargo test on the filter fn).",
+      "Selecting 'Heading 2' via Enter sets the current paragraph to NodeKind::Heading(2) and removes the '/' trigger text (cargo test).",
+      "Escape closes the slash menu and leaves the '/' character in the text at the caret position (cargo test).",
+      "AccessKit: 'slash-menu' popup with Role::Menu is present when menu is open (kittest).",
+      "Each menu item row 'slash-item-{id}' has Role::MenuItem in the accessibility tree (kittest).",
+      "InsertTemplate for 'Daily Note Template' inserts a predefined non-empty DocJson snippet into the document (cargo test with a mock template).",
+      "OpenEmbedPrompt for image embed opens a modal input dialog; entering a valid asset_id and confirming inserts an EmbedNode (kittest).",
+      "All cargo tests for slash_commands module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- slash_commands outputs 'test result: ok'.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt016_slash_menu_open.png showing the popup with grouped items.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt016_slash_menu_filtered.png showing 'head' filter with 3 heading items.",
+      "cargo test -- slash_commands::executor::test_heading2_insertion passes."
+    ],
+    "implementation_notes": [
+      "The static SLASH_COMMANDS slice must use &'static str for all string fields to avoid heap allocation on every frame. Use a const or lazy_static if needed.",
+      "The filter algorithm: first pass collects items where label.to_lowercase().starts_with(filter_lower); second pass collects remaining items where label.to_lowercase().contains(filter_lower) or any keyword matches. Concat and deduplicate.",
+      "The '/' trigger detection must check the character at caret - 1 in the rope. If caret is at position 0 or the character at caret - 1 is whitespace (including newline), the trigger fires. Use Rope::char() for this check.",
+      "The embed prompt modal (for image/video/slideshow/album) is a simple egui::Window with a single TextEdit for the ref_value and an Ok/Cancel button pair. This is not a file picker; the operator types or pastes the asset_id directly.",
+      "Templates in this MT are hardcoded DocJson snippets defined in registry.rs as const JSON strings. A future MT can make them user-editable. The two required templates are: 'Daily Note Template' (a heading + 3 bullet items) and 'Meeting Notes Template' (a heading + agenda list + action items table)."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/editor_commands.ts (EDITOR_COMMANDS array categories 'block', 'embed', 'link', 'template' - slash menu items are derived from these same categories)",
+      "app/src/components/RichTextEditor.tsx (slash menu trigger logic is part of the Tiptap extension set in build_editor_extensions.ts; the native equivalent is this MT's input_handler detection)"
+    ],
+    "binds_backend_api": [
+      "No direct backend API calls in this MT. Embed prompt ref_value is handed to MT-014 asset_resolver. Template snippets are hardcoded JSON in this MT."
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Slash trigger fires in the middle of a URL (e.g. 'https://foo.com/bar') and interrupts normal typing.",
+      "Filter algorithm is O(n) on every keystroke and the SLASH_COMMANDS catalog grows to 100+ entries, causing visible lag.",
+      "Execute deletes more text than the '/' + filter length if the DeleteText step is computed from a stale caret position.",
+      "The slash menu popup remains open after the editor loses focus (e.g. user clicks outside the window), blocking input to other surfaces."
+    ],
+    "minimum_controls": [
+      "Trigger condition must additionally check that the '/' is not preceded by a non-whitespace character that is part of a URL or path (check for ':', '.', '/', letters); a cargo test with 'http://foo' input verifies no menu opens.",
+      "Filter is O(n) but n < 50 for the initial catalog; add a SLASH_COMMANDS_MAX_COUNT const assertion (static_assertions crate) to prevent catalog growth past 100 without review.",
+      "The executor must snapshot the caret position and the filter text length immediately before executing; compute the delete range from those values, not from the live selection which may have changed.",
+      "The slash menu must close when the egui widget's is_focused() returns false (checked in rich_editor_widget.rs update loop); cargo test with simulated focus loss verifies slash_menu is set to None."
+    ]
+  }
+}

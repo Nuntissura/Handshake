@@ -1,0 +1,116 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/refinement.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+    "gui_reference": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md",
+    "codex_vision": ".GOV/codex/Handshake_Codex_v1.4.md#0A"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "DONE_FOLDED_KERNEL_BUILDER",
+    "session_id": "KERNEL_BUILDER-20260618-230906",
+    "note": "Activation performed by KERNEL_BUILDER in Activation Mode (folded), per operator instruction 2026-06-19. No ACP; execution owner = KERNEL_BUILDER.",
+    "readiness_status": "READY_FOR_DOWNSTREAM_LAUNCH"
+  },
+  "refinement": {
+    "operator_request": "Operator 2026-06-19: start the refinement + enrichment phase to activate the WP-011 stub, create the WP worktree, then stop. A new session will implement WP-011 and all its MTs. Signature ilja190620262236; no ACP; coder/execution owner = KERNEL_BUILDER.",
+    "approved_spec_enrichment": [],
+    "enrichment_decision": {
+      "status": "ENRICHMENT_PERFORMED",
+      "master_spec_bump": "v02.194 -> v02.195 (2026-06-19), signed USER_SIGNATURE ilja190620262236. Per operator correction: the refinement+enrichment phase MUST update the Master Spec (single source of truth) when a new direction is taken - never only the codex/roadmap/WP/MT. Updated native-GUI tech-stack topics in module 01 (Tech Stack Decision + stack table + implementation row) and module 02 (architecture jargon + 2.1.1 Desktop Shell & Coordinator): desktop shell + frontend are now NATIVE RUST GUI (no webview substrate; not Tauri/Electron), single bundled installer, fully user-owned, model-steerable via AccessKit; Tauri/React marked SUPERSEDED/reference-only. Rust coordinator/backend + Python AI backend unchanged.",
+      "pointers_updated": "SPEC_CURRENT -> v02.195; bundle manifest (all 15 module sha256 + reconstruction recomputed, top-level version fields corrected); INDEX.json; spec-changelog.jsonl (signed entry appended); module 12 EOF appendix spec_versions -> v02.195; BUILD_ORDER SPEC_TARGET -> v02.195 (via just build-order-sync).",
+      "validation": "spec-current-check PASS; spec-bundle-check PASS (debt-registry/eof-appendices/growth-discipline/governance-reference); validator-spec-regression PASS.",
+      "remaining_reconciliation": "Deeper GUI/operator-surface prose across modules 07/10/11 may still carry some React/Tauri wording; the canonical tech-stack declaration (01+02) is now native Rust. Reconcile remaining prose opportunistically (non-blocking)."
+    },
+    "scope_edges": [
+      "IN: native Rust work-surface SHELL only (docking, nav layers, menus, context menus, bottom search/drawer, dark/light themes, AccessKit model-vision/steering, single-installer bundling) per packet.scope.",
+      "IN: re-home existing surfaces as THIN placeholders that load via the existing backend API.",
+      "OUT: real editor parity (WP-KERNEL-012), Tailor/photo-editor/spreadsheet/engines (extension points only), backend changes (consume existing API only).",
+      "OUT: full Master Spec native-GUI reconciliation bundle bump (tracked as non-blocking spec-debt above)."
+    ],
+    "assumptions": [
+      "Toolkit foundation is recommended egui+egui_tiles+AccessKit+egui_kittest+wgpu, LOCKED by WP-011 MT-001 spike (alternative GPUI). MT-001 includes the custom-wgpu-viewport probe (e) that also de-risks Tailor/WP-010 + the future photo editor.",
+      "Implementation lane is folded KERNEL_BUILDER, no ACP; KERNEL_BUILDER implements one unblocked MT at a time per the protocol's Product Implementation Mode.",
+      "The legacy React app (app/src) stays as read-only parity reference until native parity is proven, then retired."
+    ],
+    "non_goals": [
+      "Do not build future creative surfaces (Photoshop/Affinity, spreadsheet, engines) - extension seams only.",
+      "Do not rewrite the Rust backend; reuse existing APIs/IPC.",
+      "Master Spec WAS bumped to v02.195 this session per operator correction (the enrichment phase updates the SSOT on a new direction); avoid unrelated SPEC_CURRENT churn in future sessions."
+    ],
+    "spec_anchors": [
+      "Codex [CX-003-VIS] one work surface",
+      "Codex [CX-004-VIS] handmade/owned",
+      "Codex [CX-005-VIS] LLM co-creator (model see/steer)",
+      "Codex [CX-006-VIS] strict harness",
+      "Codex [CX-008-VIS] native app, no webview substrate, single installer, user-owned",
+      "Codex [CX-009-VIS] vision supersedes web-UI stack; conflicting spec text is flag-not-follow debt",
+      "WP-KERNEL-011 packet.json scope + acceptance_criteria + model_accessibility_contract + dependencies_built_in_contract"
+    ],
+    "acceptance_criteria_ref": "See packet.json scope.acceptance_criteria (12 criteria) - authoritative. Each MT carries its own acceptance_criteria + proof_targets.",
+    "hbr_pillar_review": {
+      "INT": { "applicable": true, "evidence_path": "packet.scope.acceptance_criteria (native app, no webview); MT-029..031" },
+      "SWARM": { "applicable": true, "evidence_path": "packet.model_accessibility_contract; MT-025..028 (AccessKit + MCP swarm tools + concurrency)" },
+      "VIS": { "applicable": true, "evidence_path": "MT-025..029 (AccessKit tree, screenshot, kittest visual proof); gui_reference agent-vision topic" },
+      "QUIET": { "applicable": true, "evidence_path": "MT-030 focus-audit; gui_reference behavior topic (no focus theft)" },
+      "MAN": { "applicable": true, "evidence_path": "user-manual pane type; MT-018 settings; HBR-MAN obligation on MT-001" }
+    },
+    "microtask_plan": [
+      { "cluster": "C1 Toolkit + native foundation", "mt_ids": ["MT-001","MT-002","MT-003","MT-004"], "note": "MT-001 toolkit spike (5 probes incl. custom wgpu viewport) LOCKS the toolkit + blocks C1 remainder." },
+      { "cluster": "C2 Dockable work-surface", "mt_ids": ["MT-005","MT-006","MT-007","MT-008","MT-009","MT-010"] },
+      { "cluster": "C3 Navigation layers", "mt_ids": ["MT-011","MT-012","MT-013","MT-014"] },
+      { "cluster": "C4 Menus + commands + settings", "mt_ids": ["MT-015","MT-016","MT-017","MT-018"] },
+      { "cluster": "C5 Context menus", "mt_ids": ["MT-019","MT-020","MT-021"] },
+      { "cluster": "C6 Bottom search + drawer", "mt_ids": ["MT-022","MT-023","MT-024"] },
+      { "cluster": "C7 Model-vision/steering + swarm", "mt_ids": ["MT-025","MT-026","MT-027","MT-028"] },
+      { "cluster": "C8 Shell proof + installer", "mt_ids": ["MT-029","MT-030","MT-031"] }
+    ],
+    "microtask_count": 31,
+    "microtask_authoring_status": "AUTHORED (workflow wf_3d7b88d0-301, reviewed by KERNEL_BUILDER; one MT-*.json per declared id, template-matched, no-context-executable)"
+  },
+  "signature": {
+    "user_signature": "ilja190620262236",
+    "supplied_at_utc": "2026-06-19T00:00:00Z",
+    "workflow_lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "execution_owner": "KERNEL_BUILDER",
+    "recorded_per": "CX-585C (operator-supplied, not fabricated)"
+  },
+  "research_basis": {
+    "toolkit_spike": "2026-06-19 GUI-toolkit research (4 agents): egui+egui_tiles+AccessKit recommended for mature model-see/steer + IDE precedent; GPUI alternative; AccessKit is the native model-surface; reusable crates (ropey, tree-sitter, cosmic-text, alacritty_terminal, wgpu, vello).",
+    "feature_inventory": "Frontend + backend + done-WP inventory (KERNEL-009 React features = parity reference; ~19 wired panels re-homed as pane types).",
+    "design": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md (clean dark/light, modeled-not-copied from the Paper Control Room mockup).",
+    "external_research_status": "SUFFICIENT_FOR_ACTIVATION; MT-001 spike re-verifies toolkit on Windows before heavy build."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_SHELL_V1",
+    "risks": [
+      "Activation proceeds while Master Spec text still says React/Tauri (mitigated: codex 0A is binding per CX-009-VIS; reconciliation tracked as non-blocking spec-debt).",
+      "Toolkit assumed; MT-001 spike must lock it before downstream MTs (mitigated: MT-001 blocks MT-002..004).",
+      "Worktree created from main where src/frontend/ does not yet exist (expected: created during implementation; not a defect)."
+    ],
+    "minimum_controls": [
+      "Packet references this refinement; signature recorded; MT-001 spike gates the toolkit.",
+      "Master Spec bumped to v02.195 (signed ilja190620262236); spec-current/bundle/regression checks all PASS.",
+      "Worktree created via the governed worktree helper (never raw git worktree)."
+    ]
+  }
+}

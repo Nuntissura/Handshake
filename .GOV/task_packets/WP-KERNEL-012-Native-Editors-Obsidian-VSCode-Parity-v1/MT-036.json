@@ -1,0 +1,112 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-036",
+  "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
+  "group": "E5 Interconnection / melt-together",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-031", "MT-032", "MT-035"],
+    "blocks": ["MT-041", "MT-044", "MT-046"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: wire all native editor surfaces to the EXISTING handshake_core Flight Recorder / event ledger backend so that editor actions (document save, code edit, embed created, canvas node placed, cross-ref inserted, undo fired, route-to-stage) emit structured FlightEvent records via the existing POST /api/flight_recorder/runtime_chat_event endpoint. Additionally, DESIGN (document, do NOT build) the extension seams by which future surfaces — image/photo editor, spreadsheet, mechanical engines — will attach to the same event ledger without requiring changes to the existing emitter. Expected diff: (a) a new NativeEditorEventEmitter module in src/frontend/shared/event_emitter.rs (~250 lines) with emit_* helpers that call the backend; (b) call sites in all five pane modules; (c) a FutureSeamsDesign doc encoded as Rust trait stubs (src/frontend/shared/surface_extension_seam.rs) that compiles but is not exercised at runtime; (d) integration tests proving real FlightEvent records appear in the backend after editor actions.\n\nEvent schema mapping (native editor events use event_type='system' with structured payload; do not invent new event_types — the backend schema is closed):\n  - document_saved: { schema: 'hsk.native_editor@0.1', action: 'document_saved', document_id, content_hash, pane_id, actor_id }\n  - code_edit: { schema: 'hsk.native_editor@0.1', action: 'code_edit', file_path, line_delta, pane_id }\n  - embed_created: { schema: 'hsk.native_editor@0.1', action: 'embed_created', embed_kind, item_id, target_document_id, pane_id }\n  - canvas_node_placed: { schema: 'hsk.native_editor@0.1', action: 'canvas_node_placed', canvas_id, node_id, node_kind, pane_id }\n  - cross_ref_inserted: { schema: 'hsk.native_editor@0.1', action: 'cross_ref_inserted', ref_kind, symbol_entity_id, target_document_id, pane_id }\n  - undo_fired: { schema: 'hsk.native_editor@0.1', action: 'undo_fired', scope: 'local' | 'cross_pane', pane_id }\n  - route_to_stage: { schema: 'hsk.native_editor@0.1', action: 'route_to_stage', content_kind, source_pane_id }\n\nExtension seam design (Rust trait stubs, COMPILE-ONLY, no runtime path built):\n  pub trait EditorSurface: Send + Sync {\n    fn surface_id(&self) -> &'static str;  // e.g. 'image_editor', 'spreadsheet', 'engine'\n    fn on_selection_changed(&self, sel: &SharedSelection, bus: &InteractionBus);\n    fn on_event_emitted(&self, event: &NativeEditorEvent, ledger: &NativeEditorEventEmitter);\n    fn undo_local(&self) -> Option<UndoResult>;\n    fn redo_local(&self) -> Option<UndoResult>;\n  }\n  // EditorSurfaceRegistry: HashMap<&'static str, Box<dyn EditorSurface>>\n  // Extension surfaces register at startup; the bus iterates the registry on selection change and event emit.\n  // This registry is stored in InteractionBus alongside UnifiedUndoScope.\n  // DESIGN NOTE: future surfaces (image editor, spreadsheet, engine) implement EditorSurface and call\n  //   bus.register_surface(box MyImageEditorSurface). They get selection events and undo integration\n  //   for free. No existing code changes when a new surface is registered.\n\nFiles to CREATE:\n  - src/frontend/shared/event_emitter.rs  — NativeEditorEvent { schema_version: 'hsk.native_editor@0.1', action: NativeEditorAction, pane_id: String, actor_id: String, workspace_id: String, payload: serde_json::Value }. NativeEditorEventEmitter { workspace_id: String, actor_id: String, client: Arc<HandshakeCoreClient> }. Methods: async fn emit(&self, event: NativeEditorEvent) -> Result<(), EmitError> — calls POST /api/flight_recorder/runtime_chat_event with body { schema_version: 'hsk.fr.runtime_chat@0.1', event_id, ts_utc, ... payload from NativeEditorEvent }. Convenience helpers: emit_document_saved, emit_code_edit, emit_embed_created, emit_canvas_node_placed, emit_cross_ref_inserted, emit_undo_fired, emit_route_to_stage.\n  - src/frontend/shared/surface_extension_seam.rs  — EditorSurface trait + EditorSurfaceRegistry struct (DESIGN ONLY: compiles, no runtime path). Include #[allow(dead_code)] on all items. File must have a module-level doc comment: '// EXTENSION SEAM: this file is a design-only stub. Future surfaces implement EditorSurface and call bus.register_surface(). No existing production code calls into this module at runtime. See WP-KERNEL-012 MT-036 for the design contract.'.\n  - src/frontend/tests/event_emitter_tests.rs  — integration tests.\n\nFiles to EDIT:\n  - src/frontend/shared/mod.rs  — add `pub mod event_emitter;` and `pub mod surface_extension_seam;`\n  - src/frontend/shared/interaction_bus.rs  — add NativeEditorEventEmitter and EditorSurfaceRegistry as fields; expose bus.emit_event(event) which delegates to emitter.emit(event).\n  - src/frontend/panes/rich_text_editor.rs  — after every saveRichDocument call, call bus.emit_event(NativeEditorEvent::document_saved(doc_id, content_hash, pane_id, actor_id)).\n  - src/frontend/panes/code_editor.rs  — after every code edit batch (debounced at 2s), call emit_code_edit.\n  - src/frontend/panes/canvas_pane.rs  — after PUT /canvas/graph succeeds, call emit_canvas_node_placed for each new node.\n  - src/frontend/panes/rich_text_editor.rs  — after inserting an atelier_embed or code_ref node, call emit_embed_created or emit_cross_ref_inserted.\n  - src/frontend/shared/undo_stack.rs  — after each undo/redo dispatch, call bus.emit_event(NativeEditorEvent::undo_fired(scope, pane_id)).\n  - src/frontend/panes/stage_pane.rs  — after route-to-stage command handler runs, call emit_route_to_stage.\n\nStep-by-step implementation notes:\n  1. NativeEditorEventEmitter.emit() must be non-blocking from the egui frame thread. Use tokio::spawn to fire the POST and ignore the join handle; log failures to a bounded in-memory error ring (cap 20) accessible via the FlightRecorderView widget (port of FlightRecorderView.tsx).\n  2. Actor ID: read from app state (the current operator or model session ID). Default to 'native_editor_human' if no session is active.\n  3. event_id: generate as a UUID v4 at emit time (use uuid ^1 crate, already likely in Cargo.toml).\n  4. ts_utc: use chrono::Utc::now().to_rfc3339() (chrono likely already in Cargo.toml).\n  5. POST /api/flight_recorder/runtime_chat_event body must match RuntimeChatEventV0_1 schema (api.ts line ~607): { schema_version: 'hsk.fr.runtime_chat@0.1', event_id, ts_utc, session_id, job_id, work_packet_id, wsid }. The native editor payload is embedded in a nested 'native_editor_event' field within the payload JSON.\n  6. Batch code edit events: debounce at 2000ms using a tokio::time::sleep spawned task that is reset on each edit. Only fire emit_code_edit when the timer fires, not on every keypress.\n  7. EditorSurfaceRegistry in interaction_bus.rs: HashMap<&'static str, Box<dyn EditorSurface>>. Expose bus.register_surface(s: Box<dyn EditorSurface>). On SharedSelection change: iterate registry and call s.on_selection_changed(). On emit_event: iterate and call s.on_event_emitted(). In production (before any future surface is registered) the registry is empty and the iteration is a no-op.\n  8. FlightRecorderView integration: the existing FlightRecorderView.tsx is already the reference. The native version should have a FlightRecorderPane widget (or reuse the one from MT-036 as a sub-panel) that calls GET /api/flight_recorder with filters actor_id=native_editor_human and eventType=system, showing native editor events. AccessKit: pane author_id=\"flight-recorder-pane\", role=Region; each event row author_id=\"fr-event-{event_id}\", role=ListItem.\n  9. Integration test: call saveRichDocument via the Rust IPC client, then call GET /api/flight_recorder?actor=native_editor_human, assert at least one 'document_saved' event appears in the response.\n  10. Tests: (a) unit: NativeEditorEvent::document_saved serializes to correct JSON schema; (b) unit: emit() method builds the correct RuntimeChatEventV0_1 body; (c) integration (real PG): trigger document_saved event, query flight recorder, assert event present; (d) unit: EditorSurfaceRegistry with a mock surface receives on_selection_changed callback; (e) compile check: cargo check passes with surface_extension_seam.rs module included (proves trait stubs compile).\n\nDependencies / unblock conditions:\n  - MT-031 (InteractionBus) merged — event emitter is stored in the bus.\n  - MT-032 (loom block + content hash) merged — emit_document_saved needs content_hash.\n  - MT-035 (undo stack) merged — emit_undo_fired call site is in undo_stack.rs.\n  - uuid crate (^1) and chrono crate (^0.4) must be in Cargo.toml (likely already present).\n  - POST /api/flight_recorder/runtime_chat_event endpoint confirmed in api.ts line ~2339.\n\nRisk if missed: the Flight Recorder is the primary observability surface for swarm agents and the operator; without it, no agent can observe what the native editors are doing, breaking HBR-SWARM compliance. The extension seams, if not designed now, will require a breaking refactor when the first future surface (image editor) arrives — retrofitting is always more expensive than seam-first design.",
+    "allowed_paths": [
+      "src/frontend/shared/event_emitter.rs",
+      "src/frontend/shared/surface_extension_seam.rs",
+      "src/frontend/shared/mod.rs",
+      "src/frontend/shared/interaction_bus.rs",
+      "src/frontend/shared/undo_stack.rs",
+      "src/frontend/panes/rich_text_editor.rs",
+      "src/frontend/panes/code_editor.rs",
+      "src/frontend/panes/canvas_pane.rs",
+      "src/frontend/panes/stage_pane.rs",
+      "src/frontend/tests/event_emitter_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "After saving a rich document via the native editor, at least one FlightEvent with action='document_saved' and schema='hsk.native_editor@0.1' appears in GET /api/flight_recorder filtered by actor_id='native_editor_human' — proven by integration test against real PG.",
+      "After a canvas node placement, at least one FlightEvent with action='canvas_node_placed' appears in the flight recorder — proven by integration test.",
+      "After an undo_fired event, at least one FlightEvent with action='undo_fired' appears in the flight recorder — proven by integration test.",
+      "emit() failures (e.g. backend unreachable) do not crash the egui frame or block the UI; the error is silently logged to the in-memory error ring — proven by unit test simulating a failed POST.",
+      "surface_extension_seam.rs compiles with cargo check (trait stubs are valid Rust, no unused-import errors beyond the allowed dead_code suppress) — proven by cargo check in CI.",
+      "EditorSurfaceRegistry with a registered mock surface receives on_selection_changed and on_event_emitted callbacks during a SharedSelection change and a document_saved emit respectively — proven by unit test.",
+      "FlightRecorderPane widget loads and displays at least one native editor event when one exists in the backend — proven by kittest after an integration-test event is emitted.",
+      "cargo test -p handshake_native_frontend event_emitter -- --nocapture passes with no failures."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_native_frontend event_emitter -- --nocapture  =>  all PASS",
+      "cargo check -p handshake_native_frontend  =>  surface_extension_seam.rs compiles without errors",
+      "integration test (real PG): save rich doc, GET /api/flight_recorder?actor=native_editor_human, assert 'document_saved' event present",
+      "integration test: canvas node place, GET flight recorder, assert 'canvas_node_placed' event present",
+      "unit test: failed POST in emit() => error added to error ring, no panic, no egui frame block",
+      "kittest: open FlightRecorderPane, assert at least one 'fr-event-*' ListItem present after document save"
+    ],
+    "implementation_notes": [
+      "POST /api/flight_recorder/runtime_chat_event is the correct endpoint — confirmed at api.ts line ~2339 (the React emitRuntimeChatEvent function). Body must be RuntimeChatEventV0_1 (api.ts line ~607): include schema_version='hsk.fr.runtime_chat@0.1', event_id (UUID), ts_utc (RFC3339), session_id, wsid. The native_editor_event payload goes in a nested JSON field.",
+      "tokio::spawn for emit: the app must have a tokio runtime. If the native app uses a different async executor, adapt accordingly. Use a oneshot channel to log the result back to the error ring.",
+      "The EditorSurface trait uses object safety rules: all methods take &self (not self), use Box<dyn EditorSurface>. Avoid generic methods in the trait; use concrete types (SharedSelection, NativeEditorEvent) to preserve object safety.",
+      "FlightRecorderView.tsx (React reference): imports getEvents (api.ts line 2316) with FlightEventFilters. The native FlightRecorderPane uses the same endpoint. Filter eventType='system' and use actor filter to isolate native editor events.",
+      "React reference for event types: FlightEvent.event_type (api.ts line 574) shows 'system' is the appropriate type for native editor events — do not invent 'native_editor' as a new event_type; the backend schema is closed."
+    ],
+    "ports_from_react": [
+      "app/src/components/FlightRecorderView.tsx — getEvents, FlightEventFilters, event_type options, filter UI pattern, createDiagnostic for nav failures",
+      "app/src/lib/api.ts lines 568-600 — FlightEvent schema, event_type enum, actor field",
+      "app/src/lib/api.ts lines 607-617 — RuntimeChatEventV0_1 schema (the POST body format for flight recorder events)"
+    ],
+    "binds_backend_api": [
+      "POST /api/flight_recorder/runtime_chat_event  =>  api.ts line ~2339 emitRuntimeChatEvent  =>  body: RuntimeChatEventV0_1 { schema_version, event_id, ts_utc, session_id, wsid, ... }",
+      "GET /api/flight_recorder  =>  api.ts line 2316 getEvents  =>  params FlightEventFilters { actor, eventType, from, to, wsid }  =>  returns FlightEvent[]",
+      "POST /api/diagnostics  =>  api.ts line 841 createDiagnostic  =>  used to log emit failures as diagnostic events when the error ring is full"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RuntimeChatEventV0_1 body format mismatch: if the native emitter sends a field name that the backend rejects (e.g. camelCase vs snake_case), the event is silently dropped or the POST returns 422; the flight recorder appears empty even when the editor is active.",
+      "tokio::spawn for emit creates unbounded task accumulation if the backend is slow and the editor is very active (e.g. rapid code edits); without backpressure, the spawn queue grows unbounded.",
+      "EditorSurface trait object safety: adding a method with a generic parameter later breaks the dyn trait; the initial design must be carefully constrained to object-safe signatures.",
+      "surface_extension_seam.rs compiles today but may become stale as other modules evolve (type renames, moved imports); if allowed to drift it becomes misleading documentation.",
+      "Actor ID 'native_editor_human' conflicts with existing actor_id conventions in the backend if those are validated against a registry; events may be rejected."
+    ],
+    "minimum_controls": [
+      "Write a unit test that serializes NativeEditorEventEmitter.build_post_body() and asserts every required RuntimeChatEventV0_1 field is present with correct snake_case keys; compare against the api.ts schema definition.",
+      "Add a semaphore (tokio::sync::Semaphore with permits=20) around spawn in emit(); if all permits are taken, drop the event and log to the in-memory error ring rather than spawning. This bounds concurrency.",
+      "Before finalizing the EditorSurface trait, write all expected future method signatures as comments and verify they are object-safe (no generics, no Self by value, no associated types without default); include this check in code review criteria.",
+      "Add a CI check: cargo check --all-targets (includes surface_extension_seam.rs); fail the build if it does not compile clean.",
+      "Use a descriptive but valid actor_id format: 'hsk:native_editor:{pane_id}' — check backend actor validation rules in src/backend/handshake_core/src before committing to a format; if a registry check exists, add the native editor actor to the allowed set via a backend seeding migration (raise as a typed backend blocker if needed)."
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-009",
+  "title": "E1-MT-009-DiffMergeEditor",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-009.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-002"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a diff and merge editor panel supporting side-by-side and inline (unified) diff views for both prose and code content. This provides parity with the KERNEL-009 MT-247 diff surface and ports the `document_diff_merge.ts` logic from the React codebase into a native egui panel. Also handles CRDT conflict UI: when a CRDT merge conflict exists in the workspace (signalled via a workspace state update), the merge editor opens with local/base/remote three-way view and per-block accept/reject controls. Expected diff shape: new `src/frontend/code_editor/diff_engine.rs`, new `src/frontend/panels/diff_editor_panel.rs`, edits to `src/frontend/code_editor/mod.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/code_editor/diff_engine.rs` — ports `document_diff_merge.ts`. Defines `DiffBlock { left_lines: Range<usize>, right_lines: Range<usize>, status: DiffStatus }` where `DiffStatus` is an enum: `Equal`, `Added`, `Removed`, `Modified`. `DiffEngine::diff(left: &TextBuffer, right: &TextBuffer) -> Vec<DiffBlock>` — uses the Myers diff algorithm (implement from scratch or use the `similar` crate which is MIT-licensed and production-grade). For prose mode: works at the paragraph/block level (port `buildRichDocumentDiff` behavior for line-level comparison). `MergeBlock { base_lines: Range<usize>, local_lines: Range<usize>, remote_lines: Range<usize>, status: MergeStatus, chosen: Option<MergeChoice> }` where `MergeStatus: LocalOnly | RemoteOnly | BothSame | Conflict` and `MergeChoice: Local | Remote | Both`. `MergeEngine::three_way(base: &TextBuffer, local: &TextBuffer, remote: &TextBuffer) -> Vec<MergeBlock>` — computes local vs base diff and remote vs base diff, then aligns them to produce merge blocks.\n- CREATE `src/frontend/panels/diff_editor_panel.rs` — `DiffEditorPanel` egui widget. State: `left: TextBuffer`, `right: TextBuffer`, `diff: Vec<DiffBlock>`, `mode: DiffMode` (enum: `SideBySide`, `Inline`). `DiffEditorPanel::show(ui)` renders: (a) SideBySide: two `CodeEditorPanel` instances side by side, synchronized scroll (when left scrolls, right scrolls to the same line, accounting for added/removed blocks), diff block backgrounds highlighted (green=added, red=removed, yellow=modified). (b) Inline: single panel showing both left and right lines interleaved with change markers. Toggle button for SideBySide vs Inline in the panel header. Also supports `MergeMode`: three panes (local, base, remote) with per-block accept buttons.\n- EDIT `src/frontend/code_editor/mod.rs` — add `open_diff(left: TextBuffer, right: TextBuffer)` and `open_merge(base, local, remote: TextBuffer)` factory methods that construct a `DiffEditorPanel` and place it in the egui tile layout as a new tile.\n\nExact crates/functions/APIs to use:\n- `similar = \"2\"` (MIT) — production-grade diff library used by many Rust projects; provides Myers diff over slices. Use `similar::ChangeTag` and `similar::TextDiff::from_lines` for line-level diff.\n- `egui::SidePanel` or manual `ui.columns(2, ...)` for the side-by-side layout.\n- `egui::Painter::rect_filled` — for diff block background highlights.\n- `egui::Button` — for merge choice accept buttons (Accept Local, Accept Remote, Accept Both).\n- AccessKit: `author_id = \"diff_editor_panel\"` `Role::Group`; `author_id = \"diff_block_{n}_accept_local\"` `Role::Button` on each merge accept button; `author_id = \"diff_mode_toggle\"` `Role::ToggleButton` on the SideBySide/Inline toggle.\n\nReact reference files:\n- `app/src/lib/editor/document_diff_merge.ts` — complete reference for diff and merge data structures. Port: `RichDocumentDiff`, `RichDocumentDiffBlock`, `RichDocumentDiffStatus`, `RichDocumentMergePlan`, `RichDocumentMergeBlock`, `RichDocumentMergeStatus`, `buildRichDocumentDiff`, `buildRichDocumentMergePlan`, `applyRichDocumentMergeChoices`. Native equivalents use `TextBuffer` instead of `JSONContent` (the prose format). For code buffers, the diff is line-level not block-level.\n- `app/src/lib/editor/document_diff_merge.test.ts` — test cases for the diff/merge logic; port these tests as Rust unit tests.\n- `app/src/harness/rich_document_diff_harness.tsx` — the visual harness for the React diff editor; the native egui panel must match its feature surface.\n\nStep-by-step implementation notes:\n1. Use `similar::TextDiff::from_lines(left_text, right_text)` for line-level diff. Map `ChangeTag::Equal` -> `DiffStatus::Equal`, `Insert` -> `Added`, `Delete` -> `Removed`, and consecutive Delete+Insert at the same position -> `Modified`.\n2. Side-by-side sync scroll: maintain a `sync_scroll: SyncScrollState { left_scroll_offset: f32, right_scroll_offset: f32, last_changed: Side }`. When the left ScrollArea changes scroll offset, compute the corresponding right offset by counting visible lines in diff blocks and mapping them. Use `VirtualLineLayout` from MT-002 for each pane.\n3. Diff block backgrounds: before rendering each line in the virtual line loop, check if the line falls in a `DiffBlock` and set `ui.painter().rect_filled(line_rect, 0, diff_color)` where `diff_color` is: Added=Color32::from_rgba_unmultiplied(0,255,0,30), Removed=Color32::from_rgba_unmultiplied(255,0,0,30), Modified=Color32::from_rgba_unmultiplied(255,200,0,30).\n4. Inline mode: render left lines normally; for Added blocks, add a green `+ ` prefix; for Removed, a red `- ` prefix; for Equal, a gray `  ` prefix. No side-by-side layout needed.\n5. Merge mode per-block UI: for each `MergeBlock` with `status=Conflict`, render three rows (local, base, remote) with Accept Local / Accept Remote / Accept Both buttons. On accept, set `block.chosen` and recompute the merged output buffer.\n6. Synchronized scroll algorithm: maintain a `line_map: Vec<(Option<usize>, Option<usize>)>` where each entry is (left_line, right_line) for the corresponding visual row (None for lines that only exist on one side). When left scrolls to visual row R, find `line_map[R].1` and scroll right to that row.\n\nDependencies/unblock conditions: MT-001 (TextBuffer for both panes), MT-002 (VirtualLineLayout for both panes). Does NOT require MT-005, MT-007, or MT-008 — the diff editor is a standalone panel.\nRisk if missed: No diff view means code review workflows are blocked. CRDT conflict resolution has no UI. This is parity with KERNEL-009 MT-247 which is already validated.",
+    "allowed_paths": [
+      "src/frontend/code_editor/diff_engine.rs",
+      "src/frontend/panels/diff_editor_panel.rs",
+      "src/frontend/code_editor/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake_frontend diff_engine` passes — port the test cases from `document_diff_merge.test.ts`: identical texts -> all Equal blocks; added line -> one Added block; removed line -> one Removed block; modified line -> one Modified block.",
+      "AC-002: `cargo test -p handshake_frontend merge_engine` passes — tests: local adds line 2, remote adds line 5 to same base -> two LocalOnly/RemoteOnly blocks (no conflict); both modify line 3 differently -> one Conflict block.",
+      "AC-003: egui_kittest screenshot in SideBySide mode shows two panes with a green background rect in the right pane for an added line.",
+      "AC-004: egui_kittest screenshot in Inline mode shows `+ ` prefix (green colored) on an added line and `- ` prefix (red colored) on a removed line.",
+      "AC-005: egui_kittest interactive test: merge mode with one Conflict block; click 'Accept Local' button; verify the merged output buffer contains the local version of the conflicted block.",
+      "AC-006: AccessKit tree in merge mode contains at least one button node with author_id matching 'diff_block_0_accept_local'.",
+      "AC-007: Synchronized scroll test: scroll left pane by 20 lines; verify right pane scrolled to the equivalent position (within ±2 lines)."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend diff_engine` — GREEN, logged.",
+      "PT-002: `cargo test -p handshake_frontend merge_engine` — GREEN, logged.",
+      "PT-003: egui_kittest screenshot `test_output/MT-009-sidebyside-diff.png` pixel-verified for green background in right pane.",
+      "PT-004: egui_kittest screenshot `test_output/MT-009-inline-diff.png` pixel-verified for colored prefixes.",
+      "PT-005: egui_kittest test `merge_accept_local` — merged buffer content verified.",
+      "PT-006: egui_kittest test `diff_editor_accesskit` — AccessKit dump confirms accept button node."
+    ],
+    "implementation_notes": [
+      "`similar` crate: prefer `TextDiff::from_lines` which returns an iterator of `Change` items. Collect into `DiffBlock` ranges by grouping consecutive equal tags.",
+      "For very large files, the diff computation may be slow — run it on a background thread via `tokio::task::spawn_blocking` and update `diff_blocks` asynchronously. Show a 'computing diff...' indicator while pending.",
+      "CRDT conflict signal: listen for a workspace state update event (to be defined in CRDT integration). For now, accept `open_merge(base, local, remote)` as a direct API call from the orchestrator.",
+      "Prose mode: for JSON content diffs (rich documents), the diff is block-level not line-level. Port `buildRichDocumentDiff` as an alternative entry point that takes `serde_json::Value` pairs and produces `DiffBlock`s at the JSON node level."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/document_diff_merge.ts — complete file: RichDocumentDiff, RichDocumentMergePlan, buildRichDocumentDiff, buildRichDocumentMergePlan, applyRichDocumentMergeChoices — port all as Rust equivalents",
+      "app/src/lib/editor/document_diff_merge.test.ts — port test cases as Rust unit tests in diff_engine.rs",
+      "app/src/harness/rich_document_diff_harness.tsx — visual harness reference for feature parity checklist"
+    ],
+    "binds_backend_api": [
+      "None for diff computation — purely in-process. CRDT conflict data arrives via workspace state events (separate integration). No HTTP calls in this MT."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-001: `similar` diff on a 100k-line file takes >1 second on the main thread, blocking the egui frame. Mitigate: spawn on `tokio::task::spawn_blocking`; show spinner; do not re-trigger diff computation on every frame — only on buffer version change.",
+      "RISK-002: Synchronized scroll mapping is wrong for files with many added/removed blocks — the visual row count differs from the line count. Mitigate: unit test the line_map construction with known added/removed blocks and verify the mapping is correct.",
+      "RISK-003: Merge mode accept-all without a conflict generates an incorrect merged buffer if the merge algorithm has a bug in three-way merge. Mitigate: port the exact test cases from `document_diff_merge.test.ts` before shipping.",
+      "RISK-004: Two CodeEditorPanel instances in side-by-side mode use the same egui Id for the ScrollArea, causing scroll state collision. Mitigate: suffix the egui Id with 'left' and 'right' respectively."
+    ],
+    "minimum_controls": [
+      "MC-001: Background diff computation is required for files > 10k lines — documented and implemented.",
+      "MC-002: Ported test cases from document_diff_merge.test.ts are a required AC.",
+      "MC-003: SideBySide egui Id suffix is required — verified by screenshot AC-003 (two distinct scroll positions)."
+    ]
+  }
+}

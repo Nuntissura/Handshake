@@ -1,0 +1,103 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-017",
+  "title": "E2-MT017-PropertiesPanel",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-017.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the document properties panel: a side panel or collapsible header section displaying and editing the knowledge document's metadata fields, bound to the backend knowledge document API. This is the native Rust port of the document metadata section in RichDocumentView.tsx (title, tags, project_ref, folder_ref, authority_label, owner_actor_kind/id, created_at, updated_at, doc_version, crdt state).\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/properties/mod.rs\n- src/frontend/rich_editor/properties/panel.rs (egui widget: the full properties panel)\n- src/frontend/rich_editor/properties/fields.rs (individual field renderers: editable text, tag editor, date display, version badge)\n- src/frontend/rich_editor/properties/tag_editor.rs (tag chip list with add/remove)\n- Extend src/frontend/rich_editor/renderer/rich_editor_widget.rs to host the properties panel (collapsible, above or beside the document content).\n\nPROPERTIES DISPLAYED AND EDITABLE (from RichDocument struct in api.ts / backend knowledge_rich_documents table):\n  EDITABLE:\n  - title: String (single-line TextEdit; autosaves on blur or Enter via PUT /knowledge/documents/{id}/save with updated title + existing content_json)\n  - tags: Vec<String> (tag chip list; each tag editable; add via '+' button; remove via 'x' on each chip)\n  - project_ref: Option<String> (dropdown or text input for project association)\n  - folder_ref: Option<String> (text input)\n  READ-ONLY:\n  - rich_document_id: String (displayed as a monospace label; click copies to clipboard)\n  - doc_version: u64 (displayed as '#version')\n  - authority_label: String (badge: 'promoted' / 'draft')\n  - owner_actor_kind: String + owner_actor_id: String\n  - created_at: String (ISO date, displayed as local human-readable)\n  - updated_at: String (ISO date, displayed as local human-readable, refreshed after each save)\n  - crdt_document_id: Option<String> (displayed if present)\n  - backlinks_count: usize (count fetched from /backlinks endpoint, displayed as '↑ N backlinks')\n\nTAG EDITOR (tag_editor.rs):\n- Render existing tags as horizontal chip row; each chip has an 'x' button.\n- A '+' button or blank click at the end of the chip row opens a single-line TextEdit for the new tag. On Enter/blur, add the tag to the list.\n- Tags are part of the LoomBlock derived.tags field per the api.ts LoomBlockDerived type (or the RichDocument metadata, depending on the backend model). Check api.ts: LoomBlockDerived.tags is Vec<String>. For knowledge documents, tags are stored in a separate metadata field or via a separate API call. If the backend has no dedicated tag endpoint for knowledge documents, store tags in the document title metadata extension or as a note in the implementation. Document the gap clearly.\n- AccessKit: tag chip container = 'properties-tags', each chip = 'tag-chip-{tag}', Role::Group/Tag, add button = 'tag-add-button'.\n\nSTEP-BY-STEP:\n1. Define PropertiesState { doc_metadata: RichDocument, title_edit: Option<String>, tags: Vec<String>, pending_save: bool } in mod.rs.\n2. panel.rs renders as a two-column egui grid: field label (right-aligned) | field value (left-aligned).\n3. Title field: egui::TextEdit::singleline. On focus-lost (response.lost_focus()), if the text changed, call save_metadata(doc_id, new_title) via the backend API.\n4. Tag editor: render chips + add button in a wrapping ui.horizontal_wrapped layout.\n5. Date fields: parse ISO 8601 string to chrono::DateTime<Local> (add chrono crate), format as 'Jun 19, 2026 14:32'.\n6. Version badge: egui::Label with a Frame background.\n7. Document ID: egui::Label with monospace font; on click use the clipboard crate (arboard) to copy.\n8. Mount the panel in rich_editor_widget.rs: ui.collapsing('Properties', |ui| { properties_panel.ui(ui); }). Default collapsed.\n9. Cargo tests: PropertiesState title edit marks pending_save=true. Tag add appends to tags list. Tag remove deletes from list. Date formatting from ISO to local string is correct.\n\nCRATES TO ADD:\n- chrono = { version='0.4', features=['local-offset'] } (date parsing/formatting)\n- arboard = '3' (clipboard; check if already in workspace)\n\nDEPENDENCIES: MT-011, MT-012 (for widget hosting). Does not depend on MT-013/014/015/016.",
+    "allowed_paths": [
+      "src/frontend/rich_editor/properties/**",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Properties panel renders in collapsed state by default above the document content area (kittest screenshot).",
+      "Expanding the panel shows all metadata fields: title, tags, document_id, doc_version, authority_label, created_at, updated_at (kittest screenshot).",
+      "Editing the title field and pressing Enter marks PropertiesState.pending_save = true (cargo test).",
+      "Adding a tag via the '+' button appends to the tags list; the new chip appears (kittest interaction).",
+      "Removing a tag via the 'x' button removes it from the tags list (cargo test).",
+      "Document ID field copies to clipboard on click (cargo test with mock arboard).",
+      "created_at ISO string '2026-06-19T14:32:00Z' renders as a human-readable local date string (cargo test on the format fn).",
+      "Authority label 'promoted' renders as a styled badge distinct from plain text (kittest screenshot).",
+      "AccessKit: 'properties-tags' container is present in the kittest accessibility tree.",
+      "All cargo tests for the properties module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- properties outputs 'test result: ok'.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt017_properties_collapsed.png.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt017_properties_expanded.png showing all fields.",
+      "Integration test (real backend): cargo test --test native_editors -- properties::test_title_save_roundtrip -- --ignored (loads a real document, edits title, saves, reloads, verifies updated title)."
+    ],
+    "implementation_notes": [
+      "The properties panel save path (title edit -> PUT /knowledge/documents/{id}/save) must send the FULL current content_json alongside the new title, because the save endpoint is not a PATCH; it replaces the whole document. Hold the last-known content_json in PropertiesState and include it in the save body. Alternatively, use a dedicated metadata PATCH endpoint if one exists in the backend; inspect the backend routes first.",
+      "Tags: inspect the backend API carefully. LoomBlock has derived.tags but RichDocument (knowledge/documents) may not have a tags field in the current schema (check api.ts lines 3050-3100). If absent, implement tags as a comment in the properties panel indicating the backend gap and stub the tag editor with a local-only state that is not persisted until the backend adds the field. Document this gap explicitly in a code comment.",
+      "Date parsing must handle both 'Z' and '+00:00' timezone suffixes. chrono::DateTime::parse_from_rfc3339 handles both.",
+      "The collapsing header must remember its open/closed state in egui persistent storage (egui::Id keyed per document_id) so it does not reset on every re-render."
+    ],
+    "ports_from_react": [
+      "app/src/components/RichDocumentView.tsx (document metadata section: title display, doc_version, authority_label, created_at/updated_at, backlinks count panel)",
+      "app/src/lib/api.ts (RichDocument type: all metadata fields at lines 3040-3090; LoomBlockDerived for tags)"
+    ],
+    "binds_backend_api": [
+      "GET /knowledge/documents/{document_id} -> RichDocLoad (loadRichDocument) - source of all metadata fields",
+      "PUT /knowledge/documents/{document_id}/save -> RichDocSaveResult (saveRichDocument) - used for title + content updates",
+      "GET /knowledge/documents/{document_id}/backlinks -> backlinks count (listRichDocumentBacklinks)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Title save sends stale content_json (from initial load, not the latest editor state), overwriting the operator's recent edits.",
+      "Tag backend gap is silently ignored and the tag editor appears fully functional but tags are never persisted, misleading the operator.",
+      "chrono local-offset feature fails on some OS configurations where the timezone database is not available, causing a panic.",
+      "Backlinks count fetch races with the document load and overwrites the metadata state with null if the backlinks request returns first."
+    ],
+    "minimum_controls": [
+      "Title save must obtain the current content_json from RichEditorState.doc (not a cached copy in PropertiesState); document this in the save fn with a comment; cargo test verifies the saved JSON includes the latest typed character.",
+      "Tag editor must display a visible banner 'Tags not persisted (backend gap: coming soon)' if the tags field is not present in the RichDocument schema; the banner must be visible in the kittest screenshot.",
+      "Wrap chrono::Local::now() call in a Result/unwrap_or fallback to UTC if local offset fails; log the fallback with tracing::warn; do not panic.",
+      "Backlinks count is fetched via a separate async task that writes to an Arc<Mutex<Option<usize>>>; it never overwrites the doc metadata struct fields, only the backlinks_count field."
+    ]
+  }
+}

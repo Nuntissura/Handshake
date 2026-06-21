@@ -1,0 +1,183 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-012",
+  "title": "C3-MT-012-ModuleSwitcher",
+  "group": "C3 Navigation layers",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-012.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006"
+    ],
+    "blocks": [
+      "MT-013"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Implement the top-right module switcher — a horizontal set of six pill/tab buttons (MAIN, CKC, INGEST, STAGE, LAB, STUDIO) rendered in the top-right corner of the shell header. This is DISTINCT from the project tabs (MT-011) and from pane-local tabs (MT-013). Switching a module changes the active module on the currently active pane: it updates the pane's tab set to the module's canonical tab list and activates the module's default tab, as per MODULE_DEFINITIONS in App.tsx.\n\nGoal and expected diff shape: create src/frontend/navigation/module_switcher.rs exporting a ModuleSwitcher widget; add the six MODULE_DEFINITIONS as a compile-time constant mirroring the React originals; wire into shell.rs in the egui TopBottomPanel::top header row (right-aligned via ui.with_layout(egui::Layout::right_to_left(...))).\n\nExact files to create/edit:\n  - CREATE: src/frontend/navigation/module_switcher.rs\n  - EDIT: src/frontend/navigation/mod.rs — add pub mod module_switcher\n  - EDIT: src/frontend/shell.rs — render ModuleSwitcher in the header, handle module_switched(ModuleId) callback which calls app_state.set_module(module_id)\n  - EDIT: src/frontend/state/app_state.rs — add active_module: ModuleId field; set_module() fn that finds the ModuleDefinition, updates active_module, and updates the active pane's tab list + active tab\n\nData types (mirror React exactly):\n  - enum ModuleId { Main, Ckc, Ingest, Stage, Lab, Studio } — serializes to strings \"MAIN\", \"CKC\", \"INGEST\", \"STAGE\", \"LAB\", \"STUDIO\" for layout persistence\n  - struct ModuleDefinition { id: ModuleId, label: &'static str, data_id: &'static str, tabs: &'static [PaneTabId], default_tab: PaneTabId }\n  - MODULE_DEFINITIONS: [ModuleDefinition; 6] — exact port of the const array at App.tsx lines 197-267\n\nModuleDefinition values (port verbatim from App.tsx lines 197-267):\n  - MAIN: label=\"MAIN\", data_id=\"module-main\", default_tab=Workspace, tabs=[Workspace, LoomDailyJournal, LoomBlock, LoomWikiPage, UserManual, Problems, Jobs, Timeline]\n  - CKC: label=\"CKC\", data_id=\"module-ckc\", default_tab=Atelier, tabs=[Atelier, KernelDcc, CodeSymbol, SourceControl, LoomDailyJournal, LoomBlock, LoomWikiPage, UserManual, Problems, Jobs, Timeline]\n  - INGEST: label=\"INGEST\", data_id=\"module-ingest\", default_tab=MediaDownloader, tabs=[MediaDownloader, Fonts, FlightRecorder, VisualDebugger, Problems]\n  - STAGE: label=\"STAGE\", data_id=\"module-stage\", default_tab=Fonts, tabs=[Fonts, InferenceLab, VisualDebugger, FlightRecorder, Problems]\n  - LAB: label=\"LAB\", data_id=\"module-lab\", default_tab=InferenceLab, tabs=[InferenceLab, ModelRuntime, Swarm, Fonts, KernelDcc, UserManual]\n  - STUDIO: label=\"STUDIO\", data_id=\"module-studio\", default_tab=ModelRuntime, tabs=[ModelRuntime, Swarm, InferenceLab, Fonts, KernelDcc, UserManual]\n\nStep-by-step implementation notes:\n  1. In module_switcher.rs define struct ModuleSwitcher { active: ModuleId } and fn show(&mut self, ui: &mut egui::Ui) -> Option<ModuleId>.\n  2. Render using ui.horizontal(|ui| { for def in MODULE_DEFINITIONS.iter() { let active = self.active == def.id; if ui.selectable_label(active, def.label).clicked() && !active { result = Some(def.id); } } }).\n  3. Stable AccessKit ids: use ui.push_id(def.data_id, |ui| { ... }) for each button so the AccessKit node id is derived from data_id (e.g. \"module-main\"), not a frame counter. Role=Button, action=Click, name=label. Widget info: egui::WidgetInfo::selected(WidgetType::Button, enabled, active, label).\n  4. In app_state.rs implement set_module(module_id: ModuleId): find the ModuleDefinition; set self.active_module = module_id; update the active pane's fields: pane.module = module_id; pane.tabs = unique_tabs([def.default_tab] + def.tabs + pane.tabs_currently_open); pane.active_tab = def.default_tab. This mirrors the setModule() logic at App.tsx lines 1463-1483 exactly.\n  5. In shell.rs, in the header egui::TopBottomPanel::top, use ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { module_switcher.show(ui); }) so the switcher is right-aligned in the header bar.\n  6. The module switcher is NOT project-scoped — it applies to the active pane only. Persisted inside WorkbenchLayoutState.active_module (already part of the layout schema from MT-006).\n\nDependencies / unblock conditions:\n  - MT-005 (AppState / PaneState skeleton) must exist so active_module and pane tab fields are accessible.\n  - MT-006 (layout persistence) must persist active_module in the layout blob.\n  - MT-011 (project tabs) is a sibling; no dependency between them.\n\nRisk if missed: no way to switch between MAIN/CKC/INGEST/STAGE/LAB/STUDIO surfaces; agents cannot drive module context; tab sets for panes remain static.",
+    "allowed_paths": [
+      "src/frontend/navigation/module_switcher.rs",
+      "src/frontend/navigation/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/state/app_state.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Six module buttons (MAIN, CKC, INGEST, STAGE, LAB, STUDIO) render in the header, right-aligned, in the order defined by MODULE_DEFINITIONS.",
+      "Clicking a non-active module button: sets active_module on app state, updates the active pane's tab list to the module's canonical tab set (deduped, with existing open tabs preserved at the end), and activates the module's default tab.",
+      "The currently active module button is visually distinguished (selectable_label active=true).",
+      "Each module button has a stable AccessKit author_id equal to its data_id (e.g. 'module-main'), role=Button, and a Click action.",
+      "Clicking the already-active module is a no-op (no state change, no layout save triggered).",
+      "Module state survives project-tab switch and is correctly serialized into the WorkbenchLayoutState blob.",
+      "MODULE_DEFINITIONS matches App.tsx exactly: all six modules, correct tab lists, correct default tabs — verified by a snapshot test."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend -- navigation::module_switcher::definitions_match_react — snapshot test: serialize MODULE_DEFINITIONS to JSON and assert equality with the expected JSON object derived from App.tsx lines 197-267.",
+      "cargo test -p handshake_frontend -- navigation::module_switcher::set_module_updates_pane — unit test: given pane with active_tab=Workspace and module=Main, call set_module(ModuleId::Lab), assert pane.module=Lab, pane.active_tab=InferenceLab, pane.tabs contains InferenceLab.",
+      "egui_kittest visual harness: render ModuleSwitcher with active=Main, assert 6 nodes painted, assert the 'MAIN' node has selected=true, assert 'LAB' has selected=false.",
+      "AccessKit consumer snapshot: serialize UI tree, assert nodes with ids 'module-main'..'module-studio' all present with role=Button."
+    ],
+    "implementation_notes": [
+      "MODULE_DEFINITIONS must be a &'static [ModuleDefinition] or a const array — NOT loaded from config — to allow compile-time verification of completeness.",
+      "PaneTabId enum must cover all 19 tab ids from TAB_LABEL_BY_ID in App.tsx (lines 175-195): workspace, media-downloader, fonts, flight-recorder, kernel-dcc, inference-lab, model-runtime, swarm, problems, jobs, timeline, user-manual, code-symbol, source-control, loom-daily-journal, loom-block, loom-wiki-page, atelier, visual-debugger. Serialized as the kebab-case strings for layout persistence.",
+      "unique_tabs() in Rust: collect into a Vec, use a seen HashSet<PaneTabId> to dedup while preserving order — same logic as uniqueTabs() in App.tsx line 327.",
+      "The module switcher renders inside the header panel, NOT in the left rail. In the React legacy code the module buttons lived in the left rail (App.tsx line 1963-1981); in the native shell they move to the top-right header per the WP design intent (distinct from project tabs).",
+      "data_id strings ('module-main', 'module-ckc', etc.) are the stable ids used in data-stable-id attributes in the React code — adopt these as AccessKit author_id values verbatim.",
+      "Do not rebuild any module-specific content here — content rendering is done in each pane by MT-013 and later MTs. This MT only manages the switcher widget and the tab-list / active-tab state mutation."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx — ModuleId type (line 77), MODULE_DEFINITIONS const (lines 197-267), TAB_LABEL_BY_ID (lines 175-195), setModule() function (lines 1463-1483), module buttons in left rail render (lines 1963-1981), activeModule state (line 577)"
+    ],
+    "binds_backend_api": [
+      "No direct backend API call. Module state is persisted as part of WorkbenchLayoutState via PUT /workspaces/{id}/workbench/layout (MT-006 store). active_module field serialized as a string matching ModuleId display name."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-INT"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "MODULE_DEFINITIONS drifts from React reference (wrong tab list or wrong default tab), causing wrong pane behavior on module switch.",
+      "Module switcher placed in wrong location (left rail instead of top-right header) making it visually indistinguishable from project tabs.",
+      "Clicking a module button triggers a full layout save on every click, causing save storms under rapid switching.",
+      "PaneTabId enum is incomplete (missing tabs from TAB_LABEL_BY_ID), causing runtime panics when the module's default tab is not recognized.",
+      "AccessKit node id derived from frame counter instead of data_id, breaking agent targeting after any re-render."
+    ],
+    "minimum_controls": [
+      "A snapshot unit test asserts MODULE_DEFINITIONS serializes to the same JSON as the React source; this test must run in CI and fail the gate if definitions drift.",
+      "Module switcher must be rendered inside egui::TopBottomPanel::top with right_to_left layout alignment — enforced by a shell layout test that checks the panel placement.",
+      "Module switch must NOT immediately trigger WorkbenchLayoutStore::save(); save is deferred to the next layout-changed debounce cycle (MT-006 save queue), not triggered synchronously on every module click.",
+      "PaneTabId enum must be exhaustive over TAB_LABEL_BY_ID; a compile-time assertion or match-all unit test must cover all 19 variants.",
+      "Every module button rendered via ui.push_id(def.data_id, ...) — a test asserts each node's AccessKit id equals the data_id constant."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification confirms the first reviewer: the top-right six-module switcher is a verbatim, line-by-line-correct port of the React MODULE_DEFINITIONS/setModule model with fixed stable AccessKit ids (band 51..56), a sound no-op/deferred-save model, real round-trip persistence through the sanctioned LayoutPersistenceManager seam, and substantive live-tree (kittest) tests; all 7 acceptance criteria are MET and the only deviations are disclosed paperwork/path drift that the operator directive excludes as a code blocker.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-012.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/module_switcher.rs (full file, incl. ModuleId/MODULE_DEFINITIONS/module_tab_list/render_button/pane_type_tab_id + unit tests)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (MT-012 diff: set_module, module_target_pane, module_switcher_ui, header wiring, capture/restore, plus drive_layout_persistence change-detector at 3540-3589)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/layout_persistence.rs (active_module field + #[serde(default=default_module)])",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs (DECLARED_IDENTITIES module band 51..56)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/pane_registry.rs (PaneType enum, 19 variants + Placeholder)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/tab_bar.rs (TabBarState::new/activate/active/dedup/stabilize_pins)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_module_switcher.rs (full file, 6 tests)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs (23->29 LIVE-FRAME snapshot diff)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/app/src/App.tsx (lines 77, 175-195, 197-267, 327, 577, 1463-1483 React reference)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "Six module buttons (MAIN, CKC, INGEST, STAGE, LAB, STUDIO) render in the header, right-aligned, in MODULE_DEFINITIONS order.",
+        "status": "MET",
+        "evidence": "module_switcher.rs:318-325 iterates MODULE_DEFINITIONS in array order inside ui.horizontal; app.rs:1077-1100 renders module_switcher_ui inside egui::TopBottomPanel::top with ui.with_layout(Layout::right_to_left(Align::Center)) after the theme toggle. Live test live_shell_has_six_module_buttons_with_stable_ids (test_module_switcher.rs:217-246) reads exactly 6 module-* Role::Button nodes from the REAL shell AccessKit tree; the test_accesskit_ids.rs LIVE-FRAME snapshot was honestly updated 23->29 and asserts the exact sorted author_id list (a real drop/reorder gate)."
+      },
+      {
+        "criterion": "Clicking non-active module sets active_module, updates active pane tab list to canonical set (deduped, existing tabs preserved at end), activates default tab.",
+        "status": "MET",
+        "evidence": "app.rs set_module (lines 463-501) calls module_switcher::module_tab_list (module_switcher.rs:247-264 = uniqueTabs([default, ...module.tabs, ...existing]) with order-preserving linear dedup), rebuilds via TabBarState::new, then recomputes default_index BY POSITION of def.default_tab and activate()s it (robust to pin-driven reordering, not assuming index 0). Verified verbatim against React App.tsx setModule (1463-1483) + uniqueTabs (327). Tests set_module_updates_active_pane_tabs and clicking_lab_button_switches_module_in_live_shell (real kittest pointer click) prove LAB->inference-lab active with dedup count==1."
+      },
+      {
+        "criterion": "Active module button visually distinguished (selectable active=true).",
+        "status": "MET",
+        "evidence": "render_button (module_switcher.rs:333-397) paints active_bg/active_text when is_active, emits WidgetInfo::selected(Button,...) and node.set_selected(true) for the active button. Tests switcher_paints_six_buttons_active_selected and the live-tree tests assert module-main selected / module-lab not (and the inverse after a LAB click)."
+      },
+      {
+        "criterion": "Each button has stable AccessKit author_id == data_id, role=Button, Click action.",
+        "status": "MET",
+        "evidence": "render_button uses a fixed Id from_high_entropy_bits(MODULE_NODE_ID_BASE + index) with Sense::click() (yields Action::Click/Focus), node.set_role(Button), node.set_author_id(def.data_id). All six (module-main..module-studio) registered in accessibility/registry.rs DECLARED_IDENTITIES and covered by the collision test; unit test module_node_ids_sit_in_a_disjoint_fresh_band proves 51..=56 disjoint from every other fixed id and below PANE_NODE_ID_BASE. Live tests read author_id+role Button from the real tree."
+      },
+      {
+        "criterion": "Clicking already-active module is a no-op (no state change, no layout save).",
+        "status": "MET",
+        "evidence": "show() returns None for the active button (&& !is_active guard, module_switcher.rs:321); set_module short-circuits returning false with zero mutation when active==module_id (app.rs:464-466). Test switching_to_active_module_is_a_noop asserts capture_layout_snapshot is byte-identical before/after. Because set_module never calls save and the MT-006/MT-009 diff-based change-detector in drive_layout_persistence (app.rs:3561-3573) only marks dirty when the captured blob differs, an unchanged snapshot schedules no save (also satisfies the save-storm red-team control: rapid switches coalesce into one debounced save)."
+      },
+      {
+        "criterion": "Module state survives project-tab switch and serializes into WorkbenchLayoutState blob.",
+        "status": "MET",
+        "evidence": "layout_persistence.rs adds active_module: ModuleId with #[serde(default = default_module)] (=MAIN; backward-compatible with pre-MT-012 blobs). app.rs capture (line ~685) and restore (line ~715) wire module_switcher.active() into/out of LayoutSnapshot. Test active_module_survives_project_switch_and_serializes drives the REAL LayoutPersistenceManager over an in-memory LayoutTransport (the sanctioned MT-009/MT-011 seam): project a STUDIO is saved (blob['active_module']=='STUDIO'), b defaults MAIN, returning to a restores STUDIO."
+      },
+      {
+        "criterion": "MODULE_DEFINITIONS matches App.tsx exactly (six modules, tab lists, default tabs) verified by snapshot test.",
+        "status": "MET",
+        "evidence": "I re-read App.tsx lines 77/175-195/197-267/327/1463-1483 and compared every module's id/label/dataId/tabs/defaultTab against MODULE_DEFINITIONS (module_switcher.rs:149-239) and against the test's expected JSON (480-532) — all three are identical (incl. AtelierEditor->'atelier', FontManager->'fonts' mapping via pane_type_tab_id). PaneType enum (pane_registry.rs:36-58) is exhaustive over all 19 TAB_LABEL_BY_ID ids. definitions_match_react is a genuine drift gate, not tautological (it asserts against an independently-spelled React-derived expected object)."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Grep of module_switcher.rs + test_module_switcher.rs found no todo!/unimplemented!/unreachable!/'deferred to'/'pending MT-'/'Unavailable'/FIXME on the required-behavior path; no #[ignore] on the MT-012 or accesskit-id tests. The two real-resource claims for this MT are (1) the AccessKit steering tree and (2) the MT-006/MT-009 layout-persistence store. Both are exercised against the REAL contract: live_shell_* tests read author_id/role/selected from the actual rendered AccessKit tree via kittest, clicking_lab_button_switches_module_in_live_shell drives a real kittest pointer click on the labelled Button node, and active_module_survives_project_switch_and_serializes round-trips through the genuine LayoutPersistenceManager (the in-memory LayoutTransport is the sanctioned MT-009/MT-011 test seam, NOT an implementer-authored pass-only mock of the serialization logic — serde of ModuleId/LayoutSnapshot is the real code under test). Spec-Realism sub-rule 3 (self-certification) is satisfied by THIS independent review per operator directive. No mock-only proof of a real resource was found."
+    },
+    "concerns_non_blocking": [
+      "Path / allowed_paths drift (NON-BLOCKING, disclosed in commit 6745b55f): the MT contract allowed_paths name src/frontend/navigation/module_switcher.rs, src/frontend/navigation/mod.rs, src/frontend/shell.rs, src/frontend/state/app_state.rs, but the native crate has a FLAT layout — the code correctly landed in src/frontend/handshake_native/src/{module_switcher.rs, app.rs, layout_persistence.rs, accessibility/registry.rs, lib.rs}, matching sibling MTs (project_tabs, tab_bar). The active_module field also touched layout_persistence.rs (in-crate, an allowed extension of the MT-006 schema). The commit message explicitly discloses the stale contract paths point at a non-existent layout. Per operator directive this is paperwork/contract drift, not a code FAIL.",
+      "Double-dedup: module_tab_list dedups, then TabBarState::new also runs dedup_tabs + stabilize_pins. Redundant but harmless and actually defensive — set_module recomputes default_index by position AFTER the rebuild (tab_bar.rs:200-209 + app.rs:493-499), so the default tab is activated correctly even if stabilize_pins reorders, rather than assuming index 0.",
+      "Acceptance #5 (no-op) is proven via snapshot byte-equality + the show() short-circuit rather than a direct 'no save was scheduled' assertion. The chain is sound (unchanged captured blob => change-detector no-ops in drive_layout_persistence), but a future test could assert the layout manager dirty-flag directly for belt-and-suspenders.",
+      "Governance/paperwork state (NON-BLOCKING per operator directive): MT-012.json lifecycle.status==PENDING and validator_verdict==PENDING; the WP was built folded with no separate validator session. This review IS the independent certification.",
+      "WP-level artifact-hygiene note (NOT a per-MT FAIL; not caused by this MT): build outputs are correctly directed to ../Handshake_Artifacts/ and this MT's diff adds no in-repo target/ or build-config that would land outputs inside the source tree."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

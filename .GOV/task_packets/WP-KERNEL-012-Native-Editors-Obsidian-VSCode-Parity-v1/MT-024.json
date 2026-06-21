@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-024",
+  "title": "E3-MT024-PinsFavoritesBacklinksUnlinked",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-024.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021", "MT-022", "MT-023"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a multi-section sidebar panel in the native egui frontend that ports the React WorkspaceSidebar pins/favorites/bookmarks sections plus adds backlinks and unlinked mentions panels for the currently-open block. The panel has five collapsible sections: Pins, Favorites, Backlinks, Unlinked Mentions, and a breadcrumb strip. All data comes from the real PostgreSQL backend via existing loom view APIs. Expected diff shape: one new file src/frontend/loom/sidebar_panel.rs containing LoomSidebarPanel, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/sidebar_panel.rs — LoomSidebarPanel widget\n- EDIT src/frontend/loom/mod.rs — pub mod sidebar_panel; + re-export\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/WorkspaceSidebar.tsx — the Bookmarks section (lines 363-424) calls queryLoomView(workspaceId, 'pins', {limit:100}) and renders bookmark rows with open/remove actions. The setLoomBlockPinOrder + updateLoomBlock({pinned:false}) pair is the remove-bookmark flow (WorkspaceSidebar.tsx lines 293-312). The 'favorites' view type (LoomViewType, api.ts line 1058) is the favorites surface.\n- SECONDARY REACT REFERENCE: app/src/harness/loom_bookmarks_harness.tsx — the integration harness wiring WorkspaceSidebar + LoomBlockPanel.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/pins?limit=100 — LoomViewResponse {view_type:'pins', blocks:LoomBlock[]} (queryLoomView 'pins')\n  - GET /workspaces/{workspace_id}/loom/views/favorites?limit=100 — LoomViewResponse {view_type:'favorites', blocks:LoomBlock[]}\n  - GET /workspaces/{workspace_id}/loom/views/unlinked?limit=50 — LoomViewResponse {view_type:'unlinked', blocks:LoomBlock[]}\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock({pinned:false}) to unpin\n  - PUT /workspaces/{workspace_id}/loom/blocks/{block_id}/pin-order — setLoomBlockPinOrder(null) to clear pin order\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock({favorite:false}) to un-favorite\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id}/backlinks — load backlinks for currently-open block (rich doc backlinks, api.ts line 3326 for documents; for loom blocks use graph-search with mentionIds=[block_id])\n  - GET /workspaces/{workspace_id}/loom/graph-search?mention_ids={block_id}&limit=50 — load loom backlinks/mentions for active block\n\nStep-by-step implementation notes:\n1. Define LoomSidebarPanel { workspace_id: String, active_block_id: Option<String>, pins: Vec<LoomBlock>, favorites: Vec<LoomBlock>, backlinks: Vec<LoomBlock>, unlinked: Vec<LoomBlock>, breadcrumbs: Vec<BreadcrumbEntry>, on_open: Callback<String>, loading_section: HashSet<SectionKind>, error_section: HashMap<SectionKind, String> } where SectionKind = Pins | Favorites | Backlinks | Unlinked.\n2. On workspace_id change, reload Pins and Favorites sections. On active_block_id change, reload Backlinks and Unlinked sections.\n3. Breadcrumb strip: maintain a Vec<BreadcrumbEntry { block_id, title }> as navigation history. Each on_open callback push adds an entry. Render as a horizontal strip at top: 'Home > Folder > Block'. Each crumb is clickable (on_open fires for that block_id). Truncate to last 5 crumbs. AccessKit: each crumb 'sidebar.breadcrumb.{idx}' role=Link.\n4. Pins section: render as a collapsible section header 'Pins (N)'. Each pin row: block title + kind chip + 'Remove' button. Remove = call PUT /pin-order (null) then PATCH {pinned:false}; remove from local list immediately (optimistic) and re-fetch. AccessKit: each row 'sidebar.pin.{block_id}', remove button 'sidebar.pin.{block_id}.remove'.\n5. Favorites section: same pattern as Pins but calls PATCH {favorite:false} to remove. AccessKit: 'sidebar.favorite.{block_id}', 'sidebar.favorite.{block_id}.remove'.\n6. Backlinks section: render only when active_block_id is set. Show blocks that mention the active block via GET /loom/graph-search?mention_ids={block_id}. Each row shows source block title + edge_type label. Click -> on_open(source_block_id). AccessKit: 'sidebar.backlink.{block_id}'.\n7. Unlinked mentions section: render only when active_block_id is set. Show blocks from GET /loom/views/unlinked that textually mention the active block title but have no edge. Click -> on_open(block_id). AccessKit: 'sidebar.unlinked.{block_id}'.\n8. Section headers are collapsible (egui::CollapsingHeader or manual toggle bool). Each section has a Retry button on error.\n9. Emit a 'handshake:loom-bookmarks-changed' equivalent event (Rust: use a message channel or callback) so other panels can react to pin/favorite changes.\n\nDependencies / unblock conditions: MT-021, MT-022, MT-023 must be complete so that loom/mod.rs is fully scaffolded and the shared HTTP client is available.\n\nRisk if missed: The sidebar navigation surface is absent. Users cannot find pinned blocks, favorites, backlinks, or unlinked mentions, which are core Obsidian-parity knowledge-navigation features.",
+    "allowed_paths": [
+      "src/frontend/loom/sidebar_panel.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: The Pins section loads all pinned LoomBlocks from a real PG workspace (>=2 pins seeded). Block titles and kind chips display correctly.",
+      "AC2: Clicking 'Remove' on a pin row calls PUT /pin-order(null) then PATCH {pinned:false}, the row disappears from the list, and a re-fetch confirms the block is no longer pinned.",
+      "AC3: The Favorites section loads all favorited blocks; removing a favorite calls PATCH {favorite:false} and the row disappears.",
+      "AC4: With an active_block_id set, the Backlinks section loads and displays blocks that mention that block via the graph-search API (>=1 backlink in test data).",
+      "AC5: With an active_block_id set, the Unlinked Mentions section loads and displays unlinked blocks.",
+      "AC6: The breadcrumb strip shows the navigation history (up to 5 entries). Clicking a breadcrumb fires on_open with the correct block_id.",
+      "AC7: AccessKit tree contains 'sidebar.pin.{block_id}', 'sidebar.favorite.{block_id}', 'sidebar.backlink.{block_id}', 'sidebar.breadcrumb.{idx}' nodes as appropriate.",
+      "AC8: Sections collapse and expand via their section headers. Collapsed section does not show its rows in the AccessKit tree.",
+      "AC9: Backend error on any section shows an error message with a Retry button in that section only; other sections remain functional."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::sidebar_panel -- --nocapture passes unit tests for breadcrumb push/truncate logic (max 5 entries).",
+      "PROOF2: kittest test with 2 pinned blocks in real PG: asserts 2 'sidebar.pin.*' AccessKit nodes in Pins section.",
+      "PROOF3: kittest remove-pin test: click 'sidebar.pin.block-001.remove', assert PUT /pin-order and PATCH requests fired, assert 'sidebar.pin.block-001' no longer in AccessKit tree.",
+      "PROOF4: kittest backlinks test: set active_block_id='block-A' (which has 1 loom edge pointing to it), assert 1 'sidebar.backlink.*' node in AccessKit tree.",
+      "PROOF5: kittest breadcrumb test: open 3 blocks in sequence via on_open, assert 3 'sidebar.breadcrumb.*' nodes in order."
+    ],
+    "implementation_notes": [
+      "Use separate loading booleans per section (HashMap<SectionKind, bool>) so sections load independently and a slow Backlinks fetch does not block Pins from rendering.",
+      "Optimistic remove: immediately remove the row from the local Vec on remove-click; if the backend PATCH fails, re-add the row and show an error inline.",
+      "Breadcrumb strip: render horizontally using egui::ui.horizontal(). Each crumb is an egui::Button with label truncated to 20 chars if long.",
+      "Backlinks vs unlinked: Backlinks = blocks with a real LoomEdge to active_block_id (query mention_ids). Unlinked = blocks returned by /views/unlinked — these are blocks the backend has identified as having textual mentions but no edge. The distinction is important; do not mix the two lists.",
+      "Pin removal: must call both PUT /pin-order(null) AND PATCH {pinned:false} in sequence (same as React WorkspaceSidebar.tsx lines 297-298). Do not skip the pin-order clear.",
+      "Collapsible sections: store expanded state per SectionKind in a HashMap<SectionKind, bool>; default all to true (expanded).",
+      "Emit change notification after pin/favorite mutation via a shared Rust channel or event bus so other panels (e.g. graph view) can react."
+    ],
+    "ports_from_react": [
+      "app/src/components/WorkspaceSidebar.tsx — entire Bookmarks section (lines 363-424), handleRemoveBookmark (lines 291-312), loadBookmarks using queryLoomView 'pins' (lines 91-109)",
+      "app/src/harness/loom_bookmarks_harness.tsx — integration wiring",
+      "LoomViewType 'pins'|'favorites'|'unlinked': app/src/lib/api.ts line 1058",
+      "setLoomBlockPinOrder: app/src/lib/api.ts line 1955",
+      "updateLoomBlock: app/src/lib/api.ts line 1890"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/pins?limit=100 — load pinned blocks",
+      "GET /workspaces/{workspace_id}/loom/views/favorites?limit=100 — load favorited blocks",
+      "GET /workspaces/{workspace_id}/loom/views/unlinked?limit=50 — load unlinked blocks",
+      "PUT /workspaces/{workspace_id}/loom/blocks/{block_id}/pin-order — clear pin order (body: {pin_order: null})",
+      "PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — unpin {pinned:false} or un-favorite {favorite:false}",
+      "GET /workspaces/{workspace_id}/loom/graph-search?mention_ids={block_id}&limit=50 — load backlinks for active block"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Removing a pin requires two sequential API calls (PUT pin-order + PATCH pinned=false); if the second fails the block is in a partially-unpinned state. Mitigation: always issue both; on second failure, re-fetch the block to determine true state and update UI accordingly.",
+      "RISK-2: Backlinks and Unlinked sections make additional API calls on every active_block_id change, potentially causing a surge of concurrent requests when the user navigates quickly. Mitigation: debounce active_block_id changes by 150ms before firing section reload.",
+      "RISK-3: Breadcrumb history grows unbounded if on_open is called many times in a session. Mitigation: cap at 5 entries, dropping oldest.",
+      "RISK-4: Unlinked mentions may include the active block itself or blocks already shown in Backlinks. Mitigation: filter unlinked list to exclude active_block_id and block_ids already in backlinks list.",
+      "RISK-5: Section collapse state is lost on panel rebuild (egui re-creates widgets). Mitigation: store collapse state in widget-level persistent state using egui::Memory::data keyed by a stable Id."
+    ],
+    "minimum_controls": [
+      "MC-1: Two-call pin removal with error recovery and re-fetch on failure. Covered by AC2 and PROOF3.",
+      "MC-2: 150ms debounce on active_block_id changes before section reload. Covered by AC4.",
+      "MC-3: Breadcrumb capped at 5. Covered by PROOF5.",
+      "MC-4: Unlinked dedup vs backlinks. Covered by AC5 (separate lists).",
+      "MC-5: Collapse state in egui::Memory. Covered by AC8."
+    ]
+  }
+}

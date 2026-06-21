@@ -1,0 +1,228 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-023",
+  "title": "C6-MT023-BottomDrawerStashShelf",
+  "group": "C6 Bottom search + drawer",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-023.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-005",
+      "MT-022"
+    ],
+    "blocks": [
+      "MT-024",
+      "MT-025"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal and expected diff shape:\nAdd the bottom drawer stash shelf -- a collapsible panel that slides up from the bottom of the shell (above the bottom search rail from MT-022) and presents a horizontally-scrolling card shelf populated with typed items: Agenda, Mail, Lists, Notes. The drawer is right-aligned: its affordance (a small tab/handle) sits in the bottom-right corner and is always visible even when the drawer is collapsed. Clicking the tab toggles the drawer open/closed. When open, the drawer occupies a configurable height (default 220px, resizable by dragging the top edge) and shows a horizontal shelf of item cards.\n\nThe drawer is architecturally separate from the bottom search rail (MT-022). The rail (32px strip) is always visible at the very bottom; the drawer slides up from just above the rail. When the drawer is open, it compresses the docked tile area upward -- it does NOT overlap content.\n\nCard types on the shelf (all rendered in the same horizontal row, right-aligned so the most-recently-touched item is leftmost):\n- Agenda: shows today's date, the count of items due today from the LoomBlock calendar surface (`GET /workspaces/:workspace_id/loom/views/calendar` filtered to today), and a one-line summary of the next item. Clicking opens the LoomCalendarView pane.\n- Mail: placeholder card (no live backend today -- Handshake has no mail backend yet); shows a static \"Mail\" label and a badge count of 0. Clicking shows a \"Coming soon\" tooltip. The card IS wired to AccessKit so swarm agents can discover it.\n- Lists: shows the count of loom blocks with `content_type = \"list\"` from the current workspace (`GET /workspaces/:workspace_id/loom/views/table?content_type=list&limit=1` to get count from response.total). Clicking opens a pane with the block collection view filtered to lists.\n- Notes: shows the count of loom blocks with `content_type = \"note\"` (same endpoint pattern). Clicking opens a pane filtered to notes.\n\nThe drawer affordance is a narrow vertical tab in the bottom-right corner (outside the normal content flow), always rendered above the search rail. Its label is a stash icon (use a unicode character: `⊢` or `•••`, or a simple `[stash]` text label until icons are added). When collapsed the affordance is the only visible element; when expanded the full drawer panel is visible.\n\nExact files to create or edit (all under `src/frontend/`):\n- CREATE `src/frontend/drawer/mod.rs` -- re-exports `DrawerStashShelf`, `DrawerCard`, `DrawerCardKind`.\n- CREATE `src/frontend/drawer/stash_shelf.rs` -- the `DrawerStashShelf` struct with fields: `open: bool`, `height: f32` (default 220.0), `cards: Vec<DrawerCard>`, `drag_resize_start: Option<f32>`. Impl `DrawerStashShelf::new() -> Self` and `DrawerStashShelf::show(&mut self, ui: &mut egui::Ui, app_state: &mut AppState, ctx: &egui::Context)`. The `show` method: (1) renders the affordance tab as a small `egui::Button` at the bottom-right using `ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), ...)` inside a `TopBottomPanel`; (2) if `self.open`, renders the shelf panel above the rail using `egui::TopBottomPanel::bottom(\"hsk.drawer\").exact_height(self.height)` registered BEFORE the rail panel in `update()`; (3) inside the shelf panel, renders `egui::ScrollArea::horizontal()` containing the card row.\n- CREATE `src/frontend/drawer/card.rs` -- the `DrawerCard` struct: `kind: DrawerCardKind`, `title: String`, `badge_count: u32`, `subtitle: String`, `loading: bool`, `error: Option<String>`. The `DrawerCardKind` enum: `Agenda`, `Mail`, `Lists`, `Notes`. Impl `DrawerCard::show(&self, ui: &mut egui::Ui) -> bool` (returns true if the card was clicked). Each card renders as a fixed-width (180px) `egui::Frame` containing: kind icon (unicode char), title, badge count chip, subtitle line.\n- EDIT `src/frontend/shell/mod.rs` (the App struct and `update()` method) to: (a) add `drawer: DrawerStashShelf` field; (b) add async-fetch state for card data (badge counts); (c) call `self.drawer.show(ctx, ui, &mut self.app_state)` in `update()` BEFORE the rail panel and BEFORE CentralPanel; (d) handle card click callbacks to open panes.\n\nCard data loading:\n- Agenda and Lists/Notes counts are fetched from the real Postgres/EventLedger backend via the existing handshake_core HTTP API. The fetch is a one-shot async task fired when the drawer opens; results are cached in `DrawerCard.badge_count` / `.subtitle` until the drawer is closed and re-opened (or an explicit refresh). Failures set `DrawerCard.error` and the card shows an error state without crashing.\n- Use `ehttp::fetch` or `reqwest` (whichever the MT-001/MT-005 IPC bridge established) to call the backend. For Agenda: `GET /workspaces/{wsid}/loom/views/calendar` -- parse the response for items with `due_date == today_str`. For Lists/Notes: `GET /workspaces/{wsid}/loom/views/table` with query params `content_type=list` (or `note`) and `limit=1`; read `response.total` from the `LoomViewResponse` JSON shape `{\"blocks\": [...], \"total\": N}`.\n- The workspace_id comes from `app_state.active_workspace_id: Option<String>`.\n- If `active_workspace_id` is None, all cards show a \"No workspace\" state with badge 0.\n\nPanel ordering in `update()` (critical -- wrong order causes egui panic):\n1. `self.drawer.show(...)` -- registers `TopBottomPanel::bottom(\"hsk.drawer\")` (height 220px, only if open) and the affordance button inside it.\n2. `self.bottom_rail.show(...)` -- registers `TopBottomPanel::bottom(\"hsk.bottom_rail\")` (32px, always).\n3. `CentralPanel::default().show(...)` -- claims remaining space.\n\nResize handle: The drawer top edge must be draggable to resize height. Implement by sensing `egui::Sense::drag()` on a 4px-tall invisible strip at the very top of the drawer panel. On drag delta y, update `self.height = (self.height - delta.y).clamp(100.0, 480.0)`.\n\nAccessKit requirements:\n- Affordance tab button: id `\"hsk.drawer.affordance\"`, Role::Button, actions: [Action::Click].\n- Drawer panel container: id `\"hsk.drawer.shelf\"`, Role::Group.\n- Each card: id `\"hsk.drawer.card.{kind_snake_case}\"` (e.g. `\"hsk.drawer.card.agenda\"`), Role::Button, actions: [Action::Click]. Label: `\"{title} ({badge_count})\"`.\n- Resize handle strip: id `\"hsk.drawer.resize_handle\"`, Role::Slider (semantically closest for a resize handle), actions: [Action::SetValue].",
+    "allowed_paths": [
+      "src/frontend/drawer/**",
+      "src/frontend/shell/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-023-1: The drawer affordance tab is always visible in the bottom-right corner of the shell window whether the drawer is open or collapsed.",
+      "AC-023-2: Clicking the affordance tab toggles the drawer between open (220px default height) and collapsed (hidden panel, affordance only).",
+      "AC-023-3: When open, the drawer renders a horizontally-scrollable card shelf containing exactly four cards: Agenda, Mail, Lists, Notes in that order.",
+      "AC-023-4: Each card shows a title, a badge count (integer), and a one-line subtitle. When data is loading the card shows a loading indicator. When the fetch fails the card shows an error string without crashing the shell.",
+      "AC-023-5: The Agenda card fetches today's calendar items from `GET /workspaces/{wsid}/loom/views/calendar` against the real Postgres backend when a workspace is active. Badge count equals the number of items due today.",
+      "AC-023-6: The Lists card fetches count from `GET /workspaces/{wsid}/loom/views/table?content_type=list&limit=1` and displays `response.total`. The Notes card does the same with `content_type=note`.",
+      "AC-023-7: The Mail card shows badge 0 and a 'Coming soon' tooltip; no backend call is made for Mail.",
+      "AC-023-8: The drawer height is user-resizable by dragging the top edge between 100px and 480px.",
+      "AC-023-9: When the drawer is open it does NOT overlap the tile pane area; the docked tile area shrinks upward to accommodate the drawer height.",
+      "AC-023-10: All drawer interactive widgets have stable AccessKit ids, correct roles, and at least one action (verified by kittest AccessKit tree dump).",
+      "AC-023-11: Panel registration order is correct: drawer bottom panel registered before rail bottom panel before CentralPanel. `cargo build` produces no egui ordering panic.",
+      "AC-023-12: Clicking the Agenda, Lists, or Notes card triggers the registered `on_card_click` callback (or equivalent AppState event) to open the corresponding pane view. Mail card click triggers a tooltip, not a navigation."
+    ],
+    "proof_targets": [
+      "PROOF-023-1 (unit test): `cargo test -p frontend drawer::card` passes testing: (a) `DrawerCard::show` returns true on simulated click, false otherwise; (b) `DrawerCardKind` Display values are `\"Agenda\"`, `\"Mail\"`, `\"Lists\"`, `\"Notes\"`.",
+      "PROOF-023-2 (kittest / visual): Kittest harness with a mocked `app_state` (active_workspace_id = Some(\"test-ws\"), mocked HTTP responses returning canned JSON). Assert: (a) affordance button rendered; (b) clicking affordance sets `drawer.open = true`; (c) four card widgets rendered with correct labels; (d) clicking the Agenda card fires the on-click handler; (e) clicking Mail card does NOT fire a navigation handler.",
+      "PROOF-023-3 (integration, real PG): With a live handshake_core server and a test workspace that has at least one loom block with content_type='list': open the drawer and assert the Lists card badge count >= 1 within 3 seconds. `cargo test -p frontend --test drawer_integration -- --ignored` (ignored by default, enabled in CI with PG env). Output: test passes.",
+      "PROOF-023-4 (AccessKit): Kittest AccessKit tree dump asserts: `hsk.drawer.affordance`, `hsk.drawer.shelf`, `hsk.drawer.card.agenda`, `hsk.drawer.card.mail`, `hsk.drawer.card.lists`, `hsk.drawer.card.notes`, `hsk.drawer.resize_handle` all present with non-None NodeIds and correct roles.",
+      "PROOF-023-5 (build): `cargo build --bin handshake_native` succeeds with zero errors and no egui panel ordering panic in debug run."
+    ],
+    "implementation_notes": [
+      "Panel registration order is the single most critical implementation detail. In `App::update()` call self.drawer.show() first, then self.bottom_rail.show(), then CentralPanel. Any other order causes an egui panic at runtime. Add a comment `// ORDER: drawer -> rail -> central -- do not reorder` above the three calls.",
+      "The drawer panel (`TopBottomPanel::bottom(\"hsk.drawer\")`) must only be registered when `self.drawer.open == true`. When collapsed, only the affordance button is rendered -- inside the rail panel or as a standalone widget at the bottom-right of the CentralPanel via `ui.allocate_ui_at_rect`.",
+      "Alternatively the affordance can be rendered as a small absolute-positioned button overlaid on the corner using `egui::Area::new(\"hsk.drawer.affordance_area\").anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-4.0, -36.0))`. This avoids needing to share the rail panel. Use whichever approach keeps the affordance visible in both open and closed states without conflicting with panel allocations.",
+      "The horizontal card shelf uses `egui::ScrollArea::horizontal().show(ui, |ui| { ui.horizontal(|ui| { for card in &self.cards { card.show(ui); } }); })`. Card width is fixed at 180px; use `ui.set_min_width(180.0)` inside the card Frame.",
+      "Async data fetching: use a `std::sync::mpsc` channel or `tokio::sync::oneshot` to receive fetch results from a background task. On drawer open, if data is stale, spawn a fetch task via the existing AppState async executor (from MT-005). On each `update()` call, drain the channel and update card state. Do not block the UI thread.",
+      "The LoomViewResponse JSON shape from `GET /workspaces/{wsid}/loom/views/table` is `{ \"blocks\": [...], \"total\": N }`. Parse `total` as `u32`. The calendar view shape is `{ \"blocks\": [...], \"total\": N }` with each block having a `due_date` field in `YYYY-MM-DD` format. Filter client-side for `due_date == today_str` after the fetch.",
+      "Mail card: do NOT add a backend call. Set `badge_count: 0`, `subtitle: \"Coming soon\"`, `loading: false`. On click, use `egui::show_tooltip_text(ctx, egui::Id::new(\"hsk.mail.tooltip\"), \"Mail is not available yet\")` instead of navigating.",
+      "Cards are right-aligned in the shelf -- this means the shelf's `ScrollArea` scrolls LEFT by default to show the rightmost card first. Implement by reversing the card render order (`self.cards.iter().rev()`) OR by calling `scroll_area.scroll_to_cursor(Some(egui::Align::RIGHT))` on open. Simplest approach: render in reverse order so Agenda is rightmost (but labeled first in the list).",
+      "Resize handle: add a 4px `ui.allocate_space(egui::vec2(ui.available_width(), 4.0))` at the top of the drawer panel and call `ui.interact(rect, egui::Id::new(\"hsk.drawer.resize\"), egui::Sense::drag())`. On `response.dragged()`, update `self.height -= response.drag_delta().y`.",
+      "The `DrawerCardKind` snake_case names for AccessKit ids: Agenda->`agenda`, Mail->`mail`, Lists->`lists`, Notes->`notes`."
+    ],
+    "ports_from_react": [
+      "app/src/components/AiJobsDrawer.tsx -- reference for the open/close FAB+drawer pattern (FAB affordance visible when closed, full aside when open). Port the open/close toggle state and the header structure; do NOT port the AI jobs content.",
+      "app/src/components/operator/Ans001TimelineDrawer.tsx -- reference for the drawer-as-aside pattern with a header, refresh, and close button. The horizontal card shelf is new (no React equivalent); design is native-first.",
+      "app/src/components/LoomDailyJournalPanel.tsx -- reference for how the Agenda card should fetch today's journal/calendar blocks using `openDailyJournal` (backend: `PUT /workspaces/:workspace_id/loom/journals/:journal_date`). The Agenda card may use this endpoint instead of the calendar view as a simpler data source for the subtitle line.",
+      "app/src/components/LoomCalendarView.tsx -- reference for what the Agenda card links to (the calendar view pane).",
+      "app/src/components/BlockCollectionView.tsx -- reference for what the Lists and Notes cards link to (a filtered block collection view)."
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{wsid}/loom/views/calendar -- fetches calendar blocks; filter client-side for today's date. Backend: `handshake_core src/api/loom.rs` route `query_loom_view` with `view_type=calendar`.",
+      "GET /workspaces/{wsid}/loom/views/table?content_type=list&limit=1 -- fetches total count of list blocks. Backend: `handshake_core src/api/loom.rs` route `query_loom_view` with `view_type=table`, query params `content_type` and `limit`.",
+      "GET /workspaces/{wsid}/loom/views/table?content_type=note&limit=1 -- fetches total count of note blocks. Same backend route.",
+      "PUT /workspaces/{wsid}/loom/journals/{today_date} -- optional alternative data source for Agenda subtitle (today's daily journal block). Backend: `handshake_core src/api/loom.rs` route `open_daily_journal`."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS: all four cards and the affordance tab must have stable AccessKit ids and roles so swarm agents can discover the drawer state and card counts without screen-reading.",
+    "HBR-SWARM: card data (badge counts, subtitles) must be readable from AppState without acquiring UI-thread locks; use a read-safe projection field updated on the UI thread from background fetch results.",
+    "HBR-QUIET: the drawer must not steal focus or pop any window when it opens; opening the drawer must be initiated only by explicit user or agent action on the affordance.",
+    "HBR-INT: the fetch calls to calendar and table view endpoints must have integration tests (marked `#[ignore]` by default, enabled with a real PG URL env var) per PROOF-023-3.",
+    "HBR-MAN: the drawer open/close state and card data loading state must be exposed in the AppState debug surface (from MT-011 or equivalent) so a no-context model can inspect drawer state from outside the UI."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-023-A: Panel ordering panic -- if drawer registers its bottom panel AFTER the rail panel or AFTER CentralPanel, egui panics at runtime. This is the highest probability failure.",
+      "RISK-023-B: When the drawer is open the combined panel height (drawer 220px + rail 32px) may exceed the window height on small screens, making the CentralPanel area zero or negative, which crashes egui.",
+      "RISK-023-C: The fetch for Agenda/Lists/Notes blocks the UI thread if done synchronously, causing visible frame stalls and HBR-QUIET violation.",
+      "RISK-023-D: The LoomViewResponse `total` field is used as badge count but the API may return `null` or omit the field if no blocks exist, causing a parse error.",
+      "RISK-023-E: Card click routing conflicts: clicking a card triggers both the `DrawerCard.show() -> bool` return value AND a potential drag-detect on the card Frame, causing double-fire navigation.",
+      "RISK-023-F: Right-alignment of the card shelf via reversed render order looks correct visually but causes the AccessKit tree to list cards in reverse order, confusing swarm agents that expect Agenda first."
+    ],
+    "minimum_controls": [
+      "CONTROL-023-A: AC-023-11 and PROOF-023-5 both gate on `cargo build` with no ordering panic; coder MUST do a debug run before marking the MT complete. The comment `// ORDER: drawer -> rail -> central` is a required code artifact.",
+      "CONTROL-023-B: Clamp drawer height: `self.height = self.height.clamp(100.0, (ctx.available_rect().height() - 32.0 - 40.0).max(100.0))` on every `update()` call to prevent combined height exceeding available space.",
+      "CONTROL-023-C: Async fetch is mandated in implementation notes via mpsc channel or tokio oneshot; validator must grep for blocking `std::thread::sleep` or synchronous HTTP calls and reject if found.",
+      "CONTROL-023-D: Parse `total` with `.and_then(|v| v.as_u64()).unwrap_or(0)` so a missing or null field defaults to 0 without error.",
+      "CONTROL-023-E: Use `ui.interact(card_rect, id, Sense::click())` exclusively for click detection; do not combine with Sense::drag on the same rect.",
+      "CONTROL-023-F: Store cards in logical order (Agenda, Mail, Lists, Notes) in the Vec; for AccessKit tree traversal use the Vec order. For visual right-to-left display, use `egui::Layout::right_to_left(Align::TOP)` rather than reversing the Vec."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification upholds the first reviewer: all 12 acceptance criteria map to real code and live-tree/wire-capture proof; the contract's binds_backend_api (/loom/views/table, /loom/views/calendar, content_type=list, response.total) was independently confirmed FABRICATED against handshake_core, and the coder's documented deviation to the verified surfaces (views/all?content_type=note|view_def, PUT /loom/journals/{today}) is the correct, honest MT-022 handling with no spec-realism escape.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-023.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/stash_shelf.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/backend_client.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_stash_shelf.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_drawer_integration.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/loom.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/storage/loom.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC-023-1: Affordance tab always visible (open or collapsed)",
+        "status": "MET",
+        "evidence": "stash_shelf.rs:781 show_affordance renders a RIGHT_BOTTOM-anchored egui::Area Button at fixed NodeId 32, called unconditionally in app.rs:1844 drive_drawer step 5. Live-tree test affordance_present_when_collapsed_and_drawer_nodes_absent (test_stash_shelf.rs:51) asserts the affordance node present while collapsed; open_drawer_shows_seven_nodes_with_correct_roles asserts it present when open."
+      },
+      {
+        "criterion": "AC-023-2: Clicking affordance toggles open (220px default) / collapsed",
+        "status": "MET",
+        "evidence": "app.rs:1844-1846 flips bottom_drawer_open on affordance click; DRAWER_DEFAULT_HEIGHT=220.0 (stash_shelf.rs:113). Live click-by-label test clicking_affordance_toggles_open_state (test_stash_shelf.rs:204) opens then closes via the real AccessKit labels 'Open stash drawer'/'Close stash drawer'."
+      },
+      {
+        "criterion": "AC-023-3: Open drawer shows horizontally-scrollable shelf with exactly four cards Agenda/Mail/Lists/Notes in order",
+        "status": "MET",
+        "evidence": "show_open_panel (stash_shelf.rs:902) wraps a ScrollArea::horizontal over self.cards, seeded from DrawerCardKind::all() in fixed order (stash_shelf.rs:744). CONTROL-023-F honored: visual right-to-left layout (Align::Min) WITHOUT a Vec reversal, so the AccessKit tree keeps logical order. drawer_debug_state test:276 asserts titles == [Agenda,Mail,Lists,Notes]; fresh_shelf_has_four_cards_in_order_at_default_height:1066 confirms the Vec order."
+      },
+      {
+        "criterion": "AC-023-4: Each card shows title, badge count, subtitle; loading indicator while loading; error string on failure without crashing",
+        "status": "MET",
+        "evidence": "DrawerCard::show (stash_shelf.rs:586-598) renders Loading…/Error:{err}/subtitle branches; apply_result (stash_shelf.rs:441) sets error on Err without panic (apply_err_result_sets_error_without_crashing:1048). fetch_view_count (backend_client.rs:914) defaults missing/null blocks to 0 (CONTROL-023-D), never an error."
+      },
+      {
+        "criterion": "AC-023-5: Agenda fetches today's calendar items from real Postgres when workspace active",
+        "status": "MET",
+        "evidence": "Contract endpoint /loom/views/calendar independently CONFIRMED FABRICATED: parse_view_type (api/loom.rs:3107-3113) accepts only all/unlinked/sorted/pins/favorites. Coder used the contract's own ports_from_react alternative PUT /workspaces/:ws/loom/journals/:journal_date -> open_daily_journal (router api/loom.rs:85-86, handler :502), independently verified as a real PUT route. fetch_agenda (app.rs:2180) fires it against the real backend; today_utc_ymd (app.rs:601) computes the UTC date via the Hinnant civil-from-days algorithm. Honest, disclosed deviation."
+      },
+      {
+        "criterion": "AC-023-6: Lists/Notes fetch count from views/table?content_type=list/note and display total",
+        "status": "MET",
+        "evidence": "Contract surface independently CONFIRMED FABRICATED: LoomBlockContentType (storage/loom.rs:41-56) has NO 'list' variant (valid: note/file/annotated_file/tag_hub/journal/canvas/view_def); LoomViewResponse::All { blocks } (api/loom.rs:3099) has NO 'total' field (count = blocks.len(), loom.rs:3099-3102). Coder mapped Lists->view_def, Notes->note via GET /loom/views/all?content_type=<ct> (backend_client.rs:853-862, DrawerDataKind::content_type :790-798) parsing blocks.len() (fetch_view_count :908-925). Proven on the wire by the non-ignored e2e drawer_count_spawn_sends_real_get_and_parses_blocks_len (backend_client.rs:1610)."
+      },
+      {
+        "criterion": "AC-023-7: Mail shows badge 0 + 'Coming soon' tooltip; no backend call",
+        "status": "MET",
+        "evidence": "DrawerCard::new(Mail) seeds badge 0 / 'Coming soon' (stash_shelf.rs:410-418); fetches_data()==false for Mail (stash_shelf.rs:214, only_mail_skips_data_fetch:1018); on_hover_text 'Mail is not available yet' (stash_shelf.rs:614). clicking_mail_card_does_not_navigate (test_stash_shelf.rs:170) asserts tab count unchanged after a live click."
+      },
+      {
+        "criterion": "AC-023-8: Drawer height user-resizable by dragging top edge between 100px and 480px",
+        "status": "MET",
+        "evidence": "show_open_panel (stash_shelf.rs:847-859) senses a 4px Sense::drag strip; height -= drag_delta().y clamped DRAWER_MIN_HEIGHT(100)..DRAWER_MAX_HEIGHT(480). Resize node carries Role::Slider + Action::SetValue + numeric min/max (stash_shelf.rs:879-887); live-tree asserts the Slider role (test_stash_shelf.rs:101)."
+      },
+      {
+        "criterion": "AC-023-9: Open drawer does NOT overlap tile area; tile area shrinks upward",
+        "status": "MET",
+        "evidence": "Drawer is a TopBottomPanel::bottom('hsk.drawer') registered in drive_drawer (app.rs:1834) which runs at ui() line 4076 BEFORE CentralPanel (app.rs:4227); egui's panel model carves the panel's space from the central region, never overlaps. clamp_height (stash_shelf.rs:772) prevents the drawer+rail+status from collapsing the CentralPanel (RISK-023-B); clamp_height_keeps_room_for_central_panel:1082 + clamp_height_respects_max_on_a_large_window:1093 prove the clamp."
+      },
+      {
+        "criterion": "AC-023-10: All drawer interactive widgets have stable AccessKit ids, roles, and >=1 action (kittest tree dump)",
+        "status": "MET",
+        "evidence": "7 fixed nodes (band 32..=38) registered in DECLARED_IDENTITIES (registry.rs:478-505, collision-checked). open_drawer_shows_seven_nodes_with_correct_roles (test_stash_shelf.rs:79) asserts affordance/cards=Button, shelf=Group, resize=Slider via the live AccessKit tree; resize carries Action::SetValue. open_drawer_frame_has_no_unnamed_interactive_nodes:240 passes the MT-025 naming gate with the drawer open."
+      },
+      {
+        "criterion": "AC-023-11: Panel registration order correct (drawer before rail before central); no egui ordering panic",
+        "status": "MET",
+        "evidence": "The contract's literal 'drawer->rail->central' assumed an egui stacking convention OPPOSITE to this codebase; the coder correctly registers the drawer AFTER the rail (drive_search_rail at ui() :4068, drive_drawer at :4076) so it stacks ABOVE it, documented at stash_shelf.rs:32-40 and the '// ORDER:' comment app.rs:1831 (CONTROL-023-A artifact present). open_and_close_many_frames_without_ordering_panic (test_stash_shelf.rs:222) runs the REAL update path across many open/closed frames with no unwind; ground-truth confirms compile+suite green."
+      },
+      {
+        "criterion": "AC-023-12: Clicking Agenda/Lists/Notes opens the corresponding pane; Mail triggers tooltip not navigation",
+        "status": "MET",
+        "evidence": "DrawerEvent::OpenCard routed to open_drawer_card_pane (app.rs:1853-1855, 2192) -> open_content_on_active_pane (Agenda->LoomDailyJournal, Lists->LoomBlock+view_def, Notes->LoomBlock+note), the SAME real pane primitive the palette/menu use — not a fake nav. Mail->MailTooltip is a no-op nav (app.rs:1857-1861). clicking_agenda_card_opens_a_pane (test_stash_shelf.rs:135) asserts a tab is inserted; clicking_mail_card_does_not_navigate asserts the tab count is unchanged."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Grep of the required-behavior path (stash_shelf.rs, backend_client.rs MT-023 region) found NO todo!/unimplemented!/unreachable!/stub-return reachable from the behavior MT-023 must deliver. The ConvertArtifact disabled item is MT-024 action-menu surface, not an MT-023 required path. Real-resource claim (Postgres-backed Loom view-count + daily-journal HTTP API) is proven NOT mock-only by the non-ignored e2e drawer_count_spawn_sends_real_get_and_parses_blocks_len (backend_client.rs:1610): it binds a real std::net::TcpListener, drives the production fetch_count spawn path (dispatch -> tokio spawn -> reqwest -> parse -> delivery cell), captures the exact wire request line 'GET /workspaces/ws1/loom/views/all?content_type=note HTTP/1.1', and parses blocks.len()=2 from the verified LoomViewResponse::All shape. The #[ignore]'d PROOF-023-3 (test_drawer_integration.rs:25) exercises the SAME client against live PG and is contract-mandated to be ignore-gated (HBR-INT) — it hides no required default behavior, since the off-thread fetch path and the render/click/AccessKit path are both covered by non-ignored tests. The contract's binds_backend_api endpoints (/loom/views/table, /loom/views/calendar, content_type=list, response.total) were INDEPENDENTLY re-verified FABRICATED against handshake_core (api/loom.rs:3107 parse_view_type; storage/loom.rs:41 LoomBlockContentType with no list variant; api/loom.rs:3099 LoomViewResponse::All has no total field; api/loom.rs:85 PUT journals route real); the coder's documented deviation to the real verified surfaces is the correct, honest handling of a stale contract — the MT-022 lesson the operator flagged HIGH-priority. Implementer self-certification (lifecycle PENDING) is NOT a FAIL per operator directive; this review IS the independent certification."
+    },
+    "concerns_non_blocking": [
+      "File layout deviates from the contract's 'EXACT FILES TO CREATE' (src/frontend/drawer/{mod,stash_shelf,card}.rs + src/frontend/shell/mod.rs). The real implementation lives in one src/frontend/handshake_native/src/stash_shelf.rs plus backend_client.rs + app.rs, consistent with the established crate structure of the WP (no src/frontend/drawer/ or shell/ module tree exists; the contract's path skeleton predates the actual crate). Functionally complete and within the allowed_paths spirit; not a code FAIL.",
+      "Agenda badge semantics differ from the contract's 'count of items due today': the journal endpoint returns a single daily-journal block, so badge=1 if today's journal has a non-empty title else 0 (backend_client.rs:945-952). This is an honest mapping given no calendar/due-date surface exists in the backend; the contract's data source itself was fabricated. Worth noting for a future true 'due-today count' WP if a LoomCalendarView surface is added.",
+      "MT-024 content (overflow action menu, DrawerActionClient, confirm-discard) is co-committed with MT-023 in the same commit 4ae7dfb1 and shares the same files. It does not weaken MT-023; the MT-023 surfaces are independently testable and tested. Scope-bleed is a paperwork concern only, not a code FAIL.",
+      "Repo-governance paperwork (MT-023.json lifecycle.status PENDING, validator_verdict PENDING, implementer self-certification) is noted but explicitly NOT a FAIL reason per the operator directive; this review is the independent certification (Spec-Realism sub-rule 3 satisfied)."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

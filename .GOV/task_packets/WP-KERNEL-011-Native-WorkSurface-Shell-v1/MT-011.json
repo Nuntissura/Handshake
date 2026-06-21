@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-011",
+  "title": "C3-MT-011-TopProjectTabs",
+  "group": "C3 Navigation layers",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-011.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006"
+    ],
+    "blocks": [
+      "MT-013"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Implement the top project-tabs bar — a horizontal strip of clickable tabs, one per Handshake workspace (project), rendered at the top of the shell above the pane grid. Switching a project tab restores that project's saved pane layout (not the files/documents inside the panes — those are pane-local state). This is distinct from pane-local tabs (MT-013) and the module switcher (MT-012).\n\nGoal and expected diff shape: create src/frontend/navigation/project_tabs.rs exporting a ProjectTabBar widget; wire it into src/frontend/shell.rs App struct so it sits between the header bar and the pane grid; connect it to the WorkbenchLayoutStore introduced by MT-006 (layout persistence) to trigger project-switch layout restore.\n\nExact files to create/edit:\n  - CREATE: src/frontend/navigation/project_tabs.rs\n  - CREATE: src/frontend/navigation/mod.rs (if it does not exist yet; otherwise add pub mod project_tabs)\n  - EDIT: src/frontend/shell.rs — call ProjectTabBar::show() in the main egui top panel, forward project_switched callbacks to the layout store\n  - EDIT: src/frontend/state/app_state.rs (or equivalent AppState struct from MT-005) — add active_project_id: String field and projects: Vec<ProjectItem> field\n\nData types (mirror the React originals, name them identically in Rust):\n  - ProjectItem { id: String, name: String }\n  - active_project_id: String (matches the activeProjectId state in App.tsx line 574)\n\nBackend binding — on startup and on refresh, call the REST endpoint GET /workspaces (api.ts line 733: listWorkspaces -> GET http://127.0.0.1:37501/workspaces) which returns Vec<Workspace> where Workspace has { id, name, created_at, updated_at }. Map each to ProjectItem { id, name }. In native Rust use the existing handshake_core HTTP client or reqwest (already in Cargo if present) for this call. Do NOT rebuild any backend logic.\n\nStep-by-step implementation notes:\n  1. In src/frontend/navigation/project_tabs.rs define: struct ProjectTabBar { projects: Vec<ProjectItem>, active_id: String } with a fn show(&mut self, ui: &mut egui::Ui) -> Option<String> that returns Some(project_id) when the user clicks a different tab.\n  2. Render using ui.horizontal(|ui| { for project in &self.projects { let active = project.id == self.active_id; if ui.selectable_label(active, &project.name).clicked() { result = Some(project.id.clone()); } } }).\n  3. Every tab button MUST receive an AccessKit author_id via egui's sense/response layer: call response.widget_info(egui::WidgetInfo::selected(egui::WidgetType::Button, ui.is_enabled(), active, &project.name)) and set a stable id using ui.push_id(&project.id, ...) so AccessKit picks it up as a stable node. The AccessKit role is Button with Toggle action.\n  4. In shell.rs App::update(): call project_tabs.show(ui) inside egui::TopBottomPanel::top(\"project-tabs\"). If a new project_id is returned, call app_state.switch_project(new_id) which: (a) stores active_project_id, (b) saves the current pane layout for the old project via WorkbenchLayoutStore::save(old_id, layout) (reuse MT-006 store), (c) loads the stored layout for the new project via WorkbenchLayoutStore::load(new_id) and applies it, falling back to default layout if absent.\n  5. On first load fetch workspaces from GET /workspaces; if the list is empty show a single placeholder tab 'No projects'. On error keep the previous list.\n  6. Add a refresh trigger: a channel or flag that the WorkspaceSidebar (future MT) can send to re-fetch the workspace list (matches the refreshKey integer in App.tsx line 573).\n\nDependencies / unblock conditions:\n  - MT-005 (typed pane registry / AppState skeleton) must exist so app_state.rs fields can be added.\n  - MT-006 (layout persistence / WorkbenchLayoutStore) must exist so project-switch can save+restore layouts.\n  - Neither MT-007 (pop-out) nor MT-008+ are required by this MT.\n\nRisk if missed: no project isolation; switching context loses or corrupts pane layout; agents cannot navigate between projects by stable id.",
+    "allowed_paths": [
+      "src/frontend/navigation/project_tabs.rs",
+      "src/frontend/navigation/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/state/app_state.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "A horizontal project-tab strip renders at the top of the shell window above the pane grid with one tab per workspace returned by GET /workspaces.",
+      "Clicking a project tab that is not active switches active_project_id, saves the current layout for the previous project, and restores the stored layout for the new project (or default layout if none stored).",
+      "Switching back to the previous project restores the layout that was saved when leaving it.",
+      "The active tab is visually distinguished (egui selectable_label active=true or equivalent theming).",
+      "Every project tab button has a stable AccessKit author_id derived from project.id, role=Button, and a Toggle/Click action detectable by an accessibility consumer.",
+      "When GET /workspaces returns an empty list, a single disabled 'No projects' tab is shown without crashing.",
+      "When the backend is unreachable at startup, the previous workspace list is retained and an inline error label is shown."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend -- navigation::project_tabs — unit test: given projects=[{id:'a',name:'Alpha'},{id:'b',name:'Beta'}] and active_id='a', clicking 'Beta' returns Some('b').",
+      "cargo test -p handshake_frontend -- navigation::project_tabs::layout_restore — integration test with a real PostgreSQL WorkbenchLayoutStore mock: switch from project 'a' to 'b', assert layout for 'a' is saved and layout for 'b' (previously stored) is applied to pane state.",
+      "egui_kittest visual harness: render ProjectTabBar with 3 projects, assert 3 selectable_label nodes are painted, assert active tab carries selected=true widget info.",
+      "AccessKit consumer snapshot (in-process): serialize the UI tree to JSON after render, assert a node with stable_id='project-tab-{id}' exists with role=Button for each project."
+    ],
+    "implementation_notes": [
+      "Use ui.push_id(project.id, |ui| { let response = ui.selectable_label(active, &name); ... }) to generate stable AccessKit node ids derived from project.id, not from frame counters.",
+      "ProjectTabBar should own a tokio channel receiver for workspace list refresh events; when a message arrives call fetch_workspaces() again.",
+      "The selectProject logic in App.tsx (line 1197-1210) resets the entire layout to defaultWorkbenchLayoutState(projectId) on switch; mirror this: load from store, fall back to default, never carry over the old project's open documents.",
+      "Keep the tab strip horizontally scrollable (ui.scroll_area or egui ScrollArea wrapping the horizontal layout) if the number of projects exceeds the visible width, with a 24px minimum tab width.",
+      "Tab label uses project.name; truncate with ellipsis at 120px if needed (egui::Label::truncate).",
+      "Paper-strip aesthetic: slim tab height ~24px, no gap between tabs, underline or background fill for active."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx — ProjectItem type (line 102-105), projects state (line 573), activeProjectId state (line 574), selectProject() function (lines 1197-1210), projects section in left-rail render (lines 1982-2001), listWorkspaces() call (lines 725-742)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces — returns Workspace[] (api.ts line 733); maps to ProjectItem[] in native shell",
+      "GET /workspaces/{id}/workbench/layout — load layout on project switch (api.ts line 1553)",
+      "PUT /workspaces/{id}/workbench/layout — save layout before switching away (api.ts line 1559)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Unstable AccessKit node ids (frame-counter derived) break agent targeting after a re-render.",
+      "Layout save race: user clicks a new project while the previous layout save is still in flight, overwriting the wrong workspace.",
+      "GET /workspaces timeout on startup blocks the entire shell render loop.",
+      "Tab strip overflow with many projects causes horizontal clipping with no scroll affordance.",
+      "Default layout for a new project is hardcoded and not idiomatic per this project's workspace settings."
+    ],
+    "minimum_controls": [
+      "Use ui.push_id(project.id, ...) — never egui auto-id — for every tab button; enforce with a compile-time or test assertion that no tab response uses a frame-derived id.",
+      "Layout save must be async and non-blocking; project switch is immediate, save is fire-and-forget with error logging; use MT-006's retry queue.",
+      "Workspace list fetch must be spawned to a background async task; shell renders with a loading state or cached list while the fetch is in flight.",
+      "Wrap the tab horizontal layout in an egui ScrollArea with show_horizontal_scrollbar=true when rendered tabs exceed available width.",
+      "Default layout fallback must call the same defaultWorkbenchLayoutState(project_id) factory used by MT-006; not an ad-hoc inline struct."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T17:23:25.986Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independently confirmed PASS: the top project-tab strip honestly implements project-only switching with a real save-old/load-new layout restore through the reused MT-009 PostgreSQL-backed persistence path, stable AccessKit Tab/TabList ids proven in the live tree, no stubs/ignores on the required path, all 7 acceptance criteria met by substantive end-to-end tests.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-011.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/project_tabs.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (switch_project/save_layout_now/reset_to_default_layout/drive_layout_persistence/load_layout/poll_workspaces, constructor fetch spawn at 677, project-tabs panel wiring at 4024)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs (pub mod project_tabs)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_project_tabs.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs (MT-011 DECLARED_IDENTITIES diff)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs (21->23 snapshot diff)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/backend_client.rs (WorkbenchLayoutClient real reqwest GET/PUT layout transport)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "Horizontal project-tab strip renders at top above pane grid, one tab per /workspaces result.",
+        "status": "MET",
+        "evidence": "project_tabs.rs show() (line 198) paints a horizontal ScrollArea of render_tab() per project; app.rs:4024 wires it into TopBottomPanel::top(\"handshake_project_tabs\").exact_height(PROJECT_TAB_BAR_HEIGHT) between the title bar and the central pane grid; default_project_tabs (app.rs:563) seeds one tab before the spawned GET /workspaces resolves; test live_tree_has_three_project_tabs_with_stable_ids_and_active_selected asserts exactly 3 painted Tab nodes."
+      },
+      {
+        "criterion": "Clicking a non-active tab switches active_project_id, saves previous project layout, restores new project layout (or default).",
+        "status": "MET",
+        "evidence": "app.rs switch_project() (line 3280) calls save_layout_now() (keyed on the CURRENT active id) at line 3285 BEFORE reset_to_default_layout() at line 3289; drive_layout_persistence (line 3547) loads the stored layout on the next frame when loaded_project_id != active_project_id. test switching_project_saves_old_and_loads_new_layout asserts a's layout (0.41/0.59) saved to the store and b's stored layout (0.2/0.9) applied; switching_to_unstored_project_uses_default_layout asserts SplitWeights::default() fallback for an unstored project, never the old project's layout."
+      },
+      {
+        "criterion": "Switching back to the previous project restores the layout saved when leaving it.",
+        "status": "MET",
+        "evidence": "Same test, lines 174-181: after a->b, switch b->a and asserts split_weights == a_weights{0.41,0.59} (the layout saved when leaving a). Real round-trip through the in-memory LayoutTransport (the same MT-009 injection seam, set via set_layout_manager)."
+      },
+      {
+        "criterion": "Active tab is visually distinguished.",
+        "status": "MET",
+        "evidence": "render_tab (project_tabs.rs:291-312) paints colors.active_bg and a bottom accent underline when is_active; the AccessKit node calls node.set_selected(true) for the active tab (line 330); live_tree test asserts active tab selected=true and inactive tabs selected=false."
+      },
+      {
+        "criterion": "Every tab has stable AccessKit author_id from project.id, role=Button/Tab, with Click/Toggle action.",
+        "status": "MET",
+        "evidence": "project_tab_egui_id derives egui::Id from the author_id STRING project-tab-{id} (project_tabs.rs:95-97), not frame counters; ui.interact at that fixed id with Sense::click() gives Action::Click/Focus; node.set_role(Role::Tab) + set_author_id(project-tab-{id}) (lines 326-333). Container project-tabs (id 50, Role::TabList) declared in accessibility/registry.rs DECLARED_IDENTITIES. Proven in the LIVE AccessKit tree by live_author_nodes assertions and the honest 21->23 snapshot bump in test_accesskit_ids.rs."
+      },
+      {
+        "criterion": "Empty workspace list shows a single disabled 'No projects' tab without crashing.",
+        "status": "MET",
+        "evidence": "show() calls render_placeholder when projects.is_empty() (line 212-213); render_placeholder (line 356) emits a NON-clickable Role::Tab with set_disabled() and author_id project-tab-none (Sense::hover only, so it does not trip the interactive-naming gate). test empty_workspace_list_shows_disabled_placeholder_without_crashing asserts the placeholder node exists, no panic, no real project tabs."
+      },
+      {
+        "criterion": "Backend unreachable at startup retains previous list and shows inline error label.",
+        "status": "MET",
+        "evidence": "apply_fetch_error (project_tabs.rs:180) sets FetchState::Error and does NOT touch self.projects; show() renders an inline colored_label when FetchState::Error (line 225-228). Production fetch_workspaces is spawned non-blocking via rt.spawn (app.rs:677) and polled by poll_workspaces (non-blocking is_finished check), so a 5s reqwest timeout never stalls the render loop. test fetch_error_retains_previous_project_list asserts both tabs retained + Error state + both nodes still in the live tree."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1 (deferred-live escape): grep of project_tabs.rs and test_project_tabs.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to'/'pending MT-' returned NO matches on the required-behavior path; no #[ignore] tests in either file. Sub-rule 2 (real-resource proof): the real PostgreSQL-backed layout store is REUSED, not rebuilt, exactly as the MT directs ('reuse MT-006 store', 'Do NOT rebuild backend logic'). The production WorkbenchLayoutClient (backend_client.rs:955) maps save/load to real reqwest PUT/GET /workspaces/:id/workbench/layout with timeouts; fetch_workspaces (project_tabs.rs:414) issues a real reqwest GET /workspaces (5s timeout) deserialized defensively via serde_json::Value, and is actually spawned in the production constructor (app.rs:677). The switch round-trip test injects the SAME in-memory LayoutTransport seam the MT-009 tests use (set via set_layout_manager) -- a contract-sanctioned isolation point, not a mock authored to dodge the real store contract. The test constructor's workspaces_handle: None is correct headless isolation, not an escape. Sub-rule 3 (self-cert): satisfied by this independent review per operator directive. The layout-restore state-recovery area (HIGH-priority) is real: save-before-switch ordering and load-on-next-frame are proven by the save-old / load-new / switch-back assertions through the real persistence manager."
+    },
+    "concerns_non_blocking": [
+      "fetch_workspaces() JSON->ProjectItem mapping (project_tabs.rs:414-448) has no dedicated unit test (implementer self-noted MINOR). The mapping is defensive (as_array guard returns Parse error, filter_map skips id-less rows, unwrap_or(id) for missing name) and is exercised indirectly via the apply_fetched/empty/error sinks it feeds. Low-cost follow-up: feed a serde_json array (incl. a malformed row) and assert the ProjectItem vector.",
+      "Contract 'EXACT FILES TO CREATE' (src/frontend/navigation/project_tabs.rs, shell.rs, state/app_state.rs) differs from the actual crate layout (src/frontend/handshake_native/src/project_tabs.rs and app.rs). This matches the established sibling-MT layout (tab_bar.rs, split_layout.rs, app.rs) rather than the contract's assumed navigation/ module; it is a paperwork/path-shape mismatch, not a code defect, and per operator directive is NOT a FAIL.",
+      "apply_fetched on an empty list does not first()-fallback the active_id (project_tabs.rs:167-176 only falls back when active is absent AND the list is non-empty); poll_workspaces then copies that stale id to active_project_id. Harmless today (placeholder renders, no crash, no switch happens) but worth a note for the future workspace-sidebar refresh MT.",
+      "MT contract lifecycle.status is still PENDING and validator_verdict PENDING (paperwork only); per operator directive this independent review IS the certification and PENDING paperwork is not a code FAIL."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

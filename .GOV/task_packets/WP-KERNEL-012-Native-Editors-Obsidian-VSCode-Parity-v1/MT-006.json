@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-006",
+  "title": "E1-MT-006-MinimapOutlineGoToLine",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-006.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-002", "MT-005"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement three navigation aids that port the React editor workbench chrome (MT-245 era) into the native editor: (1) a minimap panel on the right side of the editor showing a scaled-down view of the whole file with the current viewport highlighted, (2) an outline/heading tree panel (symbols extracted from tree-sitter: functions, classes, structs) with click-to-scroll, (3) a go-to-line palette command (Ctrl+G) that opens a numeric input and scrolls the editor. Expected diff shape: new `src/frontend/code_editor/minimap.rs`, new `src/frontend/code_editor/outline.rs`, edits to `src/frontend/code_editor/mod.rs` and `src/frontend/panels/code_editor_panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/code_editor/minimap.rs` — `Minimap` struct. `Minimap::render(ui: &mut egui::Ui, buffer: &TextBuffer, highlight_spans: &[HighlightSpan], visible_range: Range<usize>, total_lines: usize)` draws a narrow panel (default width: 80px, configurable) with one pixel row per file line (or one per N lines if file is very large — use `max(1, total_lines / panel_height_px)` as the compression ratio). Each row is colored with the average highlight color of that line's spans (or a neutral gray for unhighlighted lines). Draws a semi-transparent viewport rect over the rows corresponding to `visible_range`. Click on the minimap scrolls the editor to that line. Hover shows a tooltip with the line number.\n- CREATE `src/frontend/code_editor/outline.rs` — `OutlineProvider::compute(tree: &tree_sitter::Tree, buffer: &TextBuffer) -> Vec<OutlineItem>` where `OutlineItem { kind: OutlineKind, name: String, line: usize, indent: usize }`. `OutlineKind` enum: `Function`, `Method`, `Class`, `Struct`, `Enum`, `Constant`, `Module`. Extracts named identifiers from tree-sitter node types (e.g. for Rust: `function_item` -> name from child `identifier`, `impl_item` -> type name). `OutlinePanel::show(ui: &mut Ui, items: &[OutlineItem], on_navigate: impl FnOnce(usize))` renders a collapsible tree list; clicking an item calls `on_navigate(item.line)` to scroll the editor.\n- EDIT `src/frontend/code_editor/mod.rs` — add `outline_items: Vec<OutlineItem>` (recomputed on tree re-parse), `show_outline: bool`, `show_minimap: bool`, `goto_line_state: Option<GotoLineState>` (where `GotoLineState { input: String, parsed: Option<usize> }`). Methods: `open_goto_line()` opens the palette; Ctrl+G triggers it.\n- EDIT `src/frontend/panels/code_editor_panel.rs` — split the panel into a horizontal layout: `[outline panel (optional, left)] [editor area (center)] [minimap (optional, right)]`. The go-to-line palette renders as a modal overlay centered in the editor area (small `egui::Window`).\n\nExact crates/functions/APIs to use:\n- `egui::Painter::rect_filled` — for minimap rows and viewport indicator.\n- `egui::ScrollArea` — for the outline panel (outline can be long).\n- `egui::Window` — for the go-to-line palette modal.\n- `egui::CollapsingHeader` — for the outline tree hierarchy.\n- AccessKit: `author_id = \"code_editor_minimap\"` `Role::ScrollBar` on the minimap (clicking scrolls); `author_id = \"code_editor_outline\"` `Role::Tree` on the outline panel; `author_id = \"code_editor_goto_line\"` `Role::TextInput` on the go-to-line input.\n\nReact reference files:\n- `app/src/harness/editor_workbench_chrome_harness.tsx` — `ED-NAV-004` (prose outline panel heading tree + click-to-scroll) and `ED-NAV-006` (go-to-line inside code block from palette). The native implementation provides the same features for the code editor surface.\n- `app/src/lib/editor/editor_chrome.ts` — `DocumentChromeStatus` and the status bar; the outline panel in the native editor is analogous to the heading tree in the rich editor.\n- `app/src/harness/editor_workbench_chrome_harness.tsx` lines 9-10 — `ED-NAV-006: go-to-line inside the focused embedded code block (palette)`. Native equivalent is the go-to-line palette (Ctrl+G).\n\nStep-by-step implementation notes:\n1. Minimap: paint each row as a 1px-tall, 80px-wide rect. Color: `scope_to_color(dominant_scope_of_line, visuals)` if any highlight spans cover the line, else `visuals.window_fill()` darkened by 10%. For very large files (>5000 lines), draw one pixel per `ceil(total_lines / panel_height_px)` lines (group average color). Use `ui.input(|i| i.pointer.press_origin())` on the minimap Rect to detect click-to-scroll.\n2. Outline: use the same `TreeCursor` as `FoldProvider` (potentially share a single tree traversal for both). Compute indent by tracking depth in the TreeCursor walk.\n3. Go-to-line: open with Ctrl+G. The modal window has a single `TextEdit::singleline` pre-populated with the current cursor line. On Enter: parse the input as `usize`, subtract 1 for 0-indexing, clamp to `0..buffer.len_lines()`, set the editor scroll offset to `y_for_line(target_line)` and move the primary cursor to byte offset of that line.\n4. Layout split: use `egui::SidePanel::left(\"outline\").resizable(true).default_width(180)` for the outline and `egui::SidePanel::right(\"minimap\").resizable(false).exact_width(80)` for the minimap. The center is the main editor ScrollArea.\n5. Outline click-to-scroll: `on_navigate(line)` updates `CodeEditorPanel::scroll_to_line = Some(line)`. In the next `show()` call, if `scroll_to_line.is_some()`, compute the scroll offset and set it on the ScrollArea state via `scroll_area.scroll_to_row(...)`.\n\nDependencies/unblock conditions: MT-001 (tree-sitter tree), MT-002 (VirtualLineLayout and visible_range), MT-005 (fold region list needed to correctly compute visible line count for minimap).\nRisk if missed: Navigation in large files is poor without minimap and outline — a significant operator workflow deficiency for code review tasks.",
+    "allowed_paths": [
+      "src/frontend/code_editor/minimap.rs",
+      "src/frontend/code_editor/outline.rs",
+      "src/frontend/code_editor/mod.rs",
+      "src/frontend/panels/code_editor_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake_frontend outline_provider` passes — tests: parse 20-line Rust file with two functions, outline contains 2 OutlineItems of kind=Function with correct names and line numbers.",
+      "AC-002: `cargo test -p handshake_frontend goto_line` passes — tests: go-to-line with valid line, go-to-line clamped past end, go-to-line with non-numeric input (no crash, no navigation).",
+      "AC-003: egui_kittest screenshot shows three-panel layout: outline panel (left), editor area (center), minimap (right), all visible with correct widths.",
+      "AC-004: egui_kittest interactive test: outline panel renders at least 2 items for a Rust snippet; clicking item 1 navigates editor scroll to item 1's line (verified via AccessKit scroll position or screenshot).",
+      "AC-005: egui_kittest interactive test: Ctrl+G opens go-to-line modal (verified via AccessKit code_editor_goto_line node present); typing '5' + Enter scrolls editor to line 5.",
+      "AC-006: Minimap click at vertical midpoint scrolls editor to approximately the middle line of the buffer (within ±3 lines)."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend outline_provider` — GREEN, logged.",
+      "PT-002: `cargo test -p handshake_frontend goto_line` — GREEN, logged.",
+      "PT-003: egui_kittest screenshot `test_output/MT-006-three-panel.png` saved and pixel-verified for three distinct panel regions.",
+      "PT-004: egui_kittest test `outline_navigate` — navigate to line, verify scroll.",
+      "PT-005: egui_kittest test `goto_line_modal` — AccessKit confirms modal open and navigation."
+    ],
+    "implementation_notes": [
+      "Minimap rendering cost: for a 10k-line file at 80px panel height, we paint 80 rows of 80px each = 6400 rect calls. Use a single `egui::Shape::Vec` batch to reduce draw calls.",
+      "Outline reuse: share the tree traversal with FoldProvider — both walk the same tree. Consider a single `TreeAnalyzer::analyze(tree, buffer) -> TreeAnalysis { fold_regions, outline_items }` function called once per tree re-parse.",
+      "SidePanel memory: egui stores SidePanel state by Id. Use stable Ids: `egui::Id::new(\"code_editor_outline_panel\")` and `egui::Id::new(\"code_editor_minimap_panel\")`.",
+      "Minimap viewport indicator: use `egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30)` overlay rect covering the visible_range rows."
+    ],
+    "ports_from_react": [
+      "app/src/harness/editor_workbench_chrome_harness.tsx — ED-NAV-004 (outline heading tree with click-to-scroll) and ED-NAV-006 (go-to-line palette); these are the React reference behaviors to match.",
+      "app/src/lib/editor/editor_chrome.ts — DocumentChromeStatus pattern; the native editor emits equivalent status events for the swarm diagnostic surface."
+    ],
+    "binds_backend_api": [
+      "None — minimap, outline, and go-to-line are purely in-process. Backend code-nav (symbol lookup) is wired in MT-008."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-001: Three-panel layout reduces the center editor area below usable width on small screens. Mitigate: make outline and minimap hideable via toggle buttons; persist toggle state in egui memory.",
+      "RISK-002: Outline and fold traversal run on the same tree in the same frame — two separate TreeCursor walks. Mitigate: unify into a single `TreeAnalyzer` struct called once per buffer_version tick.",
+      "RISK-003: Go-to-line parse with user input '0' or negative — must clamp to line 0 without crashing. Mitigate: parse as i64, clamp to 1..=buffer.len_lines(), subtract 1.",
+      "RISK-004: Minimap hover tooltip creates a new egui tooltip widget every frame on hover — can accumulate if not properly managed. Mitigate: use `egui::Response::on_hover_text()` which is idempotent."
+    ],
+    "minimum_controls": [
+      "MC-001: Three-panel layout must have toggle buttons for outline and minimap — verified in screenshot AC-003.",
+      "MC-002: Unified TreeAnalyzer recommended — document in a code comment that FoldProvider and OutlineProvider share the same traversal.",
+      "MC-003: Go-to-line input must clamp and not panic — verified in AC-002."
+    ]
+  }
+}

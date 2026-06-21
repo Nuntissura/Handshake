@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
+    "shell_packet": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+    "gui_reference": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md",
+    "parity_source": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+    "codex_vision": ".GOV/codex/Handshake_Codex_v1.4.md#0A"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "note": "JSON contract is authority. No markdown projection generated."
+  },
+  "workflow": {
+    "lane": "KERNEL_BUILDER_FOLDED",
+    "authority": "KERNEL_BUILDER",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "depends_on_wp": "WP-KERNEL-011-Native-WorkSurface-Shell-v1"
+  },
+  "lifecycle": {
+    "status": "Ready for Dev",
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN",
+    "risk_tier": "HIGH",
+    "user_signature": "PENDING_OPERATOR_SIGNATURE",
+    "operator_execution_order": {
+      "at_utc": "2026-06-19T00:00:00Z",
+      "order": "Operator 2026-06-19: rebuild the Obsidian + VS Code clones as native Rust Handshake tools with FULL feature parity to the existing React surfaces, interconnected with EACH OTHER and with CKC + Loom. Hosted in the WP-KERNEL-011 native shell. Reuse the existing Rust backend (do not rebuild it). As many MTs as needed, each executable by a small no-context local model. Minimal governance paperwork."
+    }
+  },
+  "scope": {
+    "summary": "Rebuild, as native Rust Handshake tools hosted in the WP-KERNEL-011 shell, the two editor surfaces that currently exist as React (KERNEL-009 'Notes'): (1) the VS-Code-class CODE editor and (2) the Obsidian/Notion-class RICH-TEXT + knowledge editor. Achieve FULL feature parity with what KERNEL-009 already delivered in React, then make them deeply interconnect with each other and with CKC (Pillar 18/19 + KERNEL-005) and Loom (Pillar 7). REUSE the existing Rust backend (handshake_core: knowledge documents, loom, code-nav, CRDT, search) - do NOT rebuild backend storage/APIs. The legacy React editors (app/src) stay as the parity reference until native parity is proven, then are retired. No new future surfaces (Photoshop/Affinity/spreadsheet/engines) are built here; the editors must expose clean extension seams so those plug in later.",
+    "allowed_paths": [
+      "src/frontend/**",
+      "Cargo.toml",
+      "Cargo.lock",
+      "tests/native_editors/**",
+      "../Handshake_Artifacts/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React editors - parity reference only, do not edit)",
+      ".GOV/**",
+      "src/backend/** (reuse via existing API/IPC only; backend changes are out of scope and must be raised as a typed blocker)"
+    ],
+    "spec_anchors": [
+      "CX-003-VIS", "CX-004-VIS", "CX-005-VIS",
+      "Product Reference Pillar 3 (Monaco/code), Pillar 4 (Word/rich-text), Pillar 7 (Loom), Pillar 18/19 (Studio/Atelier/CKC)",
+      "WP-KERNEL-009 delivered feature set (parity source: MT-244..264 and the Loom/Notes MT family)"
+    ],
+    "acceptance_criteria": [
+      "CODE editor reaches parity with the existing React Monaco surface: syntax highlighting (tree-sitter), large-file performance, multi-cursor/column-select, find/replace, code folding, minimap/outline, go-to-line, and LSP (completion/hover/go-to-def/references/diagnostics). Proven against the same scenarios the React version passed.",
+      "RICH-TEXT editor reaches parity with the existing React Tiptap surface: block document model, headings/lists/tables/quotes/code-blocks, embeds (image/slideshow/album/video), wikilinks + transclusion, slash commands, properties panel, find/replace, daily notes, and save-to-format (HTML/md/txt/JSON).",
+      "Obsidian-class knowledge surface parity: local + global graph, folder tree + color labels, tags + tag hubs, pins/favorites/backlinks/unlinked, breadcrumbs, wiki-page projection, canvas board placing real Loom blocks, and block-collection views (table/Kanban/calendar).",
+      "Search parity: Loom Search v2 surface (full-text + fuzzy + semantic, graph-blended, results-as-saved-view), find-in-files, and quick-switcher integration - all bound to the existing backend.",
+      "INTERCONNECTION (the core deliverable): the two editors and CKC and Loom melt together - shared selection/clipboard/command bus across surfaces; everything is addressable as a Loom block with live backlinks; CKC media/characters/moodboards can be embedded/dragged into notes and canvas and routed to Stage; code and notes can cross-reference; one unified undo + one event-ledger across surfaces. Proven by interconnection scenario tests.",
+      "Backend reuse proven: editors read/write through the EXISTING handshake_core APIs (knowledge documents, loom, code-nav, CRDT) with no backend rewrite; any backend gap is a typed blocker, not an in-WP backend change.",
+      "Model-vision parity: every editor + knowledge action is exposed via the WP-011 AccessKit surface so a swarm agent can author/edit code and notes and drive the graph/canvas by stable id; proven.",
+      "Full-parity proof suite: a runtime suite maps each KERNEL-009-delivered feature to a passing native proof (the parity gate); performance proven on large docs; interconnection proven; zero placeholders/mocks for spec-required runtime behavior."
+    ]
+  },
+  "interconnection_contract": {
+    "principle": "CX-003-VIS / CX-004-VIS: everything melts together, everything accesses everything; handmade primitives share one selection, undo, event ledger, and model-accessibility model.",
+    "edges": [
+      "RichText <-> Code: open a code block/file from a note in the code editor; reference code symbols from notes; shared find/replace and command bus.",
+      "Editors <-> Loom: every document/block/canvas node is a Loom block with content hash + backlinks; Loom Search v2 indexes all of it; AI Loom jobs propose tags/links across surfaces.",
+      "Editors <-> CKC (Studio/Atelier/KERNEL-005): drag CKC media/characters/worldbuilding/moodboards into a note or canvas as embeds; route a note/selection to a Stage pane; CKC artifacts appear in the same library and search.",
+      "Shared substrate: one selection model, one clipboard, one command palette/registry, one undo stack scope policy, one event ledger (Flight Recorder), one AccessKit model-surface across all editor panes.",
+      "Future extension seams (designed, NOT built): image/photo editor (Photoshop/Affinity), spreadsheet, mechanical engines - all attach to the same block/selection/event/accessibility substrate."
+    ]
+  },
+  "mt_plan": {
+    "note": "Cluster plan. Each MT-*.json is authored per template and must be executable by a small no-context local model. Toolkit primitives reference the WP-KERNEL-011 MT-001 decision (egui+egui_tiles recommended). Parity is measured against the KERNEL-009 delivered feature set.",
+    "clusters": [
+      {"id": "E1", "name": "Code editor (VS Code parity)", "mt_ids": ["MT-001","MT-002","MT-003","MT-004","MT-005","MT-006","MT-007","MT-008","MT-009","MT-010"], "summary": "Text buffer (ropey) + tree-sitter highlighting; large-file virtualization; multi-cursor/column-select; find/replace + replace-in-file; code folding; minimap/outline + go-to-line; gutter (diagnostics/breakpoints); LSP client (tower-lsp-server: completion/hover/def/refs/diagnostics); diff/merge editor (side-by-side + inline); Monaco-parity keymap."},
+      {"id": "E2", "name": "Rich-text editor (Obsidian/Notion parity)", "mt_ids": ["MT-011","MT-012","MT-013","MT-014","MT-015","MT-016","MT-017","MT-018","MT-019","MT-020"], "summary": "Block document model (ProseMirror-style on ropey) + cosmic-text WYSIWYG; headings/lists/tables/quotes/code-blocks; embeds (image/slideshow/album/video NodeViews); wikilinks + transclusion; slash commands; properties panel; find/replace; daily-notes/journal; save-to-format (HTML/md/txt/JSON); draft/crash recovery."},
+      {"id": "E3", "name": "Knowledge surface / Obsidian graph (Loom)", "mt_ids": ["MT-021","MT-022","MT-023","MT-024","MT-025","MT-026","MT-027"], "summary": "Local + global graph view; folder tree + color labels; tags + tag hubs; pins/favorites/backlinks/unlinked; breadcrumbs; wiki-page projection + editable overlay; canvas board placing real Loom blocks; block-collection views (table/Kanban/calendar)."},
+      {"id": "E4", "name": "Search surfaces", "mt_ids": ["MT-028","MT-029","MT-030"], "summary": "Loom Search v2 native surface (full-text+fuzzy+semantic, graph-blended, faceted, results-as-saved-view); find-in-files (+replace-in-files preview); quick-switcher integration (open docs/blocks/symbols/MTs/WPs/manual/wiki)."},
+      {"id": "E5", "name": "Interconnection / melt-together", "mt_ids": ["MT-031","MT-032","MT-033","MT-034","MT-035","MT-036"], "summary": "Shared selection + clipboard + command bus across editors; everything-is-a-Loom-block addressing + live backlinks; CKC embeds/drag-in (media/characters/moodboards) + route-to-Stage; code<->note cross-references; one unified undo scope policy; one event-ledger (Flight Recorder) across surfaces; designed extension seams for image/spreadsheet/engines."},
+      {"id": "E6", "name": "Backend reuse wiring", "mt_ids": ["MT-037","MT-038","MT-039","MT-040"], "summary": "Bind native editors to EXISTING handshake_core APIs: knowledge documents CRUD/history/projection; loom blocks/graph/tags/views; code-nav (symbols/refs/file-lens); CRDT push/pull/conflict. No backend rewrite; gaps raised as typed blockers."},
+      {"id": "E7", "name": "Model-vision/steering parity", "mt_ids": ["MT-041","MT-042","MT-043"], "summary": "Expose every editor + knowledge + search action through the WP-011 AccessKit surface with stable author_ids; a swarm agent can create/edit a note and code and drive graph/canvas by id; in-process snapshot + action proof."},
+      {"id": "E8", "name": "Parity + interconnection proof", "mt_ids": ["MT-044","MT-045","MT-046"], "summary": "Parity proof suite mapping each KERNEL-009 delivered feature to a passing native runtime proof (the parity gate); large-document performance proof; interconnection scenario proofs (CKC->note embed, note<->code, Loom backlink/search across surfaces)."}
+    ],
+    "declared_ids": ["MT-001","MT-002","MT-003","MT-004","MT-005","MT-006","MT-007","MT-008","MT-009","MT-010","MT-011","MT-012","MT-013","MT-014","MT-015","MT-016","MT-017","MT-018","MT-019","MT-020","MT-021","MT-022","MT-023","MT-024","MT-025","MT-026","MT-027","MT-028","MT-029","MT-030","MT-031","MT-032","MT-033","MT-034","MT-035","MT-036","MT-037","MT-038","MT-039","MT-040","MT-041","MT-042","MT-043","MT-044","MT-045","MT-046"],
+    "active_id": null,
+    "next_id": "MT-001"
+  },
+  "microtasks": {
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
+    "authoring_status": "AUTHORED",
+    "authored_at_utc": "2026-06-19T00:00:00Z",
+    "authored_count": 46,
+    "authored_via": "workflow wf_3d7b88d0-301 (reviewed by KERNEL_BUILDER)"
+  },
+  "hbr": {
+    "tags_declared": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN", "HBR-STOP"],
+    "not_applicable_overrides": []
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "assumptions_to_attack": [
+      "A native Rust rich-text WYSIWYG can reach Tiptap parity (hardest gap; ProseMirror-style model is greenfield - validate early with a vertical slice).",
+      "A native code editor can reach Monaco parity incl. LSP + multi-cursor + large files (validate with the heaviest real files).",
+      "Interconnection is assumed; prove cross-surface selection/undo/event-ledger and CKC/Loom edges with real scenarios.",
+      "Backend reuse is assumed sufficient; any gap must surface as a typed blocker, not a silent backend edit.",
+      "Parity is asserted vs proven; every KERNEL-009 feature must map to a passing native proof."
+    ],
+    "minimum_controls": [
+      "Parity gate: a runtime proof per KERNEL-009-delivered feature; no placeholders/mocks for spec-required runtime behavior.",
+      "Rich-text and code editors each ship an early vertical-slice proof before full cluster build.",
+      "Interconnection edges proven by scenario tests, not asserted.",
+      "Backend untouched; gaps are typed blockers."
+    ]
+  }
+}

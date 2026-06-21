@@ -1,0 +1,114 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-011",
+  "title": "E2-MT011-BlockDocumentModel",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-011.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": ["MT-012", "MT-013", "MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019", "MT-020"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Create the ProseMirror-style block document model for the native Rust rich-text editor. This is the BRAIN of the entire E2 cluster: every other MT depends on it. The model must support a document tree of typed nodes (doc, paragraph, heading[1-3], blockquote, code_block, ordered_list, bullet_list, list_item, table, table_row, table_cell, task_item, hard_break, horizontal_rule) and inline marks (bold, italic, underline, strike, code, link, wikilink). It is built on the 'ropey' crate for O(log n) rope-backed text storage per text leaf, with a typed Transform/Step system for atomic document mutations and a bounded undo/redo history (UndoManager, default 200 steps).\n\nEXPECTED DIFF SHAPE: create new crate or module tree at src/frontend/rich_editor/document_model/ containing: mod.rs (re-exports), node.rs (BlockNode/InlineNode/NodeKind enums + Mark enum), schema.rs (compile-time schema registry, validates node/mark combinations), rope_text.rs (ropey::Rope wrapper with char-index helpers), transform.rs (Step enum: InsertText, DeleteText, InsertNode, DeleteNode, SplitNode, MergeNodes, AddMark, RemoveMark; Transaction struct collecting Steps; apply_transaction(&mut DocNode, Transaction) -> Result<TransactionReceipt>), history.rs (UndoManager: push_transaction, undo, redo, can_undo, can_redo, history capped at 200 entries), position.rs (DocPosition: resolved path through the tree = Vec<(node_index, char_offset)>; resolve(doc, absolute_offset) -> DocPosition; absolute_offset(doc, DocPosition) -> usize), selection.rs (Selection: TextSelection{anchor,head} and NodeSelection{node_path}), and doc_json.rs (DocJson: serde serialize/deserialize to/from the same JSONContent shape used by Tiptap in the React reference, schema_version = 'rich_document_v1', compatible with the backend knowledge/documents content_json field).\n\nVERTICAL-SLICE PROOF FIRST: before filling every node/mark variant, ship: paragraph node + bold/italic marks + InsertText/DeleteText/AddMark/RemoveMark steps + UndoManager + DocJson round-trip. Extend to the full set in the same MT; the acceptance criteria require all node/mark types.\n\nFILES TO CREATE:\n- src/frontend/rich_editor/document_model/mod.rs\n- src/frontend/rich_editor/document_model/node.rs\n- src/frontend/rich_editor/document_model/schema.rs\n- src/frontend/rich_editor/document_model/rope_text.rs\n- src/frontend/rich_editor/document_model/transform.rs\n- src/frontend/rich_editor/document_model/history.rs\n- src/frontend/rich_editor/document_model/position.rs\n- src/frontend/rich_editor/document_model/selection.rs\n- src/frontend/rich_editor/document_model/doc_json.rs\n- src/frontend/rich_editor/mod.rs (add pub mod document_model)\n\nCRATES TO ADD (Cargo.toml workspace member or frontend crate):\n- ropey = '1' (rope-backed text)\n- serde = { version='1', features=['derive'] }\n- serde_json = '1'\n- thiserror = '1'\n\nSTEP-BY-STEP IMPLEMENTATION NOTES:\n1. Add [dependencies] ropey, serde, serde_json, thiserror to the frontend crate Cargo.toml.\n2. Define NodeKind enum (block variants) and Mark enum (inline mark variants) in node.rs. BlockNode { kind: NodeKind, attrs: HashMap<String,serde_json::Value>, children: Vec<Child> } where Child = Block(BlockNode) | Text(TextLeaf). TextLeaf { rope: Rope, marks: Vec<Mark> }.\n3. In schema.rs, define ALLOWED_MARKS_PER_NODE as a static map; implement fn validate_node(node: &BlockNode, schema: &Schema) -> Result<(), SchemaError> checked on every transaction apply.\n4. In transform.rs, Step enum covers insert/delete text (char range into a TextLeaf's Rope), insert/delete nodes (by path), split/merge nodes, add/remove mark over char range. Transaction is Vec<Step> + metadata (actor_kind, actor_id). apply_transaction clones the doc, applies each step in order, runs schema validation; on error rolls back and returns Err. TransactionReceipt carries the inverse steps for undo.\n5. In history.rs, UndoManager stores a VecDeque<TransactionReceipt> capped at 200; undo re-applies the inverse steps; redo re-applies the forward steps.\n6. In position.rs, DocPosition is a path Vec<usize> (child indices through the tree) + char_offset: usize. resolve(doc, abs) walks the tree accumulating char lengths.\n7. In doc_json.rs, implement serde Serialize/Deserialize that maps to the Tiptap JSONContent shape: {type:'doc', content:[{type:'paragraph',content:[{type:'text',text:'...',marks:[{type:'bold'}]}]}]}. The schema_version field must equal 'rich_document_v1' (same as WP009_RICH_DOCUMENT_SCHEMA_VERSION in the React reference).\n8. Wire src/frontend/rich_editor/mod.rs to pub mod document_model.\n9. Write cargo tests (tests/native_editors/document_model_tests.rs or inline #[cfg(test)]) covering: insert text, delete text, undo/redo round-trip, add/remove mark, insert/delete block node, split paragraph, merge paragraphs, DocJson serialize then deserialize equals original doc.\n\nDEPENDENCIES: WP-KERNEL-011 shell must exist (src/frontend/ crate is bootstrapped). No prior E2 MT needed.\n\nRISK IF MISSED: Every downstream MT (MT-012 through MT-020) has no model to bind to; the entire cluster is blocked.",
+    "allowed_paths": [
+      "src/frontend/rich_editor/document_model/**",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "All node kinds compile: doc, paragraph, heading[1-3], blockquote, code_block, ordered_list, bullet_list, list_item, table, table_row, table_cell, task_item, hard_break, horizontal_rule.",
+      "All mark kinds compile: bold, italic, underline, strike, code, link, wikilink.",
+      "apply_transaction with InsertText produces the correct rope state verified by char-level assertion in a cargo test.",
+      "apply_transaction with AddMark then RemoveMark over a text range round-trips with zero marks in a cargo test.",
+      "apply_transaction returns Err and leaves the doc unchanged when a schema violation occurs (e.g. paragraph inside a text leaf), verified by cargo test.",
+      "UndoManager: after 3 transactions, undo 3 times restores the original doc state, verified by DocJson equality in a cargo test.",
+      "UndoManager caps at 200 entries: pushing 201 transactions drops the oldest, verified by cargo test.",
+      "DocJson round-trip: serialize a multi-paragraph doc with bold/italic marks to JSON and deserialize back; the result equals the original doc, verified by cargo test.",
+      "DocJson output matches the Tiptap JSONContent shape (type field = node kind string, content array, text field on text nodes, marks array with type field), verified by serde_json::Value assertion in a cargo test.",
+      "schema_version in DocJson output equals 'rich_document_v1'.",
+      "`cargo test` for the document_model module passes with 0 failures and 0 compilation errors.",
+      "No SQLite, no CDN, no external process calls anywhere in this module."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- document_model (or equivalent crate path) outputs 'test result: ok' with the test count >= 9.",
+      "Paste the full test output (lines 'test ... ok') into the validator handoff.",
+      "No `cargo check` or `cargo build` warnings about unused imports or dead code in the new module files."
+    ],
+    "implementation_notes": [
+      "Use ropey::Rope for text leaves, not String; this is what enables O(log n) insert/delete at arbitrary char positions which is mandatory for the IME and caret work in MT-012.",
+      "Keep BlockNode and TextLeaf as plain Rust structs (Clone + Debug + PartialEq) so the UndoManager can cheaply clone the doc for the undo stack. Avoid Arc<Mutex<>> at this layer; the renderer (MT-012) takes a read reference.",
+      "The Step enum inverse computation (for undo receipt) must be computed BEFORE the step is applied (capture the old content first).",
+      "DocJson's serde implementation must NOT use #[serde(flatten)] on the attrs HashMap because serde_json loses type information; instead serialize attrs as a 'attrs' key with a serde_json::Value.",
+      "schema.rs is a compile-time const table, not a runtime-loaded file; use a lazy_static or const fn approach.",
+      "The Mark enum must carry typed payloads for link (href: String) and wikilink (kind: String, value: String, label: Option<String>) because the render layer (MT-012/MT-015) needs them.",
+      "All error types use thiserror::Error derives.",
+      "AccessKit: this layer has no UI widgets; AccessKit author_ids are assigned in MT-012 which consumes the model. No AccessKit calls here.",
+      "The doc_json module must import schema_version from a single const (RICH_DOCUMENT_SCHEMA_VERSION = 'rich_document_v1') so a version bump is a one-line change."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/export_formats.ts (DocJson shape: type/content/text/marks fields, schema_version 'rich_document_v1')",
+      "app/src/lib/editor/build_editor_extensions.ts (node/mark type inventory via Tiptap StarterKit + custom extensions)",
+      "app/src/lib/editor/wikilink.ts (Mark::Wikilink payload shape: refKind, refValue, label)",
+      "app/src/lib/editor/schema_versioning.ts (WP009_RICH_DOCUMENT_SCHEMA_VERSION constant)"
+    ],
+    "binds_backend_api": [
+      "POST /knowledge/documents (createRichDocument) - content_json field must accept this module's DocJson serialization",
+      "GET /knowledge/documents/:id (loadRichDocument) - content_json field is deserialized by this module",
+      "PUT /knowledge/documents/:id/save (saveRichDocument) - content_json sent is this module's DocJson output"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Rope char-index vs byte-index confusion causes silent data corruption when non-ASCII text (CJK, emoji) is inserted.",
+      "Transaction apply partially mutates the doc then fails schema validation, leaving the doc in a corrupt intermediate state.",
+      "DocJson round-trip silently drops attributes (e.g. heading level, link href) that are not in the base serde derive.",
+      "UndoManager inverse steps computed AFTER apply (not before) cause undo to produce wrong content.",
+      "schema_version mismatch causes the backend to reject the document on first save; the editor shows a blank or 500 error.",
+      "Unlimited undo history causes OOM on documents edited for hours without a save."
+    ],
+    "minimum_controls": [
+      "All text operations must use Rope::char() / Rope::insert_char() / Rope::remove() on char indices, never byte indices; a dedicated cargo test must insert a 4-byte emoji at position 1 and verify the char count.",
+      "apply_transaction must clone the doc BEFORE applying any step and restore the clone on any Err return; verified by the schema-violation cargo test in acceptance_criteria.",
+      "DocJson serde tests must assert specific attr values (heading level attr, link href attr) survive the round-trip.",
+      "The UndoManager must compute inverse steps before each step's apply call in a deterministic order; unit test verifies undo of InsertText produces the exact pre-insert rope content.",
+      "schema_version const must equal the string 'rich_document_v1' (case-sensitive); a test must assert it equals the string literally.",
+      "UndoManager cap is tested at exactly 201 pushes; the test checks history.len() == 200 afterwards."
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-007",
+  "title": "E1-MT-007-GutterDiagnosticsBreakpoints",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-007.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-002", "MT-005"],
+    "blocks": ["MT-008"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement the editor gutter: a narrow left-margin strip that renders line numbers, diagnostic severity icons (error/warning/info sourced from backend diagnostics), fold triangles (toggle fold state from MT-005), and breakpoint toggles (click to add/remove a breakpoint; breakpoints are sent to the debug adapter protocol client when it is attached). Expected diff shape: new module `src/frontend/code_editor/gutter.rs`, edits to `src/frontend/code_editor/mod.rs` and `src/frontend/panels/code_editor_panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/code_editor/gutter.rs` — `GutterConfig { show_line_numbers: bool, show_fold_triangles: bool, show_diagnostics: bool, show_breakpoints: bool }`. `GutterMarker { line: usize, kind: GutterMarkerKind }` where `GutterMarkerKind` is an enum: `Diagnostic(DiagnosticSeverity)`, `Breakpoint`, `FoldTriangle(bool)` (bool = is_open). `Gutter::render(ui, visible_range, buffer, markers: &[GutterMarker], config: &GutterConfig, on_fold_click: impl FnMut(usize), on_breakpoint_click: impl FnMut(usize)) -> GutterResponse` — renders the gutter as a left strip. Returns `GutterResponse { fold_toggled: Option<usize>, breakpoint_toggled: Option<usize> }`. `DiagnosticSeverity` enum: `Error`, `Warning`, `Info`, `Hint`.\n- CREATE `src/frontend/code_editor/breakpoints.rs` — `BreakpointSet { lines: HashSet<usize> }`. Methods: `toggle(line)`, `iter() -> impl Iterator<Item=usize>`, `contains(line) -> bool`. Also defines `BreakpointEvent { file_path: String, line: usize, action: BreakpointAction }` where `BreakpointAction { Set, Clear }`. When a breakpoint is toggled, the `CodeEditorPanel` should publish a `BreakpointEvent` to a channel that the debug adapter client (future MT) will consume.\n- EDIT `src/frontend/code_editor/mod.rs` — add `gutter_config: GutterConfig`, `breakpoint_set: BreakpointSet`, `diagnostic_markers: Vec<GutterMarker>` to `CodeEditorPanel`. `diagnostic_markers` is populated by the LSP client (MT-008 will push diagnostics here; this MT prepares the slot). Wire `GutterResponse` from the gutter render call to `fold_set.toggle()` and `breakpoint_set.toggle()` in each frame.\n- EDIT `src/frontend/panels/code_editor_panel.rs` — render the gutter as a fixed-width left strip (default 52px: ~4 chars for line number + icon columns) using a custom painter area. Render line numbers as right-aligned gray text. Render diagnostic icons as colored dots (red for error, yellow for warning, blue for info). Render fold triangles as `▶` (collapsed) or `▼` (expanded). Render breakpoints as filled red circles.\n\nExact crates/functions/APIs to use:\n- `egui::Painter::circle_filled` — for breakpoint dots.\n- `egui::Painter::text` — for line numbers and fold triangles.\n- `egui::Painter::rect_filled` — for diagnostic severity color bars (VS Code style: a 3px left border on the line).\n- `egui::Response::on_hover_text` — for diagnostic hover tooltip (show the diagnostic message).\n- `std::sync::mpsc::channel` — for BreakpointEvent publishing to the debug adapter.\n- AccessKit: `author_id = \"code_editor_gutter\"` `Role::Group` on the gutter strip; `author_id = \"code_editor_breakpoint_{line}\"` `Role::ToggleButton` on each breakpoint toggle; `author_id = \"code_editor_diagnostic_{line}\"` `Role::StaticText` on each diagnostic marker.\n\nDiagnostics source (this MT): `diagnostic_markers` is initialized as empty. MT-008 will populate it via `CodeEditorPanel::push_diagnostics(markers: Vec<GutterMarker>)`. This MT must define the `push_diagnostics` method stub so MT-008 can call it without a re-implementation.\n\nDebug adapter integration: This MT does NOT implement the debug adapter client. It only publishes `BreakpointEvent` to a `std::sync::mpsc::Sender<BreakpointEvent>`. The receiver is a stub `None` until the debug adapter MT is implemented. Guard all send calls with `if let Some(sender) = &self.breakpoint_sender { sender.send(event).ok(); }`.\n\nReact reference files:\n- `app/src/components/operator/ProblemsView.tsx` — displays diagnostics from the backend `listProblemGroups` API. The gutter diagnostic markers in the native editor consume the same backend data (see MT-008 for the API binding).\n- `app/src/lib/monaco/code_intelligence.ts` lines 447-484 — `refreshHandshakeCodeIntelligenceMarkers`: sets Monaco marker data from backend symbol staleness. The native gutter must accept equivalent marker data from MT-008's LSP client.\n- `app/src/harness/mt249_code_intelligence_harness.tsx` lines 292-297 — `monaco.editor.getModelMarkers({ owner: 'handshake-code-intelligence' })` — proof that markers are per-editor; native equivalent is `CodeEditorPanel::diagnostic_markers`.\n\nStep-by-step implementation notes:\n1. Gutter width: compute from the number of digits in `buffer.len_lines()` using `(buffer.len_lines() as f64).log10().ceil() as usize + 1` chars, multiplied by the monospace char width from MT-003.\n2. Render order per line (left to right): breakpoint circle, fold triangle, line number, diagnostic icon. Each occupies a fixed sub-column within the gutter width.\n3. Interaction: use `ui.interact(rect, id, egui::Sense::click())` for each clickable gutter row. The entire line row in the gutter is clickable for breakpoints; only the fold triangle sub-rect is clickable for fold.\n4. Diagnostic hover: iterate `diagnostic_markers` for the hovered line; collect all messages and join with '\\n' for the hover tooltip.\n5. `push_diagnostics` method: replace `self.diagnostic_markers = markers; self.buffer_version += 1` (increment version to trigger highlight cache invalidation is not needed for diagnostics, but flushing the list is required).\n\nDependencies/unblock conditions: MT-001 (buffer, line count), MT-002 (VirtualLineLayout, visible line range — gutter must render only visible lines), MT-005 (fold_set — gutter reads fold state for fold triangle direction). MT-008 depends on the `push_diagnostics` stub defined here.\nRisk if missed: No gutter means no line numbers (poor navigation), no diagnostic visibility (operators can't see errors inline), no breakpoints (debug workflow broken).",
+    "allowed_paths": [
+      "src/frontend/code_editor/gutter.rs",
+      "src/frontend/code_editor/breakpoints.rs",
+      "src/frontend/code_editor/mod.rs",
+      "src/frontend/panels/code_editor_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake_frontend gutter` passes — tests: gutter width calculation for 1-line, 100-line, 10000-line buffer; GutterMarker list correct for a buffer with one error on line 5.",
+      "AC-002: `cargo test -p handshake_frontend breakpoint_set` passes — tests: toggle adds breakpoint, toggle again removes it, contains() returns correct state.",
+      "AC-003: egui_kittest screenshot with an error marker on line 3 shows a red dot in the gutter at row 3 (pixel color check).",
+      "AC-004: egui_kittest screenshot shows line numbers right-aligned in the gutter for a 10-line buffer (lines 1-10 visible).",
+      "AC-005: egui_kittest interactive test: click gutter at line 2 toggles a breakpoint (verified via AccessKit code_editor_breakpoint_2 ToggleButton state change).",
+      "AC-006: egui_kittest interactive test: click fold triangle at line 1 calls fold_set.toggle(0) (verified via fold state change — line 2 no longer visible in screenshot).",
+      "AC-007: `push_diagnostics([GutterMarker { line: 3, kind: Diagnostic(Error) }])` method exists and updates diagnostic_markers without panic."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend gutter` — GREEN, logged.",
+      "PT-002: `cargo test -p handshake_frontend breakpoint_set` — GREEN, logged.",
+      "PT-003: egui_kittest screenshot `test_output/MT-007-gutter-error.png` pixel-verified for red diagnostic dot.",
+      "PT-004: egui_kittest screenshot `test_output/MT-007-line-numbers.png` pixel-verified for line number text.",
+      "PT-005: egui_kittest test `gutter_breakpoint_toggle` — AccessKit ToggleButton state verified.",
+      "PT-006: egui_kittest test `gutter_fold_click` — fold state change verified in screenshot."
+    ],
+    "implementation_notes": [
+      "Gutter painter area: use `ui.painter_at(gutter_rect)` to paint inside the gutter without affecting the main editor layout.",
+      "Line number color: `visuals.weak_text_color()` — slightly dimmer than main text, matching VS Code convention.",
+      "Diagnostic icon: a 6px diameter circle at `(gutter_rect.right() - 8, y_for_line(line) + line_height / 2)`. Color: Error=Color32::RED, Warning=Color32::YELLOW, Info=Color32::from_rgb(100,149,237).",
+      "Fold triangle: render as a small right-pointing triangle (▶ U+25B6) or down-pointing (▼ U+25BC) using `painter.text()`. Unicode rendering in egui requires the font to include these glyphs — use the bundled Noto Sans or FiraMono and verify glyph support.",
+      "BreakpointEvent channel: initialize the channel in `CodeEditorPanel::new()` and store `sender: Option<mpsc::Sender<BreakpointEvent>>`. Expose a `subscribe_breakpoints() -> mpsc::Receiver<BreakpointEvent>` method for the debug adapter to call."
+    ],
+    "ports_from_react": [
+      "app/src/components/operator/ProblemsView.tsx — ProblemsView renders backend diagnostic data; the gutter markers are the inline equivalent (same data, different surface)",
+      "app/src/lib/monaco/code_intelligence.ts lines 447-484 — refreshHandshakeCodeIntelligenceMarkers shows how Monaco receives marker data from the backend; native push_diagnostics is the direct equivalent",
+      "app/src/harness/mt249_code_intelligence_harness.tsx lines 292-297 — Monaco model markers proof pattern"
+    ],
+    "binds_backend_api": [
+      "GET /api/diagnostics (via listProblemGroups) — diagnostic markers stub is prepared here; MT-008 binds the actual API call and calls push_diagnostics(). See app/src/lib/api.ts listProblemGroups function.",
+      "BreakpointEvent channel — internal IPC to debug adapter, not a backend HTTP call. Debug adapter integration is a future MT."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM", "HBR-INT"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-001: Gutter width not updated after opening a file with more digits than the previous file (e.g. 99 lines -> 1000 lines). Mitigate: recompute gutter width every frame from current `buffer.len_lines()`.",
+      "RISK-002: Fold triangle Unicode glyph missing in the bundled font — renders as a box. Mitigate: test glyph presence in CI; fall back to ASCII '>' and 'v' if not present.",
+      "RISK-003: BreakpointEvent channel send blocks if the receiver is dropped (debug adapter not yet connected). Mitigate: use `try_send` and silently discard on `Err`.",
+      "RISK-004: Diagnostic markers not cleared when a file is closed or replaced — stale markers from a previous file appear on the new file. Mitigate: call `push_diagnostics(vec![])` in `CodeEditorPanel::load_file()`."
+    ],
+    "minimum_controls": [
+      "MC-001: Gutter width recomputed each frame — verified by line number test for 10000-line buffer.",
+      "MC-002: Fold triangle glyph test in CI.",
+      "MC-003: BreakpointEvent send is `try_send` — no blocking on disconnected receiver.",
+      "MC-004: `push_diagnostics` clear test: push markers, then push empty vec, verify gutter shows no diagnostic dots."
+    ]
+  }
+}
