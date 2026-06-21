@@ -1,0 +1,212 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-004",
+  "title": "C1-MT004-WorkspaceCrateSingleBinaryInstallerScaffold",
+  "group": "C1 Toolkit + foundation",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-004.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-002",
+      "MT-003"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Wire the handshake-native crate fully into the Cargo workspace, produce a single-binary release build for Windows, scaffold a Windows installer that bundles all dependencies (toolkit runtime, wgpu render layers, fonts, managed-postgres handoff), and produce a bundled-deps policy document embedded in this contract (see implementation_notes). This MT closes the 'how does a user install Handshake?' question for the native shell. The installer scaffold in this MT is functional but not production-signed; code signing is a later concern.\n\nEXPECTED DIFF SHAPE:\n  MODIFIED:\n    Cargo.toml (root workspace) — add src/frontend/handshake_native to [workspace] members if not already present from MT-002; add [profile.release-native] for the optimized single-binary profile; add [workspace.metadata.handshake-native] section.\n  NEW:\n    src/frontend/handshake_native/Cargo.toml — add [profile.release] lto, codegen-units, panic=abort overrides; add feature = 'bundled-fonts'; add cargo-bundle metadata.\n    src/frontend/handshake_native/build.rs — compile-time font embedding + version stamping.\n    src/frontend/handshake_native/assets/fonts/Inter-Regular.ttf — bundled font (binary asset; copy from the React app's font source or from the Inter open-source release at https://github.com/rsms/inter).\n    src/frontend/handshake_native/assets/fonts/Inter-Bold.ttf — bundled font.\n    installer/windows/handshake_native.wxs — WiX 4 product file for the MSI installer scaffold.\n    installer/windows/build_installer.ps1 — PowerShell script to invoke WiX 4 toolchain and produce handshake-native-setup.msi.\n    installer/windows/BUNDLED_DEPS_POLICY.md — bundled-deps policy doc (see below).\n    tests/native_gui/test_single_binary.rs — verifies the release build has no non-system DLL deps.\n\nCARGO WORKSPACE CHANGES (root Cargo.toml):\n  Under [workspace] members, add: 'src/frontend/handshake_native'\n  Add a release profile named 'release-native':\n    [profile.release-native]\n    inherits = 'release'\n    lto = 'fat'\n    codegen-units = 1\n    panic = 'abort'\n    strip = 'symbols'    # reduces binary size\n    opt-level = 3\n  This profile is used for the installer build: `cargo build --profile release-native -p handshake-native`.\n  Do NOT modify the existing [profile.release] used by handshake_core — only add the new named profile.\n\nSINGLE-BINARY REQUIREMENTS:\n  The handshake-native.exe produced by `cargo build --profile release-native -p handshake-native` must:\n  (a) Statically link the MSVC CRT (no VCRUNTIME140.dll, MSVCP140.dll runtime deps).\n      Achieve via: in src/frontend/handshake_native/.cargo/config.toml:\n        [target.x86_64-pc-windows-msvc]\n        rustflags = [\"-C\", \"target-feature=+crt-static\"]\n  (b) Have zero non-system DLL dependencies. Allowed system DLLs: KERNEL32.dll, USER32.dll, GDI32.dll, ADVAPI32.dll, SHELL32.dll, ntdll.dll, d3d11.dll, d3d12.dll, dxgi.dll, dcomp.dll, dwmapi.dll, opengl32.dll (wgpu backends), vulkan-1.dll (optional, for Vulkan).\n  (c) Embed all fonts via include_bytes! in build.rs (feature 'bundled-fonts' ON in the installer build).\n  (d) NOT embed handshake_core or the PostgreSQL cluster — managed-postgres is handled by the handoff mechanism described below.\n\nMANAGED-POSTGRES HANDOFF POLICY:\n  The native app does NOT bundle a PostgreSQL binary. Instead, it delegates to the existing handshake_core managed-postgres lifecycle (handshake_core::managed_postgres::ManagedPostgres::ensure_running) which is already implemented in handshake_core/src/managed_postgres.rs.\n  The installer scaffold must:\n    1. Include handshake_core.exe (the backend binary) as a sibling binary in the installer payload alongside handshake-native.exe.\n    2. On install, create a Start Menu shortcut that launches handshake-native.exe (which will call a sidecar launch of handshake_core.exe before opening the window in a later MT — for MT-004, the handoff is documented, not implemented).\n    3. The WiX file must list both handshake-native.exe and handshake_core.exe as Component entries under the same ProductDirectory.\n  Document the two-binary layout in BUNDLED_DEPS_POLICY.md.\n\nWIX 4 INSTALLER SCAFFOLD (installer/windows/handshake_native.wxs):\n  Minimum viable WiX 4 product file:\n    <Wix xmlns='http://wixtoolset.org/schemas/v4/wxs'>\n      <Package Name='Handshake' Manufacturer='Handshake' Version='0.1.0' UpgradeCode='<GUID>'>\n        <MajorUpgrade DowngradeErrorMessage='A newer version is already installed.' />\n        <Feature Id='Main' Level='1'>\n          <ComponentGroupRef Id='HandshakeComponents' />\n        </Feature>\n      </Package>\n      <Fragment>\n        <ComponentGroup Id='HandshakeComponents' Directory='INSTALLFOLDER'>\n          <Component><File Source='$(env.HANDSHAKE_NATIVE_EXE)' /></Component>\n          <Component><File Source='$(env.HANDSHAKE_CORE_EXE)' /></Component>\n        </ComponentGroup>\n      </Fragment>\n    </Wix>\n  Use a fresh random GUID for UpgradeCode. Document it in the WiX file comment.\n  The build script (build_installer.ps1) sets HANDSHAKE_NATIVE_EXE and HANDSHAKE_CORE_EXE env vars before calling wix build.\n\nBUILD SCRIPT (installer/windows/build_installer.ps1):\n  Param: -CargoTarget <path>, -OutDir <path>\n  Steps:\n    1. cargo build --profile release-native -p handshake-native\n    2. cargo build --profile release-native -p handshake_core --features app-runtime\n    3. $env:HANDSHAKE_NATIVE_EXE = \"$CargoTarget\\release-native\\handshake-native.exe\"\n    4. $env:HANDSHAKE_CORE_EXE  = \"$CargoTarget\\release-native\\handshake_core.exe\"\n    5. wix build installer\\windows\\handshake_native.wxs -o \"$OutDir\\handshake-native-setup.msi\"\n  Fail fast on any step error (use $ErrorActionPreference = 'Stop').\n\nBUND_DEPS_POLICY.md KEY POINTS (embed in the contract for no-context models):\n  - handshake-native.exe: statically linked, embeds egui/wgpu/eframe/accesskit, Inter fonts via include_bytes!, zero non-system DLL deps.\n  - handshake_core.exe: separate binary, manages PostgreSQL cluster lifecycle via ManagedPostgres::ensure_running(). Ships alongside handshake-native.exe in the installer.\n  - PostgreSQL cluster: NOT bundled as a binary. ManagedPostgres downloads or discovers a system PostgreSQL via the ManagedPostgresConfig::from_env() mechanism already implemented in handshake_core. See handshake_core/src/managed_postgres.rs for the full lifecycle.\n  - Fonts: Inter-Regular.ttf and Inter-Bold.ttf embedded in handshake-native.exe at compile time. No external font installation required.\n  - Toolkit DLLs: zero — all toolkit code (egui, wgpu, accesskit) is statically linked into handshake-native.exe.\n  - OS DLLs allowed (from Windows system): see the list in SINGLE-BINARY REQUIREMENTS above.\n  - wgpu GPU backends: wgpu selects DX12 > DX11 > Vulkan > WARP (software) at runtime via the WGPU_BACKEND env var. DX12/DX11 are system DLLs. Vulkan requires vulkan-1.dll (system, via GPU driver). WARP is a system component on Windows 10+. No non-system DLLs are needed for any wgpu backend.\n\nFONT EMBEDDING (build.rs):\n  build.rs must: set cargo:rerun-if-changed=assets/fonts/Inter-Regular.ttf and cargo:rerun-if-changed=assets/fonts/Inter-Bold.ttf.\n  In HandshakeApp::new (app.rs), when feature 'bundled-fonts' is enabled:\n    const INTER_REGULAR: &[u8] = include_bytes!(\"../assets/fonts/Inter-Regular.ttf\");\n    const INTER_BOLD: &[u8] = include_bytes!(\"../assets/fonts/Inter-Bold.ttf\");\n    let mut fonts = egui::FontDefinitions::default();\n    fonts.font_data.insert(\"Inter-Regular\".into(), egui::FontData::from_static(INTER_REGULAR).into());\n    fonts.font_data.insert(\"Inter-Bold\".into(), egui::FontData::from_static(INTER_BOLD).into());\n    fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, \"Inter-Regular\".into());\n    fonts.families.entry(egui::FontFamily::Name(\"Inter-Bold\".into())).or_default().push(\"Inter-Bold\".into());\n    cc.egui_ctx.set_fonts(fonts);\n  When feature 'bundled-fonts' is NOT enabled, skip the custom font loading (fallback to eframe default).\n\nACCESSKIT on this MT: no new widgets are added. The theme toggle button from MT-003 (NodeId 10) remains the only new interactive widget. No new AccessKit author_ids needed.\n\nDISK-AGNOSTIC PORTABILITY ([GLOBAL-PORTABILITY]):\n  The installer build script must NOT hardcode absolute paths. Use $PSScriptRoot for relative references. Use env vars for cargo target dir (default: detect via `cargo metadata --format-version 1 | jq -r .target_directory`). Document this in BUNDLED_DEPS_POLICY.md.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/**",
+      "Cargo.toml",
+      "installer/windows/**",
+      "tests/native_gui/test_single_binary.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`cargo build --profile release-native -p handshake-native` exits 0 and produces target/release-native/handshake-native.exe.",
+      "`cargo check --workspace` exits 0 after adding the crate to the workspace (no version conflicts introduced).",
+      "test_single_binary.rs: run `dumpbin /dependents target/release-native/handshake-native.exe` (or equivalent `cargo test --test test_single_binary` which shells out to dumpbin or uses the `pelite` crate to parse imports) and assert that every DLL in the import table is on the allowed system-DLL list. Zero non-system DLLs.",
+      "Inter-Regular.ttf and Inter-Bold.ttf exist at src/frontend/handshake_native/assets/fonts/ and are non-empty (> 50 KB each).",
+      "`cargo build --features bundled-fonts -p handshake-native` exits 0 and the resulting binary is larger than the non-font build by at least 300 KB (evidence that fonts are embedded).",
+      "installer/windows/handshake_native.wxs is valid WiX 4 XML (validated by `wix build --validate installer/windows/handshake_native.wxs` or equivalent — if WiX toolchain is not available in CI, gate this behind a CI-optional step and document the manual validation requirement).",
+      "installer/windows/build_installer.ps1 runs to completion when WiX 4 is installed and produces a non-empty handshake-native-setup.msi in the output directory.",
+      "installer/windows/BUNDLED_DEPS_POLICY.md exists and contains all six policy sections described in the BUNDLED_DEPS_POLICY.md KEY POINTS above.",
+      "Running the release binary `target/release-native/handshake-native.exe` (with the backend running) opens the window with the Inter font rendered (text is not fallback monospace/system sans-serif). Verified visually or by kittest font-family probe.",
+      "[profile.release-native] is present in the root Cargo.toml and does NOT modify [profile.release]."
+    ],
+    "proof_targets": [
+      "`cargo build --profile release-native -p handshake-native 2>&1 | tail -5` shows 'Finished release-native profile' with zero errors.",
+      "`cargo test --test test_single_binary -- --nocapture` exits 0 and prints 'PASS: no non-system DLLs found in handshake-native.exe'.",
+      "`ls -la target/release-native/handshake-native.exe` shows file size > 10 MB (egui+wgpu+fonts statically linked).",
+      "`cargo build --features bundled-fonts -p handshake-native && ls -la target/debug/handshake-native.exe` shows the 'bundled-fonts' binary is measurably larger than the build without the feature.",
+      "Checksum (md5/sha256) of Inter-Regular.ttf in the repo matches the canonical Inter 3.19 release checksum from https://github.com/rsms/inter/releases — document the expected checksum in BUNDLED_DEPS_POLICY.md under a 'Font provenance' subsection.",
+      "`cargo check --workspace 2>&1 | grep error` returns empty."
+    ],
+    "implementation_notes": [
+      "FONT SOURCE: Download Inter fonts from https://github.com/rsms/inter/releases/tag/v3.19 (Inter.zip). Extract Inter-Regular.ttf and Inter-Bold.ttf. Place them at src/frontend/handshake_native/assets/fonts/. These are OFL-licensed; include a copy of the OFL license in the assets/fonts/ directory as OFL.txt. Add the font provenance checksum to BUNDLED_DEPS_POLICY.md.",
+      "CRT STATIC: The .cargo/config.toml for the crate-local config must be placed at src/frontend/handshake_native/.cargo/config.toml (NOT at the workspace root .cargo/config.toml) to avoid contaminating handshake_core builds. Content:\n    [target.x86_64-pc-windows-msvc]\n    rustflags = [\"-C\", \"target-feature=+crt-static\"]\n  If the workspace already has a root .cargo/config.toml with rustflags for handshake_core, do NOT add target-feature=+crt-static there. Only the native crate needs it.",
+      "PELITE FOR SINGLE-BINARY TEST: Instead of shelling out to dumpbin (requires Windows SDK), use the `pelite` crate (0.10) in the test to parse the PE import table. In tests/native_gui/test_single_binary.rs:\n    use pelite::pe64::PeFile;\n    let data = std::fs::read(\"target/release-native/handshake-native.exe\").unwrap();\n    let pe = PeFile::from_bytes(&data).unwrap();\n    let imports = pe.imports().unwrap();\n    for desc in imports { let dll = desc.dll_name().unwrap(); assert!(is_system_dll(dll), \"Non-system DLL: {}\", dll); }\n  The test binary path must be relative to the workspace root. If the release-native build has not been run before the test, the test should skip with eprintln!('SKIP: release-native binary not found; run cargo build --profile release-native first') and return Ok(()).",
+      "WIX 4 GUID: generate a UUID for UpgradeCode. Use uuidgen or any online tool. Record it as a constant comment in the WXS file: <!-- UpgradeCode GUID: <guid> — DO NOT CHANGE after first release -->.",
+      "VERSION STAMPING: In build.rs, set cargo:rustc-env=HANDSHAKE_NATIVE_VERSION=0.1.0-dev and cargo:rustc-env=HANDSHAKE_BUILD_DATE=<date from env or 'unknown'>. The app can display this in the title bar or about dialog in a later MT.",
+      "CARGO METADATA for installer build: in build_installer.ps1, determine the cargo target directory via: $target = (cargo metadata --format-version 1 --no-deps | ConvertFrom-Json).target_directory. This makes the script disk-agnostic per [GLOBAL-PORTABILITY-004].",
+      "DO NOT add a workspace-level [patch] or [replace] for egui/wgpu — only the crate-level Cargo.toml should pin those versions. Workspace-level patches would affect handshake_core.",
+      "The WiX installer is a scaffold only in MT-004: no custom dialogs, no registry writes beyond the uninstall entry, no file associations. These are deferred. The scaffold must pass `wix build --validate` without errors.",
+      "If WiX 4 is not installed on the build machine, the PowerShell build script must detect this (Get-Command wix -ErrorAction SilentlyContinue) and exit with a clear error: 'WiX 4 toolchain not found. Install from https://wixtoolset.org/docs/intro/. Installer build skipped.' Do NOT fail the Cargo build; only the installer script step fails.",
+      "The release-native profile uses strip='symbols'. On Windows with MSVC, this requires the strip flag to be supported by the linker. If strip causes a linker error, fall back to strip='none' and document the limitation.",
+      "cargo-bundle (https://crates.io/crates/cargo-bundle) is NOT used here — we use WiX directly for Windows installer control. Document this decision in BUNDLED_DEPS_POLICY.md: 'cargo-bundle was evaluated but rejected in favor of WiX 4 because WiX provides full control over install layout, uninstall, and upgrade behavior required for bundling handshake_core alongside handshake-native.'",
+      "After this MT, the full build pipeline for a user-installable Handshake native app is:\n  1. cargo build --profile release-native -p handshake-native\n  2. cargo build --profile release-native -p handshake_core --features app-runtime\n  3. pwsh installer/windows/build_installer.ps1 -CargoTarget ./target -OutDir ./dist\n  Document this three-step pipeline in BUNDLED_DEPS_POLICY.md under 'Build pipeline'."
+    ],
+    "ports_from_react": [
+      "NOT APPLICABLE for the installer scaffold itself. Font assets (Inter-Regular.ttf, Inter-Bold.ttf) were previously served via the Vite/Node build pipeline in the React app (app/src/assets/ or CSS @font-face). This MT moves them into the Rust native binary as statically embedded bytes.",
+      "app/src/App.css line 2: font-family: 'Inter', system-ui — confirms Inter is the canonical Handshake UI font, which this MT embeds natively."
+    ],
+    "binds_backend_api": [
+      "NONE directly in this MT. The installer payload includes handshake_core.exe but does not call any backend API. The managed-postgres handoff policy references handshake_core::managed_postgres::ManagedPostgres::ensure_running (handshake_core/src/managed_postgres.rs) — this is documentation only; the actual sidecar launch of handshake_core from the native app is a later MT."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: target-feature=+crt-static in a crate-local .cargo/config.toml is silently overridden by a workspace-level config, so the single-binary constraint is not actually achieved.",
+      "RISK-2: The release-native profile's lto='fat' + codegen-units=1 causes very long compile times (10-30 min) that make the build pipeline impractical for iterative development.",
+      "RISK-3: Inter font files are not redistributable under MIT; the OFL license requires including the license file in any distribution. Missing the OFL.txt could create a legal compliance gap.",
+      "RISK-4: WiX 4 toolchain is not installed on CI; the installer build step fails silently and the MSI is never produced, but the CI is green because only the installer script fails (not Cargo).",
+      "RISK-5: BUNDLED_DEPS_POLICY.md is created as a markdown file, violating the [no-default-md-files] project memory rule which mandates JSON authority for governance artifacts.",
+      "RISK-6: pelite crate version 0.10 may not parse the PE headers correctly for very large statically-linked binaries (> 100 MB), causing the single-binary test to fail with a parse error rather than a clean DLL audit."
+    ],
+    "minimum_controls": [
+      "CONTROL-1 (RISK-1): In the single-binary test (test_single_binary.rs), after the DLL audit, add an assertion that VCRUNTIME140.dll is NOT in the import table. This is the canonical signal that CRT static linking succeeded. If it is present, the test fails with 'CRT is dynamic — crt-static flag not applied. Check .cargo/config.toml location.'",
+      "CONTROL-2 (RISK-2): The release-native profile is ONLY used for installer builds, not for development. Add a comment in Cargo.toml: '# release-native: for installer builds only. Dev builds use --profile dev. CI smoke tests use --profile release.' Gate lto='fat' behind a CI env var: if HANDSHAKE_LTO is not set, fall back to lto='thin' for faster iteration. Document the flag in BUNDLED_DEPS_POLICY.md under 'Build pipeline'.",
+      "CONTROL-3 (RISK-3): Copy OFL.txt from the Inter release zip into src/frontend/handshake_native/assets/fonts/OFL.txt. Add it to the WiX installer payload. Add a test: assert that assets/fonts/OFL.txt exists and contains the string 'SIL OPEN FONT LICENSE'.",
+      "CONTROL-4 (RISK-4): Add installer_build step to CI as a separate optional job that only runs on release branches or when HANDSHAKE_BUILD_INSTALLER=1 is set. The default CI pipeline runs only Cargo steps. Document the CI gating in build_installer.ps1 header comment.",
+      "CONTROL-5 (RISK-5): BUNDLED_DEPS_POLICY.md is classified as an operator-authored prose surface under [GLOBAL-GOVARTIFACTS-019], making it an explicit exception to the JSON-authority rule. Add a comment at the top of the file: '<!-- GOVARTIFACTS-019 exception: operator-facing prose surface; not a machine-readable authority artifact -->'. This makes the exception explicit and auditable.",
+      "CONTROL-6 (RISK-6): Gate the pelite parse behind a catch: if PeFile::from_bytes returns Err, log the error and skip the DLL audit with a warning rather than failing the test. Add a fallback: if the binary size is over 50 MB and pelite fails, report 'WARN: pelite parse failed on large binary; manual dumpbin verification required' and set a non-fatal warning in the test output."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification confirms PASS: crt-static is genuinely crate-local (root .cargo/config.toml carries ONLY target-dir, no rustflags, so RISK-1 cannot override it), the DLL audit is a real object-crate PE parse with a VCRUNTIME140 canary, the bundled Inter fonts are real OFL TrueType faces whose on-disk SHA-256 EQUALS the test's hardcoded expectations (I recomputed both), font registration drives real product install_fonts, and the WiX/build-script/policy scaffold is complete; the unbuilt-binary and absent-WiX proofs are honest contract-prescribed skips/gates, not faked or mock-only.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-004.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/.cargo/config.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/.cargo/config.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/build.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_single_binary.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (install_fonts:3620; INTER_* consts:654-662)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs (pub mod app)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/installer/windows/handshake_native.wxs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/installer/windows/build_installer.ps1",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/installer/windows/BUNDLED_DEPS_POLICY.md",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/assets/fonts/ (Inter-Regular.ttf, Inter-Bold.ttf, OFL.txt — independently recomputed SHA-256 + TTF magic + OFL header)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "cargo build --profile release-native -p handshake-native exits 0 and produces release-native/handshake-native.exe",
+        "status": "PARTIAL",
+        "evidence": "[profile.release-native] correctly defined at src/frontend/handshake_native/Cargo.toml:20-28 (inherits=release, lto='fat', codegen-units=1, panic='abort', strip='symbols', opt-level=3). The actual release-native binary was NOT materialized in this env (MAX_PATH + fat-LTO; documented in BUNDLED_DEPS_POLICY.md build-pipeline + manual-validation-gaps). Honest disclosed proof-execution gap; the crate compiles clean per ground truth. Not a fabricated pass."
+      },
+      {
+        "criterion": "cargo check --workspace exits 0 after adding crate to workspace",
+        "status": "NOT_APPLICABLE",
+        "evidence": "No root cargo workspace exists in this repo (handshake_core is a standalone crate under src/backend/, which is forbidden_paths for this MT). The deviation is documented in Cargo.toml:1-13; release-native lives in the crate's own [workspace] table (Cargo.toml:14). Sound judgment: a root workspace would pull handshake_core + app/src-tauri into one graph and contaminate their profiles/rustflags. The literal AC is moot."
+      },
+      {
+        "criterion": "test_single_binary.rs parses PE imports and asserts zero non-system DLLs",
+        "status": "MET",
+        "evidence": "tests/test_single_binary.rs:146-206 reads the real .exe, parses the real PE import table via object::File::parse + Object::imports() (real, not a mock), filters via is_system_dll (apiset/CRT/System32 resolution at :34-50), asserts the non-system list is empty AND (CONTROL-1) VCRUNTIME140.dll/MSVCP140.dll absent as the crt-static canary. Clean eprintln+return skip when the binary is unbuilt — exactly the contract implementation_notes behavior. Skips in this env (binary not built), but exercises the REAL contract path."
+      },
+      {
+        "criterion": "Inter-Regular/Bold exist at assets/fonts/ and are non-empty (>50KB)",
+        "status": "MET",
+        "evidence": "Independently recomputed: Inter-Regular.ttf=680240 bytes sha256 529be850e06f62f8904f22bda77e45bde4834498fdbec4ff4201fa3177447a3a; Inter-Bold.ttf=715204 bytes sha256 e6c172fd8a2f957414a7a63ec8deb7f2aa239182394cfa5ee2ea6927c6194389 — these EQUAL the test's hardcoded EXPECT_REGULAR/EXPECT_BOLD (test_single_binary.rs:90-92), so the provenance test is real and non-tautological. TTF magic 00 01 00 00 confirms genuine TrueType; OFL.txt is the real Inter SIL OFL (Copyright 2016-2020 The Inter Project Authors)."
+      },
+      {
+        "criterion": "bundled-fonts build is larger than non-font build by >=300KB",
+        "status": "PARTIAL",
+        "evidence": "Mechanism is real and correct: include_bytes! of the two ~700KB faces (app.rs:654-656) gated on feature bundled-fonts (default-on, Cargo.toml:72-73). ~1.4MB of embedded font bytes guarantees a >300KB delta against --no-default-features if built. The size-delta build was not exercised here (requires building the binary). Disclosed gap; mechanism verified by inspection."
+      },
+      {
+        "criterion": "handshake_native.wxs is valid WiX 4 XML",
+        "status": "PARTIAL",
+        "evidence": "installer/windows/handshake_native.wxs is well-formed WiX 4: v4 xmlns, Package with UpgradeCode GUID 609E7B1F-... + Scope=perMachine + Version, MajorUpgrade, Feature, ComponentGroup with both binaries (Bitness=always64, env-var File sources), StandardDirectory ProgramFiles64Folder/ProgramMenuFolder, Start Menu Shortcut with HKCU RegistryValue keypath + RemoveFolder. `wix build --validate` NOT run (toolchain absent); honestly disclosed, scaffold-only per contract (custom dialogs/signing scoped out)."
+      },
+      {
+        "criterion": "build_installer.ps1 runs to completion when WiX 4 installed and produces non-empty MSI",
+        "status": "PARTIAL",
+        "evidence": "installer/windows/build_installer.ps1 is complete and correct: $ErrorActionPreference='Stop', disk-agnostic ($PSScriptRoot/repo-relative), MAX_PATH-safe short CARGO_TARGET_DIR (drive-relative, not hardcoded), fail-fast on each cargo step, asserts both binaries exist (fails clearly if handshake_core.exe absent), Get-Command wix availability gate (CONTROL-4), asserts MSI non-empty. End-to-end MSI not exercised (WiX absent); disclosed."
+      },
+      {
+        "criterion": "BUNDLED_DEPS_POLICY.md exists with all six policy sections",
+        "status": "MET",
+        "evidence": "installer/windows/BUNDLED_DEPS_POLICY.md contains all six KEY POINTS sections (single-binary, core-binary, postgres-not-bundled, fonts, zero toolkit DLLs, OS DLLs + wgpu backends) plus Font provenance (canonical Inter 3.19 + the matching SHA-256s), Installer tooling decision (cargo-bundle rejected), Build pipeline (3-step + MAX_PATH + CI gating), and an honest manual-validation-gaps topic. GOVARTIFACTS-019 prose-exception header present (CONTROL-5) on line 1."
+      },
+      {
+        "criterion": "Release binary opens with Inter font rendered (kittest font-family probe)",
+        "status": "MET",
+        "evidence": "tests/test_single_binary.rs:119-142 drives the REAL HandshakeApp::install_fonts (app.rs:3620, pub; lib.rs:7 `pub mod app`) on a headless egui::Context, runs a frame, and asserts FontFamily::Name(\"Inter-Bold\") is registered (only the bundled install path creates that named family; eframe defaults never do) plus that the proportional font can render 'Handshake' glyphs. Non-tautological; executes and passes per ground truth."
+      },
+      {
+        "criterion": "[profile.release-native] present and does NOT modify [profile.release]",
+        "status": "MET",
+        "evidence": "Cargo.toml:20-28 is a separate named profile (inherits=release). Grep confirms NO [profile.release] override table exists in the crate Cargo.toml. Located in the crate's own [workspace] (no root workspace exists) — documented deviation. The no-modify-release intent is satisfied."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "sub-rule 1: grep of the MT-004 required-path code (app.rs install_fonts surface, build.rs, .cargo/config.toml, test_single_binary.rs, the installer files) found NO todo!()/unimplemented!()/early-stub/Unavailable on the behavior this MT must deliver. The 'deferred' strings in app.rs (lines 376/1345/1660/2593) belong to OTHER MTs' surfaces (search execution / MT-027), not MT-004; the .wxs 'deferred to later MTs' comment is the contract-scoped-out custom-dialog/signing work (scaffold only). sub-rule 2 (real-resource proof): the single-binary/CRT-static claim is backed by a REAL object-crate PE import-table parse against a real artifact, with crt-static set ONLY in the crate-local .cargo/config.toml and a VCRUNTIME140-absent canary; I independently confirmed the repo-root .cargo/config.toml carries ONLY target-dir (no rustflags), so RISK-1 (root override of crt-static) cannot occur on the discovery path. Fonts are real OFL Inter 3.19 TrueType bytes (magic 00 01 00 00; OFL.txt is the real SIL license) whose on-disk SHA-256 I recomputed and which EQUAL the test's hardcoded expectations — not implementer-authored mock data. Font registration is proven by driving the real pub install_fonts on a real egui::Context. The release-native binary and WiX MSI were NOT materialized here (no exe; wix not on PATH), so the DLL-audit / size-delta / MSI-validate proofs take honest skip/gate paths the contract prescribes. Per the operator directive these are DISCLOSED proof-execution gaps (not faked, not #[ignore]-hidden), and the underlying tests/config exercise the REAL contract. NOT a mock-only escape. sub-rule 3 satisfied by this independent review."
+    },
+    "concerns_non_blocking": [
+      "Proof-execution gap (non-blocking per directive): the release-native binary was not built in this env, so release_native_binary_has_no_non_system_dlls and the font size-delta proof take their skip paths rather than green-on-real-artifact. The skip is honest and contract-prescribed; the zero-non-system-DLL and crt-static-took-effect claims remain unverified-by-execution until someone runs `cargo build --profile release-native -p handshake-native` into a short CARGO_TARGET_DIR (e.g. D:\\hsk-rn-target) and re-runs `cargo test --test test_single_binary -- --nocapture`. Disclosed in the commit message and BUNDLED_DEPS_POLICY.md manual-validation-gaps.",
+      "WiX MSI/validate gap (non-blocking, deferred): wix toolchain absent on this host, so `wix build` (the .wxs validity and end-to-end MSI, including handshake_core.exe packaging) was never exercised. The .wxs is authored to the WiX 4 schema and gated behind a Get-Command wix check; handshake_core.exe is never built/packaged by MT-004 (build_installer.ps1 only fails-fast if absent). Confirm on a host with WiX 4 (`dotnet tool install --global wix`).",
+      "Contract-vs-reality deviations (sound, documented, non-blocking): (a) test at tests/test_single_binary.rs not tests/native_gui/ (cargo requires the file directly under tests/ to register the --test target; mirrors MT-003's tests/test_theme.rs); (b) object crate used instead of pelite (MT-001 spike-proven on host where dumpbin is absent; no new dep family); (c) release-native profile in the crate's own [workspace] table because no root cargo workspace exists. All three are reasonable, documented, and should be acknowledged at WP integration.",
+      "Artifact-hygiene (note only): build outputs are directed to the EXTERNAL sibling artifacts root via .cargo/config.toml target-dir; the root .cargo/config.toml also points target-dir outside the repo. This MT does not cause outputs to land inside the repo tree — no per-MT hygiene FAIL.",
+      "HBR obligations (HBR-INT/HBR-MAN/HBR-QUIET) are declared on the contract but this is a build/installer/font MT with no new interactive widget; no HBR regression is observable here and HBR proof for this MT is implicit rather than exercised."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-014",
+  "title": "C3-MT-014-LeftRailProjectTreeQuickLinksStash",
+  "group": "C3 Navigation layers",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006",
+      "MT-011",
+      "MT-012",
+      "MT-013"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Implement the left activity rail — the narrow collapsible sidebar on the far left of the shell. In the native design this rail consolidates what was previously split across the React left-rail module buttons (moved to top-right in MT-012), the React project-tabs section (moved to top in MT-011), and the React file-drawer / WorkspaceSidebar. The rail must implement five distinct sections in order from top to bottom:\n\n  1. ACTIVITY ICONS — narrow icon buttons (24-32px) for major activity areas: Files/Explorer, Agenda, Mail, Notes. Each icon button has a tooltip and a stable AccessKit id. Clicking toggles that section's expansion in the panel below. This matches the VS Code activity bar model and the paper-control-room design doc (left rail: Agenda, Mail, Notes icons, see handshake-gui-paper-control-room.md topic 'operator-intent').\n\n  2. PROJECT TREE — a collapsible tree of the active project's documents, canvases, and folders. Items use the paper-strip visual: off-white label backgrounds only as wide as the label text (variable widths, not full-row fills), labels right-aligned within their strip, folder chevrons at the left edge. Clicking a document opens it in the active pane. This replaces the WorkspaceSidebar document/canvas list (WorkspaceSidebar.tsx lines 426-465) and upgrades it to a real tree.\n\n  3. ACTIVE-WINDOW QUICK LINKS — a flat list of currently open pane tabs across all four panes. Each entry shows the tab label with the owning project name greyed/muted to its left (paper-strip label format matching the design doc: 'active-window quick links in the windows section ... with the owning project greyed out to the left of the window name'). Clicking a quick-link focuses the corresponding pane and activates that tab.\n\n  4. STASH SHELF AFFORDANCE — a compact stash region that mirrors the bottom drawer stash (MT-022 will build the full bottom stash; this MT only adds the left-rail icon/affordance that opens it). A single 'Stash' icon/label that, when clicked, toggles the bottom drawer open.\n\n  5. AGENDA / MAIL / NOTES AFFORDANCES — three section headers or icon rows at the bottom of the rail that open the corresponding pane tab in the active pane when clicked (Agenda -> future calendar pane, Mail -> future mail pane, Notes -> loom-daily-journal tab). These are affordances only: they trigger setActiveTabForPane(activePaneId, target_tab) and do not contain full UI in the rail.\n\nGoal and expected diff shape: create src/frontend/navigation/left_rail.rs exporting LeftRail; create src/frontend/navigation/project_tree.rs exporting ProjectTree; create src/frontend/navigation/quick_links.rs exporting ActiveWindowQuickLinks; wire all three into shell.rs as a collapsible egui SidePanel::left('left-rail').\n\nExact files to create/edit:\n  - CREATE: src/frontend/navigation/left_rail.rs — top-level LeftRail widget orchestrating sections 1-5\n  - CREATE: src/frontend/navigation/project_tree.rs — ProjectTree widget with async document/canvas loading\n  - CREATE: src/frontend/navigation/quick_links.rs — ActiveWindowQuickLinks widget reading from AppState panes\n  - EDIT: src/frontend/navigation/mod.rs — add pub mod left_rail, project_tree, quick_links\n  - EDIT: src/frontend/shell.rs — add egui::SidePanel::left('left-rail').resizable(true).default_width(220.0) panel; call LeftRail::show() inside it; wire the open/collapsed state into app_state and layout persistence\n  - EDIT: src/frontend/state/app_state.rs — add left_rail_open: bool field (persisted in WorkbenchLayoutState as drawers.project)\n\nData sources:\n  - Project documents: GET /workspaces/{id}/documents (api.ts line 745: listDocuments) -> Vec<DocumentSummary>. Poll on refresh events.\n  - Project canvases: GET /workspaces/{id}/canvases (api.ts line 757: listCanvases) -> Vec<CanvasSummary>.\n  - Bookmarks/stash items: GET /workspaces/{id}/loom/view?view_type=pins (api.ts line ~97 in WorkspaceSidebar.tsx: queryLoomView(workspaceId, 'pins', { limit:100, offset:0 })) -> LoomBlock[]. These are the pinned Loom blocks that appear in the Bookmarks section of WorkspaceSidebar.\n  - Active-window quick links: read directly from AppState.panes — no backend call needed.\n\nStep-by-step implementation notes:\n\n  SECTION 1 - ACTIVITY ICONS:\n  In left_rail.rs, render a narrow 32px-wide vertical icon strip at the left edge. Use ui.vertical(|ui| { activity_buttons }) inside the SidePanel. For each activity (Files, Agenda, Mail, Notes): render a small egui::Button or ImageButton; on click toggle a section open/closed state in LeftRailState { files_open, agenda_open, mail_open, notes_open }. Stable AccessKit ids: 'left-rail.activity.files', 'left-rail.activity.agenda', 'left-rail.activity.mail', 'left-rail.activity.notes'. Role=Button, action=Click.\n\n  SECTION 2 - PROJECT TREE:\n  In project_tree.rs define struct ProjectTree { workspace_id: String, documents: Vec<DocumentSummary>, canvases: Vec<CanvasSummary>, loading: bool, error: Option<String> } with fn show(&mut self, ui: &mut egui::Ui) -> Option<ProjectTreeEvent> where ProjectTreeEvent = OpenDocument(String) | OpenCanvas(String).\n  Render each document as a row: use ui.horizontal(|ui| { let avail = ui.available_width(); let label = &doc.title; let label_width = ui.fonts(|f| f.glyph_width(&egui::TextStyle::Body.resolve(ui.style()), 'M') * label.len() as f32).min(avail); ui.allocate_ui_with_layout(egui::vec2(label_width + 8.0, 20.0), egui::Layout::right_to_left(egui::Align::Center), |ui| { if ui.label(label).clicked() { result = Some(ProjectTreeEvent::OpenDocument(doc.id.clone())); } }); }) to achieve the paper-strip variable-width effect.\n  Stable id for each row: 'project-tree.doc.{stable_part(doc.id)}'. Role=TreeItem (egui WidgetType::Button), action=Click.\n  Load documents and canvases asynchronously on workspace_id change via a tokio task + channel. Show a 'Loading...' label while in-flight. Show error with a Retry button.\n\n  SECTION 3 - ACTIVE-WINDOW QUICK LINKS:\n  In quick_links.rs define struct ActiveWindowQuickLinks borrowing &[PaneState] from AppState. fn show(&mut self, ui: &mut egui::Ui) -> Option<(PaneId, PaneTabId)>.\n  For each pane in panes, for each tab in pane.tabs (or just the active tab): render a row showing [grey project prefix] [tab label]. Grey prefix = projects.find(id == pane.project_ref).name, rendered with ui.weak(prefix_text) (grey/muted). Tab label rendered with normal text. On click return (pane.id, tab).\n  Stable id: 'quick-links.{pane_id}.{tab_id}'. Role=Button, action=Click.\n\n  SECTION 4 - STASH AFFORDANCE:\n  Render a single 'Stash' label/button at the bottom of the rail. On click: app_state.bottom_drawer_open = !app_state.bottom_drawer_open. Stable id: 'left-rail.stash-toggle'. Role=Button, action=Click.\n\n  SECTION 5 - AGENDA/MAIL/NOTES AFFORDANCES:\n  Three icon/label buttons at the bottom: Agenda, Mail, Notes. On click: set the active pane's active tab to the corresponding PaneTabId (Agenda -> future 'agenda' tab placeholder, Mail -> future 'mail' tab placeholder, Notes -> LoomDailyJournal). For now, use LoomDailyJournal as the Notes target since it exists as a real tab. Stable ids: 'left-rail.agenda', 'left-rail.mail', 'left-rail.notes'. Role=Button, action=Click.\n\n  COLLAPSING:\n  The whole rail (sections 2-5) collapses when left_rail_open=false. Only the icon strip (section 1) remains visible. Mirror the React projectDrawerOpen logic (App.tsx lines 1944-2003). Persist left_rail_open in WorkbenchLayoutState.drawers.project (same JSON field name for cross-session restore by MT-006).\n\nDependencies / unblock conditions:\n  - MT-005: PaneState, AppState skeleton.\n  - MT-006: WorkbenchLayoutStore persisting drawers.project.\n  - MT-011: ProjectItem / workspace list already fetched.\n  - MT-012: ModuleId, PaneTabId enum complete.\n  - MT-013: Pane tab state management; setActiveTabForPane available.\n\nRisk if missed: no file/project exploration surface; no active-window overview; no Stash/Agenda/Mail/Notes entry points in the left rail; agents cannot navigate the project tree by stable id.",
+    "allowed_paths": [
+      "src/frontend/navigation/left_rail.rs",
+      "src/frontend/navigation/project_tree.rs",
+      "src/frontend/navigation/quick_links.rs",
+      "src/frontend/navigation/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/state/app_state.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "The left activity rail renders as a collapsible egui SidePanel::left that can be toggled open/closed via a toggle button; open/closed state persists across sessions via WorkbenchLayoutState.drawers.project.",
+      "Activity icon buttons for Files, Agenda, Mail, Notes render in the always-visible icon strip; each has a stable AccessKit id ('left-rail.activity.*'), role=Button, and a Click action.",
+      "Project tree section shows documents and canvases for the active workspace loaded via GET /workspaces/{id}/documents and GET /workspaces/{id}/canvases; clicking a document opens it in the active pane.",
+      "Project tree rows use the paper-strip visual: label background only as wide as the text (not full-row fill), variable widths, labels right-aligned within their strip.",
+      "Active-window quick links section shows all pane.tabs (or active tabs) across all four panes, each row prefixed by the muted project name; clicking a row focuses the pane and activates that tab via setActiveTabForPane.",
+      "Stash toggle button toggles app_state.bottom_drawer_open; stable id='left-rail.stash-toggle'.",
+      "Agenda, Mail, Notes affordance buttons at the bottom of the rail trigger tab activation on the active pane (Notes -> LoomDailyJournal tab); stable ids='left-rail.agenda', 'left-rail.mail', 'left-rail.notes'.",
+      "When GET /workspaces/{id}/documents fails, an inline error label with a Retry button appears in the project tree section without crashing the rail.",
+      "All interactive elements in the rail have stable AccessKit author_ids (none derived from frame counters); an AccessKit consumer snapshot confirms ids and roles."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend -- navigation::project_tree::open_document — unit test: ProjectTree with docs=[{id:'d1',title:'Foo'},{id:'d2',title:'Bar'}]; simulate click on 'Foo'; assert OpenDocument('d1') returned.",
+      "cargo test -p handshake_frontend -- navigation::quick_links::click_returns_pane_tab — unit test: ActiveWindowQuickLinks with 2 panes each having 2 tabs; simulate click on pane-b / inference-lab row; assert (PaneId::PaneB, PaneTabId::InferenceLab) returned.",
+      "cargo test -p handshake_frontend -- navigation::left_rail::persist_open_state — unit test: toggle rail open->closed; assert left_rail_open=false propagated to WorkbenchLayoutState.drawers.project = false; toggle back; assert true.",
+      "egui_kittest visual harness: render LeftRail with 3 documents and 2 panes (each 2 tabs); assert project tree renders 3 rows; assert quick-links renders 4 rows (2 panes x 2 tabs); assert icon strip renders 4 activity buttons.",
+      "AccessKit consumer snapshot: serialize UI tree; assert nodes with ids 'left-rail.activity.files', 'left-rail.activity.agenda', 'left-rail.activity.mail', 'left-rail.activity.notes', 'left-rail.stash-toggle', 'left-rail.agenda', 'left-rail.mail', 'left-rail.notes' all present with role=Button.",
+      "Integration test with real PostgreSQL: load rail for an existing workspace; assert document titles match GET /workspaces/{id}/documents response; assert clicking a document row triggers the pane's active_document_id to update."
+    ],
+    "implementation_notes": [
+      "Paper-strip variable-width label: compute text width using ui.fonts(|f| f.layout_no_wrap(label, font_id, color).size().x); allocate exactly that width + 8px padding using ui.allocate_ui_with_layout(). This is the core visual differentiator from a full-row-fill sidebar.",
+      "Labels right-aligned: use egui::Layout::right_to_left(egui::Align::Center) inside the allocated ui so text aligns to the right edge of the strip, not the left.",
+      "Async loading: spawn a tokio::spawn task per workspace_id change; send result back on a std::sync::mpsc::channel; poll the channel receiver in show() each frame by calling try_recv(). Do not block the render thread.",
+      "Bookmarks / stash items: call GET /workspaces/{id}/loom/view?view_type=pins (maps to queryLoomView in WorkspaceSidebar.tsx line 97); render as a separate 'Bookmarks' sub-section inside the Files panel below the document/canvas tree. These are pinned Loom blocks. Show block title and kind badge (bookmarkKind logic from WorkspaceSidebar.tsx lines 43-49).",
+      "WorkspaceSidebar.tsx event listeners to replicate in native: 'handshake:document-deleted' (remove doc from list), 'handshake:canvas-deleted' (remove canvas from list), 'handshake:refresh-workspaces' (re-fetch workspace list), 'handshake:loom-bookmarks-changed' (re-fetch bookmarks). In native, use a broadcast channel or event bus instead of DOM custom events.",
+      "The collapsible behavior: when left_rail_open=false, only render the icon strip (32px wide); when true, render full panel (default 220px, resizable). Use egui::SidePanel::left('left-rail').resizable(true).min_width(32.0).default_width(220.0) and a ui.separator() between icon strip and content area.",
+      "Quick-links section title: 'Windows' (matches the design doc phrase 'windows section of the left sidebar'). Show all pane active tabs as quick links, not all tabs — to keep the list short. Each row: '{project_name_grey}  {tab_label}'. Limit to 20 entries; add a '...' footer if more.",
+      "Stash affordance: at this MT scope, only the toggle button. The full Stash shelf UI (cards, Agenda/Mail/Lists/Notes typed cards) is built in MT-022 (C6 cluster). This MT provides the entry point only.",
+      "Agenda/Mail affordances open placeholder pane tabs for now (these surfaces are future MTs); Notes opens PaneTabId::LoomDailyJournal which exists. Add TODO comments naming the future PaneTabId variants."
+    ],
+    "ports_from_react": [
+      "app/src/components/WorkspaceSidebar.tsx — loadWorkspaces() (lines 146-160), loadWorkspaceDetails() / listDocuments+listCanvases (lines 111-133), loadBookmarks() / queryLoomView pins (lines 91-109), handleOpenBookmark() (lines 314-322), handleRemoveBookmark() (lines 291-312), document list render (lines 426-446), canvas list render (approximate lines 448+), bookmarks list render (lines 387-423), event listeners: document-deleted, canvas-deleted, refresh-workspaces, loom-bookmarks-changed (lines 190-221)",
+      "app/src/App.tsx — left-rail / module-rail structure (lines 1942-2003): left-rail--open/collapsed classes, module-rail__toggle button, rail-section__title 'Modules' and 'Projects', project-tabs div, projectDrawerOpen state (line 580), toggle handler (line 1952)",
+      "app/src/App.tsx — file-drawer structure (lines 2007-2054): file-drawer--open/closed, file-drawer.toggle button, WorkspaceSidebar render with activeWorkspaceId/onSelectWorkspace/onSelectDocument/onSelectCanvas/onOpenLoomBlock/onWorkspaceDeleted props",
+      "Design reference: .GOV/operator/docs_local/handshake-gui-paper-control-room.md — topic 'operator-intent': paper-strip variable-width labels, right-aligned text, active-window quick links with grey project prefix, Stash affordance, Agenda/Mail/Lists/Notes bottom categories, left activity rail icons"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces — list workspaces -> ProjectItem[] (api.ts line 733)",
+      "GET /workspaces/{id}/documents — list documents in project (api.ts line 745)",
+      "GET /workspaces/{id}/canvases — list canvases in project (api.ts line 757)",
+      "GET /workspaces/{id}/loom/view?view_type=pins&limit=100&offset=0 — load pinned Loom blocks (bookmarks) (WorkspaceSidebar.tsx line 97: queryLoomView)",
+      "PUT /workspaces/{id}/workbench/layout — persists left_rail_open in drawers.project field (MT-006 store)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Paper-strip variable-width label computation is expensive per frame: calling ui.fonts() inside a tight loop of 100+ documents causes frame-rate drops on large workspaces.",
+      "Async document loading: if workspace_id changes while a prior load is in-flight, stale results from the old workspace overwrite the new workspace's list.",
+      "Quick-links section shows ALL tabs from all panes (potentially 4x19=76 entries) making the rail unscrollable and unusable.",
+      "AccessKit ids for project-tree rows derived from document.id which may contain characters invalid for stable ids (spaces, slashes, UTF-8).",
+      "Left rail open/closed state not persisted: closes to icon strip on every startup, forcing the operator to re-open manually.",
+      "Event bus for document-deleted/canvas-deleted not implemented, causing stale entries in the project tree after deletes performed from other surfaces.",
+      "Stash affordance and bottom drawer coupling: if MT-022 changes the bottom_drawer_open field name, this MT's toggle silently stops working."
+    ],
+    "minimum_controls": [
+      "Cache the paper-strip label widths in a HashMap<doc_id, f32> populated once per document list refresh, not recomputed every frame.",
+      "Assign a load_id u64 counter per workspace_id load request; discard results where the received load_id does not match the current counter.",
+      "Quick-links: show only the ACTIVE TAB of each pane (max 4 entries by default); add a disclosure triangle to expand to all tabs; test with the 4-pane 19-tab-each worst case.",
+      "Project-tree row stable id: stable_part(doc.id) using the same slug function as stableIdPart() in App.tsx (line 345-352) — strip to [a-z0-9-] — assert no two documents in a 1000-doc test have the same stable_part.",
+      "Persist left_rail_open in WorkbenchLayoutState.drawers.project on every toggle; assert the value round-trips through serialize/deserialize in a unit test.",
+      "Event bus must be an in-process broadcast channel (tokio broadcast or std mpsc); subscribe at LeftRail construction; unsubscribe on drop. Test: send a document-deleted event and assert the document is removed from the tree without a manual refresh.",
+      "bottom_drawer_open field name must be defined in a single shared constant; both LeftRail (stash toggle) and MT-022 (bottom drawer) reference the same field via AppState, not separate boolean flags."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification UPHOLDS PASS_V1: the left activity rail is honestly and correctly implemented end-to-end (collapsible SidePanel with backward-compatible persisted drawers.project, real async HTTP project tree, bookmarks via the verified real /workspaces/:id/loom/views/pins -> Pins{blocks} route, quick links, stash/agenda/mail/notes affordances, an in-process delete bus, and a robust last-known-good layout-restore path) with no deferred-live escapes on any required path and real kittest + live-PG proof.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-014.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/left_rail.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/project_tree.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/quick_links.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/event_bus.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/layout_persistence.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (MT-014 wiring: set_workspace 4115, drain_shell_events 4119, poll 4123, SidePanel 4143, apply_left_rail_event 2796-2858)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs (DECLARED_IDENTITIES 287-345)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_left_rail.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/loom.rs (route 256, Pins variant 3101)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/workspaces.rs (documents route 39)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/canvases.rs (canvases route 29)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/storage/loom.rs (Pins{blocks} 491)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC1: collapsible SidePanel::left toggled open/closed; state persists across sessions via WorkbenchLayoutState.drawers.project",
+        "status": "MET",
+        "evidence": "app.rs:4143-4154 renders egui::SidePanel::left(\"left-rail\") with resizable/min_width/default_width keyed on rail_open; ToggleRail flips self.left_rail_open (app.rs:2846-2848 + 1258). Persisted via DrawersState.project in layout_persistence.rs:77-95 with #[serde(default=default_left_rail_open)] for backward compatibility (older blob with no drawers key still deserializes, rail OPEN). capture path serializes drawers.project. Tests left_rail_open_state_round_trips_through_drawers_project (capture->JSON blob[\"drawers\"][\"project\"]==false->restore) and clicking_collapse_toggle_flips_rail_open (live kittest click on 'Collapse rail')."
+      },
+      {
+        "criterion": "AC2: Files/Agenda/Mail/Notes activity icons in always-visible strip with stable ids 'left-rail.activity.*', role=Button, Click",
+        "status": "MET",
+        "evidence": "left_rail.rs icon_button() emits Role::Button + fixed author_id from LEFT_RAIL_BUTTONS band 80-83 via Id::from_high_entropy_bits; the icon strip renders unconditionally (outside the rail_open guard). Test contract_author_ids_present_with_button_role asserts all four present as Button in the live AccessKit tree."
+      },
+      {
+        "criterion": "AC3: project tree shows documents+canvases via GET /workspaces/{id}/documents and /canvases; clicking a document opens it in active pane",
+        "status": "MET",
+        "evidence": "project_tree.rs load_project_content() fetches documents + canvases via real reqwest HTTP (fetch_summaries) at /workspaces/{id}/documents and /canvases (routes confirmed at workspaces.rs:39 and canvases.rs:29). set_workspace spawns async load each frame (app.rs:4115). OpenDocument -> open_content_on_active_pane(PaneType::Workspace, Some(doc_id)) (app.rs:2798-2800). Test project_tree_click_foo_returns_open_document_d1 (real kittest click) + live-PG live_backend_project_tree_loads_and_opens_document asserts a tab carrying the clicked document's content_id opens."
+      },
+      {
+        "criterion": "AC4: paper-strip rows — background only as wide as text, variable widths, right-aligned labels",
+        "status": "MET",
+        "evidence": "paper_strip_row() (project_tree.rs:715) allocates strip_w = label_width + pad*2 (min available) and paints the label right-aligned (text_pos.x = rect.right()-pad-galley.width). Width cached per author_id in width_cache, refreshed once per loaded list / on remove, not per frame (red-team per-frame-cost control)."
+      },
+      {
+        "criterion": "AC5: quick-links shows pane tabs prefixed by muted project name; click focuses pane + activates tab",
+        "status": "MET",
+        "evidence": "quick_links.rs quick_link_row() renders a grey project prefix LEFT of the label; default collapsed shows only is_active rows (max 4, red-team control), disclosure expands all bounded by QUICK_LINKS_MAX_ROWS=24 + '+N more' footer. FocusPaneTab -> set active_pane + bar.activate(tab_index) (app.rs:2834-2841). Test quick_links_click_returns_pane_b_inference_lab (expand via disclosure click + click row) returns (pane-b, 1)."
+      },
+      {
+        "criterion": "AC6: stash toggle flips bottom_drawer_open; id='left-rail.stash-toggle'",
+        "status": "MET",
+        "evidence": "text_button Stash at author_id left-rail.stash-toggle (band slot 84); ToggleStash -> self.bottom_drawer_open=!.. (app.rs:2842-2844). Single shared AppState field bottom_drawer_open (app.rs:206) referenced by the rail toggle, the bottom-drawer surfaces, and the palette (red-team single-shared-field control). Test stash_button_returns_toggle_stash."
+      },
+      {
+        "criterion": "AC7: Agenda/Mail/Notes bottom affordances trigger tab activation (Notes->LoomDailyJournal); ids left-rail.agenda/mail/notes",
+        "status": "MET",
+        "evidence": "Notes -> OpenModuleTab(PaneType::LoomDailyJournal) (real existing variant); Agenda/Mail -> OpenModuleTab(PaneType::Placeholder(\"Agenda\"/\"Mail\")) with a TODO(MT-future) naming the eventual PaneType variants, which the contract implementation_notes (#9) explicitly permit ('Agenda/Mail affordances open placeholder pane tabs for now'). All three open via open_content_on_active_pane (app.rs:2831-2833). Ids present as Button per contract_author_ids test."
+      },
+      {
+        "criterion": "AC8: GET documents failure shows inline error + Retry button without crashing",
+        "status": "MET",
+        "evidence": "project_tree.rs show() (455-491) renders a colored 'Load failed:' label + a Retry button at the fixed id project-tree.retry (Role::Button); the click sets retry_requested, drained via take_retry_request -> app RetryProjectTree -> project_tree.retry(runtime_handle) (app.rs:2850-2855). Test project_tree_error_shows_clickable_retry_button (set_error + live kittest click)."
+      },
+      {
+        "criterion": "AC9: all interactive elements have stable author_ids (no frame-counter derivation); AccessKit snapshot confirms ids+roles",
+        "status": "MET",
+        "evidence": "Fixed ids via Id::from_high_entropy_bits for the fixed-count rail controls (band 80-88) + containers project-tree(89)/quick-links(90)/bookmarks(91); dynamic-count rows derive Id::new(author_id) where author_id slugs the content id to [a-z0-9-] via stable_part() (empty -> stable hash fallback). All nine rail buttons + the three containers are enumerated in accessibility::registry DECLARED_IDENTITIES (registry.rs:287-345) for the cross-module collision proof. Live-tree tests assert presence + roles (Button/Tree/List)."
+      },
+      {
+        "criterion": "proof_target #6: live-PostgreSQL integration — real document fetch + open path",
+        "status": "MET",
+        "evidence": "live_backend_project_tree_loads_and_opens_document calls the REAL load_project_content over HTTP + managed PG (127.0.0.1:37501), asserts non-empty docs, seeds the tree, clicks a row, and asserts a tab carrying first.id (content_id) opened on a pane. #[ignore] + feature-gated 'integration_tests' for out-of-process infra (standard); the document-open required behavior is independently proven by the non-ignored kittest project_tree_click_foo_returns_open_document_d1 + the live shell wiring, so the gate hides no unproven required behavior."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Spec-Realism PASSES on independent re-check. sub-rule 1 (deferred-live escape): a grep of left_rail.rs / project_tree.rs / quick_links.rs / event_bus.rs for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to'/'pending MT-'/Unavailable/panic! found exactly one hit: the debug programmer-error panic! in button_node_id() for an UNDECLARED author_id; all 9 controls ARE in LEFT_RAIL_BUTTONS and the button_node_id_resolves_every_declared_control test proves every author_id resolves, so it is unreachable on the required path -- NOT an escape. The Agenda/Mail PaneType::Placeholder tabs are contract-sanctioned (implementation_notes #9), not stubs; Notes opens the real LoomDailyJournal. The event_bus has no production EMITTER yet, but that is the future-MT delete trigger, NOT MT-014's required surface; the red-team minimum control (in-process bus exists + per-frame drain removes the row) is genuinely real and proven by document_deleted_event_removes_row_from_live_tree (live tree, no manual refresh). sub-rule 2 (real-resource proof): every Handshake-owned resource is real and verified against backend source -- documents (workspaces.rs:39), canvases (canvases.rs:29), bookmarks via /workspaces/:workspace_id/loom/views/:view_type (loom.rs:256) returning LoomViewResponse::Pins{blocks:Vec<LoomBlock>} (storage/loom.rs:491), which the native fetch_bookmarks consumes via v.get(\"blocks\"); bookmark_kind mirrors the React helper. Layout persistence is PostgreSQL/EventLedger-authoritative via PUT/GET /workspaces/:id/workbench/layout (the LayoutTransport stub is only the unit-test seam; the live-PG path is real and the state-recovery logic -- schema gate, version gate, project-mismatch rejection, last-known-good fallback, dirty-kept-on-save-failure -- is robust and never applies an unvalidated blob). The live-PG project_tree integration test exercises the REAL load_project_content, not an implementer mock. sub-rule 3 (independent review): satisfied by THIS review (WP built folded, no separate validator by design per operator directive)."
+    },
+    "concerns_non_blocking": [
+      "File layout deviates from the contract's literal 'EXACT FILES TO CREATE' (contract named src/frontend/navigation/left_rail.rs etc.; actual files live under src/frontend/handshake_native/src/{left_rail,project_tree,quick_links,event_bus}.rs and the SidePanel is wired in app.rs, not shell.rs). This matches the real crate structure of the WP and is consistent with sibling MTs. Paperwork-shape deviation, not a code defect; NOT a blocker.",
+      "The shell event bus (event_bus.rs / drain_shell_events) is wired + tested but has NO production emitter yet -- a future MT must call ShellEventSender::send on a real delete from another surface. Honestly disclosed in the commit message and event_bus.rs module docs. The MT-014 required surface is the rail itself; the delete-driven removal mechanism is proven end-to-end. NOT a blocker.",
+      "No egui ScrollArea is used (disclosed deviation): egui's anonymous interactive scroll-viewport node would trip the MT-025 unnamed-interactive gate, so the rail renders content directly (clipping overflow). Quick links are bounded (active-only default + QUICK_LINKS_MAX_ROWS) and tree widths are cached, mitigating the practical unboundedness risk, but a very tall project tree could clip until a future gate-clean scroll viewport is added. NOT a blocker.",
+      "Lifecycle.status in MT-014.json is PENDING and validator_verdict PENDING (paperwork only). Per the operator directive this is explicitly NOT a blocker; this review is the independent certification."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

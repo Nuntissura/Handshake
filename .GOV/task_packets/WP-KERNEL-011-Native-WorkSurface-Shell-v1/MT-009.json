@@ -1,0 +1,219 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-009",
+  "title": "C2-MT009-PerProjectLayoutPersistence",
+  "group": "C2 Dockable work-surface",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-009.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008"
+    ],
+    "blocks": [
+      "MT-010"
+    ],
+    "validator_verdict": "FAIL_V1",
+    "validator_verdict_status": "FAIL"
+  },
+  "scope": {
+    "summary": "GOAL: Implement per-project versioned layout snapshots that persist the full work-surface state (split weights, tab bar states, active pane, pop-out geometries) to the existing PostgreSQL backend via the `GET/PUT /workspaces/:workspace_id/workbench/layout` REST API. Includes validate-before-restore (schema version check + pane-id completeness check), a last-known-good (LKG) fallback, and a layout reset to defaults. Expected diff shape: one new file `src/frontend/shell/layout_persistence.rs` (~350–450 lines), edits to `src/frontend/shell/app.rs` (spawn async load on project switch, save on layout change with retry), and a new `src/frontend/api/workbench_layout.rs` client module (~80 lines).\n\nFILES TO CREATE/EDIT:\n- CREATE: `src/frontend/shell/layout_persistence.rs` — `LayoutSnapshot`, `LayoutSnapshotPane`, `LayoutPersistenceStatus`, `LayoutPersistenceManager`, `LastKnownGood`.\n- CREATE: `src/frontend/api/workbench_layout.rs` — `WorkbenchLayoutClient::get(workspace_id) -> Result<Option<LayoutSnapshot>>`, `WorkbenchLayoutClient::save(workspace_id, snapshot) -> Result<LayoutSnapshot>`.\n- EDIT: `src/frontend/shell/mod.rs` — add `pub mod layout_persistence;`.\n- EDIT: `src/frontend/api/mod.rs` — add `pub mod workbench_layout;`.\n- EDIT: `src/frontend/shell/app.rs` — add `layout_persistence: LayoutPersistenceManager` to `HandshakeApp`; wire project-switch load + debounced save.\n\nSCHEMA CONSTANTS (must match React/backend):\n```rust\nconst WORKBENCH_LAYOUT_SCHEMA_ID: &str = \"hsk.workbench_layout_state@1\";\nconst LAYOUT_SNAPSHOT_VERSION: u32 = 1;\nconst SAVE_DEBOUNCE_MS: u64 = 300; // save after 300ms quiet period\nconst SAVE_RETRY_DELAYS_MS: &[u64] = &[50, 100, 200]; // matches React WORKBENCH_LAYOUT_SAVE_RETRY_DELAYS_MS\nconst SPLIT_MIN: f32 = 0.2;\nconst SPLIT_MAX: f32 = 0.8;\n```\n\nSNAPSHOT SCHEMA (must be compatible with React's `WorkbenchLayoutState` serialized to JSON):\n```rust\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct LayoutSnapshotPane {\n    pub id: String,              // \"pane-a\" .. \"pane-d\"\n    pub active_tab: String,      // PaneType serialized key\n    pub tabs: Vec<String>,       // ordered PaneType serialized keys\n    pub locked: bool,\n    pub project_ref: String,\n    pub active_document_id: Option<String>,\n    pub active_canvas_id: Option<String>,\n    pub open_documents: Vec<OpenDocumentRecord>,\n}\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct OpenDocumentRecord {\n    pub document_id: String,\n    pub pinned: bool,\n    pub dirty: bool,\n}\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct LayoutSnapshot {\n    pub schema_id: String,       // must equal WORKBENCH_LAYOUT_SCHEMA_ID\n    pub version: u32,            // LAYOUT_SNAPSHOT_VERSION\n    pub active_pane_id: String,  // \"pane-a\" .. \"pane-d\"\n    pub active_module: String,   // \"MAIN\" | \"CKC\" | \"INGEST\" | \"STAGE\" | \"LAB\" | \"STUDIO\"\n    pub split_weights: SplitWeightsSnapshot,\n    pub drawers: DrawersSnapshot,\n    pub panes: Vec<LayoutSnapshotPane>,\n    pub pop_out_geometries: HashMap<String, PopOutGeometrySnapshot>, // pane_id -> geometry\n}\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct SplitWeightsSnapshot { pub vertical: f32, pub horizontal: f32 }\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct DrawersSnapshot { pub project: bool, pub file: bool, pub bottom: bool }\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct PopOutGeometrySnapshot { pub pos_x: f32, pub pos_y: f32, pub width: f32, pub height: f32 }\n```\n\nVALIDATE-BEFORE-RESTORE:\n```rust\npub fn validate_snapshot(snap: &LayoutSnapshot) -> Result<(), LayoutValidationError> {\n    // 1. schema_id must equal WORKBENCH_LAYOUT_SCHEMA_ID\n    // 2. split_weights.vertical and .horizontal must be in [SPLIT_MIN, SPLIT_MAX]\n    //    (clamp rather than reject, so minor out-of-bound values from React don't break restore)\n    // 3. panes must contain exactly the four ids [\"pane-a\",\"pane-b\",\"pane-c\",\"pane-d\"]\n    // 4. each pane.active_tab must be a recognized PaneType key\n    // 5. active_pane_id must be one of the four pane ids\n    // Returns Ok(()) or Err(LayoutValidationError::*)\n}\n```\n\nLAST-KNOWN-GOOD (LKG) MECHANISM:\n- After a successful save, clone the snapshot into `last_known_good: Option<LayoutSnapshot>`.\n- On restore failure (`validate_snapshot` fails or HTTP error): attempt to restore `last_known_good`. If LKG is also None, fall back to `default_layout(project_id)`.\n- Expose `LayoutPersistenceManager::reset_to_default(project_id)` which clears LKG, sets current snapshot to default, and queues an immediate save.\n\nSAVE FLOW (matches React's debounced retry pattern):\n1. When any layout-affecting state changes (split weight, tab state, pop-out geometry, drawer toggle), call `layout_persistence.mark_dirty()`.\n2. `mark_dirty()` resets a debounce timer to SAVE_DEBOUNCE_MS.\n3. When the timer fires, capture the current `LayoutSnapshot` from app state and call `layout_persistence.enqueue_save(workspace_id, snapshot)`.\n4. `enqueue_save` stores the snapshot in a `pending_save: Option<(String, LayoutSnapshot)>` and starts the async save drain (if not already draining).\n5. The drain loop: pop `pending_save`, call `WorkbenchLayoutClient::save(...)`. On success: update LKG, set status to `Ready`. On failure: retry up to 3 times with SAVE_RETRY_DELAYS_MS delays. After 3 failures: set status to `SaveError(message)` and stop retrying.\n6. Status values: `Loading`, `Ready(\"Layout saved\")`, `SavePending(\"Layout save failed; retrying\")`, `SaveError(\"Layout changes not saved; change layout to retry\")`.\n\nLOAD FLOW (on project switch or startup):\n1. `layout_persistence.load(workspace_id, api_client)` — sets status to `Loading`, spawns async HTTP GET.\n2. On HTTP 200 with `layout_state != null`: call `validate_snapshot`. If valid: apply to app state. If invalid: use LKG or default.\n3. On HTTP 200 with `layout_state == null`: apply default layout.\n4. On HTTP error: use LKG or default; set status to `LoadError(message)`.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Define all types in `layout_persistence.rs`.\n2. Implement `validate_snapshot()`.\n3. Implement `LayoutPersistenceManager` with `mark_dirty`, `enqueue_save`, `load`, `reset_to_default`, `status() -> LayoutPersistenceStatus`.\n4. Implement `WorkbenchLayoutClient` in `src/frontend/api/workbench_layout.rs` using `reqwest` (or the existing HTTP client already used by the frontend from prior MTs). Base URL comes from `BackendConfig::api_base_url()`. Endpoints: `GET /workspaces/{id}/workbench/layout` and `PUT /workspaces/{id}/workbench/layout` with body `{\"layout_state\": <LayoutSnapshot as JSON Value>}`.\n5. In `HandshakeApp::update()`, after rendering the layout, call `layout_persistence.tick(ui.ctx(), delta_time)` to drive the debounce timer and drain loop.\n6. Implement `HandshakeApp::capture_layout_snapshot() -> LayoutSnapshot` — collects the current state from `split_weights`, `tab_bar_states`, `active_pane_id`, `popout_manager.geometries()`, `drawer_states`.\n7. Implement `HandshakeApp::apply_layout_snapshot(snap: LayoutSnapshot)` — validates (calling `validate_snapshot`), clamps split weights, restores per-pane tab states, restores pop-out geometries, sets active pane.\n8. On project switch (when `active_workspace_id` changes), call `layout_persistence.load(new_workspace_id, &api_client)` and, on completion, call `apply_layout_snapshot`.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n- MT-005 through MT-008 must be complete so the full layout state (split weights, tab bars, pop-out geometries) exists to snapshot.\n- Requires `reqwest` or equivalent HTTP client in the frontend crate. Check Cargo.toml; add if absent.\n- Requires a running PostgreSQL backend with the `knowledge_workbench_layout_states` table (already exists in `handshake_core`).\n\nRISK IF MISSED:\n- Without persistence, every app restart loses the user's layout — severe usability regression. Without validate-before-restore, a corrupt or version-mismatched snapshot can cause a layout panic or infinite restore loop. Without LKG, any save failure permanently destroys the user's layout.",
+    "allowed_paths": [
+      "src/frontend/shell/layout_persistence.rs",
+      "src/frontend/api/workbench_layout.rs",
+      "src/frontend/shell/mod.rs",
+      "src/frontend/api/mod.rs",
+      "src/frontend/shell/app.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`validate_snapshot()` returns `Ok(())` for a valid snapshot with schema_id=`hsk.workbench_layout_state@1`, four panes, and split weights in [0.2, 0.8]. Verified by unit test.",
+      "`validate_snapshot()` returns `Err(LayoutValidationError::SchemaMismatch)` for a snapshot with a wrong schema_id. Verified by unit test.",
+      "`validate_snapshot()` returns `Err(LayoutValidationError::MissingPane(\"pane-c\"))` for a snapshot missing pane-c. Verified by unit test.",
+      "Split weights outside [0.2, 0.8] in a snapshot are clamped (not rejected): `validate_and_clamp()` produces weights in [0.2, 0.8]. Verified by unit test with `vertical=0.1`.",
+      "`LayoutPersistenceManager::reset_to_default(project_id)` sets status to `SavePending` and, after the save drain completes (mocked HTTP), sets status to `Ready`. Verified by unit test with a mock HTTP client.",
+      "A full round-trip integration test against a real running PostgreSQL backend: (1) capture a layout snapshot from app state; (2) call `WorkbenchLayoutClient::save(workspace_id, snapshot)`; (3) call `WorkbenchLayoutClient::get(workspace_id)`; (4) assert the returned snapshot equals the saved one (compare via JSON). This test is tagged `#[cfg(feature = \"integration_tests\")]` and requires `TEST_BACKEND_URL` env var.",
+      "LKG fallback: when `validate_snapshot` fails for the loaded snapshot but LKG exists, `apply_layout_snapshot` uses the LKG. Verified by unit test with a mock that returns an invalid snapshot after a prior successful save (which set LKG).",
+      "Save retry: when the first save attempt fails (mock HTTP 500), the manager retries after 50ms, then 100ms, then 200ms. After 3 failures, status is `SaveError`. Verified by a mock timer unit test.",
+      "The `LayoutSnapshot` schema_id field serializes as `\"schema_id\"` in JSON (snake_case), matching the backend column. Verified by `serde_json::to_value(&snapshot)[\"schema_id\"] == \"hsk.workbench_layout_state@1\"`.",
+      "`cargo build -p handshake_frontend --release` succeeds.",
+      "`cargo test -p handshake_frontend layout_persistence` passes all unit tests."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend layout_persistence -- --nocapture` and show all unit tests PASS.",
+      "Run the integration test `cargo test -p handshake_frontend layout_persistence::integration -- --nocapture --ignored` with a real PG backend (set TEST_BACKEND_URL). Show the round-trip assertion PASS with the snapshot JSON printed.",
+      "In a running app, change the split weight, wait 300ms (debounce), then restart the app. Confirm the split weight is restored to the changed value, proving the save and load paths both work end-to-end."
+    ],
+    "implementation_notes": [
+      "The backend endpoint is `GET /workspaces/:workspace_id/workbench/layout` and `PUT /workspaces/:workspace_id/workbench/layout` with body `{\"layout_state\": <JSON>}`. This is defined in `src/backend/handshake_core/src/api/workspaces.rs` lines 54-55 and handlers at lines 689-738. The `layout_state` column is a `serde_json::Value` (JSONB in Postgres); the frontend passes the full `LayoutSnapshot` serialized as a JSON object.",
+      "The React schema uses camelCase field names (`activePaneId`, `splitWeights`, `activeModule`). The Rust struct must serialize to camelCase via `#[serde(rename_all = \"camelCase\")]` on `LayoutSnapshot` to be compatible with the existing backend JSONB value and the React client (for cross-client compatibility during the migration period).",
+      "Use `#[serde(rename_all = \"camelCase\")]` on `LayoutSnapshot`, `LayoutSnapshotPane`, `SplitWeightsSnapshot`, and `DrawersSnapshot` to match the React schema. `PopOutGeometrySnapshot` is a new addition and can use snake_case (it has no React analog).",
+      "The debounce timer in `LayoutPersistenceManager`: store `last_dirty_at: Option<Instant>` and `SAVE_DEBOUNCE_MS = 300`. In `tick(delta_time)`, if `last_dirty_at.is_some()` and `Instant::now().duration_since(*last_dirty_at).as_millis() >= SAVE_DEBOUNCE_MS`, trigger save.",
+      "The async save drain: use `tokio::spawn` (if the frontend crate has a tokio runtime) or channel-based async. If the frontend uses a single-thread egui event loop, use a `oneshot` channel to receive the save result in the next `update()` frame. Store `save_result_rx: Option<tokio::sync::oneshot::Receiver<Result<LayoutSnapshot>>>` in `LayoutPersistenceManager`.",
+      "React reference for the save logic: App.tsx lines 656-705 (`queueWorkbenchLayoutSaveRetry`, `startWorkbenchLayoutSaveDrain`). The Rust port replaces `window.setTimeout` with the `tick(delta_time)` debounce and a tokio oneshot channel.",
+      "React reference for the parse/validate logic: App.tsx lines 440-546 (`parseWorkbenchLayoutPane`, `parseWorkbenchLayoutState`). The Rust port is `validate_snapshot()` which is stricter (returns error) but also clamps weights rather than rejecting them.",
+      "React API function reference: `getWorkbenchLayoutState` and `saveWorkbenchLayoutState` in `app/src/lib/api.ts` (not shown but implied by App.tsx imports line 29-32). The Rust `WorkbenchLayoutClient` is the native equivalent."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx lines 138-149: `type WorkbenchLayoutState` — ported as `LayoutSnapshot` with camelCase serde rename to match the backend JSONB.",
+      "app/src/App.tsx lines 163-165: `WORKBENCH_LAYOUT_SCHEMA_ID`, `SPLIT_MIN`, `SPLIT_MAX` — ported as Rust constants.",
+      "app/src/App.tsx line 321: `WORKBENCH_LAYOUT_SAVE_RETRY_DELAYS_MS = [50, 100, 200]` — ported as `SAVE_RETRY_DELAYS_MS`.",
+      "app/src/App.tsx lines 403-427: `buildWorkbenchLayoutState()` — ported as `HandshakeApp::capture_layout_snapshot()`.",
+      "app/src/App.tsx lines 508-546: `parseWorkbenchLayoutState()` — ported as `validate_snapshot()` + `HandshakeApp::apply_layout_snapshot()`.",
+      "app/src/App.tsx lines 656-705: `queueWorkbenchLayoutSaveRetry` + `startWorkbenchLayoutSaveDrain` — ported as `LayoutPersistenceManager` debounce + drain loop.",
+      "app/src/App.tsx lines 166-169: `WORKBENCH_LAYOUT_READY_STATUS`, `WORKSPACE_SETTINGS_READY_STATUS` — ported as `LayoutPersistenceStatus::Ready` variant."
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/:workspace_id/workbench/layout — handler: `get_workbench_layout` in `src/backend/handshake_core/src/api/workspaces.rs` line 689. Returns `WorkbenchLayoutResponse { workspace_id, layout_state: Option<Value>, updated_at, event_ledger_event_id }`.",
+      "PUT /workspaces/:workspace_id/workbench/layout — handler: `save_workbench_layout` in `src/backend/handshake_core/src/api/workspaces.rs` line 716. Body: `{ \"layout_state\": <JSON Value> }`. Returns same `WorkbenchLayoutResponse`.",
+      "Backend table: `knowledge_workbench_layout_states` (implicit from `storage.get_workbench_layout_state` / `storage.save_workbench_layout_state` in the handler). No schema changes needed."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "camelCase vs snake_case mismatch: if `LayoutSnapshot` serializes as snake_case, the backend stores it fine but the React client (during migration) reads wrong field names — cross-client compatibility broken.",
+      "Infinite restore loop: if the LKG snapshot is also invalid (e.g. it was saved from a future schema version), and the fallback to LKG also fails validate, the app could loop. Need a hard fallback to `default_layout` that never fails.",
+      "Debounce timer not driven in headless/test mode (no `update()` calls): integration tests that set dirty and then directly call `get` may test stale state. Mark timer-driven behavior explicitly in tests.",
+      "Concurrent agents triggering save while a previous save is draining: if `pending_save` is overwritten mid-drain, the old pending save is lost. The React pattern avoids this by only keeping the latest pending. Ensure Rust matches: always overwrite `pending_save` with the newest snapshot.",
+      "Pop-out geometry keys in JSON: using pane_id as a key in `pop_out_geometries: HashMap<String, ...>` means JSON field order is non-deterministic. This is fine for JSONB but snapshot equality tests must use serde_json `Value` comparison, not string comparison."
+    ],
+    "minimum_controls": [
+      "Use `#[serde(rename_all = \"camelCase\")]` on all snapshot structs and add a unit test that asserts `serde_json::to_value(&snapshot)[\"activePaneId\"]` is a string (not null) — catching case mismatch.",
+      "The fallback chain must be: (1) validated snapshot from API, (2) LKG, (3) `default_layout(project_id)`. Step 3 must be infallible. Add a unit test that simulates both (1) and (2) failing and asserts (3) is applied without panic.",
+      "The drain loop must always take the LATEST pending_save, not queue multiple saves. Unit test: call `mark_dirty()` three times in rapid succession; assert the drain loop calls the HTTP save exactly once with the latest snapshot.",
+      "Integration test tagged `#[ignore]` requires `TEST_BACKEND_URL` env var; CI runs it only in the integration test job, not in the fast unit test job."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "FAIL_V1",
+    "confidence": "MEDIUM",
+    "one_line": "I OVERTURN the first reviewer's AC#4 blocker (split-weight clamp-on-restore IS effectively delivered and tested via the per-frame defensive clamp at split_layout.rs:331-334 that writes back to app state, so no collapsed pane ever renders), but I UPHOLD a narrowed FAIL on AC#3: validate() (the contract's own named validate-before-restore gate) implements only 2 of its 5 specified checks - it has no pane-completeness check, no MissingPane variant, and no active_pane/active_tab membership check, with zero tests, so a schema+version-valid-but-structurally-corrupt native blob bypasses the LKG/default fallback and is applied raw on a surface the operator flagged STATE-RECOVERY-CRITICAL.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-009.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/layout_persistence.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/backend_client.rs (WorkbenchLayoutClient LayoutTransport impl, lines 955-1011)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_layout_persistence.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (apply_layout_snapshot 3441-3485, load_layout 3510-3524, drive_layout_persistence 3540-3597, capture_layout_snapshot 3386-3428, ui() frame order 4173/4227/4234/4393)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/split_layout.rs (clamp_split 143, SplitLayoutWidget::show defensive clamp 331-334, compute_split_rects 192, missing-pane render guard 363-365, active_pane 450/487/502, clamp tests 906/918/953)",
+      "git log/show 4cde6276 (MT-009 main commit, 6 files +1707 lines)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC#1 validate_snapshot() Ok for valid snapshot (schema_id, four panes, splits in [0.2,0.8])",
+        "status": "PARTIAL",
+        "evidence": "layout_persistence.rs:188-202 validate() checks ONLY schema_id (189) + version (195). It does NOT verify the four canonical pane ids are present, nor that split weights are in range. The contract's own validate_snapshot() pseudocode (MT-009.json scope.summary) lists FIVE checks: (1) schema_id, (2) split range/clamp, (3) four-pane completeness, (4) active_tab recognized, (5) active_pane_id membership. Only #1 (and version, an added check) is implemented. Test snapshot_validates_when_schema_and_version_match (573) passes but exercises only the schema/version gate."
+      },
+      {
+        "criterion": "AC#2 validate_snapshot() -> SchemaMismatch for wrong schema_id",
+        "status": "MET",
+        "evidence": "layout_persistence.rs:189-193 returns LayoutError::SchemaMismatch; tests snapshot_rejects_wrong_schema_id (578) and from_layout_state_rejects_foreign_schema_blob (616) both assert it. (Native schema_id is hsk.native_worksurface_layout@1, a deliberate native-vs-React split documented at 48-53; equivalent-intent, makes the React-blob case safer by rejecting it.)"
+      },
+      {
+        "criterion": "AC#3 validate_snapshot() -> MissingPane(\"pane-c\") for snapshot missing pane-c",
+        "status": "NOT_MET",
+        "evidence": "GENUINE GAP. No LayoutError::MissingPane variant exists (enum at 240-255 has only SchemaMismatch/VersionMismatch/ProjectMismatch/Serde/Transport), no pane-completeness check in validate(), no active_pane-membership check, no active_tab-recognized check, and no test. A native blob that parses, matches schema_id+version, but is missing a pane (or has active_pane pointing at a non-existent pane) PASSES validate(), so LayoutPersistenceManager::load (461) records it as LKG (471) and returns it as valid; apply_layout_snapshot (app.rs:3441) rebuilds the registry from snapshot.panes verbatim (3464-3470). The render then degrades that quadrant to an empty rect (split_layout.rs:363-365 `let Some(record)=... else {continue}`) - no panic, no data loss, but the corrupt blob is applied raw instead of falling back to LKG/default, which is exactly what the validate-before-restore gate was specified to prevent."
+      },
+      {
+        "criterion": "AC#4 split weights outside [0.2,0.8] are CLAMPED on restore (test vertical=0.1)",
+        "status": "MET",
+        "evidence": "OVERTURNS the first reviewer's blocker. apply_layout_snapshot assigns snapshot.split_weights raw (app.rs:3451) and compute_split_rects deliberately does not re-clamp (split_layout.rs:190-191) - the first reviewer stopped there. BUT the CALLER clamps: SplitLayoutWidget::show (split_layout.rs:331-334) runs `weights.vertical = clamp_split(weights.vertical); weights.horizontal = clamp_split(weights.horizontal);` at the TOP of every frame, BEFORE compute_split_rects (343), with the explicit comment 'even if a weight was deserialized out of range (MT-009 snapshot, or a hand-edited file), the rect math below reads only clamped values.' The `weights` param is `&mut SplitWeights` bound to `&mut self.split_weights` (app.rs:4173,4234), so the clamp WRITES BACK 0.1 -> 0.2 into app state on the first render frame; no collapsed pane is ever rendered, and the next drive_layout_persistence pass (app.rs:4393, AFTER the CentralPanel at 4227) captures and autosaves the healed 0.2. The exact 0.1->0.2 case the contract names is proven by clamp_split_bounds (split_layout.rs:918) and set_value_clamps_below_min (953). The named method validate_and_clamp() does not exist, but the AC#4 INTENT (no zero-size pane on restore; weight self-heals into range) is met by real, tested code."
+      },
+      {
+        "criterion": "AC#5 reset_to_default(project_id) -> SavePending then Ready after drain",
+        "status": "PARTIAL",
+        "evidence": "No LayoutPersistenceManager::reset_to_default method and no direct test of the Pending->Saved transition for reset. Reset is implemented as reset_to_default_layout (app.rs:3233, sets split_weights=default at 3235) + change-detection autosave in drive_layout_persistence (app.rs:3561-3573) which mark_dirty + debounce-saves. Functionally equivalent to intent (status goes Pending via mark_dirty at layout_persistence.rs:388, then Saved via save_now at 425), but the named transition is not directly asserted. Non-blocking paperwork-grade per the directive."
+      },
+      {
+        "criterion": "AC#6 live PG round-trip via real WorkbenchLayoutClient, cfg-gated + env",
+        "status": "MET",
+        "evidence": "WorkbenchLayoutClient is the real reqwest transport: GET (backend_client.rs:959-985) and PUT (990-1010) against /workspaces/:id/workbench/layout via runtime.block_on, real HTTP, real JSON body {\"layout_state\": ...}. Production wires it (app.rs:682 per first reviewer; the LayoutTransport impl is the production transport). Backend endpoint + handlers + migration 0323_workbench_layout_state confirmed by contract binds_backend_api. Test live_backend_layout_round_trips_through_postgres (test_layout_persistence.rs:302-342) is #[cfg(feature=integration_tests)] + #[ignore]; the ignore correctly gates out-of-process PG infra, not unproven required behavior. Sub-rule 2 (real-resource proof) satisfied - NOT a mock-only escape."
+      },
+      {
+        "criterion": "AC#7 LKG fallback when load validation fails but LKG exists",
+        "status": "MET",
+        "evidence": "Manager load() fall_back_to_lkg (layout_persistence.rs:461-496); tests load_transport_failure_falls_back_to_lkg (876) and load_corrupt_blob_with_no_lkg_falls_back_to_default (893) and load_wrong_project_blob_is_rejected (906) prove the chain. The fallback to default is infallible (no restore loop)."
+      },
+      {
+        "criterion": "AC#8 save retry (transient) then SaveError after 3 failures",
+        "status": "MET",
+        "evidence": "save_now retries transient up to SAVE_MAX_RETRIES=3 (layout_persistence.rs:417-446); tests save_retries_transient_failure_then_succeeds (810), save_gives_up_after_retry_budget_and_keeps_dirty (823, keeps dirty so no data loss), save_permanent_error_is_not_retried (841)."
+      },
+      {
+        "criterion": "AC#9 schema_id serializes as snake_case \"schema_id\"",
+        "status": "MET",
+        "evidence": "Test schema_id_and_version_serialize_into_layout_state (layout_persistence.rs:596) asserts value[\"schema_id\"]. Native schema_id is hsk.native_worksurface_layout@1 (deliberate native-vs-React split, 48-53), not the contract literal hsk.workbench_layout_state@1 - a justified deviation that makes the React-blob case safer (rejected, not mis-applied). The contract's camelCase guidance is for cross-React compatibility; the native schema is snake_case and React never reads this blob, so the deviation is intent-met."
+      },
+      {
+        "criterion": "AC#10/#11 build + unit tests pass",
+        "status": "MET",
+        "evidence": "Ground truth provided by harness: handshake_native compiles clean (cargo build --tests exit 0) and the curated deterministic suite passes (350 lib unit tests + 29 integration binaries, 0 failures; layout_persistence/popout/split_layout green)."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "No todo!()/unimplemented!()/stub returns on the required-behavior path. The PostgreSQL-authoritative claim is REAL: WorkbenchLayoutClient performs genuine reqwest GET/PUT (backend_client.rs:959-1010) against the verified backend endpoint + migration 0323. Mock/stub transports (StubTransport, MemoryTransport) are confined to unit/app-loop tests exactly as AC#5/#7/#8 permit. The #[ignore] live-PG test hides no required behavior (it needs out-of-process PG). Self-certification (lifecycle.claimed_by == ready_for_validation_by) is NOT a factor - this review IS the independent certification per the operator directive. The FAIL is NOT a spec-realism escape and NOT a paperwork nit - it is one genuinely-unimplemented, untested validate-before-restore acceptance criterion (AC#3 pane/active-pane/active-tab completeness) on a STATE-RECOVERY-CRITICAL surface."
+    },
+    "concerns_non_blocking": [
+      "AC#1 is PARTIAL (not its own blocker, but the same root cause as AC#3): the happy-path validate() returns Ok for a valid snapshot, but it does so without verifying pane completeness - so AC#1's 'four panes' clause is unproven. Fixing AC#3 closes AC#1's gap too.",
+      "AC#5 reset path uses change-detection autosave (app.rs:3233/3561-3573) rather than a manager reset_to_default method emitting an explicit SavePending->Ready; functionally equivalent and safe (mark_dirty sets Pending, save_now sets Saved), but the named transition is not directly asserted. Paperwork-grade, NOT a blocker per the operator directive.",
+      "Justified/equivalent deviations from contract text (judged intent-met, NOT failures): native schema_id hsk.native_worksurface_layout@1 vs contract hsk.workbench_layout_state@1 (deliberate native-vs-React split, documented 48-53, arguably safer); snake_case serialization vs the contract's camelCase guidance (consistent with the separate native schema React never reads); status variants Idle/Pending/Saved/Loaded/Default/Error vs the contract's Loading/Ready/SavePending/SaveError; files at handshake_native/src/layout_persistence.rs + backend_client.rs vs the contract's shell/ + api/ paths (established crate structure from prior C2 MTs). None are correctness defects.",
+      "KNOWN LIMITATION disclosed in the commit: restore-time pop-out clamp uses the current-monitor extent refreshed each frame rather than enumerating all monitors, so a pop-out restored on a second monitor before egui reports the full extent could snap to primary. No data loss; proper fix needs eframe monitor enumeration. Acceptable as a disclosed follow-up, not an MT-009 blocker.",
+      "Repo-governance paperwork (gov-check, validator receipts, acceptance-matrix rows, self-certification lifecycle.claimed_by==ready_for_validation_by) is out of scope per the operator directive and was not a factor in this verdict."
+    ],
+    "blocking_issues": [
+      "AC#3 (state-recovery-critical): validate() (layout_persistence.rs:188-202) is the contract's OWN named validate-before-restore gate, and it implements only 2 of its 5 specified checks (schema_id + version). It has NO LayoutError::MissingPane variant, NO four-pane-completeness check, NO active_pane-membership check, and NO active_tab-recognized check. A blob that matches schema_id+version but is structurally corrupt (missing pane-c, or active_pane pointing at a non-existent pane) therefore PASSES validate, is recorded as LKG (layout_persistence.rs:471), bypasses the LKG/default fallback (which fires only on Err), and is applied raw by apply_layout_snapshot (app.rs:3464-3470) - the exact corrupt-blob-restore case this gate was specified (and named in AC#3) to catch. Zero test coverage. Real-world severity is MODERATE (render degrades the missing quadrant to an empty rect at split_layout.rs:363-365 - no panic, no restore loop, no data loss; a stale active_pane is harmless cosmetics), but it is a concrete, named, code-level robustness gate that is absent on a surface the operator flagged STATE-RECOVERY-CRITICAL and directed to scrutinize hard."
+    ],
+    "failure_report": "VERDICT NARROWED vs the first reviewer. I OVERTURN the first reviewer's AC#4 blocker and UPHOLD a single, narrower AC#3 blocker.\\n\\nOVERTURNED - AC#4 (split-weight clamp-on-restore) is actually MET. The first reviewer concluded a restored vertical=0.1 'renders a ~10%-collapsed pane until the user next drags' because apply_layout_snapshot assigns split_weights raw (app.rs:3451) and compute_split_rects deliberately does not re-clamp (split_layout.rs:190-191). That analysis missed the CALLER. SplitLayoutWidget::show clamps unconditionally at the top of EVERY frame - split_layout.rs:331-334 `weights.vertical = clamp_split(weights.vertical); weights.horizontal = clamp_split(weights.horizontal);` - before compute_split_rects (343), with a comment that explicitly names 'MT-009 snapshot, or a hand-edited file' as the scenario it defends. Because `weights` is `&mut self.split_weights` (app.rs:4173/4234), the clamp WRITES BACK 0.1 -> 0.2 into app state on the first render frame, and drive_layout_persistence (app.rs:4393, which runs AFTER the CentralPanel at 4227) then captures and autosaves the healed value. No collapsed pane is ever rendered; the no-zero-size invariant holds on restore. The exact 0.1->0.2 case is proven by clamp_split_bounds (split_layout.rs:918) and set_value_clamps_below_min (953). The contract's named method validate_and_clamp() does not literally exist, but the AC#4 INTENT is satisfied by real, tested code - per the operator directive (judge code vs intent, not the method name), AC#4 is MET, not a blocker.\\n\\nUPHELD - AC#3 (pane-completeness / active-pane / active-tab validation) is a genuine FAIL. The contract's scope.summary spells out validate_snapshot() as a five-check gate, and AC#3 names the precise expected behavior: validate must return MissingPane(\\\"pane-c\\\") for a snapshot missing pane-c, verified by a unit test. The implementation's validate() (layout_persistence.rs:188-202) checks only schema_id + version. There is no MissingPane variant, no pane-completeness check, no active_pane membership check, no active_tab recognition check, and no test for any of them. Consequence: the LKG/default fallback in LayoutPersistenceManager::load fires only on Err, so a schema+version-valid-but-structurally-corrupt native blob passes the gate, is recorded as last-known-good, and is applied raw - the corruption case the validate-before-restore gate exists to defend. The render tolerates the missing pane (no panic) and the infallible default fallback prevents a restore loop, so the two catastrophes the contract names ('layout panic or infinite restore loop') are NOT reachable - severity is moderate. But on a surface the operator explicitly flagged STATE-RECOVERY-CRITICAL with a directive to scrutinize state recovery hard, a named, explicit, zero-coverage validate-before-restore acceptance criterion that is simply not implemented is a code-vs-intent FAIL, not paperwork.\\n\\nEverything else is PASS-quality: real PostgreSQL-authoritative transport (reqwest GET/PUT, not a mock), debounced off-UI-thread save with retry + LKG + infallible default, the pop-out off-monitor restore clamp (real, tested end-to-end at restore_clamps_off_monitor_pop_out_through_the_app), full app-loop round-trip and autosave tests, and a cfg-gated live-PG round-trip that correctly #[ignore]s only the out-of-process infra. No deferred-live escape, no mock-only proof of a real resource, no fakes on the required path.",
+    "remediation_plan": [
+      "File: src/frontend/handshake_native/src/layout_persistence.rs (enum LayoutError, lines 240-255). Add a variant `MissingPane { id: String }` and (optionally) `UnknownActivePane { id: String }` and `UnknownActiveTab { pane: String, tab: String }`. Add their Display arms in the impl std::fmt::Display block (265-282). Ensure is_transient() (260-262) returns false for them (they are permanent data errors, already the default since only Transport(_) is transient), so they trigger the LKG/default fallback rather than a retry.",
+      "File: src/frontend/handshake_native/src/layout_persistence.rs (LayoutSnapshot::validate, lines 188-202). After the schema_id (189) and version (195) checks, add: (a) define `const PANE_IDS: [&str; 4] = [\"pane-a\",\"pane-b\",\"pane-c\",\"pane-d\"];` as the single source of truth (or reuse the canonical ids the registry seeder uses); (b) for each id in PANE_IDS, if `!self.panes.contains_key(&PaneId::from(id))` return `Err(LayoutError::MissingPane { id: id.to_owned() })` (this makes AC#3's MissingPane(\"pane-c\") test pass deterministically because BTreeMap iteration and the fixed PANE_IDS order make pane-c the named first-missing in the AC's scenario); (c) if `self.active_pane` is Some(id) and id is not one of PANE_IDS, return `Err(LayoutError::UnknownActivePane { id })`; (d) optionally validate that each tab_bars entry's active tab maps to a recognized PaneType key (active_tab recognition - check 4 in the contract pseudocode). Keep this purely a validate (reject) gate; do NOT clamp split weights here (split clamp is already handled at the render seam - see note below).",
+      "NOTE on AC#4 (do NOT re-implement): split-weight clamp-on-restore is already satisfied behaviorally by SplitLayoutWidget::show (split_layout.rs:331-334) writing the clamped value back to self.split_weights every frame. You may optionally ALSO clamp inside apply_layout_snapshot (app.rs, before line 3451: `let v = crate::split_layout::clamp_split(snapshot.split_weights.vertical); let h = crate::split_layout::clamp_split(snapshot.split_weights.horizontal); self.split_weights = SplitWeights { vertical: v, horizontal: h };`) so the in-memory split_weights is in-range BEFORE the first render frame and a between-load-and-render capture cannot momentarily re-persist the raw value. This is a belt-and-suspenders hardening, not required to pass AC#4 - but it is cheap and removes the one-frame raw window, so do it.",
+      "File: src/frontend/handshake_native/src/layout_persistence.rs (tests mod). Add: (1) `validate_rejects_missing_pane` - build sample_snapshot(), but make sample_snapshot() seed all four panes first (it currently seeds only pane-a + pane-b), then in the test remove pane-c from snap.panes and assert validate() returns Err(LayoutError::MissingPane { id }) with id == \"pane-c\". IMPORTANT: sample_snapshot() at lines 526-569 currently inserts only pane-a and pane-b, so once the four-pane check lands, the existing snapshot_validates_when_schema_and_version_match (573) and several round-trip tests WILL START FAILING. Update sample_snapshot() to seed all four canonical panes (pane-a..pane-d) with records + tab_bars so the happy-path tests still pass and the missing-pane test is a deliberate removal. (2) `validate_rejects_unknown_active_pane` - set snap.active_pane = Some(pid(\"pane-z\")) and assert Err(UnknownActivePane).",
+      "File: src/frontend/handshake_native/tests/test_layout_persistence.rs. Add an app-level fallback test: store a structurally-corrupt-but-schema-valid blob (capture a valid snapshot, then `snap.panes.remove(&pid(\"pane-c\"));` before `snap.to_layout_state()` and insert into the MemoryTransport store), then in a fresh shell call load_layout(DEFAULT_PROJECT_ID, big_desktop()) and assert it returns false (default kept / LKG used) rather than applying a 3-pane layout. This proves the corrupt blob now routes through fall_back_to_lkg instead of being applied raw.",
+      "Proof commands to re-run after the fix (do NOT skip): `cargo test -p handshake_native layout_persistence -- --nocapture` (must show the new validate_rejects_missing_pane / validate_rejects_unknown_active_pane PASS and the updated sample_snapshot happy-path + round-trip tests still PASS), and `cargo test -p handshake_native --test test_layout_persistence -- --nocapture` (must show the new corrupt-blob-fallback app test PASS and full_layout_round_trips_through_the_app / restore_clamps_off_monitor_pop_out_through_the_app / lifecycle_loads_then_autosaves_a_change still PASS). Optionally the live path: `cargo test -p handshake_native --features integration_tests --test test_layout_persistence live_backend_ -- --ignored --nocapture` with managed PG + handshake_core on 127.0.0.1:37501 and HSK_LIVE_WORKSPACE_ID set."
+    ]
+  }
+}

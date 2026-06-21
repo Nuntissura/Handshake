@@ -1,0 +1,198 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-013",
+  "title": "C3-MT-013-PaneLocalTabsHeaderBinding",
+  "group": "C3 Navigation layers",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-005",
+      "MT-006",
+      "MT-011",
+      "MT-012"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Implement pane-local tabs: the horizontal tab strip at the top of each individual pane (pane-a, pane-b, pane-c, pane-d). Each pane has its own independent tab list and active tab. The pane header title updates to reflect the active tab name. Each tab chip also carries a module/type label badge (small secondary text showing which module the tab belongs to or the tab's content type). Tab strip supports horizontal side-scrolling when the number of tabs exceeds available width. This is the per-pane equivalent of the browser tab bar.\n\nThis MT is DISTINCT from: project tabs (MT-011, top level, project identity), module switcher (MT-012, top-right header, module context), and document-level tabs within the workspace tab (those document tabs are a future MT in C2 or an editor MT).\n\nGoal and expected diff shape: create src/frontend/navigation/pane_tabs.rs exporting a PaneTabStrip widget; add a pane_header() render path in src/frontend/shell.rs (or src/frontend/layout/pane.rs if MT-005 created one) that renders PaneTabStrip at the top of each pane section and binds the pane header title to pane.active_tab.label().\n\nExact files to create/edit:\n  - CREATE: src/frontend/navigation/pane_tabs.rs\n  - EDIT: src/frontend/navigation/mod.rs — add pub mod pane_tabs\n  - EDIT: src/frontend/shell.rs (or src/frontend/layout/pane.rs) — in the per-pane render function (which MT-005 introduced), add the pane header area: title label bound to active tab, PaneTabStrip below or inline\n  - EDIT: src/frontend/state/pane_state.rs (or app_state.rs) — add tab_module_label(tab: PaneTabId) -> &'static str lookup\n\nData contract for pane state (already partially in place from MT-005 and MT-012):\n  - PaneState { id: PaneId, module: ModuleId, active_tab: PaneTabId, tabs: Vec<PaneTabId>, locked: bool, project_ref: String, ... } — matches App.tsx PaneState (lines 119-129)\n  - TAB_LABEL_BY_ID — 19-entry map from PaneTabId to display string, ported from App.tsx lines 175-195\n  - Tab module label: derive from which MODULE_DEFINITIONS[].tabs list the tab appears in — primary module is the first MODULE_DEFINITIONS entry containing this tab; if a tab appears in multiple modules, show the active pane module label instead\n\nStep-by-step implementation notes:\n  1. In pane_tabs.rs define struct PaneTabStrip { pane_id: PaneId, tabs: Vec<PaneTabId>, active_tab: PaneTabId } and fn show(&mut self, ui: &mut egui::Ui) -> Option<PaneTabId>.\n  2. Wrap the tab list in egui::ScrollArea::horizontal().show(ui, |ui| { ui.horizontal(|ui| { for tab in &self.tabs { ... } }) }) to enable side-scrolling when tabs overflow.\n  3. For each tab: let active = *tab == self.active_tab; let label = TAB_LABEL_BY_ID[tab]; let module_hint = module_label_for_tab(*tab, self.active_module); use ui.push_id(format!(\"{}-{}\", self.pane_id.as_str(), tab.as_str()), |ui| { let response = ui.selectable_label(active, label); if response.clicked() && !active { result = Some(*tab); } // Paint module_hint as small secondary text below/beside the label using ui.small(module_hint) inside a ui.vertical }).\n  4. AccessKit for each tab button: set widget_info with role=Tab (egui::WidgetType::Button), selected=active, label=label. Stable author_id derived from pane_id + tab id string, e.g. \"pane-a.tab.workspace\".\n  5. Pane header title: in the pane render function, before the scroll area, render a ui.horizontal header row: left side = egui::Label with text TAB_LABEL_BY_ID[pane.active_tab] (this is the header title binding); right side = lock button (from MT-005/MT-007). This mirrors the .main-pane__header div in App.tsx lines 1843-1874.\n  6. Module/type label badge: implement fn module_label_for_tab(tab: PaneTabId, active_module: ModuleId) -> &'static str: iterate MODULE_DEFINITIONS; if the active pane module's tab list contains the tab, return that module's label; else return the first module whose tab list contains it; else return \"\".\n  7. When active_tab changes via a tab click, update pane.active_tab AND call app_state.set_active_pane(pane_id) so that pane becomes the focused pane — mirrors setActiveTabForPane() in App.tsx lines 931-944 which calls setActivePaneId(paneId).\n  8. Tab order: tabs are always rendered in pane.tabs order, which is managed by module switch (MT-012) and future document-open actions. Do not re-sort here; render as-is.\n\nDependencies / unblock conditions:\n  - MT-005: PaneState, PaneId, PaneTabId, TAB_LABEL_BY_ID must exist.\n  - MT-012: ModuleId, MODULE_DEFINITIONS must exist (needed for module_label_for_tab).\n  - MT-011: project tabs must be in place so the shell layout structure exists (header + pane grid).\n\nRisk if missed: no way to switch between Workspace/InferenceLab/Problems etc. within a pane; pane header title is static or absent; tab strip does not scroll and overflows off-screen; agents cannot click a specific tab by stable id.",
+    "allowed_paths": [
+      "src/frontend/navigation/pane_tabs.rs",
+      "src/frontend/navigation/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/layout/pane.rs",
+      "src/frontend/state/pane_state.rs",
+      "src/frontend/state/app_state.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Each pane renders a horizontal tab strip at its top with one tab chip per entry in pane.tabs, in pane.tabs order.",
+      "The tab strip is horizontally scrollable via egui ScrollArea when tabs overflow the pane width; no tabs are clipped without a scroll affordance.",
+      "Each tab chip shows: (a) the tab label from TAB_LABEL_BY_ID and (b) a secondary module/type badge derived from module_label_for_tab.",
+      "The active tab chip is visually distinguished (selectable_label active=true).",
+      "Clicking a non-active tab sets pane.active_tab to that tab and makes this pane the focused pane (active pane id).",
+      "The pane header title (above or inline with the tab strip) updates to match TAB_LABEL_BY_ID[pane.active_tab] whenever the active tab changes.",
+      "Each tab chip has a stable AccessKit author_id in the form '{pane_id}.tab.{tab_id}' (e.g. 'pane-a.tab.workspace'), role=Button (Tab), and a Click/Toggle action.",
+      "All four panes (pane-a, pane-b, pane-c, pane-d) render their own independent tab strips correctly in a concurrent egui_kittest harness."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend -- navigation::pane_tabs::tab_click_changes_active — unit test: PaneTabStrip with tabs=[Workspace, Problems, Jobs], active=Workspace; simulate click on Problems; assert return value = Some(Problems) and no mutation to tab order.",
+      "cargo test -p handshake_frontend -- navigation::pane_tabs::module_label_for_tab — unit test covering all 19 PaneTabId values: assert module_label_for_tab(InferenceLab, ModuleId::Lab) = 'LAB'; assert module_label_for_tab(Workspace, ModuleId::Main) = 'MAIN'; assert no empty string is returned for any tab that appears in at least one MODULE_DEFINITIONS entry.",
+      "cargo test -p handshake_frontend -- navigation::pane_tabs::header_title_binding — unit test: given PaneState with active_tab=Problems, assert the header label text equals TAB_LABEL_BY_ID[Problems] = 'Problems'.",
+      "egui_kittest visual harness: render 4-pane grid each with 3 tabs; assert 12 total tab nodes painted; assert all 4 pane-a.tab.* nodes carry the correct pane_id prefix in their AccessKit ids.",
+      "AccessKit consumer snapshot: serialize full UI tree, assert nodes with ids 'pane-a.tab.workspace', 'pane-a.tab.problems', 'pane-b.tab.inference-lab' are present with role=Button."
+    ],
+    "implementation_notes": [
+      "Tab id string representation for AccessKit and layout persistence: use the kebab-case strings from TAB_LABEL_BY_ID keys exactly — 'workspace', 'inference-lab', 'kernel-dcc', etc. Implement PaneTabId::as_str() -> &'static str returning these strings.",
+      "ScrollArea configuration: ScrollArea::horizontal().id_source(format!(\"pane-{}-tabs-scroll\", pane_id)).max_height(32.0).show(ui, ...). This ensures each pane's scroll area has a unique egui id.",
+      "Module/type badge: render as a small label (ui.small(module_hint)) in a ui.vertical stack inside the selectable_label's area, or as a suffix in parentheses: 'Inference Lab (LAB)'. Use the shorter suffix format for space efficiency.",
+      "Tab minimum width: 64px; maximum width: 140px; truncate label with ellipsis via egui::Label::truncate(true) if wider.",
+      "pane.tabs deduplication: if pane.tabs contains duplicates (e.g. after module switch preserved old tabs), deduplicate maintaining first-occurrence order before rendering. Use the same unique_tabs() logic as MT-012.",
+      "Do NOT render document-level sub-tabs inside the workspace tab here; those are handled by a future MT. This MT only renders the pane-level tab strip (Workspace, InferenceLab, Problems, etc.).",
+      "The data-stable-id pattern from React: 'pane-{pane_id}-tabs' container, each tab button 'pane-{pane_id}.tab.{tab_id}' — adopt these exactly as AccessKit author_ids for maximum agent compatibility.",
+      "Lock button in pane header: render it right-aligned in the header row (ui.with_layout(right_to_left)). Lock state is in PaneState.locked; toggle with a click. Button label: if locked 'Unlock' else 'Lock'. Stable id: 'pane-{pane_id}-lock'. This was in App.tsx lines 1866-1873."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx — PaneState type (lines 119-129), PaneTabId type (lines 79-98), TAB_LABEL_BY_ID (lines 175-195), pane header render (lines 1843-1878), tab button render loop (lines 1845-1864), setActiveTabForPane() (lines 931-944), uniqueTabs() (line 327)",
+      "app/src/App.tsx — USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID special-case: pane-a user-manual tab gets id 'hs-usermanual-diagnostics-tab' instead of 'pane-a.tab.user-manual' (line 1847-1850) — replicate this override"
+    ],
+    "binds_backend_api": [
+      "No direct backend API call for tab switching. Pane tab state is persisted as part of WorkbenchLayoutState via PUT /workspaces/{id}/workbench/layout (MT-006 store). PaneTabId serialized as kebab-case string."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-INT"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Duplicate AccessKit ids across panes if the pane prefix is omitted (e.g. two panes both emit 'tab.workspace' without pane_id).",
+      "Tab strip does not scroll, tabs overflow and clip, no user affordance to reach off-screen tabs.",
+      "Header title not updated on tab click due to render order: pane content renders before header in the same frame, causing a one-frame lag visible as flickering label.",
+      "module_label_for_tab returns empty string for a valid tab because MODULE_DEFINITIONS is not yet initialized (depends on MT-012).",
+      "USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID override missed, breaking the agent stable-id contract for pane-a user-manual tab.",
+      "Lock button omitted from header, breaking layout-lock feature introduced by MT-005."
+    ],
+    "minimum_controls": [
+      "Every tab button must use ui.push_id(format!(\"{}-{}\", pane_id.as_str(), tab.as_str()), ...) — a unit test asserts the AccessKit author_id contains the pane_id prefix for every rendered tab in every pane.",
+      "ScrollArea wrapping the tab list must be present and tested with a mock where pane.tabs has 12 entries to ensure scrollability without overflow.",
+      "Header title must be derived reactively from pane.active_tab at render time (read from PaneState, not cached separately) to avoid stale title bugs.",
+      "module_label_for_tab must be tested with a snapshot covering all 19 PaneTabId values before this MT is declared done.",
+      "The USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID override ('hs-usermanual-diagnostics-tab') must appear as a named constant in pane_tabs.rs and be asserted in an AccessKit snapshot test."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Upholding PASS_V1: MT-013 honestly delivers per-pane binding headers (live active-tab title, module/type badge, lock button) and focus-on-tab-click with stable registry-declared AccessKit ids, all proven by REAL egui_kittest live tests that mutate real HandshakeApp/PaneRegistry state through the consumer-side AccessKit tree; the only contract-vs-code tension (AC7 dot-form id) is an internal contract inconsistency the impl correctly resolved toward the MT-007 dependency's established hyphen/index form, and the higher-authority WP accessibility contract (stable, registry-derived author_id) is fully met.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-013.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/pane_header.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/tab_bar.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/split_layout.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/module_switcher.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_pane_header.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_tab_bar.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "Each pane renders a horizontal tab strip, one chip per pane.tabs entry, in pane.tabs order",
+        "status": "MET",
+        "evidence": "MT-007 TabBar::render_tabs (tab_bar.rs:733-759) iterates state.tabs.iter().enumerate() in order, one chip per entry; MT-013 wires the per-pane strip in split_layout.rs:455-465 below the new header. TabBarState dedups (tab_bar.rs new_clamps_active_and_dedups). Live: live_click_tab_activates_it seeds 3 tabs and addresses tab-pane-a-0/1/2 by index (proves order); test_accesskit_ids asserts the 4 seeded panes each emit tabbar-pane-{x}/tab-pane-{x}-0. NOTE: first reviewer's '12 tab nodes, 3 each' wording is inaccurate (seed is 1 tab/pane = 4 tab chips; the 12 is 4 tabbar + 4 tab + 4 close nodes) but does not change correctness."
+      },
+      {
+        "criterion": "Tab strip horizontally scrollable via egui ScrollArea when tabs overflow; no clipping without affordance",
+        "status": "MET",
+        "evidence": "ScrollArea::horizontal().id_salt(('tab-bar-scroll', &pane_id)).show(...) wraps render_tabs on the required render path (tab_bar.rs:650-654); structural code real and reachable. The dedicated 12-entry overflow test (red_team minimum_control #2) is absent (non-blocking concern; behavior is real, not stubbed)."
+      },
+      {
+        "criterion": "Each tab chip shows (a) TAB_LABEL label and (b) secondary module/type badge from module_label_for_tab",
+        "status": "MET",
+        "evidence": "render_tab_body paints label + ' (BADGE)' suffix (tab_bar.rs:831-904) and mirrors 'module: <BADGE>' into the tab node AccessKit description (tab_bar.rs:975-987). module_label_for_tab (pane_header.rs:182-196) prefers active module, falls back to home module. Live: live_tab_chip_carries_module_badge_in_description asserts 'module: MAIN'; module_label_for_tab_is_non_empty_for_all_19_tab_types is genuinely meaningful (all 19 PaneType members verified present across the 6 MODULE_DEFINITIONS tab lists), not tautological."
+      },
+      {
+        "criterion": "Active tab chip visually distinguished (selectable active=true)",
+        "status": "MET",
+        "evidence": "render_tab_body uses colors.active_bg when is_active (tab_bar.rs:866) and sets node.set_selected(true) for the active tab (tab_bar.rs:972-974); live tree asserts exactly one selected Tab node per bar."
+      },
+      {
+        "criterion": "Clicking a non-active tab sets pane.active_tab AND makes the pane the focused pane",
+        "status": "MET",
+        "evidence": "split_layout.rs:498-503 reconciliation: on resp.activated_index, bar.activate(idx) AND *active_pane = Some(pane_id). Proven live by live_header_title_retitles_on_tab_click (real click -> Problems active) and live_module_switch_rebadges_active_pane_tabs (tab click focuses the pane that module switch then targets)."
+      },
+      {
+        "criterion": "Pane header title updates to TAB_LABEL[active_tab] when active tab changes",
+        "status": "MET",
+        "evidence": "split_layout.rs:421-425 reads active_tab_label LIVE from bar.active().label() every frame (no cache); PaneHeader::title_label emits a Role::Label node at fixed id 74-77 with author_id pane-{id}-title (pane_header.rs:347-376). Live: live_header_title_binds_to_active_tab_label + live_header_title_retitles_on_tab_click assert real re-titling Workspace->Problems via the AccessKit title node; test_accesskit_ids asserts the four seeded title labels (Workspace/Inference Lab/Media Downloader/Fonts)."
+      },
+      {
+        "criterion": "Each tab chip has a stable AccessKit author_id, role=Tab, Click/Focus action",
+        "status": "MET",
+        "evidence": "Tab nodes carry stable per-(pane,index) author_id tab-{pane_id}-{index} with Role::Tab + Action::Click/Focus derived from Sense::click_and_drag (tab_bar.rs:917-974); pane-a User-Manual override hs-usermanual-diagnostics-tab present (tab_bar.rs:108-114) and asserted by live_pane_a_user_manual_tab_carries_diagnostics_override_id. The contract AC7 dot-form 'pane-a.tab.workspace' is an INTERNAL contract inconsistency vs the React-port hyphen/index form the contract itself references in implementation_notes/ports_from_react; the binding form was ESTABLISHED by the MT-007 dependency (tab_author_id = 'tab-{pane}-{index}'), so MT-013 correctly did not re-id tabs mid-WP. The WP-level model_accessibility_contract (packet.json:113) requires only a 'stable AccessKit author_id derived from a logical id registry (not frame counters)' with no mandated string format; that intent is fully met and exercised by live clicks addressing tabs by author_id."
+      },
+      {
+        "criterion": "All four panes render independent tab strips correctly in a concurrent egui_kittest harness",
+        "status": "MET",
+        "evidence": "live_all_four_panes_emit_independent_lock_buttons_with_pane_prefix + the test_accesskit_ids LIVE-FRAME snapshot assert pane-a..pane-d each emit independent tab/title/lock nodes with the correct pane prefix; live_locking_one_pane_does_not_affect_other_panes proves per-pane state independence. Lock/title node bands (70-73 / 74-77) are registered in DECLARED_IDENTITIES and proven disjoint by the registry collision test."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Grep of pane_header.rs / tab_bar.rs / split_layout.rs found NO todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to'/'pending MT-'/'Unavailable' on the required-behavior path (panic! appears only inside test failure messages). The Handshake-owned AccessKit tree is exercised through the REAL consumer-side egui_kittest TreeUpdate the out-of-process Windows UIA adapter receives (test_pane_header.rs reads harness.root().children_recursive() and dispatches real .click() events that mutate real HandshakeApp/PaneRegistry state: lock toggle Unlocked<->Locked, tab activation, module rebadge) — not implementer-authored mocks. No #[ignore] hides any MT-013 proof test in test_pane_header.rs / test_accesskit_ids.rs / test_tab_bar.rs; all run in the curated suite (ground truth: 0 failures). The pop-out (detached-window) header/tab interactions (app.rs:4465-4506) are rendered for binding+accessibility parity but explicitly NOT reconciled cross-window — out of MT-013 scope, whose ACs and tests target the four docked grid panes where reconciliation is complete (split_layout.rs:443-451, 498-503). Implementer self-certification (lifecycle.claimed_by == ready_for_validation_by) is paperwork-only per operator directive and is satisfied by this independent review (Spec-Realism sub-rule 3)."
+    },
+    "concerns_non_blocking": [
+      "AC7 contract-internal inconsistency (NOT a code defect): MT-013 acceptance_criteria + implementation_notes line 73 specify a dot-form AccessKit id ('{pane_id}.tab.{tab_id}', e.g. 'pane-a.tab.workspace'), while the same contract's implementation_notes line 67 + ports_from_react reference the React data-stable-id hyphen/index form. The implementation followed 'tab-{pane_id}-{index}', the form ESTABLISHED by the MT-007 dependency (verified via git show d3b2696f: tab_author_id = format!('tab-{pane_id}-{index}')). Re-iding tabs to dot-form would have broken MT-007's own AccessKit contract and tests. The higher-authority WP model_accessibility_contract mandates only a stable, registry-derived author_id (no format), which is fully met. Recommend a one-line contract erratum noting the canonical form is the MT-007 hyphen/index id, not the dot-form, to remove future-reader confusion.",
+      "Red-team minimum_control #2 (ScrollArea tested with a 12-entry pane to prove scrollability without overflow) has no asserting test. ScrollArea::horizontal() is real and on the required path (tab_bar.rs:650), so AC2 is structurally met; only the explicit overflow-coverage test is missing. Recommend adding a test that seeds a 12-tab pane and asserts all 12 tab nodes are emitted/addressable, to lock the affordance against regression.",
+      "Layout deviation (disclosed, correct): the contract named src/frontend/navigation/pane_tabs.rs but the real crate is flat; the implementer created src/frontend/handshake_native/src/pane_header.rs (title + lock + module_label_for_tab) and extended MT-007's tab_bar.rs for the chip badge. Correctly adapted to the real MT-005/MT-007 structure and disclosed in the commit message. Not a code defect.",
+      "Pop-out (detached-window) pane header/tab interactions are rendered for binding+accessibility parity but explicitly NOT reconciled cross-window (app.rs:4465-4506), deferred to a later cross-window mutation MT. MT-013 ACs target the four docked grid panes where reconciliation is complete, so this deferral is out of MT-013 scope and acceptable.",
+      "First reviewer evidence inaccuracy (cosmetic, no verdict impact): its AC1 evidence states '12 tab nodes for 4 seeded panes (3 each)'. The fresh seed is 1 tab per pane (4 tab chips); the '12' figure is 4 tabbar + 4 tab + 4 close MT-007 nodes. Order/one-chip-per-entry is still correctly proven by the 3-tab live_click_tab_activates_it path.",
+      "Governance paperwork (PENDING acceptance rows, lifecycle self-certification) is present but is paperwork-only per operator directive and not a code FAIL reason; this review is the independent certification."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

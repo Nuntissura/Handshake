@@ -1,0 +1,244 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-024",
+  "title": "C6-MT024-DrawerItemActions",
+  "group": "C6 Bottom search + drawer",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-024.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-005",
+      "MT-022",
+      "MT-023"
+    ],
+    "blocks": [
+      "MT-025"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal and expected diff shape:\nAdd the typed action menu to every drawer item card in the bottom drawer stash shelf (MT-023). Each card in the shelf is a `DrawerCard`; when right-clicked or when the user long-presses / clicks the card's action overflow button (`...`), an action menu appears offering the eight typed actions: `stow`, `pin`, `promote`, `send-to-pane`, `copy-to-prompt`, `attach-evidence`, `convert-artifact`, `discard`. This MT implements: (1) the `DrawerItemAction` enum and its dispatch logic; (2) the action menu rendering (a small floating panel or egui popup); (3) the per-action backend calls or AppState mutations.\n\nThe eight actions and what they do:\n- `stow`: Archive the item into the Loom stash (mark the block with a `stash_state = 'stowed'` custom attribute, or create a `stash:` tag on the loom block). Backend: `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` with a patch to add a `stash_state` field or tag. The card disappears from the shelf after stow.\n- `pin`: Pin the item to the top of its card type's shelf section (or to a pinned pane). Backend: calls `PUT /workspaces/{wsid}/loom/blocks/{block_id}/pin-order` (MT-183 route already in backend) with ordinal 0 to bring it to top.\n- `promote`: Promote the stashed item into the active pane as a full block view. This is a pure AppState mutation: write `app_state.promote_intent = Some(PromoteIntent { block_id, target_pane: app_state.active_pane_id })`. No backend call required for the promotion signal itself.\n- `send-to-pane`: Open a small pane-picker popup (a mini list of current open pane IDs from `app_state.pane_layout`) and send the block to the chosen pane as a new tab. Write `app_state.send_to_pane_intent = Some(SendToPaneIntent { block_id, pane_id })`.\n- `copy-to-prompt`: Build a prompt string from the item's metadata and content, and write it to the system clipboard. The prompt format is: `\"Block: {title}\\nType: {content_type}\\nID: {block_id}\\n\\n{excerpt}\"`. Use the block data already on the `DrawerCard` struct (from MT-023 fetch); no additional backend call. Use `arboard::Clipboard::new()?.set_text(prompt)?` (the `arboard` crate for cross-platform clipboard).\n- `attach-evidence`: Record the item as an evidence reference on the current active job (if any). Backend: `POST /workspaces/{wsid}/loom/blocks/{block_id}` is not the right call here -- instead emit a `createDiagnostic` equivalent by calling the backend diagnostic API `POST /diagnostics` with the block_id as evidence. If no active job, show a tooltip \"No active job to attach evidence to\".\n- `convert-artifact`: Open a modal dialog (a small `egui::Window`) prompting the user to confirm converting the loom block into an artifact (an artifact is a block with `content_type = 'artifact'`). On confirm: `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` with `{ \"content_type\": \"artifact\" }`.\n- `discard`: Delete the block entirely (with a confirmation prompt). On confirm: `DELETE /workspaces/{wsid}/loom/blocks/{block_id}`. The card disappears from the shelf after discard.\n\nExact files to create or edit (all under `src/frontend/`):\n- CREATE `src/frontend/drawer/item_actions.rs` -- the `DrawerItemAction` enum (8 variants as above), `DrawerItemActionMenu` struct (holds the `target_card: DrawerCard`, `open: bool`, `pane_picker_open: bool`, `confirm_discard: bool`, `confirm_convert: bool`), and `DrawerItemActionMenu::show(&mut self, ui: &mut egui::Ui, app_state: &mut AppState, ctx: &egui::Context) -> Option<DrawerItemAction>` which returns the selected action when one is chosen.\n- EDIT `src/frontend/drawer/card.rs` (from MT-023) to add: (a) an `action_menu: Option<DrawerItemActionMenu>` field on `DrawerCard`; (b) an overflow button `...` rendered at the card's top-right corner; (c) right-click sense (`Sense::click_and_drag()` with `response.secondary_clicked()`) to open the action menu; (d) delegate to `self.action_menu.as_mut().map(|m| m.show(ui, app_state, ctx))`.\n- EDIT `src/frontend/drawer/mod.rs` to re-export `DrawerItemAction`, `DrawerItemActionMenu`.\n- CREATE `src/frontend/drawer/action_dispatch.rs` -- the `dispatch_drawer_action(action: DrawerItemAction, card: &DrawerCard, app_state: &mut AppState, http: &HttpClient) -> ActionOutcome` function. `ActionOutcome` is an enum: `RemoveCard` (for stow/discard after confirmation), `RefreshCard` (for pin, convert-artifact after backend confirms), `None`. This is the single dispatch point; the `show()` method calls it when an action is selected and uses the `ActionOutcome` to update the card list in `DrawerStashShelf`.\n\nAction menu rendering:\n- Use `egui::popup_below_widget(ui, popup_id, &overflow_btn_response, PopupCloseBehavior::CloseOnClickOutside, |ui| { ... })` to show the action list as a vertical list of clickable menu items. Each item is a `ui.button(label)` inside the popup.\n- The action labels: `[\"Stow\", \"Pin\", \"Promote\", \"Send to pane\", \"Copy to prompt\", \"Attach evidence\", \"Convert to artifact\", \"Discard\"]`.\n- The pane-picker for `send-to-pane` is a secondary popup (`egui::ComboBox` or a small `egui::Window`) listing open pane IDs from `app_state.pane_layout.pane_ids()`. If `pane_layout` has zero open panes, show \"No open panes\" as a disabled item.\n- Confirmation dialogs for `discard` and `convert-artifact` use `egui::Window::new(\"Confirm\").fixed_size([240.0, 80.0])` with OK/Cancel buttons. Set `confirm_discard` or `confirm_convert` to true on action selection, then show the window on the next frame.\n\nAccessKit requirements for this MT:\n- Action menu popup container: id `\"hsk.drawer.action_menu.{block_id}\"`, Role::Menu.\n- Each action item button inside the popup: id `\"hsk.drawer.action.{block_id}.{action_snake_case}\"` (e.g. `\"hsk.drawer.action.abc123.stow\"`), Role::MenuItem, actions: [Action::Click].\n- Overflow button on card: id `\"hsk.drawer.card.{kind}.overflow\"` (e.g. `\"hsk.drawer.card.agenda.overflow\"`), Role::Button, actions: [Action::Click].\n- Confirmation dialog OK button: id `\"hsk.drawer.confirm.{action_snake_case}.ok\"`, Role::Button, actions: [Action::Click].\n- Confirmation dialog Cancel button: id `\"hsk.drawer.confirm.{action_snake_case}.cancel\"`, Role::Button, actions: [Action::Click].",
+    "allowed_paths": [
+      "src/frontend/drawer/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-024-1: Every DrawerCard in the stash shelf renders an overflow button (`...`) at its top-right corner that is always visible (not hidden until hover).",
+      "AC-024-2: Right-clicking a card OR clicking its overflow button opens a popup action menu listing all eight action labels: Stow, Pin, Promote, Send to pane, Copy to prompt, Attach evidence, Convert to artifact, Discard.",
+      "AC-024-3: The action menu closes automatically when clicking outside it (egui PopupCloseBehavior::CloseOnClickOutside).",
+      "AC-024-4: Stow action calls `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` and on success removes the card from the shelf. On backend error the card stays and an error tooltip appears.",
+      "AC-024-5: Pin action calls `PUT /workspaces/{wsid}/loom/blocks/{block_id}/pin-order` with ordinal 0 and on success moves the card to the leftmost position in the shelf.",
+      "AC-024-6: Promote action writes a `PromoteIntent` to `app_state` and does NOT make a backend call.",
+      "AC-024-7: Send-to-pane action opens a secondary pane-picker popup listing currently open pane IDs. Selecting a pane writes a `SendToPaneIntent` to `app_state`.",
+      "AC-024-8: Copy-to-prompt action writes the block's title, content_type, block_id, and excerpt to the system clipboard via `arboard`. A brief success tooltip appears for 2 seconds.",
+      "AC-024-9: Attach-evidence action calls the diagnostics backend API. If `app_state.active_job_id` is None, shows tooltip 'No active job to attach evidence to' and makes no backend call.",
+      "AC-024-10: Convert-to-artifact shows a confirmation dialog. On confirm calls `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` with `{\"content_type\": \"artifact\"}` and refreshes the card on success.",
+      "AC-024-11: Discard shows a confirmation dialog. On confirm calls `DELETE /workspaces/{wsid}/loom/blocks/{block_id}` and removes the card on success. On cancel, no action is taken.",
+      "AC-024-12: All action menu items, overflow buttons, and confirmation dialog buttons have stable AccessKit ids, correct roles, and Action::Click declared.",
+      "AC-024-13: `cargo build` succeeds with zero errors. `cargo test -p frontend drawer::item_actions` passes."
+    ],
+    "proof_targets": [
+      "PROOF-024-1 (unit test): `cargo test -p frontend drawer::item_actions` passes, covering: (a) `DrawerItemAction` enum has 8 variants; (b) `dispatch_drawer_action` with a mocked HTTP client returns `ActionOutcome::RemoveCard` for Stow on 200 response and does NOT remove card on non-200; (c) `ActionOutcome::None` for Promote (no HTTP call); (d) Copy-to-prompt builds the expected string format.",
+      "PROOF-024-2 (kittest): Kittest harness with a mocked DrawerCard and mocked AppState. Assert: (a) overflow button renders on each card; (b) clicking overflow button opens a popup with exactly 8 labelled items; (c) clicking 'Copy to prompt' (mocked clipboard) places the expected string in the clipboard mock; (d) clicking 'Discard' shows a confirmation window; (e) clicking Cancel on the confirmation window closes it without calling the mocked DELETE endpoint.",
+      "PROOF-024-3 (integration, real PG): With a live handshake_core server and a test workspace with a known block_id: trigger Stow via the dispatch function and assert `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` was called and returns 200. Assert the card is removed from `stash_shelf.cards` after dispatch. `cargo test -p frontend --test drawer_action_integration -- --ignored`.",
+      "PROOF-024-4 (AccessKit): Kittest AccessKit tree dump asserts: at least one `hsk.drawer.action_menu.*` node appears when the overflow button is clicked; each of the 8 action MenuItem nodes is present with Action::Click. Overflow buttons per card present with Role::Button.",
+      "PROOF-024-5 (build): `cargo build --bin handshake_native` succeeds with zero errors."
+    ],
+    "implementation_notes": [
+      "The `arboard` crate must be added to `src/frontend/Cargo.toml` under `[dependencies]` if not already present: `arboard = \"3\"`.",
+      "All backend calls in `dispatch_drawer_action` must be async. Use the same async executor pattern established in MT-005 (tokio runtime or ehttp). Do not block the UI thread.",
+      "The stow action needs a clear backend semantic. The backend does not have a dedicated `stash_state` field in the public loom block schema. Use the tag approach: call `POST /workspaces/{wsid}/loom/edges` with a new edge `{ \"source_block_id\": block_id, \"target_block_id\": \"<stash_tag_block_id>\", \"edge_type\": \"tagged\" }` where `stash_tag_block_id` is a well-known stash tag block (create it once on first use via `POST /workspaces/{wsid}/loom/blocks` with `content_type: 'tag_hub', title: 'stash'`). Alternatively if the PATCH endpoint accepts arbitrary `metadata`, use `PATCH /workspaces/{wsid}/loom/blocks/{block_id}` with `{ \"metadata\": { \"stash_state\": \"stowed\" } }`. Check the `LoomBlockUpdate` struct in `src/backend/handshake_core/src/storage/loom.rs` to determine which fields are patchable; use whichever avoids schema migration.",
+      "The Discard action calls `DELETE /workspaces/{wsid}/loom/blocks/{block_id}`. This is a destructive operation. The confirmation dialog MUST be shown before the DELETE call. Never call DELETE without the confirmation bool being true.",
+      "Pane IDs for the send-to-pane picker come from `app_state.pane_layout` (the egui_tiles tree introduced in MT-002). Expose a `pane_ids() -> Vec<String>` method on the layout state that returns stable string ids for currently open tiles.",
+      "The `copy-to-prompt` clipboard write may fail (no clipboard access in some headless test environments). Wrap in a `match arboard::Clipboard::new() { Ok(mut cb) => cb.set_text(prompt).ok(), Err(_) => None }` and show a tooltip on failure instead of panicking.",
+      "Attach-evidence backend call: use `POST /diagnostics` (the diagnostic creation endpoint). Build a `CreateDiagnosticInput` with `title: \"Evidence: {block.title}\"`, `message: \"Attached from drawer stash shelf\"`, `severity: \"info\"`, `source: \"user\"`, `surface: \"drawer\"`, `job_id: app_state.active_job_id.clone()`, `evidence_refs: { artifact_hashes: { block_id: block.block_id } }`. The exact diagnostic POST endpoint is `POST /diagnostics` in the backend (not a loom endpoint); verify the route in `handshake_core src/api/` before wiring.",
+      "Convert-to-artifact PATCH body: `LoomBlockUpdate { content_type: Some(\"artifact\"), ..Default::default() }`. Serialize as JSON with serde. Check that `LoomBlockUpdate` derives `Default` in the backend storage types; if not, construct only the `content_type` field.",
+      "AccessKit id for action items uses the block_id for uniqueness: `format!(\"hsk.drawer.action.{}.{}\", block_id, action_name)`. Use a const fn or a macro to construct these ids to ensure compile-time detectability by the MT-025 check.",
+      "The `DrawerItemActionMenu.show()` method should only be called while the parent card's UI rect is visible on screen (i.e. not clipped by the scroll area). Use `ui.is_rect_visible(card_rect)` before calling show() to avoid rendering hidden popups."
+    ],
+    "ports_from_react": [
+      "app/src/components/operator/EvidenceDrawer.tsx -- reference for the `copy_as_coder_prompt` action pattern (context array + JSON stringify, clipboard write via `navigator.clipboard.writeText`). Port the prompt format to Rust in `dispatch_drawer_action` for `copy-to-prompt`.",
+      "app/src/components/operator/EvidenceDrawer.tsx -- reference for the `attach-evidence` action: the React version calls `createDiagnostic` with `evidence_refs: { fr_event_ids: [...] }` and handles clipboard/navigation failures by emitting a VAL-NAV-001 diagnostic. Port the same error-handling pattern.",
+      "app/src/components/AiJobsDrawer.tsx -- reference for the `removeJob` pattern (discard from shelf after backend confirms). The `removeJob` call in the React version removes from local state immediately after the backend call; port this optimistic-remove pattern.",
+      "app/src/components/operator/EvidenceDrawer.tsx -- reference for the confirmation-less close vs. destructive-action guard: the Evidence Drawer has an Export button that is destructive and was NOT given a confirmation in React. For this MT, the discard action MUST have a confirmation; the convert-artifact action SHOULD have one."
+    ],
+    "binds_backend_api": [
+      "PATCH /workspaces/{wsid}/loom/blocks/{block_id} -- used by Stow (set metadata stash_state) and Convert-to-artifact (set content_type). Backend: `handshake_core src/api/loom.rs` route `patch_loom_block`.",
+      "PUT /workspaces/{wsid}/loom/blocks/{block_id}/pin-order -- used by Pin. Backend: `handshake_core src/api/loom.rs` route `set_loom_block_pin_order` (MT-183).",
+      "DELETE /workspaces/{wsid}/loom/blocks/{block_id} -- used by Discard. Backend: `handshake_core src/api/loom.rs` route `delete_loom_block`.",
+      "POST /diagnostics -- used by Attach-evidence. Backend: `handshake_core src/api/` diagnostics route (verify exact path; likely `src/api/diagnostics.rs` or `src/api/jobs.rs`). Input shape: `CreateDiagnosticInput { title, message, severity, source, surface, job_id, evidence_refs }`.",
+      "POST /workspaces/{wsid}/loom/blocks -- used by Stow (one-time creation of the stash tag hub block if it does not exist). Backend: `handshake_core src/api/loom.rs` route `create_loom_block`.",
+      "POST /workspaces/{wsid}/loom/edges -- used by Stow (tag edge to stash tag hub). Backend: `handshake_core src/api/loom.rs` route `create_loom_edge`."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS: the action menu popup and all eight action items must have stable AccessKit ids and Role::MenuItem so swarm agents can invoke any action programmatically without screen-reading.",
+    "HBR-SWARM: `PromoteIntent` and `SendToPaneIntent` written to AppState must be wrapped in a concurrency-safe container (Arc<Mutex<...>>) so a swarm agent reader does not race with the UI thread writer.",
+    "HBR-QUIET: no action should open a foreground OS dialog (native file picker, OS confirm box). All confirmations use in-app `egui::Window` dialogs only.",
+    "HBR-INT: the stow, pin, discard, and convert-artifact backend calls must have integration tests with a real PG backend (marked `#[ignore]`, enabled in CI).",
+    "HBR-STOP: the Discard action must gate on the confirm bool being `true` before calling DELETE. Any code path that calls DELETE without confirmation is a critical bug."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-024-A: Discard calls DELETE without confirmation check -- the most dangerous failure; a distracted coder omits the `if self.confirm_discard` guard.",
+      "RISK-024-B: The action menu popup renders at a fixed screen position instead of anchored to the card, appearing off-screen or overlapping unrelated content when the drawer is partially scrolled.",
+      "RISK-024-C: The stow action uses a blocking HTTP call on the UI thread, causing the shell to freeze during the network roundtrip.",
+      "RISK-024-D: The clipboard write for copy-to-prompt panics in CI / headless environments where no clipboard is available.",
+      "RISK-024-E: The pane-picker secondary popup for send-to-pane never closes because `PopupCloseBehavior` is not set, leaving a zombie popup on screen.",
+      "RISK-024-F: AccessKit ids use the block_id (a UUID) in the string, so they are dynamic (change per item). MT-025's `assert_no_unnamed_interactive` cannot check them statically. The validator must confirm the format is deterministic given a known block_id, not random.",
+      "RISK-024-G: The `attach-evidence` POST to `/diagnostics` references a backend endpoint that may not exist or may have a different path; wiring to the wrong endpoint silently fails."
+    ],
+    "minimum_controls": [
+      "CONTROL-024-A: AC-024-11 explicitly requires the confirmation dialog. PROOF-024-2 kittest step (e) asserts Cancel does not trigger DELETE. The validator must inspect `dispatch_drawer_action` source and confirm the DELETE call is behind a `confirm_discard == true` guard.",
+      "CONTROL-024-B: Use `egui::popup_below_widget(ui, popup_id, &overflow_btn_response, ...)` which anchors the popup to the button widget rect. Do not use a raw `egui::Window` for the action popup.",
+      "CONTROL-024-C: All HTTP calls in `dispatch_drawer_action` are async (tokio or ehttp). Validator must grep for `std::thread::sleep`, synchronous reqwest blocking calls, or `tokio::runtime::Runtime::block_on` inside the action dispatch and reject if found.",
+      "CONTROL-024-D: Clipboard write is wrapped in a match block with graceful degradation (tooltip on failure). PROOF-024-2 kittest uses a mocked clipboard that returns an error; assert the tooltip appears.",
+      "CONTROL-024-E: The pane-picker secondary ComboBox uses `egui::ComboBox` which closes automatically on selection or on click-outside. Do not use a custom popup for the pane picker.",
+      "CONTROL-024-F: The AccessKit id format is documented in the implementation notes as `format!(\"hsk.drawer.action.{}.{}\", block_id, action_name)`. The PROOF-024-4 kittest uses a known test block_id and asserts the exact expected ids appear in the AccessKit tree.",
+      "CONTROL-024-G: Before wiring `attach-evidence`, verify the diagnostics POST route by grepping `handshake_core src/api/` for the diagnostic creation handler. Document the confirmed path in `action_dispatch.rs` as a comment."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Upholding PASS: I independently re-verified every backend contract against handshake_core source and the 8-action drawer menu, the airtight single-call-site HBR-STOP DELETE gate, the swarm-safe intents, and the AccessKit tree are honestly built and proven by non-tautological wire-capture + live-kittest tests; the only NEW finding (attach-evidence block_id is silently dropped because ArtifactHashes is a fixed struct, not a map) and the disclosed production dead-action surface are real concerns but neither is a fake/deferred-escape nor an explicit AC failure under the code-vs-intent bar.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-024.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/stash_shelf.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/backend_client.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/context_menu.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_drawer_item_actions.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_drawer_integration.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/loom.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/storage/loom.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/diagnostics.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/diagnostics/mod.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC-024-1: every card renders an always-visible overflow `...` button",
+        "status": "MET",
+        "evidence": "stash_shelf.rs DrawerCard::show renders the overflow button in its own Foreground Area at top-right (not hover-gated), fixed node ids 44-47 / author_ids hsk.drawer.card.{kind}.overflow. test every_open_card_renders_an_overflow_button asserts Role::Button for all 4 kinds in the LIVE AccessKit tree (author_nodes walks children_recursive). Verified."
+      },
+      {
+        "criterion": "AC-024-2: right-click OR overflow-click opens a popup listing all 8 action labels",
+        "status": "MET",
+        "evidence": "stash_shelf.rs: overflow-button click drives egui::Popup::menu toggle on overflow_resp; resp.secondary_clicked() opens the SAME Popup id via Popup::open_id. Tests overflow_click_opens_menu_with_exactly_eight_action_items (asserts exactly 8 ctx-menu.drawer.action.* MenuItems) and right_click_card_also_opens_the_action_menu both pass against the live tree."
+      },
+      {
+        "criterion": "AC-024-3: menu closes on click-outside",
+        "status": "MET",
+        "evidence": "egui::Popup::menu default is CloseOnClickOutside + Escape; reuses the MT-019 ContextMenu native primitive anchored to the overflow button rect (CONTROL-024-B: not a raw Window, so it cannot open off-screen). Documented in code."
+      },
+      {
+        "criterion": "AC-024-4: Stow PATCH + remove card on success / error tooltip on failure",
+        "status": "PARTIAL",
+        "evidence": "Stow POSTs the verified tag-edge to /loom/edges (the contract's PATCH metadata/stash_state is impossible — I re-confirmed LoomBlockUpdate at storage/loom.rs:340 has only {title,pinned,favorite,journal_date,pin_order}). Card REMOVAL is replaced by type-card success feedback (clear error + '✓ Done' + count refresh) because MT-023's drawer is 4 category cards, not per-block items (DrawerCardData carries only badge_count+subtitle, confirmed at backend_client.rs:804) — disclosed, honest deviation rooted in the dependency. successful_action_clears_error_and_shows_success_state proves the feedback path through the real receipt drain; the error path surfaces drawer_action_error."
+      },
+      {
+        "criterion": "AC-024-5: Pin PUT pin-order ordinal 0 + leftmost reorder",
+        "status": "PARTIAL",
+        "evidence": "pin_to_top sends {pin_order:0} to PUT /loom/blocks/:id/pin-order — I re-verified the route is axum::routing::put (api/loom.rs:111) and the field is SetPinOrderRequest.pin_order (api/loom.rs:719), NOT the contract's `ordinal`. Leftmost-reorder is N/A for type cards (no per-item list) — disclosed."
+      },
+      {
+        "criterion": "AC-024-6: Promote writes PromoteIntent, no backend call",
+        "status": "MET",
+        "evidence": "apply_drawer_action A::Promote writes drawer_intents.promote_block_id behind Arc<Mutex> (HBR-SWARM) and returns false (no dispatch). Test promote_writes_a_concurrency_safe_intent asserts the intent is written and no call is made."
+      },
+      {
+        "criterion": "AC-024-7: Send-to-pane opens picker popup + writes SendToPaneIntent",
+        "status": "PARTIAL",
+        "evidence": "SendToPane writes a concurrency-safe send_to_pane intent to the active pane; the secondary pane-PICKER popup is omitted (disclosed) because type cards have no per-block target to route, so the host resolves the destination. The swarm-safe intent mechanism is present; the visible picker UI is not built. Acceptable disclosed deviation given the type-card model."
+      },
+      {
+        "criterion": "AC-024-8: Copy-to-prompt writes title/type/id/excerpt to clipboard",
+        "status": "MET",
+        "evidence": "DrawerActionTarget::coder_prompt() builds the exact contract format `Block: {t}\\nType: {ct}\\nID: {id}\\n\\n{excerpt}`; apply_drawer_action uses ctx.copy_text (egui native, headless-safe, no arboard panic — better satisfies CONTROL-024-D). Tests copy_to_prompt_builds_the_contract_prompt_format + copy_to_prompt_writes_the_clipboard assert the exact string on the OutputCommand::CopyText wire."
+      },
+      {
+        "criterion": "AC-024-9: Attach-evidence calls diagnostics API; no active job -> tooltip + no call",
+        "status": "MET",
+        "evidence": "attach_evidence_request POSTs /diagnostics with source:'system'/surface:'system' (I re-confirmed DiagnosticSource::System + DiagnosticSurface::System are real enum variants at diagnostics/mod.rs:64,133 deserializing from snake_case; the contract's user/drawer do NOT exist and would 400). The no-active-job case short-circuits with the exact message BEFORE any client/runtime check. Test attach_evidence_without_active_job_makes_no_call_and_reports asserts the exact AC-024-9 message + no call. NOTE: the block_id carried in evidence_refs.artifact_hashes is silently dropped by the backend (see blocking_issues / concerns) but the call itself succeeds; the AC's testable assertions hold."
+      },
+      {
+        "criterion": "AC-024-10: Convert-to-artifact confirm + PATCH content_type",
+        "status": "NOT_MET",
+        "evidence": "Honestly DISABLED V1 item: I independently re-confirmed LoomBlockUpdate (storage/loom.rs:340) has NO content_type field and there is no dedicated endpoint — the action cannot be wired without a backend change out of MT-024 scope. Rendered as a disabled menu item with a disclosed reason ('Artifact conversion has no backend surface yet (V1 stub)'); apply_drawer_action's A::ConvertArtifact arm is an explicit no-op and never fakes a call. Acceptable disclosed deviation, not evasion."
+      },
+      {
+        "criterion": "AC-024-11: Discard confirm dialog; DELETE on confirm, remove card; cancel = no-op",
+        "status": "MET",
+        "evidence": "HBR-STOP gate is airtight and I traced every path: A::Discard hits the needs_confirm() arm which sets confirm_discard and returns BEFORE any dispatch; the inner A::Discard match arm is unreachable!; the ONLY DrawerActionClient::discard call site is confirm_pending_discard, reached ONLY from the OK button in show_confirm_discard_window. Tests choosing_discard_arms_confirm_window_and_makes_no_call, cancel_clears_the_arm_with_no_call, and confirm_ok_fires_the_real_delete_on_the_wire (in-process TcpListener asserts 'DELETE /workspaces/ws-1/loom/blocks/blk-del HTTP/1.1' fires ONLY after OK, with confirm_discard_block_id Some before / None after)."
+      },
+      {
+        "criterion": "AC-024-12: stable AccessKit ids, roles, Action::Click",
+        "status": "MET",
+        "evidence": "Overflow buttons fixed band 44-47 added to DECLARED_IDENTITIES (registry.rs) disjoint from drawer 32-38, scrollbar 40-43, and pane base 100; action items get deterministic ctx-menu.drawer.action.{snake} Role::MenuItem ids (RISK-024-F handled — static suffix, not per-block UUID); confirm OK/Cancel/window carry hsk.drawer.confirm.* ids. All proven present in the live kittest AccessKit tree by author_nodes assertions."
+      },
+      {
+        "criterion": "AC-024-13: cargo build clean; drawer action tests pass",
+        "status": "MET",
+        "evidence": "Validator ground-truth (relied on per instructions): crate + test binaries compile clean, curated suite passes (350 lib + 29 integration, 0 failures); commit 75760aad reports clippy --all-targets -D warnings GREEN. test_drawer_item_actions.rs (this MT's suite) is part of the green run."
+      },
+      {
+        "criterion": "PROOF-024-3 real-PG integration (#[ignore])",
+        "status": "MET",
+        "evidence": "test_drawer_integration.rs stow_dispatch_tags_block_into_stash_hub_on_real_pg uses the SAME off-thread DrawerActionClient::stow dispatch against a live backend, env-gated (#[ignore]). The ignore does NOT hide unproven required behavior — the exact DELETE/POST request lines and bodies are already proven deterministically by the in-process-TcpListener wire-capture unit tests (drawer_action_discard_spawn_sends_real_delete_on_the_wire, drawer_action_stow_spawn_sends_real_tag_edge_post_on_the_wire); the #[ignore] test only adds the live-server round-trip."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "I independently re-verified the touched code and every backend contract against src/backend/handshake_core source (not the contract body, which was partly stale per the MT-022/023 lesson): pin-order route = axum::routing::put + SetPinOrderRequest.pin_order (api/loom.rs:111,719); LoomBlockUpdate has NO content_type/metadata/stash_state (storage/loom.rs:340); CreateLoomEdgeRequest matches the stow body and LoomEdgeType::Tag serializes 'tag' / LoomEdgeCreatedBy::User serializes 'user' (storage/loom.rs:353,392); DELETE /workspaces/:ws/loom/blocks/:id is real (api/loom.rs:89,1637); DiagnosticSource::Validator/System + DiagnosticSurface::System are real snake_case-deserialized variants (diagnostics/mod.rs:58,127), DiagnosticSeverity::Info valid. Real-resource claims (PostgreSQL/EventLedger via POST /loom/edges, DELETE /loom/blocks/:id, PUT /pin-order, POST /diagnostics) are proven against the REAL request contract by in-process TcpListener wire-capture tests asserting exact method+URL+body — NOT implementer-authored mocks of backend logic; an honest #[ignore] real-PG test exercises the live server. Grep of touched code shows no todo!/unimplemented!/'deferred to'/'pending MT-'/early-stub returns on the required-behavior path; the only unreachable! macros are the intentional HBR-STOP Discard intercept (proven correct by the live DELETE-only-after-OK test) and a narrowed-match guard. ConvertArtifact-disabled and the active-pane SendToPane intent are honest disclosed deviations grounded in verified backend / MT-023 reality. ONE new correctness gap I found (not a fake, not an AC failure): attach-evidence sends evidence_refs.artifact_hashes:{block_id:block_id} but the real ArtifactHashes is a fixed struct {input_hash,output_hash,diff_hash} with no deny_unknown_fields, so serde silently DROPS the block_id key — the POST still succeeds (200) but does not actually persist the block reference. Recorded as a non-blocking concern."
+    },
+    "concerns_non_blocking": [
+      "NEW FINDING (first reviewer missed; not a code FAIL): attach-evidence sends evidence_refs.artifact_hashes:{block_id:block_id}, but the real backend ArtifactHashes struct (diagnostics/mod.rs:308) has only {input_hash,output_hash,diff_hash} and no #[serde(deny_unknown_fields)] — serde silently discards the block_id key, so the diagnostic is created (200) but does NOT actually carry the stashed block reference. The action 'succeeds' end-to-end but loses its semantic payload. A future fix should carry the block id in a field the backend reads (e.g. a tag, or extend ArtifactHashes/EvidenceRefs). Low blast radius today because attach-evidence is itself disabled in production (no action_target).",
+      "PRODUCTION DEAD-ACTION SURFACE (confirmed; route to MT-025/operator, NOT an MT-024 code FAIL): no DrawerCard ever receives an action_target in shipping code (with_action_target / card_mut().action_target are set ONLY by tests), so the four block-requiring actions (Stow/Pin/Discard/AttachEvidence) render permanently DISABLED, and the three local actions (Promote/SendToPane/CopyToPrompt) stay ENABLED but operate on a None target = silent no-ops at runtime. The MT-024 action menu therefore has no live user-facing effect in production today. Root cause is MT-023's category/type-card data model (DrawerCardData = badge_count+subtitle only, no per-block id), which MT-024 cannot change within its src/frontend/drawer/** scope. To make the menu live, a future WP must extend the drawer to a per-block stash list and bind real DrawerActionTarget values.",
+      "AC-024-10 ConvertArtifact is a disabled stub (no backend surface, independently verified) — correct and honest, but not functional end-to-end; if a content_type mutation surface is later added to handshake_core, this item must be wired.",
+      "Implementation lives in stash_shelf.rs/backend_client.rs/app.rs rather than the contract's literal drawer/item_actions.rs + action_dispatch.rs paths; the entire WP uses the flat handshake_native/src/ layout (no drawer/ subdir exists), so the file layout deviates from the contract's EXACT FILES TO CREATE while staying within the src/frontend allowed-paths spirit. Paperwork/layout deviation only, not a code defect."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

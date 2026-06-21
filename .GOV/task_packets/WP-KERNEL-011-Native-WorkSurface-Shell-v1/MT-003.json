@@ -1,0 +1,213 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-003",
+  "title": "C1-MT003-ThemeTokenSystemDarkLight",
+  "group": "C1 Toolkit + foundation",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-003.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-002"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Implement a theme token system for handshake-native that defines dark and light palettes, supports runtime switching without restart, and provides a muted syntax token set for use in future code editor surfaces. All widgets in MT-002 and all later MTs in WP-KERNEL-011 must consume colors and typography values exclusively from this token system — no hardcoded Color32 values in widget code.\n\nREACT REFERENCE — EXACT TOKENS TO PORT:\n  The React app defines tokens as CSS custom properties in app/src/App.css (:root block for light, [data-theme='dark'] block for dark overrides). The native token system must mirror every token defined there:\n\n  LIGHT PALETTE (from App.css :root):\n    bg:             #f8fafc\n    surface:        #ffffff\n    surface_strong: #0f172a\n    border:         #e2e8f0\n    border_strong:  #1e293b\n    text:           #0f172a\n    text_subtle:    #475569\n    accent:         #2563eb\n    accent_soft:    #e0f2fe\n    success_bg:     #dcfce7\n    success_text:   #166534\n    error_bg:       #fee2e2\n    error_text:     #b91c1c\n\n  DARK PALETTE (from App.css [data-theme='dark']):\n    bg:             #121418\n    surface:        #1d232b\n    surface_strong: #f8fafc\n    border:         #394452\n    border_strong:  #d1d5db\n    text:           #f8fafc\n    text_subtle:    #bac5d1\n    accent:         #22c55e\n    accent_soft:    rgba(34,197,94,0.18)\n    success_bg:     rgba(34,197,94,0.2)\n    success_text:   #86efac\n    error_bg:       rgba(248,113,113,0.2)\n    error_text:     #fca5a5\n\n  REACT WorkspaceTheme type (app/src/lib/workspaceSettings.ts line 5): type WorkspaceTheme = 'light' | 'dark'\n  The React app also stores custom_theme_tokens: Record<string,string> per workspace settings (workspaceSettings.ts line 12). The native token system must support custom token overrides with the same semantic: a per-workspace override map loaded from the backend settings API and applied on top of the base palette.\n\nSYNTAX TOKEN SET (muted, for code/editor surfaces — not in the React CSS today but needed for MT-011+ code editor panes):\n  Derive from the palette. For dark mode:\n    syntax_keyword:    #569cd6   (blue)\n    syntax_string:     #ce9178   (orange-brown)\n    syntax_comment:    #6a9955   (muted green)\n    syntax_number:     #b5cea8\n    syntax_type:       #4ec9b0\n    syntax_punctuation: text_subtle\n    syntax_background: bg\n  For light mode:\n    syntax_keyword:    #0000ff\n    syntax_string:     #a31515\n    syntax_comment:    #008000\n    syntax_number:     #098658\n    syntax_type:       #267f99\n    syntax_punctuation: text_subtle\n    syntax_background: bg\n\nEXACT FILES TO CREATE:\n  src/frontend/handshake_native/src/theme/mod.rs       (pub mod theme; re-exports)\n  src/frontend/handshake_native/src/theme/palette.rs   (HsTheme enum + HsPalette struct + dark/light constructors)\n  src/frontend/handshake_native/src/theme/syntax.rs    (HsSyntaxTokens struct)\n  src/frontend/handshake_native/src/theme/egui_apply.rs (fn apply_to_ctx(theme: &HsPalette, ctx: &egui::Context))\n  tests/native_gui/test_theme.rs                        (unit tests for token values + round-trip)\n\nEXACT FILES TO MODIFY:\n  src/frontend/handshake_native/src/app.rs             (add current_theme: HsTheme field to HandshakeApp, call apply_to_ctx each frame, add theme toggle button)\n  src/frontend/handshake_native/src/main.rs            (no change needed — app.rs handles theme init)\n\nCORE TYPES:\n  // palette.rs\n  #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]\n  pub enum HsTheme { Light, Dark }\n\n  #[derive(Clone, Debug)]\n  pub struct HsPalette {\n    pub bg: egui::Color32,\n    pub surface: egui::Color32,\n    pub surface_strong: egui::Color32,\n    pub border: egui::Color32,\n    pub border_strong: egui::Color32,\n    pub text: egui::Color32,\n    pub text_subtle: egui::Color32,\n    pub accent: egui::Color32,\n    pub accent_soft: egui::Color32,\n    pub success_bg: egui::Color32,\n    pub success_text: egui::Color32,\n    pub error_bg: egui::Color32,\n    pub error_text: egui::Color32,\n    pub syntax: HsSyntaxTokens,\n  }\n\n  impl HsPalette {\n    pub fn light() -> Self { ... }   // hardcoded Color32 values from light palette above\n    pub fn dark() -> Self { ... }    // hardcoded Color32 values from dark palette above\n    pub fn with_overrides(mut self, overrides: &std::collections::HashMap<String, String>) -> Self {\n      // parse hex strings from overrides map and replace matching fields\n      // unknown keys are silently ignored (future-proof)\n      self\n    }\n  }\n\n  impl HsTheme {\n    pub fn palette(self) -> HsPalette {\n      match self { HsTheme::Light => HsPalette::light(), HsTheme::Dark => HsPalette::dark() }\n    }\n  }\n\n  // syntax.rs\n  #[derive(Clone, Debug)]\n  pub struct HsSyntaxTokens {\n    pub keyword: egui::Color32,\n    pub string: egui::Color32,\n    pub comment: egui::Color32,\n    pub number: egui::Color32,\n    pub type_name: egui::Color32,\n    pub punctuation: egui::Color32,\n    pub background: egui::Color32,\n  }\n\nEGUI APPLY (egui_apply.rs):\n  pub fn apply_to_ctx(palette: &HsPalette, ctx: &egui::Context) {\n    let mut visuals = if palette_is_dark(palette) { egui::Visuals::dark() } else { egui::Visuals::light() };\n    visuals.window_fill = palette.surface;\n    visuals.panel_fill = palette.bg;\n    visuals.faint_bg_color = palette.surface;\n    visuals.extreme_bg_color = palette.bg;\n    visuals.hyperlink_color = palette.accent;\n    visuals.selection.bg_fill = palette.accent_soft;\n    visuals.override_text_color = Some(palette.text);\n    visuals.widgets.noninteractive.bg_fill = palette.bg;\n    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, palette.text);\n    visuals.widgets.inactive.bg_fill = palette.surface;\n    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, palette.text);\n    visuals.widgets.active.bg_fill = palette.accent;\n    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, palette.surface);\n    visuals.widgets.hovered.bg_fill = palette.accent_soft;\n    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.5, palette.accent);\n    ctx.set_visuals(visuals);\n  }\n  fn palette_is_dark(p: &HsPalette) -> bool {\n    // heuristic: bg luminance < 0.5\n    let [r, g, b, _] = p.bg.to_array();\n    let lum = 0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32;\n    lum < 128.0\n  }\n\nRUNTIME SWITCH IN APP.RS:\n  Add to HandshakeApp: current_theme: HsTheme (default: HsTheme::Dark matching the React app's dark default for desktop).\n  In update(): call apply_to_ctx(&self.current_theme.palette(), ctx) at the top of every frame.\n  Add a theme toggle button in the top bar: label 'Light' / 'Dark'. Button AccessKit: NodeId(10), Role::Button, Action::Click.\n  On click: toggle self.current_theme between Light and Dark. The next frame will call apply_to_ctx with the new palette.\n  DO NOT persist the theme choice in this MT — persistence via the backend settings API is a later MT concern.\n\nCUSTOM TOKEN OVERRIDES:\n  For MT-003, the override map is always empty (loaded from backend in a later MT). The with_overrides() function must exist and be callable; passing an empty map must be a no-op.\n\nHEX PARSING HELPER:\n  fn parse_hex_color(hex: &str) -> Option<egui::Color32> {\n    // strips leading '#', parses RRGGBB or RRGGBBAA\n    let h = hex.trim_start_matches('#');\n    match h.len() {\n      6 => { let r = u8::from_str_radix(&h[0..2],16).ok()?; ... Some(egui::Color32::from_rgb(r,g,b)) }\n      8 => { ... Some(egui::Color32::from_rgba_premultiplied(r,g,b,a)) }\n      _ => None\n    }\n  }\n  rgba(...) strings (like accent_soft in dark mode) must be parsed by extracting the r,g,b,a components from the rgba(...) format, NOT hex. Write a small parser for this case.\n\nFONT LOADING (prerequisite unlocked by this MT for later MTs):\n  Load Inter font in HandshakeApp::new via cc.egui_ctx.set_fonts(). Font bytes must be embedded at compile time using include_bytes!. For MT-003, embed only Inter-Regular.ttf from assets/fonts/ (to be placed there as part of MT-004 bundling; use a placeholder font path for now or gate font loading behind a cfg feature). If the font file is not found, fall back to eframe default font and log a warning — do not panic.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/theme/**",
+      "src/frontend/handshake_native/src/app.rs",
+      "tests/native_gui/test_theme.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`cargo test -p handshake-native --test test_theme` passes: all palette token value tests pass (each Color32 field compared to expected hex value).",
+      "Dark palette test: HsPalette::dark().bg == Color32::from_rgb(0x12, 0x14, 0x18).",
+      "Light palette test: HsPalette::light().bg == Color32::from_rgb(0xf8, 0xfa, 0xfc).",
+      "Syntax token test: dark palette syntax_keyword == Color32::from_rgb(0x56, 0x9c, 0xd6).",
+      "Override test: HsPalette::dark().with_overrides(&HashMap::from([(\"bg\".to_string(), \"#ff0000\".to_string())])).bg == Color32::from_rgb(255,0,0).",
+      "Unknown override key is silently ignored (no panic, palette otherwise unchanged).",
+      "apply_to_ctx does not panic when called with either light or dark palette on a headless egui::Context.",
+      "Running the app (`cargo run -p handshake-native`) and pressing the theme toggle button visually switches the window background between light (#f8fafc) and dark (#121418). Verified by screenshot or kittest pixel comparison.",
+      "Theme toggle button has AccessKit NodeId(10) set and Role::Button (verified by kittest or AccessKit tree dump).",
+      "No widget in the codebase uses a hardcoded egui::Color32 literal for semantic colors (enforced by a grep check in the test: grep for 'Color32::from_rgb' or 'Color32::WHITE/BLACK' outside of palette.rs and syntax.rs must return zero matches in src/frontend/handshake_native/src/ excluding palette.rs and syntax.rs).",
+      "`cargo check -p handshake-native` continues to pass after this MT's changes (MT-002 skeleton remains compilable)."
+    ],
+    "proof_targets": [
+      "`cargo test -p handshake-native --test test_theme -- --nocapture` exits 0 and prints 'PASS: all palette tokens correct'.",
+      "Grep check: `grep -r 'Color32::from_rgb\\|Color32::WHITE\\|Color32::BLACK' src/frontend/handshake_native/src/ --include='*.rs' | grep -v palette.rs | grep -v syntax.rs` returns zero lines.",
+      "Screenshot or kittest snapshot: window background is #121418 (dark) initially; after a synthetic click on the theme toggle button (AccessKit NodeId 10), background changes to #f8fafc (light). If using kittest, compare the background pixel of the central panel before and after the click event.",
+      "`cargo test -p handshake-native 2>&1 | grep FAILED` returns empty (all tests pass)."
+    ],
+    "implementation_notes": [
+      "rgba() parsing: for accent_soft dark mode value 'rgba(34,197,94,0.18)', convert alpha 0.18 to u8 as (0.18 * 255.0).round() as u8 = 46. Store as Color32::from_rgba_premultiplied(34, 197, 94, 46). Note: egui uses premultiplied alpha; for with_overrides() parsing of rgba() strings, apply premultiplication: r_pre = (r * a / 255), g_pre = (g * a / 255), b_pre = (b * a / 255).",
+      "HsPalette must be Clone so HandshakeApp can store the current palette independently of the current theme (for override support later).",
+      "apply_to_ctx is called every frame to support live token overrides without requiring a restart. This is cheap because egui::Context::set_visuals() does not allocate.",
+      "Do not use egui::Style for layout spacing in this MT — only egui::Visuals for colors. Spacing tokens (padding, gap) are a later MT concern.",
+      "The theme module is under src/frontend/handshake_native/src/theme/. Add 'mod theme;' to lib.rs (create lib.rs if it does not exist, pointing to the existing main.rs as bin). Or, if the crate remains bin-only, add 'mod theme;' at the top of main.rs or use a src/theme/ path referenced from app.rs directly.",
+      "For the font loading prerequisite: add a const INTER_REGULAR: Option<&[u8]> = None; placeholder for now, or use a cfg attribute. The actual include_bytes! path will be set in MT-004 when the assets are bundled. Use an #[cfg(feature = \"bundled-fonts\")] gate so MT-003 compiles without the font file present.",
+      "The HsTheme enum must implement serde::Serialize + serde::Deserialize for future persistence via the workspace settings API (GET/PUT /workspaces/{id}/settings). This is a no-cost forward-compatibility step.",
+      "Test file tests/native_gui/test_theme.rs should use #[test] (not egui_kittest) for the pure palette unit tests. The visual switch test can use egui_kittest::Harness if available, or be marked #[ignore] with a note 'requires display; run manually' if headless pixel comparison is not practical."
+    ],
+    "ports_from_react": [
+      "app/src/App.css — :root block (lines 1-20): exact light mode token values to port to HsPalette::light().",
+      "app/src/App.css — [data-theme='dark'] block (lines 38-52): exact dark mode token values to port to HsPalette::dark().",
+      "app/src/lib/workspaceSettings.ts lines 5-12: WorkspaceTheme type ('light'|'dark') and custom_theme_tokens: Record<string,string> — ported as HsTheme enum and the overrides HashMap<String,String> parameter to with_overrides().",
+      "app/src/components/SettingsMenu.tsx lines 163-166 (handleThemeChange): React pattern for runtime theme switching — native equivalent is the toggle button in HandshakeApp::update()."
+    ],
+    "binds_backend_api": [
+      "GET http://127.0.0.1:37501/workspaces/{id}/settings -> WorkspaceSettingsState (includes theme: 'light'|'dark' and custom_theme_tokens). NOT bound in MT-003 (the settings API binding is a later MT). The HsTheme enum and with_overrides() function are designed so the binding can be added without changing the core types.",
+      "PUT http://127.0.0.1:37501/workspaces/{id}/settings -> persists theme choice. NOT bound in MT-003."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: apply_to_ctx is called every frame (60fps+); egui::Context::set_visuals() under the hood may trigger a full style re-layout, causing jank if it is expensive.",
+      "RISK-2: rgba() color strings in the CSS (e.g. accent_soft dark mode) are silently mis-parsed, producing wrong premultiplied alpha values that look correct in isolation but are subtly wrong in compositing.",
+      "RISK-3: Custom override map with invalid hex strings panics the app rather than failing gracefully.",
+      "RISK-4: Token drift — later MTs hardcode Color32 values because the theme module is not well-documented, causing the no-hardcode invariant to break silently.",
+      "RISK-5: The egui Visuals struct fields change between minor egui versions (0.31 -> 0.32+), requiring manual update of apply_to_ctx when the toolkit is upgraded.",
+      "RISK-6: Font loading failure at include_bytes! compile time (file path wrong) causes a compile error that blocks all MT-003+ work until the asset is present."
+    ],
+    "minimum_controls": [
+      "CONTROL-1 (RISK-1): Cache the last applied HsTheme in HandshakeApp and only call apply_to_ctx when the theme has changed (compare current_theme != last_applied_theme). On no change, skip the call. This reduces set_visuals() to once-per-theme-switch.",
+      "CONTROL-2 (RISK-2): Add an explicit unit test for each rgba() token: test that parse_hex_color('rgba(34,197,94,0.18)') == Color32::from_rgba_premultiplied(6, 35, 17, 46) (premultiplied). Document the premultiplication formula in a comment in palette.rs.",
+      "CONTROL-3 (RISK-3): with_overrides() must use .unwrap_or(current_value) for every parse attempt — unknown or invalid values silently leave the token unchanged. Add a test: passing an invalid hex string '#ZZZZZZ' must return the original dark palette unchanged.",
+      "CONTROL-4 (RISK-4): The test_theme.rs grep check (no hardcoded Color32 outside palette.rs/syntax.rs) is part of the acceptance criteria and must run in CI. Document the convention in a doc comment at the top of theme/mod.rs: '// All colors in handshake-native come from HsPalette. Do not use Color32 literals outside this module.'",
+      "CONTROL-5 (RISK-5): Pin egui to an exact version in Cargo.toml ([dependencies] egui = \"=0.31.x\"). When upgrading, update apply_to_ctx fields to match. Note the exact egui Visuals field list used in apply_to_ctx in a comment block so the upgrade diff is obvious.",
+      "CONTROL-6 (RISK-6): Gate the font loading behind #[cfg(feature = 'bundled-fonts')]. The feature is OFF by default in MT-003 so the crate compiles without the font file. MT-004 enables the feature when assets are bundled. Add a compile-time note: if 'bundled-fonts' is enabled but the path does not exist, the include_bytes! macro will fail at compile time with a clear message."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification confirms the first reviewer: the theme token system honestly and correctly implements the MT-003 contract with verbatim-ported dark/light palettes, a muted syntax set, graceful override/hex/rgba parsing, a REAL runtime-switch toggle (interactive egui widget, stable Id->NodeId 10, Role::Button via widget_info + Sense::click) proven end-to-end via kittest against the real HandshakeApp, and a non-vacuous no-hardcoded-Color32 invariant that I re-ran to zero matches across all 30 MTs; the rgba (6,36,17,46) deviation is egui-correct arithmetic I recomputed, not a fudge.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-003.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/theme/palette.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/theme/syntax.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/theme/egui_apply.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/theme/mod.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_theme.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/live.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "test_theme passes: all palette token value tests (each Color32 field vs expected hex)",
+        "status": "MET",
+        "evidence": "tests/test_theme.rs light_palette_tokens_match_react_root (26-41) and dark_palette_tokens_match_react_dark (45-58) assert every field; palette.rs light()/dark() (93-160) use the exact ported hex. Ground truth: curated suite green."
+      },
+      {
+        "criterion": "Dark bg == Color32::from_rgb(0x12,0x14,0x18)",
+        "status": "MET",
+        "evidence": "palette.rs:127 bg=from_rgb(0x12,0x14,0x18); test_theme.rs:48 asserts it."
+      },
+      {
+        "criterion": "Light bg == Color32::from_rgb(0xf8,0xfa,0xfc)",
+        "status": "MET",
+        "evidence": "palette.rs:94 bg=from_rgb(0xf8,0xfa,0xfc); test_theme.rs:28 asserts it."
+      },
+      {
+        "criterion": "Dark syntax_keyword == from_rgb(0x56,0x9c,0xd6)",
+        "status": "MET",
+        "evidence": "syntax.rs:28 keyword=from_rgb(0x56,0x9c,0xd6); test_theme.rs:142 asserts it. punctuation=text_subtle (syntax.rs:33), background=bg (syntax.rs:34) derived as the contract specified."
+      },
+      {
+        "criterion": "Override: dark().with_overrides(bg=#ff0000).bg == red",
+        "status": "MET",
+        "evidence": "palette.rs with_overrides (169-199) matches 'bg' key; test_theme.rs override_applies_known_hex_key (176-183) asserts red and that accent (non-overridden) is unchanged."
+      },
+      {
+        "criterion": "Unknown override key silently ignored, no panic, palette otherwise unchanged",
+        "status": "MET",
+        "evidence": "with_overrides _ => {} arm (195) plus parse_color None => continue (171-173); test_theme.rs override_unknown_key_is_ignored (186-190) and override_invalid_hex_is_ignored (193-198) assert whole-struct equality to dark(). HsPalette derives PartialEq/Eq (palette.rs:48)."
+      },
+      {
+        "criterion": "apply_to_ctx does not panic on headless ctx with light or dark",
+        "status": "MET",
+        "evidence": "egui_apply.rs apply_to_ctx (19-37) maps every contract-listed Visuals/Widgets field; test_theme.rs apply_to_ctx_does_not_panic_and_sets_panel_fill (216-233) runs both palettes on egui::Context::default() and asserts panel_fill reaches the ctx for each."
+      },
+      {
+        "criterion": "Running app + theme toggle switches window bg dark<->light (screenshot/kittest)",
+        "status": "MET",
+        "evidence": "test_theme.rs app_toggle_switches_panel_fill_dark_to_light (237-267) builds the REAL HandshakeApp via with_health, drives app.ui(ctx) through egui_kittest::Harness, asserts initial panel_fill==dark.bg and current_theme()==Dark, clicks get_by_label(\"Light\"), reruns, asserts panel_fill==light.bg and current_theme()==Light. NOT #[ignore]'d (no attribute above the #[test]); end-to-end through the real toggle->current_theme->apply_theme_if_changed (app.rs:3712-3716, 3659-3668, 3906) path, not tautological."
+      },
+      {
+        "criterion": "Theme toggle has AccessKit NodeId(10) + Role::Button",
+        "status": "MET",
+        "evidence": "app.rs theme_toggle (3675-3717) builds a real interactive widget: Id::from_high_entropy_bits(THEME_TOGGLE_NODE_ID=10) (app.rs:38,3683), ui.interact(Sense::click) (3690), widget_info(WidgetType::Button) (3701-3703), stable author_id via accessibility::emit_interactive_node (3710; live.rs:128-132 sets author_id while preserving egui's derived Role::Button+Action::Click). test_accesskit_ids.rs live_tree_contains_theme_toggle_by_author_id (260-289) asserts role==\"Button\" on the LIVE tree; line 207-208 reserves 10 for the toggle. Literal numeric NodeId(10) assertion was routed to MT-025 (sibling file), which the first reviewer accepted; behavior is covered."
+      },
+      {
+        "criterion": "No widget uses hardcoded Color32 for semantic colors outside palette.rs/syntax.rs (grep test)",
+        "status": "MET",
+        "evidence": "test_theme.rs no_hardcoded_color32_outside_theme_module (271-313) recursively scans src/ for from_rgb/WHITE/BLACK excluding palette.rs/syntax.rs. I independently re-ran the exact contract grep over the FINAL 30-MT worktree src tree: zero matches. Invariant is real and held across all later MTs."
+      },
+      {
+        "criterion": "cargo check continues to pass (MT-002 skeleton remains compilable)",
+        "status": "MET",
+        "evidence": "Ground truth (relied upon per directive): whole crate + all test binaries compile clean (cargo build --tests exit 0); curated suite passes 0 failures. lib.rs exposes pub mod theme (39) and pub mod app (7) cleanly."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "MT-003 is an in-process token/visuals system. I grepped the theme module + theme-relevant app.rs for todo!/unimplemented!/unreachable!/panic!/'not yet wired'/'deferred to'/'pending MT-': none on the required path. The AccessKit tree and runtime switch are exercised against the REAL HandshakeApp via egui_kittest (test_theme.rs:237-267) and the live AccessKit tree (test_accesskit_ids.rs:260-289), not an implementer-authored mock. The visual-switch proof is NOT #[ignore]'d (runs in the default suite). The theme toggle is a genuine egui interactive widget (ui.interact + Sense::click + widget_info Button), not a fake. The rgba premultiplication deviation (contract's hand-computed (6,35,17,46) -> egui-authoritative (6,36,17,46)) is honestly documented (palette.rs:7-13, test_theme.rs:113-127); I independently recomputed egui's gamma-space fast_round(c*46/255) and confirmed 34->6, 197->36, 94->17 = (6,36,17,46), so the coder fixed a genuine contract arithmetic bug rather than fudging. The backend settings-API binding for theme persistence is explicitly deferred by the contract ('DO NOT persist ... a later MT concern') and the with_overrides()/HsTheme serde forward-compat is real, so no deferred-live escape on any behavior MT-003 must deliver."
+    },
+    "concerns_non_blocking": [
+      "NON-BLOCKER (hygiene): the no-hardcoded-Color32 grep test only matches from_rgb/WHITE/BLACK; it does not catch Color32::from_rgba_unmultiplied/from_gray/named constants. The contract specified exactly those three patterns, so this is within contract; could be tightened in a future hygiene pass. Two Color32::TRANSPARENT no-fill sentinels exist outside the theme module but are structural, not semantic palette colors.",
+      "NON-BLOCKER (paperwork): test file lives at tests/test_theme.rs, not the contract's tests/native_gui/test_theme.rs. This is a hard cargo requirement (the --test test_theme target name derives from the file's location in tests/) and is honestly disclosed in the file header (lines 8-12). The acceptance proof command still resolves. Not a code defect.",
+      "NON-BLOCKER (paperwork): contract CONTROL-5 said egui pin '=0.31.x'; actual pin is '0.33' (caret, not exact). Justified by the MT-001 spike verdict (rustc 1.91.1 forces 0.33) and documented with the Visuals field list in egui_apply.rs:3-9 for upgrade safety. A future minor could in theory shift Visuals fields; consider an exact '=' pin at installer-hardening time. Low risk.",
+      "NON-BLOCKER (context): Cargo.toml sets default=['bundled-fonts'] (font ON by default), whereas the MT-003 CONTROL-6 said OFF-by-default. This is CORRECT in the final tree because MT-004 bundled the Inter font assets (app.rs:649-662 include_bytes! of Inter-Regular.ttf/Inter-Bold.ttf, with a #[cfg(not(feature='bundled-fonts'))] fallback at 3650). Ground truth confirms the crate compiles clean. Not an MT-003 regression — it reflects MT-004 having since run in this folded worktree.",
+      "NON-BLOCKER (paperwork): the literal '== NodeId(10)' numeric assertion lives in MT-025's test file (accesskit-stable-ids), not in test_theme.rs. MT-003's own tests prove Role::Button + stable author_id + working toggle on the live tree; the numeric reservation is asserted at test_accesskit_ids.rs:208. Behavior fully covered.",
+      "CERTIFICATION NOTE: this WP was built folded with no separate validator by design; this adversarial review IS the independent certification (Spec-Realism sub-rule 3 satisfied). Implementer self-certification / lifecycle paperwork state is not a FAIL reason per operator directive."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

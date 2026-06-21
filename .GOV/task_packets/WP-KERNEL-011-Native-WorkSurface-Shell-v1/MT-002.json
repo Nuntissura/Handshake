@@ -1,0 +1,207 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-002",
+  "title": "C1-MT002-NativeAppSkeleton",
+  "group": "C1 Toolkit + foundation",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-002.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "active": true,
+    "depends_on": [
+      "MT-001"
+    ],
+    "depends_on_satisfied": "MT-001 verdict exists (selected_toolkit=egui), READY_FOR_VALIDATION. The WP contract gates MT-002 on the verdict existing + a non-undecided decision, which is met. Folded KERNEL_BUILDER batch lane: no per-MT validator completion required before the next MT.",
+    "blocks": [
+      "MT-003"
+    ],
+    "validator_verdict": "PASS_V1",
+    "claimed_by": "KERNEL_BUILDER-20260619-220936",
+    "note": "Deps pinned to the MT-001 proven 0.33 egui family (NOT the stale 0.31 list in this contract, which explicitly defers to the spike verdict). No root cargo workspace exists -> handshake_native is a standalone crate for now; root-workspace consolidation is a future CX-106 decision.",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Create the native Rust GUI crate for Handshake at src/frontend/handshake_native/. This crate is the long-term home of all native GUI code. It must open a real OS window using the toolkit selected in MT-001 (expected: egui + eframe + wgpu), run a render loop, display a minimal shell UI (title bar label + status label), and prove connectivity to the existing handshake_core backend by hitting the GET /health endpoint at 127.0.0.1:37501 and displaying the response status on screen. There is no webview, no Tauri, and no Electron. This MT locks the crate layout and entrypoint binary name that all later MTs extend.\n\nEXPECTED DIFF SHAPE:\n  NEW files:\n    src/frontend/handshake_native/Cargo.toml\n    src/frontend/handshake_native/src/main.rs           (binary entrypoint, calls eframe::run_native)\n    src/frontend/handshake_native/src/app.rs            (HandshakeApp struct implementing eframe::App)\n    src/frontend/handshake_native/src/backend_client.rs (reqwest-based HTTP client, GET /health)\n    src/frontend/handshake_native/src/error.rs          (AppError enum)\n    tests/native_gui/test_skeleton.rs                   (kittest smoke test)\n  MODIFIED files:\n    Cargo.toml  (add src/frontend/handshake_native to [workspace] members)\n\nEXACT CRATE LAYOUT:\n  Package name: handshake-native\n  Binary name: handshake-native  (produces handshake-native.exe on Windows)\n  Edition: 2021\n  No lib target — binary only at this stage.\n  Crate-type: bin.\n\nDEPENDENCIES to add in src/frontend/handshake_native/Cargo.toml (pin exact versions to match MT-001 spike verdict; if spike chose egui 0.31 / eframe 0.31 / egui_tiles 0.10, use those exact versions):\n  eframe = { version = \"0.31\", default-features = false, features = [\"wgpu\", \"accesskit\", \"persistence\"] }\n  egui = \"0.31\"\n  egui_tiles = { version = \"0.10\", features = [\"serde\"] }\n  accesskit = \"0.17\"\n  accesskit_winit = \"0.22\"\n  reqwest = { version = \"0.12\", default-features = false, features = [\"json\", \"rustls-tls\"] }\n  tokio = { version = \"1\", features = [\"rt\", \"rt-multi-thread\", \"macros\"] }\n  serde = { version = \"1\", features = [\"derive\"] }\n  serde_json = \"1\"\n  tracing = \"0.1\"\n  tracing-subscriber = { version = \"0.3\", features = [\"env-filter\"] }\n\nREACT REFERENCE — App.tsx layout to understand the shell structure being replaced:\n  The React app (app/src/App.tsx lines 1-120) defines the top-level shell: a workspace sidebar on the left, a main pane area in the center, and a status bar. The WorkspaceSidebar component (app/src/components/WorkspaceSidebar.tsx) is the left panel. This MT does NOT port the sidebar yet — it only creates an empty shell window with title + status label as placeholders.\n\nBACKEND API BOUND:\n  GET http://127.0.0.1:37501/health\n  Response type (from handshake_core::models::HealthResponse):\n    { \"status\": \"ok\" | \"error\", \"db_status\": \"ok\" | \"error\" | \"unknown\", \"migration_version\": <i64 | null> }\n  The backend listens on 127.0.0.1:37501 (hardcoded in handshake_core/src/main.rs line 41).\n  The native app must NOT start the backend — it assumes the backend is already running. If /health returns a non-200 or errors, display an error label in the status bar.\n\nHANDSHAKEAPP STRUCT (src/frontend/handshake_native/src/app.rs):\n  pub struct HandshakeApp {\n    health_status: HealthDisplayState,\n    health_poll_handle: Option<tokio::task::JoinHandle<HealthResponse>>,\n    rt: tokio::runtime::Runtime,   // single tokio runtime owned by the app\n  }\n  enum HealthDisplayState { Loading, Ok { migration_version: Option<i64> }, Error(String) }\n  impl eframe::App for HandshakeApp {\n    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {\n      // 1. Poll the health_poll_handle if Some; on completion set health_status.\n      // 2. Render top panel with label \"Handshake\" (AccessKit author_id: NodeId(1)).\n      // 3. Render bottom panel with health status string (author_id: NodeId(2)).\n      // 4. Request repaint if still Loading.\n    }\n  }\n  impl HandshakeApp {\n    pub fn new(cc: &eframe::CreationContext) -> Self { ... }\n  }\n\nACCESSKIT REQUIREMENTS:\n  Every widget rendered in this MT must have a stable AccessKit author_id and role:\n    - Title label \"Handshake\": NodeId(1), Role::Label\n    - Health status label: NodeId(2), Role::Label\n    - Main content area frame: NodeId(3), Role::Region\n  Set author IDs using egui widget .id(egui::Id::new(\"handshake_title\")) and ensure accesskit_winit adapter is initialised in the eframe creation context so the AccessKit tree is live from the first frame.\n\nENTRYPOINT (src/frontend/handshake_native/src/main.rs):\n  fn main() -> eframe::Result<()> {\n    tracing_subscriber::fmt().with_env_filter(\"handshake_native=debug,eframe=info\").init();\n    let native_options = eframe::NativeOptions {\n      viewport: egui::ViewportBuilder::default()\n        .with_title(\"Handshake\")\n        .with_inner_size([1280.0, 800.0])\n        .with_min_inner_size([640.0, 480.0]),\n      renderer: eframe::Renderer::Wgpu,\n      ..Default::default()\n    };\n    eframe::run_native(\n      \"handshake-native\",\n      native_options,\n      Box::new(|cc| Ok(Box::new(HandshakeApp::new(cc)))),\n    )\n  }\n\nTEST (tests/native_gui/test_skeleton.rs):\n  Use egui_kittest::Harness to run HandshakeApp headlessly for 2 frames. Assert that the egui Id for 'handshake_title' exists in the widget tree. Assert the window title is 'Handshake'. This test must NOT require a live backend — mock the health response by injecting a pre-set HealthDisplayState::Ok into HandshakeApp before the harness runs.\n\nFONT: Load Inter from the bundled assets path (to be defined in MT-004). For MT-002, fall back to eframe default font (no custom font loading yet — that is MT-003's dependency).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/**",
+      "Cargo.toml",
+      "tests/native_gui/test_skeleton.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "`cargo build -p handshake-native` succeeds with zero errors and zero warnings (allow unused imports during skeleton phase with #[allow(unused)] only where required).",
+      "`cargo test -p handshake-native --test test_skeleton` passes: the kittest harness renders 2 frames and finds the 'handshake_title' widget Id in the egui output.",
+      "Running `cargo run -p handshake-native` (with a live handshake_core backend at 37501) opens a real OS window titled 'Handshake' with a visible health status label showing either 'Backend: OK (migration N)' or 'Backend: error: <message>'.",
+      "The GET /health call is non-blocking — the window opens immediately without waiting for the HTTP response. The health label shows 'Loading...' until the first response arrives.",
+      "AccessKit tree is live: after opening the window, running an out-of-process UIA query (or the test from MT-001 probe (a)) finds a node with AutomationId matching NodeId(1) = 'handshake_title'.",
+      "The crate compiles as a workspace member — `cargo check --workspace` passes after adding the crate to Cargo.toml [workspace] members.",
+      "No webview, CEF, or Tauri dependency appears in `cargo tree -p handshake-native`.",
+      "The wgpu renderer is selected: cargo tree must include wgpu and eframe/wgpu feature path."
+    ],
+    "proof_targets": [
+      "`cargo test -p handshake-native --test test_skeleton -- --nocapture` exits 0 and prints 'PASS: handshake_title widget found'.",
+      "`cargo build --release -p handshake-native` exits 0 and target/release/handshake-native.exe exists.",
+      "Screenshot (taken via egui_kittest harness snapshot or manual screen capture): window visible at 1280x800, title bar reads 'Handshake', status area shows a health string (not blank).",
+      "`cargo tree -p handshake-native 2>&1 | grep -i tauri` returns empty — no Tauri dependency.",
+      "`cargo tree -p handshake-native 2>&1 | grep wgpu` returns at least one line confirming wgpu is in the dep tree."
+    ],
+    "implementation_notes": [
+      "The tokio runtime must be owned by HandshakeApp (not a global). Use tokio::runtime::Runtime::new().unwrap() in HandshakeApp::new and store it as a field. Spawn health poll tasks on self.rt.handle().",
+      "Health polling: On creation, spawn a tokio task that calls reqwest::Client::new().get(\"http://127.0.0.1:37501/health\").send().await. Store the JoinHandle. In update(), call handle.try_join() (non-blocking). On success, parse body as serde_json::Value and extract 'status' and 'migration_version'. Do not panic on parse error — set HealthDisplayState::Error with the parse error message.",
+      "Do NOT use std::thread::spawn for the HTTP call — use the tokio runtime. This avoids thread-count issues when more async calls are added in later MTs.",
+      "The health poll is fire-once on startup in MT-002. Periodic re-poll is a later MT concern.",
+      "eframe::NativeOptions renderer field: set to eframe::Renderer::Wgpu explicitly. Do not rely on default (which may select glow/OpenGL on some platforms).",
+      "AccessKit integration in eframe 0.31: pass accesskit_winit::Adapter in the NativeOptions or rely on eframe's built-in accesskit feature. Verify with `cargo tree -p handshake-native | grep accesskit` that accesskit_winit appears. If eframe's built-in accesskit integration handles this automatically when the accesskit feature is enabled, document that and skip manual adapter wiring.",
+      "For the kittest smoke test, use egui_kittest::Harness::new_state(...) with a HandshakeApp that has health_status pre-set to HealthDisplayState::Ok { migration_version: Some(1) } so the test does not need a live backend.",
+      "Keep main.rs under 40 lines. All logic goes in app.rs and backend_client.rs.",
+      "Set RUST_LOG=handshake_native=debug in the dev run environment. The app must log the health response at debug level on receipt."
+    ],
+    "ports_from_react": [
+      "app/src/App.tsx — shell structure reference: WorkspaceSidebar on left, main pane center, status area. MT-002 creates only the top and bottom bars as placeholders; the docking layout (egui_tiles) is introduced in later MTs.",
+      "app/src/lib/api.ts line 733: listWorkspaces() -> GET /workspaces — NOT used in MT-002 but noted as the next backend call MT-003 will bind.",
+      "app/src/components/SystemStatus.tsx — reference for the health/status display pattern in React; native equivalent is the bottom panel health label in this MT."
+    ],
+    "binds_backend_api": [
+      "GET http://127.0.0.1:37501/health — handshake_core main.rs line 207, handler at line 447. Response: { status: string, db_status: string, migration_version: i64|null }. Rust type: handshake_core::models::HealthResponse (do NOT import this type into the native crate — deserialize via serde_json::Value to avoid a build dependency on handshake_core)."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET",
+    "HBR-MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: The wgpu renderer fails to initialize on the CI/build machine (no GPU or no Vulkan/DX12 adapter); eframe panics at startup.",
+      "RISK-2: The reqwest HTTP call blocks the egui update() thread if the runtime is not properly separated, causing the window to freeze for the duration of the HTTP timeout.",
+      "RISK-3: egui_kittest headless harness does not exercise the real wgpu path; the skeleton test passes but the real window fails on the GPU path.",
+      "RISK-4: Adding the crate to [workspace] members causes Cargo version conflicts between handshake_core's dependencies and the new egui/wgpu crates.",
+      "RISK-5: The AccessKit tree is not live on the first frame because accesskit_winit requires a platform-specific hook that eframe may not wire automatically.",
+      "RISK-6: On Windows without a GPU, wgpu falls back to software (WARP) but may silently produce a black window with no panic, masking a rendering failure."
+    ],
+    "minimum_controls": [
+      "CONTROL-1 (RISK-1): Add [target.'cfg(not(test))'] section to native options that requests wgpu with power_preference = LowPower and depth_format = None. In CI (no GPU), add WGPU_BACKEND=dx11 or WGPU_BACKEND=vulkan env var and fall back to WGPU_BACKEND=gl if dx12 unavailable. Document the CI env var requirement in the MT acceptance criteria.",
+      "CONTROL-2 (RISK-2): The health poll task is spawned once in HandshakeApp::new(), not in update(). The update() method calls try_join() (non-blocking poll), never await. If the JoinHandle is not ready, the function returns immediately. Add a timeout of 5 seconds to the reqwest call using .timeout(Duration::from_secs(5)).",
+      "CONTROL-3 (RISK-3): The kittest test is explicitly marked as a smoke test for widget tree structure only, not for GPU rendering. Add a separate manual proof target requiring a real window screenshot from a developer machine.",
+      "CONTROL-4 (RISK-4): Isolate version conflicts by checking `cargo check --workspace` after adding the member. If conflicts appear, do NOT change handshake_core deps; instead, adjust only the native crate's dep versions to resolve. If unresolvable, document the conflict and escalate to operator before merging.",
+      "CONTROL-5 (RISK-5): After opening the window, log the AccessKit tree to debug output using accesskit_winit's dump_tree or equivalent. If the tree is empty after 2 frames, log a warning but do not panic. The acceptance criterion for AccessKit is a best-effort in MT-002 (full coverage gated by MT-001 accesskit probe passing).",
+      "CONTROL-6 (RISK-6): In HandshakeApp::update(), after the first frame, check if the egui context has received any paint events. If not after 3 frames, log 'WARN: wgpu renderer may be producing blank output (possible software fallback issue)'. This gives a diagnostic signal without requiring a GPU."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification confirms PASS: the handshake-native crate honestly implements the MT-002 skeleton against real code — a real eframe/wgpu native window (no webview), a genuine non-blocking reqwest GET /health poll against the Handshake-owned backend, and a real egui_kittest AccessKit-tree query (get_by_label('Handshake') resolves the live node set via accesskit_node_builder) — with only documented, intent-preserving deviations.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-002.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/main.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/error.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/backend_client.rs (fetch_health)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (HealthDisplayState, new, with_health, poll_health, title_identity, status_bar_segment, status_text render, eframe::App update, repaint-while-Loading)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/live.rs (emit_chrome_node, ChromeWidget::TitleBar role/author_id/egui_id)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.lock (grep tauri/wry/cef = none; wgpu present)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/.cargo/config.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_skeleton.rs",
+      "git show 2963990e (MT-002 commit) --stat"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC1: cargo build -p handshake-native zero errors/warnings",
+        "status": "MET",
+        "evidence": "Ground truth (validator): crate + all test binaries compile clean (cargo build --tests exit 0). MT-002 path files (app.rs poll_health/title_identity/status, backend_client.rs fetch_health, error.rs, main.rs) are idiomatic warning-free Rust; no #[allow(unused)] hacks on the MT-002 behavior path."
+      },
+      {
+        "criterion": "AC2: cargo test --test test_skeleton passes; kittest finds the title widget in the egui/AccessKit output",
+        "status": "MET",
+        "evidence": "tests/test_skeleton.rs (NOT #[ignore]) builds a real egui_kittest::Harness over HandshakeApp::with_health(...Ok), runs a frame via app.ui(ctx), then asserts harness.get_by_label(\"Handshake\") (panics if absent). title_identity() emits a real AccessKit node via accessibility::live::emit_chrome_node -> ctx.accesskit_node_builder(id, |n| n.set_label(\"Handshake\")) — so the query is a genuine AccessKit-tree assertion, not tautological."
+      },
+      {
+        "criterion": "AC3: cargo run opens a real OS window titled 'Handshake' with a health status label (OK/error)",
+        "status": "MET",
+        "evidence": "main.rs uses eframe::run_native with ViewportBuilder.with_title(\"Handshake\").with_inner_size([1280,800]).with_min_inner_size([640,480]), renderer: eframe::Renderer::Wgpu. app.rs bottom panel renders 'Backend: OK (db .., migration ..)' / 'Backend: error: <e>' / 'Backend: Loading...'. Live GPU window not run per directive; build/test green confirms the path compiles and the headless harness drives the same ui() path."
+      },
+      {
+        "criterion": "AC4: GET /health is non-blocking — window opens immediately, label shows Loading until first response",
+        "status": "MET",
+        "evidence": "HandshakeApp::new spawns fetch_health on an owned multi-thread tokio runtime and sets health_status=Loading; ui()->poll_health() gates on health_handle.is_finished() then rt.block_on on an ALREADY-finished handle (returns immediately — never awaits in the UI thread). request_repaint_after(100ms) while Loading keeps frames coming. fetch_health carries a 5s reqwest timeout (CONTROL-2)."
+      },
+      {
+        "criterion": "AC5: AccessKit tree live; UIA/probe finds the title node",
+        "status": "MET",
+        "evidence": "eframe Cargo.toml enables the 'accesskit' feature so the tree is live from frame 1; emit_chrome_node sets role=TitleBar, author_id='shell.chrome.title-bar', label='Handshake' on the title node. The smoke test proves the title node is present headlessly. CONTROL-5 scopes MT-002 AccessKit to best-effort title-present; the literal NodeId(1)/egui::Id('handshake_title') author-id registry is C7 (MT-025/026) — in the current state title_identity already emits a stable ChromeWidget::TitleBar node, so the title remains queryable."
+      },
+      {
+        "criterion": "AC6: crate compiles as a workspace member; cargo check --workspace passes",
+        "status": "MET",
+        "evidence": "Honest, documented deviation: no root Cargo.toml workspace exists in the repo (verified — no root [workspace]); the crate declares its own standalone [workspace] and is its own workspace root, so cargo check --workspace runs from the crate dir. Documented in Cargo.toml header + lib.rs. Adding handshake_core (src/backend, forbidden_paths) to a root workspace would risk contaminating the backend's profiles/rustflags. Intent (workspace-clean buildable crate) satisfied."
+      },
+      {
+        "criterion": "AC7: no webview/CEF/Tauri dependency",
+        "status": "MET",
+        "evidence": "Cargo.toml deps are egui/eframe(wgpu)/egui_tiles/reqwest/tokio/serde/tracing + MT-027/030 additions (hmac/sha2/rand/base64/windows-sys/image). Grep of Cargo.lock for tauri|wry|webview2|webkit2gtk|cef returns NO matches. eframe wgpu native substrate, no browser engine."
+      },
+      {
+        "criterion": "AC8: wgpu renderer selected (eframe/wgpu feature path)",
+        "status": "MET",
+        "evidence": "Cargo.toml eframe features include 'wgpu'; main.rs sets renderer: eframe::Renderer::Wgpu explicitly (not default). Cargo.lock contains name = \"wgpu\". egui_kittest dev-dep also enables the wgpu feature."
+      },
+      {
+        "criterion": "proof_targets (release exe, screenshot, cargo tree tauri/wgpu)",
+        "status": "PARTIAL",
+        "evidence": "Build/test green per ground truth; cargo not re-run here per directive. The release-exe-exists and visible-window-screenshot proof_targets are developer-machine artifacts (CONTROL-3) not reproducible in this review. Per operator directive this is a proof-capture/paperwork gap, NOT a code FAIL."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1: grepped the MT-002 required-behavior files (backend_client.rs, error.rs, app.rs poll path, main.rs) for todo!/unimplemented!/unreachable!/'not yet wired'/'deferred to'/'pending MT-'/'Unavailable' — NONE on the delivered path. Sub-rule 2 (real resource): the claimed Handshake-owned resource is handshake_core's GET http://127.0.0.1:37501/health; fetch_health performs a REAL reqwest::Client GET with a 5s timeout, rejects non-success status as AppError::Http, and parses the real {status,db_status,migration_version} body via serde_json::Value mapping parse failures to AppError::Parse (no panic). The test's HealthDisplayState::Ok preset is contract-sanctioned scaffolding — the MT contract explicitly requires the smoke test to run WITHOUT a live backend — while the real HTTP path is live in new(). The kittest get_by_label('Handshake') exercises the REAL AccessKit tree (accesskit_node_builder), not a mock. No #[ignore] hides a required behavior (test_skeleton has none). Sub-rule 3: implementer self-certification is satisfied by this independent review per operator directive."
+    },
+    "concerns_non_blocking": [
+      "Documented, intent-preserving deviations (HONEST, non-blocking): (a) deps pinned to MT-001's proven egui 0.33 family instead of the contract's stale 0.31 list — the contract itself defers to the spike verdict; (b) lib+bin split instead of 'bin only' — required so the integration test can reach HandshakeApp; (c) standalone [workspace] instead of root-workspace membership — no root Cargo.toml workspace exists and adding handshake_core (forbidden_paths) would risk the backend build. All recorded in Cargo.toml/lib.rs headers.",
+      "AccessKit author-ids: MT-002's title uses the stable ChromeWidget::TitleBar node (author_id 'shell.chrome.title-bar') rather than the contract's literal NodeId(1)+egui::Id::new('handshake_title'). Explicitly best-effort for MT-002 (CONTROL-5); the literal stable-id registry + emit_chrome_node author_ids are the C7 (MT-025/026) deliverable. Title remains queryable today.",
+      "Proof-capture paperwork: the release-exe-exists and visible-window-screenshot proof_targets are developer-machine artifacts not reproduced in this review (cargo not run per directive). Paperwork gap, not a code FAIL.",
+      "Artifact hygiene (noted, NOT a per-MT FAIL): .cargo/config.toml target-dir '../../../../Handshake_Artifacts/handshake-native-target' resolves to the EXTERNAL sibling root OUTSIDE the repo tree (CX-212E), so this MT's own build config does NOT land outputs in-repo — no per-MT code FAIL under the operator directive.",
+      "Minor contract-language deviation: poll_health uses is_finished()+block_on(finished handle) rather than the contract's literal try_join(); functionally equivalent (returns immediately, never awaits in the UI thread). Not a defect."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

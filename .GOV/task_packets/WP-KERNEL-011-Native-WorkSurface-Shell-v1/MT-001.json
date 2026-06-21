@@ -1,0 +1,229 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-001",
+  "title": "C1-MT001-ToolkitDecisionSpike",
+  "group": "C1 Toolkit + foundation",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-001.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "active": true,
+    "depends_on": [],
+    "blocks": [
+      "MT-002",
+      "MT-003",
+      "MT-004"
+    ],
+    "validator_verdict": "PASS_V1",
+    "claimed_by": "KERNEL_BUILDER-20260619-220936",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260619-220936",
+    "completed_by": null,
+    "evidence": {
+      "commit": "da278eec (feat/WP-KERNEL-011, 11 files, no .GOV)",
+      "verdict": "tests/native_gui/toolkit_spike_verdict.json (selected_toolkit=egui, 5/5)",
+      "probes_real_results": "a out-of-process UIA PASS (child eframe window; found btn_test cross-process; Invoke; counter 0->1); b docking save/restore PASS (egui_tiles serde, 0.30/0.70 + tiles round-trip); c editor input PASS (egui_kittest 10 synthetic chars -> buffer); d single-binary PASS (release crt-static; 20 imports all system, no third-party); e custom wgpu viewport PASS (egui pane paint-callback hosts 3D cube+depth + painted-texture quad via real device/queue; model AccessKit Click drove uniform 0->1 via CPU mirror in the GPU-write path; pixel readback deferred to MT-002)",
+      "proof_commands": "cargo run --release --bin toolkit_spike (writes verdict); cargo test --test toolkit_spike_verdict_schema (1 passed)",
+      "version_pins_for_mt002": "egui/eframe/egui-wgpu/egui_kittest 0.33.3; egui_tiles 0.14.1 (serde feature); accesskit 0.21.1; accesskit_winit+windows 0.29.2; wgpu 27.0.1; uiautomation 0.25; object 0.36. rustc 1.91.1 forced the 0.33 family (0.34 needs 1.92).",
+      "adversarial_review": "4-lens Workflow panel wf_96af79fd-56d: READY_AFTER_FIXES (1 BLOCKER + 3 MAJOR). All addressed: BLOCKER (untracked) -> committed; MAJOR e overclaim -> wording downgraded to hostability+steering; MAJOR a -> matched-by-Name stated honestly; MAJOR shared target-dir -> dedicated toolkit-spike-target. Probe mechanisms confirmed sound, not faked.",
+      "operator_decisions_open": [
+        "AC4: probe a matched the a11y node by Name, not the contract's NodeId-as-AutomationId convention (UIA may not populate AutomationId from egui/accesskit by default). Out-of-process read+action IS proven. Decide: accept Name-matching for AC4, or require a validated stable-AutomationId convention in MT-002.",
+        "Probe e GPU pixel readback and probe d is_system_dll allowlist tightening are deferred to MT-002 (verdict.mt002_followups)."
+      ]
+    },
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "GOAL: Run a head-to-head spike between egui+egui_tiles+AccessKit+wgpu and GPUI on Windows to determine which toolkit will serve as the locked foundation for WP-KERNEL-011 (and, by extension, the creative tools that plug into the shell: WP-KERNEL-010 Tailor 3D garment viewport and the future Affinity/Photoshop 2D canvas). This MT produces a decision receipt (a JSON verdict file) and a minimal proof harness crate — it does NOT produce any production UI.\n\nEXPECTED DIFF SHAPE: New crate at src/frontend/toolkit_spike/ containing Cargo.toml + src/main.rs + src/accesskit_probe.rs + src/docking_probe.rs + src/editor_probe.rs + src/viewport_probe.rs. New file tests/native_gui/toolkit_spike_verdict.json written by the spike runner. The workspace Cargo.toml gains the new crate as a member. No other files are created.\n\nFIVE PROOF DIMENSIONS to demonstrate for each candidate:\n  (a) AccessKit tree readable out-of-process and action dispatch: Spawn the app, use the AccessKit out-of-process API (accesskit_windows crate, IAccessible2/UIA bridge) to enumerate the accessibility tree, find a button node by its stable author_id, dispatch a click action, and assert the app state changed. Record pass/fail per candidate.\n  (b) Docking with layout save/restore: Render two docked panes (e.g. left sidebar + main area). Serialize the layout to a JSON blob. Destroy and re-create the window. Restore from the blob. Assert both panes re-appear with correct proportions (within ±2px). Record pass/fail.\n  (c) Editor text surface: Render a multi-line text input/editor widget. Type 10 characters via synthetic key events (or AccessKit action dispatch). Assert the text buffer contains the typed characters. Record pass/fail.\n  (d) Single-binary build: `cargo build --release` for the spike crate produces exactly one .exe with no external .dll dependencies beyond OS system DLLs (vcruntime, kernel32, etc.). Verify with `dumpbin /dependents` or equivalent; any non-system DLL is a FAIL.\n  (e) Custom GPU viewport embed (MAKE-OR-BREAK for the creative tools — WP-KERNEL-010 Tailor cloth-garment 3D viewport AND the future Affinity/Photoshop 2D canvas): embed a custom wgpu render surface INSIDE a toolkit pane; render a rotating 3D mesh (cube or avatar proxy) AND a painted 2D texture; then drive one viewport parameter (rotation angle or brush color) from a model action dispatched through the AccessKit action channel, and assert the viewport reflects the model-driven value. This proves (1) the toolkit can host the Tailor 3D garment viewport and the photo-editor 2D canvas, and (2) a model can steer the viewport via a parametric value, not pixel/vertex manipulation. For egui use an egui paint callback / wgpu render callback; for GPUI use its GPU surface primitives. Record pass/fail per candidate.\n\nEXACT FILES TO CREATE:\n  - src/frontend/toolkit_spike/Cargo.toml\n  - src/frontend/toolkit_spike/src/main.rs  (entrypoint, runs all five probes sequentially, writes verdict JSON)\n  - src/frontend/toolkit_spike/src/accesskit_probe.rs  (probe a)\n  - src/frontend/toolkit_spike/src/docking_probe.rs    (probe b)\n  - src/frontend/toolkit_spike/src/editor_probe.rs     (probe c)\n  - src/frontend/toolkit_spike/src/viewport_probe.rs   (probe e: custom wgpu 3D mesh + 2D painted texture embed, model-driven parameter)\n  - tests/native_gui/toolkit_spike_verdict.json        (output written by `cargo run --bin toolkit_spike`; NOT hand-authored)\n\nCANDIDATE A — egui stack:\n  Crates: egui 0.31, eframe 0.31 (winit+wgpu backend, feature `wgpu`), egui_tiles 0.10, accesskit 0.17, accesskit_winit 0.22, accesskit_windows 0.22 (for out-of-process read). Enable eframe feature `accesskit`.\n  Docking: egui_tiles::Tree<Pane> with Behavior impl. Serialize via serde_json.\n  Editor surface: egui::TextEdit::multiline or egui_extras CodeEditor if available; fallback to egui::TextEdit.\n  Viewport (probe e): egui::PaintCallback / eframe wgpu RenderCallback to draw a custom wgpu scene (rotating cube + a painted texture quad) inside an egui pane; bind a uniform (rotation/brush color) to a value the AccessKit action can set.\n  Single binary: set [profile.release] lto=true, codegen-units=1, panic=abort. Add [target.x86_64-pc-windows-msvc] rustflags=[\"-C\", \"target-feature=+crt-static\"] in .cargo/config.toml of the spike crate to inline the CRT.\n\nCANDIDATE B — GPUI:\n  Crate: gpui 0.1.x from crates.io (or zed-industries/zed monorepo via git path if not published standalone — document which). GPUI bundles its own accessibility and GPU layer. Implement the same five probes using GPUI primitives: cx.open_window, a View with render(), gpui accessibility tree query, layout serialization via cx.global::<LayoutState>(), and a custom GPU surface element for probe e.\n  Note: If GPUI is not available as a standalone crate on crates.io at spike time, record GPUI as BLOCKED and auto-select egui.\n\nVERDICT RECEIPT FORMAT (tests/native_gui/toolkit_spike_verdict.json):\n  {\n    \"spike_date\": \"<ISO8601>\",\n    \"selected_toolkit\": \"egui\" | \"gpui\" | \"undecided\",\n    \"selection_rationale\": \"<string>\",\n    \"candidates\": {\n      \"egui\": { \"accesskit_out_of_process\": true|false, \"docking_save_restore\": true|false, \"editor_surface\": true|false, \"single_binary\": true|false, \"custom_viewport\": true|false, \"notes\": \"\" },\n      \"gpui\":  { \"accesskit_out_of_process\": true|false, \"docking_save_restore\": true|false, \"editor_surface\": true|false, \"single_binary\": true|false, \"custom_viewport\": true|false, \"notes\": \"\" }\n    }\n  }\n\nDECISION RULE: Select egui if it passes all five probes. Select GPUI if it passes all five and egui fails two or more. If both fail any single probe, record undecided and escalate to operator before MT-002 begins. The custom_viewport probe (e) is weighted heavily because the Tailor 3D garment tool and the photo editor depend on it; a toolkit that cannot host a custom wgpu viewport is disqualified for those creative surfaces.\n\nDEPENDENCIES: None (first MT in the cluster). MT-002 through MT-004 are blocked until this MT's verdict JSON exists and selected_toolkit != 'undecided'.",
+    "allowed_paths": [
+      "src/frontend/toolkit_spike/**",
+      "Cargo.toml",
+      "tests/native_gui/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "File tests/native_gui/toolkit_spike_verdict.json exists and is valid JSON matching the verdict receipt schema above.",
+      "selected_toolkit is 'egui' or 'gpui' (not 'undecided') — the spike ran to completion with a clear winner.",
+      "For the selected toolkit: all five probe fields (accesskit_out_of_process, docking_save_restore, editor_surface, single_binary, custom_viewport) are true.",
+      "For probe (a): the out-of-process AccessKit enumeration test produces at least one node with the expected author_id, and the dispatched click action changes a counter or state field verifiable in the verdict notes.",
+      "For probe (b): docked layout serialized to JSON round-trips through destroy+restore within ±2px pane proportions (or pixel-exact if using integer tile weights).",
+      "For probe (c): synthetic text input of 10 characters is reflected in the widget text buffer after the frame tick.",
+      "For probe (d): `cargo build --release` on the spike crate succeeds and the resulting .exe has zero non-system DLL dependencies (verified by dumpbin or cargo-bundle-licenses equivalent).",
+      "For probe (e): a custom wgpu viewport renders a rotating 3D mesh AND a painted 2D texture inside a toolkit pane, and a model-dispatched AccessKit action changes a viewport parameter (rotation angle or brush color) verifiable in the verdict notes — proving the toolkit can host the Tailor 3D viewport and the photo-editor 2D canvas with model-steerable parameters.",
+      "The spike crate compiles with `cargo check` with zero errors on the target triple x86_64-pc-windows-msvc.",
+      "The verdict JSON is committed to the repo (not .gitignored) so subsequent MTs can read it."
+    ],
+    "proof_targets": [
+      "`cargo run --release --bin toolkit_spike` exits 0 and writes tests/native_gui/toolkit_spike_verdict.json.",
+      "Read tests/native_gui/toolkit_spike_verdict.json; assert selected_toolkit field is 'egui' or 'gpui'.",
+      "For probe (a): the spike log (stdout) contains a line matching 'accesskit_out_of_process: PASS' for the selected toolkit.",
+      "For probe (d): run `dumpbin /dependents target/release/toolkit_spike.exe` (Windows SDK required) and assert no non-system DLL appears in the output; system DLLs are: KERNEL32.dll, USER32.dll, GDI32.dll, ADVAPI32.dll, SHELL32.dll, ntdll.dll, VCRUNTIME*.dll (if CRT static not used).",
+      "For probe (e): the spike log contains 'custom_viewport: PASS' for the selected toolkit, and the verdict notes record that a model-dispatched AccessKit action changed the rendered viewport parameter (e.g. rotation angle or brush color).",
+      "`cargo test --test toolkit_spike_verdict_schema` passes — a test in tests/native_gui/ that loads the JSON and validates all required keys and types are present (including the custom_viewport field)."
+    ],
+    "implementation_notes": [
+      "Do NOT use any webview (Tauri, wry, CEF). The spike must be pure native Rust.",
+      "For egui AccessKit out-of-process probe: use the accesskit_windows crate's UIA provider. Spawn a second Rust process or thread that calls UIAutomation (via windows-rs or uiautomation crate) to walk the element tree and find a node whose AutomationId matches the stable author_id string used in the egui widget.",
+      "accesskit author_id convention for this spike: use AccessKit NodeId wrapping a u64 derived from a stable string hash — e.g., NodeId(u64::from_le_bytes(*b\"btn_test\")). Record this convention; MT-002 onward must follow the same convention.",
+      "For egui docking probe: egui_tiles::Tree<SpikePane> where SpikePane is a trivial enum { Left, Right }. Implement egui_tiles::Behavior<SpikePane> with minimal paint. Call serde_json::to_string(&tree) -> layout_blob. Re-create Tree from serde_json::from_str(&layout_blob). Assert tree.tiles().len() == original count.",
+      "For egui editor probe: add a mut String buffer in app state. Render egui::TextEdit::multiline(&mut buffer). In headless/kittest mode, call egui_kittest to push synthetic KeyInput events for 10 characters and assert buffer == expected string.",
+      "For the viewport probe (e): the goal is ONLY to prove the toolkit can host a custom wgpu render surface and that a model can drive a viewport uniform via AccessKit — it is NOT a real renderer. Render a rotating cube (a few triangles, a model-view-projection uniform) and a textured quad whose texture is painted from a 1-channel color uniform. Expose an AccessKit node (role Slider or Button) whose SetValue/Click action updates the rotation-angle or brush-color uniform; assert the next frame's uniform changed. This is the smallest proof that the future Tailor 3D viewport and photo-editor 2D canvas are hostable AND parametrically model-steerable. Keep the render code throw-away.",
+      "For single-binary probe: add to spike crate's .cargo/config.toml: [target.x86_64-pc-windows-msvc] rustflags = [\"-C\", \"target-feature=+crt-static\"]. This statically links the MSVC CRT. Verify with dumpbin.",
+      "GPUI availability check: before writing GPUI probe code, attempt `cargo add gpui` and check if the crate resolves. If not on crates.io, check https://github.com/zed-industries/zed for a published subcrate path. If unavailable, skip GPUI probes, set all GPUI fields to false with note 'crate not available as standalone', and set selected_toolkit to 'egui' (assuming egui probes pass).",
+      "The spike crate is throw-away scaffolding. It does NOT need production error handling. Panics are acceptable for probe failures — they will be caught by the test harness exit code.",
+      "Do not add the spike crate to the production release profile. Mark it with [package.publish] = false and consider a feature gate or workspace exclude comment so it can be removed post-decision without touching other crates.",
+      "Write a brief IMPLEMENTATION LOG section to stdout (not a file) summarizing each probe result as it runs, so a no-context model reading CI logs can understand what happened without reading the verdict JSON."
+    ],
+    "ports_from_react": [
+      "NOT APPLICABLE — this is a pure Rust toolkit spike with no React equivalent. The spike validates native primitives that will replace the React/Tauri layer entirely."
+    ],
+    "binds_backend_api": [
+      "NOT APPLICABLE — this spike does not connect to the backend. It exercises only the GUI toolkit in isolation. Backend connectivity is introduced in MT-002."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-MAN"
+  ],
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260619-220936",
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: GPUI is not available as a standalone crate; spike stalls on GPUI side and the decision cannot be made without operator input.",
+      "RISK-2: AccessKit out-of-process probe requires a running window (real Win32 HWND) which is difficult to automate headlessly in CI; probe may hang waiting for the window message pump.",
+      "RISK-3: egui_tiles serialization format changes between minor versions, breaking docking restore in later MTs if the version is not pinned precisely.",
+      "RISK-4: CRT static linking with target-feature=+crt-static may conflict with other crates in the workspace that expect dynamic CRT on Windows.",
+      "RISK-5: The spike crate accidentally gets promoted into the production workspace members list and adds compile time to every build.",
+      "RISK-6: Selected toolkit is recorded as 'undecided' because one probe fails for both candidates; MT-002 is blocked with no clear path forward.",
+      "RISK-7 (viewport): the custom wgpu viewport embed appears to 'work' visually but the model-driven parameter does not actually flow to the GPU uniform (the steering link is faked), giving a false PASS on the make-or-break creative-tool probe."
+    ],
+    "minimum_controls": [
+      "CONTROL-1 (RISK-1): Before writing GPUI probe code, do a crates.io version check in the spike's build.rs or a pre-check script; if unavailable, auto-select egui and record the reason in the verdict JSON. Do not block on GPUI availability.",
+      "CONTROL-2 (RISK-2): Run the AccessKit out-of-process probe as a separate OS process with a 10-second timeout; if the window never appears, mark probe as TIMEOUT (treated as false). Document the limitation in verdict notes.",
+      "CONTROL-3 (RISK-3): Pin egui and egui_tiles to exact versions (not ^) in the spike Cargo.toml. Copy these exact pinned versions into MT-002 implementation notes when writing the verdict.",
+      "CONTROL-4 (RISK-4): Scope the crt-static rustflag to the spike crate's own .cargo/config.toml, NOT to the workspace-level config. This prevents contamination of handshake_core builds.",
+      "CONTROL-5 (RISK-5): Set [workspace] exclude = [\"src/frontend/toolkit_spike\"] in the root Cargo.toml after confirming it does not need to be a workspace member for CI. Alternatively, gate it behind a Cargo feature or a separate Cargo.toml at the spike root only.",
+      "CONTROL-6 (RISK-6): The decision rule in this contract auto-selects egui if GPUI is unavailable or fails any probe. 'Undecided' is only possible if egui itself fails a probe; in that case, the spike logs the specific failure with reproduction steps and sets selected_toolkit='undecided' so the operator can unblock MT-002 manually.",
+      "CONTROL-7 (RISK-7): The viewport probe must prove the steering link end-to-end: read back the GPU uniform (or a CPU-side mirror set in the same code path) AFTER the AccessKit action and assert it equals the model-sent value; a visual-only check is insufficient. Record the before/after uniform values in the verdict notes."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Upholds PASS: all five probes exercise REAL resources (out-of-process UIA child process, egui_tiles serde round-trip with non-default 0.30/0.70 shares, egui_kittest input pipeline, real PE import-table parse, real wgpu offscreen render pass), the make-or-break RISK-7 steering link is genuinely non-fakeable (CPU angle mirror written at viewport_probe.rs:387 inside prepare(), in the same path as queue.write_buffer, only reachable when the GPU write runs; before=0.0 after=1.0 asserted), the verdict JSON honestly records egui 5/5 and is committed with an exact-pinned committed Cargo.lock, and the only two deviations (Name-match vs AutomationId, no pixel readback) are contract-authorized throw-away-spike scope routed to MT-002.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-001.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/main.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/accesskit_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/viewport_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/docking_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/editor_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/src/binary_probe.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/tests/toolkit_spike_verdict_schema.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/tests/native_gui/toolkit_spike_verdict.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/Cargo.toml",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/Cargo.lock",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/toolkit_spike/.cargo/config.toml"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC1: tests/native_gui/toolkit_spike_verdict.json exists, valid JSON matching the verdict receipt schema",
+        "status": "MET",
+        "evidence": "File committed in da278eec (44 lines). Contains spike_date, selected_toolkit, selection_rationale, candidates.{egui,gpui} each with accesskit_out_of_process/docking_save_restore/editor_surface/single_binary/custom_viewport bools + notes. Schema test toolkit_spike_verdict_schema.rs:39-51 iterates both candidates and asserts each of the five bool fields is_boolean + notes is_string."
+      },
+      {
+        "criterion": "AC2: selected_toolkit is 'egui' or 'gpui' (not 'undecided')",
+        "status": "MET",
+        "evidence": "verdict.json:3 selected_toolkit=\"egui\". main.rs:72-74 sets selected=\"egui\" only when pass_count==5; the JSON shows egui 5/5 so the run completed with a clear winner, not a default."
+      },
+      {
+        "criterion": "AC3: For selected toolkit all five probe fields true",
+        "status": "MET",
+        "evidence": "verdict.json:22-27 candidates.egui: accesskit_out_of_process=true, custom_viewport=true, docking_save_restore=true, editor_surface=true, single_binary=true."
+      },
+      {
+        "criterion": "AC4: probe (a) out-of-process AccessKit enum finds expected node + dispatched action changes counter",
+        "status": "MET",
+        "evidence": "accesskit_probe.rs spawns a REAL child process (Command::new(current_exe).arg('--accesskit-app'), line 68) opening a real eframe window exposing btn_test + 'akcount: N'; the parent uses the Windows UIAutomation client (uiautomation crate) to find btn_test OUT-OF-PROCESS (line 94-99), reads counter, fires UIInvokePattern.invoke() across the process boundary (line 127-133), re-reads, asserts a==b+1 (line 148). counter before=Some(0) after=Some(1) recorded in verdict notes. DEVIATION (non-blocking, contract-authorized): matched by accessibility Name not the contract's NodeId-derived AutomationId convention; disclosed in verdict notes + mt002_followups + lifecycle.operator_decisions_open. The MT intent (a model sees+steers the running app a11y tree from OUTSIDE the process on Windows) is genuinely proven; the production stable-AutomationId convention is correctly routed to MT-002."
+      },
+      {
+        "criterion": "AC5: probe (b) docked layout JSON round-trips destroy+restore within tolerance",
+        "status": "MET",
+        "evidence": "docking_probe.rs builds a real egui_tiles::Tree<SpikePane> with NON-default shares 0.30/0.70 (set_share at lines 56-57, so a 50/50 default cannot pass trivially), serde_json::to_string (line 78), drop(tree) (line 89), serde_json::from_str into a fresh Tree (line 90), asserts restored tile count == original (3) AND children==2 AND both normalized shares within 0.01 (lines 111-114). Non-tautological data round-trip; verdict notes show 0.300/0.700 -> 0.300/0.700, tiles 3->3."
+      },
+      {
+        "criterion": "AC6: probe (c) 10 synthetic chars reflected in buffer",
+        "status": "MET",
+        "evidence": "editor_probe.rs renders a real egui::TextEdit::multiline in an egui_kittest::Harness (line 20), requests focus, pushes 10 egui::Event::Text events through the REAL input pipeline (line 31-33), runs a frame, reads buffer from harness.state() and asserts buf == \"abcdefghij\" exactly (line 37). If events did not route into the widget the buffer would be empty and the assert fails -> meaningful, not tautological."
+      },
+      {
+        "criterion": "AC7: probe (d) release build exe has zero non-system DLL deps",
+        "status": "MET",
+        "evidence": "binary_probe.rs parses the running exe's PE import table via the object crate (dumpbin absent on host -> honest substitution per proof_target equivalence) and asserts no non-system DLL (line 60-62). verdict records 20 imports all system, non_system=[] (verdict.json:26). crt-static is scoped to the spike's OWN .cargo/config.toml (CONTROL-4 satisfied), not workspace-level. is_system_dll's System32-existence broadening is honestly flagged as an MT-002 tightening item."
+      },
+      {
+        "criterion": "AC8: probe (e) custom wgpu viewport (3D mesh + 2D texture) in a pane + model-dispatched AccessKit action changes a viewport parameter",
+        "status": "MET",
+        "evidence": "viewport_probe.rs runs a REAL offscreen wgpu render pass inside an egui_wgpu::Callback paint-callback via the egui_kittest harness's real device/queue: depth-tested rotating cube (cube_pipeline, Depth32Float, CompareFunction::Less, lines 197-203, draw_indexed line 417) + a painted 2D texture quad (queue.write_texture line 370, quad_pipeline, draw line 420). The MODEL action is harness.get_by_label('rotate-step').click() through the kittest AccessKit node tree (line 471); the angle uniform mirror written_angle is stored at line 387 INSIDE prepare(), immediately after queue.write_buffer (line 386), in the SAME GPU-write code path, and is only reachable when the GPU write runs -> a faked steering link cannot pass (RISK-7/CONTROL-7 genuinely satisfied). before=0.0 -> after=1.0 asserted via `steered` (lines 468-477: |after-before|>0.5 AND |after-1.0|<1e-3). Pixel readback is contract-scoped-out (probe e = hostability + model-steering, NOT pixel-correctness) and routed to MT-002. The paint() no-op (line 426-434) is OFF the required path: all required behavior happens in prepare()."
+      },
+      {
+        "criterion": "AC9: spike crate compiles cargo check zero errors on x86_64-pc-windows-msvc",
+        "status": "MET",
+        "evidence": "Validator ground truth: crate + tests compile clean. Cargo.toml pins the egui 0.33 family (eframe/egui-wgpu/egui_kittest 0.33, egui_tiles 0.14, accesskit 0.21, wgpu 27) due to rustc 1.91.1 MSRV (0.34 needs 1.92) — honest documented substitution from the stale 0.31 contract pins; committed Cargo.lock pins exact resolved versions (egui 0.33.3, egui_tiles 0.14.1, accesskit 0.21.1, wgpu 27.0.1)."
+      },
+      {
+        "criterion": "AC10: verdict JSON committed (not gitignored)",
+        "status": "MET",
+        "evidence": "git show --stat da278eec lists tests/native_gui/toolkit_spike_verdict.json (44 lines) in the commit; the file is tracked. Cargo.lock is also committed so MT-002 inherits exact pins."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "Sub-rule 1 (deferred-live escape): grep of the touched crate for todo!/unimplemented!/unreachable!/'not yet wired'/'pending MT-'/Unavailable/early-stub returns found NONE on any required-behavior path. The single 'deferred' comment (viewport_probe.rs:433) is the paint() no-op for on-screen compositing, which the contract explicitly scopes OUT (probe e proves hostability + steering, not pixel-correctness); the required behavior (offscreen wgpu pass + AccessKit-driven uniform) all runs in prepare(). The two panic! sites are the intended schema-test failure path and the throw-away verdict-write expect, both contract-sanctioned (implementation_notes: panics acceptable for a throw-away spike). Sub-rule 2 (real-resource proof): this MT is explicitly throw-away decision scaffolding (contract: 'the spike crate is throw-away scaffolding'), so no Handshake-owned production resource is claimed; the exercised resources are REAL not mocked — probe a spawns a genuine child OS process and reads/invokes cross-process via the Windows UIA client, probe b round-trips a real egui_tiles Tree through serde with non-default shares, probe c drives a real egui TextEdit via the egui_kittest input pipeline, probe d parses the real PE import table of the running exe, probe e runs a real wgpu device/queue offscreen render pass. The make-or-break steering link (RISK-7) is genuinely non-fakeable because the CPU mirror is set inside the GPU-uniform-write code path (viewport_probe.rs:386-387) and is only reachable when that write executes. Sub-rule 3 (independent certification): satisfied by THIS adversarial review (the WP was built folded with no separate validator by design per the operator directive). No #[ignore] hides any required behavior — the schema test is a normal #[test] and probes c/e run as part of the binary."
+    },
+    "concerns_non_blocking": [
+      "AC4 deviation: the out-of-process match is by accessibility Name ('btn_test'), not the contract implementation_note's NodeId-derived AutomationId convention (egui/accesskit may not populate UIA AutomationId by default). Out-of-process read+Invoke IS proven; the stable-AutomationId convention that the production model-steering surface (C7) will depend on is unvalidated and honestly routed to MT-002 (verdict.mt002_followups + lifecycle.operator_decisions_open). Operator should decide whether Name-matching is acceptable or require a validated AutomationId convention in MT-002 before C7 builds the real action channel.",
+      "Probe (e) proves hostability + parametric model-steering but does NOT read back GPU pixels, so visual correctness of the embedded viewport is unproven by this MT. Contract explicitly scopes pixel-correctness out; readback is an MT-002 hardening item. Acceptable here, but C1/C7/WP-KERNEL-010 must not treat probe e as proof the viewport renders correctly on screen.",
+      "binary_probe.rs is_system_dll uses a System32-existence check that could classify a malicious/co-located DLL placed in System32 as 'system'; verdict flags tightening to a finite apiset/CRT/OS allowlist for MT-002 if reused. Low risk for a throw-away spike.",
+      "CONTROL-3 literal 'pin exact versions (not ^)': Cargo.toml uses caret ranges (egui '0.33', egui_tiles '0.14'), not '=0.33.3'. The substantive reproducibility intent is satisfied another way: a committed Cargo.lock pins the exact resolved versions (egui 0.33.3, egui_tiles 0.14.1, accesskit 0.21.1, wgpu 27.0.1) and verdict.pinned_versions records the same as MT-002 authority. Non-blocking; MT-002 could harden the manifest to '=' pins if strict reproducibility without the lockfile is wanted.",
+      "EXPECTED DIFF SHAPE said add the spike to the workspace Cargo.toml as a member; there is NO root Cargo.toml in this worktree, so that diff-shape note was inapplicable. The implementation used the isolated empty [workspace] option in the spike Cargo.toml — the safer of the two CONTROL-5/RISK-5 alternatives (cannot be absorbed into handshake_core's build graph). Not a defect; a contract-sanctioned divergence from the literal diff-shape note.",
+      "The WP packet's toolkit_decision prose still lists egui 0.31 / accesskit 0.17 with status RECOMMENDED_PENDING_SPIKE; the spike's verdict.pinned_versions (egui 0.33 family) is the new authority per CONTROL-3. Non-blocking spec-projection/paperwork drift to reconcile in the packet when convenient — not an MT-001 code FAIL.",
+      "Artifact-hygiene observation (NOT caused by MT-001): an in-tree src/frontend/Handshake_Artifacts/handshake-cargo-target dir exists, but it is git-ignored (.gitignore:6 **/Handshake_Artifacts/), untracked, and is the handshake_native crate's target dir from a DIFFERENT MT — NOT MT-001's. MT-001's own .cargo/config.toml target-dir is '../../../../Handshake_Artifacts/toolkit-spike-target', which resolves OUTSIDE the worktree (to the Handshake Worktrees parent) and 'toolkit-spike-target' is absent in-tree. Per the operator directive this is a concern for the owning MT, not an MT-001 FAIL, because MT-001's config does not cause in-tree outputs."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

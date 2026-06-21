@@ -1,0 +1,217 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-027",
+  "title": "C7-MT027-ActionChannelScreenshotMcp",
+  "group": "C7 Model-vision/steering + swarm",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-027.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-025",
+      "MT-026"
+    ],
+    "blocks": [
+      "MT-028",
+      "MT-029"
+    ],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Goal and expected diff shape:\nBuild the action channel and the MCP-style swarm tool surface that exposes four tools to external agents: `list_widgets`, `click_widget`, `set_value`, and `screenshot`. The action channel accepts a structured JSON request `{op: \"click\"|\"set_value\"|\"focus\"|\"select\"|\"scroll\", target: \"<author_id_key>\", data?: string}` and dispatches the corresponding `accesskit::ActionRequest` to the egui frame loop. The screenshot path captures a focus-safe PNG of the application window using `xcap` (Windows/macOS/Linux) or `windows-capture` (Windows-only fallback). All four tools are bound to a local transport: a localhost TCP listener AND a Windows named-pipe, both gated by a per-session HMAC token. The expected diff is: one new crate `src/frontend/swarm_mcp/` (or module under `src/frontend/`) containing the server, the tool dispatch, the action channel, and the screenshot adapter. A test in `tests/native_gui/test_mcp_tools.rs` exercises all four tools end-to-end against a real egui test frame.\n\nExact files to create or edit:\n- CREATE `src/frontend/swarm_mcp/mod.rs` -- module root, re-exports `SwarmMcpServer`, `ActionRequest`, `McpTool`, `SessionToken`.\n- CREATE `src/frontend/swarm_mcp/server.rs` -- the `SwarmMcpServer` struct: owns the TCP listener (`tokio::net::TcpListener` on `127.0.0.1:0`, ephemeral port) and on Windows a named-pipe server (`tokio::net::windows::named_pipe`). On bind, records the bound address + pipe name + token into a `McpBinding` struct persisted to `{app_data}/handshake/swarm_mcp_binding.json` so external agents can discover the endpoint without a static port. Spawns a `tokio::task` per accepted connection. Each connection reads newline-delimited JSON requests and writes newline-delimited JSON responses (JSON-RPC 2.0 subset: `{jsonrpc:\"2.0\",id,method,params}`). Validates the `session_token` field in every request against the stored token (constant-time HMAC compare via `hmac` + `sha2` crates) -- reject with `{error:{code:-32001,message:\"Unauthorized\"}}` on mismatch.\n- CREATE `src/frontend/swarm_mcp/tools.rs` -- the four tool handlers:\n  - `list_widgets(consumer: Arc<Mutex<UiTreeConsumer>>) -> serde_json::Value`: calls `consumer.lock().snapshot().to_json()` and returns the parsed JSON.\n  - `click_widget(target: &str, action_tx: &ActionSender) -> Result<(),String>`: looks up the `NodeId` from `IdRegistry` by key, constructs `accesskit::ActionRequest { target: node_id, action: Action::Default, data: None }`, sends it on the `action_tx` channel.\n  - `set_value(target: &str, value: String, action_tx: &ActionSender) -> Result<(),String>`: sends `ActionRequest { action: Action::SetValue, data: Some(ActionData::Value(value.into())) }`.\n  - `screenshot(capture_fn: &dyn Fn() -> Result<Vec<u8>,String>) -> serde_json::Value`: calls the capture function, base64-encodes the PNG bytes, returns `{png_base64: \"...\", width: N, height: N, captured_at_utc: \"...\"}` (same shape as `VisualCaptureResult` from the React IPC).\n- CREATE `src/frontend/swarm_mcp/action_channel.rs` -- `ActionSender` (a `tokio::sync::mpsc::Sender<accesskit::ActionRequest>`) and `ActionReceiver` (the `Receiver` half). The egui frame loop drains the receiver each frame and calls `ctx.send_accesskit_action_request(req)` (the egui_winit API for dispatching AccessKit actions into the running app). The `SwarmMcpServer` holds the `ActionSender` clone.\n- CREATE `src/frontend/swarm_mcp/screenshot.rs` -- the screenshot adapter: on Windows, try `xcap::Window::all()`, find the Handshake window by title, call `.capture_image()` -> `image::RgbaImage`, encode to PNG bytes via `image::codecs::png::PngEncoder`. Fallback: if `xcap` is unavailable or fails, return an error string. Never activate the window or change Z-order (HBR-QUIET).\n- CREATE `tests/native_gui/test_mcp_tools.rs` -- integration test described in proof_targets.\n- EDIT `src/frontend/Cargo.toml` -- add `tokio = { version = \"1\", features = [\"full\"] }`, `serde_json = \"1\"`, `hmac = \"0.12\"`, `sha2 = \"0.10\"`, `base64 = \"0.22\"`, `xcap = \"0.0.9\"`, `image = { version = \"0.25\", default-features = false, features = [\"png\"] }`.\n\nExact crates:\n- `tokio` 1.x with features `[\"net\",\"sync\",\"io-util\",\"rt-multi-thread\",\"macros\"]` for async server + named-pipe.\n- `accesskit` (from MT-025): `Action`, `ActionRequest`, `ActionData`.\n- `hmac` + `sha2`: constant-time token validation. `Hmac::<Sha256>::new_from_slice(secret)` + `mac.verify_slice(token_bytes)`.\n- `xcap = \"0.0.9\"` (cross-platform window capture, focus-safe): `xcap::Window::all() -> Vec<Window>`, `Window::title()`, `Window::capture_image() -> RgbaImage`.\n- `image = \"0.25\"`: `PngEncoder`, `encode_image`.\n- `base64 = \"0.22\"`: `general_purpose::STANDARD.encode(bytes)`.\n- `serde_json` for JSON request/response.\n\nStep-by-step implementation:\n1. On app startup (after the egui window opens), call `SwarmMcpServer::bind(consumer, id_registry, action_tx)`: bind TCP on `127.0.0.1:0` (OS picks ephemeral port) and on Windows also bind a named-pipe at `\\\\.\\pipe\\handshake_swarm_<pid>`. Generate a 32-byte random session token (`rand::thread_rng().gen::<[u8;32]>()`), encode as hex. Write `{tcp_addr, pipe_name, token}` to `McpBinding` JSON file. Return the `SwarmMcpServer` instance.\n2. Spawn the accept loop as a `tokio::task::spawn` (background, not blocking the egui thread). For each accepted TCP/pipe connection, spawn another task that reads lines and dispatches to tool handlers.\n3. JSON-RPC dispatch: `method` field maps to tool name. `\"list_widgets\"` -> `tools::list_widgets(consumer.clone())`. `\"click_widget\"` -> parse `params.target`, call `tools::click_widget`. `\"set_value\"` -> parse `params.target` + `params.value`, call `tools::set_value`. `\"screenshot\"` -> call `tools::screenshot(&capture_fn)`.\n4. The egui frame loop (in MT-002's `eframe::App::update`): at the start of each frame, drain all pending `ActionRequest`s from the `ActionReceiver` channel (non-blocking `try_recv` loop) and call `ctx.send_accesskit_action_request(req)` for each.\n5. The `capture_fn` closure: captures the Handshake application window by matching window title `\"Handshake\"` in `xcap::Window::all()`. Return error if window not found. This is focus-safe (no `SetForegroundWindow` or `BringWindowToTop`).\n6. Named-pipe on Windows: `tokio::net::windows::named_pipe::ServerOptions::new().create(pipe_name)`. On non-Windows builds, compile out the pipe code with `#[cfg(target_os = \"windows\")]`.\n7. Token in `McpBinding` JSON: write to `dirs::data_local_dir().unwrap_or_else(|| PathBuf::from(\".\")).join(\"handshake\").join(\"swarm_mcp_binding.json\")`. This file is agent-readable without elevated privileges.\n8. The `screenshot` tool must never call `Window::focus()` or any Win32 `SetForegroundWindow`. Log a warning if `xcap` returns an error and return the error in the JSON response rather than panicking.\n\nRisk if missed: without the action channel and MCP server, the swarm has no way to steer the native UI. The WP acceptance criterion 'an external/in-process agent can read a JSON snapshot of the full UI tree AND dispatch click/set-value/focus by stable id' cannot be proven. MT-029 (automated proof) also depends on this server.",
+    "allowed_paths": [
+      "src/frontend/swarm_mcp/**",
+      "src/frontend/shell/**",
+      "src/frontend/Cargo.toml",
+      "tests/native_gui/test_mcp_tools.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "The MCP server binds successfully on app startup, writes `swarm_mcp_binding.json` with fields `tcp_addr`, `pipe_name` (Windows only), and `token`.",
+      "`list_widgets` call over TCP returns a valid `UiTreeSnapshot` JSON matching the shape from MT-026 (root node, widget_count > 0, nested children).",
+      "`click_widget` call with the key of a known Button widget dispatches an `AccessKit ActionRequest` that reaches the egui frame loop and triggers the button's click handler (verified by a flag set in the click handler during the test).",
+      "`set_value` call with the key of a TextInput widget dispatches `SetValue` action; the widget's current value changes to the provided string (verified by reading the value back via `list_widgets` on the next snapshot).",
+      "`screenshot` call returns a JSON object with `png_base64` (non-empty string), `width > 0`, `height > 0`, and `captured_at_utc` (parseable ISO8601 string). The base64 decodes to a valid PNG (verified by `image::load_from_memory`).",
+      "A request with an invalid or missing `session_token` is rejected with JSON-RPC error code `-32001` and message `\"Unauthorized\"`.",
+      "The screenshot capture does NOT activate the app window (no `SetForegroundWindow` call) -- verified by a Windows API call counter mock in the test or by process monitor trace annotation.",
+      "`cargo test -p handshake_frontend -- mcp_tools` passes.",
+      "`cargo build -p handshake_frontend` succeeds with zero warnings on Windows and Linux."
+    ],
+    "proof_targets": [
+      "Run `cargo test -p handshake_frontend test_mcp_list_widgets -- --nocapture` and paste the first 20 lines of the JSON response showing `widget_count`, `root.role`, and at least one non-empty child `id`.",
+      "Run `cargo test -p handshake_frontend test_mcp_click_widget -- --nocapture` and paste the output showing the click handler flag was set to `true` after the `click_widget` call.",
+      "Run `cargo test -p handshake_frontend test_mcp_set_value -- --nocapture` showing the TextInput value before (empty) and after (`\"hello swarm\"`) the `set_value` call.",
+      "Run `cargo test -p handshake_frontend test_mcp_screenshot -- --nocapture` showing `png_base64` length > 0, `width` and `height` values, and `image::load_from_memory` success.",
+      "Run `cargo test -p handshake_frontend test_mcp_auth_reject -- --nocapture` showing the unauthorized response `{\"error\":{\"code\":-32001,\"message\":\"Unauthorized\"}}`.",
+      "Paste `cat {app_data}/handshake/swarm_mcp_binding.json` output (or equivalent) showing the binding file was created with the correct fields.",
+      "Paste `cargo build -p handshake_frontend 2>&1 | tail -5` showing zero errors and zero warnings."
+    ],
+    "implementation_notes": [
+      "React analog: the React app's `visual_debugger.ts` IPC (lines 111-148) uses Tauri `invoke()` to call `visual_debug_capture`, `visual_debug_ax_tree`, `visual_debug_console`. The native MCP server replaces this with a local TCP/pipe protocol that any process (not just the Tauri webview) can call. The `VisualCaptureResult` JSON shape (`{png_base64, width, height, captured_at_utc}`) is deliberately matched by the `screenshot` tool response so agent code can be portable between React and native.",
+      "React analog for action dispatch: the React app has no equivalent action channel (agents could only read the AX tree, not steer widgets). This MT adds the write path that was missing in the webview implementation.",
+      "MCP-style protocol: use JSON-RPC 2.0 (`{jsonrpc:\"2.0\",id,method,params}` request; `{jsonrpc:\"2.0\",id,result}` or `{jsonrpc:\"2.0\",id,error:{code,message}}` response) over newline-delimited framing. This matches how Claude Code and other agents already speak to MCP servers, so existing agent SDK code works without modification.",
+      "Session token generation: use `rand = \"0.9\"` (or whichever version is already in workspace Cargo.toml). Generate 32 bytes, encode as lowercase hex string (64 chars). The token is written to the binding JSON and must be included in every JSON-RPC request as a top-level `session_token` field (not in params). Reject any request missing this field.",
+      "Named-pipe on Windows: the pipe name `\\\\.\\pipe\\handshake_swarm_<pid>` is unique per process instance, preventing conflicts when multiple Handshake windows run in dev mode. Agents read the binding JSON to discover the pipe name.",
+      "Action channel back-pressure: use a bounded `mpsc` channel with capacity 64. If the channel is full (egui thread not draining fast enough), the `click_widget` handler returns a JSON-RPC error `{code:-32002,message:\"Action queue full\"}` rather than blocking the MCP request handler thread.",
+      "Screenshot focus safety: `xcap::Window::all()` returns handles to all visible windows. Filter by `window.title() == \"Handshake\"`. Call `window.capture_image()` -- xcap uses `BitBlt`/`PrintWindow` with `PW_CLIENTONLY` on Windows (does not activate). If multiple Handshake windows are open (test isolation), capture the first matching one. Log which window was captured.",
+      "Binding file location: use `dirs::data_local_dir()` crate (`dirs = \"5\"`) -> `AppData/Local` on Windows, `~/.local/share` on Linux. Create `handshake/` subdirectory if absent. Overwrite the binding file on each startup (the port is ephemeral). This is the discovery contract for agents: 'read the binding file, then connect'.",
+      "For the egui action dispatch: `egui::Context::send_accesskit_action_request` was added in egui 0.28+. If the locked toolkit version (from MT-001) is older, use the platform adapter's `ActionHandler` trait instead: store a `Box<dyn ActionHandler>` on the app state and call `handler.do_action(request)`. Match the actual egui version from MT-001."
+    ],
+    "ports_from_react": [
+      "app/src/lib/ipc/visual_debugger.ts -- `visualDebugCapture()`, `VisualCaptureResult` shape (`{png_base64, width, height, captured_at_utc}`); the screenshot tool response matches this shape exactly for agent portability.",
+      "app/src/lib/ipc/visual_debugger.ts -- `visualDebugAxTree()`, `VisualAxNode`, `VisualAxTreeResult`; the `list_widgets` tool supersedes this with children nesting and action lists.",
+      "app/src/components/visual_debugger/VisualDebuggerPanel.tsx -- `doCapture` callback (line 167-188): the pattern of capturing once and returning `{png_base64, width, height, captured_at_utc}` is replicated in the `screenshot` tool.",
+      "app/src/lib/ipc/swarm_schedule.ts -- the JSON-RPC-style request/response pattern for Tauri `invoke()` calls (`kernel_swarm_schedule_add`, etc.) informed the MCP protocol design: named methods, structured params, error shapes."
+    ],
+    "binds_backend_api": [
+      "None -- the MCP server is a frontend-layer in-process service. It does not call any handshake_core backend API or Tauri command. The action channel dispatches into the egui AccessKit path (MT-025). The screenshot uses the `xcap` OS library directly. The snapshot comes from MT-026's `UiTreeConsumer`. No PostgreSQL or EventLedger access."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-INT",
+    "HBR-QUIET",
+    "HBR-MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Token exfiltration: the binding JSON file is world-readable on disk; any local process can read the token and impersonate an authorized agent. On a multi-user machine this is a privilege boundary issue.",
+      "Action channel race: the MCP handler sends an action request and immediately calls `list_widgets`; the egui frame loop may not have processed the action yet (one frame latency), so the snapshot does not reflect the action yet.",
+      "Window title ambiguity: if more than one window has title 'Handshake' (e.g. in a multi-window dev session), the screenshot captures the wrong window.",
+      "xcap incompatibility: `xcap` uses `PrintWindow` which fails on some GPU drivers or when the window is minimized. The error surfaces as a screenshot failure rather than a crash, but the `screenshot` tool becomes unreliable.",
+      "Named-pipe exhaustion: if the server crashes and restarts quickly, the old pipe handle may not be released, causing the new server to fail to bind the same pipe name.",
+      "Port collision: TCP on `127.0.0.1:0` is safe (OS picks free port), but if the binding file is stale from a crashed session, agents try to connect to a closed port.",
+      "Action flood: a buggy or adversarial agent sends thousands of `click_widget` requests per second, saturating the egui frame loop.",
+      "Focus theft: future maintainer adds `Window::focus()` before capture, violating HBR-QUIET."
+    ],
+    "minimum_controls": [
+      "Restrict binding file permissions to owner-read-only (`0o600` on Unix; on Windows, set ACL to current user only via `SetSecurityInfo`).",
+      "The `list_widgets` after `click_widget` in tests must include a `tokio::time::sleep(Duration::from_millis(50))` or a frame-advance call between action and snapshot to allow the egui frame to process the action.",
+      "Filter windows by both title AND process id (`std::process::id()`) to avoid cross-process window capture.",
+      "Add `xcap` failure logging + fallback error JSON response; add an integration test that calls `screenshot` when the window is minimized and expects either a valid PNG or a well-formed error, never a panic.",
+      "On named-pipe bind failure, log the error and continue with TCP-only; do not panic.",
+      "Include the TCP port in the binding file; on server startup, validate the binding file is not stale by attempting a self-connect before writing (or just overwrite unconditionally -- the ephemeral port changes each restart, making stale files harmless).",
+      "Rate-limit the action channel: add a token-bucket limiter (max 100 actions/sec per connection) before pushing to the `mpsc` channel; excess requests return error code `-32003` (`Rate limited`).",
+      "Add a `#[deny(unused_imports)]` lint check and grep for `SetForegroundWindow` / `BringWindowToTop` in `src/frontend/swarm_mcp/` in CI to prevent focus-theft regressions."
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independent re-verification upholds PASS: the action channel, four-tool MCP JSON-RPC surface, constant-time HMAC auth, owner-restricted binding discovery, focus-safe Win32 screenshot adapter, and a REAL out-of-process tokio TCP server are honestly implemented, live-wired into the running HandshakeApp, and proven over a real loopback socket with non-tautological observable effects; the only #[ignore]'d tests defer a host-specific wgpu pixel grab (honest environmental GPU crash), not any faked required behavior.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-027.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json (model_accessibility_contract)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/mod.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/action.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/tools.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/server.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/screenshot.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/binding.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/mcp/leases.rs (panic-in-test check)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_mcp_tools.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (spawn_mcp_server, raw_input_hook, refresh_mcp_snapshot, update)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/snapshot.rs (find_by_author_id)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/Cargo.toml (MT-027 dep diff)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "MCP server binds on startup, writes swarm_mcp_binding.json with tcp_addr, pipe_name (Win only), token",
+        "status": "MET",
+        "evidence": "server.rs SwarmMcpServer::bind binds a real TcpListener on 127.0.0.1:0, spawns the named-pipe accept loop (cfg windows, non-fatal on failure), and calls binding::write_binding persisting McpBinding{tcp_addr,pipe_name,token,pid}; pipe_name is #[serde(skip_serializing_if=None)]. test_mcp_wire_list_widgets_and_binding_file (non-ignored) reads the real on-disk file back and asserts written.tcp_addr==bound addr and written.token==session token, then asserts removal on shutdown. app.rs:817/824 spawn_mcp_server binds it at HandshakeApp construction with the real os_window_capture."
+      },
+      {
+        "criterion": "list_widgets over TCP returns valid UiTreeSnapshot JSON (root, widget_count>0, nested children)",
+        "status": "MET",
+        "evidence": "tools.rs dispatch_request serializes the MT-026 snapshot. test_mcp_wire_list_widgets_and_binding_file asserts over-socket widget_count>0 and root.role is a string from the live shell tree; in-process test_mcp_list_widgets asserts a nested non-empty child id. app.rs update() publishes the live tree into the shared snapshot slot each frame via refresh_mcp_snapshot."
+      },
+      {
+        "criterion": "click_widget dispatches AccessKit ActionRequest reaching the frame loop and triggers the handler",
+        "status": "MET",
+        "evidence": "action.rs resolve_target maps author_id->stable NodeId via snapshot.find_by_author_id (real, snapshot.rs:205), build_action_request builds accesskit::Action::Click. test_mcp_click_widget AND over-the-wire test_mcp_wire_click_steers_running_shell drain the SHARED ActionChannel into the real kittest harness and assert the shell theme flips Dark->Light (observable state change, not tautological). app.rs raw_input_hook (4533) drains the channel into the live frame's RawInput, so a connected client steers the running shell."
+      },
+      {
+        "criterion": "set_value dispatches and the widget value changes to the provided string (read back)",
+        "status": "MET",
+        "evidence": "Documented MT-026-grounded deviation: egui 0.33 text inputs have no Action::SetValue, so UiAction::SetValue resolves to Focus + egui::Event::Text (drain_into_events emits the Text event after the Focus request). test_mcp_set_value reads back 'hello swarm' from the live kittest consumer tree via harness_node_value (real DFS over harness.kittest_state().root() by NodeId) after running two frames. Real readback, INTENT-honoring."
+      },
+      {
+        "criterion": "screenshot returns {png_base64,width>0,height>0,captured_at_utc} decoding to a valid PNG",
+        "status": "PARTIAL",
+        "evidence": "Tool plumbing, VisualCaptureResult-shaped JSON, RFC4648 base64 (base64_matches_known_vectors), and PNG-encode flow are proven by NON-ignored tests (screenshot_returns_visual_capture_shape, result_json_has_visual_capture_shape, server handle_line tests). The two tests that prove a REAL decodable PNG end-to-end (image::load_from_memory + 0x89PNG magic) -- test_mcp_screenshot and test_mcp_wire_screenshot_returns_valid_png -- are #[ignore]'d due to a genuine headless wgpu STATUS_ACCESS_VIOLATION (the SAME crash that defers MT-006/007/010 visual proofs across this WP), honestly disclosed and deferred to a GPU host/MT-029. The PRODUCTION Win32 PrintWindow(PW_RENDERFULLCONTENT)+BitBlt OS-grab (screenshot.rs windows_capture) is real, focus-safe, and correct by inspection but untested on this headless host. Per the operator directive this PARTIAL is an honest environmental deferral, not a fake that hides a required behavior, so it does not block the MT."
+      },
+      {
+        "criterion": "Invalid/missing session_token rejected with -32001 Unauthorized",
+        "status": "MET",
+        "evidence": "dispatch_request runs the constant-time HMAC auth gate FIRST (tools.rs:314 token.matches before any method dispatch). test_mcp_auth_reject (in-process), tools.rs unauthorized_request_is_rejected_with_minus_32001, server.rs handle_line_rejects_bad_token_over_wire_shape, AND over-the-socket test_mcp_wire_unauthorized_rejected all assert code -32001, message 'Unauthorized', and that no result leaks. SessionToken.matches uses HMAC-SHA256 + hmac verify_slice (constant-time)."
+      },
+      {
+        "criterion": "Screenshot does not activate the window (no SetForegroundWindow)",
+        "status": "MET",
+        "evidence": "screenshot.rs windows_capture uses PrintWindow(PW_RENDERFULLCONTENT) + BitBlt over an off-screen memory DC (GetDC/CreateCompatibleDC/CreateCompatibleBitmap/GetDIBits); it never calls SetForegroundWindow/BringWindowToTop and never changes Z-order. Verified by reading the only Win32 path (the sole Win32 imports are EnumWindows/GetWindowRect/GetWindowTextW/GetWindowThreadProcessId/IsWindowVisible + GDI). Focus-safety established by code inspection; the contract offered API-counter-mock OR trace annotation, and the no-foreground-call inspection satisfies the intent."
+      },
+      {
+        "criterion": "cargo test -p handshake_frontend -- mcp_tools passes",
+        "status": "MET",
+        "evidence": "Validator ground truth (relied on per instructions): curated deterministic suite GREEN (350 lib unit + 29 integration binaries incl. swarm_concurrency, 0 failures). The non-ignored MCP tests -- including the 3 over-the-wire TCP tests (HMAC list_widgets, click flips theme on the running shell, unauthorized->-32001) -- pass. Only the 2 wgpu pixel-readback tests are #[ignore]'d."
+      },
+      {
+        "criterion": "cargo build succeeds with zero warnings",
+        "status": "MET",
+        "evidence": "Validator ground truth: handshake_native + all test binaries compile clean; commit af2feea5 records clippy --all-targets -D warnings GREEN. Contract-permitted deps only (tokio net/io-util/sync/time, hmac 0.12, sha2 0.10, rand 0.9, base64 0.22, windows-sys 0.61, image 0.25 png) per the Cargo.toml diff."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "No todo!/unimplemented!/'not yet wired'/'deferred to'/...Unavailable/early-stub on MT-027's required behavior path. The single panic! in mcp/leases.rs:404 is inside #[test] lease_released_on_panic (an MT-028 catch_unwind poison-recovery proof), not MT-027's path. Real-resource claims are genuinely exercised by NON-ignored tests: (1) the out-of-process transport is a REAL tokio TcpListener on 127.0.0.1:0 with a real client TcpStream over loopback (bind+connect+roundtrip) -- not a mock; (2) the AccessKit action path drives the REAL HandshakeApp through kittest and produces an observable theme flip + a real text-value DFS readback; (3) the HMAC token is real RustCrypto hmac+sha2 constant-time verify_slice over an OsRng 256-bit secret; (4) the binding file is a real on-disk owner-restricted JSON read back by the test; (5) the server is LIVE-wired into HandshakeApp (spawn_mcp_server binds it, raw_input_hook drains the shared channel into the running frame, update() publishes the snapshot each frame). The ONLY #[ignore]'d behavior is the wgpu render-to-image pixel readback (a real, honestly-disclosed environmental GPU crash shared by the whole WP's visual proofs); its surrounding tool plumbing/JSON-shape/base64/PNG-encode is proven by non-ignored tests, and the production Win32 OS-window grab is real and focus-safe by inspection -- so the #[ignore] does not hide an unproven REQUIRED tool contract, only the host-specific pixel grab. Independent re-verification found no mock-only proof of a real resource and no tautological tests on the required path."
+    },
+    "concerns_non_blocking": [
+      "screenshot.rs production Win32 capture_handshake_window (PrintWindow GDI grab) has no automated test on this headless host; correctness is established by code inspection only. The two render-to-image proofs (test_mcp_screenshot, test_mcp_wire_screenshot_returns_valid_png) are #[ignore]'d for a real headless-wgpu crash (STATUS_ACCESS_VIOLATION 0xc0000005) and deferred to a GPU host / MT-029. Recommend running them with --ignored on a GPU host to close the pixel-grab evidence gap. Not a code FAIL: the screenshot logic and JSON/base64/PNG-encode contract are real and partly proven, and the deferral is an honest environmental limitation per the operator directive.",
+      "Focus-safety (no SetForegroundWindow/BringWindowToTop) is proven by code inspection, not by the contract-suggested Win32 API counter-mock or process-monitor trace, and the red-team minimum-control's CI grep for SetForegroundWindow/BringWindowToTop in mcp/ is not present. Hygiene gap only; the current code path contains no foreground/Z-order call.",
+      "Path-shape / paperwork mismatch: the contract's allowed_paths named src/frontend/swarm_mcp/** and tests/native_gui/test_mcp_tools.rs, but the code landed under src/frontend/handshake_native/src/mcp/** and .../tests/test_mcp_tools.rs. The contract scope text explicitly permitted 'module under src/frontend/' and this matches the rest of the WP layout. Not a code defect.",
+      "Documented INTENT-honoring deviations: set_value uses Focus+egui::Event::Text instead of Action::SetValue (egui 0.33 has no text SetValue, MT-026-grounded), and the screenshot uses windows-sys PrintWindow instead of xcap (the WP packet model_accessibility_contract itself lists windows-capture/xcap as alternatives; same focus-safe OS-grab intent, fewer deps). Both honor the contract intent.",
+      "SessionToken.matches HMACs both the presented and the stored hex token under the secret key and constant-time compares the two tags. Functionally constant-time and correct; a slightly unusual construction vs comparing presented-vs-stored against a single fixed expected tag, but no security defect (an empty/short/long/wrong presented token yields a different tag and is rejected; the 5-case unit test confirms).",
+      "Some MT-028 surface (leases, attribution, sessions, SwarmSafetyState, rate limiter) is interleaved into the same mcp module and shares server.rs; this is expected (MT-028 builds directly on MT-027) and the MT-027 required behaviors remain independently provable. Reviewed to confirm MT-028 additions do not introduce a stub on MT-027's path."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}

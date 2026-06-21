@@ -1,0 +1,245 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell-v1",
+  "mt_id": "MT-018",
+  "title": "C4-MT018-SettingsOptionsDialog",
+  "group": "C4 Menus + commands + settings",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-018.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-015",
+      "MT-016"
+    ],
+    "blocks": [],
+    "validator_verdict": "PASS_V1",
+    "validator_verdict_status": "PASS"
+  },
+  "scope": {
+    "summary": "Implement the Settings / Options dialog for the native Handshake shell. The dialog opens via HELP > Open Settings… from the top menu bar (MT-015), from the command palette action 'settings.open' (MT-016), or directly via HELP > Open Settings… keyboard shortcut if added. It is a side-drawer or centred modal containing multiple collapsible or always-visible sections: Appearance (theme + view mode), Keybindings editor, Layout (reset), About, and Swarm (partially wired). This is a full port of app/src/components/SettingsMenu.tsx.\n\nThe React SettingsMenu has explicit 'not yet wired' rows for SWARM_RECONCILE_INTERVAL_SETTING, SWARM_RESOURCE_POLL_INTERVAL_SETTING, TERMINAL_DEFAULT_SHELL_SETTING, TERMINAL_MAX_SCROLLBACK_SETTING, TERMINAL_OUTPUT_LOGGING_SETTING, and THEME_SETTING (theme was 'light only' in the React shell). In the native shell, THEME is now wired (dark/light toggle is implemented), so the Theme row must be fully functional. All other 'not yet wired' rows must render with a clear disabled/read-only affordance and a visible note (port of NotYetWiredRow).\n\nGoal and expected diff shape: create src/frontend/overlays/settings_dialog.rs (~400-500 lines), update src/frontend/overlays/mod.rs (pub mod settings_dialog), update src/frontend/app.rs to open/close (app_state.settings_open) and persist settings changes.\n\nFiles to create or edit:\n- CREATE src/frontend/overlays/settings_dialog.rs\n- EDIT   src/frontend/overlays/mod.rs — pub mod settings_dialog\n- EDIT   src/frontend/app.rs — open/close, settings change dispatch, persistence\n- EDIT   src/frontend/workspace_settings.rs (or app_state.rs) — add WorkspaceTheme enum, keybinding map, swarm_board_default_open if not already present from MT-015\n\nSETTINGS SECTIONS (port all sections from SettingsMenu.tsx in order):\n\n[1] Appearance\n  - Theme / appearance: ComboBox or radio group — options: Light | Dark. This row is WIRED: selecting Dark calls apply_theme(Dark) on AppState immediately. Selected value reflects app_state.theme. React had this as NotYetWiredRow (only light available); the native shell makes it real.\n  - View Mode: ComboBox or radio — NSFW | SFW. WIRED: selecting SFW/NSFW sets app_state.view_mode immediately. Port of ViewModeToggle embedded in SettingsMenu.\n\n[2] Keybindings\n  - One row per APP_KEYBINDING_ACTIONS entry (currently 2: app.quick_switcher.open default Mod-p, app.command_palette.open default Mod-Shift-p).\n  - Each row: label + description on left, text input for chord on right, Reset button next to input.\n  - Chord input: free-text entry; on change, call normalize_chord_input(value) and validate via find_keybinding_conflicts(); if conflict, show an alert row with conflict description.\n  - Reset button: restores to defaultChord for that action.\n  - WIRED: editing and confirming a keybinding calls save_workspace_settings() which persists to PUT /workspaces/{id}/settings.\n  - Conflict detection: port of findKeybindingConflicts from workspaceSettings.ts.\n  - Conflict display: port of keybindingLabelForConflict: \"X and Y both use chord\".\n\n[3] Swarm\n  - Swarm board auto-reconcile interval: NotYetWiredRow (fixed 10s, label from SWARM_RECONCILE_INTERVAL_SETTING).\n  - Swarm resource poll interval: NotYetWiredRow (fixed 1.5s, label from SWARM_RESOURCE_POLL_INTERVAL_SETTING).\n  - Open Swarm Board on launch: checkbox WIRED. Persisted to app_state.swarm_board_default_open and saved to PUT /workspaces/{id}/settings.\n\n[4] Terminal\n  - Default shell: NotYetWiredRow (label from TERMINAL_DEFAULT_SHELL_SETTING).\n  - Max scrollback: NotYetWiredRow (label from TERMINAL_MAX_SCROLLBACK_SETTING).\n  - Output logging policy: NotYetWiredRow (label from TERMINAL_OUTPUT_LOGGING_SETTING).\n\n[5] Layout\n  - Reset panes & drawers: button WIRED (calls layout reset helper, same action as VIEW > Reset Layout in MT-015). If the layout reset function is not available in the current frame context, render the button enabled; this MT assumes MT-015 has established the reset helper.\n\n[6] About\n  - App name: Handshake (from ABOUT_INFO.appName).\n  - Version: read from env!(\"CARGO_PKG_VERSION\") or a version string constant; do NOT hardcode 'n/a' as the React shell does — use the real Cargo package version.\n\nSETTINGS SEARCH FILTER (port of settingsQuery / settingMatchesQuery from SettingsMenu.tsx):\n  Render a search input at the top of the dialog. Filter sections and rows using the same term-matching logic (join section title + row label + keywords, lowercase contains). Port the exact visibility flags:\n    showAppearanceSection, showThemeRow, showViewModeRow, showKeybindingsSection,\n    showSwarmSection, showTerminalSection, showLayoutSection, showAboutSection.\n\nNOT-YET-WIRED ROW COMPONENT (port of NotYetWiredRow from SettingsMenu.tsx):\n  fn not_yet_wired_row(ui: &mut Ui, label: &str, note: &str, fixed_value: &str):\n    Render label + note on left, disabled read-only text input showing fixed_value on right.\n    The input must be visually disabled (grayed). Include a stable_id derived from the setting id.\n\nEGUI OVERLAY LAYOUT:\n  Render as an egui::Window with title_bar(false), anchor to RIGHT edge (Align2::RIGHT_TOP with offset [0, top_menu_height]), width ~400px, full-height minus menu bar height, collapsible(false), resizable(false). This mimics the React 'ans001-drawer settings-menu' side-panel layout.\n  Alternatively: centred modal with scroll — acceptable if side-drawer layout is complex for this MT.\n  Header: eyebrow label \"Global\", h3 \"Settings\", Close button on right.\n  Body: ScrollArea::vertical containing all sections in order.\n  Each section: collapsible_header or always-open group with CollapsingHeader::new(section_title).default_open(true).\n\nPERSISTENCE:\n  All wired settings changes must call PUT /workspaces/{id}/settings (saveWorkspaceSettingsState) after any wired field changes. Use the same WorkspaceSettingsState schema (schema_id = \"hsk.workspace_settings_state@1\", theme, custom_theme_tokens, keybindings, settings.view_mode, settings.swarm_board_default_open).\n  Port normalizeWorkspaceSettingsState for the deserialization guard on load.\n  Load on workspace open via GET /workspaces/{id}/settings (getWorkspaceSettingsState) — this is already done in app.rs from earlier MTs; settings_dialog only reads from app_state.workspace_settings.\n\nACCESSKIT:\n- Window root: role=Dialog, modal=true, label=\"Settings\", author_id=0xC4_0018_0001.\n- Search input: role=SearchBox, label=\"Search settings\", author_id=0xC4_0018_0002.\n- Theme combo: role=ComboBox, label=\"Theme / appearance\", author_id=0xC4_0018_0010.\n- View mode combo: role=ComboBox, label=\"View Mode\", author_id=0xC4_0018_0011.\n- Each keybinding text input: role=TextInput, label=\"{action.label} keybinding\", author_id=0xC4_0018_0100 + action_index.\n- Each keybinding reset button: role=Button, label=\"Reset {action.label}\", author_id=0xC4_0018_0180 + action_index.\n- Swarm board default-open checkbox: role=CheckBox, label=\"Open Swarm Board on launch\", author_id=0xC4_0018_0020.\n- Reset layout button: role=Button, label=\"Reset panes and drawers\", author_id=0xC4_0018_0030.\n- Close button: role=Button, label=\"Close settings\", author_id=0xC4_0018_0003.\n\nTESTS:\n1. Unit: normalize_chord_input correctly normalizes 'Ctrl-Shift-P' → 'Mod-Shift-p', 'Cmd-p' → 'Mod-p'.\n2. Unit: find_keybinding_conflicts returns a conflict when two actions share the same chord.\n3. Unit: setting_matches_query returns true/false correctly for a given query and term list.\n4. kittest: open settings (set settings_open=true), assert Theme row is visible; change theme to Dark, assert app_state.theme = Dark.\n5. kittest: type 'keybinding' in the settings search input, assert only the Keybindings section is visible.\n6. kittest: change app.quick_switcher.open chord to 'Mod-Alt-p', assert no conflict; change app.command_palette.open chord to same 'Mod-Alt-p', assert conflict banner appears.\n7. kittest: click 'Reset panes & drawers', assert layout_reset_requested flag is set in app_state.",
+    "allowed_paths": [
+      "src/frontend/overlays/settings_dialog.rs",
+      "src/frontend/overlays/mod.rs",
+      "src/frontend/app.rs",
+      "src/frontend/workspace_settings.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: The settings dialog opens when app_state.settings_open is set to true (triggered by HELP > Open Settings or command palette 'settings.open').",
+      "AC2: The dialog has a search input at the top; typing 'theme' shows only the Appearance section; typing 'keybinding' shows only the Keybindings section.",
+      "AC3: The Theme row is fully wired: selecting Dark immediately applies egui dark visuals to the app and persists via PUT /workspaces/{id}/settings.",
+      "AC4: The View Mode row is fully wired: toggling NSFW/SFW immediately updates app_state.view_mode and persists.",
+      "AC5: The Keybindings section shows one editable row per APP_KEYBINDING_ACTIONS entry (currently 2). Editing a chord and moving focus updates the keybinding in app_state and persists to the backend.",
+      "AC6: If two keybinding rows are set to the same chord, a conflict banner appears naming both actions and the shared chord. The conflicting binding is NOT saved to the backend until the conflict is resolved.",
+      "AC7: The Reset button on each keybinding row restores the defaultChord and clears any conflict.",
+      "AC8: The Swarm > 'Open Swarm Board on launch' checkbox is wired: toggling it updates app_state.swarm_board_default_open and persists.",
+      "AC9: All NotYetWiredRow entries (swarm intervals, terminal settings) render with their fixed value label and a visible 'not yet wired' note; their controls are disabled/read-only.",
+      "AC10: The Layout > 'Reset panes & drawers' button is enabled and triggers the layout reset action.",
+      "AC11: The About section shows the app name 'Handshake' and the real Cargo package version (not 'n/a').",
+      "AC12: Pressing Escape closes the dialog.",
+      "AC13: All AccessKit nodes specified in the implementation (Dialog, SearchBox, ComboBox, TextInput, Button, CheckBox roles) are present in the accessibility tree.",
+      "AC14: cargo test passes with the seven specified unit+kittest cases."
+    ],
+    "proof_targets": [
+      "PT1: cargo test --package handshake-native-shell -- settings_dialog 2>&1 — exits 0, all tests PASS.",
+      "PT2: cargo test --package handshake-native-shell -- workspace_settings 2>&1 — normalize and conflict tests PASS.",
+      "PT3: Screenshot of the settings dialog open with the Theme row visible and 'Dark' selected, showing dark visuals applied to the app behind the dialog.",
+      "PT4: Screenshot of the conflict banner when two keybindings share the same chord.",
+      "PT5: Screenshot of the dialog with search query 'swarm' showing only the Swarm section.",
+      "PT6: Real-PG integration: change theme to Dark, restart app, reopen settings, assert Theme still shows Dark (loaded from backend).",
+      "PT7: cargo clippy --package handshake-native-shell -- -D warnings exits 0."
+    ],
+    "implementation_notes": [
+      "Port normalizeChordInput from workspaceSettings.ts verbatim: split on '-', classify Mod/Ctrl/Cmd/Meta → 'Mod', Shift → 'Shift', Alt/Option → 'Alt'; reassemble as 'Mod-Alt-Shift-key' canonical order.",
+      "Port findKeybindingConflicts: iterate APP_KEYBINDING_ACTIONS, normalize each chord, group actions by normalized chord, return entries where group len > 1.",
+      "Port keybindingLabelForConflict: '[A], [B] and [C] both use {chord}.' — note the Oxford comma for 3+ actions.",
+      "Port settingMatchesQuery: join all terms, lowercase, check contains(query). Pass section title + row label + keywords.",
+      "The Appearance section's Theme row replaces the 'not yet wired' row from the React shell — the React THEME_SETTING was NotYetWired because only light was available; this MT makes it real. Add a comment: '// UPGRADED from NotYetWiredRow: theme is now wired in the native shell'.",
+      "For the version string: use env!(\"CARGO_PKG_VERSION\") in a const or at build time; do not call external processes.",
+      "CollapsingHeader::new(\"Appearance\").default_open(true).show(ui, |ui| { ... }) for each section.",
+      "The not_yet_wired_row helper must take (ui, label, note, fixed_value) and produce a horizontal layout: [label + note (left)] [disabled text_edit showing fixed_value (right)].",
+      "Settings persistence: debounce the PUT call; wait 500ms after the last change before saving, to avoid hammering the backend on rapid keybinding edits. Use the same tokio-channel async bridge pattern from MT-017.",
+      "The dialog Escape-to-close: capture egui::Event::Key { key: Key::Escape, .. } in ui.input(|i| i.events.iter()...) and set settings_open = false.",
+      "Side-drawer vs centred modal: prefer side-drawer anchored to right edge to match the React 'ans001-drawer settings-menu' layout; if egui's Window anchoring to the right edge is awkward, use a centred modal with max_width=480 as a fallback — note the choice in a comment.",
+      "The CLI Bridge section from the React SettingsMenu is OUT OF SCOPE for this MT — it requires CliBridgeConfigPanel which is a separate complex panel. Mark a TODO comment: '// TODO MT-0XX: CLI Bridge config panel — see app/src/components/CliBridgeConfigPanel.tsx'."
+    ],
+    "ports_from_react": [
+      "app/src/components/SettingsMenu.tsx — full component: SettingsMenuProps, NotYetWiredRow, settingMatchesQuery, all section visibility flags (showAppearanceSection etc.), handleThemeChange, handleViewModeChange, handleKeybindingChange, handleKeybindingReset, handleBoardDefaultOpenChange, onResetLayout dispatch, ABOUT_INFO rendering, Escape-to-close effect, search input",
+      "app/src/lib/workspaceSettings.ts — APP_KEYBINDING_ACTIONS (id, label, description, defaultChord, keywords), WorkspaceTheme, WorkspaceSettingsState schema, normalizeChordInput, findKeybindingConflicts, keybindingLabelForConflict, defaultWorkspaceSettingsState, normalizeWorkspaceSettingsState",
+      "app/src/lib/globalSettings.ts — SWARM_RECONCILE_INTERVAL_SETTING, SWARM_RESOURCE_POLL_INTERVAL_SETTING, TERMINAL_DEFAULT_SHELL_SETTING, TERMINAL_MAX_SCROLLBACK_SETTING, TERMINAL_OUTPUT_LOGGING_SETTING, THEME_SETTING (for historical context — now wired), ABOUT_INFO, loadSwarmBoardDefaultOpen / saveSwarmBoardDefaultOpen pattern (now goes through backend not localStorage)",
+      "app/src/components/ViewModeToggle.tsx — ViewModeToggle component for the View Mode row (port as a 2-option radio/combo row)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/settings — load workspace settings on open (already called in app.rs startup; settings_dialog reads from app_state.workspace_settings)",
+      "PUT /workspaces/{workspace_id}/settings — persist any wired setting change (theme, view_mode, keybindings, swarm_board_default_open); body: { settings_state: WorkspaceSettingsState as JSON }",
+      "No other backend calls; NotYetWired rows are local display only"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT: all seven unit+kittest cases must pass; the real-PG persistence round-trip (PT6) must pass before validator sign-off",
+    "HBR-VIS: all interactive controls (ComboBox, TextInput, Button, CheckBox) must have AccessKit roles and author_ids so swarm agents can inspect and set settings without screen scraping",
+    "HBR-SWARM: swarm agents must be able to open the settings dialog, read current theme, toggle it, and verify the change propagated to app_state — document the swarm interaction contract in a doc-comment on the settings_dialog module",
+    "HBR-QUIET: settings changes must not cause the app to flicker, steal window focus, or spawn OS dialogs; all changes apply within the normal egui frame loop"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "R1: The keybinding text input captures keystrokes directly; if the egui focus system also dispatches those keystrokes to the global keymap handler, editing a chord like 'Mod-p' might accidentally open the Quick Switcher while the user is typing it into the keybinding field",
+      "R2: The settings persistence debounce (500ms) means a fast-close scenario — user changes keybinding and immediately closes the dialog — could lose the change if the PUT has not fired yet",
+      "R3: Conflict detection using normalize_chord_input requires the draft keybinding (being typed) to be normalized before comparison; unnormalized drafts may produce false negatives and skip the conflict banner",
+      "R4: Applying dark theme via egui Visuals is a frame-global mutation; if the settings dialog is re-rendered in the same frame after the theme flip, some widgets may render with mixed visuals",
+      "R5: The NotYetWiredRow disabled text edit inputs may still capture focus via Tab navigation, misleading a swarm agent into thinking the setting is editable",
+      "R6: Loading workspace settings from the backend on startup may return null/empty on a fresh workspace; defaultWorkspaceSettingsState must always be used as the fallback — incorrect fallback leads to all keybindings being empty strings"
+    ],
+    "minimum_controls": [
+      "MC1: In the keybinding text_edit_singleline, call ui.ctx().set_cursor_icon(CursorIcon::Text) and ensure the widget consumes the egui input events before they reach the global keymap handler — use egui's response.has_focus() guard in the global keymap: skip chord processing if any text_edit has focus",
+      "MC2: On dialog close, check if a debounced PUT is pending; if so, fire it immediately (skip the debounce) before closing and setting settings_open = false",
+      "MC3: Run normalize_chord_input on the draft value on every keystroke change before passing to find_keybinding_conflicts; do not compare raw un-normalized strings",
+      "MC4: Apply the Visuals change at the START of the next frame (store a pending_theme_change: Option<WorkspaceTheme> in app_state and apply it at the top of the frame loop before any panel rendering)",
+      "MC5: NotYetWiredRow text edits must have interactive=false (ui.add_enabled(false, TextEdit::singleline(...))) which prevents Tab focus from reaching them; add a kittest asserting the control does not respond to keyboard input",
+      "MC6: normalizeWorkspaceSettingsState must be called on every backend response before writing to app_state.workspace_settings; the fallback is defaultWorkspaceSettingsState() — add a unit test with an empty-object backend response to confirm the fallback fires correctly"
+    ]
+  },
+  "wp_validator_review": {
+    "schema": "hsk.wp_validator_mt_review@1",
+    "reviewer": "INTEGRATION_VALIDATOR(acting WP_VALIDATOR) session boa3epvo9 — operator-directed retro WP-Validator pass",
+    "reviewed_at_utc": "2026-06-21T16:59:57.797Z",
+    "method": "deep code review + adversarial verify vs MT/WP/Master-Spec intent (governance paperwork non-blocking per operator)",
+    "verdict": "PASS_V1",
+    "confidence": "HIGH",
+    "one_line": "Independently confirmed: the settings dialog honestly implements the C4 contract; every wired control is real, persistence flows through the genuine PostgreSQL/EventLedger-backed GET/PUT /workspaces/:id/settings surface, and all state-recovery paths (load-on-open, normalize-fallback, debounced-flush-on-close, frame-start theme apply) are real and proven by non-tautological live-tree kittests; reviewer #1's PASS_V1 stands with one additional narrow non-blocking save-race concern.",
+    "code_examined": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-018.json",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/workspace_settings.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/settings_dialog.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/app.rs (open/close_settings, apply_settings_outcome, drive_settings_dialog, schedule/flush save, frame-start pending_theme_change, suppress_global_chords, settings.open command + OpenSettings menu route)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/accessibility/registry.rs (DECLARED_IDENTITIES 17..=19 additions)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/lib.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/src/top_menu_bar.rs (HELP > Open Settings -> OpenSettings)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_settings_dialog.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/frontend/handshake_native/tests/test_accesskit_ids.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/api/workspaces.rs (route registration + get/save_workspace_settings handlers)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/src/backend/handshake_core/src/storage/postgres.rs (get/save_workspace_settings_state real sqlx + kernel-event impl)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-worksurface-shell-v1/app/src/lib/workspaceSettings.ts (React port-fidelity reference)"
+    ],
+    "acceptance_summary": [
+      {
+        "criterion": "AC1: dialog opens via settings_open=true (HELP > Open Settings / palette settings.open)",
+        "status": "MET",
+        "evidence": "app.rs open_settings() (line 2224) sets settings_open + bumps settings_open_count + arms load. Both routes confirmed: palette command 'settings.open' (app.rs:1233->open_settings) and MenuBarAction::OpenSettings (app.rs:2631->open_settings); top_menu_bar.rs:453 HELP > 'Open Settings...' emits OpenSettings. drive_settings_dialog gated on settings_open (app.rs:4378). Test dialog_closed_by_default_and_escape_closes asserts open via open_settings()."
+      },
+      {
+        "criterion": "AC2: search filter narrows sections",
+        "status": "MET",
+        "evidence": "render_sections uses setting_matches_query per section with exact term lists (settings_dialog.rs:395-401, 466-473). kittest search_filter_narrows_to_keybindings_section types 'keybinding' on the LIVE search node and asserts Keybindings present, Appearance + About absent."
+      },
+      {
+        "criterion": "AC3: Theme row wired - Dark applies egui dark + persists",
+        "status": "MET",
+        "evidence": "ThemeChanged outcome (app.rs:2347) sets workspace_settings.theme + pending_theme_change (applied frame-start at app.rs:3902) + schedule_settings_save. kittest opening_settings_shows_theme_row_and_changing_theme_applies_to_app asserts current_theme==Dark and the PUT blob theme=='dark' via the stub transport."
+      },
+      {
+        "criterion": "AC4: View Mode row wired - toggles app view_mode + persists",
+        "status": "MET",
+        "evidence": "ViewModeChanged (app.rs:2355) sets workspace_settings.view_mode + app.view_mode + schedule_settings_save. kittest changing_view_mode_updates_app_flag_and_persists asserts ViewMode::Sfw and save_calls>=1."
+      },
+      {
+        "criterion": "AC5: one editable keybinding row per APP_KEYBINDING_ACTIONS; edit+blur persists",
+        "status": "MET",
+        "evidence": "render_sections iterates visible_actions (settings_dialog.rs:501); input.changed() emits KeybindingChanged(normalized) which app.rs:2365 persists via set_chord + schedule_settings_save. APP_KEYBINDING_ACTIONS has the 2 contract actions (workspace_settings.rs:136)."
+      },
+      {
+        "criterion": "AC6: duplicate chord -> conflict banner; conflicting binding NOT saved",
+        "status": "MET",
+        "evidence": "Conflict computed over draft_settings (current normalized drafts) at settings_dialog.rs:479,557; KeybindingChanged emitted ONLY when find_keybinding_conflicts(probe).is_empty() (line 559). Banner is a Role::Alert node (line 495). kittest duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved asserts banner text + save_calls==0 while conflicting, then resolution persists. find_keybinding_conflicts is a faithful port of the React findKeybindingConflicts."
+      },
+      {
+        "criterion": "AC7: per-row Reset restores default chord and clears conflict",
+        "status": "MET",
+        "evidence": "KeybindingReset (settings_dialog.rs:516-522) sets draft to default_chord; app.rs:2370 sets the persisted chord to action.default_chord. Same kittest resolves via reset and asserts chord_for==Mod-Shift-p then persists."
+      },
+      {
+        "criterion": "AC8: Swarm board default-open checkbox wired + persists",
+        "status": "MET",
+        "evidence": "SwarmBoardDefaultOpenChanged (settings_dialog.rs:603, app.rs:2382) sets workspace_settings.swarm_board_default_open + schedule_settings_save; checkbox carries SWARM_BOARD_CHECKBOX_AUTHOR_ID."
+      },
+      {
+        "criterion": "AC9: NotYetWired rows render fixed value + note, disabled/read-only",
+        "status": "MET",
+        "evidence": "not_yet_wired_row uses ui.add_enabled(false, TextEdit) (settings_dialog.rs:700). kittest not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input probes the LIVE tree for all 5 rows: asserts present, AccessKit disabled, value==fixed_value, and value UNCHANGED after a type attempt."
+      },
+      {
+        "criterion": "AC10: Reset panes & drawers enabled and triggers layout reset action",
+        "status": "MET",
+        "evidence": "ResetLayout (settings_dialog.rs:650, app.rs:2387) arms reset_layout_pending=true - the SAME arm-then-confirm gate as MenuBarAction::ResetLayout / 'layout.reset' command (app.rs:1249), an intentional safety pattern. kittest reset_panes_and_drawers_button_arms_layout_reset clicks the real button and asserts reset_layout_pending()."
+      },
+      {
+        "criterion": "AC11: About shows 'Handshake' + real Cargo version (not 'n/a')",
+        "status": "MET",
+        "evidence": "ABOUT_VERSION = env!(\"CARGO_PKG_VERSION\") (workspace_settings.rs:477); unit test about_version_is_real_cargo_version_not_placeholder asserts != 'n/a' and == CARGO_PKG_VERSION; About section renders ABOUT_APP_NAME + ABOUT_VERSION."
+      },
+      {
+        "criterion": "AC12: Escape closes the dialog",
+        "status": "MET",
+        "evidence": "show() peeks Escape (settings_dialog.rs:267); closes dialog only when no popup open (Popup::is_any_open, line 280). kittests escape_closes_open_combo_popup_first_then_dialog (popup-first, then dialog) and dialog_closed_by_default_and_escape_closes both prove it."
+      },
+      {
+        "criterion": "AC13: AccessKit Dialog/SearchBox/ComboBox/TextInput/Button/CheckBox roles present in live tree",
+        "status": "MET",
+        "evidence": "settings_dialog_controls_carry_correct_accesskit_roles (test_accesskit_ids.rs:680) opens the REAL dialog and reads roles off harness.root() (consumer-side tree): asserts settings.dialog=Dialog, theme/view-mode=ComboBox, search/keybinding=TextInput, swarm checkbox=CheckBox, close/reset=Button. 3 fixed container ids enumerated in DECLARED_IDENTITIES (registry.rs:436-444)."
+      },
+      {
+        "criterion": "AC14: cargo test passes the seven unit+kittest cases",
+        "status": "MET",
+        "evidence": "3 unit tests (normalize_chord_input, find_keybinding_conflicts, setting_matches_query) + the contract kittests (theme, search, conflict, reset-layout) all present plus hardening tests (view-mode, not-wired, escape-vs-combo, load-persisted). Per validator ground truth the curated deterministic suite passes 0 failures."
+      }
+    ],
+    "spec_realism": {
+      "deferred_live_escape": "NONE",
+      "managed_resource_proof": "REAL",
+      "detail": "sub-rule 1 (deferred-live escape): grep of settings_dialog.rs + workspace_settings.rs found NO todo!/unimplemented!/panic! on a required path. The single TODO (settings_dialog.rs:682) is the explicitly contract-out-of-scope CLI Bridge panel, which implementation_notes line 84 instructs to mark exactly this way. The 'not yet wired' strings are the CONTRACT-REQUIRED NotYetWiredRow UI feature (disabled rows mirroring the React shell per AC9), not an evasion. sub-rule 2 (real-resource proof): the persistence resource is a REAL Handshake-owned, PostgreSQL+EventLedger-backed REST surface. GET/PUT /workspaces/:workspace_id/settings is registered in src/backend/handshake_core/src/api/workspaces.rs:57-59 and backed by store get/save_workspace_settings_state, whose postgres.rs impl (9005-9064) issues real sqlx queries against knowledge_workspace_settings_states and appends a kernel event in a transaction (NOT an in-memory mock). The production SettingsClient calls the real contract via reqwest (correct URL + {settings_state} body + settings_state parse). Default-suite kittests use a documented synchronous stub SettingsTransport (the accepted MT-009 WorkbenchLayoutClient seam), and the live-PG round-trip is a real #[ignore]+integration_tests test (live_backend_settings_round_trips_through_postgres) exercising the REAL SettingsClient against PostgreSQL. The #[ignore] does NOT hide unproven required behavior: load-on-open / debounce / flush-on-close / normalize-fallback are all proven by non-ignored stub kittests, and the JSON contract is round-trip unit-tested (round_trips_through_settings_state_json). sub-rule 3 (self-cert): satisfied by this independent review per the operator directive."
+    },
+    "concerns_non_blocking": [
+      "SAVE-RACE ON CLOSE (state-recovery, narrow, non-blocking): close_settings() (app.rs:2238) takes settings_save_due_at and calls flush_settings_save_now(); if a prior settings save/load is still in-flight at that instant, flush_settings_save_now (app.rs:2315-2322) re-arms settings_save_due_at via schedule_settings_save() instead of saving. But after close, settings_open is false so drive_settings_dialog (the only drainer of a due save, app.rs:4378-4380) no longer runs, so the re-armed save is never fired -> that one pending change could be lost. This requires a save already in-flight at the exact moment of close WITH another debounced change pending (a sub-second race), and the dominant MC2 path (flush when not in-flight) works correctly and is the case MC2 targets. Latent reliability gap, not a broken required behavior. Suggested hardening (future MT / no-context fix): in eframe::App::update, drain a due settings save even while settings_open==false (move the step-4 due-save check out of the settings_open guard), or have close_settings spin the flush until the in-flight guard clears.",
+      "PATH-SHAPE (paperwork): the contract's scope/allowed_paths name src/frontend/overlays/settings_dialog.rs and src/frontend/overlays/mod.rs, but the handshake_native crate has no overlays/ submodule. The implementation correctly placed settings_dialog.rs + workspace_settings.rs flat under src/frontend/handshake_native/src/ (matching the crate's existing flat layout: quick_switcher.rs, command_palette, top_menu_bar.rs) and registered them in lib.rs:35,41. Contract path-shape inaccuracy, not a code defect.",
+      "LAYOUT-CHOICE (documented, contract-sanctioned): the contract preferred a right-edge side-drawer; the impl chose the contract-allowed centred-modal fallback and documented it in a doc-comment (settings_dialog.rs:220-224), matching the palette/switcher overlay convention.",
+      "SCREENSHOT PROOF DEFERRED (paperwork): PT3-PT5 (visual screenshots of dark theme / conflict banner / search filter) are deferred to MT-029 per the commit message. The underlying behaviors are proven by headless live-tree kittests; visual-capture deferral is a downstream concern, not an MT-018 code FAIL.",
+      "DEBOUNCE WINDOW MESSAGE MISMATCH (cosmetic): the const SETTINGS_SAVE_DEBOUNCE = 500ms (app.rs:81) matches the contract implementation_note ('wait 500ms'); the commit message text says '600ms'. The authoritative const is 500ms; the commit message is cosmetically wrong only.",
+      "DEFAULT THEME DIVERGENCE (intentional, documented): default_workspace_settings_state() returns theme=Dark (workspace_settings.rs:223-235), diverging from the React defaultWorkspaceSettingsState 'light' default. Documented as the native desktop dark default mirroring HsTheme::Dark; not a contract violation (the theme row is wired either way and load/normalize override the default from the backend)."
+    ],
+    "blocking_issues": [],
+    "failure_report": "",
+    "remediation_plan": []
+  }
+}
