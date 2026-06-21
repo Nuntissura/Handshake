@@ -94,6 +94,12 @@ impl ManagedPostgresConfig {
     /// [GLOBAL-PORTABILITY] the data directory default is resolved relative to
     /// the crate manifest (walking up to the repo root), never a hardcoded
     /// absolute path. Every field is overridable via environment variable.
+    ///
+    /// `bin_dir` is chosen with this precedence: `HANDSHAKE_MANAGED_PG_BIN`
+    /// (operator override) > `PGBIN` > exe-relative bundled dir
+    /// `<exe_dir>/bundled/postgres` (auto-discovered for an installed app, only
+    /// when its `pg_ctl` actually exists) > empty (which lets [`resolve_bin`]
+    /// fall through to `PGBIN` / the Windows default install path / `PATH`).
     pub fn from_env() -> Self {
         let enabled = std::env::var(MANAGED_PG_ENABLED_ENV)
             .ok()
@@ -114,12 +120,31 @@ impl ManagedPostgresConfig {
             .map(PathBuf::from)
             .unwrap_or_else(default_data_dir);
 
-        let bin_dir = std::env::var(MANAGED_PG_BIN_ENV)
-            .ok()
-            .or_else(|| std::env::var(PGBIN_ENV).ok())
-            .filter(|v| !v.trim().is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_default();
+        // bin_dir precedence (highest first):
+        //   1. HANDSHAKE_MANAGED_PG_BIN  (operator override; MANAGED_PG_BIN_ENV)
+        //   2. PGBIN                     (standard PostgreSQL override)
+        //   3. exe-relative bundled dir  (<exe_dir>/bundled/postgres) — used ONLY
+        //      when its pg_ctl actually exists, so an installed app auto-discovers
+        //      its bundled cluster without any env export. A random system PG is
+        //      thereby beaten by the bundled one; an incomplete bundle (pg_ctl
+        //      present, sibling binary missing) still hard-errors in resolve_bin
+        //      step 1 rather than silently using a different-version system PG.
+        //   4. empty -> resolve_bin falls through to PGBIN / Windows default / PATH.
+        // Operator env always wins; bundled discovery is exe-relative and
+        // disk-agnostic (no hardcoded absolute path).
+        //
+        // Each candidate is validated for non-emptiness INDEPENDENTLY via
+        // `nonempty_env`. A set-but-empty HANDSHAKE_MANAGED_PG_BIN must NOT
+        // shadow PGBIN: it correctly falls through to the next candidate instead
+        // of short-circuiting the chain with an empty `Some("")`. The env-fed
+        // candidates and the bundled fallback are combined by the pure
+        // `resolve_bin_dir` helper so the precedence/fall-through logic is
+        // unit-testable without mutating global process environment.
+        let bin_dir = resolve_bin_dir(
+            nonempty_env(MANAGED_PG_BIN_ENV),
+            nonempty_env(PGBIN_ENV),
+            bundled_bin_dir_from_current_exe(),
+        );
 
         let config = Self {
             enabled,
@@ -143,6 +168,43 @@ impl ManagedPostgresConfig {
 
         config
     }
+}
+
+/// Read an environment variable as a non-empty `PathBuf` candidate.
+///
+/// Returns `None` when the variable is unset, empty, or whitespace-only, so an
+/// explicitly-set-but-empty variable (`Some("")`) does NOT short-circuit a
+/// `.or_else(...)` precedence chain. This lets each `bin_dir` candidate
+/// (`HANDSHAKE_MANAGED_PG_BIN`, then `PGBIN`) be validated independently: an
+/// empty higher-precedence variable falls through to the next candidate instead
+/// of winning with an empty value. The raw (non-trimmed) value is used to build
+/// the path so a deliberately-spaced directory name is preserved; only the
+/// empty/whitespace decision is trim-based.
+fn nonempty_env(key: &str) -> Option<PathBuf> {
+    std::env::var(key)
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .map(PathBuf::from)
+}
+
+/// Combine the `bin_dir` candidates in precedence order into the resolved dir.
+///
+/// Precedence (highest first): `managed_pg_bin` (HANDSHAKE_MANAGED_PG_BIN) >
+/// `pgbin` (PGBIN) > `bundled` (exe-relative bundled dir) > empty
+/// `PathBuf::default()` (which lets [`resolve_bin`] fall through to PGBIN / the
+/// Windows default install path / PATH).
+///
+/// Pure and unit-testable: callers pass the already-non-empty-validated
+/// candidates (see [`nonempty_env`]), so this never reads the environment and
+/// has no global-env race. Because empty candidates are represented as `None`,
+/// an empty higher-precedence variable correctly falls through to the next
+/// candidate rather than short-circuiting with an empty value.
+fn resolve_bin_dir(
+    managed_pg_bin: Option<PathBuf>,
+    pgbin: Option<PathBuf>,
+    bundled: Option<PathBuf>,
+) -> PathBuf {
+    managed_pg_bin.or(pgbin).or(bundled).unwrap_or_default()
 }
 
 /// Resolve the default cluster data directory disk-agnostically.
@@ -216,6 +278,20 @@ impl ManagedPostgres {
         let initdb = resolve_bin(&config.bin_dir, "initdb")?;
         let pg_isready = resolve_bin(&config.bin_dir, "pg_isready")?;
         let psql = resolve_bin(&config.bin_dir, "psql")?;
+        // Validation-only resolve of the server binary `postgres`. `pg_ctl`
+        // launches `postgres` (the postmaster); if a bundle/install ships
+        // `pg_ctl` but is missing `postgres`(.exe), discovery + the four
+        // client-tool resolves above would pass and the bundle would then fail
+        // OPAQUELY when `pg_ctl start` cannot find the server. Resolving it here
+        // makes an incomplete bundle fail LOUDLY at startup with
+        // `BinariesNotFound`, matching the "incomplete bundle fails loudly"
+        // design intent. For an empty `bin_dir` (non-bundled install) this
+        // defers to PATH exactly like the others, so non-bundled installs are
+        // unaffected; only an explicit/bundled `bin_dir` missing `postgres`
+        // hard-errors. (`bundled_bin_dir` stays anchored on `pg_ctl` only — it
+        // must NOT require `postgres`, which would risk a silent fallback to a
+        // system PG.) The handle is discarded; spawning goes through `pg_ctl`.
+        let _postgres_server = resolve_bin(&config.bin_dir, "postgres")?;
 
         // 3. Already accepting connections -> adopt, never double-start.
         if is_ready(&pg_isready, config.port).await {
@@ -366,11 +442,58 @@ fn exe_name(name: &str) -> String {
     }
 }
 
+/// Pure, testable discovery of the bundled PostgreSQL bin dir for an installed
+/// Handshake app.
+///
+/// An installed Handshake stages its managed-postgres binaries at the
+/// exe-relative path `<exe_dir>/bundled/postgres/` (see
+/// `installer/windows/BUNDLED_DEPS_POLICY.md`, bundle-layout topic). This
+/// function returns `Some(<exe_dir>/bundled/postgres)` ONLY when that directory
+/// actually contains the anchor binary `pg_ctl` (`pg_ctl.exe` on Windows);
+/// otherwise it returns `None`, so a missing or non-bundled install never
+/// produces a bogus path.
+///
+/// It is pure: it takes `exe_dir` explicitly and reads no environment and never
+/// calls `current_exe`, so it is unit-testable with a temp directory. The thin
+/// wrapper [`bundled_bin_dir_from_current_exe`] feeds it the real exe directory.
+///
+/// [GLOBAL-PORTABILITY] disk-agnostic: the path is derived relative to the exe
+/// directory the caller supplies; no drive letter or user-profile path is
+/// hardcoded.
+fn bundled_bin_dir(exe_dir: &Path) -> Option<PathBuf> {
+    let candidate = exe_dir.join("bundled").join("postgres");
+    if candidate.join(exe_name("pg_ctl")).is_file() {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+/// Thin wrapper resolving the bundled PostgreSQL bin dir from the running exe.
+///
+/// Calls `std::env::current_exe()` and feeds its parent directory to
+/// [`bundled_bin_dir`]. Returns `None` on any error (no current exe, no parent,
+/// or no bundled `pg_ctl` present) and never panics, so it is safe to use as a
+/// best-effort discovery fallback during config construction.
+fn bundled_bin_dir_from_current_exe() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    bundled_bin_dir(exe_dir)
+}
+
 /// Resolve a PostgreSQL binary by name.
 ///
 /// Discovery order:
-/// 1. `config.bin_dir` (explicit override) if non-empty.
-/// 2. `PGBIN` environment variable.
+/// 1. `config.bin_dir` (explicit override) if non-empty. This carries, in
+///    descending precedence as resolved by [`ManagedPostgresConfig::from_env`],
+///    the `HANDSHAKE_MANAGED_PG_BIN` override, then `PGBIN`, then the
+///    exe-relative bundled dir `<exe_dir>/bundled/postgres` auto-discovered for
+///    an installed app (only when its `pg_ctl` exists). A non-empty `bin_dir`
+///    HARD-ERRORS with [`ManagedPostgresError::BinariesNotFound`] if the binary
+///    is absent there — it never falls through. This is intentional: an
+///    incomplete bundle (e.g. `pg_ctl` present but `initdb` missing) must fail
+///    loudly rather than silently mixing in a different-version system PG.
+/// 2. `PGBIN` environment variable (only reached when `bin_dir` is empty).
 /// 3. `C:/Program Files/PostgreSQL/16/bin` on Windows (common install path).
 /// 4. Bare name on `PATH` (resolved by the OS at spawn time).
 ///
@@ -689,5 +812,125 @@ mod tests {
         let bin_dir = PathBuf::from("definitely-not-a-real-pg-bin-dir-xyz");
         let err = resolve_bin(&bin_dir, "pg_ctl").unwrap_err();
         matches!(err, ManagedPostgresError::BinariesNotFound(_));
+    }
+
+    #[test]
+    fn bundled_bin_dir_some_when_pg_ctl_present() {
+        // A temp dir laid out like an installed app:
+        // <exe_dir>/bundled/postgres/pg_ctl(.exe)
+        let temp = tempfile::tempdir().expect("tempdir");
+        let exe_dir = temp.path();
+        let pg_dir = exe_dir.join("bundled").join("postgres");
+        std::fs::create_dir_all(&pg_dir).expect("create bundled/postgres");
+        std::fs::write(pg_dir.join(exe_name("pg_ctl")), b"#!stub").expect("write pg_ctl");
+
+        let resolved = bundled_bin_dir(exe_dir);
+        assert_eq!(
+            resolved.as_deref(),
+            Some(pg_dir.as_path()),
+            "bundled_bin_dir must return the exe-relative bundled/postgres path when pg_ctl exists there"
+        );
+    }
+
+    #[test]
+    fn bundled_bin_dir_none_when_no_bundled_dir() {
+        // A temp dir with NO bundled/postgres subtree at all.
+        let temp = tempfile::tempdir().expect("tempdir");
+        let resolved = bundled_bin_dir(temp.path());
+        assert!(
+            resolved.is_none(),
+            "bundled_bin_dir must return None when no bundled/postgres dir exists"
+        );
+    }
+
+    #[test]
+    fn bundled_bin_dir_none_when_dir_present_but_pg_ctl_absent() {
+        // bundled/postgres exists but the anchor binary pg_ctl is missing:
+        // an incomplete/empty stage must NOT be treated as a usable bundle.
+        let temp = tempfile::tempdir().expect("tempdir");
+        let pg_dir = temp.path().join("bundled").join("postgres");
+        std::fs::create_dir_all(&pg_dir).expect("create bundled/postgres");
+        // Intentionally write a sibling but NOT pg_ctl, to prove the check keys
+        // specifically on pg_ctl, not on directory existence.
+        std::fs::write(pg_dir.join(exe_name("initdb")), b"#!stub").expect("write initdb");
+
+        let resolved = bundled_bin_dir(temp.path());
+        assert!(
+            resolved.is_none(),
+            "bundled_bin_dir must return None when bundled/postgres lacks pg_ctl"
+        );
+    }
+
+    #[test]
+    fn empty_managed_pg_bin_falls_through_to_pgbin() {
+        // FIX MINOR #2 regression guard: a set-but-empty HANDSHAKE_MANAGED_PG_BIN
+        // (modeled as `None` by `nonempty_env`) must NOT shadow PGBIN; the chain
+        // must fall through to the valid PGBIN directory. Exercises the same pure
+        // helper `from_env` calls, with no global-env mutation (no race).
+        let pgbin = PathBuf::from("some/pgbin/dir");
+        let resolved = resolve_bin_dir(
+            /* managed_pg_bin (empty) */ None,
+            /* pgbin (valid)         */ Some(pgbin.clone()),
+            /* bundled               */ Some(PathBuf::from("bundled/should/not/win")),
+        );
+        assert_eq!(
+            resolved, pgbin,
+            "empty MANAGED_PG_BIN must fall through to the valid PGBIN dir"
+        );
+    }
+
+    #[test]
+    fn managed_pg_bin_wins_over_pgbin_and_bundled() {
+        // Precedence is unchanged: a valid MANAGED_PG_BIN beats PGBIN and bundled.
+        let managed = PathBuf::from("managed/override/dir");
+        let resolved = resolve_bin_dir(
+            Some(managed.clone()),
+            Some(PathBuf::from("pgbin/dir")),
+            Some(PathBuf::from("bundled/dir")),
+        );
+        assert_eq!(resolved, managed, "MANAGED_PG_BIN must win when set");
+    }
+
+    #[test]
+    fn pgbin_wins_over_bundled_when_managed_absent() {
+        let pgbin = PathBuf::from("pgbin/dir");
+        let resolved = resolve_bin_dir(
+            None,
+            Some(pgbin.clone()),
+            Some(PathBuf::from("bundled/dir")),
+        );
+        assert_eq!(resolved, pgbin, "PGBIN must win over bundled when set");
+    }
+
+    #[test]
+    fn bundled_used_when_no_env_candidates() {
+        let bundled = PathBuf::from("bundled/dir");
+        let resolved = resolve_bin_dir(None, None, Some(bundled.clone()));
+        assert_eq!(
+            resolved, bundled,
+            "bundled dir must be used when neither env candidate is set"
+        );
+    }
+
+    #[test]
+    fn empty_when_no_candidates_defers_to_resolve_bin_path_fallthrough() {
+        // No env candidates and no bundled dir -> empty PathBuf, which signals
+        // `resolve_bin` to fall through to PGBIN / default install path / PATH.
+        let resolved = resolve_bin_dir(None, None, None);
+        assert_eq!(
+            resolved,
+            PathBuf::new(),
+            "no candidates must yield an empty bin_dir (PATH fall-through)"
+        );
+        assert!(resolved.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn nonempty_env_returns_none_for_unset_and_empty() {
+        // Use a uniquely-named key that no other test sets, to avoid races.
+        // Unset -> None.
+        let key = "HANDSHAKE_TEST_NONEMPTY_ENV_UNSET_XYZ";
+        std::env::remove_var(key);
+        assert!(nonempty_env(key).is_none(), "unset var must yield None");
     }
 }

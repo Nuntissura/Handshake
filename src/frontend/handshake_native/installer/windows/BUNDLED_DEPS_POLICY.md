@@ -47,28 +47,38 @@ stay in sync with that constant (the constant is authoritative).
 
 </topic>
 
-<topic id="managed-postgres-path-contract" wp="WP-KERNEL-011" summary="How bundled postgres binaries are discovered at runtime">
+<topic id="managed-postgres-path-contract" wp="WP-KERNEL-011" status="DONE" summary="How bundled postgres binaries are auto-discovered at runtime">
 
 # Managed-PostgreSQL Path Contract (RISK-031-01)
 
-`handshake_core::managed_postgres` (read-only for MT-031: `src/backend/handshake_core/src/managed_postgres.rs`)
-resolves `pg_ctl`/`initdb`/`pg_isready`/`psql` via, in order: an explicit `bin_dir` config field, the
-`HANDSHAKE_MANAGED_PG_BIN` env var (the constant `managed_postgres::MANAGED_PG_BIN_ENV`), the standard
-`PGBIN` env var, a fixed Windows default install path, then `PATH`. It does **not** today derive a path
-from `current_exe()`.
+`handshake_core::managed_postgres` (`src/backend/handshake_core/src/managed_postgres.rs`) resolves
+`pg_ctl`/`initdb`/`pg_isready`/`psql` via this `bin_dir` precedence, highest first:
 
-The single-installer guarantee therefore requires two cooperating pieces:
+1. `HANDSHAKE_MANAGED_PG_BIN` env var (operator override; the constant `managed_postgres::MANAGED_PG_BIN_ENV`);
+2. the standard `PGBIN` env var;
+3. **exe-relative auto-discovery** of `<exe_dir>/bundled/postgres` — used automatically when its `pg_ctl`
+   (`pg_ctl.exe` on Windows) actually exists there;
+4. empty `bin_dir`, which falls through inside `resolve_bin` to `PGBIN` / the fixed Windows default install
+   path / `PATH`.
+
+The single-installer guarantee therefore now requires only ONE installer-side piece:
 
 1. The installer stages the postgres binaries at the exe-relative path `bundled/postgres/`
    (done by `build_installer.ps1` and verified by `installer::check_bundle_integrity`).
-2. `handshake_core` startup exports `HANDSHAKE_MANAGED_PG_BIN` (or `PGBIN`) = `<exe_dir>/bundled/postgres`
-   before `ManagedPostgres::ensure_running`, so the managed cluster finds the bundled binaries instead of
-   falling through to `PATH` / the default install path.
 
-Piece (2) is a backend change (`src/backend/handshake_core`, a `forbidden_path` for MT-031) and is
-recorded here as the single follow-up needed to wire the bundle to the managed cluster. Until it lands,
-`bundled/postgres/` is the staged, verified location both halves target; the runtime self-check already
-fails if it is missing (HBR-STOP).
+`handshake_core` startup **no longer needs to export `HANDSHAKE_MANAGED_PG_BIN`/`PGBIN`**: when Handshake
+runs as an installed app, `ManagedPostgresConfig::from_env` auto-discovers `<exe_dir>/bundled/postgres`
+(via `current_exe()` -> `bundled_bin_dir`) and uses it as `bin_dir`. The discovery is exe-relative and
+disk-agnostic (no hardcoded absolute path), and is gated on `pg_ctl` actually existing there, so a
+non-bundled / dev build silently falls through to `PATH`/default behavior. An operator may still override
+with `HANDSHAKE_MANAGED_PG_BIN` (it wins over the bundle). An incomplete bundle (`pg_ctl` present but a
+sibling like `initdb` missing) hard-errors via `resolve_bin` step 1 rather than silently using a
+different-version system PostgreSQL.
+
+**Status: DONE.** The backend wiring (the previous single follow-up) has landed: `bundled_bin_dir` /
+`bundled_bin_dir_from_current_exe` plus the `from_env` precedence change, covered by unit tests in
+`managed_postgres.rs`. `bundled/postgres/` remains the staged, verified location; the runtime self-check
+still fails if it is missing (HBR-STOP).
 
 </topic>
 
