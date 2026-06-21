@@ -1,0 +1,114 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-028",
+  "title": "E4-MT028-LoomSearchV2Surface",
+  "group": "E4 Search",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-028.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": ["MT-030", "MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Build the native Rust/egui LoomSearchV2Surface panel - the UI-only counterpart to the React LoomSearchV2Panel (app/src/components/LoomSearchV2Panel.tsx). The backend loom_search_v2 endpoint (POST /workspaces/:workspace_id/loom/search-v2, implemented in KERNEL-009 MT-264) is already complete; this MT wires the existing API to a new native egui panel.\n\nDiff shape: create src/frontend/panels/loom_search_v2.rs (new file, ~350 lines). Register in src/frontend/panels/mod.rs. Add LoomSearchV2Panel variant to the shell's panel enum (src/frontend/shell.rs or equivalent docking panel registry). Wire HTTP client call in src/frontend/api/loom.rs (or create it) to POST to /workspaces/{id}/loom/search-v2 and to POST /workspaces/{id}/loom/views (save-as-view).\n\nPanel features to implement (parity with React reference):\n1. QUERY BAR: single-line egui::TextEdit bound to a query string field. On Enter key or 'Search' button click, fire async HTTP POST to /workspaces/{workspace_id}/loom/search-v2 with body {query, content_type?, graph_boost: 1.0, limit: 25}. Deserialize LoomSearchV2Response {hits: [{block, score, fts_rank, trgm_sim, vector_sim, edge_degree, highlight}], content_type_facets: BTreeMap<String,i64>, semantic_available: bool, total: i64}.\n2. STATUS LINE: show 'Searching...' during load, '{N} results (semantic on/off)' after response, or error text. Use egui::Label with aria-live equivalent.\n3. CONTENT-TYPE FACETS: after a response, render one toggle button per entry in content_type_facets (sorted by count descending). Each shows '{type} ({count})'. Clicking a facet toggles it as a filter and immediately re-fires the search with that content_type. Active facet visually highlighted (egui::Button::selected or custom fill).\n4. RESULTS LIST: egui::ScrollArea containing one clickable row per LoomSearchV2Hit. Each row shows: block.title (or block_id fallback), block.content_type badge, score formatted to 3 decimal places, and the highlight string. The highlight may contain <mark>...</mark> markers: parse them and render the marked segments in a distinct color (e.g. egui::Color32::YELLOW background on the text run, using egui::RichText or a custom painter). Clicking a row calls the on_open_block callback (routes to the Loom block viewer, wired in the shell).\n5. SAVE AS VIEW: a 'Save as view' button, enabled only when there are results. On click, POST /workspaces/{workspace_id}/loom/views with body {kind: 'table', query: {content_type: <active_facet_or_omit>}, columns: ['title','content_type','updated'], title: 'Search: {query}'}. Show a status label with the new block_id on success or the error string on failure. This reuses the same createBlockView backend path as the MT-262 block-collection view.\n6. STATE MACHINE: loading bool, error Option<String>, view_status Option<String>, response Option<LoomSearchV2Response>, active_content_type Option<String>. Keep all state inside LoomSearchV2PanelState struct.\n\nFiles to create/edit:\n- CREATE: src/frontend/panels/loom_search_v2.rs\n- EDIT: src/frontend/panels/mod.rs (pub mod loom_search_v2; re-export)\n- EDIT: src/frontend/shell.rs (add LoomSearchV2Panel arm to panel dispatch)\n- EDIT (or CREATE): src/frontend/api/loom.rs (add loom_search_v2 async fn and create_block_view async fn)\n\nImplementation steps:\n1. Define LoomSearchV2PanelState struct with: query: String, active_content_type: Option<String>, response: Option<LoomSearchV2Response>, loading: bool, error: Option<String>, view_status: Option<String>.\n2. Define LoomSearchV2Response, LoomSearchV2Hit, LoomBlock as serde-deserializable structs in src/frontend/api/loom.rs (matching the backend JSON schema from storage/loom.rs).\n3. Implement async fn loom_search_v2(base_url, workspace_id, body) -> Result<LoomSearchV2Response, String> using reqwest (or the shell's existing HTTP client). POST to {base_url}/workspaces/{workspace_id}/loom/search-v2.\n4. Implement async fn create_block_view(base_url, workspace_id, body) -> Result<serde_json::Value, String>. POST to {base_url}/workspaces/{workspace_id}/loom/views.\n5. In the panel show() fn: render query TextEdit + Search button + Save-as-view button in a horizontal strip.\n6. Render status line.\n7. Render facet buttons if response.content_type_facets non-empty (sort by value desc).\n8. Render egui::ScrollArea with result rows. For each hit parse highlight: split on '<mark>' and '</mark>' tokens, build a LayoutJob with alternating normal/highlighted TextFormat runs.\n9. Handle AccessKit: assign author_ids to query input (id: 'loom-search-v2.query'), search button ('loom-search-v2.search'), save-view button ('loom-search-v2.save-view'), each facet button ('loom-search-v2.facet.{content_type}'), each result row ('loom-search-v2.result.{block_id}'), status label ('loom-search-v2.status'). Use egui AccessKit integration (egui::Id from stable strings) and set role + action where egui_kittest requires.\n10. Async dispatch: egui is single-threaded; use the shell's existing async bridge (tokio one-shot or channel pattern used by other panels) to fire the search and receive the response on the next frame. Do not block the UI thread.\n\nDependencies/unblock conditions: requires the WP-011 shell panel infrastructure to be loadable (the shell must support a panel enum that can host this panel). The backend /loom/search-v2 endpoint is already live (KERNEL-009 MT-264). No new backend work needed. This MT is self-contained and has no MT-level depends_on within WP-012.\n\nRisk if missed: Loom Search v2 is a core search surface and a dependency for the interconnection proofs (MT-030, MT-044). Missing it means the quick-switcher and parity proof cannot demonstrate the semantic search modality.",
+    "allowed_paths": [
+      "src/frontend/panels/loom_search_v2.rs",
+      "src/frontend/panels/mod.rs",
+      "src/frontend/shell.rs",
+      "src/frontend/api/loom.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "LoomSearchV2PanelState struct exists in src/frontend/panels/loom_search_v2.rs with fields: query, active_content_type, response (Option<LoomSearchV2Response>), loading, error, view_status.",
+      "Typing a query and pressing Enter (or the Search button) fires a real HTTP POST to /workspaces/{workspace_id}/loom/search-v2 against a running handshake_core instance and populates the response.",
+      "Status line shows '{N} results (semantic on)' or '{N} results (keyword/fuzzy only)' based on semantic_available flag.",
+      "Content-type facet buttons appear after a result with multiple content types; clicking a facet re-runs the search with that content_type filter; clicking the active facet again clears it.",
+      "Each result row renders: block.title (or block_id fallback), content_type badge, score to 3 decimal places, highlight with <mark> segments rendered in a distinct color (not as raw HTML tags).",
+      "Clicking a result row invokes the on_open_block callback with the correct block_id.",
+      "Save as view button is disabled with no results and enabled with results; clicking it POSTs to /workspaces/{workspace_id}/loom/views and displays the returned block_id in the view_status label.",
+      "All interactive widgets have stable AccessKit author_ids matching the naming contract in implementation_notes.",
+      "The panel is registered in the shell's panel enum and can be opened/closed without crashing.",
+      "cargo build --bin handshake_native (or equivalent native target) succeeds with no new warnings attributable to this MT."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_frontend loom_search_v2 -- --nocapture: a real-PG integration test that spawns handshake_core, creates a workspace, seeds at least 3 LoomBlocks (different content_types), calls POST /workspaces/{id}/loom/search-v2 with a query matching the seeded blocks, and asserts: hits.len() >= 1, each hit has block.block_id, score > 0.0, highlight is a non-empty string, content_type_facets has entries. (Test uses the same fixture pattern as mt250_workspace_search_fixture.rs.)",
+      "cargo test -p handshake_frontend loom_search_v2_save_view -- --nocapture: seeds blocks, runs search, calls POST /workspaces/{id}/loom/views with the save-as-view body, asserts HTTP 200 and response contains block.block_id.",
+      "egui_kittest snapshot test: render LoomSearchV2Panel with a mock response (inject 3 hits, 2 facets), assert AccessKit tree contains nodes with author_ids 'loom-search-v2.query', 'loom-search-v2.search', 'loom-search-v2.save-view', 'loom-search-v2.facet.note', 'loom-search-v2.result.{block_id_0}'.",
+      "Screenshot proof: a screenshot taken via egui_kittest or a headless render showing the panel with the query bar, at least 2 facet buttons, and 3 result rows with visible highlight coloring (mark segments visible)."
+    ],
+    "implementation_notes": [
+      "Highlight parsing: split the highlight string on the literal tokens '<mark>' and '</mark>'. Build an egui::text::LayoutJob alternating between TextFormat::default() and a TextFormat with background: Color32::from_rgb(255, 214, 0) for marked segments. Do not use dangerouslySetInnerHTML or raw HTML; egui renders layout jobs natively.",
+      "Async pattern: use tokio::sync::oneshot or a std::sync::mpsc channel stored in the panel state. On search trigger, spawn a tokio task (tokio::spawn) that makes the HTTP call and sends the result back through the channel. On each frame, poll the receiver (try_recv) and update state if a message arrived. This is the standard egui async pattern.",
+      "HTTP client: use reqwest::Client (blocking or async). The shell likely already has a shared reqwest::Client; reuse it. If not, create one per panel state (acceptable overhead for a search panel).",
+      "Facet sort: iterate response.content_type_facets (BTreeMap<String,i64>) and collect into a Vec, sort by value descending, then count ascending for ties.",
+      "Save-as-view body: POST {kind: 'table', query: active_content_type.map(|ct| json!({content_type: ct})).unwrap_or(json!({})), columns: ['title','content_type','updated']} with a block_patch {title: format!('Search: {}', query.trim())} as per the React reference (LoomSearchV2Panel.tsx lines 111-121). Confirm the /loom/views endpoint signature from api/loom.rs.",
+      "AccessKit IDs: use egui::Id::new('loom-search-v2.query') etc. For result rows use egui::Id::new(format!('loom-search-v2.result.{}', hit.block.block_id)). Register these with egui's AccessKit writer so egui_kittest can assert them.",
+      "Panel registration: add a LoomSearchV2 variant to the shell PanelKind enum (src/frontend/shell.rs). In the panel dispatcher match arm, call loom_search_v2::show(ui, state, callbacks). The panel is typically opened from the sidebar search icon or a menu item.",
+      "LoomBlock struct in Rust (src/frontend/api/loom.rs): { block_id: String, workspace_id: String, content_type: String, title: Option<String>, ... } matching the backend storage/loom.rs LoomBlock. Only deserialize the fields needed for display.",
+      "graph_boost default: always send 1.0 as the React reference does (LoomSearchV2Panel.tsx line 89). limit: 25."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomSearchV2Panel.tsx (primary reference - full feature set)",
+      "app/src/lib/loom_search_query.ts (operator parser - implement equivalent Rust fn if needed for future operator syntax; not required for MT-028 baseline)",
+      "app/src/lib/loom_search_open_target.ts (open target resolution - the on_open_block callback in this MT covers the loom_block case; full target dispatch is MT-030)"
+    ],
+    "binds_backend_api": [
+      "POST /workspaces/{workspace_id}/loom/search-v2 - body: LoomSearchV2Body {query, content_type?, tag_ids?, graph_boost, limit, offset?} - response: LoomSearchV2Response {hits, content_type_facets, semantic_available, total} (src/backend/handshake_core/src/api/loom.rs:2679, storage/loom.rs:637-696)",
+      "POST /workspaces/{workspace_id}/loom/views - body: {kind, query, columns} + block patch {title} - used for save-as-view (src/backend/handshake_core/src/api/loom.rs, list routes section for /loom/views)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Highlight rendering: if <mark> parsing is skipped or deferred, the panel will show raw HTML tags instead of colored text, breaking the fidelity proof.",
+      "Async blocking: if the HTTP call is made synchronously on the UI thread, egui will freeze during search, violating HBR-QUIET.",
+      "Save-as-view endpoint path: the /loom/views route may differ from the React createBlockView path; if the model guesses the wrong route, the feature will fail silently.",
+      "Facet toggle state desync: if active_content_type is not cleared when the query changes, stale facet filters will silently narrow search results.",
+      "AccessKit IDs missing: if author_ids are not registered, swarm agents cannot drive the panel and the HBR-SWARM proof fails.",
+      "LoomSearchV2Response struct mismatch: if the Rust struct's field names don't match the snake_case JSON keys from the backend, serde will silently produce empty/null fields.",
+      "semantic_available false path: if the panel doesn't handle the false case, it may show '(semantic on)' even when the backend is in keyword-only mode, misleading the operator.",
+      "No workspace selected: if workspace_id is None and the search is triggered, the backend will 404; the panel must guard and show an error rather than crashing."
+    ],
+    "minimum_controls": [
+      "Highlight parser must be tested: at minimum a unit test asserting that '<mark>foo</mark> bar <mark>baz</mark>' produces 3 segments with the middle and last marked.",
+      "Async proof: the integration test must not block; confirm the UI loop remains responsive during the HTTP call (egui_kittest frame advance with pending future).",
+      "Save-as-view route: verify the exact route by reading api/loom.rs before coding; do not guess.",
+      "Facet clear on new query: state machine must reset active_content_type = None whenever query changes.",
+      "All 6 AccessKit node IDs listed in implementation_notes must appear in the egui_kittest snapshot test.",
+      "Test the semantic_available=false path: seed a workspace without pgvector and assert the status line shows '(keyword/fuzzy only)'.",
+      "Guard no-workspace case: if workspace_id is None, show error label 'No workspace selected' and return early without making an HTTP call."
+    ]
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-025",
+  "title": "E3-MT025-WikiPageProjectionOverlay",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-025.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a wiki page projection panel in the native egui frontend that ports the React LoomWikiPagePanel (MT-184/185 parity). The panel loads a LoomWikiProjection from the real PostgreSQL backend, renders its content as read-only rendered markdown in a scroll area, and provides an 'Edit overlay' mode that allows inline editing of the rendered_content field and persists changes back via the backend wiki API. Expected diff shape: one new file src/frontend/loom/wiki_page_panel.rs containing LoomWikiPagePanel widget, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/wiki_page_panel.rs — LoomWikiPagePanel widget\n- EDIT src/frontend/loom/mod.rs — pub mod wiki_page_panel; + re-export\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/LoomWikiPagePanel.tsx — loads via getLoomWikiProjection(workspaceId, projectionId) (api.ts line 1544), renders title, page_type badge, projection metadata (projection_id, workspace_id, rebuild_status, source_block_ids.length), and rendered_content. The React component is read-only; this MT adds the editable overlay on top.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/wiki/{projection_id} — getLoomWikiProjection; returns LoomWikiProjection { projection_id, workspace_id, title, source_block_ids[], rendered_content, staleness_hash, rebuild_status, page_type, page_links, created_at, updated_at, staleness_verdict } (api.ts line 1144-1161)\n  - PATCH /workspaces/{workspace_id}/loom/wiki/{projection_id} — update rendered_content or trigger rebuild (if this endpoint exists; fall back to PUT if PATCH not available — document the choice)\n  - POST /workspaces/{workspace_id}/loom/wiki/{projection_id}/rebuild — trigger a projection rebuild (if available; mark as OPTIONAL in implementation; show rebuild_status)\n\nStep-by-step implementation notes:\n1. Define LoomWikiPagePanel { workspace_id: String, projection_id: String, page: Option<LoomWikiProjection>, edit_mode: bool, edit_buffer: String, loading: bool, error: Option<String>, saving: bool, save_error: Option<String> }.\n2. On init (or when projection_id changes), call GET /workspaces/{id}/loom/wiki/{projection_id} and populate the page field. Store rendered_content in edit_buffer (pre-load for edit mode).\n3. Read-only view (edit_mode=false):\n   a. Render title as a large bold label (egui::RichText::new(title).heading()).\n   b. Render a row of metadata chips: page_type badge (colored chip), rebuild_status badge (green=ok, amber=stale, red=error), source count '(N sources)'.\n   c. Render rendered_content inside a ScrollArea as plain text (egui::Label). For now, do NOT attempt full markdown rendering — show the raw content string. A future MT can add markdown rendering. Label the scroll area 'wiki.content.{projection_id}'.\n   d. Show staleness_verdict as a subtle footer line if it indicates the projection is stale.\n   e. 'Edit' button at top-right (author_id='wiki.edit.{projection_id}'): switches to edit_mode=true, copies rendered_content into edit_buffer.\n   f. Optional 'Rebuild' button (author_id='wiki.rebuild.{projection_id}'): fires POST .../rebuild if endpoint exists; shows 'rebuilding...' in rebuild_status until next reload.\n4. Edit overlay (edit_mode=true):\n   a. Show a full-height egui::TextEdit::multiline bound to edit_buffer. Author_id='wiki.edit-area.{projection_id}'.\n   b. Toolbar at top: 'Save' button (author_id='wiki.save.{projection_id}') + 'Cancel' button (author_id='wiki.cancel.{projection_id}').\n   c. 'Save': call PATCH (or PUT) /workspaces/{id}/loom/wiki/{projection_id} with { rendered_content: edit_buffer }. On success, reload the projection (GET) and exit edit_mode. On error, show save_error inline without discarding the edit_buffer.\n   d. 'Cancel': discard edit_buffer, exit edit_mode without a save.\n5. AccessKit: title label 'wiki.title.{projection_id}', content area 'wiki.content.{projection_id}' role=Document, edit button 'wiki.edit.{projection_id}', edit area 'wiki.edit-area.{projection_id}' role=MultiLineTextInput, save 'wiki.save.{projection_id}', cancel 'wiki.cancel.{projection_id}'.\n6. Loading state: show spinner + 'Loading wiki page...' while loading=true. Error state: show error text + Retry button.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. No dependency on MT-022, MT-023, MT-024.\n\nRisk if missed: Wiki projection surfaces (MT-184/185 parity) are unavailable in the native frontend. Knowledge synthesis pages cannot be read or edited.",
+    "allowed_paths": [
+      "src/frontend/loom/wiki_page_panel.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: The panel loads a real LoomWikiProjection from PG (seeded via backend) and displays the title, page_type badge, rebuild_status badge, source count, and rendered_content text.",
+      "AC2: Clicking the 'Edit' button switches to edit overlay showing a multiline text editor pre-filled with the current rendered_content.",
+      "AC3: Editing the content and clicking 'Save' persists the change to the backend via PATCH/PUT /loom/wiki/{projection_id}, then reloads and displays the updated content in read-only view.",
+      "AC4: Clicking 'Cancel' in edit mode discards the edits and returns to read-only view without a backend call.",
+      "AC5: If the save call fails (simulated 5xx), the error is shown inline below the toolbar and the edit_buffer is preserved (not lost).",
+      "AC6: If projection has a stale staleness_verdict, a 'Stale' notice appears in the footer of the read-only view.",
+      "AC7: AccessKit tree contains 'wiki.title.{projection_id}', 'wiki.content.{projection_id}', 'wiki.edit.{projection_id}', 'wiki.edit-area.{projection_id}', 'wiki.save.{projection_id}', 'wiki.cancel.{projection_id}'.",
+      "AC8: Loading state shows spinner; error state shows error + Retry without panic."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::wiki_page_panel -- --nocapture passes unit tests for edit_buffer pre-fill and cancel-no-mutation logic.",
+      "PROOF2: kittest test with a real PG wiki projection seeded: assert 'wiki.title.*' label present in AccessKit tree and rendered_content text is non-empty.",
+      "PROOF3: kittest edit-save test: click 'wiki.edit.proj-001', type 'NEW CONTENT' into 'wiki.edit-area.proj-001', click 'wiki.save.proj-001', assert PATCH/PUT request fired (Tauri intercept), assert rendered_content updated in read-only view.",
+      "PROOF4: kittest cancel test: click 'wiki.edit.proj-001', type 'THROWAWAY', click 'wiki.cancel.proj-001', assert no PATCH/PUT request fired and panel returns to read-only showing original content.",
+      "PROOF5: kittest save-error test: mock backend to return 500 on PATCH, click Save, assert save_error shown and 'wiki.edit-area.proj-001' still present in AccessKit tree (edit mode not exited)."
+    ],
+    "implementation_notes": [
+      "Rendered content is plain text for now — do not implement markdown rendering in this MT. Use egui::Label with wrap=true inside a ScrollArea.",
+      "PATCH vs PUT: attempt PATCH /loom/wiki/{projection_id} first. If the backend returns 405 Method Not Allowed, fall back to PUT. Detect and document the chosen method in a comment in the source file.",
+      "Rebuild button is OPTIONAL: only render it if the rebuild endpoint responds to a HEAD request (or simply include it and let the handler surface a 404 gracefully). Do not block AC criteria on rebuild.",
+      "edit_buffer should be initialized from page.rendered_content at the moment the Edit button is clicked, not at load time, so it always contains the latest content.",
+      "staleness_verdict: check if it is a non-null, non-empty value to decide whether to show the stale notice. The React type is 'unknown'; treat any non-null/non-false value as stale.",
+      "source_count: show as '(N sources)' where N = page.source_block_ids.len(). Render as a muted smaller label next to the metadata chips.",
+      "Do not auto-save on every keystroke; save only on explicit Save button click."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomWikiPagePanel.tsx — entire component (read-only portion): title, page_type badge, rebuild_status, source count, rendered_content",
+      "getLoomWikiProjection: app/src/lib/api.ts line 1544",
+      "LoomWikiProjection type: app/src/lib/api.ts lines 1144-1161"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/wiki/{projection_id} — load wiki projection",
+      "PATCH /workspaces/{workspace_id}/loom/wiki/{projection_id} — update rendered_content (fallback: PUT)",
+      "POST /workspaces/{workspace_id}/loom/wiki/{projection_id}/rebuild — trigger rebuild (OPTIONAL)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: The PATCH endpoint for wiki projections may not exist in the current backend, causing Save to fail silently or with a confusing 404. Mitigation: probe the endpoint in integration tests; if absent, show a clearly labeled 'Read-only projection' notice and disable Edit button.",
+      "RISK-2: rendered_content could be very large (>100KB for a long wiki page), causing the TextEdit multiline to lag in egui. Mitigation: display only the first 50KB in the TextEdit with a notice; load full content on explicit 'Load full' button.",
+      "RISK-3: Concurrent edits from another source (e.g. backend rebuild) overwrite the user's saved content. Mitigation: compare staleness_hash before save; on hash mismatch show a conflict warning and refuse to overwrite.",
+      "RISK-4: edit_buffer not initialized from latest content if page reloads while in edit mode. Mitigation: on page reload while edit_mode=true, show a conflict banner; do not overwrite edit_buffer.",
+      "RISK-5: staleness_verdict is typed as 'unknown' in TypeScript / serde_json::Value in Rust; null check may behave differently. Mitigation: treat any JSON non-null value (including empty object {}) as stale in the display logic."
+    ],
+    "minimum_controls": [
+      "MC-1: Probe PATCH endpoint; disable Edit if absent. Covered by AC2 (Edit button present only if endpoint works).",
+      "MC-2: 50KB content cap in TextEdit with 'Load full' button. Covered by AC1 (rendered_content text shown).",
+      "MC-3: staleness_hash comparison before save. Covered by AC3 (save succeeds) and PROOF5 (error surface).",
+      "MC-4: Conflict banner if page reloads during edit. Covered by AC5 (error inline, edit not lost)."
+    ]
+  }
+}

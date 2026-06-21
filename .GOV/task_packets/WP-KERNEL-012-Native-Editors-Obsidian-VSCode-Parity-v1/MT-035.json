@@ -1,0 +1,105 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-035",
+  "title": "E5-MT-035-UnifiedUndoScope",
+  "group": "E5 Interconnection / melt-together",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-035.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-031"],
+    "blocks": ["MT-044", "MT-046"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: define and enforce a unified undo scope policy across all editor panes (code, rich-text, graph, canvas), integrating the undo stack with the InteractionBus (MT-031). Handshake's rule: Ctrl+Z always undoes the most recent action in the focused pane; cross-pane actions (e.g. route-to-stage, embed-from-atelier) are recorded as atomic operations in the cross-pane undo stack. Expected diff: (a) a new UndoStack type in src/frontend/shared/undo_stack.rs that holds undo/redo rings per pane and a cross-pane ring; (b) each pane registers its local undo/redo with the bus; (c) the bus dispatches Ctrl+Z/Ctrl+Y to the focused pane's local undo first, falling back to the cross-pane ring; (d) unit tests proving undo/redo round-trips within and across panes.\n\nThe key policy decisions this MT must encode:\n  POLICY-1 (local-first): Ctrl+Z in a focused pane undoes the most recent action IN THAT PANE, not the most recent action globally. This matches VS Code and Obsidian behavior.\n  POLICY-2 (cross-pane ring): actions that touch multiple panes atomically (embed-from-atelier in MT-033, route-to-stage in MT-033, code-ref insertion in MT-034) are pushed to a cross-pane undo ring. A dedicated 'Undo Cross-Pane' command (Ctrl+Shift+Z) undoes the most recent cross-pane action.\n  POLICY-3 (persistence scope): undo history is session-scoped only; it is NOT persisted to the backend. On app restart, undo history is empty. Document this explicitly in code comments.\n  POLICY-4 (canvas undo): canvas node moves/creations that call the backend immediately (PUT /canvas/{id}/graph) are NOT in-memory undoable via this stack alone — they require a compensating backend call (re-PUT the previous graph). The cross-pane ring records the compensating call as the undo action.\n  POLICY-5 (undo stack cap): local pane undo rings are capped at 200 operations; cross-pane ring is capped at 50 operations. Exceeding the cap silently drops the oldest entry.\n\nFiles to CREATE:\n  - src/frontend/shared/undo_stack.rs  — defines:\n      UndoAction { description: String, undo_fn: Arc<dyn Fn() -> UndoResult + Send + Sync>, redo_fn: Arc<dyn Fn() -> UndoResult + Send + Sync> }\n      UndoResult { ok: bool, error: Option<String> }\n      PaneUndoRing { pane_id: PaneId, ring: VecDeque<UndoAction>, redo_ring: VecDeque<UndoAction>, cap: usize }\n      CrossPaneUndoRing { ring: VecDeque<UndoAction>, redo_ring: VecDeque<UndoAction>, cap: usize }\n      UnifiedUndoScope { pane_rings: HashMap<PaneId, PaneUndoRing>, cross_pane_ring: CrossPaneUndoRing }\n      Methods: push_local(pane_id, action), undo_local(pane_id) -> Option<UndoResult>, redo_local(pane_id) -> Option<UndoResult>, push_cross_pane(action), undo_cross_pane() -> Option<UndoResult>, redo_cross_pane() -> Option<UndoResult>.\n  - src/frontend/tests/undo_scope_tests.rs  — unit and integration tests.\n\nFiles to EDIT:\n  - src/frontend/shared/mod.rs  — add `pub mod undo_stack;`\n  - src/frontend/shared/interaction_bus.rs  — add UnifiedUndoScope as a field of InteractionBus. Add methods: bus.push_undo_local(pane_id, action), bus.undo(pane_id) (dispatches to local ring first), bus.undo_cross_pane(), bus.redo(pane_id). Register 'undo' command (Ctrl+Z) and 'redo' command (Ctrl+Y) on the command bus. Register 'undo-cross-pane' command (Ctrl+Shift+Z).\n  - src/frontend/panes/code_editor.rs  — replace any existing per-pane undo state with bus.push_undo_local calls. Each text edit (character insert, delete, paste) pushes a UndoAction where undo_fn restores the previous rope state.\n  - src/frontend/panes/rich_text_editor.rs  — same: each block mutation (insert node, delete node, update attrs) pushes to bus.push_undo_local. The undo_fn restores the previous document tree snapshot.\n  - src/frontend/panes/graph_pane.rs  — node moves and tag changes push to bus.push_undo_local.\n  - src/frontend/panes/canvas_pane.rs  — canvas graph mutations push to bus.push_cross_pane (because they call the backend); undo_fn re-PUTs the previous canvas graph.\n  - src/frontend/panes/stage_pane.rs  — route-to-stage pushes to bus.push_cross_pane; undo_fn reverts StageContent to previous value.\n\nStep-by-step implementation notes:\n  1. UndoAction closures capture the minimum state needed. For code/rich-text local undo: capture a clone of the rope/doc tree snapshot BEFORE the edit. undo_fn replaces current rope/doc with snapshot; redo_fn re-applies the edit.\n  2. Rope snapshot cloning (ropey::Rope) is O(1) due to ropey's arc-based persistent data structure — safe to clone per edit.\n  3. Rich-text doc snapshot: clone the JSONContent tree (serde_json::Value). For large documents this is O(n); apply a debounce: group edits within the same 500ms window into a single undo entry to avoid O(n) per keystroke.\n  4. Canvas undo: the undo_fn for a canvas node creation calls PUT /canvas/{canvas_id}/graph with the previous nodes list (minus the created node). This is a compensating backend call. It must be async; in the UndoAction, undo_fn should be an async fn wrapped in Arc<dyn Fn() -> BoxFuture<UndoResult>>. Alternatively, use a channel to dispatch the compensating call to the async runtime.\n  5. Keybind dispatch: in bus.dispatch_keybind, match Ctrl+Z -> undo(focused_pane_id), Ctrl+Y -> redo(focused_pane_id), Ctrl+Shift+Z -> undo_cross_pane(). Each call returns Option<UndoResult>; if Some(result) and !result.ok, log the error to the Flight Recorder (MT-036).\n  6. Undo menu indicator: in the code pane and rich-text pane title bar, show a small 'Undo ({n})' indicator using the count of items in the local ring. AccessKit: author_id=\"undo-count-{pane_id}\", role=StaticText.\n  7. Tests: (a) unit: push 3 actions to a PaneUndoRing, undo 3 times, assert all undo_fns called in reverse order; (b) unit: redo after undo restores state; (c) unit: pushing beyond cap=5 drops the oldest; (d) unit: cross-pane ring undo calls undo_fn of last cross-pane action; (e) integration (real PG): create rich doc, push an undo action that saves a previous version, call undo, assert the doc reverts (use saveRichDocument to a previous content_json); (f) kittest: simulate Ctrl+Z, assert bus.undo called for focused pane.\n\nDependencies / unblock conditions:\n  - MT-031 (InteractionBus) must be merged; UnifiedUndoScope is embedded in InteractionBus.\n  - ropey crate must already be in Cargo.toml (from MT-001 code editor).\n  - Canvas undo requires async capability in UndoAction closures; ensure the app's async runtime (tokio) is accessible from within the undo_fn.\n\nRisk if missed: without a unified undo policy, each pane implements its own ad-hoc undo (or none), users experience unexpected behavior (Ctrl+Z in one pane undoes another, or cross-pane edits are not undoable at all), and the parity proof suite cannot assert 'one unified undo scope' as required by the interconnection contract.",
+    "allowed_paths": [
+      "src/frontend/shared/undo_stack.rs",
+      "src/frontend/shared/mod.rs",
+      "src/frontend/shared/interaction_bus.rs",
+      "src/frontend/panes/code_editor.rs",
+      "src/frontend/panes/rich_text_editor.rs",
+      "src/frontend/panes/graph_pane.rs",
+      "src/frontend/panes/canvas_pane.rs",
+      "src/frontend/panes/stage_pane.rs",
+      "src/frontend/tests/undo_scope_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "POLICY-1 (local-first): Ctrl+Z in the code pane undoes the last code edit and does NOT affect the rich-text pane's document state — proven by kittest: make edit in code pane, make edit in rich-text pane, focus code pane, press Ctrl+Z, assert only code pane reverted.",
+      "POLICY-2 (cross-pane ring): after an embed-from-atelier action (MT-033) or route-to-stage action, pressing Ctrl+Shift+Z undoes the cross-pane action — proven by kittest: trigger cross-pane action, press Ctrl+Shift+Z, assert action reverted.",
+      "POLICY-3 (persistence scope): on app restart, undo history is empty — proven by unit test: create UndoStack, serialize/deserialize, assert all rings are empty (the type must NOT implement Serialize to prevent accidental persistence).",
+      "POLICY-4 (canvas undo): undoing a canvas node creation via Ctrl+Shift+Z calls the compensating PUT /canvas/{id}/graph and the node disappears from the next canvas reload — proven by integration test against real PG.",
+      "POLICY-5 (cap): pushing 201 actions to a capped-at-200 ring results in 200 entries, not 201 — proven by unit test.",
+      "Undo count indicator shows correct count in pane title bar after pushes and undos — proven by kittest: push 3 actions, assert count=3, undo once, assert count=2.",
+      "cargo test -p handshake_native_frontend undo_scope -- --nocapture passes with no failures."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_native_frontend undo_scope -- --nocapture  =>  all PASS",
+      "kittest: make edit in code pane, make edit in rich-text pane, Ctrl+Z in code pane, assert only code pane reverted",
+      "kittest: trigger cross-pane embed action, Ctrl+Shift+Z, assert cross-pane action reverted",
+      "integration test (real PG): canvas node creation, Ctrl+Shift+Z undo, reload canvas, assert node absent",
+      "unit test: push 201 to cap-200 ring, assert len==200"
+    ],
+    "implementation_notes": [
+      "ropey::Rope clones are O(1) due to arc-based persistent structure — safe to clone for every code edit undo snapshot. Rich-text JSONContent clones are O(n) — apply the 500ms batching window.",
+      "For canvas async undo: define UndoAction.undo_async_fn: Option<Arc<dyn Fn() -> Pin<Box<dyn Future<Output=UndoResult> + Send>> + Send + Sync>>. Local pane undos use the sync undo_fn; canvas undo uses undo_async_fn. The bus dispatches sync and async variants separately.",
+      "The React codebase has no shared undo architecture to port from (each surface used its own). This MT is a greenfield design. The VS Code undo model (per-editor undo ring, no cross-editor) and Obsidian's per-note undo model are the behavioral references.",
+      "Do NOT attempt to implement CRDT-based undo here; CRDT is handled by the CRDT backend (MT-038/MT-039). This undo stack is purely the in-memory UI-layer undo for immediate local feedback."
+    ],
+    "ports_from_react": [
+      "No direct React parity source — the React version has no shared undo implementation. VS Code undo model (per-editor ring) and Obsidian per-note undo are behavioral references."
+    ],
+    "binds_backend_api": [
+      "PUT /canvas/{canvas_id}/graph  =>  api.ts updateCanvasGraph  =>  used in canvas undo compensating call to restore previous graph state",
+      "POST /knowledge/documents/{doc_id}  =>  api.ts saveRichDocument  =>  used in rich-text undo compensating call to restore previous content_json (only for cross-pane undo; local undo is in-memory only)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-QUIET"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Rich-text doc snapshot per keystroke at O(n) causes lag on large documents if the 500ms batching window is not implemented or if serde_json cloning is unexpectedly slow.",
+      "Canvas async undo_fn holding a stale copy of the previous canvas graph: if the user makes further canvas edits before the undo fires, the compensating PUT may clobber the intermediate edits.",
+      "UndoAction closures capturing Arc references to pane state create retain cycles if pane state is also held by the InteractionBus; must use Weak references for back-references.",
+      "Ctrl+Z keybind conflict with text-widget default undo in egui: if egui processes Ctrl+Z for its own text fields before the bus, the bus undo never fires in text-input contexts.",
+      "Cross-pane undo ring may interleave with local pane undo if the user alternates pane actions rapidly, confusing the undo order visible to the user."
+    ],
+    "minimum_controls": [
+      "Implement and unit-test the 500ms batching window for rich-text undo; assert that rapid keystrokes within 500ms produce one undo entry, not N.",
+      "Canvas async undo: record the graph snapshot at the time of the action creation, not at the time of undo invocation. Store the snapshot in the UndoAction closure.",
+      "Use Weak<Mutex<PaneState>> in UndoAction closures; upgrade to Arc only during undo invocation; skip silently if the pane was dropped.",
+      "In bus.dispatch_keybind for Ctrl+Z: call ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) before delegating to undo, so egui's text-widget handler does not also fire.",
+      "Expose a visual undo history inspector (accessible via command palette: 'Show Undo History') showing the last 10 local + cross-pane entries; this makes the policy testable by humans and swarm agents."
+    ]
+  }
+}

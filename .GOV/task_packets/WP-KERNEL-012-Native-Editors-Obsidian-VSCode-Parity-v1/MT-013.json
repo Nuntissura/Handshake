@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-013",
+  "title": "E2-MT013-FormattingBlocks",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": ["MT-016"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the full set of block-level formatting commands and the editor toolbar, achieving parity with the Tiptap toolbar implemented in the React reference at app/src/components/RichTextEditor.tsx (MT-169) and app/src/lib/editor/editor_commands.ts. This MT delivers: (1) a FormattingCommands module with typed Rust functions for every formatting action, (2) a toolbar egui widget row with buttons for every command, (3) keyboard shortcuts wired to the same commands.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/formatting/mod.rs\n- src/frontend/rich_editor/formatting/commands.rs (all formatting command fns)\n- src/frontend/rich_editor/formatting/toolbar.rs (egui toolbar widget)\n- src/frontend/rich_editor/formatting/keymap.rs (keyboard shortcut bindings)\n- Extend src/frontend/rich_editor/renderer/rich_editor_widget.rs to host the toolbar above the content area.\n\nFORMATTING COMMANDS to implement (must match React catalog in editor_commands.ts categories 'format', 'block', 'list', 'table', 'tableEdit'):\n  INLINE MARKS: toggle_bold, toggle_italic, toggle_underline, toggle_strike, toggle_code.\n  BLOCK TYPES: set_paragraph, set_heading(level: u8 [1-3]), set_blockquote, set_code_block(language: Option<String>), insert_horizontal_rule.\n  LISTS: toggle_bullet_list, toggle_ordered_list, toggle_task_list, sink_list_item (indent), lift_list_item (dedent).\n  TABLE: insert_table(rows: u8, cols: u8), add_row_before, add_row_after, delete_row, add_col_before, add_col_after, delete_col, delete_table, toggle_header_row.\n  HISTORY: undo (delegate to MT-011 UndoManager), redo.\n\nEach command function signature: fn command_name(doc: &mut DocModel, history: &mut UndoManager, selection: &Selection) -> Result<(), CommandError>. Internally it builds a Transaction, calls apply_transaction, pushes to UndoManager on success.\n\nTOOLBAR WIDGET (toolbar.rs):\n- Single horizontal egui row of icon buttons grouped by category (history | format | block | list | table).\n- Buttons use egui::Button with a text glyph label (e.g. 'B', 'I', 'U', 'S', '`', 'H1', 'H2', 'H3', '\"', '</>', '—', '•', '1.', '☑', '→', '←', 'Table') as text until icon assets are available; do NOT block on icons.\n- Active state (e.g. cursor inside bold text): button background changes to the egui selection color. Compute active state by inspecting marks at the cursor position in the DocModel.\n- Overflow: if the toolbar width < total button width, render a '...' overflow button that opens an egui popup listing the remaining commands.\n- AccessKit: each toolbar button gets author_id = format!('toolbar-btn-{}', command_id) with Role::Button and Actions::Click.\n\nKEYBOARD SHORTCUTS (keymap.rs) - must match React editor_keymap.ts bindings:\n- Ctrl+B -> toggle_bold\n- Ctrl+I -> toggle_italic\n- Ctrl+U -> toggle_underline\n- Ctrl+Shift+X -> toggle_strike\n- Ctrl+E -> toggle_code\n- Ctrl+Z -> undo\n- Ctrl+Shift+Z -> redo\n- Ctrl+Shift+7 -> toggle_ordered_list\n- Ctrl+Shift+8 -> toggle_bullet_list\n- Tab (inside list) -> sink_list_item\n- Shift+Tab (inside list) -> lift_list_item\n- Ctrl+Alt+1/2/3 -> set_heading(1/2/3)\n- Ctrl+Alt+0 -> set_paragraph\n- Ctrl+Shift+B -> set_blockquote\n\nSTEP-BY-STEP:\n1. In commands.rs, implement each command as a fn that builds a Transaction using the MT-011 Step variants. For toggle commands, check the current mark/node state first (active check) and flip.\n2. For toggle_task_list, list items get an attrs field 'checked': false; toggle_task_item_checked sets it to true/false.\n3. For table commands (add_row_after etc.), build InsertNode / DeleteNode Steps targeting the correct table_row / table_cell path in the DocModel.\n4. In toolbar.rs, impl egui::Widget for EditorToolbar. For each command, egui::Button::new(label).selected(active).ui(ui): on click call the command fn.\n5. In keymap.rs, a match on (egui::Modifiers, egui::Key) returns Option<FormattingCommand>; called from input_handler.rs before falling through to text insertion.\n6. Extend rich_editor_widget.rs: place toolbar above the ScrollArea content area using ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); }).\n7. Write cargo tests: toggle_bold on a selection adds bold mark; toggle_bold again removes it. set_heading(2) changes node kind to Heading(2). insert_table(2,3) produces a table with 2 rows and 3 cols each. undo after toggle_bold restores the pre-bold state.\n\nDEPENDENCIES: MT-011 (DocModel + Transaction + UndoManager), MT-012 (egui widget host and input_handler dispatch point).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/formatting/**",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/renderer/input_handler.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Toolbar renders as a horizontal row above the content area in a kittest screenshot; all category groups (history, format, block, list, table) are visible.",
+      "Clicking the Bold toolbar button on selected text adds the bold mark; clicking again removes it (verified by cargo test inspecting the DocModel).",
+      "Ctrl+B keyboard shortcut toggles bold mark on selected text (verified by cargo test feeding key event to input_handler).",
+      "Ctrl+Z undoes the last formatting command and restores the previous DocModel state (cargo test).",
+      "set_heading(1) changes the current paragraph node kind to Heading(1); the toolbar H1 button shows as active (selected state) when cursor is inside an h1 (cargo test).",
+      "insert_table(2,3) inserts a table node with exactly 2 table_row children each containing 3 table_cell children (cargo test).",
+      "delete_row removes one table_row; cargo test asserts remaining row count.",
+      "toggle_ordered_list on a paragraph converts it to a list_item inside an ordered_list; toggle again converts back to paragraph (cargo test).",
+      "Tab inside a list item calls sink_list_item and increases indent level; Shift+Tab calls lift_list_item (cargo test).",
+      "AccessKit: 'toolbar-btn-toggle_bold' button with Role::Button is present in the egui kittest accessibility tree.",
+      "Overflow button renders when toolbar width is set to a small value in kittest (simulated narrow window); the '...' button appears.",
+      "All cargo tests for the formatting module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- formatting outputs 'test result: ok' with test count >= 8.",
+      "kittest screenshot test saves tests/native_editors/screenshots/mt013_toolbar.png showing the toolbar row.",
+      "cargo test -- formatting::commands::test_toggle_bold_idempotent passes.",
+      "cargo test -- formatting::commands::test_insert_table_structure passes."
+    ],
+    "implementation_notes": [
+      "The active state check for inline marks (is_bold_active etc.) must inspect all marks on every TextLeaf that overlaps the current Selection range, not just the leaf at the caret. If ANY leaf in the range has the mark, the toggle removes it; if NONE do, it adds it.",
+      "set_heading and set_paragraph are node-kind replacement commands; implement via a ReplaceNode step in MT-011 transform.rs if that step type exists, or via DeleteNode + InsertNode pair. Ensure attrs (heading level) are carried correctly.",
+      "Keyboard shortcut dispatch in input_handler.rs: check the keymap BEFORE processing as text insertion. Use egui's Key enum; note that Ctrl+Shift+7 means Key::Num7 with modifiers.ctrl && modifiers.shift.",
+      "The toolbar does not own the DocModel; it receives a reference to the RichEditorState (doc, undo, selection) and calls formatting commands on it. No global mutable state.",
+      "AccessKit: toolbar buttons must get Actions::Click (egui's AccessKit integration calls this when a screen reader activates the button). Use the egui AccessKit node builder API.",
+      "Do not implement a custom icon set in this MT; text glyphs are sufficient for the acceptance criteria. Icon asset integration is deferred to a later polish MT."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/editor_commands.ts (EDITOR_COMMANDS array: full catalog of command ids, labels, categories, keyboard hints; this MT must achieve command-for-command parity for categories format/block/list/table/tableEdit/history)",
+      "app/src/lib/editor/editor_keymap.ts (resolveShortcut, bindingsForAction: maps action ids to Mod+key combos; the native keymap must match these bindings)",
+      "app/src/components/RichTextEditor.tsx (toolbar rendering pattern: button groups, active state, overflow menu, command dispatch via EDITOR_COMMANDS)"
+    ],
+    "binds_backend_api": [
+      "No direct backend API calls. Formatting commands mutate the in-memory DocModel. Persistence is handled by MT-020."
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Toggle command active-state check inspects only the caret position, not the full selection range, causing incorrect toggle direction on multi-leaf selections.",
+      "set_heading on a list_item node (not a paragraph) corrupts the tree because list_item cannot be a direct child of doc.",
+      "insert_table inside an existing table creates a nested table, which is not supported by the backend content_json schema.",
+      "Keyboard shortcuts conflict with the OS or egui's own event handling, causing some shortcuts (Ctrl+U on some platforms) to fire OS behavior instead.",
+      "Overflow popup closes immediately on the next frame because egui popup focus logic conflicts with button click detection."
+    ],
+    "minimum_controls": [
+      "Active state check must iterate the full Selection range across all overlapping TextLeaf nodes; a test with a 3-leaf selection where only the middle leaf has bold must return active=true.",
+      "set_heading must check that the current node is a paragraph or heading before converting; return CommandError::InvalidContext if the cursor is inside a list_item, table_cell, or code_block.",
+      "insert_table must check that the current cursor is NOT inside an existing table node and return CommandError::InvalidContext if so; cargo test verifies.",
+      "Keyboard shortcut conflicts: document the 3 known platform-specific conflicts (Ctrl+U on Windows opens browser underline in web context; N/A for native) in a code comment; wrap key dispatch in egui's consume_key to prevent bubbling.",
+      "Overflow popup must use egui::popup_below_widget with a stable id (Id::new('toolbar-overflow')) to prevent close-on-next-frame; kittest verifies popup stays open for at least 2 frames."
+    ]
+  }
+}

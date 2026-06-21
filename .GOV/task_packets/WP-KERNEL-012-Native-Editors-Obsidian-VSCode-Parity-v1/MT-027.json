@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-027",
+  "title": "E3-MT027-BlockCollectionViews",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021", "MT-023"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Port the React BlockCollectionView (MT-262 parity) to the native egui frontend. This is a multi-mode saved-view host. A saved view is a typed LoomBlock (content_type='view_def') whose definition lives in PostgreSQL. The native widget loads the view definition, executes its query against the real Loom query backend (SQL-side), and renders one of three sub-views: Table, Kanban, or Calendar. Crucially: (1) table header sort clicks call updateBlockView + re-query on the backend, never client-side sort; (2) Kanban card drag-to-lane calls updateLoomBlock ({add_tags, remove_tags}) and re-queries — never local state mutations. Expected diff shape: one new file src/frontend/loom/block_collection_view.rs with BlockCollectionView, TableSubView, KanbanSubView, CalendarSubView, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/block_collection_view.rs — BlockCollectionView + three sub-view structs\n- EDIT src/frontend/loom/mod.rs — pub mod block_collection_view; + re-export\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCES:\n  (a) app/src/components/BlockCollectionView.tsx — top-level host; getBlockView + queryBlockViewResults + updateBlockView + updateLoomBlock (handle sort and card-move).\n  (b) app/src/components/LoomTableView.tsx — sortable typed column table; onSortChange fires backend re-sort, never client-side.\n  (c) app/src/components/LoomKanbanView.tsx — drag-and-drop kanban; DRAG_MIME='application/x-handshake-kanban-card'; handleDrop fires real updateLoomBlock mutation.\n  (d) app/src/components/LoomCalendarView.tsx — buckets blocks by date field; date_from/date_to applied server-side.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/definitions/{view_block_id} — getBlockView -> BlockViewRecord {block, definition: BlockViewDefinition}\n  - POST /workspaces/{workspace_id}/loom/views/definitions/{view_block_id}/results — queryBlockViewResults -> BlockViewResults {kind, blocks, groups?, total_returned}\n  - PATCH /workspaces/{workspace_id}/loom/views/definitions/{view_block_id} — updateBlockView (persist new sort definition)\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock ({add_tags, remove_tags}) for Kanban lane move\n  - POST /workspaces/{workspace_id}/loom/views/definitions — createBlockView (for creating new saved views; wire a 'New view' button)\n\nStep-by-step implementation notes:\n1. Define BlockCollectionView { workspace_id: String, view_block_id: String, definition: Option<BlockViewDefinition>, results: Option<BlockViewResults>, loading: bool, error: Option<String>, status: String, kanban_drag: Option<KanbanDragState> } where KanbanDragState = { block_id: String, from_lane_key: String }.\n2. On init: call getBlockView to load definition, then call queryBlockViewResults to load results. Both calls run sequentially (definition first, then results).\n3. Render a mode indicator strip at top showing the current kind (table / kanban / calendar) with a kind switcher (author_id='bcv.kind.table', 'bcv.kind.kanban', 'bcv.kind.calendar'). Kind change = call updateBlockView with new definition.kind + call queryBlockViewResults.\n4. Status bar: show 'Re-sorting...' / 'Moving card...' / '' via status field (author_id='bcv.status' role=Status).\n\nTableSubView:\n5. Render columns from definition.columns (or default [title, updated]). For each column, show a header button (author_id='bcv.table.sort.{field}'). Click = call flipDirection() (same logic as React: same field toggles asc/desc, new field = asc), call updateBlockView with new definition.sort, then call queryBlockViewResults. Set status='Re-sorting...' while in flight.\n6. Render rows: for each block in results.blocks, render a table row (author_id='bcv.table.row.{block_id}'). Cells show: title (block.title ?? block.original_filename ?? block.block_id), created_at, updated_at, journal_date, content_type, pinned yes/no, favorite yes/no, backlink_count, mention_count, tag_count per the React LoomTableView.cellValue() function.\n7. Sort indicator: if definition.sort.field == column, show ▲ (asc) or ▼ (desc) after the column label.\n\nKanbanSubView:\n8. Render lanes from results.groups (BlockViewLane[]). Each lane has a key (author_id='bcv.kanban.lane.{key}') and a list of cards. Lane label: if key=='__untagged__' show 'Untagged', else show key.\n9. Each card (author_id='bcv.kanban.card.{block_id}') shows block.title ?? block.block_id. Make cards draggable using egui's DragAndDrop or a manual drag tracker.\n10. On drop: get the from_lane_key from KanbanDragState, get the to_lane_key from the drop target lane. Call updateLoomBlock(block_id, { add_tags: to_key=='__untagged__' ? [] : [to_key], remove_tags: from_key=='__untagged__' ? [] : [from_key] }). Set status='Moving card...' while in flight. After call completes, call queryBlockViewResults to re-query. Never mutate local lane arrays — the re-query is the source of truth.\n11. Show a busy indicator (status='Moving card...') while drop mutation is in flight. Accept no further drops while busy.\n\nCalendarSubView:\n12. Render blocks bucketed by date field (journal_date, created, or updated per definition.calendar_date_field). Use the same bucketKey() logic as React LoomCalendarView: journal_date -> block.journal_date ?? 'undated', updated -> block.updated_at.slice(0,10), default -> block.created_at.slice(0,10).\n13. Sort bucket keys alphabetically. Render each bucket as a day column or day strip (author_id='bcv.calendar.day.{date_key}'). Each entry is a row (author_id='bcv.calendar.entry.{block_id}') showing block title.\n14. Date-range filtering is backend-side: when the user selects a date range in a date picker widget, update definition.query.date_from and definition.query.date_to, call updateBlockView, then queryBlockViewResults. Render a simple date range input (two egui::DatePickerButton or text field inputs for from/to). Author_ids: 'bcv.calendar.date-from', 'bcv.calendar.date-to'.\n\nNew View creation:\n15. Show a '+ New view' button (author_id='bcv.new-view'). Opens a small popup with: kind selector, title input, confirm. On confirm, call createBlockView and then switch to the new view_block_id.\n\nAccessKit summary: all interactive elements use stable author_ids as listed; table header buttons, table rows, kanban lanes, kanban cards, calendar day headers, calendar entries, kind switcher buttons, status bar, new-view button.\n\nDependencies / unblock conditions: MT-021 must be complete (HTTP client). MT-023 must be complete (tag identity used for Kanban lane keys from tag hubs). No dependency on MT-022, MT-024, MT-025, MT-026.\n\nRisk if missed: The block-collection views (table, kanban, calendar) are absent from the native frontend. This is a major knowledge management surface (Notion/Obsidian databases parity).",
+    "allowed_paths": [
+      "src/frontend/loom/block_collection_view.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: Opening a saved table-kind view block loads the definition and results from real PG. The table renders rows for all returned blocks with correct column values (title, updated_at verified).",
+      "AC2: Clicking a table header sort button sends updateBlockView with the new sort definition and re-queries; the rows reorder according to the backend sort. Clicking the same header again toggles direction.",
+      "AC3: Opening a kanban-kind view block renders lanes from results.groups. Each lane shows its label (or 'Untagged') and its cards.",
+      "AC4: Dragging a Kanban card from one lane to another calls updateLoomBlock with the correct add_tags/remove_tags values, then re-queries. The card appears in the new lane after re-query. The original lane no longer contains the card (proved by backend, not local state).",
+      "AC5: Opening a calendar-kind view block renders day buckets with block titles correctly bucketed by the definition.calendar_date_field.",
+      "AC6: Changing the date range (date_from/date_to) calls updateBlockView and re-queries; the calendar re-renders with the filtered block set.",
+      "AC7: The kind switcher changes the view kind (table->kanban->calendar) by calling updateBlockView and re-querying.",
+      "AC8: The '+ New view' button creates a new view block via createBlockView and switches to it.",
+      "AC9: AccessKit tree contains 'bcv.table.sort.{field}' for each column header, 'bcv.table.row.{block_id}' for each row, 'bcv.kanban.lane.{key}' for each lane, 'bcv.kanban.card.{block_id}' for each card, 'bcv.calendar.day.{date}' for each bucket.",
+      "AC10: With a view definition that has no matching blocks, the respective sub-view renders an empty state (no rows / no cards / no calendar days) without panic."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::block_collection_view -- --nocapture passes unit tests for: (a) flipDirection() asc/desc toggle logic, (b) bucketKey() for all three date field variants, (c) BLOCK_VIEW_UNTAGGED_LANE sentinel handling in add_tags/remove_tags.",
+      "PROOF2: kittest table test with 3 seeded blocks in real PG, table-kind view: assert 3 'bcv.table.row.*' AccessKit nodes and column cells for 'title' field are non-empty.",
+      "PROOF3: kittest sort test: click 'bcv.table.sort.title' (initial asc), assert updateBlockView API call with sort={field:'title', direction:'asc'}; click again, assert direction='desc'.",
+      "PROOF4: kittest kanban card-move test: drag 'bcv.kanban.card.block-001' from 'bcv.kanban.lane.tag-a' to 'bcv.kanban.lane.tag-b', assert updateLoomBlock called with {add_tags:['tag-b'], remove_tags:['tag-a']}, assert 'bcv.kanban.card.block-001' in 'bcv.kanban.lane.tag-b' after re-query.",
+      "PROOF5: kittest calendar test with 2 blocks having different journal_dates in real PG: assert 2 'bcv.calendar.day.*' AccessKit nodes, each containing 1 'bcv.calendar.entry.*' node.",
+      "PROOF6: kittest new-view test: click 'bcv.new-view', fill title='Test View', select kind=table, click confirm, assert createBlockView API called and view switches to the new view_block_id."
+    ],
+    "implementation_notes": [
+      "flipDirection logic (from React BlockCollectionView.tsx lines 39-47): if same field and current direction='asc' -> 'desc'; if same field and direction='desc' -> 'asc'; if new field -> 'asc'.",
+      "BLOCK_VIEW_UNTAGGED_LANE sentinel: the string '__untagged__'. When from_key==UNTAGGED, remove_tags=[]. When to_key==UNTAGGED, add_tags=[]. This must match exactly (api.ts line 1142).",
+      "bucketKey() (from React LoomCalendarView.tsx lines 16-24): for journal_date field -> block.journal_date ?? 'undated'; for updated -> block.updated_at[0..10]; default -> block.created_at[0..10]. These are ISO date strings.",
+      "Kanban drag in egui: use egui::DragAndDrop::set_payload(lane_drag_state) on card drag start; on lane dragover check egui::DragAndDrop::payload::<KanbanDragState>() and render a drop indicator; on frame where payload is claimed (DragAndDrop::take_payload) and pointer released over the lane, fire the mutation.",
+      "Do not sort or filter results client-side at any point. All sort, filter, group operations are backend-driven via updateBlockView + queryBlockViewResults.",
+      "queryBlockViewResults uses POST (not GET) per api.ts line 1944. The body contains {limit, offset}. Ensure the HTTP client sends POST with JSON body, not query params.",
+      "Busy guard for Kanban: set kanban_drag=Some(state) on drag start; set busy=true on drop fire; re-enable drops only after re-query completes. Reject further drop events while busy=true.",
+      "Calendar date picker: if egui's DatePickerButton is not available in the egui version in use, fall back to two egui::TextEdit singleline inputs accepting 'YYYY-MM-DD' format with inline validation.",
+      "New view popup: use egui::Window with a form containing kind radio buttons and a title TextEdit. On confirm, call createBlockView({kind, title, query:{}}). Switch view_block_id to the new block.block_id from the response."
+    ],
+    "ports_from_react": [
+      "app/src/components/BlockCollectionView.tsx — entire host component (primary reference), flipDirection function (lines 39-47), handleSortChange (lines 93-108), handleCardMove (lines 110-127)",
+      "app/src/components/LoomTableView.tsx — column labels, cellValue(), sortIndicator(), sort button data-testids",
+      "app/src/components/LoomKanbanView.tsx — DRAG_MIME, DragState, handleDrop, BLOCK_VIEW_UNTAGGED_LANE usage",
+      "app/src/components/LoomCalendarView.tsx — bucketKey(), bucket rendering logic",
+      "BlockViewDefinition, BlockViewResults, BlockViewLane, BLOCK_VIEW_UNTAGGED_LANE: app/src/lib/api.ts lines 1082-1142",
+      "queryBlockViewResults (POST): app/src/lib/api.ts line 1944",
+      "updateBlockView (PATCH): app/src/lib/api.ts line 1932",
+      "createBlockView (POST): app/src/lib/api.ts line 1903"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/definitions/{view_block_id} — getBlockView",
+      "POST /workspaces/{workspace_id}/loom/views/definitions/{view_block_id}/results — queryBlockViewResults (body: {limit, offset})",
+      "PATCH /workspaces/{workspace_id}/loom/views/definitions/{view_block_id} — updateBlockView (body: {definition})",
+      "PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock (body: {add_tags, remove_tags}) for Kanban lane move",
+      "POST /workspaces/{workspace_id}/loom/views/definitions — createBlockView (body: {block_id?, title?, definition})"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: queryBlockViewResults uses POST but a developer may mistake it for GET, causing the query to fail silently (405) or send params as query string instead of body. Mitigation: add a comment in the source file citing api.ts line 1944; add an integration test that verifies the POST body.",
+      "RISK-2: Kanban drag-and-drop in egui may not work if the coder uses a widget that captures the egui drag event before the lane drop target can claim it. Mitigation: use egui::DragAndDrop payload API (not native OS drag); test with PROOF4.",
+      "RISK-3: Concurrent sort + card-move operations could fire both updateBlockView and updateLoomBlock simultaneously, causing the re-query to return ambiguous state. Mitigation: use a single in-flight flag; block sort clicks while kanban move is in flight and vice versa.",
+      "RISK-4: BLOCK_VIEW_UNTAGGED_LANE sentinel '__untagged__' hardcoded in both frontend and React; if the backend changes this value, both break. Mitigation: define it as a constant in the Rust frontend matching the React constant exactly; document the coupling.",
+      "RISK-5: Calendar date picker fallback (text input) may accept invalid date strings that crash the backend filter. Mitigation: validate the date string against regex '^\\d{4}-\\d{2}-\\d{2}$' before including in updateBlockView body; show inline validation error if invalid.",
+      "RISK-6: Large result sets (>100 blocks) in table view may cause egui scroll performance issues. Mitigation: use egui::ScrollArea with virtual row rendering (show_rows with row_height) for the table to avoid rendering offscreen rows."
+    ],
+    "minimum_controls": [
+      "MC-1: POST body for queryBlockViewResults verified in integration test. Covered by PROOF2.",
+      "MC-2: egui::DragAndDrop payload API for Kanban drag. Covered by PROOF4.",
+      "MC-3: Single in-flight flag blocking concurrent sort + card-move. Covered by AC4 (card move re-queries correctly).",
+      "MC-4: BLOCK_VIEW_UNTAGGED_LANE as a named Rust constant. Covered by PROOF1.",
+      "MC-5: Date string regex validation before updateBlockView. Covered by AC6.",
+      "MC-6: Virtual row rendering in table ScrollArea for large result sets. Covered by AC1 (performance criterion implied by real PG data test)."
+    ]
+  }
+}

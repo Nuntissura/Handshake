@@ -1,0 +1,109 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-014",
+  "title": "E2-MT014-EmbedsNodeViews",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": ["MT-016"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement embed NodeViews for the four CKC media embed kinds (image, slideshow, album, video), porting the React embed asset resolution logic from app/src/lib/editor/embed_assets.ts and the hsLink NodeView rendering. Each embed kind is a BlockNode in the MT-011 DocModel with kind = EmbedNode, attrs = { embed_kind: String, ref_value: String }, and renders as an interactive egui widget inline in the document.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/embeds/mod.rs\n- src/frontend/rich_editor/embeds/asset_resolver.rs (async fetch of asset metadata + content URL from the real backend; mirrors embed_assets.ts logic)\n- src/frontend/rich_editor/embeds/image_view.rs (single image renderer)\n- src/frontend/rich_editor/embeds/slideshow_view.rs (ordered sequence of images with prev/next nav)\n- src/frontend/rich_editor/embeds/album_view.rs (grid of images, click to enlarge)\n- src/frontend/rich_editor/embeds/video_view.rs (video poster + play button; actual decode via OS media layer or a stub play button linking to the content URL)\n- src/frontend/rich_editor/embeds/embed_block_renderer.rs (dispatch from EmbedNode attrs to the correct view)\n- Extend src/frontend/rich_editor/renderer/block_renderer.rs to call embed_block_renderer for EmbedNode kind.\n\nASYNC ASSET RESOLUTION (asset_resolver.rs):\n- Mirror the React embed_assets.ts validation pipeline EXACTLY (FAIL-CLOSED):\n  - Reject empty ref_value -> EmbedError::EmptyRef\n  - Reject absolute filesystem paths (drive letters, leading '/', UNC '\\\\') -> EmbedError::AbsolutePathRejected\n  - Reject '..' or path separator chars in asset_id -> EmbedError::TraversalRejected\n  - Reject http/https/file/javascript schemes -> EmbedError::SchemeRejected\n  - For album/slideshow: ref_value is comma-separated asset_id list; validate each entry individually\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id} -> EmbedAssetMetadata\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes for image display\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/thumbnail -> thumbnail bytes\n- Use reqwest (already in workspace) or the existing handshake REST client; do NOT add a new HTTP crate.\n- Resolution is async; use tokio::spawn in the egui event loop's async context or the shell's runtime. Cache resolved assets in a HashMap<String, EmbedResolutionState> keyed by asset_id so repeated renders do not re-fetch.\n\nEMBED STATES (match React EmbedResolution):\n- Resolving: show a spinner (egui::Spinner)\n- Ok(asset, bytes): render the appropriate view\n- Err(EmbedError): show a typed error chip (colored rounded rect with error kind text, never a blank) with author_id = 'embed-error-{asset_id}'\n\nVIEW IMPLEMENTATIONS:\n- image_view.rs: decode image bytes with the 'image' crate (PNG/JPEG/WebP/GIF); upload as egui::TextureHandle via ctx.load_texture(); render at aspect-correct width (max = available content width). Click opens full-size overlay.\n- slideshow_view.rs: render one image at a time with prev/next arrow buttons; store current_index in view state. AccessKit: author_id = 'slideshow-{asset_id}', prev button = 'slideshow-prev-{asset_id}', next = 'slideshow-next-{asset_id}'.\n- album_view.rs: render thumbnails in a wrapping grid (3 per row default). Click on a thumbnail opens a full-size modal (egui::Window). AccessKit: grid container = 'album-{ref_value}', each cell = 'album-cell-{asset_id}'.\n- video_view.rs: render thumbnail with a play button overlay. On play click, open the content URL in the OS default player via open::that() (the 'open' crate) OR render a simple progress-bar placeholder with 'Video: {filename}' text. Mark this as a known limitation in code comments; full in-process video decode is deferred.\n\nSTEP-BY-STEP:\n1. Add to frontend Cargo.toml: image = { version='0.25', features=['png','jpeg','webp','gif'] }, open = '5' (for video OS open).\n2. Implement EmbedError enum and EmbedResolutionState in asset_resolver.rs. Write async fn resolve_embed(workspace_id, ref_value, embed_kind) -> EmbedResolution.\n3. In embed_block_renderer.rs, match embed_kind to dispatch to the correct view fn. Pass the view state (HashMap per embed node, stored in RichEditorState).\n4. In image_view.rs, cache the decoded TextureHandle in view state keyed by asset_id to avoid re-decoding every frame.\n5. In block_renderer.rs (from MT-012), add a match arm for NodeKind::Embed that calls embed_block_renderer::render_embed(ui, node, embed_states, workspace_id).\n6. Write cargo tests: asset_resolver validates and rejects absolute paths, traversal, empty refs (unit tests, no real HTTP). Integration test with a real backend: resolve a known asset_id and verify EmbedResolutionState::Ok is returned.\n7. Assign AccessKit NodeIds and roles to all interactive embed controls as specified above.\n\nDEPENDENCIES: MT-011 (EmbedNode kind in DocModel), MT-012 (block_renderer integration point). No dependency on MT-013 (formatting).",
+    "allowed_paths": [
+      "src/frontend/rich_editor/embeds/**",
+      "src/frontend/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "An EmbedNode with embed_kind='images' and a valid asset_id renders a decoded image at correct aspect ratio in a kittest screenshot (requires a real backend with a seeded test asset).",
+      "An EmbedNode with an empty ref_value renders a typed error chip 'empty_ref' (not blank) in the kittest screenshot.",
+      "An EmbedNode with ref_value containing '..' is rejected with EmbedError::TraversalRejected before any HTTP call is made (unit test, no backend required).",
+      "An EmbedNode with ref_value starting with 'http://' is rejected with EmbedError::SchemeRejected (unit test).",
+      "Slideshow prev/next buttons cycle through 3 images in order; after the last image, next wraps to the first (cargo test with mock resolution states).",
+      "Album grid renders 3 thumbnails per row; clicking a thumbnail shows a full-size modal (kittest interaction).",
+      "Video embed renders a play button overlay; clicking it calls open::that() with the content URL (unit test with a mock open fn).",
+      "AccessKit: 'slideshow-prev-{asset_id}' and 'slideshow-next-{asset_id}' buttons are present in the kittest accessibility tree.",
+      "All resolved assets are cached: a second render of the same embed does NOT issue a second HTTP request (unit test with a counted mock fetcher).",
+      "cargo test -- embeds passes with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- embeds outputs 'test result: ok'.",
+      "Integration test (requires real Postgres backend): cargo test --test native_editors -- embeds::test_real_image_resolve -- --ignored (runs only when backend is available); output shows asset metadata fetched and texture decoded.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt014_image_embed.png showing a rendered image with correct aspect ratio.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt014_embed_error.png showing the typed error chip for an invalid ref."
+    ],
+    "implementation_notes": [
+      "The 'image' crate decode is CPU-heavy for large images. Decode on a tokio::spawn_blocking thread, then send the decoded RGBA bytes to the egui context via a channel/callback. Never decode on the egui UI thread.",
+      "egui TextureHandle must be created on the egui thread (ctx.load_texture); only the RGBA bytes travel across the thread boundary.",
+      "Album/slideshow ref_value is a comma-separated list of asset_ids (matching the React parseAssetRefList function in embed_assets.ts). Split on comma, trim whitespace, validate each entry individually.",
+      "The 'open' crate is used for video OS-level playback; this is an explicit known limitation documented in video_view.rs. In-process video decode requires a future MT with a media decoder crate (e.g. symphonia + ffmpeg bindings) and is out of scope here.",
+      "Asset resolution cache (HashMap<String, EmbedResolutionState>) must be stored in RichEditorState (owned by the shell frame), not inside the renderer functions, so it persists across frames.",
+      "Fail-closed: any EmbedError must render a VISIBLE typed chip. Never render blank space, never panic. This matches the React embed_assets.ts EmbedErrorKind contract."
+    ],
+    "ports_from_react": [
+      "app/src/lib/editor/embed_assets.ts (EmbedError kinds, path/scheme validation logic, asset metadata URL pattern, parseAssetRefList for album/slideshow)",
+      "app/src/components/HsLinkView.tsx (React NodeView that renders image/video/album/slideshow embeds inline in Tiptap; this MT is the native equivalent)",
+      "app/src/lib/editor/embed_assets.ts (EmbedResolverContext.workspaceId -> native: workspace_id passed through RichEditorState)"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/assets/{asset_id} -> EmbedAssetMetadata (asset metadata: mime, size, width, height, original_filename)",
+      "GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes (image/video content)",
+      "GET /workspaces/{workspace_id}/assets/{asset_id}/thumbnail -> thumbnail bytes"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Large image decode on the UI thread freezes the egui frame loop for hundreds of milliseconds.",
+      "Album grid with 50+ thumbnails issues 50+ concurrent HTTP requests on first render, overwhelming the backend.",
+      "A malicious ref_value containing a relative path escaping the asset namespace (e.g. '../../etc/passwd') bypasses the validation check if the check only looks for leading slash.",
+      "Video OS open() call succeeds but opens the wrong application if the content URL is a localhost URL that the OS does not associate with a media player.",
+      "TextureHandle created from a failed decode (empty bytes) causes egui to panic or show a corrupted texture rect."
+    ],
+    "minimum_controls": [
+      "Image decode MUST be on tokio::spawn_blocking; a cargo test verifies the UI thread is not blocked by timing the render call with a 10 MB image.",
+      "Album/slideshow must limit concurrent resolution to 6 async tasks at a time using a tokio::Semaphore; a test with 12 asset_ids asserts at most 6 simultaneous in-flight requests.",
+      "Validation must reject any ref_value containing '..' as a substring ANYWHERE in the string (not just as a path component start); unit test: '..hidden/secret' is rejected.",
+      "Video view must show the content URL as text alongside the play button so the operator can inspect it; the OS open call is gated on explicit user click only.",
+      "Decode failure (image::load_from_memory returns Err) must transition to EmbedResolutionState::Err(EmbedError::MediaLoadFailed) and render the error chip; unit test verifies with intentionally corrupt bytes."
+    ]
+  }
+}

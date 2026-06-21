@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-041",
+  "title": "E7-MT-041-EditorActionsAccessKit",
+  "group": "E7 Model-vision parity",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-041.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "WP-KERNEL-011:MT-001",
+      "WP-KERNEL-012:MT-001",
+      "WP-KERNEL-012:MT-011",
+      "WP-KERNEL-012:MT-031"
+    ],
+    "blocks": [
+      "WP-KERNEL-012:MT-043",
+      "WP-KERNEL-012:MT-044"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Expose every interactive editor action in both the native code editor (E1 cluster) and the native rich-text editor (E2 cluster) through the WP-011 AccessKit model-accessibility surface, each with a stable author_id, correct AccessKit role, and declared actions. An out-of-process swarm agent must be able to discover and invoke any editor action (format text, insert snippet/block, open find/replace, toggle find options, navigate find matches, save document, toggle multi-cursor, jump to line, open command palette, open language picker) purely through the AccessKit action channel — no screen-scraping, no keyboard simulation.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/native_editors/accessibility/editor_action_registry.rs\n    — defines EditorActionId enum (one variant per action, kebab-case string repr) and EditorActionNode struct { author_id: String, role: AccessKitRole, label: String, actions: Vec<AccessKitAction>, state: EditorActionState }\n    — defines EditorActionRegistry: maintains a stable BTreeMap<EditorActionId, EditorActionNode> per open editor pane; emits diff notifications to the WP-011 AccessKit adapter on change\n  EDIT    src/frontend/native_editors/code_editor/pane.rs\n    — on pane init and on state change: register/update each code-editor action node in the EditorActionRegistry\n    — map: save=CustomAction{\"save\"}, find_open=CustomAction{\"find-open\"}, find_next=CustomAction{\"find-next\"}, find_prev=CustomAction{\"find-prev\"}, find_toggle_case=ToggleButton, find_toggle_word=ToggleButton, find_toggle_regex=ToggleButton, replace_open=CustomAction{\"replace-open\"}, replace_one=CustomAction{\"replace-one\"}, replace_all=CustomAction{\"replace-all\"}, format=CustomAction{\"format\"}, go_to_line=CustomAction{\"go-to-line\"}, multi_cursor_add=CustomAction{\"multi-cursor-add\"}, multi_cursor_clear=CustomAction{\"multi-cursor-clear\"}, command_palette_open=CustomAction{\"command-palette-open\"}, language_picker_open=CustomAction{\"language-picker-open\"}\n  EDIT    src/frontend/native_editors/rich_editor/pane.rs\n    — same registry call for rich-text editor actions: save, find_open, find_next, find_prev, find_toggle_case, find_toggle_word, find_toggle_regex, replace_one, replace_all, format_bold, format_italic, format_code, format_heading_1..6, insert_block_slash_command, command_palette_open\n  CREATE  tests/native_editors/e7_editor_action_accesskit.rs\n    — kittest harness that opens both editor panes, queries the AccessKit tree, asserts every EditorActionId appears with the correct author_id prefix, role, and at least one declared action; simulates action dispatch and asserts state updates\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/native_editors/accessibility/editor_action_registry.rs  (NEW)\n  src/frontend/native_editors/code_editor/pane.rs                      (EDIT)\n  src/frontend/native_editors/rich_editor/pane.rs                      (EDIT)\n  src/frontend/native_editors/accessibility/mod.rs                      (EDIT — add pub mod editor_action_registry)\n  tests/native_editors/e7_editor_action_accesskit.rs                   (NEW)\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 MT-001 spike delivered: egui + AccessKit adapter exists in src/frontend/shell/accessibility.rs (or equivalent); the adapter exposes `register_node(author_id, role, actions)` and `dispatch_action(author_id, action_id)` on a stable public API.\n  - WP-KERNEL-012 MT-001 (code editor pane skeleton) and MT-011 (rich-text editor pane skeleton) are COMPLETE so pane.rs exists with an init/update lifecycle hook to attach to.\n  - WP-KERNEL-012 MT-031 (shared command bus) is COMPLETE so the code-editor and rich-editor actions already fire through the bus; this MT adds AccessKit registration on top of the bus dispatch.\n\nRISK IF MISSED: MT-043 (SwarmEditProof) cannot execute: the out-of-process agent test has no AccessKit node to target for either editor, making the E7 cluster proof impossible. MT-044 parity proof cannot include model-accessibility acceptance criteria.",
+    "allowed_paths": [
+      "src/frontend/native_editors/accessibility/**",
+      "src/frontend/native_editors/code_editor/pane.rs",
+      "src/frontend/native_editors/rich_editor/pane.rs",
+      "tests/native_editors/e7_editor_action_accesskit.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-041-01: `cargo test -p handshake_frontend --test e7_editor_action_accesskit` passes with zero failures. The test must open both panes in-process, query the AccessKit tree, and assert that every EditorActionId variant maps to an AccessKit node with the correct author_id (format: 'editor.<pane_type>.<action_id>'), correct role, and at least one declared action.",
+      "AC-041-02: Every code-editor action listed in implementation note IN-041-03 is present in the AccessKit tree with a stable author_id that does NOT include runtime-generated random segments; the author_id must be deterministic given (pane_type, action_id, pane_instance_index).",
+      "AC-041-03: Every rich-text editor action listed in implementation note IN-041-04 is present in the AccessKit tree with the same deterministic author_id convention.",
+      "AC-041-04: Simulating `dispatch_action('editor.code.find-open', 'activate')` via the AccessKit adapter in the kittest harness causes the find panel to open (observable as a new AccessKit node 'editor.code.find-panel' appearing in the tree within 100 ms).",
+      "AC-041-05: Simulating `dispatch_action('editor.rich.format-bold', 'activate')` causes the bold format to apply to the current selection (observable via the AccessKit node state 'editor.rich.format-bold' having `checked: true` when the cursor is inside bold text).",
+      "AC-041-06: Simulating `dispatch_action('editor.code.save', 'activate')` triggers the backend save API call (observable via a test spy on the knowledge document update endpoint, or an EventLedger event if spy is unavailable).",
+      "AC-041-07: `cargo build -p handshake_frontend` succeeds with zero new warnings introduced by this MT.",
+      "AC-041-08: No mock or placeholder substitutes any AccessKit node that a real editor widget would supply; every node in the kittest corresponds to a real interactive widget that is rendered."
+    ],
+    "proof_targets": [
+      "PROOF-041-A: Run `cargo test -p handshake_frontend --test e7_editor_action_accesskit 2>&1`; paste full stdout. Every line must show 'ok'. Zero 'FAILED' lines.",
+      "PROOF-041-B: In the kittest, print the full AccessKit tree to stdout and paste it. Reviewer must be able to locate 'editor.code.find-open', 'editor.code.save', 'editor.rich.format-bold', 'editor.rich.command-palette-open' as named nodes.",
+      "PROOF-041-C: Run `cargo build -p handshake_frontend 2>&1 | grep -E 'warning:|error:'`; paste output. Zero new warnings attributable to files changed in this MT.",
+      "PROOF-041-D: Paste the AccessKit node dump for at least 5 find-panel actions showing correct role (Button or ToggleButton as appropriate) and at least one declared action string."
+    ],
+    "implementation_notes": [
+      "IN-041-01: AccessKit integration point. The WP-KERNEL-011 spike chose egui + AccessKit. egui's AccessKit adapter is in `egui_accesskit::AccessKitPlugin` (or the equivalent shell adapter). Each egui widget that calls `ui.add(widget)` can be given a stable `Id` via `egui::Id::new('editor.code.find-open')` and then the AccessKit node is derived from that Id. For custom action dispatch (actions that are not native egui interactions), use the `egui_accesskit` custom-action API: call `response.ctx.set_accesskit_action_handler(id, action_id, handler)`. If the WP-011 adapter wraps this in a higher-level `register_node` API, use that API; do NOT duplicate the egui Id/AccessKit glue.",
+      "IN-041-02: author_id convention. Format: `editor.<pane_type>.<action_id>` where pane_type is `code` or `rich`, and action_id is the kebab-case action name. When multiple editor panes of the same type are open simultaneously, suffix with `.<instance_index>` (0-based). The instance_index is stable for the lifetime of the pane and is assigned by the EditorActionRegistry at pane registration time. Example: `editor.code.find-open`, `editor.code.find-open.1` for a second code pane.",
+      "IN-041-03: Code editor action set (all must appear in AccessKit tree). Map each to the egui widget or custom-action node it wraps:\n  editor.code.save                — Button (Ctrl+S handler)\n  editor.code.find-open           — Button (opens FindReplacePanel; see React ref FindReplacePanel.tsx)\n  editor.code.find-next           — Button (visible only when find panel open; same React ref)\n  editor.code.find-prev           — Button\n  editor.code.find-toggle-case    — ToggleButton (aria-pressed = case_sensitive state)\n  editor.code.find-toggle-word    — ToggleButton\n  editor.code.find-toggle-regex   — ToggleButton\n  editor.code.replace-open        — Button (shows replace row)\n  editor.code.replace-one         — Button\n  editor.code.replace-all         — Button\n  editor.code.format              — Button (format document via LSP or built-in formatter)\n  editor.code.go-to-line          — Button (opens go-to-line input)\n  editor.code.multi-cursor-add    — Button (add cursor at AccessKit-specified position)\n  editor.code.multi-cursor-clear  — Button\n  editor.code.command-palette-open — Button (opens CommandPalette; see React ref CommandPalette.tsx)\n  editor.code.language-picker-open — Button (opens language selector; see React ref MonacoCodeBlockView.tsx data-testid=monaco-code-block-language)",
+      "IN-041-04: Rich-text editor action set (all must appear in AccessKit tree):\n  editor.rich.save                — Button\n  editor.rich.find-open           — Button\n  editor.rich.find-next           — Button\n  editor.rich.find-prev           — Button\n  editor.rich.find-toggle-case    — ToggleButton\n  editor.rich.find-toggle-word    — ToggleButton\n  editor.rich.find-toggle-regex   — ToggleButton\n  editor.rich.replace-one         — Button\n  editor.rich.replace-all         — Button\n  editor.rich.format-bold         — ToggleButton (checked = cursor in bold)\n  editor.rich.format-italic       — ToggleButton\n  editor.rich.format-code         — ToggleButton (inline code)\n  editor.rich.format-heading-1    — Button\n  editor.rich.format-heading-2    — Button\n  editor.rich.format-heading-3    — Button\n  editor.rich.format-heading-4    — Button\n  editor.rich.format-heading-5    — Button\n  editor.rich.format-heading-6    — Button\n  editor.rich.insert-slash-command — Button (opens slash-command picker; inserts block)\n  editor.rich.command-palette-open — Button",
+      "IN-041-05: EditorActionRegistry. Implement as a Rust struct in editor_action_registry.rs. It holds a BTreeMap<String, EditorActionNode> keyed by author_id. Provide:\n  fn register(pane_type: PaneType, instance_index: usize) -> RegistrationHandle\n  fn update_state(author_id: &str, state: EditorActionState)\n  fn notify_accesskit_adapter(adapter: &AccessKitAdapter)\nThe registry should be Arc<Mutex<EditorActionRegistry>> so both the pane thread and the AccessKit polling loop can access it. On every state change, call notify_accesskit_adapter to push the diff. Do NOT poll; push-on-change only (HBR-QUIET).",
+      "IN-041-06: kittest harness pattern. Use egui_kittest (the in-process UI test harness from the WP-011 toolkit). Instantiate a test app that includes both a code editor pane and a rich-text editor pane with synthetic content. After one frame, query ctx.accesskit_node_ids() or the equivalent AccessKit tree dump. Assert node presence by author_id string. For action dispatch, call ctx.perform_accesskit_action(node_id, action_id). Observe post-dispatch state by querying the AccessKit tree again after one frame.",
+      "IN-041-07: React parity references for this MT (READ ONLY — do not edit):\n  app/src/components/FindReplacePanel.tsx — stable test IDs: find-panel, find-input, find-count, find-next, find-prev, find-toggle-case, find-toggle-word, find-toggle-regex, find-error, replace-input, replace-one, replace-all, find-close\n  app/src/components/CommandPalette.tsx — CommandPaletteAction shape: { id, label, description, keywords, disabled, stableId, testId }\n  app/src/components/MonacoCodeBlockView.tsx — data-testid=monaco-code-block-language for the language picker\n  app/src/components/DocumentView.tsx — shows save/command-palette/find integration in the legacy doc view\nThe native implementation must expose the same logical actions; the author_id naming replaces the React testId/stableId convention.",
+      "IN-041-08: HBR-SWARM compliance. Every AccessKit node registered by this MT must be stable across frames (same author_id, same role) so a swarm agent's stored node reference remains valid between frames. Do not regenerate author_ids on re-render. The EditorActionRegistry is the single source of truth for node identity.",
+      "IN-041-09: Do not emit AccessKit node updates on every frame if the state has not changed. Compute a hash of EditorActionState before calling notify_accesskit_adapter; skip the push if the hash is unchanged. This keeps the AccessKit diff stream quiet during steady-state rendering (HBR-QUIET)."
+    ],
+    "ports_from_react": [
+      "app/src/components/FindReplacePanel.tsx — find/replace action surface, option toggles, match count; port the logical action set and stable selector naming convention to AccessKit author_ids",
+      "app/src/components/CommandPalette.tsx — command palette open/close/search/run action; port CommandPaletteAction.stableId convention to AccessKit author_id",
+      "app/src/components/MonacoCodeBlockView.tsx — language picker action (data-testid=monaco-code-block-language), format action, multi-cursor; port to code editor AccessKit nodes",
+      "app/src/components/DocumentView.tsx — save action, command palette trigger (Ctrl+K / Ctrl+Shift+P), find request surface"
+    ],
+    "binds_backend_api": [
+      "handshake_core: POST /knowledge/documents/{id}/save (or equivalent Tauri IPC command `knowledge_document_save`) — triggered by editor.code.save and editor.rich.save actions",
+      "No new backend APIs introduced by this MT; AccessKit surface is purely frontend"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT: kittest in tests/native_editors/e7_editor_action_accesskit.rs must pass in CI; all AC must be green before MT is DONE",
+    "HBR-SWARM: every AccessKit node must have a stable author_id (deterministic, no random segments) so swarm agents can store and reuse node references across frames",
+    "HBR-VIS: AccessKit tree dump printed in kittest is the visual proof surface; the test must print the tree to stdout so a reviewer can read it without running the test themselves",
+    "HBR-QUIET: do not push AccessKit diff updates on every frame when state is unchanged; hash-check before push"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-041-01: author_id instability — egui generates internal Ids based on widget insertion order; if pane layout changes (e.g. a panel added above the editor), all downstream widget Ids shift and stored swarm agent references become stale.",
+      "RISK-041-02: AccessKit not available in headless test — if kittest does not initialize the AccessKit adapter, the entire test class silently passes with an empty tree, producing a false green.",
+      "RISK-041-03: ToggleButton state not updated — format-bold and find-toggle-case nodes may report stale 'checked' state if the registry update call is missing from the cursor-move handler.",
+      "RISK-041-04: Action dispatch does not reach the editor — if the AccessKit adapter dispatches to the egui action queue but the editor pane does not consume the queue before the next frame, the action is silently dropped.",
+      "RISK-041-05: Multiple pane instance collision — if two code panes open simultaneously and both use author_id 'editor.code.find-open' (without instance suffix), the AccessKit tree has duplicate nodes and agents cannot distinguish them.",
+      "RISK-041-06: Save action calls wrong backend endpoint — the code editor and rich editor use different backend API surfaces (knowledge_documents vs loom_blocks); wiring both to the same Tauri IPC handler will silently corrupt rich-text saves."
+    ],
+    "minimum_controls": [
+      "CTRL-041-01: Use `egui::Id::new(author_id_string)` (stable string-based Id) for every AccessKit widget, never `ui.id().with(index)` which shifts on layout change. Assert in the kittest that all expected author_ids are present after a layout change (add a dummy panel, re-render, re-query).",
+      "CTRL-041-02: Assert in the kittest that the AccessKit tree is NON-EMPTY after init; fail the test if the tree root has zero children. Add a canary node 'editor.accesskit.health' that is always present.",
+      "CTRL-041-03: In the kittest, move the cursor into and out of bold text and assert that 'editor.rich.format-bold' node has checked=true/false respectively.",
+      "CTRL-041-04: After dispatching an action in the kittest, advance one frame and assert the state change; if the state has not changed, fail the test with a descriptive message, not a timeout.",
+      "CTRL-041-05: The EditorActionRegistry appends the instance_index suffix when registering a pane and asserts uniqueness; if a duplicate author_id is detected, panic in debug builds and log an error in release builds.",
+      "CTRL-041-06: Save action dispatch must be routed through the existing MT-037/MT-038 backend wiring layer (E6 cluster), not via a new direct call. Assert in the kittest that the correct backend command (knowledge_document_save vs knowledge_rich_document_save) is invoked based on pane type."
+    ]
+  }
+}

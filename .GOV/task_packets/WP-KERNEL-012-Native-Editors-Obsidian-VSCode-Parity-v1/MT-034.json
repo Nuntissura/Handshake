@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-034",
+  "title": "E5-MT-034-CodeNoteCrossRefs",
+  "group": "E5 Interconnection / melt-together",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-031", "MT-032", "MT-007", "MT-012"],
+    "blocks": ["MT-044", "MT-046"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: implement bidirectional code<->note cross-references. A user should be able to: (A) from a note, click a code symbol reference (written as [[code:path/to/file.rs#MyStruct]]) and jump to that symbol in the code editor; (B) from the code editor, invoke 'Find notes referencing this symbol' and get a panel listing rich documents that mention this symbol. Expected diff: (a) a new CodeRef inline node type for the rich-text editor that renders a clickable code-symbol chip; (b) a cross-reference resolution service in src/frontend/shared/cross_ref.rs that calls the existing backend code-nav APIs; (c) a NoteRefsPanel widget added to the code pane that shows notes mentioning the currently focused symbol; (d) integration tests with a real PG backend proving both directions work.\n\nFiles to CREATE:\n  - src/frontend/shared/cross_ref.rs  — defines CodeRef { symbol_key: String, file_path: String, line_start: u32, line_end: u32 }, NoteRef { document_id: String, document_title: String, block_id: String, excerpt: String }. Provides async fn resolve_code_ref(symbol_entity_id: &str) -> Result<CodeRef, CrossRefError> (calls GET /code/symbols/{symbol_entity_id}). Provides async fn find_notes_referencing_symbol(symbol_key: &str, workspace_id: &str) -> Result<Vec<NoteRef>, CrossRefError> (calls GET /knowledge/search with a query derived from the symbol_key, or GET /knowledge/documents filtered by block ref_value containing the symbol_key).\n  - src/frontend/widgets/note_refs_panel.rs  — egui widget for the code pane sidebar; takes workspace_id + current_symbol_entity_id; loads NoteRef list via find_notes_referencing_symbol; shows each note as a clickable row that fires bus.dispatch_command(\"open-document\", CommandArgs::DocumentId(doc_id)). AccessKit: panel container author_id=\"note-refs-panel\", role=List; each row author_id=\"note-ref-{doc_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/shared/mod.rs  — add `pub mod cross_ref;`\n  - src/frontend/widgets/mod.rs  — add `pub mod note_refs_panel;`\n  - src/frontend/panes/rich_text_editor.rs  — add handling for CodeRef inline node: a custom node type 'code_ref' with attrs { symbol_key, file_path, symbol_entity_id }. Rendered as a monospace chip with a small code icon. On click: call bus.dispatch_command(\"open-code-symbol\", CommandArgs::SymbolEntityId(symbol_entity_id)). Register 'open-code-symbol' on the InteractionBus (MT-031) so the code editor pane handles it by jumping to the symbol.\n  - src/frontend/panes/code_editor.rs  — (a) register 'open-code-symbol' command handler: when received, call resolve_code_ref to get file_path + line_start, open the file in the code pane (or switch to existing tab), jump to line. (b) Add NoteRefsPanel to the right sidebar of the code pane; bind to the currently focused/hovered symbol via a watcher that fires when the cursor dwells on a symbol for 800ms (debounce).\n  - src/frontend/panes/rich_text_editor.rs  — add a slash-command '/code-ref' that opens a code symbol search dialog: fuzzy search via lookupCodeSymbols (GET /code/symbols/lookup?q=...), display results, on select insert a CodeRef node at cursor.\n\nStep-by-step implementation notes:\n  1. CodeRef node insertion via slash command: when user types '/code-ref' in the rich-text editor, open a floating search widget (egui::Window). Populate from lookupCodeSymbols({ query, workspace_id }) — api.ts line 2158. On selection of a result insert node { type: 'code_ref', attrs: { symbol_key, file_path, symbol_entity_id } } at caret in the document tree.\n  2. CodeRef rendering in rich-text: draw a rounded rectangle chip using egui::Frame with a slightly tinted background. Show the symbol_key (short form: last '::' segment). Entire chip is a Button; click fires bus.dispatch_command(\"open-code-symbol\", SymbolEntityId(symbol_entity_id)).\n  3. open-code-symbol command handler in code editor: call GET /code/symbols/{symbol_entity_id} (api.ts line 2152 getCodeSymbol) to get symbol.definition { source_id, line_start, line_end }. Open the file source_id in the code pane (if not already open). Scroll to line_start.\n  4. find_notes_referencing_symbol: call GET /knowledge/search?q={symbol_key}&workspace_id={ws_id}&surface=rich_docs or, if the backlinks system (MT-032) is live, scan RichDocBacklink records where ref_value contains the symbol_key. The cleanest path is to call getCodeSymbolReferences (api.ts line 2169: GET /code/symbols/{id}/references) to get callers/callees, then cross-reference with known rich-doc block refs. Alternatively, call GET /knowledge/documents (with text search) if the full-text index includes block content. Document which approach is used in a comment.\n  5. NoteRefsPanel shows: document title (truncated to 40 chars), a short excerpt centered on the symbol mention, and a right-arrow icon. Clicking fires OpenDocument.\n  6. Debounce for NoteRefsPanel: in the code pane update() fn, track last_symbol_entity_id and last_dwell_start (Instant). If cursor is on the same symbol for > 800ms and it differs from currently loaded symbol, fire find_notes_referencing_symbol in a background task.\n  7. 'code_ref' node must survive saveRichDocument + loadRichDocument round-trip: the attrs dict must be preserved in JSONContent. Guard: on load, if symbol_entity_id is Some but getCodeSymbol returns 404, render the chip as 'unresolved' (greyed out) without crashing.\n  8. Linking back from CodeSymbolPanel.tsx (React reference): the React CodeSymbolPanel already shows definition + file lens. The native version extends this with a 'Notes mentioning this symbol' section — that is the NoteRefsPanel widget's purpose.\n  9. AccessKit: CodeRef chip in rich-text uses author_id=\"code-ref-chip-{symbol_entity_id}\", role=Button, actions=[Press]. The symbol search dialog uses author_id=\"code-symbol-search\", role=Dialog; the search input author_id=\"code-symbol-search-input\", role=TextField.\n  10. Tests: src/frontend/tests/code_note_cross_ref_tests.rs — (a) unit: parse [[code:src/main.rs#MyStruct]] extracts file_path='src/main.rs', symbol='MyStruct'; (b) unit: code_ref node round-trips through JSONContent serialization with all attrs; (c) integration (real PG): call getCodeSymbol for a known test symbol (pre-seeded in test PG), assert definition fields non-empty; (d) integration: create a rich doc with a code_ref node, save, reload, assert code_ref node and symbol_entity_id preserved; (e) kittest: click a code_ref chip, assert open-code-symbol command dispatched with correct symbol_entity_id.\n\nDependencies / unblock conditions:\n  - MT-031 (InteractionBus + command dispatch) merged.\n  - MT-032 (loom block addressing — needed for cross-ref to live in the block backlink system) merged.\n  - MT-007 (code editor jump-to-line / file-open infrastructure) merged.\n  - MT-012 (rich-text slash commands infrastructure) merged.\n  - Backend: GET /code/symbols/{id} and GET /code/symbols/lookup must be reachable — confirmed api.ts lines 2152–2158.\n\nRisk if missed: the code<->note cross-reference edge is explicitly listed in the interconnection contract. Without it, code symbols are isolated from the knowledge surface, the parity proof suite cannot validate this edge, and the 'melt-together' claim is unproven for the code+note pair.",
+    "allowed_paths": [
+      "src/frontend/shared/cross_ref.rs",
+      "src/frontend/shared/mod.rs",
+      "src/frontend/widgets/note_refs_panel.rs",
+      "src/frontend/widgets/mod.rs",
+      "src/frontend/panes/rich_text_editor.rs",
+      "src/frontend/panes/code_editor.rs",
+      "src/frontend/tests/code_note_cross_ref_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Inserting a code_ref node via '/code-ref' slash command, selecting a symbol from the live backend lookup, saves and reloads the document with the symbol_entity_id intact — proven by integration test against real PG.",
+      "Clicking a code_ref chip in the rich-text pane dispatches 'open-code-symbol' with the correct symbol_entity_id, and the code pane scrolls to the correct line — proven by kittest: assert code pane's visible line range contains line_start after dispatch.",
+      "NoteRefsPanel in the code pane lists at least one note when a rich doc containing a code_ref to the current symbol exists in the PG — proven by integration test: create rich doc with code_ref, dwell on that symbol in code pane, assert NoteRefsPanel shows the doc title.",
+      "An unresolved code_ref (symbol deleted from backend) renders as a greyed-out chip with 'unresolved' label and does not crash or panic — proven by unit test simulating a 404 response.",
+      "AccessKit nodes: 'code-ref-chip-{symbol_entity_id}' (Button), 'note-refs-panel' (List), 'code-symbol-search' (Dialog) all present in correct pane context — proven by AccessKit tree dumps.",
+      "cargo test -p handshake_native_frontend code_note_cross_ref -- --nocapture passes with no failures."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_native_frontend code_note_cross_ref -- --nocapture  =>  all PASS",
+      "integration test (real PG): create rich doc with code_ref node, save, reload, assert symbol_entity_id preserved",
+      "kittest: click code_ref chip 'code-ref-chip-{id}', assert 'open-code-symbol' command received by bus",
+      "integration test: pre-seed rich doc with code_ref for symbol S; in code pane focus symbol S; assert NoteRefsPanel shows the doc",
+      "unit test: getCodeSymbol returns 404 => code_ref chip renders as 'unresolved', no panic"
+    ],
+    "implementation_notes": [
+      "lookupCodeSymbols maps to GET /code/symbols/lookup?q=... — api.ts line 2158. Params: CodeSymbolLookupQuery { query: String, workspace_id: Option<String>, file_path_filter: Option<String>, limit: Option<u32> }.",
+      "getCodeSymbol maps to GET /code/symbols/{symbol_entity_id} — api.ts line 2152. Returns CodeSymbolResponse { symbol: CodeSymbolNavProjection { symbol_key, display_name, kind, staleness, definition: { source_id, line_start, line_end } } }.",
+      "getCodeSymbolReferences maps to GET /code/symbols/{id}/references — api.ts line 2169. Returns CodeSymbolReferencesResponse { symbol, callers: CodeSymbolReference[], callees: CodeSymbolReference[] }.",
+      "For find_notes_referencing_symbol: the simplest first-pass approach is to search the RichDocBacklink table for ref_value containing the symbol_key (this is what the backend persists when a rich doc saves a code_ref block with ref_value=symbol_key). Call GET /knowledge/backlinks?ref_value={symbol_key} if that filter endpoint exists; otherwise use GET /knowledge/search. Document the chosen path in a code comment.",
+      "React reference: CodeSymbolPanel.tsx (api.ts getCodeSymbol, getCodeFileLens) is the parity source for the symbol detail view. The NoteRefsPanel is a new native-only addition (the React version does not have this cross-ref panel, making it a genuine interconnection improvement)."
+    ],
+    "ports_from_react": [
+      "app/src/components/CodeSymbolPanel.tsx — getCodeSymbol, getCodeFileLens, definition/staleness display pattern, symbolFilePath helper",
+      "app/src/components/CodeSymbolPanel.test.tsx — test patterns for symbol lookup and file lens loading"
+    ],
+    "binds_backend_api": [
+      "GET /code/symbols/{symbol_entity_id}  =>  api.ts line 2152 getCodeSymbol  =>  returns CodeSymbolResponse with definition { source_id, line_start, line_end }",
+      "GET /code/symbols/lookup  =>  api.ts line 2158 lookupCodeSymbols  =>  params CodeSymbolLookupQuery  =>  returns CodeSymbolLookupResponse",
+      "GET /code/symbols/{id}/references  =>  api.ts line 2169 getCodeSymbolReferences  =>  returns { callers, callees }",
+      "GET /code/files/lens  =>  api.ts line 2175 getCodeFileLens  =>  params { relative_path, content_hash, parser_version }  =>  returns CodeFileLensResponse",
+      "GET /knowledge/search or GET /knowledge/backlinks?ref_value={symbol_key}  =>  find notes referencing symbol (exact endpoint to be confirmed against backend source)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "find_notes_referencing_symbol may not have a direct backend endpoint; using full-text search with the symbol_key as a query string will produce false positives (any note mentioning the word 'MyStruct' regardless of context).",
+      "Symbol keys contain colons and slashes (e.g. 'src/main.rs#MyStruct::new') — URL-encoding must be applied correctly in every backend call; missed encoding causes 404s.",
+      "Dwell-based NoteRefsPanel load fires on every cursor move if the debounce timer is not reset correctly, spamming the backend with search requests.",
+      "code_ref node type not declared in the document schema causes saveRichDocument to strip it silently (if the backend validates node types) or corrupt the document.",
+      "open-code-symbol command received by bus but code pane is not open: command handler must open or focus the code pane first before scrolling."
+    ],
+    "minimum_controls": [
+      "Document the find_notes_referencing_symbol endpoint choice (backlink filter vs. full-text) before implementing; if full-text is used, add a 'code_ref' filter param to limit to documents containing code_ref blocks only.",
+      "Apply percent_encoding to all symbol_key values before embedding in URLs; unit test with a symbol_key containing '/', '#', and '::'.",
+      "Use a single Instant + symbol_entity_id pair for dwell tracking; reset the timer on every cursor move; fire the search only once per dwell crossing the 800ms threshold.",
+      "Declare 'code_ref' as an explicit allowed node type in the document schema; if the backend rejects it, raise as a typed blocker.",
+      "open-code-symbol handler: if code pane tile does not exist, create it (similar to Stage pane in MT-033) before jumping to line."
+    ]
+  }
+}

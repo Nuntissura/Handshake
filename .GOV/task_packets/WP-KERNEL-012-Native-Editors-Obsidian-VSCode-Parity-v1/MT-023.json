@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-023",
+  "title": "E3-MT023-TagsTagHubs",
+  "group": "E3 Knowledge surface / Obsidian graph (Loom)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-021"],
+    "blocks": ["MT-024", "MT-027"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement a Tags panel and Tag Hubs panel in the native egui frontend. The Tags panel lists all tag blocks (content_type='tag_hub') across the workspace fetched from the real PostgreSQL backend, shows the number of blocks linked to each tag, and lets the user click a tag to open it as a filter (fires on_filter_tag callback). The Tag Hubs panel renders tag_hub-typed LoomBlocks as first-class content pages (like Obsidian's 'tag page'): showing the hub's title, description (from content_json), and the list of blocks tagged with it. Expected diff shape: one new file src/frontend/loom/tags_panel.rs containing LoomTagsPanel and LoomTagHubPanel widgets, edits to src/frontend/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/loom/tags_panel.rs — LoomTagsPanel (tag list) + LoomTagHubPanel (tag hub page)\n- EDIT src/frontend/loom/mod.rs — pub mod tags_panel; + re-exports\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) calls queryLoomView with contentType filter (LoomViewQuery.contentType, api.ts line 1061). bookmarkKind() in WorkspaceSidebar.tsx line 44 identifies tag_hub blocks. The React component does not have a standalone Tags panel; this is a new surface.\n- LoomBlock.content_type == 'tag_hub' (api.ts line 933) is the tag hub block type.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — list all tag hub blocks\n  - GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id} — list blocks tagged with a specific tag hub\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail\n  - GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={tag_hub_block_id} — grouped members of a tag hub\n  - POST /workspaces/{workspace_id}/loom/edges (createLoomEdge edge_type='tag') — tag a block with a hub (future use; wire callback slot)\n\nStep-by-step implementation notes:\n1. Define TagEntry { block_id: String, title: String, member_count: u32 } in tags_panel.rs.\n2. Define LoomTagsPanel { workspace_id: String, tags: Vec<TagEntry>, on_open_tag: Callback<String>, on_filter_tag: Callback<String>, loading: bool, error: Option<String>, search_filter: String }.\n3. On init, call GET /workspaces/{id}/loom/views/all?content_type=tag_hub to enumerate all tag hubs. For each hub, member_count = members.len() (or show 0 if not yet loaded). Display a flat list sorted by title.\n4. Render a search box at top of panel (egui::TextEdit::singleline, author_id='tags.search', placeholder='Filter tags...'). Filter displayed tags client-side by title prefix match.\n5. Each tag row: colored tag chip (egui::Button with background color derived from title hash), member count badge, click fires on_open_tag(block_id) to navigate to the hub page.\n6. LoomTagHubPanel (separate widget, shown when a tag hub block_id is provided as the active page):\n   a. Load tag hub block via GET /workspaces/{id}/loom/blocks/{block_id}.\n   b. Load members via GET /workspaces/{id}/loom/views/all?tag_ids={block_id}, limit=100.\n   c. Render hub title as H1, description from content_json if present.\n   d. Render members as a scrollable list of block rows (title + content_type). Click on member -> on_open(member_block_id).\n   e. 'Add tag to block' button (author_id='tag-hub.add-tag.{block_id}'): opens a quick-switcher-style popup to search for a block and tag it (fires POST /workspaces/{id}/loom/edges with edge_type='tag', source=selected_block_id, target=hub_block_id).\n7. AccessKit:\n   - LoomTagsPanel: search box author_id='tags.search', each tag row 'tags.row.{block_id}' role=ListItem with DefaultAction=open, member count as accessible description.\n   - LoomTagHubPanel: hub title label 'tag-hub.title.{block_id}', member list items 'tag-hub.member.{block_id}', add-tag button 'tag-hub.add-tag.{block_id}'.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. MT-023 does not depend on MT-022.\n\nRisk if missed: Tag-based navigation and filtering are unavailable. MT-027 (BlockCollectionViews kanban lanes) depends on tag identity resolved here.",
+    "allowed_paths": [
+      "src/frontend/loom/tags_panel.rs",
+      "src/frontend/loom/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: The tags panel loads and displays all tag_hub blocks from a real PG workspace containing >=3 tag hub blocks. Each row shows the hub title and member count.",
+      "AC2: The search filter box reduces the displayed tag list to only tags whose title starts with the entered prefix (client-side filter, real PG data).",
+      "AC3: Clicking a tag row fires on_open_tag with the correct block_id.",
+      "AC4: The LoomTagHubPanel for a specific tag hub block_id loads and displays the hub title and all member blocks (>=1 member required in test data).",
+      "AC5: Clicking a member block row in LoomTagHubPanel fires the on_open callback with the correct member block_id.",
+      "AC6: The 'Add tag to block' button opens a popup, searching for a block and tagging it fires POST /workspaces/{id}/loom/edges with edge_type='tag', then the member list refreshes.",
+      "AC7: AccessKit tree contains 'tags.search' (TextInput), 'tags.row.{block_id}' entries for each tag, 'tag-hub.member.{block_id}' entries for each member.",
+      "AC8: With no tag_hub blocks, the tags panel shows 'No tags' and no panic."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake_frontend loom::tags_panel -- --nocapture passes unit tests for title-based client-side filtering logic.",
+      "PROOF2: kittest harness with 3 tag_hub blocks seeded in real PG: asserts 3 'tags.row.*' AccessKit nodes.",
+      "PROOF3: kittest search-filter test: type 'rust' into 'tags.search', assert only tags whose title contains 'rust' remain in AccessKit tree.",
+      "PROOF4: kittest tag-hub-panel test: open hub 'tag-hub-001', assert 'tag-hub.title.tag-hub-001' label present and >=1 'tag-hub.member.*' node in AccessKit tree.",
+      "PROOF5: kittest add-tag test: click 'tag-hub.add-tag.tag-hub-001', search for 'block-X', select it, assert POST /loom/edges request fired (via Tauri command intercept) with edge_type='tag'."
+    ],
+    "implementation_notes": [
+      "Title-hash color: use a simple djb2 hash on the tag title string, map to a palette of 8 distinct hues. Color is purely cosmetic, not persisted.",
+      "Member count: load member count lazily only when the tag list is first rendered. Fire one GET /loom/views/all?content_type=tag_hub to get blocks, then batch-resolve member counts with individual GET /loom/views/all?tag_ids={id}&limit=1 calls in parallel (or accept approximate count from LoomBlock.derived.tag_count if available).",
+      "Scrollable member list: use egui::ScrollArea::vertical() wrapping the member list in LoomTagHubPanel.",
+      "Add-tag popup: implement as an egui::Window or popup_below_widget. Contains a TextEdit for search and a list of results from GET /loom/views/all?q={search}&limit=20. On select, fire the edge creation.",
+      "Do not store tag colors or member counts in backend; they are ephemeral UI state.",
+      "LoomTagHubPanel is a separate widget struct from LoomTagsPanel so it can be placed in any egui_tiles tile independently."
+    ],
+    "ports_from_react": [
+      "WorkspaceSidebar.tsx line 44 bookmarkKind() — identifies tag_hub content type",
+      "queryLoomView with contentType filter: app/src/lib/api.ts lines 1868-1888, LoomViewQuery.contentType field line 1061",
+      "LoomBlock.content_type='tag_hub': app/src/lib/api.ts line 933"
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — enumerate all tag hubs",
+      "GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id}&limit=100 — list members of a tag hub",
+      "GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail",
+      "POST /workspaces/{workspace_id}/loom/edges — create tag edge (edge_type='tag') to tag a block with a hub"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Loading member counts for 50+ tags with N+1 GET calls makes the tags panel slow to appear. Mitigation: use LoomBlock.derived.tag_count from the initial list response instead of per-tag member queries; only exact-count-load on hub open.",
+      "RISK-2: Tag edge creation (add-tag popup) succeeds but member list does not reflect new member if the re-query is triggered before backend commits. Mitigation: add 100ms delay before re-query or listen to EventLedger event if available.",
+      "RISK-3: Title-hash color collisions make unrelated tags look identical. Mitigation: use a palette of >=12 colors and XOR multiple hash words for better distribution.",
+      "RISK-4: The 'add-tag' popup TextEdit focus may conflict with the parent panel's keyboard focus in egui. Mitigation: use a dedicated egui::Window with force_focus on open.",
+      "RISK-5: Backend may not support content_type='tag_hub' filter on /views/all. Mitigation: fall back to fetching all blocks and filtering client-side by content_type field."
+    ],
+    "minimum_controls": [
+      "MC-1: Use LoomBlock.derived.tag_count for member count in list; avoid N+1 queries. Covered by AC1 (count shown).",
+      "MC-2: Re-query after edge creation with 100ms delay. Covered by AC6 (member list refreshes).",
+      "MC-3: 12-color palette. Unit test collision rate < 20% for a 50-tag sample. Covered by PROOF1.",
+      "MC-4: Fallback client-side filter for content_type. Covered by AC8 (no panic on empty)."
+    ]
+  }
+}

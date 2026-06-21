@@ -1,0 +1,111 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-032",
+  "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
+  "group": "E5 Interconnection / melt-together",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-031", "MT-021", "MT-022"],
+    "blocks": ["MT-033", "MT-034", "MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: make every document, rich-text block, canvas node, and code-file node in the native surface addressable as a Loom block with a content hash and live backlinks. This is the 'everything is a Loom block' invariant from the interconnection contract. Expected diff: (a) a new module src/frontend/shared/loom_address.rs (~200–300 lines) that holds LoomBlockAddr, LoomBlockRecord, ContentHash, and the resolution logic; (b) a LoomBlockResolver that calls the existing backend APIs (getLoomBlock, getLoomBlockTransclusion, getDocumentBacklinks); (c) a BacklinkPanel widget added to the bottom of the rich-text editor and the graph pane; (d) tests proving that creating a rich document yields a loom:// URI and that the backlink panel loads real backlinks from the live PG backend.\n\nFiles to CREATE:\n  - src/frontend/shared/loom_address.rs  — defines LoomBlockAddr { workspace_id: String, block_id: String }, ContentHash(String), LoomBlockRecord { addr: LoomBlockAddr, title: String, content_hash: ContentHash, block_type: LoomBlockType }, LoomBlockType enum { RichDocument | CanvasNode | CodeFileNode | GraphNode }. Provides fn loom_uri(addr: &LoomBlockAddr) -> String (format: \"loom://{workspace_id}/{block_id}\"). Provides fn parse_loom_uri(s: &str) -> Option<LoomBlockAddr>.\n  - src/frontend/widgets/backlink_panel.rs  — egui widget; takes workspace_id + document_id; on first render calls backend GET /knowledge/documents/{doc_id}/backlinks; shows list of RichDocBacklink { backlink_id, source_document_id, link_kind, target, block_id }; each row is a clickable button that fires OpenDocument command on the InteractionBus (MT-031). AccessKit: panel container author_id=\"backlinks-panel-{doc_id}\", role=List; each row author_id=\"backlink-{backlink_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/shared/mod.rs  — add `pub mod loom_address;`\n  - src/frontend/widgets/mod.rs  — add `pub mod backlink_panel;`\n  - src/frontend/panes/rich_text_editor.rs  — after saving a document, call backend PUT /loom/blocks/{block_id} with the document's content_hash (derived as SHA-256 of canonical JSON); embed BacklinkPanel at the bottom of the pane.\n  - src/frontend/panes/canvas_pane.rs  — each canvas node that maps to a placed Loom block must resolve and display its loom:// address in the node header; double-click opens the referenced document.\n  - src/frontend/panes/graph_pane.rs  — each graph node tooltip shows its loom:// URI and backlink count.\n\nStep-by-step implementation notes:\n  1. ContentHash: use sha2::Sha256 (add sha2 ^0.10 to Cargo.toml if not present). Canonical JSON: serialize the document's ProseMirror JSONContent using serde_json with sorted keys (use indexmap if needed) then hash bytes.\n  2. LoomBlockAddr is stable across renames: the block_id is the backend's UUID; the workspace_id is the app-level workspace UUID.\n  3. To resolve a document_id to its loom block_id: the existing backend RichDocument (from loadRichDocument / GET /knowledge/documents/{id}) already carries a block_id field (see api.ts LoomBlock: block_id). Read this field on document load.\n  4. BacklinkPanel loading: call GET /knowledge/documents/{doc_id}/backlinks — this maps to the React call getRichDocBacklinks (api.ts line ~3326: request('/knowledge/documents/${documentId}/backlinks')). Response is { source_document_id, backlinks: RichDocBacklink[] }. Cache the result in BacklinkPanel's local egui state (load once per document_id change).\n  5. Backlink row: display source_document_id (truncated), link_kind badge, and a right-arrow icon. On click: bus.dispatch_command(\"open-document\", CommandArgs::DocumentId(source_document_id)). The OpenDocument command must be registered on the InteractionBus (MT-031).\n  6. Canvas node addressing: each CanvasNode in the DB has a placed_block_id (see api.ts CanvasPlacedNode line ~1642). Use this as the loom block_id. On canvas pane render, for each node, show a loom:// chip in the node header if placed_block_id is Some.\n  7. Content hash write-back: after saveRichDocument returns (api.ts ~3245), read the save_receipt_event_id and doc_version. Derive ContentHash of the saved JSON. Call PUT /loom/blocks/{block_id} with { content_hash }. This is the backend updateLoomBlock call (api.ts ~1890: request('/loom/blocks/${blockId}', { method: 'PATCH', body })). Map to the Rust IPC client.\n  8. AccessKit: see above under BacklinkPanel.\n  9. Tests: src/frontend/tests/loom_address_tests.rs — (a) unit: parse_loom_uri(\"loom://ws1/block1\") returns Some(LoomBlockAddr { workspace_id: 'ws1', block_id: 'block1' }); (b) unit: loom_uri round-trips; (c) integration (real PG): create a rich document via backend API, load it, assert block_id is non-empty, assert GET /knowledge/documents/{id}/backlinks returns 200; (d) integration: create doc A with a wikilink to doc B, save A, assert B's backlinks include A's block_id.\n\nDependencies / unblock conditions:\n  - MT-031 (InteractionBus, OpenDocument command registration) merged.\n  - MT-021 (graph pane) and MT-022 (canvas pane placing loom blocks) merged so canvas node placed_block_id field is accessible.\n  - sha2 crate ^0.10 added to Cargo.toml.\n  - Backend: GET /knowledge/documents/{id}/backlinks endpoint must exist (it does — confirmed in api.ts line 3326).\n  - Backend: PATCH /loom/blocks/{block_id} must exist (confirmed api.ts updateLoomBlock line 1890).\n\nRisk if missed: without the loom block addressing layer, MT-033 (CKC embeds as loom:// refs) and MT-034 (code<->note cross-refs) both lack a stable addressable target, and the parity proof suite (MT-044) cannot assert the 'everything is a Loom block' invariant.",
+    "allowed_paths": [
+      "src/frontend/shared/loom_address.rs",
+      "src/frontend/shared/mod.rs",
+      "src/frontend/widgets/backlink_panel.rs",
+      "src/frontend/widgets/mod.rs",
+      "src/frontend/panes/rich_text_editor.rs",
+      "src/frontend/panes/canvas_pane.rs",
+      "src/frontend/panes/graph_pane.rs",
+      "src/frontend/tests/loom_address_tests.rs",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "loom_uri / parse_loom_uri round-trip: parse_loom_uri(loom_uri(&addr)) == Some(addr) — proven by unit test.",
+      "Creating a rich document via the live PG backend and loading it returns a non-empty block_id that parses as a valid LoomBlockAddr — proven by integration test against real PG.",
+      "BacklinkPanel renders a list of backlinks for a document that has at least one inbound wikilink, with each row showing source_document_id and link_kind — proven by integration test creating doc A (wikilink to B) then loading B's panel.",
+      "Clicking a backlink row fires the OpenDocument command on the InteractionBus with the correct document ID — proven by kittest harness asserting bus command receipt.",
+      "Canvas nodes with a placed_block_id display the loom:// chip in their header — proven by kittest screenshot + AccessKit node present.",
+      "Content hash write-back: after saving a rich document the backend PATCH /loom/blocks/{block_id} is called with a non-empty content_hash — proven by integration test asserting updated block.content_hash matches SHA-256 of saved JSON.",
+      "AccessKit nodes 'backlinks-panel-{doc_id}' (List) and at least one 'backlink-{backlink_id}' (ListItem) present when panel has data — proven by AccessKit tree dump in kittest.",
+      "cargo test -p handshake_native_frontend loom_address -- --nocapture passes with no failures."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_native_frontend loom_address -- --nocapture  =>  all PASS",
+      "integration test (real PG): create rich doc, load, assert block_id non-empty, GET backlinks returns 200",
+      "integration test: create doc A with wikilink [[doc_B]], save, assert GET /knowledge/documents/{B_id}/backlinks returns entry with source_document_id == A_id",
+      "kittest: click backlink row, assert InteractionBus received OpenDocument command with correct doc_id",
+      "AccessKit tree dump: assert 'backlinks-panel-*' List node and at least one 'backlink-*' ListItem present"
+    ],
+    "implementation_notes": [
+      "sha2 = { version = \"^0.10\", features = [] } — add to [dependencies] in Cargo.toml.",
+      "Canonical JSON for hashing: use serde_json::to_string_pretty is NOT canonical (key order may differ). Use a sorted-keys serializer or indexmap to ensure deterministic output before hashing; otherwise two structurally identical documents may hash differently across platforms.",
+      "React reference for backlinks: LoomBlockPanel.tsx (api.ts getLoomBlock, updateLoomBlock) and LoomTransclusionView.tsx (getLoomBlockTransclusion) show how block_id is threaded through the frontend. The direct backlinks call is api.ts line 3326 getRichDocBacklinks.",
+      "React reference for placed_block_id: CanvasView.tsx line ~1642 CanvasPlacedNode type has canvas_block_id + placed_block_id. In native, mirror this from the canvas graph response (GET /canvas/{id} returns CanvasWithGraph which includes placed nodes with placed_block_id).",
+      "Do NOT cache backlinks longer than the document session; invalidate on saveRichDocument completion so the panel refreshes after the user edits links."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomBlockPanel.tsx — getLoomBlock, updateLoomBlock, block_id threading, pinned/favorite state pattern",
+      "app/src/components/LoomTransclusionView.tsx — getLoomBlockTransclusion, resolved/unresolved/failed states for block resolution",
+      "app/src/components/CanvasView.tsx — CanvasPlacedNode type, placed_block_id field, canvas node rendering"
+    ],
+    "binds_backend_api": [
+      "GET /knowledge/documents/{doc_id}/backlinks  =>  api.ts line ~3326 getRichDocBacklinks  =>  returns { source_document_id, backlinks: RichDocBacklink[] }",
+      "PATCH /loom/blocks/{block_id}  =>  api.ts line ~1890 updateLoomBlock  =>  body: { content_hash }",
+      "GET /loom/blocks/{block_id}  =>  api.ts line ~1611 getLoomBlock  =>  returns LoomBlock { block_id, content_hash, ... }",
+      "GET /canvas/{canvas_id}  =>  api.ts line ~1639 getCanvas  =>  returns CanvasWithGraph including placed nodes with placed_block_id"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Non-deterministic JSON serialization causes content hashes to differ for the same document across runs, making the write-back useless or noisy.",
+      "Backend GET /knowledge/documents/{id}/backlinks returns 404 for new documents that have never had links; the panel must handle this gracefully without error banner.",
+      "placed_block_id may be null for canvas nodes that were created before loom-address support; display of loom:// chip must be conditional, not panic on None.",
+      "BacklinkPanel loading blocks the egui frame if the HTTP call is synchronous; must be async with a loading state.",
+      "Content hash write-back races with the saveRichDocument call if the user saves rapidly; a second save must wait for the PATCH to complete or be debounced."
+    ],
+    "minimum_controls": [
+      "Use a sorted-keys JSON serializer (e.g. serde_json with BTreeMap round-trip or indexmap) and assert determinism in unit tests by hashing the same struct twice and comparing.",
+      "Handle 404 from GET backlinks as an empty list (not an error); show 'No backlinks yet' placeholder text.",
+      "Guard placed_block_id access with .as_deref().unwrap_or_default() and skip chip rendering if empty string.",
+      "Load BacklinkPanel data in a Tokio spawn or equivalent non-blocking task; store result in Arc<Mutex<BacklinkState>> polled in update().",
+      "Debounce content hash write-back: only fire PATCH if the new hash differs from the last known hash stored in pane state."
+    ]
+  }
+}

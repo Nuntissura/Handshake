@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-042",
+  "title": "E7-MT-042-KnowledgeGraphAccessKit",
+  "group": "E7 Model-vision parity",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "WP-KERNEL-011:MT-001",
+      "WP-KERNEL-012:MT-021",
+      "WP-KERNEL-012:MT-022",
+      "WP-KERNEL-012:MT-023",
+      "WP-KERNEL-012:MT-025",
+      "WP-KERNEL-012:MT-026",
+      "WP-KERNEL-012:MT-027"
+    ],
+    "blocks": [
+      "WP-KERNEL-012:MT-043",
+      "WP-KERNEL-012:MT-044"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Expose every interactive action on the native knowledge graph, canvas board, and block-collection views (table/Kanban/calendar) through the WP-011 AccessKit surface with stable author_ids. An out-of-process swarm agent must be able to: navigate the graph to a node by block_id, open a node, add/remove an edge, pan/zoom the canvas, place a block on canvas by id, move a Kanban card between lanes, sort a table column, navigate calendar views — all purely via the AccessKit action channel with no screen-scraping.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/native_editors/accessibility/knowledge_action_registry.rs\n    — defines KnowledgeActionId enum covering graph, canvas, and collection actions\n    — defines KnowledgeActionNode struct (same shape as EditorActionNode from MT-041)\n    — defines KnowledgeActionRegistry (same Arc<Mutex<>> pattern)\n    — graph node AccessKit nodes are keyed by block_id so a swarm agent can target a specific note by its Loom block id\n  EDIT    src/frontend/native_editors/knowledge/graph_pane.rs\n    — register graph-level actions: graph.pan-left, graph.pan-right, graph.zoom-in, graph.zoom-out, graph.zoom-reset, graph.open-node (with block_id parameter), graph.add-edge (source_id, target_id), graph.remove-edge (edge_id), graph.select-node, graph.deselect-all\n    — register per-node AccessKit nodes keyed 'graph.node.<block_id>': role=TreeItem, actions=['activate' (open), 'expand', 'collapse']; nodes are populated from the in-memory graph projection and updated on graph refresh\n  EDIT    src/frontend/native_editors/knowledge/canvas_pane.rs\n    — register canvas-level actions: canvas.pan-left, canvas.pan-right, canvas.zoom-in, canvas.zoom-out, canvas.zoom-reset, canvas.add-card (title parameter), canvas.place-block (block_id, x, y), canvas.remove-placement (placement_id), canvas.add-edge (source_id, target_id, edge_mode), canvas.remove-edge (edge_id), canvas.select-card (placement_id), canvas.deselect-all\n    — register per-placement AccessKit nodes keyed 'canvas.card.<placement_id>': role=Group, actions=['activate' (open block), 'move' (x, y), 'delete']\n  EDIT    src/frontend/native_editors/knowledge/collection_pane.rs\n    — register collection-level actions: collection.sort (field, direction), collection.filter (field, value), collection.kanban-move (block_id, from_lane, to_lane), collection.calendar-next, collection.calendar-prev, collection.calendar-today, collection.open-block (block_id)\n    — register per-row AccessKit nodes keyed 'collection.row.<block_id>': role=Row, actions=['activate']\n  EDIT    src/frontend/native_editors/accessibility/mod.rs\n    — add pub mod knowledge_action_registry\n  CREATE  tests/native_editors/e7_knowledge_accesskit.rs\n    — kittest: open graph pane with synthetic blocks, assert per-node AccessKit entries; dispatch graph.open-node, assert navigation; dispatch canvas.place-block, assert new card node; dispatch collection.kanban-move, assert lane change reflected in AccessKit tree\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/native_editors/accessibility/knowledge_action_registry.rs  (NEW)\n  src/frontend/native_editors/knowledge/graph_pane.rs                      (EDIT)\n  src/frontend/native_editors/knowledge/canvas_pane.rs                     (EDIT)\n  src/frontend/native_editors/knowledge/collection_pane.rs                  (EDIT)\n  src/frontend/native_editors/accessibility/mod.rs                           (EDIT)\n  tests/native_editors/e7_knowledge_accesskit.rs                            (NEW)\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 MT-001 spike: egui + AccessKit adapter exists and is operational (same dependency as MT-041).\n  - WP-KERNEL-012 MT-021 (local graph view) and MT-022 (global graph view) complete: graph_pane.rs exists with a rendered node set and pan/zoom actions.\n  - WP-KERNEL-012 MT-023 (folder tree + tags) complete: tags and tag-hub interaction points exist.\n  - WP-KERNEL-012 MT-025 (wiki-page projection) and MT-026 (canvas board) complete: canvas_pane.rs exists with placement management.\n  - WP-KERNEL-012 MT-027 (block-collection views) complete: collection_pane.rs exists with table/Kanban/calendar views.\n\nRISK IF MISSED: MT-043 SwarmEditProof requires a swarm agent to 'navigate graph', 'add backlink', and 'drive canvas' purely via AccessKit. If MT-042 is absent those actions have no AccessKit surface and the proof test cannot be written. MT-044 parity gate cannot include knowledge-surface model-accessibility criteria.",
+    "allowed_paths": [
+      "src/frontend/native_editors/accessibility/**",
+      "src/frontend/native_editors/knowledge/graph_pane.rs",
+      "src/frontend/native_editors/knowledge/canvas_pane.rs",
+      "src/frontend/native_editors/knowledge/collection_pane.rs",
+      "tests/native_editors/e7_knowledge_accesskit.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-042-01: `cargo test -p handshake_frontend --test e7_knowledge_accesskit` passes with zero failures. The test must open graph, canvas, and collection panes with synthetic data (real in-process PG or a seeded test fixture that mirrors the real schema); query the AccessKit tree; and assert per-block and per-placement node presence.",
+      "AC-042-02: For each LoomBlock in the test fixture, an AccessKit node with author_id 'graph.node.<block_id>' is present in the tree with role=TreeItem and at least action 'activate'.",
+      "AC-042-03: For each canvas placement in the test fixture, an AccessKit node with author_id 'canvas.card.<placement_id>' is present in the tree with role=Group and at least actions 'activate' and 'delete'.",
+      "AC-042-04: Dispatching `graph.open-node` with a block_id parameter via AccessKit causes the corresponding document to open in the editor pane (observable as a new AccessKit node for the opened document within 200 ms).",
+      "AC-042-05: Dispatching `canvas.place-block` with a valid block_id, x=100, y=100 causes a call to the backend `place_block_on_canvas` API and a new 'canvas.card.<new_placement_id>' node to appear in the AccessKit tree after the next refresh.",
+      "AC-042-06: Dispatching `collection.kanban-move` with a block_id, from_lane, and to_lane causes a call to the backend `update_loom_block` API (tag edge update) and the collection AccessKit tree to reflect the block in the new lane on next query.",
+      "AC-042-07: Dispatching `graph.add-edge` with source_id and target_id causes a call to the backend `create_loom_edge` API and a new edge node to appear in the graph AccessKit tree.",
+      "AC-042-08: All graph-level action nodes (graph.pan-left through graph.zoom-reset) are present in the AccessKit tree regardless of whether any blocks are loaded; they represent global graph controls, not per-node actions.",
+      "AC-042-09: `cargo build -p handshake_frontend` succeeds with zero new warnings introduced by this MT.",
+      "AC-042-10: No mocks substitute backend API calls in the proof tests; the test must connect to a real in-process or test-fixture PostgreSQL instance and assert round-trip database state."
+    ],
+    "proof_targets": [
+      "PROOF-042-A: Run `cargo test -p handshake_frontend --test e7_knowledge_accesskit 2>&1`; paste full stdout. Every line must show 'ok'.",
+      "PROOF-042-B: In the kittest, print the AccessKit tree and paste it. Reviewer must be able to locate at least two 'graph.node.<uuid>' nodes, one 'canvas.card.<uuid>' node, and all graph-level action nodes.",
+      "PROOF-042-C: After dispatching `canvas.place-block`, print the AccessKit tree again and paste the diff showing the new 'canvas.card.<id>' node.",
+      "PROOF-042-D: After dispatching `collection.kanban-move`, query the backend (SELECT tag_edges WHERE block_id=...) and paste the row showing the tag has moved to the new lane.",
+      "PROOF-042-E: Run `cargo build -p handshake_frontend 2>&1 | grep -E 'warning:|error:'`; paste output. Zero new warnings."
+    ],
+    "implementation_notes": [
+      "IN-042-01: Graph node AccessKit registration. The native graph pane maintains a Vec<GraphNode> (each GraphNode has block_id: Uuid, title: String, position: Vec2, expanded: bool). On every frame where the node set has changed (content hash differs), update the KnowledgeActionRegistry with the current node set. Each node registers as AccessKit node author_id='graph.node.<block_id>' with role=TreeItem. Do NOT re-register unchanged nodes each frame; only push diffs. The registry must keep a BTreeMap<Uuid, u64> of per-node content hashes to detect changes cheaply.",
+      "IN-042-02: Canvas placement AccessKit registration. The native canvas pane maintains a Vec<CanvasPlacement> (placement_id: Uuid, placed_block_id: Uuid, x, y, w, h). Register each placement as author_id='canvas.card.<placement_id>'. The placed_block_id is surfaced as an AccessKit property (key: 'block_id', value: placed_block_id string) so a swarm agent can correlate placements to their source blocks. Role=Group. Actions=['activate' (opens the referenced block), 'move' (requires x, y parameters passed via AccessKit custom-action payload), 'delete'].",
+      "IN-042-03: Collection row AccessKit registration. The native collection pane (table/Kanban/calendar) maintains a Vec<CollectionRow> (block_id, fields). Register each row as author_id='collection.row.<block_id>' with role=Row. For Kanban, additionally register lane containers: author_id='collection.lane.<lane_tag>' with role=Group so a swarm agent can assert which lane a card is in.",
+      "IN-042-04: Parameterized actions. AccessKit's custom-action payload is a string. Encode parameters as JSON in the payload string. Example: `canvas.place-block` receives payload `{\"block_id\":\"<uuid>\",\"x\":100,\"y\":100}`. The canvas pane's action handler parses this JSON and calls `place_block_on_canvas`. Use `serde_json::from_str` for parsing; log and discard malformed payloads with an error log line (never panic in release builds).",
+      "IN-042-05: React parity references for this MT (READ ONLY):\n  app/src/components/LoomCanvasBoard.tsx — canvas drag/drop, place-block, add-card, add-edge, viewport persistence (pan/zoom), createCanvasCard, placeBlockOnCanvas, addCanvasVisualEdge, createLoomEdge, updateCanvasBoardViewport\n  app/src/components/BlockCollectionView.tsx — queryBlockViewResults, updateBlockView (sort), updateLoomBlock (Kanban move), flipDirection, BLOCK_VIEW_UNTAGGED_LANE\n  app/src/components/LoomSearchV2Panel.tsx — loomSearchV2, createBlockView, content_type_facets, onOpenBlock (reference semantics)\n  app/src/components/LoomWikiPagePanel.tsx — getLoomWikiProjection (for wiki-page node in graph)\n  app/src/lib/api.ts — backend function signatures: getCanvasBoard, placeBlockOnCanvas, createCanvasCard, createLoomEdge, addCanvasVisualEdge, removeCanvasPlacement, updateCanvasBoardViewport, getBlockView, queryBlockViewResults, updateBlockView, updateLoomBlock, loomSearchV2, createBlockView, getLoomBlock",
+      "IN-042-06: Backend API bindings. All backend calls for this MT go through the existing E6 cluster wiring (MT-037 to MT-040). Do NOT add new IPC Tauri commands in this MT. If a required API is not yet wired in E6, file a typed blocker against the relevant E6 MT and skip that AC with a TODO comment citing the blocker.",
+      "IN-042-07: Graph pan/zoom AccessKit nodes. Register global control nodes regardless of graph content:\n  graph.pan-left      — Button, action='activate'\n  graph.pan-right     — Button\n  graph.zoom-in       — Button\n  graph.zoom-out      — Button\n  graph.zoom-reset    — Button\n  graph.select-node   — requires block_id parameter in payload\n  graph.deselect-all  — Button\nFor graph.add-edge and graph.remove-edge: receive JSON payload {\"source_id\":\"...\",\"target_id\":\"...\"} and {\"edge_id\":\"...\"} respectively.",
+      "IN-042-08: KnowledgeActionRegistry is a separate struct from EditorActionRegistry (MT-041) but shares the same AccessKit adapter reference. Both registries push diffs to the same AccessKit adapter. Ensure no duplicate author_ids across both registries; the 'graph.', 'canvas.', 'collection.' prefixes disambiguate from the 'editor.' prefix in MT-041.",
+      "IN-042-09: kittest fixture. The kittest must seed at least: 3 LoomBlocks (one of type 'note', one of type 'canvas', one of type 'view_def'), 2 Loom edges between them, 2 canvas placements on the canvas block, and 2 collection rows with one Kanban lane each. Use the same real-PG test fixture pattern established in the E6 cluster (MT-037/MT-038) if available; otherwise use a local in-process SQLite-free fixture that directly populates the in-memory graph projection structs (acceptable only if real-PG fixture is not yet available in the test harness).",
+      "IN-042-10: HBR-SWARM author_id stability for dynamic collections. Graph and canvas nodes come and go as blocks are created/deleted. A swarm agent's stored 'graph.node.<block_id>' reference is valid as long as the block exists. Document this contract in a Rust doc comment on KnowledgeActionRegistry: 'graph.node.<block_id> is stable for the lifetime of the block; canvas.card.<placement_id> is stable for the lifetime of the placement. Deletion is signalled by absence from the AccessKit tree, not by a tombstone.'"
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomCanvasBoard.tsx — canvas board state (pan/zoom/placements/edges), drag/drop, viewport persistence; port the full action surface to AccessKit nodes and parameterized actions",
+      "app/src/components/BlockCollectionView.tsx — collection views (table/Kanban/calendar), sort persistence, Kanban card move (real tag edge update); port to collection AccessKit nodes",
+      "app/src/components/LoomSearchV2Panel.tsx — search action surface, facet navigation, save-as-view; port to graph/collection AccessKit nodes",
+      "app/src/components/LoomWikiPagePanel.tsx — wiki-page projection action; port to graph node open-node action",
+      "app/src/components/HsLinkView.tsx — Loom block preview on hover; the native equivalent should surface a 'preview' action on graph.node.<block_id> AccessKit nodes"
+    ],
+    "binds_backend_api": [
+      "handshake_core: GET /loom/canvas/{board_block_id} (getCanvasBoard) — read canvas state for AccessKit tree population",
+      "handshake_core: POST /loom/canvas/{board_block_id}/place (placeBlockOnCanvas) — triggered by canvas.place-block action",
+      "handshake_core: POST /loom/canvas/{board_block_id}/card (createCanvasCard) — triggered by canvas.add-card action",
+      "handshake_core: POST /loom/edges (createLoomEdge) — triggered by graph.add-edge (semantic edge)",
+      "handshake_core: POST /loom/canvas/{board_block_id}/visual-edge (addCanvasVisualEdge) — triggered by canvas.add-edge with edge_mode=visual",
+      "handshake_core: DELETE /loom/canvas/{board_block_id}/placement/{placement_id} (removeCanvasPlacement) — triggered by canvas.card.<id> delete action",
+      "handshake_core: PUT /loom/canvas/{board_block_id}/viewport (updateCanvasBoardViewport) — triggered by pan/zoom actions",
+      "handshake_core: GET /loom/views/{view_block_id} (getBlockView) + GET /loom/views/{view_block_id}/results (queryBlockViewResults) — read collection for AccessKit tree",
+      "handshake_core: PUT /loom/views/{view_block_id} (updateBlockView) — triggered by collection.sort action",
+      "handshake_core: PUT /loom/blocks/{block_id} (updateLoomBlock) — triggered by collection.kanban-move action (tag edge update)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT: kittest in tests/native_editors/e7_knowledge_accesskit.rs must pass in CI; all AC must be green before MT is DONE",
+    "HBR-SWARM: per-block and per-placement AccessKit nodes must use block_id/placement_id as the stable id segment so swarm agents can reference nodes by Loom identity; author_ids must not include positional or frame-count segments",
+    "HBR-VIS: kittest must print the AccessKit tree to stdout; graph node list and canvas card list must be human-readable in the output",
+    "HBR-QUIET: graph and canvas AccessKit updates must only push diffs when the node set has actually changed; hash-check the node set before calling notify_accesskit_adapter"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-042-01: Graph node churn — if the graph refreshes on every pan/zoom frame (e.g. due to a viewport-dependent LOD filter), the per-node AccessKit node set is re-registered every frame, causing excessive diff traffic and potentially breaking swarm agent node references mid-operation.",
+      "RISK-042-02: Canvas placement_id instability — if placement_ids are generated as sequential integers rather than stable UUIDs, a delete+add cycle reuses old integers and a swarm agent's stored reference points to the wrong placement.",
+      "RISK-042-03: Parameterized action payload injection — a malformed or malicious JSON payload in a custom action dispatch could cause a panic or unwrap in the action handler, crashing the UI thread.",
+      "RISK-042-04: Collection Kanban move race — if two swarm agents simultaneously dispatch kanban-move for the same block to different lanes, the last write wins with no conflict detection, silently dropping one move.",
+      "RISK-042-05: Backend not wired (E6 blocker) — the canvas.place-block action dispatches to placeBlockOnCanvas, but if MT-037/MT-038 E6 wiring is not complete, the action silently does nothing and the kittest passes only because the test does not assert backend state.",
+      "RISK-042-06: AccessKit tree size — a workspace with 5000+ Loom blocks causes 5000+ AccessKit nodes in the graph pane, which may overflow AccessKit's tree serialization budget or make the kittest slow."
+    ],
+    "minimum_controls": [
+      "CTRL-042-01: Separate viewport state (pan/zoom) from the graph node set. Only re-register AccessKit nodes when the node set changes (block add/remove/rename), not on every pan/zoom frame. Pan/zoom actions are registered once as fixed global actions, not per-frame.",
+      "CTRL-042-02: placement_ids must be UUIDs (Uuid::new_v4()) generated at creation time and persisted in the backend. Assert in the kittest that placement_ids are 36-character UUID strings and are stable across a refresh cycle.",
+      "CTRL-042-03: All custom-action payload parsing must use a match on serde_json::from_str result; never use unwrap(). Log the error and early-return on parse failure. Add a kittest case that dispatches a malformed payload and asserts no panic.",
+      "CTRL-042-04: The kanban-move implementation must use an optimistic-lock or last-write-wins with EventLedger sequencing from the existing backend. Do NOT add a new conflict resolution mechanism in this MT; rely on the existing EventLedger ordering. Document the behavior in a code comment.",
+      "CTRL-042-05: In the kittest, after dispatching canvas.place-block, assert the database row exists (SELECT from loom_canvas_placements WHERE placement_id=...) before asserting the AccessKit tree. If the backend call failed, the test must fail with the API error, not with a missing-node assertion.",
+      "CTRL-042-06: Graph AccessKit registration must support pagination: only register AccessKit nodes for blocks currently visible in the graph viewport plus a 50-node lookahead buffer. Blocks outside the buffer are unregistered and re-registered on scroll. Document this contract on KnowledgeActionRegistry. Swarm agents that need to access an off-screen node must first dispatch graph.pan or graph.select-node to bring it into the viewport."
+    ]
+  }
+}

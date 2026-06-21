@@ -1,0 +1,117 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-039",
+  "title": "E6-MT-039-BindCodeNavApi",
+  "group": "E6 Backend reuse wiring",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-039.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Bind the native Rust editor layer to the existing /knowledge/code/* backend APIs for symbol navigation, reference graphs, test linkage, citation spans, and the Monaco file lens payload. No backend changes are permitted; this MT is pure frontend wiring.\n\nGoal: create a typed Rust client module at src/frontend/backend/knowledge_code_nav.rs that exposes async functions for all six routes in the backend knowledge_code_nav API. The diff shape is one new file plus a re-export from src/frontend/backend/mod.rs.\n\nThe backend HTTP surface (read from handshake_core/src/api/knowledge_code_nav.rs) exposes:\n  GET /knowledge/code/symbols                                   -> lookup_symbols\n  GET /knowledge/code/symbols/:entity_id                        -> get_symbol\n  GET /knowledge/code/symbols/:entity_id/references             -> symbol_references\n  GET /knowledge/code/symbols/:entity_id/tests                  -> symbol_tests\n  GET /knowledge/code/symbols/:entity_id/spans                  -> symbol_spans\n  GET /knowledge/code/files/:path/lens?workspace_id=&content_hash=&parser_version= -> file_lens\n\nAll six routes require identity headers:\n  x-hsk-actor-id           (required)\n  x-hsk-kernel-task-run-id (required)\n  x-hsk-session-run-id     (required)\n  x-hsk-actor-kind         (optional; default is 'system')\n  x-hsk-correlation-id     (optional)\nA missing required header returns 400. This is the same header contract as knowledge_documents (MT-037); reuse the HskDocumentHeaders struct or a shared NavHeaders type from the same module or a shared headers.rs.\n\nResponse shapes (derived from backend knowledge_code_nav.rs):\n  - SymbolNavProjection { symbol_entity_id, symbol_key, display_name, symbol_kind, owning_wp?, primary_source_id?, lifecycle_state, definition?, staleness }\n  - DefinitionSpan { span_id, source_id, line_start, line_end, range_start?, range_end?, section_path? }\n  - StalenessState { state: String, fresh: bool, indexed_content_hash?, indexed_parser_version?, detail? }\n  - SymbolLookupResponse { workspace_id, matches: Vec<SymbolNavProjection>, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - SymbolGetResponse { symbol: SymbolNavProjection, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - SymbolReferencesResponse { symbol_entity_id, staleness, callers, callees, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - SymbolCallerCallee { symbol_entity_id, symbol_key, display_name, confidence, evidence_spans, staleness }\n  - EvidenceSpanRef { span_id, line_start, line_end }\n  - SymbolTestsResponse { symbol_entity_id, staleness, tests: Vec<SymbolTestEntry>, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - SymbolTestEntry { test_entity_id, test_symbol_key, display_name, confidence, evidence_spans, staleness }\n  - SymbolSpansResponse { symbol_entity_id, staleness, spans: Vec<SymbolSpan>, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - SymbolSpan { span_id, source_id, span_kind, line_start, line_end, range_start?, range_end?, section_path?, content_sha256?, parser_version? }\n  - FileLensResponse { relative_path, content_hash, parser_version, entries: Vec<FileLensEntry>, nav_receipt_event_id, quiet_background_work_receipt_id }\n  - FileLensEntry { entity_id, entity_key, display_name, symbol_kind, line_start, line_end, caller_count, callee_count, test_count, staleness }\n\nRequest parameter types:\n  - LookupParams { workspace_id, name?, prefix?, path?, limit? }\n  - LensParams { workspace_id, content_hash, parser_version }\n\nExact files to create/edit:\n  - CREATE: src/frontend/backend/knowledge_code_nav.rs\n  - EDIT:   src/frontend/backend/mod.rs (add `pub mod knowledge_code_nav;`)\n\nStep-by-step implementation notes:\n  1. Reuse or reference the NavHeaders / HskDocumentHeaders type from MT-037 (src/frontend/backend/knowledge_documents.rs). If that MT is not yet merged, define a CodeNavHeaders struct with the same five fields and add a TODO noting consolidation with MT-037.\n  2. Implement lookup_symbols: GET with query params workspace_id, name?, prefix?, path?, limit?. At least one of name/prefix/path is required (backend returns 400 otherwise); enforce this with a typed LookupRequest enum or pre-flight check.\n  3. Implement get_symbol: GET /knowledge/code/symbols/:entity_id. Uses nav headers.\n  4. Implement symbol_references: GET /knowledge/code/symbols/:entity_id/references. Returns callers (incoming REFERENCES edges) and callees (outgoing REFERENCES edges).\n  5. Implement symbol_tests: GET /knowledge/code/symbols/:entity_id/tests. Returns tests that have a `validates` edge targeting this symbol.\n  6. Implement symbol_spans: GET /knowledge/code/symbols/:entity_id/spans. Returns all citation spans for the symbol.\n  7. Implement file_lens: GET /knowledge/code/files/:path/lens?workspace_id=&content_hash=&parser_version=. The :path segment is a repo-relative POSIX path; URL-encode any '/' in the path as %2F when building the URL (the backend decodes %2F and plain / from the path segment). NEVER accept absolute paths or paths with '..' segments from callers.\n  8. All responses include nav_receipt_event_id and quiet_background_work_receipt_id which should be preserved in the typed response structs (they are machine-readable audit receipts).\n  9. The staleness field is a tagged shape: { state: String, fresh: bool, ... }. Define StalenessState with common fields; unknown extra fields use #[serde(flatten)] or serde_json::Value for the additional detail field.\n  10. AccessKit note: this MT creates backend client code only. When a code symbol panel widget is built (porting CodeSymbolPanel.tsx), every interactive element (symbol name button, definition jump link, reference list row, test row, lens entry row) MUST get a stable AccessKit author_id, role (Role::Link or Role::ListItem as appropriate), and actions (Action::Click for navigation). Add this as a doc comment in the file so the widget author sees the requirement.\n  11. Register the module in src/frontend/backend/mod.rs.",
+    "allowed_paths": [
+      "src/frontend/backend/knowledge_code_nav.rs",
+      "src/frontend/backend/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "src/frontend/backend/knowledge_code_nav.rs compiles with `cargo build` (no errors).",
+      "A cargo test calling lookup_symbols with name='Foo' against a mock HTTP server returns a typed SymbolLookupResponse with matches populated.",
+      "A cargo test calling lookup_symbols with no name/prefix/path raises a compile-time or runtime error before sending an HTTP request (not a backend 400 surprise).",
+      "A cargo test calling file_lens with a path containing '/' URL-encodes the path segment correctly (the outgoing request URL contains %2F not bare /).",
+      "A cargo test calling symbol_references against a mock returning callers and callees returns SymbolReferencesResponse with both lists populated.",
+      "StalenessState struct correctly deserializes both the 'fresh' shape ({ state: 'fresh', fresh: true, indexed_content_hash, indexed_parser_version }) and the 'unindexed' shape ({ state: 'unindexed', fresh: false, detail }).",
+      "All public async functions have a one-line doc comment citing the backend route.",
+      "Module is re-exported from src/frontend/backend/mod.rs.",
+      "nav_receipt_event_id and quiet_background_work_receipt_id are present in every response struct and are preserved (not dropped) through deserialization."
+    ],
+    "proof_targets": [
+      "cargo build --package handshake_frontend 2>&1 | tail -5  ->  no errors",
+      "cargo test -p handshake_frontend knowledge_code_nav 2>&1  ->  all tests pass",
+      "grep -n 'pub mod knowledge_code_nav' src/frontend/backend/mod.rs  ->  line present",
+      "grep -n '%2F\\|percent_encode\\|encode_path' src/frontend/backend/knowledge_code_nav.rs  ->  path encoding present for file_lens route"
+    ],
+    "implementation_notes": [
+      "The file_lens route path segment requires explicit %2F encoding: the backend decodes it with replace('%2F', '/') so a bare / in the path segment would be mis-parsed by axum's path extractor into multiple segments. Use url::form_urlencoded or manual replace when building the URL.",
+      "Symbol entity_id values are opaque strings (format: KE-<uuid>); do not parse them.",
+      "The LIST_CAP on the backend is 500; enforce limit <= 500 client-side (clamp, not error) to avoid over-fetching.",
+      "Each nav request leaves a KnowledgeRetrievalTraceRecorded EventLedger receipt on the backend (spec 2.3.13.11). The client exposes this receipt ID in the response struct for traceability; consumers should log or store it for audit.",
+      "The quiet_background_work_receipt_id comes from the ParallelSwarmStateRecoveryStore; it is present on all six routes. Preserve it even if your immediate consumer does not use it.",
+      "Do not fabricate actor_ids or session_ids: call sites must supply them from the current editor session context. Use EditorSessionContext or a similar type passed as a parameter.",
+      "The staleness contract: anything not provably fresh (fresh=true) is stale. Never render an unverified symbol as authoritative in the UI."
+    ],
+    "ports_from_react": [
+      "app/src/components/CodeSymbolPanel.tsx - the full React component being ported; shows how symbol_entity_id drives getCodeSymbol, then conditionally loads getCodeFileLens using the staleness.indexed_content_hash and indexed_parser_version fields from the symbol response.",
+      "app/src/components/CodeSymbolPanel.test.tsx - test cases for the symbol panel; provides acceptance-criterion hints for the native widget (to be built in a later MT).",
+      "app/src/lib/monaco/code_intelligence.ts - shows how Monaco integrates lookupCodeSymbols (lookup_symbols route), getCodeFileLens (file_lens route), getCodeSymbolReferences (symbol_references route). Functions configureHandshakeCodeIntelligence and codeSymbolStalenessLabel are reference patterns for the native egui code-lens equivalent.",
+      "app/src/lib/monaco/code_intelligence.test.ts - reference tests for staleness label formatting.",
+      "app/src/harness/mt249_code_intelligence_harness.tsx - visual harness for the code intelligence integration; reference for what the native pane must display."
+    ],
+    "binds_backend_api": [
+      "GET /knowledge/code/symbols                              (knowledge_code_nav.rs:lookup_symbols)",
+      "GET /knowledge/code/symbols/:entity_id                   (knowledge_code_nav.rs:get_symbol)",
+      "GET /knowledge/code/symbols/:entity_id/references        (knowledge_code_nav.rs:symbol_references)",
+      "GET /knowledge/code/symbols/:entity_id/tests             (knowledge_code_nav.rs:symbol_tests)",
+      "GET /knowledge/code/symbols/:entity_id/spans             (knowledge_code_nav.rs:symbol_spans)",
+      "GET /knowledge/code/files/:path/lens                     (knowledge_code_nav.rs:file_lens)"
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "file_lens route: bare '/' in path segment mis-parsed by axum into multiple path parts, causing 404. Client MUST percent-encode '/' as %2F when the path contains subdirectories.",
+      "lookup_symbols with no name/prefix/path returns backend 400; caller may silently get an error instead of a compilation guard.",
+      "StalenessState deserialized to the wrong variant when backend adds new state strings; must not panic on unknown states.",
+      "nav_receipt_event_id dropped by a consumer who only reads the payload causes audit trail gap (spec 2.3.13.11 requirement).",
+      "Symbol entity_id mis-parsed by client code assuming a specific prefix format causes lookup failures when the format changes.",
+      "Over-fetching with limit > 500 causes backend to clamp silently; client may think it got the full result set when it did not.",
+      "Stale symbol rendered as authoritative because freshness check is skipped in a fast-path causes user to act on outdated code navigation."
+    ],
+    "minimum_controls": [
+      "file_lens path encoding enforced in the client and verified by a cargo test that inspects the outgoing request URL.",
+      "LookupRequest type or pre-flight guard ensures at least one of name/prefix/path is non-empty before building the HTTP request.",
+      "StalenessState uses #[serde(default)] on optional fields and does not panic on unknown state strings.",
+      "nav_receipt_event_id and quiet_background_work_receipt_id preserved in all response structs with #[allow(dead_code)] if not immediately used.",
+      "Client-side limit clamp: limit = limit.min(500).",
+      "Cargo test validates that StalenessState { state: 'custom_future_state', fresh: false } deserializes without error."
+    ]
+  }
+}

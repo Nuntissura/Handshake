@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-019",
+  "title": "E2-MT019-DailyNotesJournal",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-019.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012"],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement the daily notes / journal surface: a dedicated egui panel that opens or creates today's daily note LoomBlock via the backend openDailyJournal API, renders it as a rich-text document (using the MT-012 renderer), and provides date navigation (prev/next day, calendar picker). This is the native Rust port of app/src/components/LoomDailyJournalPanel.tsx (MT-257).\n\nEXPECTED DIFF SHAPE:\n- src/frontend/rich_editor/daily_notes/mod.rs\n- src/frontend/rich_editor/daily_notes/journal_panel.rs (top-level egui panel widget)\n- src/frontend/rich_editor/daily_notes/date_nav.rs (prev/next day buttons + current date display + calendar popup)\n- src/frontend/rich_editor/daily_notes/journal_store.rs (async load/save of the daily LoomBlock and its associated RichDocument)\n\nBACKEND FLOW (port LoomDailyJournalPanel.tsx):\n1. On mount (or date change): call PUT /workspaces/{workspace_id}/loom/journals/{journal_date} (openDailyJournal in api.ts). This idempotently creates or retrieves a LoomBlock of content_type = 'journal' for the given date. Returns LoomBlock { block_id, title, content_type='journal', ... }.\n2. The LoomBlock for a journal entry may have an associated RichDocument (via the block's linked knowledge document). If the block has a document_ref, load the document via GET /knowledge/documents/{document_id}. If not, show the block title and a 'Start writing' prompt that creates a new RichDocument linked to the block.\n3. The loaded RichDocument content is rendered by the MT-012 RichEditorWidget (pass the DocJson from the document's content_json field).\n4. On save (Ctrl+S or auto-save on idle): call MT-020 save logic (PUT /knowledge/documents/{id}/save). Do NOT re-call openDailyJournal on save.\n\nPANEL LAYOUT (journal_panel.rs):\n- Header: [← prev day] [date display: 'Thursday, June 19, 2026'] [next day →] [calendar icon → opens date picker popup] [today button]\n- Subtitle: 'Daily Note' in muted text, block_id badge on hover\n- Content area: RichEditorWidget for the journal document (or 'Start writing...' placeholder if no document yet)\n- Footer: last-saved timestamp ('Saved 2 min ago') + word count + character count\n\nDATE NAVIGATION (date_nav.rs):\n- Prev/next buttons: increment/decrement the current date by 1 day using chrono::NaiveDate arithmetic.\n- Today button: jump to today's date (chrono::Local::today().naive_local()).\n- Calendar picker: a simple month grid popup (render a 7-column egui grid of day numbers for the current month; click a day to navigate). Highlight today. Highlight the currently displayed date.\n- AccessKit: prev = 'journal-prev-day', next = 'journal-next-day', today = 'journal-today', calendar = 'journal-calendar-toggle', date-display = 'journal-date-display'.\n\nSTATE MACHINE (journal_store.rs):\n- States: Idle, Loading { date: NaiveDate, workspace_id: String }, Ready { date, block: LoomBlock, doc: Option<RichDocLoad>, editor_state: RichEditorState }, Error { date, kind: JournalErrorKind }.\n- JournalErrorKind: OpenFailed(String), DocLoadFailed(String), SaveFailed(String).\n- Transitions: mount/date_change -> Loading; on openDailyJournal success -> Ready (with doc load if document_ref present); on error -> Error state with typed message.\n- Error state renders a typed error chip (not blank) with a 'Retry' button.\n\nAUTO-SAVE:\n- 3-second idle timer: after the last keypress, if the doc is dirty (edits since last save), trigger a save. Reset the timer on each keystroke.\n- Implement via egui's ctx.request_repaint_after(Duration::from_secs(1)) and tracking last_edit_time in the panel state.\n\nSTEP-BY-STEP:\n1. In journal_store.rs, define JournalState enum and async fn load_journal(workspace_id, date) -> JournalLoadResult that calls openDailyJournal then optionally loadRichDocument.\n2. In date_nav.rs, implement DateNavWidget with the prev/next/today/calendar buttons. Calendar renders a 7-column month grid using egui Grid.\n3. In journal_panel.rs, mount date_nav at the top, then match on journal_store state to render: spinner, error chip, or RichEditorWidget.\n4. Wire auto-save: track last_edit_time: Option<Instant>; on frame update, if dirty and elapsed > 3s, call the save fn.\n5. Footer: compute word count by splitting the full document text on whitespace. Character count = total rope char count across all TextLeafs.\n6. Cargo tests: state machine transitions correctly from Loading to Ready. Date navigation: prev from 2026-01-01 goes to 2025-12-31. Calendar grid renders 28-31 day cells. Auto-save timer fires after 3 seconds.\n7. AccessKit ids on all controls.\n\nCRATES: chrono already added in MT-017. No new crates required.\n\nDEPENDENCIES: MT-011 (DocModel for journal document content), MT-012 (RichEditorWidget as the content renderer). MT-020 (save logic) is invoked for auto-save; if MT-020 is not yet complete, stub the save call with a log message and mark save as pending in this MT's scope.",
+    "allowed_paths": [
+      "src/frontend/rich_editor/daily_notes/**",
+      "src/frontend/rich_editor/mod.rs",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "Panel opens and displays today's date in the header (kittest, using a fixed mock 'today' = 2026-06-19).",
+      "PUT /workspaces/{workspace_id}/loom/journals/2026-06-19 is called on mount; a mock response returns a LoomBlock (cargo test with mock HTTP).",
+      "Prev day button changes the date to 2026-06-18 and triggers a new openDailyJournal call (cargo test).",
+      "Next day button from 2026-06-18 returns to 2026-06-19 (cargo test).",
+      "Today button from any date returns to 2026-06-19 (cargo test with fixed mock today).",
+      "Calendar popup shows a 7-column month grid for June 2026 with correct day numbers (kittest screenshot).",
+      "Error state (simulated openDailyJournal failure) shows a typed error chip with a Retry button (kittest).",
+      "Loading state shows an egui::Spinner (kittest).",
+      "Word count in the footer matches the number of whitespace-separated tokens in the journal content (cargo test).",
+      "Auto-save fires after 3 seconds of idle typing (cargo test using a mock clock advancing time).",
+      "AccessKit: 'journal-prev-day', 'journal-next-day', 'journal-today', 'journal-date-display' are present in the kittest accessibility tree.",
+      "All cargo tests for daily_notes module pass with 0 failures."
+    ],
+    "proof_targets": [
+      "cargo test --package handshake_frontend -- daily_notes outputs 'test result: ok'.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt019_journal_panel.png showing header, date, content area, footer.",
+      "kittest screenshot saved to tests/native_editors/screenshots/mt019_calendar_popup.png showing the month grid.",
+      "Integration test (real backend): cargo test --test native_editors -- daily_notes::test_real_open_today -- --ignored (calls real backend, verifies LoomBlock returned for today's date)."
+    ],
+    "implementation_notes": [
+      "chrono::Local::today() is deprecated in chrono 0.4.23+; use chrono::Local::now().date_naive() instead.",
+      "The panel must handle the edge case where openDailyJournal succeeds but the returned LoomBlock has no linked RichDocument (document_ref = null). In this case, show a 'Start writing' button that calls createRichDocument (POST /knowledge/documents) with a title matching the date string, then links the new document to the block via updateLoomBlock.",
+      "Month grid calendar: use chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap().weekday() to compute the first day's column offset.",
+      "The auto-save timer should use egui frame time tracking, not std::time::Instant directly, to remain testable. Store last_edit_frame: u64 and current_frame: u64; diff > 180 frames at 60 fps ~= 3 seconds.",
+      "The journal panel is a separate top-level surface from the rich editor document view. It is mounted as a sibling panel in the WP-011 shell's tile layout, not as a child of RichEditorWidget."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomDailyJournalPanel.tsx (full port: state machine Loading/Ready/Error, date navigation prev/next/today, openDailyJournal call, block title display, error handling)",
+      "app/src/lib/api.ts openDailyJournal function: PUT /workspaces/{workspace_id}/loom/journals/{journal_date} -> LoomBlock"
+    ],
+    "binds_backend_api": [
+      "PUT /workspaces/{workspace_id}/loom/journals/{journal_date} -> LoomBlock (openDailyJournal; idempotent create-or-get)",
+      "GET /knowledge/documents/{document_id} -> RichDocLoad (loadRichDocument; if block has document_ref)",
+      "POST /knowledge/documents -> { document, save_receipt_event_id } (createRichDocument; if block has no document_ref and operator clicks 'Start writing')",
+      "PUT /knowledge/documents/{document_id}/save -> RichDocSaveResult (via MT-020 save logic, auto-save on idle)"
+    ]
+  },
+  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "Auto-save fires while the user is mid-sentence at the 3-second mark, creating a save race with a concurrent edit.",
+      "openDailyJournal on every date navigation button press causes N rapid API calls if the operator clicks quickly through dates.",
+      "The 'Start writing' createRichDocument call fires multiple times if the operator clicks the button while the first request is in-flight.",
+      "Calendar month grid overflows its popup bounds for months with 6 calendar rows (e.g. months starting on Saturday).",
+      "chrono NaiveDate arithmetic wraps incorrectly around month/year boundaries (e.g. adding 1 day to Jan 31 gives Feb 28/29, not Feb 31)."
+    ],
+    "minimum_controls": [
+      "Auto-save must be debounced: reset the idle timer on each keystroke; only fire when no edit has occurred for the full 3-second window. If a save is already in-flight, skip the auto-save and re-arm the timer for 3 more seconds after the in-flight save completes.",
+      "Date navigation must cancel any pending in-flight openDailyJournal request before issuing the new one; use a generation counter (u64 incremented on each navigation) and ignore responses with a stale generation.",
+      "'Start writing' button must be replaced with a spinner while the createRichDocument request is in-flight; use a is_creating: bool flag in JournalState::Ready.",
+      "Calendar grid must allocate exactly 6 rows regardless of the month's actual week count (to avoid layout reflowing between months); a kittest screenshot of a 6-row month (e.g. October 2023) must show all cells within the popup Rect.",
+      "Date arithmetic must use chrono::NaiveDate::checked_add_days(Days::new(1)); a cargo test asserts 2026-01-31 + 1 = 2026-02-01 and 2026-02-28 + 1 = 2026-03-01."
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-002",
+  "title": "E1-MT-002-LargeFileVirtualization",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-19T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-002.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001"],
+    "blocks": ["MT-006"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Replace the naive full-buffer render from MT-001 with a virtualized line renderer that only paints lines currently visible in the scroll viewport. This keeps frame time under 4 ms for files up to 100 000 lines. Expected diff shape: new module `src/frontend/code_editor/virtual_lines.rs` implementing the viewport-line calculator, and changes to `src/frontend/code_editor/mod.rs` and `src/frontend/panels/code_editor_panel.rs` to use it.\n\nExact files to create/edit:\n- CREATE `src/frontend/code_editor/virtual_lines.rs` — implements `VirtualLineLayout`. Constructor: `VirtualLineLayout::new(line_count: usize, line_height_px: f32, viewport_height_px: f32, scroll_offset_px: f32)`. Key method: `visible_range(&self) -> Range<usize>` returns the first and last line indices that intersect the viewport (inclusive), with a configurable overscan of ±8 lines. Also: `total_height_px(&self) -> f32` (line_count * line_height_px, used to size the egui ScrollArea content rect so the scrollbar thumb is correctly proportioned), `y_for_line(line: usize) -> f32` (pixel offset of a given line from the content top).\n- EDIT `src/frontend/code_editor/mod.rs` — add `VirtualLineLayout` to the CodeEditorPanel state. On each `show()` call, compute the layout from the current scroll offset (read from `egui::ScrollArea::state`) and render only the visible range from the TextBuffer.\n- EDIT `src/frontend/panels/code_editor_panel.rs` — wrap the text area in `egui::ScrollArea::vertical().show_rows(...)` using `VirtualLineLayout::total_height_px()` as the virtual content height and `VirtualLineLayout::visible_range()` to feed the row closure.\n\nExact crates/functions/APIs to use:\n- `egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| { ... })` — this is the idiomatic egui virtualized list API. It handles scroll-state internally and passes only the visible row range to the closure.\n- `ropey::Rope::line(idx)` — O(log n) line access, so rendering only visible lines is O(visible * log N) not O(N).\n- No additional crates needed beyond MT-001 dependencies.\n\nPerformance budget:\n- Target: frame time for a 100 000-line Rust file (no syntax highlighting on invisible lines) must stay below 4 ms on a mid-range CPU (measured via `egui::Context::frame_time()` in a benchmark harness).\n- Highlight spans: only compute tree-sitter highlights for the visible line range on each frame. Keep the full parse tree cached in `CodeEditorPanel` state; do NOT re-parse the whole file each frame — use incremental edit application.\n\nStep-by-step implementation notes:\n1. Implement `VirtualLineLayout` in `virtual_lines.rs`. `visible_range` formula: `first = max(0, floor(scroll_offset_px / line_height_px) - overscan)`, `last = min(line_count - 1, ceil((scroll_offset_px + viewport_height_px) / line_height_px) + overscan)`.\n2. In `CodeEditorPanel::show()`, replace the naive all-lines loop with `ScrollArea::vertical().show_rows(ui, line_height, buffer.len_lines(), |ui, visible_rows| { for line_idx in visible_rows { ... } })`.\n3. For highlight spans: add a `highlight_cache: Option<(Vec<HighlightSpan>, usize)>` field where the usize is the buffer version counter. Recompute only when version changes. Clip the span list to the visible range before rendering each frame.\n4. Expose a `perf_stats()` method on `CodeEditorPanel` returning `{ frame_lines_rendered: usize, buffer_len_lines: usize }` for the swarm diagnostics surface.\n5. Add an AccessKit `author_id = \"code_editor_scroll_area\"` `Role::ScrollView` wrapping the virtualized area.\n\nDependencies/unblock conditions: MT-001 must be DONE (TextBuffer and Highlighter exist). `egui::ScrollArea::show_rows` must be available (egui 0.27+).\nRisk if missed: Without virtualization, opening files over ~5000 lines will cause frame drops that make the editor unusable and violate HBR-VIS frame budget.",
+    "allowed_paths": [
+      "src/frontend/code_editor/virtual_lines.rs",
+      "src/frontend/code_editor/mod.rs",
+      "src/frontend/panels/code_editor_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `cargo test -p handshake_frontend virtual_lines` passes — tests cover: visible_range for scroll=0 (first 8+overscan lines), scroll to middle of 100k-line buffer (correct mid-range), scroll to end (last lines), total_height_px matches line_count * line_height, y_for_line is monotonically increasing.",
+      "AC-002: Benchmark harness test `large_file_frame_time` renders a 100 000-line buffer through the CodeEditorPanel for 60 frames and records `frame_time_ms`; the test asserts max frame time < 4 ms (soft warn at 2 ms, hard fail at 4 ms).",
+      "AC-003: egui_kittest screenshot of a 200-line buffer with scroll at line 100 shows lines 92-116 (±overscan) rendered and line 0 NOT rendered (pixel row for line 0 is background color).",
+      "AC-004: AccessKit tree contains a node with author_id='code_editor_scroll_area' and role=ScrollView.",
+      "AC-005: No regression on MT-001 acceptance criteria (AC-001 through AC-006 still pass)."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend virtual_lines` — GREEN, output logged.",
+      "PT-002: Benchmark output `test_output/MT-002-bench.json` contains `{ \"max_frame_ms\": <value>, \"pass\": true }` with value < 4.0.",
+      "PT-003: egui_kittest screenshot `test_output/MT-002-scroll-mid.png` saved and pixel-verified by test."
+    ],
+    "implementation_notes": [
+      "egui `ScrollArea::show_rows` takes `row_height_px: f32` — use a fixed monospace line height computed from `ui.text_style_height(&TextStyle::Monospace)` once at panel init, cache it in CodeEditorPanel state.",
+      "Do not re-query `buffer.len_lines()` inside the row closure — cache it before the ScrollArea call.",
+      "Highlight cache invalidation: use a `buffer_version: u64` counter incremented on every edit; cache is valid while `highlight_cache.version == buffer_version`.",
+      "For the benchmark, use `std::time::Instant` around the egui frame call in a headless test; egui_kittest supports headless rendering via software rasterizer.",
+      "overscan constant: `const OVERSCAN_LINES: usize = 8;` defined in `virtual_lines.rs`."
+    ],
+    "ports_from_react": [
+      "app/src/components/MonacoCodeBlockView.tsx lines 65-68 and 171-190 — Monaco's lazy viewport-driven mount (L7 pattern) is conceptually equivalent; native version is always mounted but renders only visible lines.",
+      "app/src/components/MonacoCodeBlockView.tsx — `IntersectionObserver` with `rootMargin: '600px'` overscan is the React analog of the OVERSCAN_LINES constant."
+    ],
+    "binds_backend_api": [
+      "None — virtualization is purely in-process rendering. No backend calls."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-001: egui `show_rows` API changed between egui 0.26 and 0.27 — verify the exact method signature against the pinned egui version in Cargo.lock before implementing.",
+      "RISK-002: Highlight cache becomes stale after an undo that changes buffer length — ensure version counter is incremented on every undo/redo operation, not just direct edits.",
+      "RISK-003: Benchmark runs in CI may have variable CPU scheduling, producing flaky frame-time results. Use median over 60 frames, not max, for the hard assert; flag max as a warning.",
+      "RISK-004: ScrollArea state (scroll offset) is stored in egui's memory keyed by `Id` — if two panels share the same `Id` they fight over scroll state. Each CodeEditorPanel instance must use a unique `egui::Id`."
+    ],
+    "minimum_controls": [
+      "MC-001: Benchmark test is gated in CI; failure blocks MT-002 DONE verdict.",
+      "MC-002: visible_range unit tests must cover boundary conditions (0-line buffer, single-line buffer, scroll past end).",
+      "MC-003: Screenshot test must verify that invisible lines are not rendered (background color check)."
+    ]
+  }
+}
