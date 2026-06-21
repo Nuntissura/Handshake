@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-050",
+  "title": "E1-MT-050-FormatDocumentAndSelection",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-050.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-008", "MT-010"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement VS Code parity 'Format Document' (Alt+Shift+F) and 'Format Selection' for the native egui code editor. Both actions request edits from the language server over the existing stdio LSP client (textDocument/formatting for the whole document, textDocument/rangeFormatting for the active selection), then apply the returned LSP TextEdit array to the ropey buffer as a SINGLE undo step so one Ctrl+Z reverts the entire format. This wires three existing surfaces created by earlier MTs: the EDIT menu 'Format Document' entry, the Editor Body Context Menu 'Format Selection' and 'Format Document' entries, and the MT-010 keymap (Alt+Shift+F). When no language server is attached for the buffer's language, the actions are disabled (greyed) with a hover tooltip 'No formatter available for this language'. The expected diff shape is: (a) one new Rust module src/frontend/code_editor/formatting.rs (~250-400 lines) holding the request builders, the LSP-TextEdit-to-buffer applier, the single-undo grouping, and the no-LSP capability check; (b) edits to src/frontend/code_editor/lsp_client.rs adding the two typed request methods (format_document, format_range) and their response deserialization; (c) edits to src/frontend/code_editor/keymap.rs adding two new CodeEditorAction enum variants (FormatDocument, FormatSelection) with the Alt+Shift+F default binding for FormatDocument.\n\nExact files to CREATE:\n- src/frontend/code_editor/formatting.rs — public surface: `pub fn format_document(editor: &mut CodeEditor, lsp: &mut LspClient) -> FormatOutcome`, `pub fn format_selection(editor: &mut CodeEditor, lsp: &mut LspClient) -> FormatOutcome`, `pub fn formatter_available(lsp: &LspClient, language_id: &str) -> bool`, and `fn apply_text_edits(buffer: &mut TextBuffer, edits: &[LspTextEdit], undo: &mut UndoStack) -> usize`. `FormatOutcome` is an enum: `Applied { edit_count: usize }` | `NoChange` | `NoFormatter` | `LspError(String)`.\n\nExact files to EDIT:\n- src/frontend/code_editor/lsp_client.rs — add `pub fn format_document(&mut self, uri: &str, options: FormattingOptions) -> Result<Vec<LspTextEdit>, LspError>` issuing a 'textDocument/formatting' request, and `pub fn format_range(&mut self, uri: &str, range: LspRange, options: FormattingOptions) -> Result<Vec<LspTextEdit>, LspError>` issuing a 'textDocument/rangeFormatting' request. Add serde structs `FormattingOptions { tab_size: u32, insert_spaces: bool }`, `LspTextEdit { range: LspRange, new_text: String }`, `LspRange { start: LspPosition, end: LspPosition }`, `LspPosition { line: u32, character: u32 }` if not already present from MT-008. Read the server's documentFormattingProvider / documentRangeFormattingProvider capability flags from the initialize result so `formatter_available` can consult them.\n- src/frontend/code_editor/keymap.rs — add `FormatDocument` and `FormatSelection` to the `CodeEditorAction` enum; in the default keymap table bind `FormatDocument` to KeyboardShortcut { modifiers: ALT | SHIFT, key: F }. `FormatSelection` has no default binding (menu/context-menu invoked) unless the React reference defines one. Ensure the keymap dispatch routes these actions to the formatting.rs entry points.\n- (MENU WIRING) The EDIT menu and Editor Body Context Menu builders (created in earlier E1 menu MTs) must call `format_document` / `format_selection`; locate the existing menu builder where the EDIT menu items are constructed (search for the EDIT menu label / existing 'Undo'/'Redo' entries) and add 'Format Document' to the EDIT menu and 'Format Selection' + 'Format Document' to the editor body context menu. Each menu item must reflect enabled/disabled state from `formatter_available`. If the menu builder file is outside the allowed_paths of this MT, do the minimal wiring inside formatting.rs by exposing a `menu_descriptors()` helper that the menu builder already consumes; do NOT modify menu files not listed in allowed_paths — instead expose the helper and record a typed blocker if the menu builder cannot consume it.\n\nStep-by-step implementation notes:\n  1. FormattingOptions: derive tab_size and insert_spaces from the editor's current indent settings (default tab_size=4, insert_spaces=true if the editor has no per-language override). Do NOT hardcode; read from the editor config struct established in MT-001/MT-010.\n  2. format_document flow: (i) check formatter_available; if false return FormatOutcome::NoFormatter. (ii) build the document URI (file:// path the buffer was opened from; if untitled, use the in-memory uri scheme already used by MT-008's LSP didOpen). (iii) call lsp.format_document(uri, options). (iv) on Ok(edits): apply_text_edits as one undo group; return Applied { edit_count } or NoChange if edits is empty. (v) on Err: return LspError(msg) and surface a non-blocking toast; never panic.\n  3. format_selection flow: identical but compute LspRange from the editor's current primary selection (start..end). If selection is empty/collapsed, fall back to formatting the whole document is WRONG — instead VS Code formats the current line/empty selection per server behavior; keep it simple: if selection is empty, send the cursor line's range (start of line .. end of line). Convert buffer byte offsets to LSP line/character positions using the TextBuffer byte_to_line + UTF-16 column math (LSP positions are UTF-16 code units by default; convert via the buffer's char/utf16 helpers — do NOT assume bytes == columns).\n  4. apply_text_edits MUST sort the incoming TextEdits in descending order of start position before applying, so earlier edits do not invalidate the offsets of later ones. Open ONE undo transaction (UndoStack::begin_group / end_group, or the equivalent batch API from MT-010), apply every edit inside it, then commit so a single Ctrl+Z reverts all. Return the number of edits applied. Re-establish a sensible cursor/selection after formatting (clamp old cursor to new buffer length).\n  5. formatter_available: return true only if an LSP client is attached for the buffer's language_id AND the server advertised documentFormattingProvider (for format_document) / documentRangeFormattingProvider (for format_selection) in its capabilities. If no LSP at all, return false -> menu/keymap action disabled.\n  6. No-LSP path: the EDIT menu item and context-menu items render disabled (egui add_enabled(false, ...)) with hover tooltip 'No formatter available for this language'. The keymap Alt+Shift+F, when fired with no formatter, must be a no-op (optionally a brief status-bar note) and must NOT panic or block the frame.\n  7. AccessKit: the menu items and context-menu items already carry AccessKit metadata from their owning MTs; for any new enabled/disabled state, ensure the disabled state is reflected in the AccessKit node (set the node as disabled / not focusable) so swarm agents observe the same gating the human sees.\n\nReact reference: app/src/lib/monaco/* — Monaco wired Format Document via editor.getAction('editor.action.formatDocument').run() and Format Selection via 'editor.action.formatSelection'; Monaco handled the LSP round-trip internally. Here we replace Monaco's internal action with an explicit LSP textDocument/formatting + rangeFormatting call and an explicit single-undo TextEdit applier. Port the action IDs, the EDIT-menu / context-menu placement, and the disabled-when-no-formatter UX from the Monaco wiring; do NOT port Monaco runtime code.\n\nBackend binding: bind the EXISTING stdio LSP transport stood up in MT-008 (textDocument/formatting, textDocument/rangeFormatting). No backend rewrite. If MT-008's LspClient does not yet expose a generic request/response round-trip these methods can build on, record a typed blocker (do not rewrite the transport). PostgreSQL/EventLedger only for any persisted state; this MT persists nothing new (formatting is buffer-local), so no datastore work is expected — if any persistence is implied, it MUST go through the EventLedger/Postgres path, never SQLite.\n\nDependencies / unblock conditions:\n  - MT-008 (LSP client + stdio transport, didOpen URI scheme, capabilities parsing) must be merged first — this MT binds its request plumbing.\n  - MT-010 (keymap + CodeEditorAction enum + UndoStack batch/group API) must be merged first — this MT adds two action variants and relies on single-undo grouping.\n\nRisk if missed: the EDIT menu 'Format Document' entry and the editor body context-menu 'Format Selection' / 'Format Document' entries are dead (clickable but inert), and LSP formatting parity with VS Code is unmet, blocking MT-044.",
+    "allowed_paths": [
+      "src/frontend/code_editor/formatting.rs",
+      "src/frontend/code_editor/lsp_client.rs",
+      "src/frontend/code_editor/keymap.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: format_document applies the LSP-returned TextEdit array to the buffer as a SINGLE undo step — proven by a test that mocks the LSP client to return multiple TextEdits, calls format_document, asserts the buffer matches the expected formatted text, then asserts exactly ONE UndoStack entry was created and a single undo reverts the entire format.",
+      "AC-002: format_selection edits only the selected range — proven by a test that selects a sub-range, mocks rangeFormatting to return an edit, calls format_selection, and asserts text OUTSIDE the selected range is byte-for-byte unchanged.",
+      "AC-003: With no LSP attached (or server lacking documentFormattingProvider), formatter_available returns false, the EDIT menu and context-menu items render disabled, and firing Alt+Shift+F is a no-op that does not panic — proven by the format_no_lsp test.",
+      "AC-004: Alt+Shift+F is bound to CodeEditorAction::FormatDocument in the default keymap and routes to formatting.rs — proven by a keymap dispatch test and by an egui_kittest harness that presses Alt+Shift+F and observes the buffer reflow.",
+      "AC-005: TextEdits are applied in descending-start order so overlapping/sequential edits do not corrupt offsets — proven by a test feeding two non-trivial edits whose naive ascending application would mis-align, asserting the correct final text.",
+      "AC-006: cargo test -p handshake_frontend passes with no failures across all formatting tests; no unwrap()/panic on the LSP-error path (LspError(String) returned and surfaced as a non-blocking toast).",
+      "AC-007: LSP positions are converted using UTF-16 column semantics (not raw byte offsets), proven by a test with a non-ASCII line where byte offset != UTF-16 column and the applied edit lands at the correct character."
+    ],
+    "proof_targets": [
+      "PT-001: cargo test -p handshake_frontend format_document -- --nocapture  =>  mock LSP TextEdits applied, single undo entry created, all GREEN",
+      "PT-002: cargo test -p handshake_frontend format_selection -- --nocapture  =>  only the selected range edited, text outside unchanged, GREEN",
+      "PT-003: cargo test -p handshake_frontend format_no_lsp -- --nocapture  =>  action disabled, no panic, GREEN",
+      "PT-004: egui_kittest harness: press Alt+Shift+F, assert FormatDocument fires and the buffer reflows to the mocked formatted text"
+    ],
+    "implementation_notes": [
+      "Apply TextEdits sorted descending by start position; open one UndoStack group (MT-010 batch API) around the whole apply so a single Ctrl+Z reverts the entire format.",
+      "FormattingOptions { tab_size, insert_spaces } must read the editor's current indent config (MT-001/MT-010), defaulting tab_size=4 / insert_spaces=true; do not hardcode.",
+      "LSP positions are UTF-16 code units by default — convert buffer byte offsets via the TextBuffer char/utf16 helpers; never assume bytes == columns.",
+      "FormatOutcome enum (Applied { edit_count } | NoChange | NoFormatter | LspError(String)) keeps the no-formatter and error paths typed and panic-free; surface LspError as a non-blocking toast, not a frame-blocking dialog.",
+      "Disabled menu/context-menu items use egui add_enabled(false, ...) with hover tooltip 'No formatter available for this language' and must set the AccessKit node disabled so swarm agents observe the gating.",
+      "Empty/collapsed selection in format_selection sends the current line's range (line start .. line end), matching VS Code behavior; do NOT silently fall back to whole-document formatting.",
+      "Re-clamp cursor/selection to the new buffer length after applying edits so the caret does not point past end-of-buffer.",
+      "If MT-008's LspClient lacks a generic request round-trip to build format_document/format_range on, record a typed blocker — do NOT rewrite the stdio transport."
+    ],
+    "ports_from_react": [
+      "app/src/lib/monaco/* — Format Document / Format Selection action wiring: action IDs (editor.action.formatDocument, editor.action.formatSelection), EDIT-menu and editor-body context-menu placement, and the disabled-when-no-formatter UX. Port the wiring/UX only; do NOT port Monaco runtime code (replaced by explicit LSP textDocument/formatting + rangeFormatting)."
+    ],
+    "binds_backend_api": [
+      "LSP textDocument/formatting (stdio) — via the existing MT-008 LspClient transport; whole-document format edits.",
+      "LSP textDocument/rangeFormatting (stdio) — via the existing MT-008 LspClient transport; selection-range format edits.",
+      "Bind the EXISTING handshake_core / MT-008 stdio LSP plumbing only; no backend rewrite. Gaps are recorded as typed blockers."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: LSP TextEdits applied in document (ascending) order invalidate later edit offsets, corrupting the buffer. Mitigate by sorting descending by start position before applying.",
+      "RISK-002: Each TextEdit pushed as its own undo entry breaks the 'single Ctrl+Z reverts the format' parity requirement. Mitigate by wrapping the whole apply in one UndoStack group/transaction.",
+      "RISK-003: Byte-offset vs UTF-16-column mismatch mis-places edits on lines with non-ASCII characters. Mitigate by converting positions via the buffer's UTF-16 helpers and testing a non-ASCII case.",
+      "RISK-004: No-formatter path panics or fires a dead menu item. Mitigate by formatter_available gating + disabled menu items + no-op keymap path, all panic-free.",
+      "RISK-005: LSP request blocks the egui frame thread while the server formats a large document. Mitigate by issuing the request without blocking the UI frame (async/poll per MT-008 transport) and surfacing a brief in-progress state; never spin-block the render loop.",
+      "RISK-006: Cursor/selection points past end-of-buffer after the document shrinks during format, causing an out-of-range slice panic on the next frame. Mitigate by clamping cursor/selection to the new buffer length after apply.",
+      "RISK-007: Modifying a menu-builder file outside this MT's allowed_paths to wire the entries causes scope bleed. Mitigate by exposing a menu_descriptors()/menu helper from formatting.rs for the existing builder to consume, and record a typed blocker if it cannot."
+    ],
+    "minimum_controls": [
+      "MC-001: Test that multiple mocked TextEdits produce exactly one UndoStack entry and a single undo reverts the entire format (enforces AC-001).",
+      "MC-002: Test that format_selection leaves text outside the selected range byte-for-byte unchanged (enforces AC-002).",
+      "MC-003: Test the no-LSP / no-documentFormattingProvider path: formatter_available=false, menu items disabled, Alt+Shift+F no-op, no panic (enforces AC-003).",
+      "MC-004: Test descending-order application with edits whose naive ascending order would mis-align (enforces AC-005).",
+      "MC-005: Test a non-ASCII line where byte offset != UTF-16 column and assert the edit lands at the correct character (enforces AC-007).",
+      "MC-006: The LSP-error path returns FormatOutcome::LspError(String) and surfaces a non-blocking toast — assert no unwrap()/panic in any formatting code path.",
+      "MC-007: Any persisted state (none expected) must route through EventLedger/PostgreSQL; assert no SQLite dependency is introduced by this MT."
+    ]
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-059",
+  "title": "E2-MT-059-WikiPageMarkdownRendering",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-059.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-012", "MT-025"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: replace the raw-text wiki projection rendering that was explicitly DEFERRED in MT-025 with proper markdown rendering. MT-025 (src/frontend/loom/wiki_page_panel.rs, implementation_notes line: 'Rendered content is plain text for now — do not implement markdown rendering in this MT. Use egui::Label with wrap=true inside a ScrollArea') shipped the read-only wiki view as a single raw egui::Label that prints the LoomWikiProjection.rendered_content string verbatim, so a page whose content is '# Title\\n- item' shows the literal hash and dash characters instead of a formatted heading and bullet. This MT resolves that deferral: the read-only view must parse rendered_content as CommonMark and render headings, lists, tables, blockquotes, fenced code blocks, and links using the SAME egui primitives as the MT-012 block renderer, by extracting a SHARED markdown-to-blocks adapter that both surfaces call. The edit overlay is unchanged — it still binds the raw markdown string into the multiline TextEdit (wiki.edit-area.{projection_id}); only the read-only (edit_mode=false) view becomes formatted. This is a read-side-only change: NO backend change, NO new endpoint, NO write-path change. It binds the SAME existing GET endpoint MT-025 already calls and renders the rendered_content field it already returns.\n\nFiles to CREATE:\n  - src/frontend/rich_editor/markdown_render.rs — a SHARED markdown-to-blocks adapter. This is the single rendering path that wiki pages, reading mode (MT-055), and the rich editor all reuse (see interop_edge). It exposes two layers:\n      (1) a parse layer: `pub fn parse_markdown(src: &str) -> Vec<MdBlock>` that runs CommonMark over `src` and returns a flat-ish block sequence. Use the `pulldown-cmark` crate (^0.11, pure Rust, MIT/Apache-2.0, the de-facto Rust CommonMark parser; enable the `tables` GFM extension via `pulldown_cmark::Options::ENABLE_TABLES`, and ENABLE_STRIKETHROUGH). Iterate `pulldown_cmark::Parser::new_ext(src, opts)` events (Start(Tag)/End(TagEnd)/Text/Code/SoftBreak/HardBreak/Rule) and fold them into `MdBlock` values. `MdBlock` is an enum: Heading { level: u8, spans: Vec<MdSpan> } | Paragraph { spans: Vec<MdSpan> } | BulletList { items: Vec<Vec<MdBlock>> } | OrderedList { start: u64, items: Vec<Vec<MdBlock>> } | Quote { children: Vec<MdBlock> } | CodeBlock { lang: Option<String>, code: String } | Table { headers: Vec<Vec<MdSpan>>, rows: Vec<Vec<Vec<MdSpan>>> } | Rule. `MdSpan` is { text: String, bold: bool, italic: bool, code: bool, strikethrough: bool, link: Option<String> }.\n      (2) a render layer: `pub fn render_blocks(ui: &mut egui::Ui, blocks: &[MdBlock])` that paints those blocks with the SAME visual rules MT-012's block_renderer (src/frontend/rich_editor/renderer/block_renderer.rs) uses: Heading scales font size by [1.8, 1.5, 1.25, 1.1, 1.0, 1.0] for h1..h6 (mirror MT-012 heading scale); BulletList paints a '•' prefix and indents 16px; OrderedList paints 'N.' prefix; Quote paints a 3px left bar in the accent color and indents 16px; CodeBlock renders monospace inside an egui::Frame with rounded corners and the code background color (visuals.code_bg_color); Table computes column widths and paints cell borders via painter.rect_stroke with each cell clipped (painter.with_clip_rect) to its bounds; links render in the hyperlink color and use ui.hyperlink_to(text, href) so they are clickable. To avoid copy-pasting MT-012's painter code, factor the shared per-span styling into a helper that both call: bold -> egui::FontId weight / RichText::strong(), italic -> RichText::italics(), code -> monospace family + code bg, strikethrough -> RichText::strikethrough(). If MT-012's block_renderer already exposes a reusable per-block paint fn, call it; otherwise add a thin `pub` shim in block_renderer.rs and import it here (do NOT duplicate the styling logic).\n\nFiles to EDIT:\n  - src/frontend/rich_editor/mod.rs — add `pub mod markdown_render;` so the loom panel can import it.\n  - src/frontend/loom/wiki_page_panel.rs — in the read-only branch (edit_mode == false), REPLACE the single raw egui::Label rendering of page.rendered_content with: `let blocks = crate::frontend::rich_editor::markdown_render::parse_markdown(&page.rendered_content); crate::frontend::rich_editor::markdown_render::render_blocks(ui, &blocks);` inside the existing ScrollArea labelled 'wiki.content.{projection_id}'. Keep the surrounding ScrollArea, the title heading, the metadata chips (page_type, rebuild_status, source count), the staleness footer, and the Edit/Rebuild buttons EXACTLY as MT-025 left them. Do NOT touch the edit overlay (edit_mode == true): the TextEdit::multiline must still bind the raw `edit_buffer` markdown string unchanged.\n\nStep-by-step implementation notes:\n  1. Add `pulldown-cmark = \"0.11\"` under [dependencies] in the frontend crate Cargo.toml (the same Cargo.toml MT-012 added cosmic-text to: src/frontend/Cargo.toml, or the workspace member). Commit Cargo.lock.\n  2. Implement parse_markdown in markdown_render.rs. Build a small event-fold state machine over pulldown_cmark events. Maintain a stack of in-progress containers (list items, quotes, table cells) so nested structure folds correctly; on End(TagEnd) pop and attach to the parent. Map inline Start(Strong)/Start(Emphasis)/Code/Start(Strikethrough)/Start(Link{dest_url,..}) onto the MdSpan flags currently in scope. Collapse SoftBreak to a space and HardBreak to a newline within a paragraph's spans.\n  3. Implement render_blocks. Walk the Vec<MdBlock>; for each variant call the corresponding paint path reusing MT-012 styling helpers (see CREATE note). Render lists recursively (items are Vec<MdBlock>). For tables use egui_extras::TableBuilder if already a workspace dependency, else a manual grid via ui.horizontal rows + painter.rect_stroke borders; pick whichever MT-012's table path uses to stay consistent.\n  4. Best-effort / panic-free contract: malformed or partial markdown (an unterminated code fence, a table with ragged column counts, a heading with no text, deeply nested lists) must render best-effort and MUST NOT panic. Clamp heading level to 1..=6. Guard table row/column indexing. Treat any parse remainder as a trailing Paragraph rather than dropping it.\n  5. Wire the wiki panel edit as described in Files to EDIT. Verify the read-only view now shows a formatted heading (large bold, not the literal '# ' prefix) and a bulleted list (not literal '- ' lines).\n  6. AccessKit: keep the existing 'wiki.content.{projection_id}' container node (Role::Document) that MT-025 registered as the scroll-area parent; the rendered markdown blocks live inside it. Do NOT remove or rename that node — MT-025 AccessKit acceptance (AC7) and downstream kittest selectors depend on it. Link nodes rendered via ui.hyperlink_to inherit egui's Link role automatically.\n\nDependencies / unblock conditions:\n  - MT-012 (E2 WYSIWYG block renderer, src/frontend/rich_editor/renderer/block_renderer.rs) must be merged first — it owns the heading-scale / quote-bar / code-frame / table styling that this MT reuses.\n  - MT-025 (E3 wiki page projection overlay, src/frontend/loom/wiki_page_panel.rs) must be merged first — this MT edits its read-only branch and resolves its explicit deferral.\n  - pulldown-cmark ^0.11 must be added to the frontend Cargo.toml.\n\nBackend API bound: GET /workspaces/{workspace_id}/loom/wiki/{projection_id} (the EXISTING handshake_core endpoint MT-025 already calls). This MT only changes how the returned rendered_content field is displayed; it issues no new request and needs no new backend route. No PostgreSQL/EventLedger change. If the rendered_content field were ever found to be absent from the response (it is not, per MT-025 LoomWikiProjection type), that would be a typed blocker, not a backend rewrite in this MT.\n\nRisk if missed: wiki projection pages remain raw text below Obsidian/Notion reading parity, and the MT-025 markdown-rendering deferral stays unresolved; MT-044 (which depends on this MT) is blocked.",
+    "allowed_paths": [
+      "src/frontend/rich_editor/markdown_render.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/loom/wiki_page_panel.rs",
+      "src/frontend/Cargo.toml",
+      "tests/native_editors/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC1: parse_markdown over a fixture containing '# H1', '## H2', a bullet list of two items, a 2x2 GFM table, a blockquote, and a fenced code block returns the expected MdBlock sequence: Heading{level:1}, Heading{level:2}, BulletList{2 items}, Table{1 header row, 1+ body rows}, Quote, CodeBlock — asserted by a cargo unit test on the block sequence.",
+      "AC2: The read-only wiki view (edit_mode=false) renders rendered_content as formatted markdown — a heading appears as large bold text and a list appears with bullets, NOT as the literal characters '# ...' or '- ...' — proven by an egui_kittest screenshot saved to tests/native_editors/screenshots/mt059_wiki_markdown.png.",
+      "AC3: Malformed markdown (unterminated code fence, ragged table, empty heading, deeply nested list) renders best-effort and does NOT panic — proven by a cargo test feeding malformed fixtures through parse_markdown + render_blocks (in a kittest harness for render) with no panic and no dropped trailing content.",
+      "AC4: Switching to the edit overlay (edit_mode=true) still shows the RAW markdown source in the 'wiki.edit-area.{projection_id}' TextEdit::multiline (the hash/dash characters are visible and editable) — proven by an egui_kittest test that clicks Edit and asserts the TextEdit text equals the raw rendered_content string.",
+      "AC5: The rendering path is shared, not duplicated: src/frontend/loom/wiki_page_panel.rs read-only branch calls markdown_render::parse_markdown + render_blocks, and markdown_render reuses MT-012 block_renderer styling helpers rather than re-implementing heading/quote/code/table painting — proven by grep of the call sites and absence of duplicated styling constants.",
+      "AC6: No backend change: src/backend/** is untouched and no new endpoint is introduced; the panel binds only the existing GET /loom/wiki/{projection_id} — proven by an empty diff under src/backend/ and unchanged binds_backend_api set vs MT-025.",
+      "AC7: The MT-025 AccessKit node 'wiki.content.{projection_id}' (Role::Document) is still present after the change — proven by AccessKit tree dump in kittest; markdown blocks render inside it.",
+      "AC8: cargo test for the frontend crate passes with no failures across the new markdown_render tests and the touched wiki_page_panel tests."
+    ],
+    "proof_targets": [
+      "PT1: cargo test -p handshake_frontend markdown -- --nocapture  =>  parse test for '#'/'##'/lists/table/code-fence asserts the expected MdBlock render sequence; all GREEN.",
+      "PT2: egui_kittest read-only wiki test: seed a LoomWikiProjection whose rendered_content is '# Heading\\n\\n- one\\n- two', assert the AccessKit tree shows a heading + list (not a raw '# ...' label), save screenshot tests/native_editors/screenshots/mt059_wiki_markdown.png and attach in validator handoff.",
+      "PT3: cargo test -p handshake_frontend markdown_malformed  =>  feed an unterminated code fence and a ragged table; assert render completes without panic (#[should_panic] absent / harness catches no panic) and trailing content is present.",
+      "PT4: egui_kittest edit-overlay test: click 'wiki.edit.{projection_id}', assert 'wiki.edit-area.{projection_id}' TextEdit content equals the raw markdown rendered_content string (raw '#'/'-' characters preserved)."
+    ],
+    "implementation_notes": [
+      "pulldown-cmark ^0.11 is the de-facto Rust CommonMark parser (pure Rust, MIT/Apache-2.0, used by mdBook and docs.rs). Enable Options::ENABLE_TABLES (GFM tables) and ENABLE_STRIKETHROUGH; do not enable ENABLE_HEADING_ATTRIBUTES unless needed.",
+      "Do NOT duplicate MT-012's styling: heading scale factors, quote left-bar width/color, code-block frame, and table border stroke must come from MT-012 block_renderer (src/frontend/rich_editor/renderer/block_renderer.rs). If those are not yet pub, add a minimal pub shim there (allowed_paths includes block_renderer.rs) and import it — keep one source of truth for the look.",
+      "Edit overlay is OUT OF SCOPE for formatting: the TextEdit::multiline binds raw markdown. Only the edit_mode==false branch changes. Do not alter Save/Cancel/PATCH logic from MT-025.",
+      "Best-effort parsing: clamp heading level to 1..=6; never index a table row/cell without bounds checks; fold any leftover inline run into a trailing Paragraph instead of dropping it. The render must be panic-free for arbitrary user content (RISK: wiki pages are user-authored).",
+      "Use ui.hyperlink_to(span.text, href) for link spans so they are clickable and inherit egui's Link AccessKit role; do not hand-roll link painting.",
+      "Keep the GET binding identical to MT-025; render rendered_content. No new fetch, no PATCH change, no PostgreSQL/EventLedger touch.",
+      "Reuse WP-011 shell primitives where the panel already does (pane registry, command bus, AccessKit id registry from MT-025/WP-011); this MT adds no new pane registration — it renders inside the existing wiki panel.",
+      "egui_kittest: use egui_kittest::Harness to drive both the read-only render screenshot and the edit-overlay assertion; do not rely on manual visual inspection as the only proof (HBR-VIS)."
+    ],
+    "ports_from_react": [
+      "app/src/components/LoomWikiPagePanel.tsx (rendered_content display) — the React component renders rendered_content; port its read-only display to formatted markdown via the shared adapter."
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/loom/wiki/{projection_id} — existing handshake_core endpoint (already bound by MT-025); render the returned rendered_content field as markdown. No new endpoint, no write-path change, no backend rewrite."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-1: Duplicating MT-012's block-renderer styling here (instead of reusing it) fragments the 'one markdown/blocks rendering path' invariant the interop edge requires; wiki pages, reading mode (MT-055), and the editor would then drift visually.",
+      "RISK-2: pulldown-cmark events are a flat stream, not a tree; a naive fold that forgets to maintain a container stack will mis-nest lists/quotes/table cells or drop content.",
+      "RISK-3: User-authored wiki markdown can be malformed (unterminated fences, ragged tables, pathological nesting); unchecked indexing or set_text on empty cells can panic and crash the panel.",
+      "RISK-4: Accidentally formatting the edit overlay as well would make the raw markdown un-editable, breaking MT-025 edit/save (AC4) and the round-trip.",
+      "RISK-5: Removing or renaming the MT-025 'wiki.content.{projection_id}' AccessKit node while swapping the Label for rendered blocks would break MT-025 AC7 and downstream swarm selectors.",
+      "RISK-6: Scope creep into the backend — adding a server-side markdown render endpoint or new field — would violate the no-backend-rewrite / PostgreSQL-only HARD constraint; this MT is read-side rendering only."
+    ],
+    "minimum_controls": [
+      "MC-1: Reuse MT-012 block_renderer styling helpers (add a pub shim if needed); a code-review/grep check asserts no duplicated heading-scale / quote-bar / code-frame / table-stroke constants. Covered by AC5.",
+      "MC-2: parse_markdown maintains an explicit container stack; a unit test with nested list-in-quote and a table asserts correct nesting. Covered by AC1.",
+      "MC-3: render and parse are panic-free for malformed fixtures (unterminated fence, ragged table, empty heading, deep nesting); clamp levels and bounds-check cells. Covered by AC3 / PT3.",
+      "MC-4: Only the edit_mode==false branch is modified; a kittest asserts the edit overlay still shows raw markdown. Covered by AC4 / PT4.",
+      "MC-5: The 'wiki.content.{projection_id}' AccessKit Document node is preserved; kittest tree dump asserts it remains. Covered by AC7.",
+      "MC-6: Diff under src/backend/ must be empty and binds_backend_api unchanged vs MT-025; reviewer confirms no new endpoint and PostgreSQL/EventLedger untouched. Covered by AC6."
+    ]
+  }
+}

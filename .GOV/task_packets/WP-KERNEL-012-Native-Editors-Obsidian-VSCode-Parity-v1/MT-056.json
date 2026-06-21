@@ -1,0 +1,104 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-056",
+  "title": "E2-MT-056-RichEditorOutlineTOC",
+  "group": "E2 Rich-text editor (Obsidian/Notion parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-056.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-011", "MT-012", "MT-013"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: implement a heading Outline / Table-of-Contents navigator panel for the native rich-text editor (E2), giving long documents the same wayfinding surface as the Obsidian Outline core plugin and Notion's table-of-contents block. This is the rich-text analog of the MT-006 code-editor outline; the two are distinct surfaces and must not be merged — MT-006 walks code symbols from tree-sitter, MT-056 walks the MT-011 block DocModel for Heading nodes. The panel walks the in-memory DocModel, collects all Heading blocks at levels 1 through 3, and renders an indented, clickable, collapsible tree. Clicking an entry scrolls the rich-text editor viewport to the target heading block and selects that block's range via the MT-012 caret/selection model. The tree live-updates on the next frame whenever headings are added, removed, retitled, or re-leveled.\n\nThe expected diff shape is: (a) one new Rust module src/frontend/rich_editor/outline_panel.rs (~300-450 lines) defining the OutlinePanel egui widget, the OutlineNode tree type, the build_outline() pure function over the DocModel, and the AccessKit registration; (b) a small wiring edit inside src/frontend/rich_editor/renderer/rich_editor_widget.rs so the widget exposes a scroll-to-block + select-block entry point the outline can call, and so the outline panel is mounted as a side tile next to the editor; (c) a kittest + unit test set proving outline construction, click-to-scroll-and-select, live update, and AccessKit node presence.\n\nFiles to CREATE:\n  - src/frontend/rich_editor/outline_panel.rs\n      * Define OutlineNode { block_id: String, level: u8, text: String, byte_offset: usize, children: Vec<OutlineNode>, collapsed: bool }.\n      * Define pub fn build_outline(doc: &DocModel) -> Vec<OutlineNode>. This is a PURE function (no egui, no IO) so it is directly unit-testable. Iterate the DocModel block list in document order; for each block whose kind is Heading with level in 1..=3, record (block_id, level, plain_text(block), byte_offset_of_block). Then fold the flat ordered list into a nested tree by level: a heading of level N becomes a child of the most recent heading of level < N still on the stack (standard heading-stack algorithm). Headings that appear before any higher-level heading attach at the root. Byte offsets come from the DocModel block index (the same offset basis MT-012 uses for caret positioning) so the outline and the caret model agree on a single coordinate space.\n      * Define pub struct OutlinePanel { roots: Vec<OutlineNode>, doc_revision: u64 } and pub fn OutlinePanel::show(&mut self, ui: &mut egui::Ui, doc: &DocModel, editor: &mut RichEditorWidget). On show(): if doc.revision() != self.doc_revision, rebuild self.roots via build_outline(doc) and store the new revision (live update path — rebuild only when the DocModel revision counter advanced, so steady-state frames are cheap). Render the tree inside an egui::ScrollArea::vertical(); each node renders at horizontal indent = (level-1) * INDENT_PX with a collapse caret (egui::collapsing or a manual triangle toggle) for nodes that have children, followed by a selectable_label showing the heading text. On click of a node label, call editor.scroll_to_block(&node.block_id) and editor.select_block(&node.block_id).\n      * AccessKit: the panel container registers author_id=\"rich-editor-outline\", role=Tree. Each rendered entry registers author_id=format!(\"outline.heading.{}\", node.block_id), role=TreeItem, with the heading text as the accessible name and an actions=[Press] so swarm agents and accessibility tooling can invoke scroll-to-heading deterministically. The Press action handler runs the same scroll_to_block + select_block path as a mouse click.\n  - src/frontend/rich_editor/tests/outline_tests.rs (or an inline #[cfg(test)] mod in outline_panel.rs if that is the crate's existing test convention) — unit + kittest coverage listed in proof_targets.\n\nFiles to EDIT:\n  - src/frontend/rich_editor/renderer/rich_editor_widget.rs\n      * Add (or reuse if MT-012/MT-013 already exposed it) pub fn scroll_to_block(&mut self, block_id: &str) that sets the pending scroll target so the next layout pass brings that block into view (egui ScrollArea scroll_to_rect or a stored target offset resolved during render).\n      * Add (or reuse) pub fn select_block(&mut self, block_id: &str) that delegates to the MT-012 caret/selection model to place an anchored selection across the target heading block's range — do NOT implement a second independent selection mechanism; route through the existing caret model so cross-pane selection (E5) stays consistent.\n      * Mount OutlinePanel as a side tile (left or right) of the editor in whatever tile/dock surface the rich editor uses (reuse the WP-011 pane registry — register the outline as its own pane so it is addressable by the swarm pane registry, not an ad-hoc child).\n  - src/frontend/rich_editor/mod.rs (or the module's existing mod-declaration file) — add `pub mod outline_panel;`.\n\nExact crates / egui / AccessKit patterns to use:\n  - egui::ScrollArea::vertical().auto_shrink([false, false]) for the panel body.\n  - egui::SelectableLabel / ui.selectable_label(false, text) for clickable entries; indent via ui.horizontal(|ui| { ui.add_space(indent_px); ... }).\n  - Collapse toggle: store collapsed on OutlineNode and toggle on caret click; or use egui::CollapsingHeader for nodes with children. Keep collapse state across rebuilds keyed by block_id so a live update does not reset the user's expand/collapse choices (carry forward collapsed flags by block_id when rebuilding).\n  - Scroll-to: prefer egui::Ui::scroll_to_rect / Response::scroll_to_me on the target block's response in the editor, recorded by the editor's render pass when it sees a pending scroll target matching the block_id.\n  - AccessKit: use the crate's existing helper for author_id + role registration (the same pattern WP-011 and the other E2 MTs use — egui's accesskit integration via Response or the project's AccessKit id registry). Register role=Tree on the container and role=TreeItem per entry; attach an Action::Default / Press handler that fires the scroll+select.\n  - Reuse the WP-011 shell primitives: register the outline as a pane in the pane registry; route any command (e.g. a future \"Go to heading\" command) through the WP-011 command bus rather than a private dispatch; allocate AccessKit ids through the WP-011 AccessKit id registry so ids are unique and addressable.\n\nExact handshake_core / backend API bound: NONE. This MT is pure frontend. The outline is derived entirely from the in-memory MT-011 DocModel that already lives in the rich-text editor; there is no persistence, no document load, and no code-nav call. No PostgreSQL / EventLedger access in this MT (and there is no SQLite anywhere in the project — do not introduce any local store). If a needed DocModel accessor (block iteration order, block kind, heading level, plain-text extraction, per-block byte offset, or a document revision counter) is missing from the MT-011/MT-012/MT-013 surface, treat the gap as a TYPED BLOCKER: stop, name the exact missing accessor and the module that should own it, and escalate rather than reaching into DocModel internals or duplicating block-walk logic.\n\nStep-by-step implementation notes:\n  1. Confirm the DocModel (MT-011) exposes: an ordered block iterator, per-block kind discriminant with Heading level (1..=3 minimum; ignore deeper levels for this MT), a stable block_id per block, a plain-text extractor for a block's inline content, a per-block byte_offset, and a revision/dirty counter. If any is absent, raise a typed blocker (see above) before writing outline logic.\n  2. Implement build_outline() as a pure function and test it in isolation first (no egui needed).\n  3. Implement OutlinePanel::show with the revision-gated rebuild and the collapse-state carry-forward.\n  4. Add scroll_to_block + select_block to rich_editor_widget.rs, routing selection through the MT-012 caret model.\n  5. Register AccessKit Tree / TreeItem nodes and wire the Press action to the same scroll+select path as click.\n  6. Mount the panel as a WP-011-registered pane beside the editor.\n  7. Add the test module covering the four proof targets.\n\nDependencies / unblock conditions: MT-011 (block DocModel) provides the heading blocks; MT-012 (caret/selection model) provides select_block and the shared coordinate/selection space; MT-013 provides the renderer surface that scroll_to_block drives. All three must be merged first. This MT blocks MT-044 (the parity + interconnection proof suite), which asserts heading-navigation parity against Obsidian/Notion.\n\nRisk if missed: long rich-text documents have no heading-level navigation; a primary Obsidian/Notion wayfinding surface (the Outline core plugin / TOC block) is absent, and the MT-044 parity proof cannot pass.",
+    "allowed_paths": [
+      "src/frontend/rich_editor/outline_panel.rs",
+      "src/frontend/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/rich_editor/mod.rs",
+      "src/frontend/rich_editor/tests/outline_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: build_outline() over a DocModel with heading sequence h1 > h2 > h2 > h3 produces a nested tree where the h1 is a root, both h2 nodes are its children in document order, and the h3 is a child of the second h2 — with each node carrying the correct block_id and byte_offset from the DocModel — proven by a pure unit test.",
+      "AC-002: Only Heading blocks at levels 1-3 appear in the outline; non-heading blocks (paragraphs, lists, code blocks) and headings deeper than level 3 are excluded — proven by unit test over a mixed-block DocModel.",
+      "AC-003: Clicking an outline entry scrolls the rich-text editor so the target heading block is brought into view AND selects that block via the MT-012 caret model — proven by a kittest harness that inspects the editor's scroll target/offset and the caret selection range, and verified through the AccessKit event log.",
+      "AC-004: Adding a heading to the DocModel causes the outline tree to include the new heading on the next frame (revision-gated rebuild fires); the outline does not rebuild on frames where the DocModel revision is unchanged — proven by kittest.",
+      "AC-005: The AccessKit tree contains a container node author_id='rich-editor-outline' role=Tree and at least one entry node author_id='outline.heading.{block_id}' role=TreeItem with a Press action that triggers the same scroll+select path as a mouse click — proven by AccessKit tree dump in kittest.",
+      "AC-006: User expand/collapse state is preserved across a live rebuild (collapsing a node, then adding an unrelated heading, leaves the collapsed node collapsed) — proven by kittest.",
+      "AC-007: cargo test for the rich_editor frontend crate passes with no failures across all outline tests; the outline reads only the in-memory DocModel and makes no backend, PostgreSQL, EventLedger, or SQLite call."
+    ],
+    "proof_targets": [
+      "PT-001: cargo test build_outline_h1_h2_h2_h3 -- --nocapture => nested tree with correct parentage and byte offsets, all GREEN.",
+      "PT-002: kittest harness: click an outline entry, assert the editor scroll target resolves to the target block and the caret selection covers the target heading block (AccessKit event log captured).",
+      "PT-003: kittest harness: mutate the DocModel to add a heading, advance one frame, assert the outline tree now contains the new heading entry; assert no rebuild occurs on a frame with unchanged revision.",
+      "PT-004: AccessKit tree snapshot: assert node 'rich-editor-outline' role=Tree present and at least one 'outline.heading.{block_id}' role=TreeItem present with a Press action."
+    ],
+    "implementation_notes": [
+      "build_outline() must be a pure function over &DocModel with no egui or IO so it can be unit-tested without a render harness.",
+      "Use a heading-stack fold to build nesting: maintain a stack of (level, &mut node); for each heading, pop while stack top level >= current level, then attach under the new top (or root if empty), then push.",
+      "Gate rebuilds on a DocModel revision/dirty counter (the same counter MT-012/MT-013 use for re-layout); never rebuild the tree on every frame.",
+      "Carry forward user collapse state by block_id across rebuilds so live updates do not reset the user's expand/collapse choices.",
+      "Route scroll-to via egui Response::scroll_to_me / Ui::scroll_to_rect recorded by the editor render pass; route block selection strictly through the MT-012 caret model — do not add a second selection mechanism.",
+      "Allocate AccessKit ids through the WP-011 AccessKit id registry and register the outline as a WP-011 pane-registry pane so it is swarm-addressable; do not invent ad-hoc ids.",
+      "This is the rich-text outline; keep it distinct from the MT-006 code-editor outline — different source (DocModel headings vs tree-sitter symbols), different module, different AccessKit ids."
+    ],
+    "ports_from_react": [
+      "app/src/components/RichDocumentView.tsx — heading navigation behavior (how clicking a heading entry scrolls/focuses the target heading); port the scroll-to-heading interaction model to the native scroll_to_block + select_block path.",
+      "app/src/lib/editor/editor_commands.ts — heading block kinds and level enumeration; port the heading-kind/level vocabulary so the native build_outline() recognizes the same heading levels."
+    ],
+    "binds_backend_api": [
+      "NONE — pure frontend; the outline is derived entirely from the in-memory MT-011 DocModel. No handshake_core call, no PostgreSQL, no EventLedger, no SQLite. Any missing DocModel accessor is a typed blocker, not a backend binding."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Rebuilding the outline tree on every frame instead of only when the DocModel revision changes would cause large-document jank and waste — the live-update path must be revision-gated.",
+      "RISK-002: Duplicating block-walk or selection logic instead of reusing the MT-011 DocModel and MT-012 caret model would fragment the shared coordinate/selection space and break E5 cross-pane selection consistency.",
+      "RISK-003: Stale block_id after a heading is deleted — an outline entry may reference a block that no longer exists; clicking it would scroll/select a dangling block.",
+      "RISK-004: Resetting user expand/collapse state on every live rebuild would make the outline frustrating for long documents.",
+      "RISK-005: AccessKit id collisions between the rich-text outline ('outline.heading.{block_id}') and the MT-006 code outline, or duplicate ids if two rich editors are mounted, would make swarm/accessibility addressing ambiguous.",
+      "RISK-006: Reaching into DocModel internals when a needed accessor is missing (instead of raising a typed blocker) would couple the outline to private structure and break when MT-011 evolves."
+    ],
+    "minimum_controls": [
+      "MC-001: Gate the rebuild strictly on the DocModel revision counter; add a kittest asserting no rebuild occurs on an unchanged-revision frame (AC-004 / PT-003).",
+      "MC-002: Route block selection only through the MT-012 caret model and scroll only through the editor's existing scroll path; prove via kittest that the caret selection and scroll target are driven by the shared model (AC-003).",
+      "MC-003: On click/Press, verify the block_id still exists in the live DocModel before scroll+select; if it is gone, skip silently and let the next revision-gated rebuild drop the stale entry.",
+      "MC-004: Carry forward collapse state by block_id across rebuilds; prove with a kittest (AC-006).",
+      "MC-005: Allocate AccessKit ids through the WP-011 AccessKit id registry with the 'outline.heading.{block_id}' namespace distinct from the MT-006 code-outline namespace; assert uniqueness in the AccessKit tree dump (AC-005).",
+      "MC-006: If any required DocModel accessor (block order, kind, heading level, plain-text, byte offset, revision counter) is absent, raise a typed blocker naming the exact missing accessor and owning module; do not access DocModel internals."
+    ]
+  }
+}

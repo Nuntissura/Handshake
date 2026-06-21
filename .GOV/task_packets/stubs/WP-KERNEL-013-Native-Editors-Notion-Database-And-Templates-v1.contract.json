@@ -1,0 +1,71 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1",
+  "base_wp_id": "WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1.contract.json",
+    "discovered_by": "WP-KERNEL-012 activation refinement (workflow wf_01ae2073-72e, 2026-06-21); KERNEL_BUILDER-reviewed",
+    "markdown_projection": "NOT_GENERATED_JSON_AUTHORITY_ONLY"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "status": "NOT_GENERATED_JSON_AUTHORITY_ONLY",
+    "note": "JSON contract is authority per the operator no-.md directive (KERNEL stub convention)."
+  },
+  "lifecycle": {
+    "status": "READY_FOR_REFINEMENT",
+    "activation_required": true,
+    "user_signature_required": true,
+    "refinement_required_before_execution": true,
+    "spec_status": "Anchored to Pillar 4 (rich-text/Notion-class) + Pillar 7 (Loom views). No new spec authority created at stub time; refinement decides enrichment.",
+    "next_in_build_order_after": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1"
+  },
+  "draft_scope": {
+    "intent": "Houses deferred Notion-class scope that exceeds the WP-KERNEL-012 React-parity bar: a user-editable template engine (template folder + {{date}}/variable substitution + template picker) building on the two hardcoded WP-012 MT-016 snippets; typed page properties (select / multi-select / date / number / checkbox / status) beyond the WP-012 title/tags model; and richer database views (relations / rollups) beyond the WP-012 MT-027 table/Kanban/calendar baseline. Keeps WP-012 anchored to proven React parity while parking forward Notion scope so it is not silently dropped.",
+    "scope_sketch": "IN (subject to refinement): user-editable template engine; typed page properties; database relations/rollups; advanced view config. OUT: anything already delivered by WP-012 (basic tags, table/Kanban/calendar views, daily notes, snippets); backend rewrite (gaps are typed blockers); SQLite (PostgreSQL/EventLedger only). Native Rust under src/frontend/**, hosted in the WP-011 shell, reusing handshake_core knowledge-document + Loom view APIs.",
+    "key_open_questions": [
+      "Does the handshake_core knowledge document schema support arbitrary typed properties, or is this a backend-gap typed blocker (WP-012 MT-017 flags that even flat string tags may lack a backend field)?",
+      "Should templates be stored as knowledge documents in a template folder or as a distinct backend entity?",
+      "Do database relations/rollups require new backend query support or can they ride existing Loom view_def execution?"
+    ],
+    "acceptance_criteria": "STUB-LEVEL ONLY. Full AC list deferred to refinement. ACTIVATION-AC: refinement resolves the key_open_questions (backend property support, template storage model, relations/rollups query path), derives SPEC_ANCHOR/DONE_MEANS, obtains operator signature, and pre-creates the full-detail MT set before execution."
+  },
+  "build_order": {
+    "domain": "PRODUCT_FRONTEND",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": ["WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1"],
+    "blocks": [],
+    "sequencing_note": "Builds on the native rich-text/knowledge editor delivered by WP-012. Activate after WP-012 lands."
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "active_bundle_at_stub_time": ".GOV/spec/master-spec-v02.195",
+    "roadmap_pointer": "Forward Notion-class editor scope discovered during WP-012 activation; parked to avoid scope creep into the WP-012 React-parity rebuild."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Typed properties / relations may require backend support absent today (treat as typed blocker, not in-WP backend edit).",
+      "No SQLite; PostgreSQL/EventLedger authority only."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB until a signed official packet exists.",
+      "Refinement must close the key_open_questions before MT authoring.",
+      "Require operator signature before packet creation and worktree preparation."
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-052",
+  "title": "E1-MT-052-DiagnosticNavAndJumpHistory",
+  "group": "E1 Code editor (VS Code parity)",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-052.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-006", "MT-007", "MT-008", "MT-010"],
+    "blocks": ["MT-044"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement the four GO-menu navigation behaviors for the native code editor: (1) Go to Next Diagnostic (F8), (2) Go to Previous Diagnostic (Shift+F8), (3) Navigate Back (Alt+Left), (4) Navigate Forward (Alt+Right). Items (1)/(2) traverse the ordered diagnostic markers produced by MT-007's gutter (errors/warnings/info pushed from the MT-008 LSP client via push_diagnostics) with wraparound at the ends. Items (3)/(4) walk an editor jump-history stack that records cursor positions across files whenever the user performs a navigation jump (go-to-definition, find-references result open, symbol/outline jump, and goto-line). This MT also wires the four items into the GO menu (the editor menu bar built in the WP-011 shell / pane registry) and adds the matching CodeEditorAction enum variants into the canonical keymap owned by MT-010.\n\nFiles to CREATE:\n- CREATE `src/frontend/code_editor/navigation.rs` — the diagnostic-traversal logic. Define `pub struct DiagnosticNavigator;` (stateless; it reads live state from the gutter/diagnostic store). Expose `pub fn next_diagnostic(markers: &[DiagnosticMarker], cursor: BufferPosition) -> Option<BufferPosition>` and `pub fn prev_diagnostic(markers: &[DiagnosticMarker], cursor: BufferPosition) -> Option<BufferPosition>`. `DiagnosticMarker` is the marker type already defined by MT-007 (re-use it; do NOT redefine it — import via `crate::frontend::code_editor::gutter::DiagnosticMarker`). `BufferPosition { line: usize, column: usize }` is the editor's existing cursor type (re-use the type MT-001/MT-003 established for the cursor; if a shared `Position`/`Caret` type exists, import it rather than create a parallel one). Ordering rule: markers are sorted by (line, column) ascending. `next_diagnostic` returns the first marker strictly after the cursor; if none, wrap to the first marker (index 0). `prev_diagnostic` returns the last marker strictly before the cursor; if none, wrap to the last marker. Return `None` only when the marker list is empty.\n- CREATE `src/frontend/code_editor/jump_history.rs` — the back/forward jump stack. Define `pub struct JumpEntry { pub file_path: PathBuf, pub position: BufferPosition }` and `pub struct JumpHistory { entries: Vec<JumpEntry>, cursor: usize }`. Expose: `JumpHistory::new() -> Self`, `record(&mut self, entry: JumpEntry)` (push: if the user previously navigated back and then makes a NEW jump, truncate the forward tail before pushing — VS Code semantics; coalesce consecutive entries that point at the same file+position within a small line tolerance so trivial cursor moves do not flood the stack), `back(&mut self, current: JumpEntry) -> Option<JumpEntry>` (move the cursor one entry toward the past and return the prior location, recording `current` so Forward can return to it), `forward(&mut self) -> Option<JumpEntry>` (move toward the future), `can_back(&self) -> bool`, `can_forward(&self) -> bool`. The stack must be cross-file: each entry carries its own `file_path` so Navigate Back can restore a position in a different file than the one currently focused. Cap the stack at a fixed size (e.g. 50 entries) by dropping the oldest.\n- EDIT `src/frontend/code_editor/keymap.rs` (owned by MT-010 — extend, do NOT rewrite its existing dispatch table) — add four `CodeEditorAction` enum variants: `GoToNextDiagnostic`, `GoToPrevDiagnostic`, `NavigateBack`, `NavigateForward`. Register default bindings in the canonical keymap table: F8 -> GoToNextDiagnostic, Shift+F8 -> GoToPrevDiagnostic, Alt+ArrowLeft -> NavigateBack, Alt+ArrowRight -> NavigateForward, using `egui::KeyboardShortcut { modifiers, key }` consistent with the existing MT-010 entries. Wire the dispatch arms: GoToNextDiagnostic/GoToPrevDiagnostic call `navigation::next_diagnostic`/`prev_diagnostic` with the current marker list + cursor and, on `Some(pos)`, move the editor caret to `pos` AND push the pre-jump location into the JumpHistory; NavigateBack/NavigateForward call `JumpHistory::back`/`forward` and, on `Some(entry)`, open `entry.file_path` (if different from the active file) and move the caret to `entry.position`.\n\nGO-menu wiring: the editor menu bar lives in the WP-011 shell. Add four GO-menu items (labels: \"Go to Next Problem\", \"Go to Previous Problem\", \"Back\", \"Forward\") that each dispatch the matching CodeEditorAction through the WP-011 command bus, so menu click and keybinding share one code path. Reuse the WP-011 pane registry to resolve the currently focused code-editor pane, and reuse the WP-011 command bus rather than calling editor methods directly. Forward/Back menu items should be disabled (greyed) when `can_forward()`/`can_back()` are false.\n\nReact reference: `app/src/components/operator/ProblemsView.tsx` — port its diagnostic ORDERING only (how problems are sorted by file then line then column then severity). The native ordering in `navigation.rs` must match ProblemsView so that F8 traversal order equals the Problems-list order a user would see. Do not port React rendering; ordering semantics only.\n\nBackend API binding: NONE. This MT is pure frontend. Diagnostic markers come from MT-007's in-process gutter store (which MT-008 already populated from the LSP client). Jump positions come from in-process editor cursor state. No new handshake_core API call is introduced. (PostgreSQL/EventLedger is irrelevant here — no persistence; the jump stack is in-memory session state.)\n\nStep-by-step implementation notes:\n1. Confirm the MT-007 `DiagnosticMarker` type and the editor's cursor `BufferPosition` type names by reading `gutter.rs` and the cursor module; import them — never redefine.\n2. Implement `navigation.rs` pure functions first; they are trivially unit-testable without egui.\n3. Implement `jump_history.rs` with VS Code back/forward truncation semantics; unit-test push/back/forward and the cross-file path retention.\n4. Extend `keymap.rs`: add the four variants, the four default shortcuts, and the four dispatch arms. Keep the existing MT-010 entries intact.\n5. Add the four GO-menu items in the WP-011 shell menu bar, each dispatching via the command bus; gate Back/Forward enabled-state on can_back/can_forward.\n6. AccessKit: give each GO-menu item a stable AccessKit author_id reusing the WP-011 AccessKit id registry — `menu-go-next-diagnostic`, `menu-go-prev-diagnostic`, `menu-go-back`, `menu-go-forward`, role=MenuItem — so swarm agents can invoke navigation deterministically.\n7. When a goto-def / find-references / outline-jump / goto-line jump occurs (MT-006, MT-008 dispatch sites), call `JumpHistory::record` with the PRE-jump location so Navigate Back can return there. This means MT-006/MT-008 dispatch arms must call into the shared JumpHistory; add the record() call at those dispatch sites in keymap.rs without altering their existing jump behavior.\n\nDependencies / unblock conditions:\n- MT-006 (goto-line) merged — provides one jump source and the editor caret-move primitive.\n- MT-007 (gutter diagnostics) merged — provides the `DiagnosticMarker` list traversed by F8/Shift+F8.\n- MT-008 (LSP client) merged — provides goto-def / find-references jump sources and the diagnostics feed.\n- MT-010 (unified keymap) merged — provides the `CodeEditorAction` enum and dispatch table this MT extends.\n\nRisk if missed: the four GO menu items are dead/non-functional; diagnostic traversal (F8/Shift+F8) and back/forward navigation (Alt+Left/Right) parity with VS Code is unmet, and the MT-044 Parity Proof Suite cannot prove the navigation feature row.",
+    "allowed_paths": [
+      "src/frontend/code_editor/navigation.rs",
+      "src/frontend/code_editor/jump_history.rs",
+      "src/frontend/code_editor/keymap.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: `next_diagnostic` returns the first marker strictly after the cursor, and wraps to the first marker when the cursor is at or past the last marker — proven by unit test in navigation.rs covering: cursor before all markers, cursor between two markers, cursor at the last marker (wrap), and empty marker list (returns None).",
+      "AC-002: `prev_diagnostic` returns the last marker strictly before the cursor, and wraps to the last marker when the cursor is at or before the first marker — proven by the symmetric unit test.",
+      "AC-003: JumpHistory push/back/forward semantics match VS Code: after a goto-def jump, Navigate Back restores the prior file_path + BufferPosition; a NEW jump after a Back truncates the forward tail — proven by unit test in jump_history.rs.",
+      "AC-004: Cross-file jump history retains the source file path: recording a jump from file A to file B and then Navigate Back returns an entry whose file_path == A (not the currently focused file) — proven by unit test.",
+      "AC-005: The four CodeEditorAction variants (GoToNextDiagnostic, GoToPrevDiagnostic, NavigateBack, NavigateForward) exist in keymap.rs with default bindings F8 / Shift+F8 / Alt+ArrowLeft / Alt+ArrowRight, without altering the pre-existing MT-010 keymap entries — proven by grep of the keymap table and a cargo test asserting the four shortcuts resolve to the four actions.",
+      "AC-006: egui_kittest harness: with a buffer containing diagnostic markers on known lines, pressing F8 moves the caret to the next diagnostic line; pressing it again advances; pressing it at the last marker wraps to the first — proven by kittest caret-position assertions.",
+      "AC-007: The four GO-menu items are present and dispatch via the WP-011 command bus (not direct editor method calls); Back/Forward items are disabled when can_back()/can_forward() are false — proven by kittest menu interaction + AccessKit MenuItem nodes menu-go-next-diagnostic / menu-go-prev-diagnostic / menu-go-back / menu-go-forward.",
+      "AC-008: `cargo test -p handshake_frontend` passes with all navigation and jump_history tests green; no panics."
+    ],
+    "proof_targets": [
+      "PT-001: `cargo test -p handshake_frontend next_diagnostic` => moves to the next marker by position and wraps at end; all GREEN.",
+      "PT-002: `cargo test -p handshake_frontend prev_diagnostic` => moves to the previous marker by position and wraps at start; all GREEN.",
+      "PT-003: `cargo test -p handshake_frontend jump_history` => goto-def then Navigate Back restores prior file+position; new jump truncates forward tail; all GREEN.",
+      "PT-004: `cargo test -p handshake_frontend jump_history_cross_file` => cross-file jump history retains the source file path; GREEN.",
+      "PT-005: egui_kittest test `code_editor_f8_next_diagnostic` => F8 moves the cursor to the next diagnostic line; assertion on caret line index; GREEN.",
+      "PT-006: AccessKit tree dump from kittest contains MenuItem nodes menu-go-next-diagnostic, menu-go-prev-diagnostic, menu-go-back, menu-go-forward with correct enabled/disabled state."
+    ],
+    "implementation_notes": [
+      "Re-use, do NOT redefine, the MT-007 `DiagnosticMarker` type and the editor's existing cursor/position type; import them from gutter.rs and the cursor module. Introducing a parallel marker or position struct is a defect.",
+      "Diagnostic ordering must be a total order by (line, column) ascending; if MT-007 markers are not pre-sorted, sort a borrowed copy in navigation.rs rather than mutating the gutter store.",
+      "JumpHistory is in-memory session state only — no PostgreSQL/EventLedger persistence in this MT. Cap at 50 entries, dropping the oldest.",
+      "Back/Forward truncation: pushing a new jump while history.cursor is not at the tail must truncate entries[cursor+1..] before the push (standard VS Code editor-navigation stack behavior).",
+      "Coalesce consecutive jump entries pointing at the same file within a small line tolerance so trivial caret moves do not flood the stack; only navigation jumps (goto-def, references, symbol/outline, goto-line) record entries, not ordinary typing/arrow-key movement.",
+      "Keymap extension: append to the MT-010 dispatch table; do not reorder or rewrite existing arms. Use `egui::KeyboardShortcut { modifiers: egui::Modifiers { shift, alt, .. }, key: egui::Key::F8 | egui::Key::ArrowLeft | egui::Key::ArrowRight }` consistent with sibling entries.",
+      "GO-menu items and keybindings must share ONE code path by dispatching the same CodeEditorAction through the WP-011 command bus; never duplicate the navigation logic between menu handler and key handler.",
+      "Reuse the WP-011 AccessKit id registry for the four menu-item author_ids; do not mint ad-hoc ids outside the registry."
+    ],
+    "ports_from_react": [
+      "app/src/components/operator/ProblemsView.tsx — port diagnostic ORDERING semantics only (sort by file, then line, then column, then severity) so native F8/Shift+F8 traversal order matches the Problems-list order; do not port React rendering."
+    ],
+    "binds_backend_api": [
+      "NONE — pure frontend. Diagnostic markers are read from the in-process MT-007 gutter store (populated by the MT-008 LSP client); jump positions come from in-process editor cursor state. No handshake_core API call is introduced and no persistence (no PostgreSQL/EventLedger) is touched."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Redefining `DiagnosticMarker` or the cursor position type instead of importing the MT-007/MT-001 types fragments the diagnostic model and breaks traversal-order parity with the gutter and Problems list.",
+      "RISK-002: Off-by-one in 'strictly after' / 'strictly before' comparisons causes F8 to re-select the marker the caret is already on (infinite stall) or to skip the adjacent marker. Boundary at the exact marker position must be excluded.",
+      "RISK-003: Wraparound applied to an empty marker list could panic on index 0 / last; must return None for an empty list before any indexing.",
+      "RISK-004: Forward-tail truncation bug: failing to truncate the forward entries on a new jump leaves stale forward history, so Navigate Forward jumps to an unrelated location (VS Code semantics violated).",
+      "RISK-005: Cross-file Navigate Back that opens a file via a path no longer present (file closed/deleted/renamed) panics or silently no-ops; must guard missing paths.",
+      "RISK-006: Recording every caret move (not just navigation jumps) floods the jump stack so Alt+Left steps one character at a time instead of one jump at a time.",
+      "RISK-007: Menu items and keybindings implementing the navigation twice (divergent code paths) cause menu and F8 to behave differently; parity proof would pass one and miss the other.",
+      "RISK-008: Modifying MT-010's existing keymap entries while adding the four new bindings regresses previously-shipped key handlers (Ctrl+D, Ctrl+F, Ctrl+G, fold bindings)."
+    ],
+    "minimum_controls": [
+      "MC-001: Unit tests import the MT-007 `DiagnosticMarker` and MT-001 cursor type directly; a compile-time assertion (or test referencing the imported path) confirms no parallel type was introduced.",
+      "MC-002: Boundary unit tests for next/prev with the cursor placed exactly on a marker position confirm the same marker is NOT returned (strict comparison).",
+      "MC-003: Empty-marker-list test asserts None for both next_diagnostic and prev_diagnostic with no panic.",
+      "MC-004: Jump-history test explicitly asserts the forward tail is truncated after a back-then-new-jump sequence.",
+      "MC-005: Navigate Back to a missing file_path returns gracefully (logs a warning, no-ops the open, leaves history cursor unchanged) — covered by a test with a bogus path.",
+      "MC-006: Only the four navigation-jump dispatch sites (goto-def, references, outline/symbol, goto-line) call JumpHistory::record; a grep proof confirms no record() call sits in ordinary caret/typing paths.",
+      "MC-007: A single dispatch function handles both menu click and keybinding (one CodeEditorAction path through the WP-011 command bus); reviewed by grep showing menu handlers dispatch actions, not inline navigation logic.",
+      "MC-008: cargo test re-runs the full MT-010 keymap test suite after this MT's edits to prove no pre-existing binding regressed."
+    ]
+  }
+}

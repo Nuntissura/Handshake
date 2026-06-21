@@ -1,0 +1,160 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-06-19T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
+    "shell_packet": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+    "parity_source": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+    "gui_reference": ".GOV/operator/docs_local/handshake-gui-look-and-behavior-v1.md",
+    "codex_vision": ".GOV/codex/Handshake_Codex_v1.4.md#0A"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "DONE_FOLDED_KERNEL_BUILDER",
+    "session_id": "KERNEL_BUILDER-20260621-183027",
+    "note": "Activation performed by KERNEL_BUILDER in Activation Mode (folded), per operator instruction 2026-06-21. No ACP; execution owner = KERNEL_BUILDER. The first 46 MTs (E1-E8) were authored 2026-06-19 (workflow wf_3d7b88d0-301); this 2026-06-21 pass PRESERVES them unchanged (CX-653A) and ADDS 28 MTs (MT-047..MT-074, clusters E9-E12 + E1/E2/E3 parity fill-ins) via workflow wf_01ae2073-72e, KERNEL_BUILDER-reviewed.",
+    "readiness_status": "REFINEMENT_AND_MICROTASKS_READY; WORKTREE CREATED (../wtc-native-editors-v1 on feat/WP-KERNEL-012 from canonical main 97a22310 with WP-011 shell + .GOV junction). REMAINING: operator USER_SIGNATURE before downstream coder launch."
+  },
+  "refinement": {
+    "operator_request": "Operator 2026-06-19 (original): rebuild the Obsidian + VS Code clones as native Rust Handshake tools with FULL feature parity to the existing React surfaces, interconnected with EACH OTHER and with CKC + Loom, hosted in the WP-KERNEL-011 native shell, reusing the existing Rust backend (no rewrite). As many MTs as needed, each executable by a small no-context local model; minimal governance paperwork. Operator 2026-06-21 (expansion): Handshake hosts Obsidian+VSCode parity under the Notes pillar (not stitched-on apps); the editors MUST also work together with CKC, FEMS, Loom and other pillars - if features or pillar interactions are missing, create extra microtasks. Continue the WP-KERNEL-011 GUI so every surface has a sensible worksurface; place the correct items in the settings menu and keep it structured. Create the WP worktree + backup so implementation can start in fresh sessions.",
+    "approved_spec_enrichment": [],
+    "enrichment_decision": {
+      "status": "NO_ENRICHMENT_REQUIRED",
+      "rationale": "Editor parity + interconnection is packet-local execution detail anchored to existing durable law: CX-003-VIS / CX-004-VIS / CX-005-VIS (melt-together, handmade-owned, LLM co-creator), Product Reference Pillars 2/3/4/6/7/12/17/18-19, the existing FR-EVT-MEM-001..005 memory events (Master Spec 11.5.13), the existing MemoryPack/retrieval-capsule contract, the IMX force-multiplier edges (Appendix 12.6), and the WP-KERNEL-009 delivered React feature set as the parity baseline. No new durable product contract is introduced: parity catch-up mirrors features the React surfaces already shipped; FEMS/Stage/Calendar/Locus interop binds editors to ALREADY-normative pillars; GUI continuation + settings + manual reuse surfaces WP-011 already built. Per the default-to-NO rule, no Master Spec bump is required for this WP.",
+      "master_spec_bump": "NONE (current SPEC_CURRENT = v02.195, already native-GUI per WP-011 enrichment).",
+      "reconciliation_debt": "Three spec product-surface lags to reconcile in a LATER spec pass (NOT this WP): (a) Product Reference Tech Stack + Pillars 3/4 still name React/Tiptap/Monaco/Tauri while WP-011/012 deliver native Rust egui+egui_tiles+AccessKit+wgpu (no webview) - update once WP-012 lands. (b) Master Spec 10-product-surfaces (~lines 412/441/444) mandates DOCX import/export via AST + a dual RichView+Monaco StructuredTextView that WP-012 deliberately scopes OUT (export is HTML/MD/TXT/JSON per React parity) - parked to WP-KERNEL-014 stub; operator decision needed (do not silently drop). (c) FR-EVT family lists FR-EVT-002 (editor) for document/code edits while MT-036 emits via a 'system' event_type with a nested native_editor payload - confirm/reconcile the native-editor FR producer mapping."
+    },
+    "scope_edges": [
+      "IN: native parity rebuild of the VS-Code-class code editor (E1) + Obsidian/Notion-class rich-text/knowledge editor (E2/E3) + search surfaces (E4) to FULL parity with the WP-KERNEL-009 React baseline, hosted in the WP-011 shell.",
+      "IN: melt-together interconnection (E5) across the two editors + CKC + Loom (shared selection/clipboard/command bus, everything-is-a-Loom-block, unified undo, one event ledger).",
+      "IN (2026-06-21 expansion): FEMS interop (E9) - consume the retrieval capsule/MemoryPack inline + emit review-gated memory-write proposals; other-named-pillar interop (E10) - Stage/Calendar/Locus edges; WP-011 GUI worksurface continuation (E11) - wire the disabled editor menu/command/context-menu/status-bar placeholders to the real editors; structured settings + menu completion + manual (E12).",
+      "IN: backend reuse (E6) via existing handshake_core APIs; AccessKit model-vision/steering (E7); parity + interconnection proof suites (E8 + MT-065 FEMS proof + MT-074 other-pillar proof).",
+      "OUT: any backend rewrite (gaps are TYPED BLOCKERS, never in-WP backend edits); new future creative surfaces (photo editor, spreadsheet, mechanical engines, Tailor) - designed extension seams only (MT-036); new shell infrastructure (reuse WP-011, never fork).",
+      "OUT (parked to future-WP stubs): Notion-class typed page properties + relations/rollups + user-editable template engine -> WP-KERNEL-013; DOCX import/export via AST + dual RichView/Monaco StructuredTextView -> WP-KERNEL-014.",
+      "OUT: heavy non-editor pillar surfaces left as WP-011 placeholders that are NOT in the Notes/editor orbit (Atelier full, Inference Lab, Model Runtime, Swarm full, Kernel DCC, Visual Debugger) - their full builds remain their own pillar WPs; E11 only wires the editor-orbit placeholders."
+    ],
+    "assumptions": [
+      "WP-KERNEL-011 shell (egui+egui_tiles+AccessKit+wgpu) is PASS and provides the pane registry, command bus, unified-undo seam, context-menu primitive (MT-019), status bar, settings dialog (PG-backed, MT-018), command palette, quick switcher, AccessKit id registry, and User Manual pane - confirmed in the WP-011 packet acceptance matrix.",
+      "The existing handshake_core exposes FEMS read (MemoryPack/pack) + review-gated proposal write, Stage route + artifact, Calendar events + activity-spans, and Locus WP/MT read endpoints; if any is absent each interop MT raises a TYPED BLOCKER with a visible empty-state rather than building backend.",
+      "Implementation lane is folded KERNEL_BUILDER, no ACP; KERNEL_BUILDER implements one unblocked MT at a time per Product Implementation Mode; validation topology INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1.",
+      "The legacy React app (app/src) stays as read-only parity reference until native parity is proven, then retired.",
+      "Storage is PostgreSQL/EventLedger only; SQLite is forbidden anywhere in these MTs.",
+      "All new editor code lives under src/frontend/** and tests/native_editors/**; no app/src or src/backend edits.",
+      "Per operator rule (2026-06-21): the WP worktree is created from main for the code side (with a gov_kernel .GOV junction) and is NEVER based on another WP's feature branch; this requires WP-KERNEL-011 to be merged into main first (see KEY blocker)."
+    ],
+    "non_goals": [
+      "DOCX import/export via AST and the dual RichView+Monaco StructuredTextView (future WP stub WP-KERNEL-014).",
+      "Notion-class typed page properties beyond title/tags, relations/rollups, and a user-editable template engine (future WP stub WP-KERNEL-013).",
+      "Building any future creative surface or mechanical engine; only the designed extension seams from MT-036 are honored.",
+      "Full builds of non-editor-orbit pillar surfaces (Atelier/Inference Lab/Model Runtime/Swarm/Kernel DCC/Visual Debugger) - own pillar WPs.",
+      "No Master Spec bump this WP; reconciliation debt is recorded, not enriched."
+    ],
+    "spec_anchors": [
+      "Codex [CX-003-VIS] one work surface; [CX-004-VIS] handmade/owned; [CX-005-VIS] LLM co-creator (model see/steer); [CX-008-VIS] native app no-webview",
+      "Product Reference Pillar 3 (Monaco/code), Pillar 4 (Word/rich-text), Pillar 7 (Loom), Pillars 18/19 (Studio/Atelier/CKC), Pillar 12 (FEMS memory), Pillar 17 (Stage), Pillar 2 (Calendar), Pillar 6 (Locus)",
+      "Master Spec 11.5.13 FR-EVT-MEM-001..005 (memory events); Appendix 12.6 IMX force-multiplier edges",
+      "WP-KERNEL-009 delivered React feature set (parity baseline); WP-KERNEL-011 shell substrate (pane/command/undo/context-menu/status-bar/settings/manual/AccessKit)"
+    ],
+    "acceptance_criteria_ref": "See packet.json scope.acceptance_criteria (8 original + 7 expansion = 15) and packet.json packet_acceptance_matrix.hbr - authoritative. Each MT-*.json carries its own acceptance_criteria + proof_targets.",
+    "hbr_pillar_review": {
+      "INT": { "applicable": true, "evidence_path": "interconnection_contract.edges; E5 (MT-031..036) + E9/E10 interop; FR events to existing ledger; MT-065/MT-074 proofs" },
+      "SWARM": { "applicable": true, "evidence_path": "E7 AccessKit (MT-041..043) + every new editor/interop control AccessKit-addressable; MT-065/MT-074 require out-of-process agent drive" },
+      "VIS": { "applicable": true, "evidence_path": "kittest screenshots on editor + new UI controls (reading mode, outline, graph controls, outgoing-links, relevant-memory, status-bar segments)" },
+      "QUIET": { "applicable": true, "evidence_path": "focus-audit on MT-055/061 + agent-driven interop in proof suites; reuse WP-011 HBR-QUIET guard" },
+      "MAN": { "applicable": true, "evidence_path": "MT-073 User Manual editor content + agent AccessKit/MCP tool reference; id-audit vs live registry" },
+      "STOP": { "applicable": true, "evidence_path": "agent-driven FEMS/interop actions stop cleanly on TaskStop; MT-065/074 proof suites" }
+    },
+    "microtask_plan": [
+      { "cluster": "E1 Code editor (VS Code parity)", "mt_ids_range": "MT-001..MT-010 (base) + MT-047..MT-054 (parity fill-ins: signature help, rename, code actions, format, line-edit transforms, diagnostic nav+jump history, in-file symbol+sticky scroll, bracket/indent/wrap chrome)" },
+      { "cluster": "E2 Rich-text editor (Obsidian/Notion parity)", "mt_ids_range": "MT-011..MT-020 (base) + MT-055..MT-059 (reading mode, outline/TOC, wikilink alias+create, inline #tags, wiki markdown render)" },
+      { "cluster": "E3 Knowledge surface / graph", "mt_ids_range": "MT-021..MT-027 (base) + MT-060..MT-062 (graph filter/group/depth controls, canvas card resize/sections/inline-edit, outgoing-links pane)" },
+      { "cluster": "E4 Search surfaces", "mt_ids_range": "MT-028..MT-030 (base)" },
+      { "cluster": "E5 Interconnection / melt-together", "mt_ids_range": "MT-031..MT-036 (base)" },
+      { "cluster": "E6 Backend reuse wiring", "mt_ids_range": "MT-037..MT-040 (base)" },
+      { "cluster": "E7 Model-vision/steering (AccessKit)", "mt_ids_range": "MT-041..MT-043 (base)" },
+      { "cluster": "E8 Parity + interconnection proof", "mt_ids_range": "MT-044..MT-046 (base)" },
+      { "cluster": "E9 FEMS interop (Pillar 12 typed memory)", "mt_ids": ["MT-063","MT-064","MT-065"], "note": "Consume retrieval capsule inline + emit review-gated memory-write proposals (never editor-direct commit) + interop proof suite." },
+      { "cluster": "E10 Other-pillar interop (Stage/Calendar/Locus)", "mt_ids": ["MT-066","MT-067","MT-068","MT-074"], "note": "Stage route+embed-back (P17), Calendar daily-note binding+ActivitySpan (P2), Locus locus:// WP/MT cross-refs (P6) + interop proof suite." },
+      { "cluster": "E11 WP-011 GUI worksurface continuation", "mt_ids": ["MT-069","MT-070","MT-071"], "note": "Wire disabled editor menu/command-palette items + editor/canvas context menus + NavigationTarget bus + VS Code-class status-bar editor segments. No shell fork." },
+      { "cluster": "E12 Structured settings + menu completion + manual", "mt_ids": ["MT-072","MT-073"], "note": "Editor-specific Settings sections persisted via existing PG settings surface + built-in User Manual editor content + agent AccessKit/MCP tool reference (HBR-MAN)." }
+    ],
+    "microtask_count": 74,
+    "microtask_authoring_status": "AUTHORED (46 base via wf_3d7b88d0-301 2026-06-19; +28 expansion MT-047..MT-074 via wf_01ae2073-72e 2026-06-21; both reviewed by KERNEL_BUILDER - mechanical gate over all 28 new: correct schema/wp_id/mt_id, no src/backend writes, no SQLite, PENDING, acceptance+red_team present; MT-064 deep-reviewed for the FEMS never-direct-commit invariant).",
+    "feature_discovery_cx503f": {
+      "new_primitives": [
+        "FemsMemoryClient + MemoryPack retrieval-capsule consumer (provenance-first, <=24 items)",
+        "FemsMemoryProposal builder (class + source provenance, review-gated, never editor-direct commit)",
+        "JumpHistory stack (cross-file cursor navigation)",
+        "LanguageMode + FileMeta model (content/shebang detection, EOL/indent/encoding)",
+        "EditorStatusBarSegment set (language/EOL/indent/encoding/whitespace)",
+        "GraphControls model (filter/group/depth/orphan/degree)",
+        "OutgoingLinks extractor + pane; ReadingMode per-document state; RichEditorOutline (heading TOC) model"
+      ],
+      "new_interaction_edges": [
+        "editors <-> FEMS (Pillar 12): consume MemoryPack capsule inline; emit review-gated memory-write proposals (FR-EVT-MEM-001)",
+        "editors <-> Stage (Pillar 17): route note/selection/canvas-node to Stage; embed Stage captures back with SHA-256 manifest provenance",
+        "editors <-> Calendar (Pillar 2): daily-note<->CalendarEvent binding; read-only ActivitySpan correlation",
+        "editors <-> Locus (Pillar 6): locus:// WP/MT cross-references reusing the everything-is-a-block scheme",
+        "editors <-> WP-011 shell: all editor actions route through the existing menu/command/undo/context-menu/status-bar/settings/manual substrate (extension, not fork)"
+      ],
+      "new_ui_controls": [
+        "Reading/Edit mode toggle; heading outline/TOC panel; graph control panel (filter/groups/depth/orphan/degree); outgoing-links pane; relevant-memory panel (FEMS capsule); canvas card resize handles + labeled sections + in-place edit; editor status-bar segments; editor Settings sections; lightbulb quick-fix + inline rename + signature-help popup + in-file symbol palette + sticky-scroll headers"
+      ],
+      "new_stubs_created": ["WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1", "WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1"],
+      "spec_enrichment_needed": "NO (reconciliation debt recorded; see enrichment_decision)"
+    },
+    "research_basis": {
+      "parity_targets": "VS Code / Monaco (signature help, rename via WorkspaceEdit, code actions/lightbulb, formatting, sticky scroll, bracket-pair colorization, indent guides, breadcrumbs, jump history) + LSP spec (signatureHelp/rename/codeAction/formatting); Obsidian core plugins (reading view, outline, graph control panel groups/depth/filters, outgoing/back links triad, canvas resize/sections, inline #tags); Notion typed properties + templates DEFERRED (WP-KERNEL-013).",
+      "interop_basis": "Edges map to existing IMX force-multiplier matrix (Appendix 12.6) + existing FR-EVT-MEM events (Master Spec 11.5.13); pillar definitions read from Product Reference + spec modules 06/09/10/12.",
+      "implementation_alignment": "Reuses the WP-011 toolkit decision (egui+egui_tiles+AccessKit+wgpu) and ropey/tree-sitter/cosmic-text already chosen in MT-001/011/012.",
+      "external_research_status": "RECONCILIATION_AGAINST_EXISTING_SPEC_PLUS_REACT_BASELINE_PLUS_GUI_DOC; no fresh external web research in the synthesis turn. Per Activation Manager protocol (internal/spec-anchored WP) external research set to local-truth-first. Broad current-field research remains the KERNEL_BUILDER's GLOBAL-RESEARCH gate before implementing each new primitive MT (esp. FEMS retrieval/proposal, LSP code-actions/rename, graph-control UX)."
+    },
+    "red_team": {
+      "required": true,
+      "profile": "NATIVE_EDITORS_PARITY_V1",
+      "risks": [
+        "Parity asserted vs proven: every new parity-gap MT must map to a passing native runtime proof in MT-044 (parity gate); the new MTs list MT-044 in blocks. Control: the MT-044 parity manifest must grow to include the new features.",
+        "FEMS/Stage/Calendar/Locus backend may not expose the assumed endpoints: each interop MT carries an explicit typed-blocker path + visible empty-state + no-silent-no-op test, so a backend gap surfaces as a blocker not a fake.",
+        "FEMS memory writes must NEVER be editor-direct commits: MT-064 enforces review-gated proposals only + a procedural-class review-gate test + a grep gate that no direct-commit call site exists; a direct-commit path is a red-team failure.",
+        "WP-011 substrate fork risk: E11/E12 MTs must reuse the existing menu/command/undo/context-menu/status-bar/settings/manual paths; tests assert routing through the SAME shared state-mutation paths and forbid new infra forks.",
+        "Multi-cursor correctness on line-edit transforms (MT-051): per-cursor application + coalesced undo tested to avoid corruption under N cursors.",
+        "Word-wrap breaks MT-002 virtualization math: MT-054 tests visible-row math under wrap so large-file performance (MT-045) does not regress.",
+        "Swarm steerability regressions: every new control AccessKit-addressable; MT-065/MT-074 require an out-of-process agent to drive each surface by stable id.",
+        "Scope creep into Notion database / DOCX: explicitly parked as future-WP stubs with open questions, not authored as MTs."
+      ],
+      "minimum_controls": [
+        "Parity gate (MT-044) extended to cover every new VS Code/Obsidian parity MT; no placeholders/mocks for spec-required runtime behavior.",
+        "Each interop MT has a typed-blocker path + visible empty-state + no-silent-no-op test; zero backend edits; zero SQLite.",
+        "MT-064 grep gate: no direct memory-commit call site; review_gated hard-true for Procedural.",
+        "E11/E12 tests assert reuse of WP-011 shared state-mutation paths (no fork).",
+        "MT-065 (FEMS) + MT-074 (Stage/Calendar/Locus) interop proof suites prove edges by real scenario, not assertion."
+      ]
+    }
+  },
+  "signature": {
+    "user_signature": "PENDING_OPERATOR_SIGNATURE",
+    "supplied_at_utc": null,
+    "workflow_lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "execution_owner": "KERNEL_BUILDER",
+    "recorded_per": "CX-585C (operator-supplied unique signature required; the 2026-06-21 operator execution order authorizes refinement+MT authoring AND worktree creation, but a unique USER_SIGNATURE string is still required before downstream coder launch/implementation; not fabricated).",
+    "blocking_note": "RESOLVED: WP-KERNEL-011 IS merged into canonical main (handshake_main main=97a22310 with src/frontend shell committed; the wt-gov-kernel clone's main ref was stale at d07cffcf). Worktree created from 97a22310. REMAINING gate: a unique operator USER_SIGNATURE before downstream coder/implementation launch."
+  }
+}

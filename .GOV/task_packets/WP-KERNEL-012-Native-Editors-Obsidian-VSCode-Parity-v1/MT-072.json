@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-072",
+  "title": "E12-MT-072-EditorSettingsSections",
+  "group": "E12",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-072.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-001", "MT-010", "MT-069", "MT-071"],
+    "blocks": ["MT-073"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: add the editor-specific Settings sections that the Handshake GUI look-and-behavior doc defines and that WP-KERNEL-011 only stubbed, into the EXISTING WP-011 settings dialog. WP-011 already ships a native egui Settings dialog that loads with GET /workspaces/{workspace_id}/settings and persists with PUT /workspaces/{workspace_id}/settings (PostgreSQL/EventLedger-backed workspace settings — there is NO SQLite anywhere and NO new settings persistence in this MT). This MT only adds three editor-focused sections to that dialog and wires their values into the editors built earlier in this WP. It does NOT build a new settings system, a new persistence layer, or a new dialog shell.\n\nThree concrete deliverables inside the existing dialog:\n  (1) EDITOR section — user-configurable editor preferences distinct from UI chrome:\n      - editor_font_size (f32, point size used ONLY by editor text surfaces; MUST be a separate field from the UI/chrome font size that WP-011 already manages — do not reuse the chrome font field).\n      - tab_size (u8, columns per tab; default 4).\n      - insert_spaces (bool, tabs-vs-spaces; true = insert spaces, false = keep hard tabs; default true).\n      - word_wrap (enum: Off | On | BoundedColumn(u16); the editor default wrap mode; default Off).\n      - render_whitespace (enum: None | Boundary | All; whether the code editor draws whitespace glyphs; default None).\n      - auto_save_interval is ALREADY present in WP-011 settings — do NOT re-add it; only surface/label it inside this Editor section so all editor prefs read together (reference the existing field, do not duplicate it).\n  (2) SYNTAX color scheme palette editor — a Muted | Standard | Custom selector that feeds the MT-001 HighlightScope -> Color32 mapping:\n      - syntax_palette_mode (enum: Muted | Standard | Custom; default Standard).\n      - When Custom is selected, expose one color swatch per MT-001 HighlightScope variant (Keyword, String, Comment, Number, Function, Type, Operator, Other) using egui::color_picker so the user can edit each scope color.\n      - The palette must feed MT-001's scope_to_color path LIVE: changing a swatch updates the code editor highlight colors in the same frame (no app restart, no reload).\n  (3) KEYBINDINGS section extension — extend the existing WP-011 keybindings table to include ALL editor-specific actions: the MT-010 code-editor chords (multi-cursor, find/replace, fold, comment-toggle, etc.) AND the rich-editor commands, sourced from the workspaceSettings.keybindings store. Each action row shows action id, label, current binding, and a default; a custom binding overrides the default for that action.\n\nFiles to CREATE:\n  - src/frontend/shell/settings_editor_section.rs (~300-500 lines) — defines the EditorSettingsSection widget: a struct holding a mutable view over the deserialized workspace settings struct, plus three render fns: render_editor_prefs(&mut self, ui), render_syntax_palette(&mut self, ui), and render_editor_keybindings(&mut self, ui). Also defines the serde types EditorPrefs { editor_font_size, tab_size, insert_spaces, word_wrap, render_whitespace }, WordWrapMode enum, RenderWhitespaceMode enum, SyntaxPaletteMode enum, and SyntaxPalette { mode, custom: HashMap<HighlightScope, [u8;4]> } that round-trip cleanly through the existing settings JSON the PUT/GET endpoint already stores. Do NOT invent a new top-level settings document — these types are nested fields appended into the SAME workspace-settings struct WP-011 serializes.\n\nFiles to EDIT:\n  - src/frontend/shell/settings_dialog.rs — mount the three new sections into the existing dialog. Call into settings_editor_section.rs render fns inside the existing dialog body (egui::Window / side panel the dialog already uses). Do NOT change the dialog's load/save plumbing: it already calls GET on open and PUT on apply/close; the new fields ride along because they are part of the same serialized settings struct. Register AccessKit author_ids on the new controls (see notes). Reuse the WP-011 shell primitives: the pane registry, the command bus, and the AccessKit id registry — do not stand up parallel infrastructure.\n\nExact crates / egui / AccessKit patterns to use:\n  - egui::DragValue for editor_font_size, tab_size, and BoundedColumn width.\n  - egui::ComboBox for word_wrap mode, render_whitespace mode, and syntax_palette_mode selectors.\n  - egui::Checkbox for insert_spaces (tabs-vs-spaces) toggle.\n  - egui::color_picker::color_edit_button_srgba (or egui::widgets::color_picker) for each Custom syntax swatch; store as [u8;4] sRGBA, convert to egui::Color32 via Color32::from_rgba_unmultiplied for live use.\n  - AccessKit: register each control via the WP-011 AccessKit id registry with stable author_ids: 'settings-editor-font-size', 'settings-editor-tab-size', 'settings-editor-insert-spaces', 'settings-editor-word-wrap', 'settings-editor-render-whitespace', 'settings-syntax-palette-mode', 'settings-syntax-swatch-{scope}' (one per HighlightScope), and 'settings-keybind-row-{action_id}' for each keybinding row. Roles: DragValue/ComboBox -> appropriate input role, swatches -> ColorWell/Button, keybind rows -> ListItem/Row.\n  - Serde: derive Serialize/Deserialize on every new type; use #[serde(default)] on each new field so OLDER stored settings docs (without these fields) still deserialize (forward/backward compatibility with WP-011-era rows in PostgreSQL).\n\nExact handshake_core / backend API bound (REUSE ONLY — no backend rewrite, no new endpoint):\n  - GET /workspaces/{workspace_id}/settings  — existing WP-011 read path; returns the workspace settings JSON. The new editor fields are read from this same payload.\n  - PUT /workspaces/{workspace_id}/settings  — existing WP-011 write path; persists the workspace settings JSON to PostgreSQL/EventLedger. The new editor fields are written through this same payload. If the existing settings struct on the backend is strongly typed and would REJECT unknown fields (rather than passing them through as an opaque JSON blob), that is a typed blocker: STOP and record it as a blocker (do NOT rewrite or extend the backend in this MT). If the backend stores settings as an opaque/extensible JSON document, no backend change is needed and this MT is pure frontend.\n\nStep-by-step implementation notes:\n  1. Read MT-069 and MT-071 outputs first: MT-069/MT-071 are dependencies that establish the editor-settings groundwork this MT builds the UI sections on; align field names and the settings struct shape with whatever they introduced rather than inventing parallel fields.\n  2. Locate the WP-011 workspace-settings serde struct (the type the dialog deserializes GET into and serializes back for PUT). Add the new EditorPrefs and SyntaxPalette nested fields to it with #[serde(default)]. If that struct lives in a shared frontend module, edit it minimally; if it lives only behind the backend typed-contract and is not extensible, treat as the typed blocker above.\n  3. Implement EditorSettingsSection in settings_editor_section.rs operating on a &mut reference to the deserialized settings struct so edits mutate in place and the existing PUT-on-apply path picks them up with no new save code.\n  4. render_editor_prefs: DragValue for editor_font_size (clamp 6.0..=48.0), DragValue for tab_size (clamp 1..=16), Checkbox for insert_spaces, ComboBox for word_wrap, ComboBox for render_whitespace; show (read-only label + existing control) for the already-present auto_save_interval so the section reads as a complete editor-prefs group without duplicating the field.\n  5. render_syntax_palette: ComboBox for Muted|Standard|Custom. For Muted and Standard, apply a built-in palette table mapping each HighlightScope to a Color32 (define two const tables). For Custom, render one color_edit_button per HighlightScope writing into SyntaxPalette.custom. Expose a fn resolve_scope_color(scope, &SyntaxPalette, visuals) that MT-001's scope_to_color delegates to, so the editor picks up palette changes live in the same frame.\n  6. render_editor_keybindings: read the editor-specific action list from the workspaceSettings.keybindings source (the same source the WP-011 keybindings table already reads). Filter/extend so the table includes the MT-010 code chords and the rich-editor commands. Each row: action id, label, an editable binding capture control, and the default. A captured custom binding overrides the default for that action; persist into the same keybindings map the existing table writes.\n  7. Wire the three render fns into settings_dialog.rs in section order: Editor, Syntax, Keybindings (extend the existing Keybindings section in place rather than adding a second one).\n  8. AccessKit: register every new control's author_id through the WP-011 AccessKit id registry so swarm agents and egui_kittest can address them.\n\nDependencies / unblock conditions:\n  - MT-001 (code editor buffer + HighlightScope enum + scope_to_color) must exist — the syntax palette feeds its highlight scopes.\n  - MT-010 (code editor chords/keybindings) must exist — its action ids populate the editor keybindings table.\n  - MT-069 and MT-071 (editor-settings groundwork) must be merged — this MT adds the UI sections on top; align field names with them.\n  - The WP-011 settings dialog + GET/PUT /workspaces/{workspace_id}/settings persistence must be present and the settings struct must be extensible (else typed blocker).\n\nRisk if missed: editors have no user-configurable preferences surface; the editor font size, tab size, tabs-vs-spaces, word-wrap, render-whitespace, syntax color scheme, and editor keybindings that the GUI look-and-behavior doc requires are all unreachable, leaving the WP-011 settings stubs permanently incomplete and breaking Obsidian/VS Code parity.",
+    "allowed_paths": [
+      "src/frontend/shell/settings_dialog.rs",
+      "src/frontend/shell/settings_editor_section.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: Editor section persists — setting editor_font_size, tab_size, insert_spaces, word_wrap, and render_whitespace then applying issues a PUT /workspaces/{workspace_id}/settings carrying those values; reopening the dialog (GET) reloads the same values. Proven by cargo test against the live settings surface.",
+      "AC-002: editor_font_size is a SEPARATE field from the UI/chrome font size — changing the editor font size does not change chrome font size and vice versa. Proven by test asserting the two fields are distinct in the serialized settings payload.",
+      "AC-003: Syntax palette edit updates MT-001 highlight scopes live — selecting Custom and changing the Keyword swatch changes the color MT-001 scope_to_color/resolve_scope_color returns for HighlightScope::Keyword in the same frame (no restart). Proven by cargo test.",
+      "AC-004: Muted, Standard, and Custom palette modes each yield a complete HighlightScope->Color32 mapping with no missing scope. Proven by cargo test iterating all HighlightScope variants for each mode.",
+      "AC-005: The Keybindings section lists ALL editor-specific actions (MT-010 code chords + rich-editor commands) sourced from workspaceSettings.keybindings, and a custom binding overrides the default for that action. Proven by cargo test.",
+      "AC-006: New settings fields use #[serde(default)] so a stored WP-011-era settings document without these fields still deserializes without error. Proven by cargo test deserializing a legacy JSON fixture.",
+      "AC-007: AccessKit nodes present for all new controls — 'settings-editor-font-size', 'settings-editor-tab-size', 'settings-editor-insert-spaces', 'settings-editor-word-wrap', 'settings-editor-render-whitespace', 'settings-syntax-palette-mode', at least one 'settings-syntax-swatch-{scope}', and at least one 'settings-keybind-row-{action_id}'. Proven by AccessKit tree dump in egui_kittest.",
+      "AC-008: An egui_kittest test renders the Editor settings section against the live settings surface, edits a field, applies, and confirms persistence — section renders without overlap and the control values reflect the stored state.",
+      "AC-009: No new settings persistence infrastructure is introduced — the only write path is the existing PUT /workspaces/{workspace_id}/settings; no SQLite, no new endpoint, no new save code. Proven by grep showing no new persistence calls beyond the WP-011 GET/PUT."
+    ],
+    "proof_targets": [
+      "PT-001: cargo test -p handshake_frontend editor_settings_persist -- --nocapture  =>  editor font size/tab-size/word-wrap/whitespace persist via PUT /settings and reload on open; all GREEN.",
+      "PT-002: cargo test -p handshake_frontend syntax_palette_live -- --nocapture  =>  syntax palette edit updates MT-001 highlight scopes live; GREEN.",
+      "PT-003: cargo test -p handshake_frontend editor_keybindings_table -- --nocapture  =>  Keybindings table lists all editor-specific actions and a custom binding overrides the default; GREEN.",
+      "PT-004: egui_kittest test editor_settings_section_renders  =>  Editor settings section renders and persists against the live settings surface; AccessKit dump contains the required author_ids."
+    ],
+    "implementation_notes": [
+      "editor_font_size MUST be a distinct serde field from the WP-011 chrome/UI font size — do not alias or reuse the existing chrome font field; editor text surfaces read editor_font_size, chrome reads the existing field.",
+      "Use #[serde(default)] on every new field and #[serde(default)] on the EditorPrefs/SyntaxPalette nested structs so legacy stored settings deserialize cleanly (PostgreSQL rows written by WP-011 lack these keys).",
+      "Define two const palette tables MUTED_PALETTE and STANDARD_PALETTE mapping each HighlightScope to a Color32; resolve_scope_color picks the table by SyntaxPaletteMode, falling back to Standard for any Custom entry the user has not overridden.",
+      "MT-001's scope_to_color should delegate to resolve_scope_color(scope, &settings.syntax_palette, visuals) so palette changes are picked up live; if MT-001 currently hardcodes colors, route it through this function (edit confined to MT-001's color path is in-scope only if it lives in an allowed path; otherwise expose resolve_scope_color and record the wiring as a follow-up note).",
+      "word_wrap BoundedColumn and the DragValue widths must clamp to sane ranges; editor_font_size clamp 6.0..=48.0, tab_size clamp 1..=16.",
+      "Reuse the WP-011 AccessKit id registry to mint author_ids; do not create a second registry. Reuse the command bus for any keybinding capture actions rather than ad-hoc input handling.",
+      "Keybinding capture: a custom binding writes into the same keybindings map the existing WP-011 table persists; default vs custom is resolved by 'custom if present in map else default'.",
+      "Do NOT add auto_save_interval — it already exists in WP-011 settings; only surface it inside the Editor section via the existing control/field."
+    ],
+    "ports_from_react": [
+      "app/src/components/SettingsMenu.tsx — section layout, control grouping, and the editor-prefs + keybindings UI structure to port to egui sections.",
+      "app/src/lib/workspaceSettings.ts — the keybindings + editor prefs source: port the editor preference field names, the keybindings action list/shape, and the default-vs-custom override semantics into the Rust settings struct and keybindings table."
+    ],
+    "binds_backend_api": [
+      "GET /workspaces/{workspace_id}/settings — existing WP-011 read path; new editor fields read from this payload (reuse only).",
+      "PUT /workspaces/{workspace_id}/settings — existing WP-011 PostgreSQL/EventLedger-backed write path; new editor fields written through this payload (reuse only). If the backend settings type rejects unknown fields rather than storing an extensible JSON document, STOP and record a typed blocker; do NOT rewrite or extend the backend."
+    ]
+  },
+  "hbr_obligations": ["HBR-VIS", "HBR-MAN"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: The backend workspace-settings type is strongly typed and silently drops or rejects the new editor fields on PUT, so settings appear to save in the UI but vanish on reload — a false-pass persistence bug.",
+      "RISK-002: editor_font_size is accidentally wired to the same field as the UI/chrome font size, so changing editor font also resizes the whole app chrome (parity defect against the GUI doc which requires them separate).",
+      "RISK-003: Custom syntax palette omits one or more HighlightScope variants, leaving some scopes uncolored or panicking on a missing-key lookup when MT-001 requests that scope's color.",
+      "RISK-004: Adding the new serde fields WITHOUT #[serde(default)] breaks deserialization of existing WP-011-era settings rows in PostgreSQL, hard-failing the dialog open for every existing workspace.",
+      "RISK-005: The Keybindings extension creates a second keybindings table/section instead of extending the existing one, so editor bindings and existing bindings drift into two stores.",
+      "RISK-006: Live syntax palette change does not propagate to MT-001 (colors cached at startup), so swatch edits only take effect after restart — failing the live-update acceptance criterion.",
+      "RISK-007: Implementer rewrites or extends backend persistence (new endpoint or new settings store / SQLite) instead of binding the existing PUT/GET, violating the HARD no-backend-rewrite and PostgreSQL-only constraints."
+    ],
+    "minimum_controls": [
+      "MC-001: A round-trip test PUTs the new editor fields then GETs and asserts identical values against the live settings surface; if the backend drops them, the test fails and the implementer records a typed blocker rather than faking persistence.",
+      "MC-002: A test asserts editor_font_size and the chrome/UI font size are distinct serialized keys and that mutating one does not mutate the other.",
+      "MC-003: A test iterates every HighlightScope variant for Muted, Standard, and Custom modes and asserts a non-missing Color32 for each (no panic, no gap).",
+      "MC-004: A deserialization test loads a legacy WP-011 settings JSON fixture (without the new fields) and asserts it deserializes successfully via #[serde(default)].",
+      "MC-005: A grep/structure check confirms exactly one Keybindings section/store is used and the editor bindings write into the existing keybindings map.",
+      "MC-006: A live-update test changes a Custom swatch and asserts resolve_scope_color returns the new color in the same frame, with MT-001 routed through resolve_scope_color.",
+      "MC-007: A grep check confirms the only persistence calls added are the existing WP-011 GET/PUT /workspaces/{workspace_id}/settings — no new endpoint, no SQLite, no new save infrastructure."
+    ]
+  }
+}

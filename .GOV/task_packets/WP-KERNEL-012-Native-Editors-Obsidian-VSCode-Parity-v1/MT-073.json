@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-073",
+  "title": "E12-MT-073-EditorManualPaneAndAgentToolDocs",
+  "group": "E12",
+  "created_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-073.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": ["MT-041", "MT-042", "MT-063", "MT-066", "MT-067", "MT-068", "MT-072"],
+    "blocks": ["MT-074"],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Author the built-in User Manual content for the native editors (code, rich-text/knowledge, graph, canvas, FEMS) and their interop, and wire that content into the EXISTING WP-011 manual pane (HBR-MAN obligation). This is content + pane-wiring only: it does NOT build a new manual subsystem. It reuses (a) the WP-011 manual pane shell primitive and (b) the WP-011 AccessKit id registry. The deliverable is a no-context manual that lets a fresh model with zero chat history operate every native editor, plus an agent-vision/steering reference that maps every editor/knowledge/FEMS/interop action to its stable AccessKit author_id and the MCP swarm tool that drives it. Note: this MT carries NO React port (manual content is freshly authored) and binds NO backend API (it is pure frontend content + registry read).\n\nExpected diff shape: (a) one new content module src/frontend/shell/manual_content_editors.rs (~400-700 lines) that returns the editors manual as a structured in-Rust data model (sections -> topics -> body + optional agent-tool rows), and (b) a thin edit to the existing src/frontend/shell/manual_pane.rs to register/load the editors section produced by manual_content_editors.rs into the already-existing manual pane content registry. Do NOT re-implement the manual pane container, its search box, its navigation tree, or its AccessKit scaffolding — those exist from WP-011; this MT only supplies content and the one registration call.\n\nFiles to CREATE:\n  - src/frontend/shell/manual_content_editors.rs — defines `pub fn editors_manual_section() -> ManualSection` (ManualSection is the existing WP-011 manual data type; if WP-011 exposes a different constructor name, match it exactly — read manual_pane.rs first to learn the real type/fn names before authoring). The section contains: (1) one GLOBAL-BUILD-MANUAL topic per required heading (see below), and (2) an `agent_tool_reference` topic that holds one row per addressable editor/knowledge/FEMS/interop action: { author_id: &'static str, surface: enum(Code|RichText|Graph|Canvas|FEMS|Knowledge|Interop), action_label: String, mcp_tool: &'static str, description: String }.\n\nFiles to EDIT:\n  - src/frontend/shell/manual_pane.rs — add a single registration call so the editors section appears in the manual pane's section list/navigation. Match the existing registration mechanism (e.g. push into the manual registry Vec, or call manual.register_section(...)); read the file to find the exact API. Do not change the pane container, search logic, or AccessKit ids of the pane itself.\n\nRequired GLOBAL-BUILD-MANUAL headings (each MUST be present as its own topic so the heading-presence test passes): 'Purpose', 'Core Workflows', 'Startup and Run', 'Inputs and Outputs', 'Navigation Paths', 'Safety Constraints', 'Common Failure Modes', 'Recovery Steps'. Each topic body must be written for a no-context model: concrete commands, concrete pane names, concrete AccessKit ids, concrete keybinds, no hand-waving.\n\nManual content requirements per topic:\n  - Purpose: explain that the native editors replace the legacy React/Monaco/Excalidraw/graph surfaces with egui+AccessKit panes that share one selection/clipboard/command bus (the WP-012 melt-together substrate); explain that all panes are addressable by stable AccessKit author_id and steerable by MCP swarm tools.\n  - Core Workflows: open a file in the code editor; edit rich-text/knowledge notes; build a graph; sketch on the canvas; drive FEMS; move a selection between panes (copy in code -> paste in rich-text); jump from a knowledge backlink to its target; open the command palette and run a command.\n  - Startup and Run: how the editor panes mount inside the WP-011 shell (named tiles in the docking layout), and the run command for the native frontend (state it as the project's actual cargo run target for the native binary; if unknown at authoring time, write the cargo run invocation and mark the exact target name as a typed lookup against the workspace Cargo.toml rather than inventing one).\n  - Inputs and Outputs: inputs = file paths / loom:// block refs / atelier refs / graph node ids; outputs = edited buffers persisted via existing handshake_core APIs (PostgreSQL/EventLedger only), clipboard payloads, command-bus events.\n  - Navigation Paths: keyboard and AccessKit navigation between panes; command palette (Ctrl+Shift+P); manual search box; backlink/graph jump.\n  - Safety Constraints: editors never write to .GOV/**; never touch legacy app/src/** except as read-only reference; persistence goes through handshake_core (no direct DB writes, no SQLite anywhere); destructive actions are bounded and quiet (HBR-QUIET) — no focus-stealing popups while a swarm agent is driving.\n  - Common Failure Modes: pane fails to mount; clipboard daemon missing on headless CI; stale pane_id after a closed pane; AccessKit node not found by an agent; backend persistence API returns a typed error.\n  - Recovery Steps: re-mount the pane from the docking menu; re-run with a present display/clipboard; re-query the AccessKit registry for the live author_id; retry persistence after the typed backend error clears; where a step needs a backend capability that does not yet exist, the manual states it as a typed blocker rather than fabricating behavior.\n\nAgent-vision / steering reference (HBR-VIS + HBR-SWARM): produce one row for EVERY addressable editor, knowledge, FEMS, and interop action. Each row pairs the stable AccessKit author_id with the MCP swarm tool that drives it (the same tool surface other E12 MTs expose, e.g. an MCP 'gui.invoke_action' / 'gui.read_state' family keyed on author_id — match the actual tool names defined by the depended-on MTs; read their contracts/code to get the real tool names rather than inventing them). Cover at minimum: code-editor actions, rich-text/knowledge actions, graph actions, canvas actions, FEMS actions, and the interop edges (FEMS, Stage, Calendar, Locus). The interop edge documentation MUST name the FEMS, Stage, Calendar, and Locus interop edges and describe, for each, the AccessKit author_id(s) and the MCP tool an agent uses to cross that edge — all in this one no-context manual.\n\nStep-by-step implementation notes:\n  1. FIRST read src/frontend/shell/manual_pane.rs (WP-011) to learn the real manual data types (ManualSection / ManualTopic or whatever WP-011 named them), the real registration API, and how search indexes topic text. Author manual_content_editors.rs against those real types — do not invent a parallel type system.\n  2. Build the editors_manual_section() returning the eight GLOBAL-BUILD-MANUAL topics + the agent_tool_reference topic. Keep all author_id and mcp_tool strings as &'static str literals so the id-audit test can compare them against the live AccessKit registry and the MCP tool table.\n  3. Source every documented author_id from the LIVE AccessKit id registry (the WP-011 registry primitive) and from the depended-on E12 MT surfaces (MT-041, MT-042, MT-063, MT-066, MT-067, MT-068, MT-072). Do NOT hardcode an author_id that no live pane registers; the id-audit test will fail if a documented id is absent from the registry.\n  4. Register the section into the manual pane in manual_pane.rs with the single existing registration call. Confirm the manual pane's existing search box indexes the new topic bodies (it should automatically if WP-011 indexes registered sections; if registration alone is insufficient, add only the minimum to include the new section in the search index).\n  5. Add tests in the frontend crate (test module co-located per the crate's existing test convention; if WP-011/WP-012 use src/frontend/tests/, place them there): (a) the manual pane loads the editors section and all eight GLOBAL-BUILD-MANUAL headings are present; (b) the agent-tool reference lists every editor/knowledge/FEMS/interop author_id with a non-empty mcp_tool; (c) an egui_kittest 'Search Manual' interaction finds an editor topic by keyword; (d) an id-audit test asserts no documented author_id is missing from the live AccessKit registry.\n\nDependencies / unblock conditions:\n  - MT-041, MT-042 (interop/melt-together surfaces) provide the interop author_ids and tools to document.\n  - MT-063, MT-066, MT-067, MT-068 (editor/knowledge/FEMS surfaces) provide the per-surface author_ids and MCP tools to document.\n  - MT-072 (prior E12 manual/registry surface) provides the registry/section primitives this MT documents and registers against.\n  - The WP-011 manual pane (manual_pane.rs) and WP-011 AccessKit id registry must exist (reuse, do not rebuild).\n\nRisk if missed: no-context models and swarm agents cannot learn to operate the editors; GLOBAL-BUILD-MANUAL and HBR-MAN remain unmet for the editor surfaces, and the agent-vision/steering surface (HBR-VIS, HBR-SWARM) has no human/agent-readable index mapping author_id -> MCP tool.",
+    "allowed_paths": [
+      "src/frontend/shell/manual_pane.rs",
+      "src/frontend/shell/manual_content_editors.rs",
+      "src/frontend/shell/mod.rs",
+      "src/frontend/tests/manual_pane_editors_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-001: The manual pane loads the editors section and ALL eight GLOBAL-BUILD-MANUAL headings are present as topics: Purpose, Core Workflows, Startup and Run, Inputs and Outputs, Navigation Paths, Safety Constraints, Common Failure Modes, Recovery Steps — proven by a cargo test that loads the section and asserts each heading exists.",
+      "AC-002: The agent-tool reference lists every editor/knowledge/FEMS/interop addressable action as a row pairing a stable AccessKit author_id with a non-empty MCP swarm tool name — proven by a cargo test asserting each row has a non-empty author_id and mcp_tool.",
+      "AC-003: The manual search box (existing WP-011 search) finds an editor topic by keyword — proven by an egui_kittest interaction test that types a keyword into the manual search and asserts the matching topic surfaces.",
+      "AC-004: No documented author_id is missing from the live AccessKit registry — proven by an id-audit cargo test that cross-checks every author_id in the agent-tool reference against the live AccessKit id registry and fails on any orphan id.",
+      "AC-005: The four interop edges FEMS, Stage, Calendar, and Locus are each documented with their AccessKit author_id(s) and the MCP tool that crosses the edge — proven by a cargo test asserting all four edge names appear in the interop topic with associated author_id + mcp_tool entries.",
+      "AC-006: The editors section is registered into the EXISTING WP-011 manual pane via the existing registration API; the manual pane container, its search logic, and its own AccessKit ids are unchanged — proven by the diff touching only the registration call site in manual_pane.rs plus the new content module.",
+      "AC-007: cargo test for the frontend crate passes with no failures across all manual_pane_editors tests; no new backend API is introduced (binds_backend_api == NONE)."
+    ],
+    "proof_targets": [
+      "PT-001: Run the frontend crate test that loads the editors manual section => all eight GLOBAL-BUILD-MANUAL headings present, test GREEN.",
+      "PT-002: Run the agent-tool reference test => every row has non-empty author_id + mcp_tool, all four interop edges (FEMS, Stage, Calendar, Locus) present, test GREEN.",
+      "PT-003: Run egui_kittest 'Search Manual' interaction test => typing an editor keyword surfaces the matching topic, test GREEN.",
+      "PT-004: Run the id-audit test => zero documented author_ids missing from the live AccessKit registry, test GREEN.",
+      "PT-005: cargo test for the frontend crate => all manual_pane_editors tests PASS, output logged."
+    ],
+    "implementation_notes": [
+      "Read src/frontend/shell/manual_pane.rs FIRST and reuse its real ManualSection/ManualTopic types and registration API; do not invent a parallel manual type system.",
+      "Keep every author_id and mcp_tool as a &'static str literal so the id-audit test can statically compare them against the live AccessKit registry and the MCP tool table.",
+      "Source author_ids from the live WP-011 AccessKit id registry and the depended-on E12 MT surfaces; never document an id that no live pane registers (the id-audit test will fail).",
+      "Match the real MCP swarm tool names defined by the depended-on MTs (read their contracts/code) rather than inventing tool names; if a tool name is genuinely undefined upstream, mark it a typed blocker, do not fabricate.",
+      "The eight GLOBAL-BUILD-MANUAL headings must be exact, individually addressable topics so the heading-presence test can assert each by name.",
+      "Persistence references in the manual must state PostgreSQL/EventLedger via handshake_core only — never mention SQLite, and never describe direct DB writes.",
+      "This is content + one registration call only; do not extend, refactor, or restyle the WP-011 manual pane container, search box, or its AccessKit scaffolding."
+    ],
+    "ports_from_react": [
+      "NONE (manual content is freshly authored, not ported from React)"
+    ],
+    "binds_backend_api": [
+      "NONE — pure frontend manual content + WP-011 registry read; no backend API call. The manual only references persistence going through existing handshake_core APIs (PostgreSQL/EventLedger); it does not itself invoke them."
+    ]
+  },
+  "hbr_obligations": ["HBR-MAN", "HBR-VIS", "HBR-SWARM"],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-001: Documented author_id drift — the manual hardcodes author_ids that the live panes never register (or that change after upstream MTs evolve), so swarm agents address dead ids.",
+      "RISK-002: Stale MCP tool names — the manual names MCP tools that the depended-on MTs renamed or never defined, so the agent-steering reference points at non-existent tools.",
+      "RISK-003: Missing GLOBAL-BUILD-MANUAL headings — one of the eight required headings is omitted or merged, leaving the no-context manual incomplete and failing HBR-MAN.",
+      "RISK-004: Manual content drifts from real editor behavior — the prose describes workflows/keybinds that differ from what the editors actually do, misleading a no-context model.",
+      "RISK-005: Rebuilding instead of reusing — the implementer recreates a manual pane/search/AccessKit scaffold instead of reusing the WP-011 primitives, fragmenting the manual surface.",
+      "RISK-006: Persistence misstatement — the manual mentions SQLite or direct DB writes, contradicting the PostgreSQL/EventLedger-only constraint.",
+      "RISK-007: Interop edge omission — one of FEMS, Stage, Calendar, or Locus is left undocumented, leaving a blind spot in the cross-edge steering reference."
+    ],
+    "minimum_controls": [
+      "MC-001: An id-audit test cross-checks every documented author_id against the live AccessKit registry and fails on any orphan id (enforces AC-004).",
+      "MC-002: The agent-tool reference test asserts every row has a non-empty mcp_tool string and the implementer sources names from upstream MT contracts/code, not memory.",
+      "MC-003: A heading-presence test asserts all eight GLOBAL-BUILD-MANUAL headings exist as individual topics (enforces AC-001).",
+      "MC-004: Manual workflow/keybind text is sourced from the actual editor MT contracts and live pane behavior, not authored from assumption; the egui_kittest search test exercises at least one real topic end to end.",
+      "MC-005: Diff review confirms only the existing WP-011 registration call site and the new content module change; the manual pane container/search/AccessKit ids are untouched (enforces AC-006).",
+      "MC-006: A lint/test asserts the manual content contains no 'SQLite' token and no direct-DB-write language; persistence is described as handshake_core PostgreSQL/EventLedger only.",
+      "MC-007: An interop-edge test asserts all four edge names (FEMS, Stage, Calendar, Locus) appear in the interop topic each with an author_id + mcp_tool (enforces AC-005)."
+    ]
+  }
+}
