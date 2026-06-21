@@ -294,8 +294,13 @@ mod tests {
             b.insert(99, "x"),
             Err(BufferError::OffsetOutOfRange { offset: 99, len_bytes: 2 })
         );
-        // Delete an inverted range.
-        assert!(matches!(b.delete(5..2), Err(BufferError::InvalidRange { .. })));
+        // Delete an inverted range. The `5..2` inversion is INTENTIONAL negative-path coverage —
+        // `delete` must reject start>end with `InvalidRange`. clippy's `reversed_empty_ranges` lint
+        // is deny-by-default and would reject the literal as a hard error under `--all-targets`, so
+        // the assert is explicitly allowed.
+        #[allow(clippy::reversed_empty_ranges)]
+        let inverted_delete = matches!(b.delete(5..2), Err(BufferError::InvalidRange { .. }));
+        assert!(inverted_delete);
         // Delete past the end.
         assert!(matches!(b.delete(0..99), Err(BufferError::InvalidRange { .. })));
         // line_to_byte / byte_to_line out of range -> None, not panic.
@@ -335,8 +340,12 @@ mod tests {
         assert_eq!(b.slice_to_string(1..2), "l1\n");
         // Range beyond the end clamps to the available lines (no panic).
         assert_eq!(b.slice_to_string(0..999), "l0\nl1\nl2");
-        // Inverted range -> empty.
-        assert_eq!(b.slice_to_string(5..2), "");
+        // Inverted range -> empty. The `5..2` inversion is INTENTIONAL negative-path coverage —
+        // `slice_to_string` must clamp a reversed line range to "" without panicking. clippy's
+        // deny-by-default `reversed_empty_ranges` lint is explicitly allowed for this literal.
+        #[allow(clippy::reversed_empty_ranges)]
+        let inverted_slice = b.slice_to_string(5..2);
+        assert_eq!(inverted_slice, "");
         // Range entirely past the end -> empty.
         assert_eq!(b.slice_to_string(50..60), "");
     }

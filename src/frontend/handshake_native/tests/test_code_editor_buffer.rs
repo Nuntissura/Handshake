@@ -69,8 +69,13 @@ fn text_buffer_range_ops_are_panic_free() {
         b.insert(1000, "x"),
         Err(BufferError::OffsetOutOfRange { offset: 1000, len_bytes: 4 })
     );
-    // Inverted / out-of-range delete -> Err.
-    assert!(matches!(b.delete(3..1), Err(BufferError::InvalidRange { .. })));
+    // Inverted / out-of-range delete -> Err. The `3..1` inversion is INTENTIONAL negative-path
+    // coverage — `delete` must reject start>end with `InvalidRange`. clippy's deny-by-default
+    // `reversed_empty_ranges` lint is explicitly allowed for this literal so the test target
+    // compiles under `--all-targets`.
+    #[allow(clippy::reversed_empty_ranges)]
+    let inverted_delete = matches!(b.delete(3..1), Err(BufferError::InvalidRange { .. }));
+    assert!(inverted_delete);
     assert!(matches!(b.delete(0..1000), Err(BufferError::InvalidRange { .. })));
     // Conversions return None for out-of-range, never panic.
     assert_eq!(b.byte_to_line(1000), None);

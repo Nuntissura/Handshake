@@ -20,17 +20,27 @@
 //!
 //! ## Send + Sync `Language` (RISK-005)
 //!
-//! tree-sitter `Language` is `Send + Sync` in the 0.22 line, but the egui event loop may move work
+//! tree-sitter `Language` is `Send + Sync` in the 0.25 line, but the egui event loop may move work
 //! across threads; to be robust against a grammar/version where that is not guaranteed, the language
 //! is wrapped behind [`SafeLanguage`] (an `Arc`-shareable newtype) so the highlighter is `Send`. The
 //! `Parser` itself is NOT `Sync` (it holds mutable parse state), which is correct: a `Highlighter`
 //! owns its parser and is used from one place at a time.
+//!
+//! ## tree-sitter 0.25 + `tree-sitter-language` LanguageFn shim (research-corrected stack)
+//!
+//! Grammars are loaded through the `tree-sitter-language` `LanguageFn` shim: each grammar crate
+//! exports `LANGUAGE: LanguageFn`, converted to a [`Language`] via `LANGUAGE.into()` — NOT the
+//! deprecated `tree_sitter_*::language()` fn. The shim decouples grammar version from the single
+//! pinned `tree-sitter` 0.25 core (PT-005), which is what lets more Monaco-parity languages be added
+//! later without a duplicate-core/ABI wall. In 0.25 `QueryCursor::matches` returns a
+//! [`StreamingIterator`] (the C cursor mutates on each step), so spans are collected with a
+//! `while let Some(m) = matches.next()` loop rather than a plain `for`.
 
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
+use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator, Tree};
 
 /// Semantic highlight class for a span of source text. The panel maps each variant to a theme color
 /// (`theme::HsSyntaxTokens`) — variants are deliberately a small, stable set rather than raw
@@ -95,7 +105,7 @@ impl SafeLanguage {
     }
 }
 
-// `Language` is already Send + Sync in tree-sitter 0.22; the explicit wrapper + Arc keeps the
+// `Language` is already Send + Sync in tree-sitter 0.25; the explicit wrapper + Arc keeps the
 // highlighter Send-robust without relying on that holding in every grammar version (RISK-005).
 
 /// Maps a file extension (or language id) to a tree-sitter language + its highlight query source.
@@ -124,24 +134,28 @@ impl LanguageRegistry {
     /// extensions the React language registry used for those languages (`rs`; `js`/`jsx`/`mjs`/`cjs`).
     /// More languages plug in later through [`register`](Self::register).
     ///
+    /// Grammars are loaded through the `tree-sitter-language` LanguageFn shim: each grammar crate
+    /// exports `LANGUAGE: LanguageFn`, converted to a [`Language`] via `LANGUAGE.into()` (the
+    /// research-corrected 0.25 stack — NOT the deprecated `tree_sitter_*::language()` fn).
+    ///
     /// Each language uses the grammar crate's OWN shipped `highlights.scm`
     /// (`tree_sitter_rust::HIGHLIGHTS_QUERY` / `tree_sitter_javascript::HIGHLIGHT_QUERY`) rather than a
     /// hand-listed token query. The shipped query is guaranteed to compile against the exact grammar
     /// version pinned in `Cargo.lock` (a hand-listed anonymous-token query breaks across versions — e.g.
-    /// `tree-sitter-rust` 0.21 represents `mut` as a named `mutable_specifier`, not an anonymous token,
-    /// so `"mut"` in a literal-keyword list fails `Query::new` with a `NodeType` error). The shipped
+    /// `tree-sitter-rust` represents `mut` as a named `mutable_specifier`, not an anonymous token,
+    /// so `"mut"` in a literal-keyword list would fail `Query::new` with a `NodeType` error). The shipped
     /// queries use the standard tree-sitter capture vocabulary ([`HighlightScope::from_capture_name`]
     /// maps `keyword`/`string`/`function`/`type`/... and folds the rest to [`HighlightScope::Other`]).
     pub fn with_bundled_languages() -> Self {
         let mut reg = Self::new();
         reg.register(
             &["rs"],
-            SafeLanguage::new(tree_sitter_rust::language()),
+            SafeLanguage::new(tree_sitter_rust::LANGUAGE.into()),
             tree_sitter_rust::HIGHLIGHTS_QUERY,
         );
         reg.register(
             &["js", "jsx", "mjs", "cjs"],
-            SafeLanguage::new(tree_sitter_javascript::language()),
+            SafeLanguage::new(tree_sitter_javascript::LANGUAGE.into()),
             tree_sitter_javascript::HIGHLIGHT_QUERY,
         );
         reg
@@ -218,10 +232,11 @@ impl Highlighter {
         let mut spans: Vec<HighlightSpan> = Vec::new();
         let mut cursor = QueryCursor::new();
         let capture_names = self.query.capture_names();
-        // tree-sitter 0.22: `QueryCursor::matches` returns a standard `Iterator` of `QueryMatch`
-        // (the `StreamingIterator` change is a 0.23+ API; pinning core 0.22 keeps the plain
-        // for-loop). The `source` byte slice is the `TextProvider`.
-        for m in cursor.matches(&self.query, tree.root_node(), source) {
+        // tree-sitter 0.25: `QueryCursor::matches` returns a `StreamingIterator` of `QueryMatch`
+        // (the underlying C cursor mutates on each step, so it cannot be a plain `Iterator`); walk it
+        // with `while let Some(m) = matches.next()`. The `source` byte slice is the `TextProvider`.
+        let mut matches = cursor.matches(&self.query, tree.root_node(), source);
+        while let Some(m) = matches.next() {
             for cap in m.captures {
                 let name = capture_names
                     .get(cap.index as usize)

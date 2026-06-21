@@ -103,18 +103,27 @@ rand = "0.9"
 base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-# WP-KERNEL-012 MT-001 code-editor foundation:
+# WP-KERNEL-012 MT-001 code-editor foundation (RESEARCH-CORRECTED stack, MT-001 research_provenance
+# wf_ffa74d6d 2026-06-22):
 # - ropey: battle-tested rope buffer for cheap large-file edits + byte<->char<->line conversions.
-# - tree-sitter (core 0.22) + the rust/javascript grammar crates (0.21 line). Both grammar crates
-#   declare `tree-sitter >=0.21.0`, so cargo resolves a SINGLE core in the 0.22 line (RISK-001:
-#   no duplicate tree-sitter cores — proven by `cargo tree -d`). Pinned with Cargo.lock committed
-#   (MC-004) so the C-built grammars are reproducible. The grammar crates compile their generated
-#   C parser via the `cc` crate; that links into the crt-static binary cleanly (the crate already
-#   ships crt-static via .cargo/config and other native deps build the same way).
+# - tree-sitter (core 0.25) single pinned core + the `tree-sitter-language` LanguageFn shim + the
+#   rust/javascript grammar crates on the shim-era line (tree-sitter-rust 0.24.x,
+#   tree-sitter-javascript 0.25.x). Both grammar crates depend on `tree-sitter-language ^0.1` and
+#   expose `LANGUAGE: LanguageFn` (loaded via the shim, NOT the deprecated `language()` fn), and both
+#   declare core `tree-sitter ^0.25`, so cargo resolves a SINGLE core in the 0.25 line (RISK-001: no
+#   duplicate tree-sitter cores — proven by `cargo tree -d`, PT-005). The shim decouples grammar
+#   version from core, avoiding the duplicate-core/ABI wall as more Monaco-parity languages are added
+#   (MT-008/MT-010). `tree-sitter-language` is the canonical `LanguageFn` carrier; `tree-sitter` 0.25
+#   re-exports the `StreamingIterator` trait that `QueryCursor::matches` now requires (0.23+ API).
+#   Pinned with Cargo.lock committed (MC-004) so the C-built grammars are reproducible. The grammar
+#   crates compile their generated C parser via the `cc` crate; that links into the crt-static binary
+#   cleanly (the crate already ships crt-static via .cargo/config and other native deps build the same
+#   way).
 ropey = "1.6"
-tree-sitter = "0.22"
-tree-sitter-rust = "0.21"
-tree-sitter-javascript = "0.21"
+tree-sitter = "0.25"
+tree-sitter-language = "0.1"
+tree-sitter-rust = "0.24"
+tree-sitter-javascript = "0.25"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

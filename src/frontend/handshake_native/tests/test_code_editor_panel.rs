@@ -19,6 +19,7 @@
 //!   2. a best-effort PIXEL proof: it attempts `harness.render()`, and IF a GPU adapter is present it
 //!      samples the image for >= 2 distinct non-background foreground colors and writes the PNG. If the
 //!      renderer is unavailable it records an honest non-fatal blocker (it does NOT fake a pass).
+//!
 //! The render code is real; only the host's headless GPU gates the pixel layer.
 
 use std::collections::HashSet;
