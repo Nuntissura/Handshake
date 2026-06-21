@@ -52,8 +52,11 @@
     "main_containment_status": "NOT_STARTED",
     "current_main_compatibility_status": "NOT_RUN",
     "risk_tier": "HIGH",
-    "user_signature": "PENDING_OPERATOR_SIGNATURE",
-    "activation_status": "REFINEMENT_AND_MICROTASKS_AUTHORED_2026-06-21; WORKTREE CREATED (../wtc-native-editors-v1 on feat/WP-KERNEL-012 from canonical main 97a22310, shell present, .GOV junction OK). REMAINING before downstream coder launch: operator USER_SIGNATURE. Immutable backup-snapshot blocked by a locked runtime file (handshake_main/data/flight_recorder.db.wal); governance work committed on gov_kernel as durable backup instead.",
+    "user_signature": "ilja210620262303",
+    "signature_policy": "Operator-supplied unique signature ilja210620262303 (2026-06-21) authorizing WP-KERNEL-012 activation. No ACP; folded implementation; coder/execution owner = KERNEL_BUILDER. Recorded per CX-585C (operator-provided, not fabricated). Recorded directly in packet.json + refinement.json per the folded KERNEL_BUILDER no-ACP convention (matching WP-KERNEL-011; no ORCHESTRATOR_GATES entry).",
+    "workflow_lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "execution_owner": "KERNEL_BUILDER",
+    "activation_status": "ACTIVATED_READY_FOR_DEV",
     "operator_execution_order": {
       "at_utc": "2026-06-19T00:00:00Z",
       "order": "Operator 2026-06-19: rebuild the Obsidian + VS Code clones as native Rust Handshake tools with FULL feature parity to the existing React surfaces, interconnected with EACH OTHER and with CKC + Loom. Hosted in the WP-KERNEL-011 native shell. Reuse the existing Rust backend (do not rebuild it). As many MTs as needed, each executable by a small no-context local model. Minimal governance paperwork."

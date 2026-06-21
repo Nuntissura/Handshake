@@ -31,7 +31,7 @@
     "status": "DONE_FOLDED_KERNEL_BUILDER",
     "session_id": "KERNEL_BUILDER-20260621-183027",
     "note": "Activation performed by KERNEL_BUILDER in Activation Mode (folded), per operator instruction 2026-06-21. No ACP; execution owner = KERNEL_BUILDER. The first 46 MTs (E1-E8) were authored 2026-06-19 (workflow wf_3d7b88d0-301); this 2026-06-21 pass PRESERVES them unchanged (CX-653A) and ADDS 28 MTs (MT-047..MT-074, clusters E9-E12 + E1/E2/E3 parity fill-ins) via workflow wf_01ae2073-72e, KERNEL_BUILDER-reviewed.",
-    "readiness_status": "REFINEMENT_AND_MICROTASKS_READY; WORKTREE CREATED (../wtc-native-editors-v1 on feat/WP-KERNEL-012 from canonical main 97a22310 with WP-011 shell + .GOV junction). REMAINING: operator USER_SIGNATURE before downstream coder launch."
+    "readiness_status": "ACTIVATED_READY_FOR_DEV: signature ilja210620262303 recorded; refinement + 74 MTs + worktree (../wtc-native-editors-v1 on feat/WP-KERNEL-012, canonical main code + .GOV junction) all ready. Downstream coder/implementation may begin."
   },
   "refinement": {
     "operator_request": "Operator 2026-06-19 (original): rebuild the Obsidian + VS Code clones as native Rust Handshake tools with FULL feature parity to the existing React surfaces, interconnected with EACH OTHER and with CKC + Loom, hosted in the WP-KERNEL-011 native shell, reusing the existing Rust backend (no rewrite). As many MTs as needed, each executable by a small no-context local model; minimal governance paperwork. Operator 2026-06-21 (expansion): Handshake hosts Obsidian+VSCode parity under the Notes pillar (not stitched-on apps); the editors MUST also work together with CKC, FEMS, Loom and other pillars - if features or pillar interactions are missing, create extra microtasks. Continue the WP-KERNEL-011 GUI so every surface has a sensible worksurface; place the correct items in the settings menu and keep it structured. Create the WP worktree + backup so implementation can start in fresh sessions.",
@@ -150,11 +150,11 @@
     }
   },
   "signature": {
-    "user_signature": "PENDING_OPERATOR_SIGNATURE",
-    "supplied_at_utc": null,
+    "user_signature": "ilja210620262303",
+    "supplied_at_utc": "2026-06-21T00:00:00Z",
     "workflow_lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
     "execution_owner": "KERNEL_BUILDER",
-    "recorded_per": "CX-585C (operator-supplied unique signature required; the 2026-06-21 operator execution order authorizes refinement+MT authoring AND worktree creation, but a unique USER_SIGNATURE string is still required before downstream coder launch/implementation; not fabricated).",
-    "blocking_note": "RESOLVED: WP-KERNEL-011 IS merged into canonical main (handshake_main main=97a22310 with src/frontend shell committed; the wt-gov-kernel clone's main ref was stale at d07cffcf). Worktree created from 97a22310. REMAINING gate: a unique operator USER_SIGNATURE before downstream coder/implementation launch."
+    "recorded_per": "CX-585C (operator-supplied unique signature ilja210620262303, 2026-06-21; not fabricated). Recorded directly in packet.json + refinement.json per the folded KERNEL_BUILDER no-ACP convention (matching WP-KERNEL-011; no ORCHESTRATOR_GATES entry).",
+    "blocking_note": "RESOLVED. WP-KERNEL-011 is merged into canonical main (handshake_main main=97a22310, shell committed). Signature recorded; worktree ../wtc-native-editors-v1 on feat/WP-KERNEL-012 (canonical main code + gov_kernel .GOV junction, not based on another WP branch) is governed-correct. WP is ACTIVATED_READY_FOR_DEV."
   }
 }
