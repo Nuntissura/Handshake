@@ -233,19 +233,6 @@ impl CursorSet {
         self.normalize(buffer);
     }
 
-    /// For each BARE caret (no selection), extend it one char forward so a subsequent
-    /// [`delete_at_all`](Self::delete_at_all) removes the char AFTER the caret (forward-delete / the
-    /// Delete key — MT-010 `DeleteRight`). A caret that is already a selection is left unchanged so
-    /// Delete deletes the selection. A caret at end-of-buffer captures nothing (head == anchor).
-    pub fn select_forward_char_for_bare_carets(&mut self, buffer: &TextBuffer) {
-        for cursor in &mut self.cursors {
-            if !cursor.is_selection() {
-                cursor.head = next_char_boundary(cursor.head, buffer);
-            }
-        }
-        self.normalize(buffer);
-    }
-
     /// For each BARE caret, extend it over the adjacent WORD (`to_left` -> the word to the left; else the
     /// word to the right) so a subsequent [`delete_at_all`](Self::delete_at_all) deletes that word
     /// (Ctrl+Backspace / Ctrl+Delete — MT-010 `DeleteWordLeft` / `DeleteWordRight`). A selection is left
@@ -340,6 +327,62 @@ impl CursorSet {
                 } else {
                     let prev = prev_char_boundary(head, buffer);
                     prev..head
+                }
+            };
+            edits.push((i, range));
+        }
+        edits.sort_by_key(|(_, r)| (r.start, r.end));
+
+        // Pass 1 (low->high): final caret position = the (shifted) start of the removed range.
+        let mut new_heads = vec![0usize; self.cursors.len()];
+        let mut cumulative_delta: isize = 0;
+        for (orig_idx, range) in &edits {
+            let removed = range.end - range.start;
+            let shifted_start = (range.start as isize + cumulative_delta) as usize;
+            new_heads[*orig_idx] = shifted_start;
+            cumulative_delta -= removed as isize;
+        }
+        // Pass 2 (high->low): mutate the buffer.
+        let mut applied = 0usize;
+        for (_, range) in edits.iter().rev() {
+            if range.end > range.start && buffer.delete(range.clone()).is_ok() {
+                applied += 1;
+            }
+        }
+        self.cursors = new_heads.into_iter().map(Cursor::caret).collect();
+        self.normalize(buffer);
+        applied
+    }
+
+    /// Forward-delete at EVERY cursor (the Delete key / `DeleteRight`): the selected range if the cursor
+    /// is a selection, otherwise the char immediately AFTER the head. A bare caret at end-of-buffer
+    /// deletes NOTHING — VS Code's Delete-at-EOF is a no-op, never a Backspace.
+    ///
+    /// This is a forward-specific sibling of [`delete_at_all`](Self::delete_at_all): the two differ ONLY
+    /// in what a bare caret removes (Backspace removes the char BEFORE; Delete removes the char AFTER and
+    /// no-ops at EOF). It exists as its own method rather than composing a forward-extend step with
+    /// `delete_at_all`, because at EOF that composition left the caret bare and `delete_at_all` then
+    /// applied Backspace semantics — silently eating the preceding char (the EOF data-corruption bug
+    /// fixed here). Processes high->low so earlier deletions never invalidate later offsets (RISK-001).
+    pub fn delete_forward_at_all(&mut self, buffer: &mut TextBuffer) -> usize {
+        if self.cursors.is_empty() {
+            return 0;
+        }
+        // Build the byte range each cursor deletes: its selection, or the char AFTER a bare caret.
+        let mut edits: Vec<(usize, std::ops::Range<usize>)> = Vec::with_capacity(self.cursors.len());
+        for (i, c) in self.cursors.iter().enumerate() {
+            let range = if c.is_selection() {
+                c.range()
+            } else {
+                let head = c.head;
+                // Delete the char AFTER the caret. At EOF `next_char_boundary` returns `head`, so the
+                // range is empty (`head..head`) — a no-op, matching VS Code's Delete-at-EOF.
+                let next = next_char_boundary(head, buffer);
+                if next > head {
+                    head..next
+                } else {
+                    // Bare caret at end-of-buffer: delete nothing.
+                    head..head
                 }
             };
             edits.push((i, range));
@@ -668,6 +711,51 @@ mod tests {
         );
         assert_eq!(set.len(), 1, "overlapping selections merge into one");
         assert_eq!(set.cursors()[0].range(), 0..8, "merged range is the union");
+    }
+
+    #[test]
+    fn delete_forward_at_eof_is_a_noop() {
+        // The EOF data-corruption bug fixed per adversarial review: a bare caret AT end-of-buffer must
+        // delete NOTHING (VS Code Delete-at-EOF), never eat the preceding char like Backspace.
+        let mut buf = TextBuffer::new("abc");
+        let mut set = CursorSet::single(3); // caret at len_bytes() (EOF)
+        let applied = set.delete_forward_at_all(&mut buf);
+        assert_eq!(applied, 0, "Delete at EOF applies no deletion");
+        assert_eq!(buf.to_string(), "abc", "Delete at EOF leaves the buffer unchanged");
+        assert_eq!(set.primary().head, 3, "the caret stays at EOF");
+    }
+
+    #[test]
+    fn delete_forward_mid_buffer_deletes_the_char_after() {
+        // Mid-buffer: Delete removes the char AFTER the caret (forward), not before.
+        let mut buf = TextBuffer::new("abc");
+        let mut set = CursorSet::single(1); // between 'a' and 'b'
+        let applied = set.delete_forward_at_all(&mut buf);
+        assert_eq!(applied, 1, "one char deleted");
+        assert_eq!(buf.to_string(), "ac", "the char AFTER the caret ('b') was removed");
+        assert_eq!(set.primary().head, 1, "the caret stays at the deletion point");
+    }
+
+    #[test]
+    fn delete_forward_deletes_a_selection() {
+        let mut buf = TextBuffer::new("abcdef");
+        let mut set = CursorSet::default();
+        set.set_cursors(vec![Cursor::selection(1, 4)], &buf); // selects "bcd"
+        let applied = set.delete_forward_at_all(&mut buf);
+        assert_eq!(applied, 1);
+        assert_eq!(buf.to_string(), "aef", "Delete with a selection removes the selection");
+    }
+
+    #[test]
+    fn delete_forward_multi_cursor_eof_caret_only_noops_itself() {
+        // Two carets: one mid-buffer, one AT EOF. The mid-buffer caret deletes forward; the EOF caret is
+        // a no-op and does NOT corrupt the buffer by eating a preceding char.
+        let mut buf = TextBuffer::new("abcdef");
+        let mut set = CursorSet::default();
+        set.set_cursors(vec![Cursor::caret(1), Cursor::caret(6)], &buf); // mid + EOF
+        let applied = set.delete_forward_at_all(&mut buf);
+        assert_eq!(applied, 1, "only the mid-buffer caret deletes; the EOF caret no-ops");
+        assert_eq!(buf.to_string(), "acdef", "only the char after the mid caret ('b') was removed");
     }
 
     #[test]

@@ -69,8 +69,9 @@ use crate::theme::HsSyntaxTokens;
 
 use super::buffer::TextBuffer;
 use super::code_nav::{
-    staleness_marker_for, CodeNavCache, CodeNavClient, CodeSymbolNavProjection, CompletionItem,
-    COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS, SYMBOL_LOOKUP_LIMIT,
+    staleness_marker_for, CodeNavCache, CodeNavClient, CodeSymbolNavProjection,
+    CodeSymbolReferencesResponse, CompletionItem, COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS,
+    SYMBOL_LOOKUP_LIMIT,
 };
 use super::cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet,
@@ -488,6 +489,17 @@ pub struct CodeEditorPanel {
     /// MT-008 off-thread hover result delivery cell. A spawned hover task writes the `(anchor, hover)`
     /// here; the next `show` drains it into `hover_state`.
     hover_result: HoverResultCell,
+    /// MT-010 off-thread go-to-definition result cell (F12). A spawned `lookup_symbols` task writes the
+    /// resolved 0-based definition line here; the next `show` drains it and calls `navigate_to_line`.
+    /// Reuses the MT-008 code-nav client + the MT-006 line-navigation path (no new backend surface).
+    goto_def_result: GotoDefResultCell,
+    /// MT-010 off-thread references result cell (Shift+F12). A spawned `get_references` task writes the
+    /// callers/callees here; the next `show` drains it into `last_references` for the observable accessor.
+    references_result: ReferencesResultCell,
+    /// MT-010 the most recent ShowReferences result (callers + callees), exposed via
+    /// [`last_references`](Self::last_references) so tests/agents can observe the backend round-trip even
+    /// though the references-panel UI is a follow-on MT (no rendered panel in MT-010 scope).
+    last_references: Mutex<Option<CodeSymbolReferencesResponse>>,
     /// MT-008 the LSP `publishDiagnostics` receiver, parked on the panel after it is taken (once) from
     /// the LSP client, so [`drain_lsp_diagnostics`](Self::drain_lsp_diagnostics) can incrementally drain
     /// it each frame and route notifications to the gutter (AC-008). `None` until the first drain takes
@@ -591,6 +603,16 @@ type CompletionResultCell = Arc<Mutex<Option<(egui::Pos2, Vec<CompletionItem>)>>
 /// MT-008 off-thread hover result delivery cell: `(cursor anchor pixel, hover state)` written by a
 /// spawned hover task and drained on the next frame. Aliased for the same legibility reason.
 type HoverResultCell = Arc<Mutex<Option<(egui::Pos2, HoverState)>>>;
+
+/// MT-010 off-thread go-to-definition result cell: the 0-based target buffer line written by a spawned
+/// `lookup_symbols` task (F12 / GoToDefinition) and drained on the next frame to `navigate_to_line`.
+type GotoDefResultCell = Arc<Mutex<Option<usize>>>;
+
+/// MT-010 off-thread references result cell: the `(callers + callees)` response written by a spawned
+/// `get_references` task (Shift+F12 / ShowReferences) and drained on the next frame. There is no
+/// references-panel UI in MT-010 scope (that is a follow-on MT — see `lifecycle.blocker` BLOCKER below),
+/// so the result is surfaced as an observable accessor + trace line rather than a rendered panel.
+type ReferencesResultCell = Arc<Mutex<Option<CodeSymbolReferencesResponse>>>;
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -815,6 +837,9 @@ impl CodeEditorPanel {
             hover_dwell: Mutex::new(None),
             completion_result: Arc::new(Mutex::new(None)),
             hover_result: Arc::new(Mutex::new(None)),
+            goto_def_result: Arc::new(Mutex::new(None)),
+            references_result: Arc::new(Mutex::new(None)),
+            last_references: Mutex::new(None),
             lsp_diagnostics_rx: Mutex::new(None),
             runtime: Mutex::new(None),
             completion_request: std::sync::atomic::AtomicBool::new(false),
@@ -2648,6 +2673,21 @@ impl CodeEditorPanel {
         {
             self.open_hover(hover);
         }
+        // Drain a delivered go-to-definition target (F12): jump the caret + scroll to the def line.
+        if let Some(line) = self.goto_def_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            self.navigate_to_line(line);
+        }
+        // Drain a delivered references result (Shift+F12): park it for the observable accessor. No
+        // rendered references panel in MT-010 scope (follow-on MT — see handoff BLOCKER).
+        if let Some(refs) = self.references_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            tracing::debug!(
+                total = refs.total(),
+                callers = refs.callers.len(),
+                callees = refs.callees.len(),
+                "code editor: ShowReferences result delivered"
+            );
+            *self.last_references.lock().unwrap_or_else(|e| e.into_inner()) = Some(refs);
+        }
 
         // Render the completion popup (a no-op when closed). The panel owns the state; the popup is a
         // stateless renderer that returns the click outcome.
@@ -4025,6 +4065,22 @@ impl CodeEditorPanel {
         self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()).is_some()
     }
 
+    /// Test hook: back-date a pending two-chord prefix by `elapsed` so the next `process_keymap`'s
+    /// timeout branch (`seen_at.elapsed() >= TWO_CHORD_TIMEOUT`) fires WITHOUT a real wall-clock sleep.
+    /// Returns `true` if a prefix was pending and was aged. Used only by the keymap timeout test to
+    /// exercise the REAL clear branch deterministically (no 3-second test sleep). A no-op when no prefix
+    /// is pending.
+    pub fn age_pending_chord_for_test(&self, elapsed: std::time::Duration) -> bool {
+        let mut pending = self.pending_chord.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((chord, seen_at)) = *pending {
+            let aged = seen_at.checked_sub(elapsed).unwrap_or(seen_at);
+            *pending = Some((chord, aged));
+            true
+        } else {
+            false
+        }
+    }
+
     /// The stable AccessKit author_id for the command node of `action`: `code_editor_cmd_{name}` with
     /// the instance suffix (RISK-004). This is what a swarm agent / MCP tool addresses to dispatch the
     /// command without simulating a keystroke (AC-005 / HBR-SWARM).
@@ -4457,15 +4513,21 @@ impl CodeEditorPanel {
     }
 
     /// Forward-delete (Delete key / DeleteRight): delete the selection at each cursor, else the char
-    /// AFTER each bare caret. Implemented by moving each bare caret one char right (capturing a
-    /// one-char selection) then deleting — reusing the MT-003 delete path without a new buffer mutator.
+    /// AFTER each bare caret. A bare caret at end-of-buffer is a no-op (VS Code Delete-at-EOF does NOT
+    /// delete the preceding char). Routed through [`CursorSet::delete_forward_at_all`] so EOF carets
+    /// never fall into Backspace semantics — the prior compose-and-delete path ate the preceding char
+    /// at EOF (fixed per adversarial review).
     fn delete_forward(&self) {
-        {
-            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
-            set.select_forward_char_for_bare_carets(&buffer);
+        let applied = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            self.cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .delete_forward_at_all(&mut buffer)
+        };
+        if applied > 0 {
+            self.refresh();
         }
-        self.delete_text();
     }
 
     /// Delete the word to the left (`to_left`) or right of each cursor (Ctrl+Backspace / Ctrl+Delete):
@@ -4696,36 +4758,106 @@ impl CodeEditorPanel {
         }
     }
 
-    /// Request a go-to-definition at the primary caret (F12). Reuses the MT-008 code-nav request path
-    /// by arming a hover/def request; a graceful no-op without a bound workspace/runtime.
+    /// Request a go-to-definition at the primary caret (F12). Looks up the symbol under the caret via the
+    /// MT-008 [`CodeNavClient::lookup_symbols`] off-thread, and when the matched symbol carries a
+    /// definition span, delivers its 0-based line into [`goto_def_result`](Self::goto_def_result) so the
+    /// next frame jumps there via [`navigate_to_line`](Self::navigate_to_line) (the SAME path the hover
+    /// "Go to definition" link already uses). A graceful no-op without a bound workspace/runtime or when
+    /// the caret is not in a word (HBR-QUIET — never blocks the egui thread, never steals focus).
     fn request_go_to_definition(&self) {
         tracing::debug!("code editor: GoToDefinition (F12) dispatched");
-        // The MT-008 code-intelligence pump owns the actual lookup; arming the completion/hover request
-        // surfaces is the existing seam. Definition navigation is wired by MT-008's code_nav client when
-        // a workspace is bound; here we trigger the same request path it polls.
-        self.completion_request.store(false, Ordering::Relaxed);
-        self.request_code_nav(CodeEditorAction::GoToDefinition);
+        let Some(runtime) = self.runtime_handle() else {
+            return; // runtime-less harness: nothing to spawn (graceful).
+        };
+        let workspace_id = self.workspace_id();
+        let word = self.word_at_primary_cursor();
+        if workspace_id.is_empty() || word.is_empty() {
+            return;
+        }
+        let client = self.code_nav_client.clone();
+        let cell = Arc::clone(&self.goto_def_result);
+        runtime.spawn(async move {
+            let symbols = client
+                .lookup_symbols(&workspace_id, &word, 5)
+                .await
+                .unwrap_or_default();
+            // First matched symbol with a definition span -> 0-based target line (backend is 1-based).
+            let target = symbols.into_iter().find_map(|s| {
+                s.definition
+                    .as_ref()
+                    .and_then(|d| d.line_start)
+                    .filter(|l| *l >= 1)
+                    .map(|l| (l - 1) as usize)
+            });
+            if let Some(line) = target {
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(line);
+                }
+            }
+        });
     }
 
-    /// Request show-references at the primary caret (Shift+F12).
+    /// Request show-references at the primary caret (Shift+F12). Resolves the symbol under the caret and
+    /// calls the MT-008 [`CodeNavClient::get_references`] off-thread, delivering the callers/callees into
+    /// [`references_result`](Self::references_result); the next frame moves it into `last_references`
+    /// (observable via [`last_references`](Self::last_references)). There is no references-panel UI in
+    /// MT-010 scope — rendering it is a follow-on MT (recorded as a typed BLOCKER in the handoff), so this
+    /// performs the real backend round-trip without a rendered panel. Graceful no-op without a bound
+    /// workspace/runtime or word under the caret.
     fn request_show_references(&self) {
         tracing::debug!("code editor: ShowReferences (Shift+F12) dispatched");
-        self.request_code_nav(CodeEditorAction::ShowReferences);
+        let Some(runtime) = self.runtime_handle() else {
+            return;
+        };
+        let workspace_id = self.workspace_id();
+        let word = self.word_at_primary_cursor();
+        if workspace_id.is_empty() || word.is_empty() {
+            return;
+        }
+        let client = self.code_nav_client.clone();
+        let cell = Arc::clone(&self.references_result);
+        runtime.spawn(async move {
+            // Resolve the word to a symbol entity id, then fetch its references.
+            let symbols = client
+                .lookup_symbols(&workspace_id, &word, 5)
+                .await
+                .unwrap_or_default();
+            let Some(entity_id) = symbols
+                .into_iter()
+                .map(|s| s.symbol_entity_id)
+                .find(|id| !id.is_empty())
+            else {
+                return; // no resolvable symbol -> no references (graceful).
+            };
+            if let Ok(refs) = client.get_references(&entity_id).await {
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(refs);
+                }
+            }
+        });
     }
 
-    /// Request a hover at the primary caret (the keymap ShowHover; also fired by dwell in MT-008).
+    /// Request a hover at the primary caret (the keymap ShowHover; also fired by dwell in MT-008). Wires
+    /// directly to the existing MT-008 [`trigger_hover`](Self::trigger_hover) for the word under the
+    /// caret — the SAME working path the hover-dwell pump uses — instead of a placeholder seam. Graceful
+    /// no-op without a bound workspace/runtime or word under the caret.
     fn request_show_hover(&self) {
         tracing::debug!("code editor: ShowHover dispatched");
-        self.request_code_nav(CodeEditorAction::ShowHover);
+        let Some(runtime) = self.runtime_handle() else {
+            return;
+        };
+        let word = self.word_at_primary_cursor();
+        if word.is_empty() {
+            return;
+        }
+        self.trigger_hover(&runtime, &word);
     }
 
-    /// Common seam for the LSP/code-nav navigation actions. MT-008 owns the off-thread lookup; this
-    /// records the request so the pump (or a future wiring) can service it. Kept minimal + non-blocking
-    /// (HBR-QUIET) — it never blocks the egui thread and never steals focus.
-    fn request_code_nav(&self, _action: CodeEditorAction) {
-        // The concrete LSP request is issued by the MT-008 pump against the bound workspace; this hook
-        // exists so the keymap has a single dispatch target for the nav actions and a future MT can fill
-        // the request without touching the keymap. A no-op when no workspace/runtime is bound.
+    /// The most recent ShowReferences result (callers + callees), or `None` if no references request has
+    /// completed. Observable accessor so tests/agents can confirm the Shift+F12 backend round-trip
+    /// (there is no rendered references panel in MT-010 scope).
+    pub fn last_references(&self) -> Option<CodeSymbolReferencesResponse> {
+        self.last_references.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Undo (Ctrl+Z). Routed to the host command bus: the WP-011 "one unified undo stack across

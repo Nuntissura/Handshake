@@ -34,7 +34,7 @@ use egui_kittest::Harness;
 
 use handshake_native::code_editor::{
     keymap_settings_path, CodeEditorAction, CodeEditorPanel, KeyChord, Keymap, KeymapOverride,
-    KeymapSettings, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,
+    KeymapSettings, CODE_EDITOR_COMMAND_AUTHOR_PREFIX, TWO_CHORD_TIMEOUT,
 };
 
 /// A Ctrl+<key> chord on the dev/CI host (Windows/Linux -> Mod == Ctrl).
@@ -394,6 +394,169 @@ fn keymap_settings_path_uses_home_dir() {
     // absolute part comes from home_dir().
     println!("AC-007 keymap path: {}", path.display());
 }
+
+// ── Event-driven proofs: real egui key events through the LIVE process_keymap / resolve_contextual ──
+//
+// The data-layer tests above prove `Keymap::resolve` / `resolve_second`. These tests prove the
+// load-bearing NEW runtime logic — the single frame-loop dispatcher `process_keymap`, the
+// context-sensitive resolver `resolve_contextual`, and the two-chord pending/timeout state machine —
+// by pushing real `egui::Event::Key` events into the live panel input loop (the same harness pattern
+// as test_goto_line.rs / test_find_bar_accesskit.rs), NOT by calling `dispatch_action` directly.
+
+/// Build a kittest harness driving `panel.show(ui)` each frame (the frame loop that calls
+/// `process_keymap`).
+fn harness_for(panel: &Arc<CodeEditorPanel>) -> Harness<'static> {
+    let panel_ui = Arc::clone(panel);
+    Harness::builder()
+        .with_size(egui::vec2(800.0, 360.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        })
+}
+
+/// Push one key-down event with the given modifiers and run two frames so `process_keymap` services it.
+fn press(harness: &mut Harness<'static>, key: Key, modifiers: egui::Modifiers) {
+    harness.event(egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers,
+    });
+    harness.run();
+    harness.run();
+}
+
+fn ctrl_mods() -> egui::Modifiers {
+    egui::Modifiers { ctrl: true, ..Default::default() }
+}
+
+/// (a) Find bar open + a REAL Escape event -> the bar closes via process_keymap -> resolve_contextual
+/// (CloseFind). Proves the contextual Escape path, not just that `close_find()` works.
+#[test]
+fn process_keymap_escape_event_closes_find_bar() {
+    let panel = Arc::new(CodeEditorPanel::new("fn main() {}\n", "rs"));
+    let mut harness = harness_for(&panel);
+    harness.run();
+
+    panel.open_find(false);
+    assert!(panel.is_find_open(), "precondition: find bar is open");
+
+    press(&mut harness, Key::Escape, egui::Modifiers::default());
+
+    assert!(
+        !panel.is_find_open(),
+        "a real Escape event routed through process_keymap -> resolve_contextual -> CloseFind"
+    );
+    println!("event Escape closed the find bar via the live contextual resolver");
+}
+
+/// (b) Goto-line palette open + a REAL Enter event -> submits the line AND does NOT insert a newline
+/// into the buffer (the Consumed precedence the three-state design exists to guarantee).
+#[test]
+fn process_keymap_enter_event_submits_goto_line_without_newline() {
+    let buffer: String = (0..30).map(|i| format!("line{i}\n")).collect();
+    let panel = Arc::new(CodeEditorPanel::new(&buffer, "txt"));
+    let mut harness = harness_for(&panel);
+    harness.run();
+
+    let before = panel.buffer().to_string();
+    panel.open_goto_line();
+    panel.set_goto_line_input("10");
+    assert!(panel.is_goto_line_open(), "precondition: goto-line palette open");
+
+    press(&mut harness, Key::Enter, egui::Modifiers::default());
+
+    assert!(!panel.is_goto_line_open(), "Enter submitted + closed the goto-line palette");
+    let after = panel.buffer().to_string();
+    assert_eq!(
+        after, before,
+        "goto-line Enter is Consumed: it must NOT also fall through to InsertNewline (no buffer change)"
+    );
+    // The caret jumped to 1-based line 10 (0-based 9).
+    let (caret_line, _) = {
+        let buf = panel.buffer();
+        handshake_native::code_editor::byte_to_line_col(panel.cursors().primary().head, &buf)
+    };
+    assert_eq!(caret_line, 9, "Enter submitted the goto-line (caret on 0-based line 9)");
+    println!("event Enter submitted goto-line WITHOUT inserting a newline (Consumed precedence)");
+}
+
+/// (d) Ctrl+K then Ctrl+0 WITHIN the window -> FoldAll (the happy two-chord path through the real
+/// pending state machine in process_keymap).
+#[test]
+fn process_keymap_two_chord_within_window_folds_all() {
+    let panel = Arc::new(CodeEditorPanel::new(FOLDABLE_RUST, "rs"));
+    let mut harness = harness_for(&panel);
+    harness.run();
+    assert!(panel.fold_set().regions.iter().any(|r| !r.folded), "precondition: an unfolded region");
+
+    // First chord arms the prefix.
+    press(&mut harness, Key::K, ctrl_mods());
+    assert!(panel.is_chord_pending(), "Ctrl+K armed the two-chord prefix");
+    // Second chord within the window resolves FoldAll.
+    press(&mut harness, Key::Num0, ctrl_mods());
+    assert!(!panel.is_chord_pending(), "the second chord cleared the pending prefix");
+    assert!(
+        panel.fold_set().regions.iter().all(|r| r.folded),
+        "Ctrl+K Ctrl+0 through the live dispatcher folded every region (FoldAll)"
+    );
+    println!("event Ctrl+K Ctrl+0 -> FoldAll via the live two-chord state machine");
+}
+
+/// (c) Ctrl+K then wait > TWO_CHORD_TIMEOUT (aged deterministically) then Ctrl+0 -> NO FoldAll, because
+/// the real timeout branch at the top of process_keymap cleared the pending prefix first.
+#[test]
+fn process_keymap_two_chord_timeout_clears_pending_no_fold() {
+    let panel = Arc::new(CodeEditorPanel::new(FOLDABLE_RUST, "rs"));
+    let mut harness = harness_for(&panel);
+    harness.run();
+    let unfolded_before = panel.fold_set().regions.iter().all(|r| !r.folded);
+    assert!(unfolded_before, "precondition: nothing folded");
+
+    // Arm Ctrl+K, then age the pending Instant past the timeout (no real 3-second sleep).
+    press(&mut harness, Key::K, ctrl_mods());
+    assert!(panel.is_chord_pending(), "Ctrl+K armed the prefix");
+    let aged =
+        panel.age_pending_chord_for_test(TWO_CHORD_TIMEOUT + std::time::Duration::from_millis(50));
+    assert!(aged, "the pending prefix was back-dated past the timeout");
+
+    // The next Ctrl+0: process_keymap's TOP-of-loop timeout branch clears the stale prefix, so Ctrl+0
+    // is NOT treated as the second chord and FoldAll never fires.
+    press(&mut harness, Key::Num0, ctrl_mods());
+    assert!(
+        panel.fold_set().regions.iter().all(|r| !r.folded),
+        "the timed-out prefix was cleared by the real timeout branch -> Ctrl+0 did NOT FoldAll"
+    );
+    assert!(!panel.is_chord_pending(), "no prefix remains pending after the timeout clear");
+    println!("event Ctrl+K (timed out) then Ctrl+0 -> NO FoldAll (real timeout branch cleared pending)");
+}
+
+/// must-fix #1: forward-delete (DeleteRight / the Delete key) at end-of-buffer is a NO-OP and must NOT
+/// eat the preceding char. Driven through the live `dispatch_action(DeleteRight)` (the same action the
+/// keymap's Delete chord resolves to).
+#[test]
+fn delete_right_at_eof_is_a_noop() {
+    let panel = CodeEditorPanel::new("abc", "txt");
+    let len = panel.buffer().to_string().len();
+    panel.set_single_cursor(len); // caret at EOF
+    panel.dispatch_action(CodeEditorAction::DeleteRight);
+    assert_eq!(
+        panel.buffer().to_string(),
+        "abc",
+        "DeleteRight at EOF is a no-op (VS Code parity) — must NOT delete the preceding char"
+    );
+
+    // Mid-buffer DeleteRight still deletes the char AFTER the caret (forward).
+    panel.set_single_cursor(1);
+    panel.dispatch_action(CodeEditorAction::DeleteRight);
+    assert_eq!(panel.buffer().to_string(), "ac", "DeleteRight mid-buffer removes the forward char");
+    println!("DeleteRight EOF no-op + mid-buffer forward delete OK");
+}
+
+/// A foldable Rust function used by the two-chord FoldAll tests (its body is one fold region).
+const FOLDABLE_RUST: &str =
+    "fn render() {\n    let a = 1;\n    let b = 2;\n    let c = a + b;\n    c\n}\n";
 
 /// Resolve panel.rs relative to this test crate (the test runs from the crate dir).
 fn panel_rs_path() -> PathBuf {
