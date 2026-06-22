@@ -167,10 +167,17 @@ impl RichEditorWidget {
                     //    we still drain events so a programmatically-focused test works).
                     Self::apply_frame_input(ui, &mut state, has_focus);
 
-                    // 2) Paint blocks inside a vertical scroll area; capture the caret
-                    //    block's galley + origin for native caret resolution.
+                    // 2) MT-013: the formatting toolbar above the content area, then the
+                    //    blocks below it, stacked vertically (contract step 6:
+                    //    `ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); })`). The
+                    //    toolbar borrows the SAME editor state so a button click dispatches a
+                    //    command directly on it.
                     let palette = state.palette(); // re-resolve (theme unchanged, cheap)
-                    Self::render_blocks(ui, &mut state, &palette, has_focus);
+                    ui.vertical(|ui| {
+                        Self::render_toolbar(ui, &mut state);
+                        ui.separator();
+                        Self::render_blocks(ui, &mut state, &palette, has_focus);
+                    });
 
                     // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
                     //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
@@ -218,8 +225,29 @@ impl RichEditorWidget {
                 ime_handler::handle_ime_event(&mut ctx, ime);
             }
         }
-        // Decode + apply the non-IME editing/nav events.
-        let actions = input_handler::decode_events(&events);
+        // MT-013: decode the formatting/structural CHORDS first (Ctrl+B, Ctrl+Z, Enter,
+        // Ctrl+Alt+1, …) so they take precedence over plain text/nav handling — a chord
+        // toggles a mark / splits a block instead of inserting a character (MT impl note
+        // 3). Tab/Shift+Tab indent only when the caret is in a list (else Tab traverses
+        // focus — RISK-4 / MC-004).
+        let in_list = input_handler::caret_in_list(&state.doc, &state.selection);
+        let fmt_cmds = input_handler::decode_formatting_commands(&events, in_list);
+        for cmd in &fmt_cmds {
+            let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            let mut ctx = EditContext {
+                doc,
+                selection,
+                undo,
+                actor_id: actor_id.as_str(),
+            };
+            input_handler::apply_formatting_command(&mut ctx, cmd);
+        }
+
+        // Decode + apply the non-IME editing/nav events. A key event already consumed by a
+        // formatting chord (e.g. Ctrl+Z -> Undo, which BOTH the formatting keymap and the
+        // plain decode recognize) is filtered out here so it does not double-fire; Enter is
+        // never a plain-decode action (it has no `EditAction`), so the split fires once.
+        let actions = input_handler::decode_events_excluding_formatting(&events, in_list);
         if !actions.is_empty() {
             let RichEditorState { doc, selection, undo, actor_id, .. } = state;
             let mut ctx = EditContext {
@@ -232,6 +260,22 @@ impl RichEditorWidget {
                 input_handler::apply_action(&mut ctx, action);
             }
         }
+    }
+
+    /// Render the MT-013 formatting toolbar (a horizontal glyph-button row grouped by
+    /// category) above the content area. The toolbar borrows the editor state by `&mut`
+    /// (doc/undo/selection) so a button click dispatches a command STANDALONE on the local
+    /// state (COMMAND DISPATCH REALITY gate — the host bus Sender is E11/MT-069). Returns
+    /// nothing; a dispatched command mutates `state` in place and the next paint reflects it.
+    fn render_toolbar(ui: &mut egui::Ui, state: &mut RichEditorState) {
+        let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+        let cctx = crate::rich_editor::formatting::commands::CommandContext::new(
+            doc,
+            undo,
+            selection,
+            actor_id.as_str(),
+        );
+        let _dispatched = crate::rich_editor::formatting::toolbar::EditorToolbar::new(cctx).show(ui);
     }
 
     /// Render every top-level block inside a vertical scroll area, then paint the caret on

@@ -16,11 +16,13 @@
 //! validated/clamped against the addressed leaf length HERE, at the input layer, so an
 //! off-by-one is caught at the source rather than masked by the rope's silent clamp.
 
-use crate::rich_editor::document_model::node::BlockNode;
+use crate::rich_editor::document_model::node::{BlockNode, Child, NodeKind};
 use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
 use crate::rich_editor::document_model::transform::{apply_transaction, Step, Transaction};
 use crate::rich_editor::document_model::history::UndoManager;
+use crate::rich_editor::formatting::commands::{self, CommandContext, FormattingCommand};
+use crate::rich_editor::formatting::keymap;
 
 /// The mutable editor state the input handler drives: the document tree, the current
 /// selection, and the undo manager. Owned by the widget; passed by `&mut` so one input
@@ -105,6 +107,43 @@ pub fn decode_events(events: &[egui::Event]) -> Vec<EditAction> {
     out
 }
 
+/// Decode the plain text/nav events EXCLUDING any key event a formatting chord claims
+/// (so a chord recognized by BOTH layers — e.g. `Ctrl+Z` is `Undo` in the formatting
+/// keymap AND in [`decode_events`] — fires exactly once, in the formatting pass). A Key
+/// event whose `(modifiers, key)` resolves to a [`FormattingCommand`] (respecting the
+/// list-conditional Tab gate) is dropped before the plain decode runs. Non-key events
+/// (Text, Ime, …) and unclaimed keys pass through unchanged.
+pub fn decode_events_excluding_formatting(
+    events: &[egui::Event],
+    caret_in_list: bool,
+) -> Vec<EditAction> {
+    let filtered: Vec<egui::Event> = events
+        .iter()
+        .filter(|ev| {
+            if let egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } = ev
+            {
+                if let Some(cmd) = keymap::resolve_shortcut(modifiers, *key) {
+                    // A list-conditional chord outside a list is NOT claimed by the
+                    // formatting pass, so it must remain available to the plain decode
+                    // (though Tab has no EditAction, this keeps the gate consistent).
+                    if keymap::is_list_conditional(&cmd) && !caret_in_list {
+                        return true;
+                    }
+                    return false; // claimed by the formatting pass -> drop here
+                }
+            }
+            true
+        })
+        .cloned()
+        .collect();
+    decode_events(&filtered)
+}
+
 /// Apply one [`EditAction`] to the edit context, returning `true` when the document or
 /// selection changed. Text mutations go through [`apply_transaction`] and are pushed onto
 /// the undo manager; caret moves only update the selection.
@@ -121,6 +160,83 @@ pub fn apply_action(ctx: &mut EditContext<'_>, action: EditAction) -> bool {
         EditAction::Undo => ctx.undo.undo(ctx.doc).unwrap_or(false),
         EditAction::Redo => ctx.undo.redo(ctx.doc).unwrap_or(false),
     }
+}
+
+/// Decode the formatting/structural chords from this frame's events into ordered
+/// [`FormattingCommand`]s via the MT-013 [`keymap`]. Pure mapping (no doc mutation), so
+/// it is unit-testable without a live egui context. The widget calls this BEFORE the
+/// plain text/nav decode (MT impl note 3) so a chord like `Ctrl+B` toggles bold instead
+/// of inserting "b", and Enter splits the block instead of inserting a newline char.
+///
+/// `caret_in_list` lets the caller suppress the list-conditional Tab/Shift+Tab chords
+/// when the caret is NOT in a list (so Tab keeps its focus-traversal behavior outside a
+/// list — RISK-4 / MC-004); the widget passes the live list-context flag.
+pub fn decode_formatting_commands(
+    events: &[egui::Event],
+    caret_in_list: bool,
+) -> Vec<FormattingCommand> {
+    let mut out = Vec::new();
+    for ev in events {
+        if let egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            ..
+        } = ev
+        {
+            if let Some(cmd) = keymap::resolve_shortcut(modifiers, *key) {
+                // Suppress list-conditional indent/dedent outside a list (Tab traverses
+                // focus there instead of indenting).
+                if keymap::is_list_conditional(&cmd) && !caret_in_list {
+                    continue;
+                }
+                out.push(cmd);
+            }
+        }
+    }
+    out
+}
+
+/// Apply a decoded [`FormattingCommand`] through the MT-013 command layer, returning
+/// `true` when the doc/selection changed. The command builds + applies a `Transaction`
+/// and pushes the undo receipt itself. `MergeBackward` is the one chord that may be a
+/// benign no-op (caret not at block start) — its return reflects whether anything moved.
+pub fn apply_formatting_command(ctx: &mut EditContext<'_>, cmd: &FormattingCommand) -> bool {
+    let before_doc_ptr = ctx.doc.clone();
+    let before_sel = ctx.selection.clone();
+    let mut cctx = CommandContext::new(ctx.doc, ctx.undo, ctx.selection, ctx.actor_id);
+    let ran = commands::dispatch(&mut cctx, cmd).is_ok();
+    // A command that errored (e.g. a context guard) is reported as "no change". A command
+    // that ran is a change iff the doc or selection actually moved (MergeBackward at a
+    // non-boundary is an Ok no-op).
+    ran && (before_doc_ptr != *ctx.doc || before_sel != *ctx.selection)
+}
+
+/// True when the caret sits inside a list (`bullet_list`/`ordered_list`) or a list/task
+/// item — used to gate the Tab/Shift+Tab indent chords (RISK-4 / MC-004). Walks the
+/// caret's block-path prefix looking for a list/list-item ancestor.
+pub fn caret_in_list(doc: &BlockNode, selection: &Selection) -> bool {
+    let Selection::Text { head, .. } = selection else {
+        return false;
+    };
+    if head.path.is_empty() {
+        return false;
+    }
+    let block_path = &head.path[..head.path.len() - 1];
+    let mut node = doc;
+    for &idx in block_path {
+        let Some(next) = node.children.get(idx).and_then(Child::as_block) else {
+            return false;
+        };
+        node = next;
+        if matches!(
+            node.kind,
+            NodeKind::BulletList | NodeKind::OrderedList | NodeKind::ListItem | NodeKind::TaskItem
+        ) {
+            return true;
+        }
+    }
+    false
 }
 
 /// The caret head position (collapsed selections use head==anchor). For a node selection
@@ -183,15 +299,21 @@ fn insert_text(ctx: &mut EditContext<'_>, text: &str) -> bool {
 }
 
 /// Delete one char backward (Backspace) or forward (Delete) from the caret. A backward
-/// delete at offset 0 or a forward delete at the leaf end is a no-op in the vertical
-/// slice (cross-block merge on Backspace-at-start is MT-013's structural editing scope).
+/// delete at block offset 0 now routes to the MT-013 structural `merge_backward` command
+/// (merge this block into the previous sibling) — closing MT-012's "Backspace at offset 0
+/// is a no-op" deferral. A forward delete at the leaf end is still a no-op here (forward
+/// cross-block merge is a later E2 pass).
 fn delete(ctx: &mut EditContext<'_>, backward: bool) -> bool {
     let pos = head(ctx);
     let len = leaf_len(ctx.doc, &pos);
     let offset = pos.char_offset.min(len);
     let (start, end, new_off) = if backward {
         if offset == 0 {
-            return false;
+            // At the very start of the block's text -> structural merge into the previous
+            // sibling (MT-013 scope expansion), via the command layer (which sets the
+            // post-merge caret at the join point). A no-op when there is no previous
+            // sibling / not at a block boundary.
+            return apply_formatting_command(ctx, &FormattingCommand::MergeBackward);
         }
         (offset - 1, offset, offset - 1)
     } else {
