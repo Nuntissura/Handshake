@@ -2551,6 +2551,403 @@ pub async fn code_nav_get(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-025 Loom WIKI-PROJECTION transport (REUSE — extends the MT-021/022/024 Loom read
+// surface; mirrors the `LoomGraphClient` / `LoomFolderClient` / `LoomSidebarClient` shape exactly:
+// off-thread spawn + one-slot delivery cell, speaks `serde_json::Value`, NEVER depends on the
+// `handshake_core` crate types).
+//
+// SPEC-REALISM GATE (the MT-025 KERNEL_BUILDER gate + the MT-008/021/022/023/024 "verify, don't trust
+// the contract" rule). VERIFIED READ-ONLY against the running backend
+// `src/backend/handshake_core/src/{api,storage}/loom.rs`:
+//   - `GET    /workspaces/{ws}/loom/wiki/{projection_id}`            -> `ServedWikiPage` =
+//       `LoomWikiProjection { projection_id, workspace_id, title, source_block_ids[], rendered_content,
+//       staleness_hash, rebuild_status, page_type?, compile_stamp?, page_links, created_at, updated_at }`
+//       FLATTENED with `staleness_verdict` (the MT-242 LM-PWIKI-008 fail-closed verdict). CONFIRMED real
+//       — the field shape the MT assumed EXISTS (handler `get_loom_wiki_projection` -> `ServedWikiPage`).
+//   - `POST   /workspaces/{ws}/loom/wiki/{projection_id}/regenerate` -> `ServedWikiPage` (handler
+//       `regenerate_loom_wiki_projection`). This is the REAL "rebuild" route — NOT the contract's assumed
+//       `.../rebuild`. A regenerate recompiles `rendered_content` FROM `source_block_ids` and re-stamps.
+//   - `POST   /workspaces/{ws}/loom/wiki/{projection_id}/overlays`   body `{ "annotation", "anchor"? }`
+//       -> `LoomWikiOverlay { overlay_id, projection_id, workspace_id, annotation, anchor?, .. }` (handler
+//       `add_loom_wiki_overlay`). This is the REAL, PERSISTED, CANONICAL write surface for a wiki page.
+//
+// THE CRITICAL FINDING (MC-1 / RISK-1, the contract's own doubt confirmed): there is **NO PATCH or PUT
+// route that edits `rendered_content`**. The backend storage comment is explicit — `rendered_content` is
+// "The rendered wiki markdown (regenerable; never authority)"; it is a DERIVED projection compiled FROM
+// `source_block_ids` and is OVERWRITTEN on every regenerate. The ONLY canonical write is an OVERLAY
+// annotation, stored in its OWN authority row precisely so "editing it never makes the projection
+// canonical" (storage::LoomWikiOverlay doc). Therefore the native panel ships the "Edit overlay" as the
+// REAL overlay-annotation write (POST .../overlays) and keeps `rendered_content` READ-ONLY — never a fake
+// PATCH that would 404 or be silently clobbered on the next rebuild (Spec-Realism: no silently-broken
+// write). The contract's PATCH/PUT-on-rendered_content path is a TYPED LIMITATION, surfaced in the widget.
+
+/// A parsed Loom wiki projection (the `ServedWikiPage` GET/regenerate body), holding ONLY the fields the
+/// native panel reads. `staleness_verdict` is the raw flattened verdict object (`serde_json::Value`,
+/// typed `unknown` in the React API + `serde_json::Value` here per the MT note) so the "stale" display
+/// logic can treat any non-null/non-`{"state":"fresh"}` value as stale without coupling to the verdict
+/// schema. Parsing is total: a malformed/absent field falls back (never a panic, never a fabricated
+/// value); `projection_id`/`title` fall back to the requested id / a placeholder so the panel is never
+/// label-less.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WikiProjection {
+    pub projection_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    pub source_block_ids: Vec<String>,
+    pub rendered_content: String,
+    pub staleness_hash: String,
+    pub rebuild_status: String,
+    pub page_type: Option<String>,
+    /// The raw flattened `staleness_verdict` object (or `Null` when absent). The display treats any
+    /// non-null value whose `state` is not `"fresh"` as STALE (the MT RISK-5/MC-5 "treat any non-null
+    /// non-fresh verdict as stale" rule; the React type is `unknown`).
+    pub staleness_verdict: serde_json::Value,
+}
+
+impl WikiProjection {
+    /// Parse one `ServedWikiPage` JSON object. `requested_id` is the projection id the GET was for, used
+    /// as the `projection_id` fallback so a row is never id-less. Total: every field defaults safely.
+    fn from_json(v: &serde_json::Value, requested_id: &str) -> Self {
+        let str_field = |key: &str, fallback: &str| -> String {
+            v.get(key)
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or(fallback)
+                .to_owned()
+        };
+        let projection_id = str_field("projection_id", requested_id);
+        let source_block_ids = v
+            .get("source_block_ids")
+            .and_then(|x| x.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|e| e.as_str().map(|s| s.to_owned()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        WikiProjection {
+            projection_id,
+            workspace_id: str_field("workspace_id", ""),
+            // An empty title is a legitimate (if unusual) page; fall back to the projection id so the
+            // heading is never blank, matching the graph/sidebar "never label-less" convention.
+            title: str_field("title", requested_id),
+            source_block_ids,
+            // `rendered_content` may legitimately be empty (a freshly-compiled page with no sources);
+            // keep it as-is (empty string), the panel shows a "No rendered wiki content." placeholder.
+            rendered_content: v
+                .get("rendered_content")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_owned(),
+            staleness_hash: str_field("staleness_hash", ""),
+            rebuild_status: str_field("rebuild_status", "unknown"),
+            page_type: v
+                .get("page_type")
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_owned()),
+            staleness_verdict: v
+                .get("staleness_verdict")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null),
+        }
+    }
+}
+
+/// One-slot delivery cell for an off-thread wiki-projection GET/regenerate result. `Ok(projection)`
+/// carries the parsed page the panel renders; `Err(msg)` the failure the panel surfaces (AC8).
+pub type WikiProjectionCell = Arc<Mutex<Option<Result<WikiProjection, String>>>>;
+
+/// REST client for the VERIFIED Loom wiki-projection surface the MT-025 wiki page panel binds:
+/// `GET /loom/wiki/{id}` (load), `POST /loom/wiki/{id}/regenerate` (rebuild), and
+/// `POST /loom/wiki/{id}/overlays` (the REAL persisted overlay-annotation write — the "Edit overlay"
+/// mechanism, since `rendered_content` itself has NO edit route). Mirrors the `LoomGraphClient` shape.
+#[derive(Clone)]
+pub struct LoomWikiClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomWikiClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn wiki_url(&self, workspace_id: &str, projection_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/wiki/{}",
+            self.base_url, workspace_id, projection_id
+        )
+    }
+
+    /// Pure request builder for the wiki-page LOAD: `GET /loom/wiki/{id}` (no query). Split out so a unit
+    /// test asserts the EXACT verified URL without a live backend (the spawn path routes through this same
+    /// builder, so the test proves the production request construction — PROOF2 request-shape layer).
+    pub fn load_request(&self, workspace_id: &str, projection_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.wiki_url(workspace_id, projection_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the REBUILD: `POST /loom/wiki/{id}/regenerate` (no body). This is the REAL
+    /// route (`regenerate_loom_wiki_projection`) — the contract's assumed `.../rebuild` does NOT exist.
+    pub fn regenerate_request(&self, workspace_id: &str, projection_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/regenerate", self.wiki_url(workspace_id, projection_id)),
+            body: None,
+        }
+    }
+
+    /// Pure request builder for the OVERLAY-ANNOTATION write (the REAL "Edit overlay" persistence):
+    /// `POST /loom/wiki/{id}/overlays` body `{ "annotation": <text> }` (+ optional `anchor`). This is the
+    /// ONLY canonical wiki-page write (`add_loom_wiki_overlay`); `rendered_content` itself is read-only.
+    /// PROOF3 asserts this exact `(POST, url, body)` is what the Save spawn path sends.
+    pub fn add_overlay_request(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+        annotation: &str,
+        anchor: Option<&str>,
+    ) -> RequestSpec {
+        let mut body = serde_json::Map::new();
+        body.insert(
+            "annotation".to_owned(),
+            serde_json::Value::String(annotation.to_owned()),
+        );
+        if let Some(anchor) = anchor.filter(|a| !a.is_empty()) {
+            body.insert(
+                "anchor".to_owned(),
+                serde_json::Value::String(anchor.to_owned()),
+            );
+        }
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/overlays", self.wiki_url(workspace_id, projection_id)),
+            body: Some(serde_json::Value::Object(body)),
+        }
+    }
+
+    /// Fetch one wiki projection off the UI thread, delivering the parsed page into `cell` (AC1 load). The
+    /// host sets `loading=true` before calling (so the spinner animates ONLY during this genuine in-flight
+    /// fetch — the MT-015 idle-repaint rule) and clears it on delivery.
+    pub fn fetch_projection(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+        cell: WikiProjectionCell,
+    ) {
+        let spec = self.load_request(workspace_id, projection_id);
+        let client = self.client.clone();
+        let pid = projection_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_wiki_projection(&client, &spec.url, &pid).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Regenerate (rebuild) the projection off the UI thread, delivering the REBUILT page into `cell`
+    /// (the optional Rebuild button). The POST returns the fresh `ServedWikiPage`, parsed like the GET.
+    pub fn regenerate_projection(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+        cell: WikiProjectionCell,
+    ) {
+        let spec = self.regenerate_request(workspace_id, projection_id);
+        let client = self.client.clone();
+        let pid = projection_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = post_wiki_regenerate(&client, &spec.url, &pid).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Add an overlay annotation off the UI thread (the REAL "Save" of the Edit overlay), delivering the
+    /// outcome into `cell`. `Ok(())` on a 2xx; `Err(msg)` on failure (AC5/PROOF5 — the host keeps the edit
+    /// buffer and shows the error inline). The host re-fetches the projection on success (AC3).
+    pub fn add_overlay(
+        &self,
+        workspace_id: &str,
+        projection_id: &str,
+        annotation: &str,
+        anchor: Option<&str>,
+        cell: ScmReceiptCell,
+    ) {
+        let spec = self.add_overlay_request(workspace_id, projection_id, annotation, anchor);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_expect_success(&client, &spec.url, &body).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+}
+
+/// `GET {url}` and parse the verified `ServedWikiPage` into a [`WikiProjection`]. A non-success status or
+/// parse failure is an [`AppError`] (AC8). `requested_id` is the GET's projection id (the parse fallback).
+async fn fetch_wiki_projection(
+    client: &reqwest::Client,
+    url: &str,
+    requested_id: &str,
+) -> Result<WikiProjection, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    Ok(WikiProjection::from_json(&v, requested_id))
+}
+
+/// `POST {url}` (no body) for the regenerate route and parse the rebuilt `ServedWikiPage`. A non-success
+/// status or parse failure is an [`AppError`].
+async fn post_wiki_regenerate(
+    client: &reqwest::Client,
+    url: &str,
+    requested_id: &str,
+) -> Result<WikiProjection, AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!(
+            "POST regenerate non-success status {}",
+            resp.status()
+        )));
+    }
+    let v: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    Ok(WikiProjection::from_json(&v, requested_id))
+}
+
+#[cfg(test)]
+mod wiki_client_tests {
+    use super::*;
+
+    fn client() -> LoomWikiClient {
+        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        // Leak the runtime handle for the test's lifetime (the builders are pure; no task is spawned).
+        let handle = rt.handle().clone();
+        std::mem::forget(rt);
+        LoomWikiClient::new("http://test.local:1234", handle)
+    }
+
+    /// PROOF2 (request layer) / AC1: the LOAD hits the verified `GET /loom/wiki/{id}` route.
+    #[test]
+    fn load_request_hits_verified_get_route() {
+        let spec = client().load_request("ws1", "proj-001");
+        assert_eq!(spec.method, HttpMethod::Get);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/wiki/proj-001"
+        );
+        assert!(spec.query.is_empty());
+    }
+
+    /// AC: the REBUILD hits the verified `POST /loom/wiki/{id}/regenerate` (NOT the contract's
+    /// non-existent `.../rebuild`), bodyless.
+    #[test]
+    fn regenerate_request_hits_verified_regenerate_route() {
+        let spec = client().regenerate_request("ws1", "proj-001");
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/wiki/proj-001/regenerate"
+        );
+        assert_eq!(spec.body, None);
+    }
+
+    /// PROOF3 (request layer) / AC3: the overlay-annotation SAVE hits the verified
+    /// `POST /loom/wiki/{id}/overlays` route with the verified `{ "annotation": <text> }` body — the REAL
+    /// persisted wiki-page write (NOT a fake PATCH on rendered_content).
+    #[test]
+    fn add_overlay_request_hits_verified_overlays_route() {
+        let spec = client().add_overlay_request("ws1", "proj-001", "NEW CONTENT", None);
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/wiki/proj-001/overlays"
+        );
+        assert_eq!(spec.body, Some(serde_json::json!({ "annotation": "NEW CONTENT" })));
+    }
+
+    /// The optional anchor is included only when non-empty (a true merge — never sends `anchor:""`).
+    #[test]
+    fn add_overlay_request_includes_anchor_when_present() {
+        let spec = client().add_overlay_request("ws1", "proj-001", "note", Some("block-7"));
+        assert_eq!(
+            spec.body,
+            Some(serde_json::json!({ "annotation": "note", "anchor": "block-7" }))
+        );
+        let spec_empty = client().add_overlay_request("ws1", "proj-001", "note", Some(""));
+        assert_eq!(spec_empty.body, Some(serde_json::json!({ "annotation": "note" })));
+    }
+
+    /// AC1 parse: the verified `ServedWikiPage` shape parses totally into [`WikiProjection`], including the
+    /// flattened `staleness_verdict`, with safe fallbacks (the MT-022/023/024 "verify the field shape"
+    /// rule — this asserts the shape the GET handler actually returns).
+    #[test]
+    fn parses_served_wiki_page_shape() {
+        let body = serde_json::json!({
+            "projection_id": "proj-001",
+            "workspace_id": "ws1",
+            "title": "Ownership model",
+            "source_block_ids": ["blk-1", "blk-2", "blk-3"],
+            "rendered_content": "# Ownership\nBorrow checker notes.",
+            "staleness_hash": "abc123",
+            "rebuild_status": "fresh",
+            "page_type": "concept",
+            "page_links": [],
+            "created_at": "2026-06-19T00:00:00Z",
+            "updated_at": "2026-06-19T00:00:00Z",
+            "staleness_verdict": { "state": "fresh", "stamp_ledger_version": 7 }
+        });
+        let p = WikiProjection::from_json(&body, "proj-001");
+        assert_eq!(p.projection_id, "proj-001");
+        assert_eq!(p.title, "Ownership model");
+        assert_eq!(p.source_block_ids.len(), 3);
+        assert_eq!(p.rendered_content, "# Ownership\nBorrow checker notes.");
+        assert_eq!(p.rebuild_status, "fresh");
+        assert_eq!(p.page_type.as_deref(), Some("concept"));
+        assert_eq!(p.staleness_verdict["state"], "fresh");
+    }
+
+    /// Parse is total on a degenerate body: missing fields fall back, `projection_id`/`title` to the
+    /// requested id, and it NEVER panics (AC8 robustness).
+    #[test]
+    fn parse_is_total_on_missing_fields() {
+        let p = WikiProjection::from_json(&serde_json::json!({}), "proj-xyz");
+        assert_eq!(p.projection_id, "proj-xyz");
+        assert_eq!(p.title, "proj-xyz");
+        assert!(p.source_block_ids.is_empty());
+        assert_eq!(p.rendered_content, "");
+        assert_eq!(p.rebuild_status, "unknown");
+        assert!(p.page_type.is_none());
+        assert_eq!(p.staleness_verdict, serde_json::Value::Null);
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

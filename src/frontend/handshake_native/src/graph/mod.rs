@@ -9,6 +9,7 @@ pub mod folder_tree;
 pub mod graph_view;
 pub mod sidebar_panel;
 pub mod tags_panel;
+pub mod wiki_page_panel;
 
 pub use graph_view::{
     content_type_color, node_author_id, GraphEdge, GraphEvent, GraphMode, GraphNode, LoomGraphView,
@@ -37,4 +38,12 @@ pub use sidebar_panel::{
     SidebarEvent, UnlinkedRow, BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX,
     FAVORITE_ROW_AUTHOR_ID_PREFIX, MAX_BREADCRUMBS, PIN_ROW_AUTHOR_ID_PREFIX,
     UNLINKED_ROW_AUTHOR_ID_PREFIX,
+};
+
+pub use wiki_page_panel::{
+    cancel_author_id, content_author_id, edit_area_author_id, edit_author_id, rebuild_author_id,
+    retry_author_id, save_author_id, title_author_id, verdict_is_stale, LoomWikiPagePanel,
+    WikiPageEvent, CANCEL_AUTHOR_ID_PREFIX, CONTENT_AUTHOR_ID_PREFIX, CONTENT_DISPLAY_CAP,
+    EDIT_AREA_AUTHOR_ID_PREFIX, EDIT_AUTHOR_ID_PREFIX, OVERLAY_INPUT_CAP, SAVE_AUTHOR_ID_PREFIX,
+    TITLE_AUTHOR_ID_PREFIX,
 };
