@@ -13,7 +13,9 @@
 //! Plus AC3 (favorite remove fires RemoveFavorite and the verified PATCH shape), AC5 (unlinked rows
 //! render, deduped against backlinks), AC6 (breadcrumb click fires Open), AC7 (the named author_ids
 //! present), AC8 (collapse hides rows from the AccessKit tree), AC9 (per-section error banner and Retry),
-//! and screenshots (HBR-VIS).
+//! and the HBR-VIS screenshot proof (OPT-IN: gated behind the OFF-by-default `wgpu_screenshots` feature
+//! so the default `cargo test` does not add a concurrent wgpu device that can crash a co-scheduled wgpu
+//! binary on Windows — run it with `--features wgpu_screenshots`).
 //!
 //! ## Backend reality (Spec-Realism Gate — MT-008/021/022/023 "verify, don't trust the contract" rule)
 //!
@@ -42,6 +44,8 @@
 //! `tests/screenshots/` or `test_output/` directory exists (the reviewer also greps
 //! `git ls-files "src/**/*.png"`).
 
+// `Path`/`PathBuf` are used only by the opt-in `.wgpu()` screenshot helpers (feature-gated below).
+#[cfg(feature = "wgpu_screenshots")]
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -56,13 +60,16 @@ use handshake_native::graph::sidebar_panel::{
 };
 use handshake_native::theme::HsTheme;
 
-/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic.
+/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. Only the
+/// opt-in `.wgpu()` screenshot proof writes artifacts, so this is gated with that feature.
+#[cfg(feature = "wgpu_screenshots")]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (CX-212E hygiene). Checks BOTH
 /// `test_output/` and `tests/screenshots/` (the path a contract might literally name, overridden here).
+#[cfg(feature = "wgpu_screenshots")]
 fn assert_no_local_artifact_dir() {
     for local in [Path::new("test_output"), Path::new("tests/screenshots")] {
         assert!(
@@ -74,9 +81,19 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
-/// Serialize the `.wgpu()` screenshot tests (the documented Windows-wgpu concurrent-device hazard).
+/// Serialize the `.wgpu()` screenshot tests WITHIN this binary (the documented Windows-wgpu
+/// concurrent-device hazard). NOTE: this only serializes within a single process; it gives ZERO
+/// cross-process protection. The default `cargo test` does NOT run this `.wgpu()` path at all (it is
+/// gated behind the OFF-by-default `wgpu_screenshots` feature) so this MT never adds a concurrent
+/// wgpu device/adapter to the default test process tree. (Empirically the Windows
+/// STATUS_ACCESS_VIOLATION (0xc0000005) seen in a co-scheduled wgpu binary such as test_embeds is a
+/// PRE-EXISTING, WP-wide hazard across the existing wgpu test binaries — it reproduces under forced
+/// concurrent scheduling even with this screenshot test removed — so the real fix is a WP-level
+/// cross-binary serialization that is outside this MT's allowed_paths; see the handoff blocker.)
+#[cfg(feature = "wgpu_screenshots")]
 static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[cfg(feature = "wgpu_screenshots")]
 fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
     WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner())
 }
@@ -526,8 +543,19 @@ fn sidebar_read_requests_hit_verified_routes() {
 }
 
 // ── HBR-VIS screenshots: the sidebar renders pins + favorites + an active block's backlinks ───────────
-
+//
+// OPT-IN ONLY (adversarial-review hardening): this real-GPU `.wgpu()` proof is gated behind the
+// OFF-by-default `wgpu_screenshots` feature so the default `cargo test` does not add a concurrent
+// wgpu device/adapter binary from THIS MT to the process tree. On Windows multiple `.wgpu()` test
+// binaries holding wgpu devices at once can crash a co-scheduled wgpu binary (e.g. test_embeds) with
+// STATUS_ACCESS_VIOLATION (0xc0000005). That underlying hazard is PRE-EXISTING and WP-wide across the
+// existing wgpu test binaries (it reproduces under forced concurrent scheduling even without this
+// test); the WP-level cross-binary serialization fix is outside this MT's allowed_paths and is routed
+// as a handoff blocker. The AccessKit/structural/request-shape proofs above carry the AC coverage in
+// the default suite. Run the PNG proof explicitly with:
+//   cargo test --features wgpu_screenshots --test test_sidebar_panel sidebar_panel_screenshot
 #[test]
+#[cfg(feature = "wgpu_screenshots")]
 fn sidebar_panel_screenshot() {
     let _g = wgpu_guard();
     let mut p = seeded_sidebar();

@@ -81,6 +81,19 @@ integration_tests = []
 # `--features integration` against a live backend (HANDSHAKE_TEST_DB_URL or the managed backend on
 # 127.0.0.1:37501). The pure-logic + standalone-render ACs run WITHOUT this feature.
 integration = []
+# wgpu_screenshots (WP-KERNEL-012 MT-024, adversarial-review hardening): OPT-IN gate for the `.wgpu()`
+# real-GPU screenshot test (HBR-VIS PNG). OFF by default so the default `cargo test` does NOT add a
+# concurrent wgpu device/adapter binary from THIS MT to the test process tree. On Windows multiple
+# `.wgpu()` test binaries holding wgpu devices at once can crash a co-scheduled wgpu binary with
+# STATUS_ACCESS_VIOLATION (0xc0000005); the per-binary in-file WGPU_SERIAL_GUARD only serializes WITHIN
+# one process and gives zero cross-process protection. That underlying crash is a PRE-EXISTING, WP-wide
+# hazard across the existing wgpu test binaries (it reproduces under forced concurrent scheduling even
+# with the MT-024 screenshot removed); the WP-level cross-binary serialization fix is outside this MT's
+# allowed_paths and is routed as a handoff blocker. The AccessKit/structural/request-shape proofs
+# (PROOF1-5, AC1-9) run WITHOUT this feature, so the default suite carries the AC coverage. Run the
+# screenshot proof explicitly with:
+#   cargo test --features wgpu_screenshots --test test_sidebar_panel sidebar_panel_screenshot
+wgpu_screenshots = []
 
 [dependencies]
 egui = "0.33"
