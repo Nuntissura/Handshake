@@ -373,12 +373,12 @@ fn tab_indents_only_inside_a_list() {
     };
     // In a list: Tab -> sink, Shift+Tab -> lift.
     assert_eq!(
-        input_handler::decode_formatting_commands(&[tab.clone()], /*caret_in_list=*/ true),
+        input_handler::decode_formatting_commands(std::slice::from_ref(&tab), /*caret_in_list=*/ true),
         vec![FormattingCommand::SinkListItem],
         "AC-9: Tab inside a list calls sink_list_item"
     );
     assert_eq!(
-        input_handler::decode_formatting_commands(&[shift_tab.clone()], true),
+        input_handler::decode_formatting_commands(std::slice::from_ref(&shift_tab), true),
         vec![FormattingCommand::LiftListItem],
         "AC-9: Shift+Tab inside a list calls lift_list_item"
     );
