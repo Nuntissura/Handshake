@@ -167,6 +167,18 @@ tree-sitter-javascript = "0.25"
 # hardcoded absolute path (GLOBAL-PORTABILITY-004 / AC-007). Minimal, pure-Rust, no native build; it is
 # the canonical home-dir crate used across the Rust ecosystem. Cargo.lock pins the resolved version.
 dirs = "5"
+# WP-KERNEL-012 MT-014 embed NodeViews: the `image` crate (0.25) decodes asset bytes (PNG/JPEG/WebP/GIF)
+# off the egui UI thread (tokio::spawn_blocking, MC-001), then the decoded RGBA bytes are uploaded as an
+# egui TextureHandle on the UI thread. `image` is ALREADY in the locked graph (egui_kittest[wgpu] dev-dep
+# + the cfg(windows) screenshot path both pull 0.25), so this is NOT a new dependency family — it is the
+# SAME 0.25 line, declared as a cross-platform runtime dep with the four decode formats the contract
+# names (the image-embed views run on every OS, so the decode dep cannot stay cfg(windows)-only). The
+# previous cfg(windows) `image = {png}` and the `[dev-dependencies]` `image = {png}` are reconciled to
+# this single cross-platform declaration so the locked graph carries exactly ONE feature-unified `image`
+# entry (no png-only vs png+jpeg+webp+gif split). NO `open` crate is added: per the KERNEL_BUILDER gate +
+# MT-010 finding, video uses a poster/play-button/filename/content-URL PLACEHOLDER (in-process decode is
+# a future MT); open::that() steals OS focus (HBR-QUIET) so it is deliberately omitted.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
@@ -198,19 +210,18 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Threading",
     "Win32_Storage_Xps",
 ] }
-# image (png): the production Windows screenshot path encodes the captured GDI bitmap to PNG. Already in
-# the locked graph (egui_kittest dev-dep pulls 0.25); declared as a Windows runtime dep so the live
-# OS-window capture can encode without the test profile. No new dependency family.
-image = { version = "0.25", default-features = false, features = ["png"] }
+# image: the production Windows screenshot path encodes the captured GDI bitmap to PNG. The cross-platform
+# `image` runtime dep in [dependencies] (MT-014, features png+jpeg+webp+gif) now covers this Windows use
+# (png is included), so the previous cfg(windows)-only `image = {png}` declaration is REMOVED here to keep
+# a single feature-unified `image` entry in the locked graph (no png-only vs png+jpeg+webp+gif duplicate).
 
 [dev-dependencies]
 egui_kittest = { version = "0.33", features = ["wgpu"] }
-# image: TEST-ONLY (dev-dependency). NOT a new dependency family — `egui_kittest[wgpu]` already pulls
-# image 0.25 into the locked graph (it returns `image::RgbaImage` from `Harness::render()`), so this is
-# already compiled. Declared explicitly so the MT-027 screenshot proof can encode the rendered frame to
-# PNG and assert `image::load_from_memory` decodes it (the screenshot acceptance criterion). The
-# `png` feature is the same one egui_kittest enables. No runtime/product dependency is added.
-image = { version = "0.25", default-features = false, features = ["png"] }
+# image: the MT-027 screenshot proof + the MT-014 embed-decode tests encode/decode PNG and decode JPEG/
+# WebP/GIF asset bytes. The cross-platform `image` runtime dep in [dependencies] (MT-014, features
+# png+jpeg+webp+gif) is already compiled for the crate, so a separate png-only dev-dependency is NO longer
+# needed and is REMOVED to keep a single feature-unified `image` entry in the locked graph. Tests reach
+# `image::load_from_memory` / `image.save(...)` through the runtime dependency.
 # Single-binary DLL audit (test_single_binary.rs). Reuses the MT-001 spike-proven `object` pin
 # (0.36) instead of the contract's pelite suggestion: `object` is already verified on this host
 # (dumpbin is absent — toolkit_spike_verdict.json), parses the PE import table the same way, and

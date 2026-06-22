@@ -31,11 +31,13 @@ use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
 use crate::theme::{HsPalette, HsTheme};
 
-use super::block_renderer::{paint_caret, paint_block};
+use super::block_renderer::{block_media_embed, paint_caret, paint_block};
 use super::caret::{blink_visible, request_blink_repaint, DocCaret};
 use super::ime_handler::{self, ImeContext, PreeditState};
 use super::input_handler::{self, EditContext};
 use super::{block_author_id, block_node_id, root_egui_id, BLOCK_ROLE, RICH_EDITOR_ROOT_AUTHOR_ID, ROOT_ROLE};
+use crate::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
+use crate::rich_editor::embeds::embed_block_renderer::{self, EmbedRuntime};
 
 /// The persistent, mutable editor state. Held behind an `Arc<Mutex<>>` by the owner
 /// (`HandshakeApp` / a test) so the per-frame [`RichEditorWidget`] borrows it; the model
@@ -53,11 +55,30 @@ pub struct RichEditorState {
     pub theme: HsTheme,
     /// Actor id for transaction provenance.
     pub actor_id: String,
+    /// MT-014 embed runtime: per-editor asset-resolution + texture caches, slideshow/album/video
+    /// view states, and the async transport. Owned HERE (the shell frame) so resolved assets +
+    /// uploaded textures + paging persist across frames (impl note 5: NOT inside a renderer fn).
+    pub embeds: EmbedRuntime,
 }
 
 impl RichEditorState {
     /// A new editor over `doc`, caret at the document start.
+    ///
+    /// The MT-014 embed runtime defaults to the PRODUCTION reqwest fetcher
+    /// ([`ReqwestAssetFetcher`]) against the standard backend base, with NO tokio handle and an
+    /// empty workspace id. The shell installs the real workspace id + runtime handle via
+    /// [`Self::set_embed_context`] when it mounts the editor (so an embed actually resolves);
+    /// a unit/kittest that does not exercise resolution leaves it as-is (an embed then shows the
+    /// fail-closed resolving spinner / typed chip, never a panic). A test may inject a mock
+    /// fetcher via [`Self::with_embed_runtime`].
     pub fn new(doc: BlockNode) -> Self {
+        let base = crate::backend_client::BACKEND_BASE_URL;
+        let embeds = EmbedRuntime::new(
+            String::new(),
+            base,
+            std::sync::Arc::new(ReqwestAssetFetcher::new(base)),
+            None,
+        );
         Self {
             doc,
             selection: Selection::caret(DocPosition::new(vec![0, 0], 0)),
@@ -65,7 +86,23 @@ impl RichEditorState {
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
             actor_id: "operator".to_owned(),
+            embeds,
         }
+    }
+
+    /// Install the live embed context: the workspace whose assets embeds resolve against and the
+    /// tokio runtime handle resolutions spawn onto. The shell calls this when it knows the active
+    /// document's workspace (the production wiring point). Replaces the embed runtime's
+    /// workspace/runtime while keeping the production fetcher.
+    pub fn set_embed_context(&mut self, workspace_id: impl Into<String>, runtime: tokio::runtime::Handle) {
+        self.embeds.workspace_id = workspace_id.into();
+        self.embeds.runtime = Some(runtime);
+    }
+
+    /// Replace the entire embed runtime (test seam: inject a mock fetcher / pre-seeded caches).
+    pub fn with_embed_runtime(mut self, embeds: EmbedRuntime) -> Self {
+        self.embeds = embeds;
+        self
     }
 
     /// A demo document for the AC-1 vertical-slice proof: an h1 heading, then a paragraph
@@ -297,6 +334,13 @@ impl RichEditorWidget {
         // so a bold run never requests an unbound family (panic guard).
         let bold_available = super::line_layout::bold_family_available(ui.ctx());
 
+        // MT-014: drain any off-thread embed resolutions that completed since last frame into
+        // the embed caches BEFORE rendering, so a just-resolved embed shows its media/error this
+        // frame. A delivery schedules a repaint so the new state is not stuck behind an idle frame.
+        if state.embeds.drain_deliveries() {
+            ui.ctx().request_repaint();
+        }
+
         egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
             .auto_shrink([false, false])
@@ -310,8 +354,31 @@ impl RichEditorWidget {
                 // caret after all blocks (so it sits on top).
                 let mut caret_galley: Option<(std::sync::Arc<egui::Galley>, egui::Pos2)> = None;
 
-                for (idx, child) in state.doc.children.iter().enumerate() {
-                    let Some(block) = child.as_block() else { continue };
+                for idx in 0..state.doc.children.len() {
+                    let Some(block) = state.doc.children[idx].as_block() else { continue };
+
+                    // MT-014: a standalone media-embed block routes to the INTERACTIVE embed
+                    // renderer (it owns an egui::Ui for buttons/modals), not the painter path.
+                    // We clone the small HsLinkNode out so the doc borrow ends before borrowing
+                    // `state.embeds` mutably.
+                    if let Some(link) = block_media_embed(block).cloned() {
+                        let embed_rect = egui::Rect::from_min_size(
+                            top,
+                            egui::vec2(content_width, ui.available_height().max(1.0)),
+                        );
+                        let mut child = ui.new_child(
+                            egui::UiBuilder::new()
+                                .max_rect(embed_rect)
+                                .id_salt(("rich-editor-embed", idx))
+                                .layout(egui::Layout::top_down(egui::Align::Min)),
+                        );
+                        embed_block_renderer::render_embed(&mut child, &link, &mut state.embeds, palette);
+                        let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
+                        top.y += used + super::line_layout::BLOCK_GAP_PTS;
+                        continue;
+                    }
+
+                    let block = state.doc.children[idx].as_block().expect("checked above");
                     let caret_offset = if caret_block == Some(idx) {
                         Some(caret.char_offset())
                     } else {

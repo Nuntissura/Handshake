@@ -20,7 +20,8 @@ use std::sync::Arc;
 
 use egui::{Color32, FontId, Rect, Stroke, Vec2};
 
-use crate::rich_editor::document_model::node::{BlockNode, Child, NodeKind};
+use crate::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
+use crate::rich_editor::embeds::asset_resolver::MediaEmbedKind;
 use crate::theme::HsPalette;
 
 use super::caret::{DocCaret, CARET_WIDTH_PTS};
@@ -71,6 +72,49 @@ pub fn paint_block(
         // vertical slice render nothing and consume a single gap so layout stays sane.
         _ => BlockPaint { height: BLOCK_GAP_PTS, caret_galley: None },
     }
+}
+
+/// MT-014 embed dispatch seam: if `block` is a paragraph whose inline content is (only) a
+/// MEDIA-embed `hsLink` atom (`ref_kind ∈ {images, video, album, slideshow}`), return that
+/// link so the renderer can route it to the INTERACTIVE
+/// [`crate::rich_editor::embeds::embed_block_renderer::render_embed`] path (which owns an
+/// `egui::Ui` for buttons/modals) instead of this painter-only path.
+///
+/// This is the reconciled form of the MT-014 contract's "add a match arm for the embed kind":
+/// MT-011's `NodeKind` has NO `Embed` variant (embeds are the `hsLink` inline atom by `ref_kind`),
+/// so the dispatch is by inline-atom ref_kind, not by a block-kind match arm. A paragraph that
+/// also carries text is rendered as text by the normal path; only a paragraph whose sole
+/// non-whitespace inline child is a media embed is treated as an embed block (matching how the
+/// React editor inserts an embed as its own block via `insertHsLink`).
+///
+/// Returns `None` for any block that is not a standalone media embed (the normal text path runs).
+pub fn block_media_embed(block: &BlockNode) -> Option<&HsLinkNode> {
+    if !matches!(block.kind, NodeKind::Paragraph) {
+        return None;
+    }
+    let mut embed: Option<&HsLinkNode> = None;
+    for child in &block.children {
+        match child {
+            // Whitespace-only text leaves are ignored (an embed block may carry trailing
+            // whitespace); any non-whitespace text means this is a mixed paragraph -> not an
+            // embed block.
+            Child::Text(t) => {
+                if !t.text.to_string().trim().is_empty() {
+                    return None;
+                }
+            }
+            Child::HsLink(link) => {
+                // A non-media wikilink chip -> normal inline path (not an embed block).
+                MediaEmbedKind::from_ref_kind(&link.ref_kind)?;
+                if embed.is_some() {
+                    return None; // more than one embed in the block -> not a standalone embed.
+                }
+                embed = Some(link);
+            }
+            Child::Block(_) => return None,
+        }
+    }
+    embed
 }
 
 /// Lay out and paint an inline-content block (paragraph/heading) at `top_left`, indented
