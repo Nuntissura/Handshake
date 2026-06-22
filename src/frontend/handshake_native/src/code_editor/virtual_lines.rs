@@ -1,0 +1,289 @@
+//! Viewport-line virtualization calculator for the native code editor (WP-KERNEL-012 MT-002).
+//!
+//! [`VirtualLineLayout`] is a PURE, GPU-free calculator: given a line count, a per-line height, the
+//! viewport height, and the current scroll offset (all in pixels), it answers three questions the
+//! panel needs to render only the visible slice of a large document:
+//!
+//! - [`visible_range`](VirtualLineLayout::visible_range): the inclusive-exclusive `Range<usize>` of
+//!   line indices that intersect the viewport, padded by [`OVERSCAN_LINES`] above and below so a
+//!   small scroll never reveals an un-painted gap.
+//! - [`total_height_px`](VirtualLineLayout::total_height_px): `line_count * line_height_px`, the
+//!   virtual content height used to size the `egui::ScrollArea` content rect so the scrollbar thumb
+//!   is proportioned to the WHOLE document, not just the painted window.
+//! - [`y_for_line`](VirtualLineLayout::y_for_line): the pixel offset of a given line from the content
+//!   top, for positioning the painted rows / gutter / cursor overlay in later MTs.
+//!
+//! ## Why this is a separate, side-effect-free struct
+//!
+//! `egui::ScrollArea::show_rows` is the idiomatic native virtualization primitive and is what the
+//! panel actually drives each frame (RESEARCH-PROVENANCE wf_ffa74d6d 2026-06-22: confirmed for egui
+//! 0.33; no custom painter needed for read/highlight virtualization). But `show_rows` computes its
+//! visible range INSIDE egui from the live viewport, which cannot be unit-tested headlessly. This
+//! struct re-expresses the same arithmetic as a deterministic value so the boundary math (AC-001:
+//! scroll=0, mid-document, end-of-document, total height, monotonic `y_for_line`) is provable without
+//! a GPU. The panel feeds it the offset egui actually used (read back from the persisted
+//! `ScrollArea` state) so the documented computation surface and the live render agree.
+//!
+//! ## Overscan
+//!
+//! [`OVERSCAN_LINES`] = 8 extra lines are painted on EACH side of the strictly-visible window. This
+//! is the native analog of the React Monaco view's `IntersectionObserver { rootMargin: '600px' }`
+//! overscan (ports_from_react): it keeps a buffer of ready rows so fast scrolling does not flash
+//! blank lines while egui recomputes the range.
+
+use std::ops::Range;
+
+/// Extra lines rendered above AND below the strictly-visible viewport window so a small scroll never
+/// exposes an un-painted gap (the native analog of Monaco's `rootMargin` overscan). Eight lines is a
+/// cheap, generous buffer at typical line heights.
+pub const OVERSCAN_LINES: usize = 8;
+
+/// A pure calculator for which document lines intersect a scroll viewport, plus the virtual content
+/// height and per-line vertical offsets. Holds no egui/GPU state; every method is total and
+/// panic-free (a zero or non-finite `line_height_px` is clamped, never divided-by).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VirtualLineLayout {
+    line_count: usize,
+    line_height_px: f32,
+    viewport_height_px: f32,
+    scroll_offset_px: f32,
+}
+
+impl VirtualLineLayout {
+    /// Build a layout from the live measurements.
+    ///
+    /// - `line_count`: total lines in the document (the WHOLE buffer, not the painted window).
+    /// - `line_height_px`: height of one line incl. row spacing, as egui lays it out.
+    /// - `viewport_height_px`: the visible scroll-viewport height.
+    /// - `scroll_offset_px`: how far the content is scrolled down (0 = top), as read from the
+    ///   persisted `egui::ScrollArea` state.
+    ///
+    /// `line_height_px` is clamped to a tiny positive floor and a non-finite/negative
+    /// `viewport_height_px` / `scroll_offset_px` is clamped to 0, so no later division can produce
+    /// `NaN`/`inf` or panic regardless of what egui hands in on a degenerate first frame.
+    pub fn new(
+        line_count: usize,
+        line_height_px: f32,
+        viewport_height_px: f32,
+        scroll_offset_px: f32,
+    ) -> Self {
+        // A line height of 0 (or NaN/inf/negative) would make `visible_range` divide by zero and
+        // produce a garbage range; clamp to a 1px floor so the math is always well-defined. Real
+        // line heights are ~13-20px, so this floor never affects a healthy frame.
+        let line_height_px = if line_height_px.is_finite() && line_height_px > 0.0 {
+            line_height_px
+        } else {
+            1.0
+        };
+        let viewport_height_px = if viewport_height_px.is_finite() && viewport_height_px > 0.0 {
+            viewport_height_px
+        } else {
+            0.0
+        };
+        let scroll_offset_px = if scroll_offset_px.is_finite() && scroll_offset_px > 0.0 {
+            scroll_offset_px
+        } else {
+            0.0
+        };
+        Self {
+            line_count,
+            line_height_px,
+            viewport_height_px,
+            scroll_offset_px,
+        }
+    }
+
+    /// Total document lines this layout was built for.
+    pub fn line_count(&self) -> usize {
+        self.line_count
+    }
+
+    /// The clamped per-line height in pixels actually used by the layout math.
+    pub fn line_height_px(&self) -> f32 {
+        self.line_height_px
+    }
+
+    /// The half-open range `first..last_exclusive` of line indices to paint: every line that
+    /// intersects the viewport, padded by [`OVERSCAN_LINES`] on each side and clamped to
+    /// `0..line_count`.
+    ///
+    /// Formula (matching the MT contract):
+    ///   `first = max(0, floor(scroll / lh) - overscan)`
+    ///   `last  = min(line_count - 1, ceil((scroll + vp) / lh) + overscan)`  (then +1 for half-open)
+    ///
+    /// An empty document (`line_count == 0`) yields an empty `0..0` range.
+    pub fn visible_range(&self) -> Range<usize> {
+        if self.line_count == 0 {
+            return 0..0;
+        }
+        let last_line = self.line_count - 1;
+
+        // floor(scroll / lh) is the first strictly-visible line; saturating_sub keeps `first` >= 0.
+        let first_visible = (self.scroll_offset_px / self.line_height_px).floor() as usize;
+        let first = first_visible.saturating_sub(OVERSCAN_LINES);
+
+        // ceil((scroll + vp) / lh) is the last strictly-visible line (one past the bottom edge);
+        // add the overscan, clamp to the final line index, then +1 for the half-open upper bound.
+        let last_visible =
+            ((self.scroll_offset_px + self.viewport_height_px) / self.line_height_px).ceil() as usize;
+        let last_inclusive = last_visible.saturating_add(OVERSCAN_LINES).min(last_line);
+
+        // `first` can exceed `last_inclusive` only if `first` was clamped above the document (scroll
+        // far past the end with a tiny doc); clamp `first` down so the range is never inverted.
+        let first = first.min(last_inclusive);
+        first..(last_inclusive + 1)
+    }
+
+    /// The virtual content height in pixels: `line_count * line_height_px`. The panel sets the
+    /// `egui::ScrollArea` content rect to this so the scrollbar thumb reflects the WHOLE document even
+    /// though only [`visible_range`](Self::visible_range) lines are painted.
+    pub fn total_height_px(&self) -> f32 {
+        self.line_count as f32 * self.line_height_px
+    }
+
+    /// Pixel offset of `line` from the content top (`line * line_height_px`). Monotonically increasing
+    /// in `line` (AC-001), used to position painted rows / the gutter / the cursor overlay.
+    pub fn y_for_line(&self, line: usize) -> f32 {
+        line as f32 * self.line_height_px
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A 100k-line buffer at 16px lines in a 800px viewport is the AC-002 perf scenario; reuse the
+    // same shape for the range boundary tests so the asserts mirror the real workload.
+    const LH: f32 = 16.0;
+    const VP: f32 = 800.0;
+
+    #[test]
+    fn scroll_at_top_shows_first_window_plus_overscan() {
+        let layout = VirtualLineLayout::new(100_000, LH, VP, 0.0);
+        let range = layout.visible_range();
+        // At scroll 0 the first line is 0 (overscan cannot go below 0).
+        assert_eq!(range.start, 0, "top scroll starts at line 0");
+        // The viewport holds ceil(800/16) = 50 lines; +overscan (8) + the +1 half-open = ~59.
+        let visible_lines = (VP / LH).ceil() as usize; // 50
+        assert!(
+            range.end >= visible_lines && range.end <= visible_lines + OVERSCAN_LINES + 2,
+            "end {} should be ~{} visible + overscan",
+            range.end,
+            visible_lines
+        );
+        // It must NOT render the whole 100k document (that is the whole point of virtualization).
+        assert!(
+            range.len() < 100,
+            "only a small window is painted, not all 100k lines (got {})",
+            range.len()
+        );
+    }
+
+    #[test]
+    fn scroll_to_middle_returns_centered_window() {
+        // Scroll to line 50_000 -> offset = 50_000 * 16.
+        let mid_line = 50_000usize;
+        let offset = mid_line as f32 * LH;
+        let layout = VirtualLineLayout::new(100_000, LH, VP, offset);
+        let range = layout.visible_range();
+        // The first painted line is (mid - overscan); the strictly-visible first line is `mid_line`.
+        assert_eq!(
+            range.start,
+            mid_line - OVERSCAN_LINES,
+            "mid-scroll first line is mid - overscan"
+        );
+        // The mid line itself is inside the painted window.
+        assert!(
+            range.contains(&mid_line),
+            "the scrolled-to line {mid_line} must be inside {range:?}"
+        );
+        // Line 0 is far above the window and must NOT be painted.
+        assert!(!range.contains(&0), "line 0 is not painted when scrolled to the middle");
+        assert!(range.len() < 100, "still a small window (got {})", range.len());
+    }
+
+    #[test]
+    fn scroll_to_end_clamps_to_last_line() {
+        let count = 100_000usize;
+        // Offset past the very bottom: total height minus part of one viewport.
+        let offset = count as f32 * LH; // scrolled to the absolute bottom edge
+        let layout = VirtualLineLayout::new(count, LH, VP, offset);
+        let range = layout.visible_range();
+        // The last painted index is the final line (count-1); the half-open end is therefore count.
+        assert_eq!(range.end, count, "end clamps to line_count at the bottom");
+        assert!(
+            range.contains(&(count - 1)),
+            "the last line {} must be painted at the end",
+            count - 1
+        );
+        // The window stays small even at the very bottom.
+        assert!(range.len() < 100, "end window is bounded (got {})", range.len());
+    }
+
+    #[test]
+    fn total_height_is_line_count_times_line_height() {
+        let layout = VirtualLineLayout::new(100_000, LH, VP, 0.0);
+        assert_eq!(layout.total_height_px(), 100_000.0 * LH);
+        // Empty doc -> zero height.
+        let empty = VirtualLineLayout::new(0, LH, VP, 0.0);
+        assert_eq!(empty.total_height_px(), 0.0);
+    }
+
+    #[test]
+    fn y_for_line_is_monotonically_increasing() {
+        let layout = VirtualLineLayout::new(1_000, LH, VP, 0.0);
+        let mut prev = f32::NEG_INFINITY;
+        for line in [0usize, 1, 2, 10, 100, 999] {
+            let y = layout.y_for_line(line);
+            assert!(y > prev, "y_for_line({line})={y} must increase past {prev}");
+            assert_eq!(y, line as f32 * LH, "y_for_line is line * line_height");
+            prev = y;
+        }
+    }
+
+    // ── Boundary conditions (MC-002) ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn zero_line_buffer_yields_empty_range() {
+        let layout = VirtualLineLayout::new(0, LH, VP, 0.0);
+        assert_eq!(layout.visible_range(), 0..0, "empty doc paints nothing");
+        assert_eq!(layout.total_height_px(), 0.0);
+    }
+
+    #[test]
+    fn single_line_buffer_paints_only_line_zero() {
+        let layout = VirtualLineLayout::new(1, LH, VP, 0.0);
+        let range = layout.visible_range();
+        assert_eq!(range, 0..1, "a one-line doc paints exactly line 0");
+    }
+
+    #[test]
+    fn scroll_past_end_does_not_invert_or_panic() {
+        // Tiny doc, huge scroll offset: must clamp to the last line, never produce an inverted range.
+        let layout = VirtualLineLayout::new(3, LH, VP, 1_000_000.0);
+        let range = layout.visible_range();
+        assert!(range.start <= range.end, "range never inverts (got {range:?})");
+        assert_eq!(range.end, 3, "clamped to the 3-line document");
+        assert!(range.contains(&2), "last line still painted when scrolled past the end");
+    }
+
+    #[test]
+    fn degenerate_line_height_is_clamped_not_divided_by_zero() {
+        // line_height 0 would divide-by-zero; the constructor clamps it to 1.0 so the math is sane.
+        let layout = VirtualLineLayout::new(100, 0.0, VP, 50.0);
+        let range = layout.visible_range();
+        assert!(range.start <= range.end, "no inverted range on a 0 line height");
+        assert!(range.end <= 100, "range stays within the document");
+        assert_eq!(layout.line_height_px(), 1.0, "0 line height clamped to 1px floor");
+        // NaN/inf line height is likewise clamped.
+        let nan = VirtualLineLayout::new(100, f32::NAN, VP, 50.0);
+        assert_eq!(nan.line_height_px(), 1.0);
+        assert!(nan.total_height_px().is_finite());
+    }
+
+    #[test]
+    fn non_finite_scroll_offset_clamps_to_top() {
+        let layout = VirtualLineLayout::new(100, LH, VP, f32::NAN);
+        assert_eq!(layout.visible_range().start, 0, "NaN offset treated as top");
+    }
+}
