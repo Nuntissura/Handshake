@@ -109,10 +109,21 @@ pub trait DraftBackend: Send + Sync {
 }
 
 /// The production draft transport over the existing reqwest 0.12 + rustls stack.
+///
+/// ## The four required identity headers (the missing-headers fix)
+///
+/// Every draft request (`GET` / `PUT` / `DELETE /draft`) goes through the backend `doc_context`,
+/// which REQUIRES `x-hsk-actor-id`, `x-hsk-kernel-task-run-id`, `x-hsk-session-run-id`, and
+/// `x-hsk-actor-kind` or returns a hard 400; the upsert + clear additionally `require(Write)`, which
+/// a missing `x-hsk-actor-kind` (defaulting to read-only) would 403. So all three methods attach the
+/// four headers via the shared [`super::save_manager::attach_doc_headers`] helper (the SAME canonical
+/// header names + `operator` actor-kind as the save transport — constructed in ONE place).
 #[derive(Clone)]
 pub struct ReqwestDraftBackend {
     client: reqwest::Client,
     base_url: String,
+    /// A per-backend session id folded into the per-request run ids (HBR-SWARM attribution).
+    session_run_id: String,
 }
 
 impl ReqwestDraftBackend {
@@ -121,6 +132,7 @@ impl ReqwestDraftBackend {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
+            session_run_id: super::save_manager::new_session_run_id(),
         }
     }
     fn draft_url(&self, document_id: &str) -> String {
@@ -132,10 +144,14 @@ impl DraftBackend for ReqwestDraftBackend {
     fn load_draft(&self, document_id: &str) -> DraftLoadFuture {
         let url = self.draft_url(document_id);
         let client = self.client.clone();
+        let session_run_id = self.session_run_id.clone();
+        let document_id_owned = document_id.to_owned();
         Box::pin(async move {
-            let resp = client
-                .get(&url)
-                .timeout(Duration::from_secs(10))
+            let resp = super::save_manager::attach_doc_headers(
+                client.get(&url).timeout(Duration::from_secs(10)),
+                &document_id_owned,
+                &session_run_id,
+            )
                 .send()
                 .await
                 .map_err(|e| DraftError::Network(e.to_string()))?;
@@ -159,16 +175,19 @@ impl DraftBackend for ReqwestDraftBackend {
     ) -> DraftWriteFuture {
         let url = self.draft_url(document_id);
         let client = self.client.clone();
+        let session_run_id = self.session_run_id.clone();
+        let document_id_owned = document_id.to_owned();
         Box::pin(async move {
             let body = serde_json::json!({
                 "base_doc_version": base_doc_version,
                 "base_content_sha256": base_content_sha256,
                 "content_json": content_json,
             });
-            let resp = client
-                .put(&url)
-                .timeout(Duration::from_secs(10))
-                .json(&body)
+            let resp = super::save_manager::attach_doc_headers(
+                client.put(&url).timeout(Duration::from_secs(10)).json(&body),
+                &document_id_owned,
+                &session_run_id,
+            )
                 .send()
                 .await
                 .map_err(|e| DraftError::Network(e.to_string()))?;
@@ -184,10 +203,14 @@ impl DraftBackend for ReqwestDraftBackend {
     fn clear_draft(&self, document_id: &str) -> DraftWriteFuture {
         let url = self.draft_url(document_id);
         let client = self.client.clone();
+        let session_run_id = self.session_run_id.clone();
+        let document_id_owned = document_id.to_owned();
         Box::pin(async move {
-            let resp = client
-                .delete(&url)
-                .timeout(Duration::from_secs(10))
+            let resp = super::save_manager::attach_doc_headers(
+                client.delete(&url).timeout(Duration::from_secs(10)),
+                &document_id_owned,
+                &session_run_id,
+            )
                 .send()
                 .await
                 .map_err(|e| DraftError::Network(e.to_string()))?;

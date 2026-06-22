@@ -19,16 +19,17 @@
 //! - Discard button:       `draft-discard`
 //! - export format picker: `export-format-picker` + per-format `export-format-{ext}`
 //!
-//! ## File-save sink (HBR-QUIET / MC-004)
+//! ## File-save sink (HBR-QUIET / MC-004 / red-team RISK-4)
 //!
-//! The real OS file dialog steals focus and blocks; per the KERNEL_BUILDER gate it is a thin,
-//! user-initiated shell behind a [`FileSaveSink`] trait. A headless test uses [`PathFileSaveSink`]
-//! (writes to a path, never opens a dialog); the real [`NativeFileSaveSink`] runs `rfd` on a
-//! DEDICATED std::thread (NOT the egui frame thread) with a oneshot channel the UI polls — the
-//! user-initiated, reviewed HBR-QUIET exception (never automatic focus theft).
+//! The real OS file dialog steals focus and blocks, so it is a thin, user-initiated shell. A
+//! headless test uses [`PathFileSaveSink`] (writes to a path, never opens a dialog). The real
+//! [`NativeFileSaveSink::spawn`] runs `rfd` on a DEDICATED std::thread (NOT the egui frame thread)
+//! and RETURNS IMMEDIATELY with a [`PendingFileSave`] handle the host POLLS non-blockingly each
+//! frame — so the frame thread NEVER blocks while the dialog is open (the app stays responsive).
+//! This is the user-initiated, reviewed HBR-QUIET exception (never automatic focus theft).
 
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 use egui::accesskit::Role;
 
@@ -325,13 +326,15 @@ fn emit_button_id(ui: &egui::Ui, resp: &egui::Response, author_id: &str) {
 
 // ── File save sink (mockable; HBR-QUIET) ────────────────────────────────────────────────────────
 
-/// The destination an export's bytes are written to. The real OS dialog steals focus + blocks, so
-/// it lives behind this trait: a headless test uses [`PathFileSaveSink`] (writes to a path, no
-/// dialog); production uses [`NativeFileSaveSink`] (an `rfd` dialog on a dedicated std::thread).
+/// A SYNCHRONOUS, non-dialog destination an export's bytes are written to — used by the headless
+/// tests so the export-to-bytes core is exercised end-to-end without focus-stealing OS UI. The
+/// PRODUCTION path does NOT use this trait: the real OS dialog steals focus + blocks, so it goes
+/// through [`NativeFileSaveSink::spawn`] (a dedicated thread + a [`PendingFileSave`] the host polls
+/// non-blockingly each frame), never a synchronous call on the egui frame thread (MC-004 / RISK-4).
 pub trait FileSaveSink {
     /// Persist `output` (its bytes, suggested filename, MIME). Returns the path written, or `None`
-    /// if the operator cancelled / the write failed. Implementations MUST NOT block the egui frame
-    /// thread (MC-004): the real dialog runs on its own thread and is polled.
+    /// if the write failed. Implementations of THIS trait write directly to a known path and never
+    /// open a dialog, so they are safe to call synchronously (the headless test sink).
     fn save(&self, output: &ExportOutput) -> Option<PathBuf>;
 }
 
@@ -360,44 +363,75 @@ impl FileSaveSink for PathFileSaveSink {
     }
 }
 
-/// The production file-save sink: opens the native `rfd` save dialog on a DEDICATED std::thread
-/// (NOT the egui frame thread — MC-004 / HBR-QUIET) and writes the bytes to the chosen path. This is
-/// the user-initiated, reviewed HBR-QUIET exception: it runs ONLY when the operator clicks Export,
-/// never automatically, and never steals focus on a background/automated run.
+/// The production file-save dialog launcher: opens the native `rfd` save dialog on a DEDICATED
+/// std::thread (NOT the egui frame thread — MC-004 / HBR-QUIET / red-team RISK-4) and writes the
+/// bytes to the chosen path. This is the user-initiated, reviewed HBR-QUIET exception: it runs ONLY
+/// when the operator clicks an export format, never automatically, and never steals focus on a
+/// background/automated run.
 ///
-/// The dialog result is delivered over a oneshot channel; the caller polls it non-blockingly. Here
-/// the sink runs the dialog synchronously ON its own thread and joins (a thin shell) — the egui
-/// frame thread is the CALLER's, which the host invokes off the frame loop (a click handler spawns
-/// this); the implementation itself never touches egui.
+/// ## NON-BLOCKING (the frame-freeze fix)
+///
+/// [`NativeFileSaveSink::spawn`] spawns the dialog thread and RETURNS IMMEDIATELY with a
+/// [`PendingFileSave`] handle — it never calls `recv()`/`join()` on the caller. The host stores the
+/// handle in the editor state and POLLS it non-blockingly each frame with [`PendingFileSave::poll`]
+/// (the proven `Arc<Mutex<Option<..>>>` drain pattern the save/draft managers use). So the egui frame
+/// thread NEVER blocks while the OS save dialog is open (it stays responsive the entire time) — the
+/// earlier synchronous `rx.recv()` + `h.join()` on the frame thread that froze the app is gone.
 #[derive(Debug, Clone, Default)]
 pub struct NativeFileSaveSink;
 
-impl FileSaveSink for NativeFileSaveSink {
-    fn save(&self, output: &ExportOutput) -> Option<PathBuf> {
+impl NativeFileSaveSink {
+    /// Spawn the dialog on a dedicated thread and return immediately. The chosen path (or `None` on
+    /// cancel / spawn failure / write failure) lands in the returned handle's slot, polled by the host
+    /// each frame. NEVER blocks the caller (the frame thread stays live while the dialog is open).
+    pub fn spawn(output: &ExportOutput) -> PendingFileSave {
         let filename = output.filename.clone();
         let bytes = output.content.clone();
-        let (tx, rx) = mpsc::channel::<Option<PathBuf>>();
-        // The dialog runs on a dedicated thread so it never blocks the egui frame loop. The host
-        // calls this sink off the frame thread (a click handler), and the thread join is bounded by
-        // the operator's interaction. rfd's synchronous FileDialog is used on this worker thread.
-        let handle = std::thread::Builder::new()
+        let slot: Arc<Mutex<Option<Option<PathBuf>>>> = Arc::new(Mutex::new(None));
+        let slot_for_thread = Arc::clone(&slot);
+        let spawned = std::thread::Builder::new()
             .name("hs-export-save-dialog".to_string())
             .spawn(move || {
-                let picked = rfd::FileDialog::new()
-                    .set_file_name(&filename)
-                    .save_file();
+                let picked = rfd::FileDialog::new().set_file_name(&filename).save_file();
                 let written = picked.and_then(|path| std::fs::write(&path, &bytes).ok().map(|_| path));
-                let _ = tx.send(written);
+                // Deliver the outcome (Some(path) | None) into the slot the host polls.
+                if let Ok(mut s) = slot_for_thread.lock() {
+                    *s = Some(written);
+                }
             });
-        match handle {
-            Ok(h) => {
-                let result = rx.recv().ok().flatten();
-                let _ = h.join();
-                result
+        // If the thread could not even spawn, fail closed: record a resolved `None` so the host's
+        // poll completes the pending save on the next frame (no dialog, no write, no panic, no hang).
+        if spawned.is_err() {
+            if let Ok(mut s) = slot.lock() {
+                *s = Some(None);
             }
-            // If the thread could not spawn, fail closed (no dialog, no write) rather than panic.
-            Err(_) => None,
         }
+        PendingFileSave { slot }
+    }
+}
+
+/// A non-blocking handle to an in-progress native save-dialog. The host stores ONE of these in the
+/// editor state while a dialog is open and polls it each frame; once the operator picks a path (or
+/// cancels), [`Self::poll`] returns `Some(outcome)` and the host drops the handle.
+#[derive(Debug, Clone)]
+pub struct PendingFileSave {
+    /// Outer `Option`: not-yet-resolved (`None`) vs resolved. Inner `Option<PathBuf>`: the written
+    /// path, or `None` on cancel / failure. Filled by the dialog thread, drained by the host.
+    slot: Arc<Mutex<Option<Option<PathBuf>>>>,
+}
+
+impl PendingFileSave {
+    /// Non-blockingly check whether the dialog resolved. Returns `Some(Some(path))` when the operator
+    /// saved, `Some(None)` when they cancelled or the write failed, and `None` while the dialog is
+    /// still open. NEVER blocks — safe to call every frame from the egui frame thread.
+    pub fn poll(&self) -> Option<Option<PathBuf>> {
+        self.slot.lock().ok().and_then(|mut s| s.take())
+    }
+
+    /// TEST SEAM: a pre-resolved handle (no real dialog) so a headless test can assert the poll-drain
+    /// contract without opening OS UI.
+    pub fn resolved_for_test(path: Option<PathBuf>) -> Self {
+        Self { slot: Arc::new(Mutex::new(Some(path))) }
     }
 }
 

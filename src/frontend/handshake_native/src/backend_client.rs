@@ -1283,11 +1283,14 @@ async fn put_expect_success(
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// The backend-navigation identity headers required on every code-nav GET (verified against
-/// `handshake_core::api::knowledge_code_nav::nav_context`). A missing header is a hard 400.
-const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
-const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
-const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
-const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
+/// `handshake_core::api::knowledge_code_nav::nav_context`) AND on every knowledge-document request
+/// (verified against `handshake_core::api::knowledge_documents::doc_context`). A missing header is a
+/// hard 400 ("<header> header is required"). `pub` so the rich-editor save/draft transport reuses the
+/// SAME canonical header names rather than re-deriving the strings (the MT-020 missing-headers fix).
+pub const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+pub const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
+pub const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
+pub const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 
 /// The stable actor identity the native editor presents to the backend code-nav API. `system` is the
 /// verified-valid `x-hsk-actor-kind` for an automated UI navigation (the backend maps it to
@@ -1295,6 +1298,16 @@ const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 /// attributable to it (HBR-SWARM attribution).
 pub const CODE_NAV_ACTOR_ID: &str = "handshake-native-editor";
 pub const CODE_NAV_ACTOR_KIND: &str = "system";
+
+/// The stable identity the native editor presents to the backend KNOWLEDGE-DOCUMENT API (save +
+/// draft). `operator` is the verified-valid `x-hsk-actor-kind` for an operator-initiated document
+/// edit: the MT-158 permission matrix (`knowledge_document::permission`) grants `operator` the
+/// `Write` action, so a save (`PUT /save`), a draft upsert (`PUT /draft`), and a draft clear
+/// (`DELETE /draft`) are permitted. A MISSING `x-hsk-actor-kind` defaults to the least-privileged
+/// (read-only) kind server-side and a write then 403s — so the kind MUST be asserted. The actor id
+/// names the native editor surface so the document receipts are attributable to it (HBR-SWARM).
+pub const DOC_ACTOR_ID: &str = "handshake-native-editor";
+pub const DOC_ACTOR_KIND: &str = "operator";
 
 /// `GET {url}?{query}` against the code-nav API with the four required backend-nav identity headers
 /// attached, returning the parsed JSON body. `run_id` is folded into the per-request run ids so each

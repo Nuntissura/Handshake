@@ -480,6 +480,217 @@ fn mt020_save_in_flight_blocks_second_save_state() {
     assert!(m.is_saving());
 }
 
+// ── AC (must-fix #2): the "Export…" toolbar button renders and a click opens the picker ───────────
+
+#[test]
+fn mt020_export_button_renders_and_click_opens_picker() {
+    let _g = wgpu_guard();
+    let st = RichEditorState::new(demo_doc());
+    assert!(!st.export_picker_open, "the picker starts closed");
+    let state = Arc::new(Mutex::new(st));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 600.0))
+        .wgpu()
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.step();
+
+    // The Export button is operator-reachable (addressable by its stable author_id) — without it the
+    // export picker + export-to-bytes path are dead code (the must-fix #2 gap).
+    let found = collect_author_ids(&harness);
+    assert!(
+        found.contains("rich-editor-export-button"),
+        "the toolbar Export button is present and addressable; ids={found:?}"
+    );
+
+    // Clicking it arms the export format picker (the previously dead `export_picker_open` flag).
+    harness.get_by_label("Export…").click();
+    harness.step();
+    assert!(
+        state.lock().unwrap().export_picker_open,
+        "clicking Export… opens the export format picker"
+    );
+
+    // The picker popup now renders its format rows (proves the picker became reachable).
+    harness.step();
+    let found_after = collect_author_ids(&harness);
+    assert!(
+        found_after.contains("export-format-picker"),
+        "the export format picker popup renders once armed; ids={found_after:?}"
+    );
+}
+
+// ── AC (must-fix #3): the native save-dialog handle is polled non-blockingly (never blocks frame) ──
+
+#[test]
+fn mt020_pending_file_save_polls_non_blocking_and_drains() {
+    use handshake_native::rich_editor::save::conflict_ui::PendingFileSave;
+
+    // An UNRESOLVED handle (dialog still open): poll returns None and NEVER blocks — this is what the
+    // frame thread calls every frame while the OS dialog is open (the frame-freeze fix).
+    let pending = PendingFileSave::resolved_for_test(None);
+    // Simulate the "still open" state by checking a fresh handle whose slot is empty.
+    let still_open: PendingFileSave = {
+        // resolved_for_test pre-fills the slot; to model "open" we drain it once, leaving it empty.
+        let p = PendingFileSave::resolved_for_test(Some(PathBuf::from("x")));
+        assert_eq!(p.poll(), Some(Some(PathBuf::from("x"))), "the first poll drains the resolved path");
+        assert_eq!(p.poll(), None, "a drained (or still-open) handle polls None without blocking");
+        p
+    };
+    assert_eq!(still_open.poll(), None, "polling an open handle is non-blocking and yields None");
+
+    // A resolved-cancel handle drains to Some(None) (operator cancelled / write failed).
+    assert_eq!(pending.poll(), Some(None), "a cancelled dialog drains to Some(None)");
+}
+
+// ── WIRE SHAPE: the production reqwest transport attaches the four required identity headers ──────
+//
+// The MT-020 missing-headers defect (the production save/draft transport attached NONE of the four
+// backend-required headers, so every real save 400s/403s before the 409 path) was invisible because
+// NO test exercised the real reqwest request. This in-process TcpListener capture server (the proven
+// MT-021 pattern, no new deps) sends the REAL `ReqwestSaveBackend` / `ReqwestDraftBackend` requests
+// to a local socket and asserts the four `x-hsk-*` headers + the operator actor-kind are present on
+// the wire — the deterministic proof the transport can actually reach the backend.
+
+/// Read one HTTP request off a connection and return (request-line, lowercased-header-map, body).
+fn read_one_http_request(stream: &mut std::net::TcpStream) -> (String, std::collections::HashMap<String, String>, String) {
+    use std::io::{Read, Write};
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 4096];
+    // Read until we have the full headers (\r\n\r\n) + the Content-Length body, then reply 200.
+    loop {
+        let n = stream.read(&mut tmp).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        buf.extend_from_slice(&tmp[..n]);
+        let text = String::from_utf8_lossy(&buf);
+        if let Some(hdr_end) = text.find("\r\n\r\n") {
+            let headers_part = &text[..hdr_end];
+            let content_len = headers_part
+                .lines()
+                .find_map(|l| {
+                    let (k, v) = l.split_once(':')?;
+                    if k.trim().eq_ignore_ascii_case("content-length") {
+                        v.trim().parse::<usize>().ok()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
+            let body_start = hdr_end + 4;
+            if buf.len() >= body_start + content_len {
+                break;
+            }
+        }
+    }
+    let text = String::from_utf8_lossy(&buf).to_string();
+    let hdr_end = text.find("\r\n\r\n").unwrap_or(text.len());
+    let mut lines = text[..hdr_end].lines();
+    let request_line = lines.next().unwrap_or("").to_string();
+    let mut headers = std::collections::HashMap::new();
+    for l in lines {
+        if let Some((k, v)) = l.split_once(':') {
+            headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
+        }
+    }
+    let body = text[(hdr_end + 4).min(text.len())..].to_string();
+    // Reply with a benign 200 so the client future resolves (the body shape is irrelevant — we only
+    // assert what the CLIENT sent on the wire).
+    let _ = stream.write_all(
+        b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}",
+    );
+    let _ = stream.flush();
+    (request_line, headers, body)
+}
+
+/// Assert all four required `x-hsk-*` identity headers are present, with the operator actor-kind
+/// (which the MT-158 matrix grants `Write`) — the exact gap the missing-headers defect left open.
+fn assert_required_doc_headers(headers: &std::collections::HashMap<String, String>) {
+    assert_eq!(
+        headers.get("x-hsk-actor-kind").map(String::as_str),
+        Some("operator"),
+        "the actor-kind MUST be 'operator' (a missing/read-only kind 403s a Write); headers={headers:?}"
+    );
+    for required in [
+        "x-hsk-actor-id",
+        "x-hsk-kernel-task-run-id",
+        "x-hsk-session-run-id",
+    ] {
+        assert!(
+            headers.get(required).is_some_and(|v| !v.is_empty()),
+            "the production transport MUST attach a non-empty '{required}' header (a missing header is \
+             a hard backend 400); headers={headers:?}"
+        );
+    }
+}
+
+#[test]
+fn mt020_save_transport_attaches_required_identity_headers() {
+    use handshake_native::rich_editor::save::save_manager::ReqwestSaveBackend;
+    use handshake_native::rich_editor::save::save_manager::SaveBackend;
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind capture server");
+    let addr = listener.local_addr().unwrap();
+    let captured = Arc::new(Mutex::new(None));
+    let captured_for_thread = Arc::clone(&captured);
+    let server = std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let (req_line, headers, body) = read_one_http_request(&mut stream);
+            *captured_for_thread.lock().unwrap() = Some((req_line, headers, body));
+        }
+    });
+
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let backend = ReqwestSaveBackend::new(format!("http://{addr}"));
+    rt.block_on(async {
+        let _ = backend
+            .save_document("DOC-9", json!({"type":"doc","content":[]}), 7)
+            .await;
+    });
+    server.join().unwrap();
+
+    let (req_line, headers, body) = captured.lock().unwrap().take().expect("the save request reached the wire");
+    assert!(req_line.starts_with("PUT /knowledge/documents/DOC-9/save"), "save uses PUT /save: {req_line}");
+    assert_required_doc_headers(&headers);
+    // The body still carries the optimistic-concurrency token + content (the headers are additive).
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
+    assert_eq!(v["expected_version"], 7, "the save body carries expected_version: {body}");
+}
+
+#[test]
+fn mt020_draft_upsert_transport_attaches_required_identity_headers() {
+    use handshake_native::rich_editor::save::draft_manager::DraftBackend;
+    use handshake_native::rich_editor::save::draft_manager::ReqwestDraftBackend;
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind capture server");
+    let addr = listener.local_addr().unwrap();
+    let captured = Arc::new(Mutex::new(None));
+    let captured_for_thread = Arc::clone(&captured);
+    let server = std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let (req_line, headers, body) = read_one_http_request(&mut stream);
+            *captured_for_thread.lock().unwrap() = Some((req_line, headers, body));
+        }
+    });
+
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let backend = ReqwestDraftBackend::new(format!("http://{addr}"));
+    rt.block_on(async {
+        let _ = backend
+            .upsert_draft("DOC-9", 7, "deadbeef".into(), json!({"type":"doc","content":[]}))
+            .await;
+    });
+    server.join().unwrap();
+
+    let (req_line, headers, _body) = captured.lock().unwrap().take().expect("the draft upsert reached the wire");
+    assert!(req_line.starts_with("PUT /knowledge/documents/DOC-9/draft"), "draft upsert uses PUT /draft: {req_line}");
+    assert_required_doc_headers(&headers);
+}
+
 // ── INTEGRATION (gated): real backend save -> 409 conflict ────────────────────────────────────────
 
 /// Real-backend save-conflict round-trip. Saves a document, then saves again with a stale

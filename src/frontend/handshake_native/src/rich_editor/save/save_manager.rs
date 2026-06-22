@@ -111,10 +111,25 @@ pub trait SaveBackend: Send + Sync {
 /// The production save transport over the existing reqwest 0.12 + rustls stack (no new dependency
 /// family). Maps a 409 to [`SaveError::VersionConflict`], a 400 to [`SaveError::SchemaRejected`],
 /// any other non-2xx to [`SaveError::Server`], and a transport failure to [`SaveError::Network`].
+///
+/// ## The four required identity headers (the missing-headers fix)
+///
+/// The backend `doc_context` (`handshake_core::api::knowledge_documents`) REQUIRES four headers on
+/// EVERY document request — `x-hsk-actor-id`, `x-hsk-kernel-task-run-id`, `x-hsk-session-run-id`,
+/// `x-hsk-actor-kind` — and returns a hard HTTP 400 ("<header> header is required") when any is
+/// missing. A missing `x-hsk-actor-kind` additionally defaults to the LEAST-privileged (read-only)
+/// kind, so `ctx.require(DocumentAction::Write)` then 403s BEFORE the 409-conflict path is ever
+/// reached. So the transport MUST attach all four (verified READ-ONLY against the backend
+/// `doc_context` + the MT-158 permission matrix). We reuse the canonical header-name constants +
+/// the `operator` actor-kind (which the matrix grants `Write`) from [`crate::backend_client`] rather
+/// than re-deriving them. `session_run_id` makes each editor session's saves attributable.
 #[derive(Clone)]
 pub struct ReqwestSaveBackend {
     client: reqwest::Client,
     base_url: String,
+    /// A per-backend session id folded into the per-request run ids so every save is individually
+    /// traceable (HBR-SWARM attribution). Stable for the lifetime of one editor's save manager.
+    session_run_id: String,
 }
 
 impl ReqwestSaveBackend {
@@ -123,6 +138,7 @@ impl ReqwestSaveBackend {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
+            session_run_id: new_session_run_id(),
         }
     }
 
@@ -140,15 +156,21 @@ impl SaveBackend for ReqwestSaveBackend {
     ) -> SaveFuture {
         let url = self.save_url(document_id);
         let client = self.client.clone();
+        let session_run_id = self.session_run_id.clone();
+        let document_id_owned = document_id.to_owned();
         Box::pin(async move {
             let body = serde_json::json!({
                 "content_json": content_json,
                 "expected_version": expected_version,
             });
-            let resp = client
-                .put(&url)
-                .timeout(std::time::Duration::from_secs(10))
-                .json(&body)
+            let resp = attach_doc_headers(
+                client
+                    .put(&url)
+                    .timeout(std::time::Duration::from_secs(10))
+                    .json(&body),
+                &document_id_owned,
+                &session_run_id,
+            )
                 .send()
                 .await
                 .map_err(|e| SaveError::Network(e.to_string()))?;
@@ -191,6 +213,38 @@ impl SaveBackend for ReqwestSaveBackend {
 /// than the save silently succeeding.
 fn document_id_placeholder() -> String {
     "unknown-document".to_string()
+}
+
+/// A monotonic-ish session run id seed for the document transports' per-request run-id headers. Uses
+/// the process id + a process-lifetime atomic counter so each save/draft transport gets a distinct,
+/// stable id without a new dependency (the same lightweight scheme other native-editor transports
+/// use for traceability). NOT a security token — purely an attribution/trace correlation value.
+pub(crate) fn new_session_run_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    format!("native-editor-{}-{}", std::process::id(), seq)
+}
+
+/// Attach the four backend-required document identity headers to `builder` (the missing-headers fix).
+/// `x-hsk-actor-id` + `x-hsk-actor-kind` come from the canonical [`crate::backend_client`] document
+/// constants (`operator`, which the MT-158 matrix grants `Write`); `x-hsk-kernel-task-run-id` +
+/// `x-hsk-session-run-id` fold in the target document + the session id so each request is traceable.
+/// REUSED by the save backend and the draft backend so the wire identity is constructed in ONE place.
+pub(crate) fn attach_doc_headers(
+    builder: reqwest::RequestBuilder,
+    document_id: &str,
+    session_run_id: &str,
+) -> reqwest::RequestBuilder {
+    use crate::backend_client::{
+        DOC_ACTOR_ID, DOC_ACTOR_KIND, HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND,
+        HSK_HEADER_KERNEL_TASK_RUN_ID, HSK_HEADER_SESSION_RUN_ID,
+    };
+    builder
+        .header(HSK_HEADER_ACTOR_ID, DOC_ACTOR_ID)
+        .header(HSK_HEADER_ACTOR_KIND, DOC_ACTOR_KIND)
+        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-doc-{document_id}"))
+        .header(HSK_HEADER_SESSION_RUN_ID, session_run_id)
 }
 
 /// One-slot delivery cell for an off-thread save result, drained by the egui UI thread next frame

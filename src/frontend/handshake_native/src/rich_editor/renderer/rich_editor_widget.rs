@@ -98,6 +98,12 @@ pub struct RichEditorState {
     /// MT-020 export format-picker popup open flag (the operator clicked "Export…"). Owned HERE so the
     /// popup persists across frames until a format is chosen or it is dismissed.
     pub export_picker_open: bool,
+    /// MT-020 in-flight native save-dialog handle (`Some` while the operator has an export's OS save
+    /// dialog open). The dialog runs on a dedicated thread (HBR-QUIET / MC-004); this handle is POLLED
+    /// non-blockingly each frame in [`RichEditorWidget::drive_save_and_draft`] so the egui frame thread
+    /// NEVER blocks while the dialog is open (red-team RISK-4 — the frame-freeze fix). Cleared once the
+    /// dialog resolves (path chosen / cancelled).
+    pub pending_file_save: Option<crate::rich_editor::save::conflict_ui::PendingFileSave>,
 }
 
 impl RichEditorState {
@@ -162,6 +168,7 @@ impl RichEditorState {
             save: None,
             draft: None,
             export_picker_open: false,
+            pending_file_save: None,
         }
     }
 
@@ -663,6 +670,22 @@ impl RichEditorWidget {
                 ctx.request_repaint_after(std::time::Duration::from_millis(250));
             }
         }
+        // MT-020 (red-team RISK-4): poll the in-flight native save-dialog handle NON-BLOCKINGLY. The
+        // dialog runs on a dedicated thread; `poll` returns `None` while it is still open (the frame
+        // thread never blocks), `Some(_)` once the operator picks a path or cancels — then we drop the
+        // handle. While the dialog is open we keep a slow repaint pulse so the resolution is observed
+        // promptly without busy-spinning.
+        if let Some(pending) = state.pending_file_save.as_ref() {
+            match pending.poll() {
+                Some(_outcome) => {
+                    state.pending_file_save = None;
+                    applied = true;
+                }
+                None => {
+                    ctx.request_repaint_after(std::time::Duration::from_millis(150));
+                }
+            }
+        }
         if applied {
             ctx.request_repaint();
         }
@@ -759,12 +782,14 @@ impl RichEditorWidget {
     }
 
     /// MT-020: render the export format-picker popup when open, and run the chosen export to bytes.
-    /// The bytes are written through the production [`NativeFileSaveSink`] (the `rfd` dialog on a
-    /// dedicated thread — HBR-QUIET, user-initiated). A toast-style status line reports the result.
-    /// Asset resolution for HTML self-contained is left to a future wiring step; this MT exports the
-    /// non-image formats directly and HTML with reference-linked media (no frame-thread network).
+    /// The bytes are written through the production [`NativeFileSaveSink::spawn`] — the `rfd` dialog
+    /// on a DEDICATED thread (HBR-QUIET / MC-004), which returns a [`PendingFileSave`] handle stored
+    /// on the state and polled non-blockingly in [`Self::drive_save_and_draft`] (so the frame thread
+    /// never blocks while the dialog is open — red-team RISK-4). Asset resolution for HTML
+    /// self-contained is left to a future wiring step; this MT exports the non-image formats directly
+    /// and HTML with reference-linked media (no frame-thread network).
     fn render_export_picker(ui: &mut egui::Ui, state: &mut RichEditorState, _palette: &HsPalette) {
-        use crate::rich_editor::save::conflict_ui::{show_export_picker, NativeFileSaveSink, FileSaveSink};
+        use crate::rich_editor::save::conflict_ui::{show_export_picker, NativeFileSaveSink};
         use crate::rich_editor::save::export::{export_document, AssetByteSource, ExportFormat};
 
         if !state.export_picker_open {
@@ -797,8 +822,9 @@ impl RichEditorWidget {
                 &assets,
             ) {
                 // The real dialog is user-initiated (the operator just clicked a format) and runs on a
-                // dedicated thread (HBR-QUIET). The sink returns the written path or None on cancel.
-                let _path = NativeFileSaveSink.save(&output);
+                // dedicated thread (HBR-QUIET). `spawn` returns IMMEDIATELY with a pollable handle — it
+                // never blocks the frame thread; the host polls it in `drive_save_and_draft`.
+                state.pending_file_save = Some(NativeFileSaveSink::spawn(&output));
             }
         }
     }
@@ -1267,20 +1293,41 @@ impl RichEditorWidget {
         }
     }
 
+    /// The stable AccessKit author_id for the toolbar "Export…" button (the operator-reachable entry
+    /// to the export format picker — a swarm agent can trigger an export by this key).
+    pub const EXPORT_BUTTON_AUTHOR_ID: &str = "rich-editor-export-button";
+
     /// Render the MT-013 formatting toolbar (a horizontal glyph-button row grouped by
-    /// category) above the content area. The toolbar borrows the editor state by `&mut`
-    /// (doc/undo/selection) so a button click dispatches a command STANDALONE on the local
-    /// state (COMMAND DISPATCH REALITY gate — the host bus Sender is E11/MT-069). Returns
-    /// nothing; a dispatched command mutates `state` in place and the next paint reflects it.
+    /// category) above the content area, plus the MT-020 "Export…" button. The toolbar borrows the
+    /// editor state by `&mut` (doc/undo/selection) so a button click dispatches a command STANDALONE
+    /// on the local state (COMMAND DISPATCH REALITY gate — the host bus Sender is E11/MT-069). The
+    /// Export button arms the export format picker ([`Self::render_export_picker`]); without it the
+    /// picker + the export-to-bytes path are unreachable (the must-fix #2 dead-code gap).
     fn render_toolbar(ui: &mut egui::Ui, state: &mut RichEditorState) {
-        let RichEditorState { doc, selection, undo, actor_id, .. } = state;
-        let cctx = crate::rich_editor::formatting::commands::CommandContext::new(
-            doc,
-            undo,
-            selection,
-            actor_id.as_str(),
-        );
-        let _dispatched = crate::rich_editor::formatting::toolbar::EditorToolbar::new(cctx).show(ui);
+        ui.horizontal(|ui| {
+            {
+                let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+                let cctx = crate::rich_editor::formatting::commands::CommandContext::new(
+                    doc,
+                    undo,
+                    selection,
+                    actor_id.as_str(),
+                );
+                let _dispatched =
+                    crate::rich_editor::formatting::toolbar::EditorToolbar::new(cctx).show(ui);
+            }
+            // MT-020: the "Export…" button opens the export format picker popup. It is an interactive
+            // node, so it MUST carry a stable author_id (the shell HBR-SWARM gate panics on an unnamed
+            // interactive node). Clicking it toggles the picker open (a second click closes it).
+            let export = ui.button("Export…");
+            let author = Self::EXPORT_BUTTON_AUTHOR_ID.to_owned();
+            ui.ctx().accesskit_node_builder(export.id, move |node| {
+                node.set_author_id(author.clone());
+            });
+            if export.clicked() {
+                state.export_picker_open = !state.export_picker_open;
+            }
+        });
     }
 
     /// Render every top-level block inside a vertical scroll area, then paint the caret on
