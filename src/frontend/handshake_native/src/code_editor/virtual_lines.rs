@@ -19,17 +19,30 @@
 //! panel actually drives each frame (RESEARCH-PROVENANCE wf_ffa74d6d 2026-06-22: confirmed for egui
 //! 0.33; no custom painter needed for read/highlight virtualization). But `show_rows` computes its
 //! visible range INSIDE egui from the live viewport, which cannot be unit-tested headlessly. This
-//! struct re-expresses the same arithmetic as a deterministic value so the boundary math (AC-001:
+//! struct re-expresses comparable arithmetic as a deterministic value so the boundary math (AC-001:
 //! scroll=0, mid-document, end-of-document, total height, monotonic `y_for_line`) is provable without
-//! a GPU. The panel feeds it the offset egui actually used (read back from the persisted
-//! `ScrollArea` state) so the documented computation surface and the live render agree.
+//! a GPU.
+//!
+//! ## This calculator is NOT the live render's painted range (AC-007)
+//!
+//! This struct is the HEADLESS boundary-math calculator and the source of `total_height_px` /
+//! `y_for_line` ONLY. It is deliberately NOT what the panel reports as the painted window. egui's
+//! `show_rows` selects its row range INSIDE egui from
+//! `row_height_with_spacing = line_height + item_spacing.y` and applies **no overscan** (egui 0.33.3
+//! `scroll_area.rs:948-963`), whereas this calculator divides by the sans-spacing `line_height_px`
+//! and pads by ±[`OVERSCAN_LINES`]. The two therefore DO NOT produce the same range — they differ by
+//! the overscan and by the row-height unit. The panel captures egui's own `row_range` for
+//! diagnostics / overlay positioning (see `panel.rs`) precisely so the reported window matches the
+//! pixels; this calculator must not be substituted for that captured range.
 //!
 //! ## Overscan
 //!
-//! [`OVERSCAN_LINES`] = 8 extra lines are painted on EACH side of the strictly-visible window. This
-//! is the native analog of the React Monaco view's `IntersectionObserver { rootMargin: '600px' }`
-//! overscan (ports_from_react): it keeps a buffer of ready rows so fast scrolling does not flash
-//! blank lines while egui recomputes the range.
+//! [`OVERSCAN_LINES`] = 8 extra lines pad this calculator's [`visible_range`](VirtualLineLayout::visible_range)
+//! on EACH side of the strictly-visible window. This is the native analog of the React Monaco view's
+//! `IntersectionObserver { rootMargin: '600px' }` overscan (ports_from_react): a generous ready-row
+//! buffer for boundary math. NOTE: egui's `show_rows` does its own (overscan-free) range selection on
+//! the live render path, so this padding describes the calculator's headless estimate, not the count
+//! of rows egui actually paints.
 
 use std::ops::Range;
 

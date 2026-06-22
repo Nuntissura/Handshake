@@ -26,9 +26,21 @@
 //! renders a few dozen lines per frame instead of all of them. The MT-001 `MAX_RENDERED_LINES` cap is
 //! gone — virtualization makes it unnecessary.
 //!
-//! The panel also re-expresses the same arithmetic as a pure [`VirtualLineLayout`] (read back from the
-//! persisted `ScrollArea` state) for headless unit-testable boundary math and for [`perf_stats`], the
-//! swarm-diagnostics surface that reports how many lines were painted this frame.
+//! ## Diagnostics surface reflects egui's ACTUAL painted range (AC-007)
+//!
+//! [`perf_stats`](CodeEditorPanel::perf_stats) and
+//! [`last_visible_range`](CodeEditorPanel::last_visible_range) report the EXACT row range
+//! `show_rows` painted this frame — the `row_range` egui passes to the paint closure — NOT a separate
+//! recompute. egui derives that range INSIDE `show_rows` from the live viewport using
+//! `row_height_with_spacing = line_height + item_spacing.y` and applies NO overscan (egui 0.33.3
+//! `scroll_area.rs:948-963`). Capturing egui's own range (rather than re-deriving it with
+//! [`VirtualLineLayout`](super::virtual_lines::VirtualLineLayout), which adds ±`OVERSCAN_LINES` and
+//! uses the sans-spacing height) is what lets the swarm-diagnostics count and the overlay-positioning
+//! seam MT-003+ builds on match the pixels on screen line-for-line.
+//!
+//! [`VirtualLineLayout`](super::virtual_lines::VirtualLineLayout) is retained ONLY as the headless,
+//! GPU-free calculator for the AC-001 boundary math and for `total_height_px`/`y_for_line`; it is no
+//! longer driven on the live render path and does not feed the diagnostics.
 //!
 //! ## Highlight cache (MT-002 — recompute only when the buffer changes)
 //!
@@ -56,7 +68,6 @@ use crate::theme::HsSyntaxTokens;
 
 use super::buffer::TextBuffer;
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
-use super::virtual_lines::VirtualLineLayout;
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
 pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
@@ -79,8 +90,10 @@ const PANEL_SCROLL_NODE_ID: u64 = 202;
 /// large document) without scraping pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PerfStats {
-    /// Number of document lines the row closure painted on the most recent frame (the virtualized
-    /// window incl. overscan), or 0 if the panel has not rendered yet.
+    /// Number of document lines the row closure painted on the most recent frame — exactly
+    /// `row_range.len()` for the range `egui::ScrollArea::show_rows` passed to the closure (AC-007),
+    /// or 0 if the panel has not rendered yet. egui applies NO overscan to this range, so this is the
+    /// true on-screen line count, not a padded estimate.
     pub frame_lines_rendered: usize,
     /// Total lines in the buffer (the whole document).
     pub buffer_len_lines: usize,
@@ -142,9 +155,11 @@ pub struct CodeEditorPanel {
     line_height_px: Mutex<Option<f32>>,
     /// Per-frame virtualization diagnostics (MT-002 step 4), updated each `show`.
     perf: Mutex<PerfStats>,
-    /// The line index range painted on the most recent frame (the virtualized visible window incl.
-    /// overscan), for tests/agents to assert exactly which lines are on screen (AC-003). `0..0` before
-    /// the first render.
+    /// The line index range painted on the most recent frame — the exact `row_range`
+    /// `egui::ScrollArea::show_rows` passed to the paint closure (AC-007), so tests/agents can assert
+    /// exactly which lines are on screen (AC-003) and MT-003+ can position the cursor/gutter/selection
+    /// overlay against the real painted window. egui applies NO overscan, so this equals the on-screen
+    /// rows, not a padded estimate. `0..0` before the first render.
     last_visible_range: Mutex<std::ops::Range<usize>>,
     /// A one-shot requested vertical scroll offset (px from content top). When set, the next `show`
     /// forces the `ScrollArea` to that offset via `vertical_scroll_offset` and clears the request, so
@@ -249,9 +264,11 @@ impl CodeEditorPanel {
         *self.perf.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// The line index range painted on the most recent `show` (the virtualized visible window incl.
-    /// overscan). `0..0` before the first render. Lets a test/agent assert exactly which lines are on
-    /// screen — the deterministic basis for AC-003 ("line 0 not painted; the scrolled-to region is").
+    /// The line index range painted on the most recent `show` — the exact `row_range`
+    /// `egui::ScrollArea::show_rows` selected (AC-007; egui applies no overscan). `0..0` before the
+    /// first render. Lets a test/agent assert exactly which lines are on screen — the deterministic
+    /// basis for AC-003 ("line 0 not painted; the scrolled-to region is") and the overlay-positioning
+    /// seam MT-003+ reads.
     pub fn last_visible_range(&self) -> std::ops::Range<usize> {
         self.last_visible_range
             .lock()
@@ -393,6 +410,16 @@ impl CodeEditorPanel {
             ui.scope_builder(egui::UiBuilder::new().id_salt(scroll_id), |ui| {
                 let scroll_node_id = ui.unique_id();
 
+                // Zero the inter-row spacing on the SCROLL-AREA ui BEFORE calling `show_rows`. egui
+                // derives its row stride as `row_height_with_spacing = line_height + item_spacing.y`
+                // from THIS ui's spacing (egui 0.33.3 scroll_area.rs:943-944). Zeroing it here makes
+                // the stride exactly `line_height` — the SAME sans-spacing unit `scroll_to_line` /
+                // `y_for_line` / `total_height_px` use — so a requested offset of `line * line_height`
+                // lands egui on exactly that row (no spacing-unit drift). `render_rows` also zeroes it
+                // on its inner scope so the painted rows have no gap; doing it here too keeps egui's
+                // row-index math and the pixel layout on one consistent unit. (AC-007 unit fix.)
+                ui.style_mut().spacing.item_spacing.y = 0.0;
+
                 // Consume a one-shot requested scroll offset (go-to-line / agent / test), if any.
                 let pending = self
                     .pending_scroll_offset
@@ -406,31 +433,35 @@ impl CodeEditorPanel {
                 if let Some(offset) = pending {
                     scroll_area = scroll_area.vertical_scroll_offset(offset);
                 }
-                let scroll_output = scroll_area.show_rows(
+                // Capture the EXACT row range `show_rows` paints this frame (AC-007). egui computes it
+                // INSIDE `show_rows` from the live viewport using `row_height_with_spacing = line_height
+                // + item_spacing.y` and NO overscan (egui 0.33.3 scroll_area.rs:948-963), then hands it
+                // to the closure as `row_range`. That painted range — not a separate VirtualLineLayout
+                // recompute (which adds ±OVERSCAN_LINES egui never applies and divides by the
+                // sans-spacing height) — is the authoritative diagnostics + overlay-positioning surface.
+                let mut painted_range: std::ops::Range<usize> = 0..0;
+                scroll_area.show_rows(
                     ui,
                     line_height,
                     total_lines,
                     |ui, row_range| {
+                        // Record egui's actual painted window before forwarding it to the painter.
+                        painted_range = row_range.clone();
                         self.render_rows(ui, row_range, &syntax, total_lines, text_id, &text_author);
                     },
                 );
 
-                // Read back the scroll offset egui actually used this frame and re-express the visible
-                // window as the pure `VirtualLineLayout` (the documented computation surface). The
-                // viewport height is the scroll area's inner rect height. This keeps the headless-test
-                // calculator in agreement with the live `show_rows` render and feeds `perf_stats`.
-                let viewport_h = scroll_output.inner_rect.height();
-                let offset_y = scroll_output.state.offset.y;
-                let layout =
-                    VirtualLineLayout::new(total_lines, line_height, viewport_h, offset_y);
-                let visible = layout.visible_range();
-                let painted = visible.len();
+                // Store egui's actual painted row range as BOTH the perf "lines painted this frame"
+                // count and the `last_visible_range` overlay seam (AC-007). The painted range is the
+                // ground truth MT-003+ reads to position the cursor/gutter/selection overlay, so the
+                // diagnostics must equal it exactly — not the overscan-padded calculator estimate.
                 let stats = PerfStats {
-                    frame_lines_rendered: painted,
+                    frame_lines_rendered: painted_range.len(),
                     buffer_len_lines: total_lines,
                 };
                 *self.perf.lock().unwrap_or_else(|e| e.into_inner()) = stats;
-                *self.last_visible_range.lock().unwrap_or_else(|e| e.into_inner()) = visible;
+                *self.last_visible_range.lock().unwrap_or_else(|e| e.into_inner()) =
+                    painted_range.clone();
 
                 // Emit the ScrollView node onto THIS scroll scope's Ui id (AC-004). It is a child of
                 // the container scope and the parent of the text scope.

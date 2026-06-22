@@ -12,8 +12,10 @@
 //! MT-002 (new):
 //! - PT-002 / AC-002: `large_file_frame_time` renders a 100 000-line buffer for 60 frames and asserts
 //!   the per-frame budget; writes `MT-002-bench.json` to the EXTERNAL artifact root.
-//! - PT-003 / AC-003: `scroll_mid_virtualizes` scrolls a 200-line buffer to line 100 and proves the
-//!   visible window covers ~92-116 (overscan) while line 0 is NOT painted; saves `MT-002-scroll-mid.png`.
+//! - PT-003 / AC-003 + AC-007: `scroll_mid_virtualizes` scrolls a 200-line buffer to line 100 and
+//!   proves `last_visible_range()` is egui's ACTUAL painted `row_range` by reconciling it against the
+//!   on-screen labels — every in-range line has a label, and the lines just outside the range (and
+//!   line 0) have none (egui adds no overscan). Saves `MT-002-scroll-mid.png`.
 //! - AC-004: `scroll_area_node_present` asserts the live tree carries a `code_editor_scroll_area`
 //!   node with role `ScrollView`, nested under the container.
 //! - AC-006 (artifact hygiene): all PNG/JSON artifacts are written ONLY to the external
@@ -438,12 +440,16 @@ fn large_file_frame_time() {
 
 #[test]
 fn scroll_mid_virtualizes() {
-    // 200-line buffer; each line numbered so a reader can tell which rows are on screen.
+    // 200-line buffer; each line numbered so a reader can tell which rows are on screen. Use PLAIN
+    // TEXT (extension "txt", no grammar) so each visible line renders as exactly ONE label
+    // ("line N") — highlighting would split a row into several labels and break the exact
+    // label-equality check below. The virtualization path is identical regardless of grammar.
     let mut doc = String::new();
     for n in 0..200 {
         doc.push_str(&format!("line {n}\n"));
     }
-    let panel = Arc::new(CodeEditorPanel::new(&doc, "rs"));
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
+    assert!(panel.spans().is_empty(), "plain-text panel has no highlight spans (single label/row)");
     let panel_for_ui = Arc::clone(&panel);
 
     // A short viewport (200px) so only ~14 lines fit — scrolling to line 100 unambiguously pushes
@@ -455,13 +461,20 @@ fn scroll_mid_virtualizes() {
             panel_for_ui.show(ui);
         });
 
-    // Frame 1: render at the top so the line height is measured. Prove line 0 IS visible here.
+    // Frame 1: render at the top so the line height is measured. Prove line 0 IS visible here, and
+    // that at the top the reported range starts at 0 and the "line 0" label is actually on screen.
     harness.run();
     let top_stats = panel.perf_stats();
     assert!(
         top_stats.frame_lines_rendered > 0,
         "a window is painted at the top (got {})",
         top_stats.frame_lines_rendered
+    );
+    let top_visible = panel.last_visible_range();
+    assert_eq!(top_visible.start, 0, "at the top the painted range starts at line 0 (no overscan)");
+    assert!(
+        harness.query_by_label("line 0").is_some(),
+        "at the top, the 'line 0' label must be on screen ({top_visible:?})"
     );
 
     // Now scroll to line 100 (uses the measured line height) and re-run.
@@ -478,9 +491,8 @@ fn scroll_mid_virtualizes() {
         mid_stats.buffer_len_lines
     );
 
-    // Deterministic AC-003 proof via the exact painted line range: line 100 (with ±overscan) is
-    // inside the visible window and line 0 is NOT (it scrolled off the top). This is the load-bearing
-    // virtualization guarantee — it does not depend on how highlighting splits a label's display text.
+    // AC-003 / AC-007: `last_visible_range()` is egui's ACTUAL painted `row_range` (captured inside
+    // `show_rows`), so it must contain the scrolled-to line and exclude line 0.
     let visible = panel.last_visible_range();
     assert!(
         visible.contains(&100),
@@ -490,22 +502,54 @@ fn scroll_mid_virtualizes() {
         !visible.contains(&0),
         "AC-003: line 0 must NOT be in the painted window {visible:?} (it scrolled off the top)"
     );
-    // The window starts within an overscan of line 100 (the scrolled-to line is the top of viewport),
-    // so the first painted line is ~92 (100 - overscan), matching the contract's "lines 92-116".
-    assert!(
-        visible.start >= 100usize.saturating_sub(OVERSCAN_LINES + 2)
-            && visible.start <= 100,
-        "AC-003: window start {} should be ~(100 - overscan)",
-        visible.start
-    );
 
-    // Secondary (best-effort) signal: the live tree should expose a label whose text begins with the
-    // scrolled-to line region and NOT one for line 0. Highlighting can split a row into several
-    // labels, so this is corroboration, not the gate.
-    let line_0_label = harness.query_by_label("line 0").is_some();
+    // AC-007 (the strengthened, NON-tautological proof): assert `last_visible_range()` EQUALS egui's
+    // painted row_range by reconciling it against the ON-SCREEN content. Because each line renders as
+    // exactly one "line N" label and `render_rows` paints exactly the lines in egui's `row_range`
+    // (the same range stored in `last_visible_range()`), the reported range is correct iff:
+    //   (a) EVERY line index inside the range has a matching on-screen label, and
+    //   (b) the lines just OUTSIDE the range (one before the start, the range.end line itself, and
+    //       line 0) have NO label.
+    // An overscan-padded or unit-mismatched range (the pre-AC-007 bug) would FAIL (a): it would claim
+    // ~8 lines at each edge that egui never painted, so their labels would be absent. This ties the
+    // diagnostic range to the pixels, not to its own arithmetic.
+    assert_eq!(
+        mid_stats.frame_lines_rendered,
+        visible.len(),
+        "AC-007: perf.frame_lines_rendered must equal the painted row_range length"
+    );
+    for line_idx in visible.clone() {
+        assert!(
+            harness.query_by_label(&format!("line {line_idx}")).is_some(),
+            "AC-007: line {line_idx} is inside the reported painted range {visible:?} so its label \
+             MUST be on screen — the reported range must equal egui's actual painted row_range"
+        );
+    }
+    // (b) Boundaries: the line just above the window, the line AT range.end (first below), and line 0
+    // must NOT be on screen. (egui adds NO overscan, so the reported range is the exact painted set.)
+    if visible.start > 0 {
+        assert!(
+            harness.query_by_label(&format!("line {}", visible.start - 1)).is_none(),
+            "AC-007: line {} is just ABOVE the painted range {visible:?}; it must NOT be on screen \
+             (no overscan over-report)",
+            visible.start - 1
+        );
+    }
     assert!(
-        !line_0_label,
-        "AC-003 (corroboration): no 'line 0' label should be in the live tree after scrolling"
+        harness.query_by_label(&format!("line {}", visible.end)).is_none(),
+        "AC-007: line {} is just BELOW the painted range {visible:?}; it must NOT be on screen",
+        visible.end
+    );
+    assert!(
+        harness.query_by_label("line 0").is_none(),
+        "AC-003/AC-007: no 'line 0' label should be on screen after scrolling to line 100"
+    );
+    // Sanity: the window starts within an overscan of line 100 (egui paints from the forced top), so
+    // the first painted line is reasonably close to 100 — a loose corroboration, NOT the gate.
+    assert!(
+        visible.start <= 100 && visible.start >= 100usize.saturating_sub(OVERSCAN_LINES + 4),
+        "AC-003: window start {} should be at-or-just-above the scrolled-to line 100",
+        visible.start
     );
 
     // Save the scroll-mid PNG to the EXTERNAL artifact root ONLY (AC-006).
@@ -519,13 +563,12 @@ fn scroll_mid_virtualizes() {
             assert!(image.width() > 0 && image.height() > 0, "scroll-mid image is non-empty");
             println!(
                 "PT-003 scroll-mid: {}x{} saved={saved} ({}); painted {} lines; visible={:?} \
-                 line_0_label={}",
+                 (egui's actual row_range; line 0 proven absent, every in-range label present)",
                 image.width(),
                 image.height(),
                 png_path.display(),
                 mid_stats.frame_lines_rendered,
                 visible,
-                line_0_label,
             );
         }
         Err(e) => {
