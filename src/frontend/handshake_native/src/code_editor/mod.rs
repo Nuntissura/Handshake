@@ -25,16 +25,27 @@
 //! region surfaces a `Role::TreeItem` AccessKit node (`code_editor_fold_{start_line}`) with
 //! Expand/Collapse actions so a swarm agent can fold/unfold by id.
 //!
-//! Later E1 MTs add minimap/outline (MT-006), the gutter (MT-007), the LSP client (MT-008), the diff
-//! editor (MT-009), and the Monaco-parity keymap (MT-010) on top of these primitives. They REUSE the WP-011
-//! shell modules (`pane_registry`, `split_layout`, `theme/*`, `accessibility/*`, `backend_client`),
-//! which this MT also reuses rather than re-creating.
+//! MT-006 adds the three navigation aids that port the React editor workbench chrome into the native
+//! editor: [`minimap`] (a scaled-down whole-file overview with a viewport indicator + click-to-scroll —
+//! `Role::ScrollBar` node `code_editor_minimap`), [`outline`] (the tree-sitter symbol tree with
+//! click-to-scroll — `Role::Tree` node `code_editor_outline`), and a go-to-line palette (Ctrl+G —
+//! `Role::TextInput` node `code_editor_goto_line`). The outline reuses the SAME tree-sitter tree + the
+//! same `TreeCursor` pre-order walk pattern as [`folding`] (MC-002), and all three navigation actions
+//! map through the MT-002-corrected positioning units + the MT-005 fold-aware visible<->buffer line
+//! mapping so navigation lands on the correct line when folds are active.
+//!
+//! Later E1 MTs add the gutter (MT-007), the LSP client (MT-008), the diff editor (MT-009), and the
+//! Monaco-parity keymap (MT-010) on top of these primitives. They REUSE the WP-011 shell modules
+//! (`pane_registry`, `split_layout`, `theme/*`, `accessibility/*`, `backend_client`), which these MTs
+//! also reuse rather than re-creating.
 
 pub mod buffer;
 pub mod cursor;
 pub mod find_replace;
 pub mod folding;
 pub mod highlight;
+pub mod minimap;
+pub mod outline;
 pub mod panel;
 pub mod virtual_lines;
 
@@ -49,10 +60,13 @@ pub use highlight::{
     language_id_for_extension, HighlightScope, HighlightSpan, Highlighter, LanguageRegistry,
     SafeLanguage,
 };
+pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
+pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
 pub use panel::{
-    CodeEditorPanel, CodeEditorPaneFactory, FindState, PerfStats, CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
-    CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,
-    CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID,
-    CODE_EDITOR_TEXT_AUTHOR_ID,
+    scope_to_color, CodeEditorPanel, CodeEditorPaneFactory, FindState, GotoLineState, PerfStats,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID,
+    CODE_EDITOR_FIND_PREV_AUTHOR_ID, CODE_EDITOR_GOTO_LINE_AUTHOR_ID, CODE_EDITOR_MINIMAP_AUTHOR_ID,
+    CODE_EDITOR_OUTLINE_AUTHOR_ID, CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID,
+    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_TEXT_AUTHOR_ID,
 };
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};

@@ -74,6 +74,8 @@ use super::cursor::{
 use super::find_replace::{FindEngine, FindQuery, Match};
 use super::folding::{FoldProvider, FoldSet};
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
+use super::minimap::Minimap;
+use super::outline::{OutlineItem, OutlineProvider};
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
 pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
@@ -104,6 +106,16 @@ pub const CODE_EDITOR_FIND_PREV_AUTHOR_ID: &str = "code_editor_find_prev";
 /// (capped — RISK-001) so a 1000-fold file does not emit 1000 nodes per frame.
 pub const CODE_EDITOR_FOLD_AUTHOR_PREFIX: &str = "code_editor_fold_";
 
+/// MT-006 navigation-aid author_ids (AC-003/004/005). The minimap node is `code_editor_minimap`
+/// (`Role::ScrollBar` — clicking scrolls; the role exists in accesskit 0.21.1, no fallback needed); the
+/// outline tree is `code_editor_outline` (`Role::Tree`); the go-to-line input is `code_editor_goto_line`
+/// (`Role::TextInput`). All three roles named in the MT contract exist in accesskit 0.21.1 (verified
+/// against the locked source), so unlike the MT-003 TextCursor / MT-004 SearchBox cases no role fallback
+/// is required for this MT.
+pub const CODE_EDITOR_MINIMAP_AUTHOR_ID: &str = "code_editor_minimap";
+pub const CODE_EDITOR_OUTLINE_AUTHOR_ID: &str = "code_editor_outline";
+pub const CODE_EDITOR_GOTO_LINE_AUTHOR_ID: &str = "code_editor_goto_line";
+
 /// Max foldable-region AccessKit nodes emitted per frame (RISK-001 / RISK-004 analog of the cursor
 /// cap). Only the regions intersecting the painted window are emitted, capped at this many so a
 /// pathological file with thousands of folds cannot blow the per-frame node budget.
@@ -113,6 +125,14 @@ pub const MAX_ACCESSKIT_FOLDS: usize = 64;
 /// (300..300+MAX_ACCESSKIT_FOLDS), disjoint from the find-bar band (280..283), the cursor band
 /// (210..274), and the container/scroll/text band (200/201/202).
 const PANEL_FOLD_NODE_ID_BASE: u64 = 300;
+
+/// MT-006 navigation-aid fixed AccessKit `NodeId`s for the default (single-instance) panel. A fresh
+/// band (370..372) ABOVE the fold band (300..363) so they never collide with the container/scroll/text
+/// (200/201/202), cursor (210..274), find-bar (280..283), or fold nodes. Multi-instance panels hash the
+/// suffixed author_id instead (RISK-004), the same scheme every other panel node uses.
+const PANEL_MINIMAP_NODE_ID: u64 = 370;
+const PANEL_OUTLINE_NODE_ID: u64 = 371;
+const PANEL_GOTO_LINE_NODE_ID: u64 = 372;
 
 /// The fixed AccessKit `NodeId` band the per-cursor `Role::Caret` nodes occupy for the default panel
 /// (210..210+MAX_ACCESSKIT_CURSORS), disjoint from the panel container/scroll/text band (200/201/202)
@@ -274,6 +294,89 @@ pub struct CodeEditorPanel {
     /// folding's foldable-node table (MT-005). Captured at build time from the document extension so
     /// the fold provider does not re-derive it every frame.
     language_id: &'static str,
+    /// MT-006 outline (symbol tree) cache: the symbols extracted from the SAME tree-sitter tree the
+    /// highlighter built (no second parse — MC-002), recomputed only when the buffer version moves
+    /// (tracked by `outline_version`). Behind a `Mutex` for the same `Sync` reason as the buffer.
+    outline_items: Mutex<Vec<OutlineItem>>,
+    /// The `buffer_version` the outline was last computed for. When it lags `buffer_version` the next
+    /// access recomputes the outline from the highlighter's current tree (MC-002). `0` until first
+    /// computed.
+    outline_version: AtomicU64,
+    /// MT-006: whether the outline side panel is shown (RISK-001 / MC-001 — hideable so the center
+    /// editor keeps a usable width). Default ON for a language with symbols; the toggle button + the
+    /// `set_show_outline` API flip it. Atomic so the `&self` render path / agent can flip it.
+    show_outline: std::sync::atomic::AtomicBool,
+    /// MT-006: whether the minimap side panel is shown (RISK-001 / MC-001 — hideable). Default ON; the
+    /// toggle button + `set_show_minimap` flip it.
+    show_minimap: std::sync::atomic::AtomicBool,
+    /// MT-006 go-to-line palette state. `None` when the palette is closed (no modal, no AccessKit node);
+    /// `Some` while it is open (Ctrl+G). Behind a `Mutex` for the same `Sync` reason as the buffer.
+    goto_line_state: Mutex<Option<GotoLineState>>,
+    /// MT-006 minimap widget (its configured width). Stateless apart from the width; carried so the
+    /// width can be tuned without re-threading it through `show`.
+    minimap: Minimap,
+    /// The screen rect the minimap occupied on the most recent frame (diagnostics + the deterministic
+    /// midpoint-click test — AC-006). `None` before the first render or while the minimap is hidden.
+    last_minimap_rect: Mutex<Option<egui::Rect>>,
+    /// The screen rect the outline panel occupied on the most recent frame (diagnostics + the
+    /// three-panel layout test — AC-003). `None` before the first render or while the outline is hidden.
+    last_outline_rect: Mutex<Option<egui::Rect>>,
+    /// Cached minimap per-row colors + the `(buffer_version, painted_rows, dark_mode)` key they were
+    /// computed for. The minimap's only O(spans) pass ([`Minimap::compute_row_colors`]) runs ONLY on a
+    /// cache miss (buffer edit, panel resize, or theme flip), so the per-frame minimap render is
+    /// O(painted_rows) — critical on a 100k-line file where re-walking every span each frame blows the
+    /// MT-002 frame budget. `None` until the first minimap render.
+    minimap_row_cache: Mutex<Option<MinimapRowCache>>,
+}
+
+/// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
+/// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
+/// `type_complexity`).
+type MinimapRowCache = (Vec<egui::Color32>, u64, usize, bool);
+
+/// MT-006 go-to-line palette state. Owned by [`CodeEditorPanel`] behind a `Mutex`; present only while
+/// the palette is open (Ctrl+G). The modal pre-populates `input` with the current cursor line; on Enter
+/// the panel parses it, clamps to the buffer, and scrolls. `parsed` caches the last successful parse so
+/// the modal can show validity feedback without re-parsing every frame.
+#[derive(Clone, Debug, Default)]
+pub struct GotoLineState {
+    /// The text typed into the go-to-line input (a 1-based line number, as the user sees line numbers).
+    pub input: String,
+    /// The last successfully-parsed 0-based buffer line from `input`, or `None` when `input` is empty
+    /// or not a valid line number (AC-002: non-numeric input parses to `None` -> no navigation, no
+    /// crash). Recomputed by [`GotoLineState::reparse`] whenever `input` changes.
+    pub parsed: Option<usize>,
+}
+
+impl GotoLineState {
+    /// Build a state pre-populated with the 1-based form of `cursor_line` (0-based), the VS Code
+    /// behavior of seeding the input with the current line.
+    fn for_cursor_line(cursor_line: usize) -> Self {
+        let one_based = cursor_line.saturating_add(1);
+        let mut s = Self { input: one_based.to_string(), parsed: None };
+        s.reparse(usize::MAX); // clamp computed against the live buffer at submit; seed parsed now.
+        s
+    }
+
+    /// Re-parse `input` into a 0-based buffer line, clamping to `0..len_lines` (RISK-003 / MC-003 —
+    /// `0`, negative, and past-the-end inputs clamp without panic; non-numeric inputs yield `None`).
+    /// `len_lines` is the live buffer line count (pass `usize::MAX` to defer the clamp to submit time).
+    /// Sets + returns `self.parsed`.
+    fn reparse(&mut self, len_lines: usize) -> Option<usize> {
+        // Parse as i64 so a leading '-' or '0' is handled deterministically (RISK-003). 1-based input.
+        let trimmed = self.input.trim();
+        self.parsed = match trimmed.parse::<i64>() {
+            Ok(n) => {
+                // Clamp the 1-based number to 1..=len_lines, then convert to 0-based. n<=0 clamps to
+                // line 1 (0-based 0); n>len clamps to the last line.
+                let max_one_based = len_lines.min(i64::MAX as usize) as i64;
+                let clamped = n.clamp(1, max_one_based.max(1));
+                Some((clamped - 1).max(0) as usize)
+            }
+            Err(_) => None, // non-numeric -> no navigation (AC-002)
+        };
+        self.parsed
+    }
 }
 
 /// MT-004 find/replace UI + match state. Owned by [`CodeEditorPanel`] behind a `Mutex`; present only
@@ -364,20 +467,26 @@ impl CodeEditorPanel {
         // Compute the initial fold regions from the first parse tree (when the language is known), so a
         // freshly opened document is foldable on frame 1 (regions start UNfolded — the user/agent folds
         // them). The spans come from the same highlight pass.
-        let (spans, fold_set) = match highlighter.as_mut() {
+        let (spans, fold_set, outline_items) = match highlighter.as_mut() {
             Some(hl) => {
                 let spans = hl.highlight(text.as_bytes());
-                let fold_set = match hl.tree() {
+                let (fold_set, outline_items) = match hl.tree() {
                     Some(tree) => {
+                        // MC-002: BOTH fold regions and outline symbols derive from the SAME parse tree
+                        // via the same TreeCursor pattern — no second parse.
                         let regions = FoldProvider::new().compute(tree, &buffer, language_id);
-                        FoldSet::from_regions(regions)
+                        let outline = OutlineProvider::compute(tree, &buffer, language_id);
+                        (FoldSet::from_regions(regions), outline)
                     }
-                    None => FoldSet::new(),
+                    None => (FoldSet::new(), Vec::new()),
                 };
-                (spans, fold_set)
+                (spans, fold_set, outline_items)
             }
-            None => (Vec::new(), FoldSet::new()),
+            None => (Vec::new(), FoldSet::new(), Vec::new()),
         };
+        // The outline panel defaults ON only when the document actually has symbols (an empty outline
+        // panel adds nothing but takes width — RISK-001). The minimap defaults ON for any document.
+        let outline_default_on = !outline_items.is_empty();
         let len_lines = buffer.len_lines();
         Self {
             buffer: Mutex::new(buffer),
@@ -404,6 +513,17 @@ impl CodeEditorPanel {
             // filled at), so the first render is a fold cache hit; an edit bumps to 2+ and recomputes.
             fold_version: AtomicU64::new(1),
             language_id,
+            // The outline was computed at buffer version 1 (same as folds/highlights), so the first
+            // access is a cache hit; an edit bumps the version and recomputes from the new tree.
+            outline_items: Mutex::new(outline_items),
+            outline_version: AtomicU64::new(1),
+            show_outline: std::sync::atomic::AtomicBool::new(outline_default_on),
+            show_minimap: std::sync::atomic::AtomicBool::new(true),
+            goto_line_state: Mutex::new(None),
+            minimap: Minimap::new(),
+            last_minimap_rect: Mutex::new(None),
+            last_outline_rect: Mutex::new(None),
+            minimap_row_cache: Mutex::new(None),
         }
     }
 
@@ -938,6 +1058,244 @@ impl CodeEditorPanel {
         byte_to_line_col(head, &buffer).0
     }
 
+    // ── MT-006 outline (symbol tree) API ──────────────────────────────────────────────────────────
+
+    /// Recompute the outline symbols iff the buffer version moved since they were last computed
+    /// (MC-002: do NOT re-walk the tree every frame, and reuse the SAME tree the highlighter already
+    /// parsed — no second parse). Call AFTER [`ensure_highlight_cache`](Self::ensure_highlight_cache)
+    /// so the tree reflects the current buffer.
+    fn ensure_outline(&self) {
+        let version = self.buffer_version.load(Ordering::Relaxed);
+        if self.outline_version.load(Ordering::Relaxed) == version {
+            return; // outline already current for this buffer version (MC-002).
+        }
+        let items = {
+            let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+            match highlighter.as_ref().and_then(|hl| hl.tree()) {
+                Some(tree) => {
+                    let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                    OutlineProvider::compute(tree, &buffer, self.language_id)
+                }
+                None => Vec::new(),
+            }
+        };
+        *self.outline_items.lock().unwrap_or_else(|e| e.into_inner()) = items;
+        self.outline_version.store(version, Ordering::Relaxed);
+    }
+
+    /// A snapshot of the current outline symbols (recomputing first if the buffer version moved). For
+    /// tests / the outline panel / later MTs (in-file symbol jump — MT-053).
+    pub fn outline_items(&self) -> Vec<OutlineItem> {
+        self.ensure_outline();
+        self.outline_items.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Whether the outline side panel is currently shown.
+    pub fn is_outline_shown(&self) -> bool {
+        self.show_outline.load(Ordering::Relaxed)
+    }
+
+    /// Whether the minimap side panel is currently shown.
+    pub fn is_minimap_shown(&self) -> bool {
+        self.show_minimap.load(Ordering::Relaxed)
+    }
+
+    /// Show / hide the outline side panel (RISK-001 / MC-001 — keep the center editor usable on small
+    /// screens). The toggle button + a swarm agent both drive this.
+    pub fn set_show_outline(&self, shown: bool) {
+        self.show_outline.store(shown, Ordering::Relaxed);
+    }
+
+    /// Show / hide the minimap side panel (RISK-001 / MC-001).
+    pub fn set_show_minimap(&self, shown: bool) {
+        self.show_minimap.store(shown, Ordering::Relaxed);
+    }
+
+    /// Toggle the outline panel visibility; returns the new state.
+    pub fn toggle_outline(&self) -> bool {
+        let next = !self.is_outline_shown();
+        self.set_show_outline(next);
+        next
+    }
+
+    /// Toggle the minimap panel visibility; returns the new state.
+    pub fn toggle_minimap(&self) -> bool {
+        let next = !self.is_minimap_shown();
+        self.set_show_minimap(next);
+        next
+    }
+
+    /// Navigate (scroll + move the primary caret) to buffer `line`, routed through the fold-aware
+    /// visible<->buffer mapping (MT-005) so the editor lands on the right ROW even when folds collapse
+    /// lines above the target. This is the single navigation primitive the outline click, the go-to-line
+    /// submit, and the minimap click all funnel through (MT positioning note). The line is clamped to
+    /// the live buffer; the caret is moved to the start byte of that line.
+    pub fn navigate_to_line(&self, line: usize) {
+        let (clamped, byte) = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let last = buffer.len_lines().saturating_sub(1);
+            let clamped = line.min(last);
+            let byte = buffer.line_to_byte(clamped).unwrap_or(0);
+            (clamped, byte)
+        };
+        // Move the primary caret to the target line's start (a single caret there, like VS Code's
+        // go-to-line). Done before the scroll so the caret overlay paints on the scrolled-to row.
+        self.set_single_cursor(byte);
+        // Scroll so the target is visible. `scroll_to_line` works in VISIBLE-line space (the same units
+        // `show_rows` strides by), so map the buffer line to its visible-line index through the fold set
+        // first (MT-005 fold-aware mapping) — a folded region above the target shifts its visible row up.
+        let visible_line = self.buffer_line_to_visible_line(clamped);
+        self.scroll_to_line(visible_line);
+    }
+
+    /// Map a BUFFER line to its VISIBLE (post-fold) line index using the current fold set (MT-005). A
+    /// buffer line hidden inside a folded region maps to the visible row of the fold's start line (the
+    /// nearest visible line at/above it), so navigation lands on the collapsed summary row rather than a
+    /// hidden row. Linear over the (cheap) visible map; the fold set rebuilds the map lazily on a
+    /// fold-state change.
+    fn buffer_line_to_visible_line(&self, buffer_line: usize) -> usize {
+        let total = self.with_buffer(|b| b.len_lines());
+        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+        let visible = set.rebuild_visible_map_for(total);
+        // visible_line_to_buffer_line is monotonic non-decreasing; find the largest visible index whose
+        // buffer line is <= buffer_line (the nearest visible row at/above the target).
+        let mut result = 0usize;
+        for v in 0..visible {
+            if set.visible_line_to_buffer_line(v) <= buffer_line {
+                result = v;
+            } else {
+                break;
+            }
+        }
+        result
+    }
+
+    // ── MT-006 go-to-line palette API (Ctrl+G) ────────────────────────────────────────────────────
+
+    /// Open the go-to-line palette (Ctrl+G). The input is pre-populated with the primary cursor's
+    /// 1-based line (VS Code behavior). Idempotent: re-opening re-seeds from the current cursor line.
+    pub fn open_goto_line(&self) {
+        let cursor_line = self.primary_cursor_line();
+        *self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(GotoLineState::for_cursor_line(cursor_line));
+    }
+
+    /// Close the go-to-line palette (Escape / after a successful jump / clicking away). A no-op when
+    /// already closed.
+    pub fn close_goto_line(&self) {
+        *self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// True while the go-to-line palette is open.
+    pub fn is_goto_line_open(&self) -> bool {
+        self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// A snapshot of the go-to-line palette state, or `None` when closed.
+    pub fn goto_line_state(&self) -> Option<GotoLineState> {
+        self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Set the go-to-line input text (the modal's TextEdit pushes the edited value here each frame), and
+    /// re-parse it against the live buffer so `parsed` reflects validity. No-op when the palette is
+    /// closed.
+    pub fn set_goto_line_input(&self, input: impl Into<String>) {
+        let len_lines = self.with_buffer(|b| b.len_lines());
+        let mut guard = self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(state) = guard.as_mut() {
+            state.input = input.into();
+            state.reparse(len_lines);
+        }
+    }
+
+    /// Submit the go-to-line palette (Enter / the Go button): parse the input, and if it is a valid
+    /// numeric line, navigate there (fold-aware) and close the palette. Returns `true` when a navigation
+    /// happened. A non-numeric / empty input does NOT navigate and does NOT close (AC-002: no crash, no
+    /// navigation) — the modal stays open so the user can correct the input.
+    pub fn submit_goto_line(&self) -> bool {
+        let len_lines = self.with_buffer(|b| b.len_lines());
+        let target = {
+            let mut guard = self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner());
+            match guard.as_mut() {
+                Some(state) => state.reparse(len_lines),
+                None => None,
+            }
+        };
+        match target {
+            Some(line) => {
+                self.navigate_to_line(line);
+                self.close_goto_line();
+                true
+            }
+            None => false, // invalid input: no navigation, palette stays open (AC-002).
+        }
+    }
+
+    /// The stable AccessKit author_id for this panel's minimap, with the instance suffix when present.
+    pub fn minimap_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_MINIMAP_AUTHOR_ID)
+    }
+
+    /// The stable AccessKit author_id for this panel's outline tree, with the instance suffix.
+    pub fn outline_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_OUTLINE_AUTHOR_ID)
+    }
+
+    /// The stable AccessKit author_id for this panel's go-to-line input, with the instance suffix.
+    pub fn goto_line_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_GOTO_LINE_AUTHOR_ID)
+    }
+
+    /// The screen rect the minimap occupied on the most recent frame, or `None` before the first render
+    /// / while the minimap is hidden. The deterministic basis for the AC-006 midpoint-click test (which
+    /// computes the exact pixel to click) + the AC-003 three-panel layout test (which asserts the
+    /// minimap's right placement + ~80px width).
+    pub fn last_minimap_rect(&self) -> Option<egui::Rect> {
+        *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The screen rect the outline panel occupied on the most recent frame, or `None` before the first
+    /// render / while it is hidden. The basis for the AC-003 three-panel layout test (left placement +
+    /// width vs the minimap).
+    pub fn last_outline_rect(&self) -> Option<egui::Rect> {
+        *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The cached minimap per-row colors for this frame, recomputing the O(spans) pass ONLY on a cache
+    /// miss — a buffer edit (`version` moved), a panel resize (`painted_rows` changed), or a theme flip
+    /// (`dark_mode` changed). On a hit (the common per-frame case) this is a cheap key compare + clone of
+    /// the small `Vec<Color32>` (at most a few hundred rows), so the minimap render stays O(painted_rows)
+    /// instead of O(spans) — the MT-002 frame-budget protection on a 100k-line file.
+    fn minimap_row_colors(
+        &self,
+        painted_rows: usize,
+        ratio: usize,
+        dark_mode: bool,
+        version: u64,
+    ) -> Vec<egui::Color32> {
+        let key = (version, painted_rows, dark_mode);
+        {
+            let cache = self.minimap_row_cache.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((colors, v, rows, dm)) = cache.as_ref() {
+                if (*v, *rows, *dm) == key && colors.len() == painted_rows {
+                    return colors.clone(); // cache hit: no span fetch / no O(spans) re-walk this frame.
+                }
+            }
+        }
+        // Miss (edit / resize / theme flip): fetch the cached highlight spans (no extra parse — the
+        // highlight cache is already current) and run the single O(spans) color pass, then cache it.
+        let colors = {
+            let span_cache = self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let empty: Vec<HighlightSpan> = Vec::new();
+            let spans = span_cache.as_ref().map(|(s, _)| s).unwrap_or(&empty);
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            Minimap::compute_row_colors(&buffer, spans, painted_rows, ratio, dark_mode)
+        };
+        *self.minimap_row_cache.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some((colors.clone(), version, painted_rows, dark_mode));
+        colors
+    }
+
     /// The per-frame virtualization diagnostics from the most recent `show` (MT-002 step 4). Before
     /// the first render `frame_lines_rendered` is 0; `buffer_len_lines` is always the document size.
     pub fn perf_stats(&self) -> PerfStats {
@@ -1086,12 +1444,92 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner())
             .rebuild_visible_map_for(total_lines);
 
-        // OUTER container scope. egui gives every child `Ui` its own AccessKit node keyed by the
-        // `Ui`'s id and nests it under the parent `Ui`'s node. We emit the CONTAINER node onto THIS
-        // scope's own `Ui` id, render the scroll-area in a nested scope inside it, and render the text
-        // content nested inside that — so the live tree is container -> scroll-area -> text (AC-004 +
-        // AC-005 ancestry). The fixed `container_id` is only the `id_salt` that keeps the scope's id
-        // stable across frames.
+        // Ensure the outline is current (MC-002 — reuse the highlighter's tree; recompute only on a
+        // version change) before the three-panel layout reads it.
+        self.ensure_outline();
+
+        // MT-006 step 4: split the editor into a horizontal layout —
+        //   [outline (optional, left)] [editor area (center)] [minimap (optional, right)].
+        // The outline + minimap are nested `SidePanel`s rendered INSIDE this `ui` (the pane's rect),
+        // each hideable via the toggle row (RISK-001 / MC-001 — keep the center editor usable). The
+        // central editor (the existing container -> scroll -> text scope) renders in the remaining
+        // space afterward, unchanged.
+        let show_outline = self.is_outline_shown();
+        let show_minimap = self.is_minimap_shown();
+
+        // A slim toggle row pinned to the top of the editor pane (MC-001: the outline + minimap each
+        // have a toggle button so AC-003's three-panel layout is operator-controllable). Rendered first
+        // so it claims its strip; the side panels + center editor divide the remaining rect.
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 4.0;
+            if ui
+                .selectable_label(show_outline, "\u{2261} Outline")
+                .on_hover_text("Toggle the outline panel")
+                .clicked()
+            {
+                self.toggle_outline();
+            }
+            if ui
+                .selectable_label(show_minimap, "\u{25A4} Minimap")
+                .on_hover_text("Toggle the minimap")
+                .clicked()
+            {
+                self.toggle_minimap();
+            }
+        });
+
+        // OUTLINE side panel (left). `show_inside` renders within this `ui`'s rect (the pane), so the
+        // panel docks to the left edge of the editor pane rather than the whole app window.
+        if show_outline {
+            let outline_panel_id = if self.instance.is_empty() {
+                egui::Id::new("code_editor_outline_panel")
+            } else {
+                egui::Id::new(format!("code_editor_outline_panel#{}", self.instance))
+            };
+            let resp = egui::SidePanel::left(outline_panel_id)
+                .resizable(true)
+                .default_width(180.0)
+                .show_inside(ui, |ui| {
+                    self.render_outline_panel(ui, &syntax);
+                });
+            *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(resp.response.rect);
+        } else {
+            *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        }
+
+        // MINIMAP side panel (right). Non-resizable, exact 80px (Monaco's minimap width).
+        if show_minimap {
+            let minimap_panel_id = if self.instance.is_empty() {
+                egui::Id::new("code_editor_minimap_panel")
+            } else {
+                egui::Id::new(format!("code_editor_minimap_panel#{}", self.instance))
+            };
+            // Capture the current viewport (buffer-line space) so the minimap indicator marks the right
+            // rows: the panel's last painted range is in VISIBLE-line space, so map both ends back to
+            // buffer lines through the fold set. Spans are NOT cloned here — the minimap fetches them
+            // internally only on a row-color cache MISS (edit/resize/theme), not every frame, so a 100k
+            // span list is not copied per frame (MT-002 frame budget).
+            let visible_buffer_range = self.last_painted_buffer_range(total_lines);
+            // `render_minimap_panel` stores the minimap's TRUE content rect (exactly the configured
+            // width) into `last_minimap_rect`; the SidePanel outer rect (frame-margin inflated) is not
+            // used for geometry.
+            egui::SidePanel::right(minimap_panel_id)
+                .resizable(false)
+                .exact_width(self.minimap.width())
+                .show_inside(ui, |ui| {
+                    self.render_minimap_panel(ui, visible_buffer_range, total_lines);
+                });
+        } else {
+            *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        }
+
+        // OUTER container scope (the CENTER editor area). egui gives every child `Ui` its own AccessKit
+        // node keyed by the `Ui`'s id and nests it under the parent `Ui`'s node. We emit the CONTAINER
+        // node onto THIS scope's own `Ui` id, render the scroll-area in a nested scope inside it, and
+        // render the text content nested inside that — so the live tree is container -> scroll-area ->
+        // text (AC-004 + AC-005 ancestry). The fixed `container_id` is only the `id_salt` that keeps the
+        // scope's id stable across frames.
         ui.scope_builder(egui::UiBuilder::new().id_salt(container_id), |ui| {
             let container_node_id = ui.unique_id();
 
@@ -1208,6 +1646,252 @@ impl CodeEditorPanel {
                 node.set_label("Code editor".to_owned());
             });
         });
+
+        // MT-006: render the go-to-line palette as a centered modal overlay (Ctrl+G). A no-op (and no
+        // AccessKit node) when the palette is closed (AC-005). Rendered AFTER the editor scope so it
+        // floats above the editor rows.
+        self.render_goto_line_modal(ui, &syntax);
+    }
+
+    /// Render the MT-006 outline (symbol) tree in the left side panel, with the AccessKit `Role::Tree`
+    /// node `code_editor_outline` (AC-004 / HBR-SWARM). Each symbol row is a clickable
+    /// `CollapsingHeader`-style entry; clicking it calls [`navigate_to_line`](Self::navigate_to_line)
+    /// (fold-aware) to scroll the editor + move the caret to the symbol's line. The list scrolls
+    /// (an outline can be long — MT step "use ScrollArea for the outline").
+    fn render_outline_panel(&self, ui: &mut egui::Ui, syntax: &HsSyntaxTokens) {
+        ui.scope_builder(egui::UiBuilder::new().id_salt(self.outline_panel_scope_id()), |ui| {
+            let outline_node_id = ui.unique_id();
+            ui.label(egui::RichText::new("OUTLINE").color(syntax.comment).small());
+            ui.separator();
+
+            let items = self.outline_items();
+            let mut navigate_to: Option<usize> = None;
+            egui::ScrollArea::vertical()
+                .id_salt(("code-editor-outline-scroll", self.outline_panel_scope_id()))
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    if items.is_empty() {
+                        ui.label(
+                            egui::RichText::new("No symbols").italics().color(syntax.comment),
+                        );
+                    }
+                    for (idx, item) in items.iter().enumerate() {
+                        // Indent the row by the outline depth (MT step 2). A leading kind tag + the name.
+                        let label = format!(
+                            "{}{} {}",
+                            "  ".repeat(item.indent),
+                            item.kind.label(),
+                            item.name
+                        );
+                        let resp = ui.add(
+                            egui::Label::new(egui::RichText::new(label).monospace())
+                                .sense(egui::Sense::click()),
+                        );
+                        if resp.clicked() {
+                            navigate_to = Some(item.line);
+                        }
+                        resp.on_hover_text(format!("Go to line {} ({})", item.line + 1, item.kind.label()));
+                        // Stable per-row egui id so the row is individually addressable; the row index is
+                        // unique per frame (outline order is deterministic). (The container Tree node is
+                        // the AC-004 addressable surface; individual rows live in egui's hashed id space,
+                        // the same dynamic-row pattern the shell tree/list containers use.)
+                        let _ = idx;
+                    }
+                });
+
+            // Emit the outline Tree node onto this scope's Ui id (AC-004 / HBR-SWARM).
+            let author = self.outline_author_id();
+            let count = items.len();
+            ui.ctx().accesskit_node_builder(outline_node_id, move |node| {
+                node.set_role(accesskit::Role::Tree);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor outline".to_owned());
+                node.set_value(format!("{count} symbols"));
+            });
+
+            // Navigate AFTER the borrow on `items` is released (fold-aware scroll + caret move).
+            if let Some(line) = navigate_to {
+                self.navigate_to_line(line);
+            }
+        });
+    }
+
+    /// Render the MT-006 minimap in the right side panel, with the AccessKit `Role::ScrollBar` node
+    /// `code_editor_minimap` (AC-004 / HBR-SWARM). A click on the minimap scrolls the editor to the
+    /// clicked line through the fold-aware mapping. `visible_buffer_range` is the editor viewport in
+    /// BUFFER-line space (the indicator rect).
+    fn render_minimap_panel(
+        &self,
+        ui: &mut egui::Ui,
+        visible_buffer_range: std::ops::Range<usize>,
+        total_lines: usize,
+    ) {
+        ui.scope_builder(egui::UiBuilder::new().id_salt(self.minimap_panel_scope_id()), |ui| {
+            let minimap_node_id = ui.unique_id();
+
+            // Resolve this frame's minimap row layout (how many rows, at what compression). The
+            // O(spans) color computation is CACHED keyed by (buffer_version, painted_rows, dark_mode)
+            // so it runs only on an edit / resize / theme flip — the per-frame render is O(painted_rows)
+            // (MT-002 frame-budget protection on a 100k-line file).
+            let panel_height = ui.available_height().max(1.0);
+            let ratio = Minimap::compression_ratio(total_lines, panel_height);
+            let painted_rows = total_lines.div_ceil(ratio).max(1);
+            let dark_mode = ui.visuals().dark_mode;
+            let version = self.buffer_version.load(Ordering::Relaxed);
+            let row_colors = self.minimap_row_colors(painted_rows, ratio, dark_mode, version);
+
+            let response = self
+                .minimap
+                .render(ui, &row_colors, visible_buffer_range.clone(), total_lines);
+            // Store the minimap's TRUE content rect (exactly the configured width) for the AC-006
+            // midpoint-click geometry + AC-003 width assertion — the enclosing SidePanel adds frame
+            // margins around this, so the panel's outer rect is wider.
+            *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(response.content_rect);
+            // A minimap click is a scroll-to request, routed through the fold-aware mapping (MT
+            // positioning note) so a click lands on the correct row even with folds active.
+            if let Some(line) = response.clicked_buffer_line {
+                let visible_line = self.buffer_line_to_visible_line(line);
+                self.scroll_to_line(visible_line);
+            }
+
+            // Emit the minimap ScrollBar node (AC-004 / HBR-SWARM). It MUST carry an author_id — a
+            // ScrollBar is an INTERACTIVE role the MT-025 accessibility gate flags if unnamed.
+            let author = self.minimap_author_id();
+            let value = format!("lines {}-{} of {total_lines}", visible_buffer_range.start, visible_buffer_range.end);
+            ui.ctx().accesskit_node_builder(minimap_node_id, move |node| {
+                node.set_role(accesskit::Role::ScrollBar);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor minimap".to_owned());
+                node.set_value(value.clone());
+            });
+        });
+    }
+
+    /// Render the MT-006 go-to-line palette as a small centered modal `egui::Window` (Ctrl+G). The
+    /// single-line input is pre-populated with the current cursor line; Enter (or the Go button)
+    /// submits, Escape closes. The AccessKit `Role::TextInput` node `code_editor_goto_line` is emitted
+    /// so a swarm agent can address the input (AC-005 / HBR-SWARM). A no-op (and no node) when the
+    /// palette is closed.
+    fn render_goto_line_modal(&self, ui: &mut egui::Ui, syntax: &HsSyntaxTokens) {
+        let Some(mut state) = self.goto_line_state() else {
+            return;
+        };
+        let total_lines = self.with_buffer(|b| b.len_lines());
+        let mut submit = false;
+        let mut input_changed = false;
+
+        let window_id = if self.instance.is_empty() {
+            egui::Id::new("code_editor_goto_line_window")
+        } else {
+            egui::Id::new(format!("code_editor_goto_line_window#{}", self.instance))
+        };
+
+        egui::Window::new("Go to Line")
+            .id(window_id)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 48.0))
+            .show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    let resp = ui.add(
+                        egui::TextEdit::singleline(&mut state.input)
+                            .id_salt(("code-editor-goto-line-input", self.text_id()))
+                            .desired_width(120.0)
+                            .hint_text(format!("Line 1-{total_lines}")),
+                    );
+                    // Auto-focus the input on open so typing goes straight to it.
+                    if resp.changed() {
+                        input_changed = true;
+                    }
+                    resp.request_focus();
+                    if ui.button("Go").clicked() {
+                        submit = true;
+                    }
+                });
+                // Validity feedback: show the resolved 1-based target line, or an error for bad input.
+                match state.parsed {
+                    Some(line) => {
+                        ui.label(
+                            egui::RichText::new(format!("\u{2192} line {}", line + 1))
+                                .color(syntax.comment)
+                                .small(),
+                        );
+                    }
+                    None if !state.input.trim().is_empty() => {
+                        ui.label(
+                            egui::RichText::new("not a line number")
+                                .color(syntax.string)
+                                .small(),
+                        );
+                    }
+                    None => {}
+                }
+            });
+
+        // Push the edited input back into the owned state (re-parses validity) so the next frame's modal
+        // + a submit see the current value.
+        if input_changed {
+            self.set_goto_line_input(state.input.clone());
+        }
+
+        // Submit / close are handled by the Ctrl+G keymap too (process_cursor_input), but the Go button
+        // path is handled here.
+        if submit {
+            self.submit_goto_line();
+        }
+
+        // Emit the go-to-line TextInput node (AC-005 / HBR-SWARM). Fixed id band (default panel) keeps
+        // the NodeId stable; instances hash the suffixed author_id (RISK-004).
+        let author = self.goto_line_author_id();
+        let node_id = if self.instance.is_empty() {
+            // SAFETY: a single hand-assigned fixed id in the disjoint nav band (372); never reused.
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_GOTO_LINE_NODE_ID) }
+        } else {
+            egui::Id::new(self.goto_line_author_id())
+        };
+        ui.ctx().accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::TextInput);
+            node.set_author_id(author.clone());
+            node.set_label("Code editor go to line".to_owned());
+        });
+    }
+
+    /// The `egui::Id` salt for the outline panel scope (default uses the fixed nav-band slot; instances
+    /// hash the suffixed author_id so two panels never share an id — RISK-004).
+    fn outline_panel_scope_id(&self) -> egui::Id {
+        if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_OUTLINE_NODE_ID) }
+        } else {
+            egui::Id::new(self.outline_author_id())
+        }
+    }
+
+    /// The `egui::Id` salt for the minimap panel scope (default uses the fixed nav-band slot; instances
+    /// hash the suffixed author_id — RISK-004).
+    fn minimap_panel_scope_id(&self) -> egui::Id {
+        if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_MINIMAP_NODE_ID) }
+        } else {
+            egui::Id::new(self.minimap_author_id())
+        }
+    }
+
+    /// The editor's most-recent painted row window expressed in BUFFER-line space (the minimap viewport
+    /// indicator). The panel captures `last_visible_range` in VISIBLE-line space (post-fold); map both
+    /// ends back to buffer lines through the fold set. Before the first render this is `0..0`.
+    fn last_painted_buffer_range(&self, total_lines: usize) -> std::ops::Range<usize> {
+        let visible = self.last_visible_range();
+        if visible.is_empty() {
+            return 0..0;
+        }
+        // `show` rebuilt the fold visible-map against the live line count earlier THIS frame, so the map
+        // is already current — just look up the two ends (no extra O(total_lines) rebuild here, which
+        // would double the per-frame fold-map cost on a 100k-line file — MT-002 frame budget).
+        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+        let start = set.visible_line_to_buffer_line(visible.start);
+        let end = set.visible_line_to_buffer_line(visible.end.saturating_sub(1)) + 1;
+        start..end.min(total_lines)
     }
 
     /// Render the MT-004 find bar pinned to the top-right of `panel_rect`, when the bar is open. The
@@ -2151,6 +2835,20 @@ impl CodeEditorPanel {
                     }
                     egui::Key::CloseBracket if modifiers.ctrl && modifiers.shift && !modifiers.alt => {
                         self.unfold_at_cursor();
+                    }
+                    // MT-006 step 3: Ctrl+G opens the go-to-line palette. While it is open, Enter submits
+                    // (parse + fold-aware navigate) and Escape closes. These are checked BEFORE the find
+                    // Enter/Escape arms so the go-to-line palette takes precedence when both could match
+                    // (the palette is the focused modal). Intercepted regardless of pointer position.
+                    egui::Key::G if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
+                        self.open_goto_line();
+                    }
+                    egui::Key::Escape if self.is_goto_line_open() => {
+                        self.close_goto_line();
+                    }
+                    egui::Key::Enter if self.is_goto_line_open() => {
+                        // Submit: valid numeric -> navigate + close; invalid -> stays open (AC-002).
+                        self.submit_goto_line();
                     }
                     // MT-004 step 2: Ctrl+F opens find; Ctrl+H opens find with the replace row; Escape
                     // (when the bar is open) closes it. Enter / Shift+Enter step to the next / prev match
