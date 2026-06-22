@@ -189,6 +189,19 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 # NEW dependency family MT-017 adds. Clipboard reuses the EXISTING `egui::Context::copy_text` surface
 # (used in app.rs / debug_console.rs), so NO `arboard` direct dep is added.
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# WP-KERNEL-012 MT-020 save-to-format file dialog: `rfd` (0.14) is the native Rust file-dialog crate
+# (Windows: the Win32 IFileSaveDialog COM API; no wry/webview dependency, unlike tauri-plugin-dialog).
+# It is the ONLY new dependency family MT-020 adds — `sha2` (canonical draft hash) and `base64` (HTML
+# self-contained data: URLs) are ALREADY workspace deps (declared above for MT-027). The dialog is a
+# thin, USER-INITIATED shell behind the mockable `FileSaveSink` trait: the real `rfd::FileDialog` runs
+# on a DEDICATED std::thread (NOT the egui frame thread — HBR-QUIET / MC-004), never on a background or
+# automated run, so it can never steal OS focus during model-driven testing. Headless tests use the
+# `PathFileSaveSink` (writes to a path, no dialog), so `rfd` is exercised only on a real operator click.
+# Pure-Rust crate wrapping native OS dialogs; Cargo.lock pins the resolved version. Default features
+# are kept: on Windows the default backend is the native Win32 IFileDialog COM API (no GTK/portal dep
+# is pulled on Windows). The synchronous `FileDialog::save_file()` is used on the dedicated dialog
+# thread, so no async runtime feature is needed.
+rfd = "0.14"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

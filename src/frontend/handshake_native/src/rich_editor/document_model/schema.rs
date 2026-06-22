@@ -64,15 +64,18 @@ pub fn block_child_allowed(parent: NodeKind, child: NodeKind) -> bool {
         NodeKind::OrderedList | NodeKind::BulletList => {
             matches!(child, NodeKind::ListItem | NodeKind::TaskItem)
         }
-        // A list item / task item / blockquote / table cell holds block content
-        // (paragraphs, nested lists, etc.) — any non-doc block.
+        // A list item / task item / blockquote / table (header|body) cell holds block content
+        // (paragraphs, nested lists, etc.) — any non-doc block. A TableHeader cell has the SAME
+        // content model as a TableCell (MT-020 amendment).
         NodeKind::ListItem
         | NodeKind::TaskItem
         | NodeKind::Blockquote
-        | NodeKind::TableCell => true,
-        // Tables hold rows; rows hold cells.
+        | NodeKind::TableCell
+        | NodeKind::TableHeader => true,
+        // Tables hold rows; rows hold body cells AND header cells (a header ROW is a tableRow whose
+        // cells are tableHeader nodes — the real Tiptap shape, MT-020 amendment).
         NodeKind::Table => matches!(child, NodeKind::TableRow),
-        NodeKind::TableRow => matches!(child, NodeKind::TableCell),
+        NodeKind::TableRow => matches!(child, NodeKind::TableCell | NodeKind::TableHeader),
         // Inline-content containers hold NO block children.
         NodeKind::Paragraph | NodeKind::Heading(_) | NodeKind::CodeBlock => false,
         // Atoms hold nothing.

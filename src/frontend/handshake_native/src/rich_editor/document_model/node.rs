@@ -63,8 +63,17 @@ pub enum NodeKind {
     Table,
     /// A table row.
     TableRow,
-    /// A table cell.
+    /// A table cell (body cell).
     TableCell,
+    /// A table HEADER cell. MT-020 amendment (carried from MT-013): the REAL backend
+    /// `content_json` uses a DISTINCT `tableHeader` node type for header cells (verified against
+    /// `app/src/lib/tiptap/*` — Tiptap's table extension emits `tableHeader`, NOT
+    /// `tableCell{attrs.isHeader:true}`). MT-011 had only [`NodeKind::TableCell`] and MT-013
+    /// stopgapped header-ness as an attr, which means a React-authored table containing header
+    /// cells would deserialize its `tableHeader` nodes as [`DocJsonError::UnknownNodeType`]. This
+    /// variant + its `to_json_type`/`from_json_type` mapping make a real backend table round-trip.
+    /// A header cell holds block content exactly like a body cell.
+    TableHeader,
     /// A task-list item (carries `attrs.checked: bool`).
     TaskItem,
     /// A hard line break (a leaf inline-ish atom; carries no children/text).
@@ -110,6 +119,7 @@ impl NodeKind {
             NodeKind::Table => "table",
             NodeKind::TableRow => "tableRow",
             NodeKind::TableCell => "tableCell",
+            NodeKind::TableHeader => "tableHeader",
             NodeKind::TaskItem => "taskItem",
             NodeKind::HardBreak => "hardBreak",
             NodeKind::HorizontalRule => "horizontalRule",
@@ -133,6 +143,7 @@ impl NodeKind {
             "table" => NodeKind::Table,
             "tableRow" => NodeKind::TableRow,
             "tableCell" => NodeKind::TableCell,
+            "tableHeader" => NodeKind::TableHeader,
             "taskItem" => NodeKind::TaskItem,
             "hardBreak" => NodeKind::HardBreak,
             "horizontalRule" => NodeKind::HorizontalRule,

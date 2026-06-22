@@ -591,4 +591,56 @@ mod tests {
             Err(DocJsonError::UnknownNodeType(_))
         ));
     }
+
+    #[test]
+    fn table_header_node_deserializes_from_real_backend_shape() {
+        // MT-020 amendment (carried MT-013), anchored to a CAPTURED REAL backend `content_json`
+        // fixture (a Tiptap table whose first row uses `tableHeader` cells and whose body row uses
+        // `tableCell`). Before the TableHeader variant this deserialized as UnknownNodeType. The
+        // fixture is the verbatim shape the React Tiptap table extension emits (NOT
+        // tableCell{attrs.isHeader:true}).
+        let captured = r#"{
+            "type": "doc",
+            "content": [
+                { "type": "table", "content": [
+                    { "type": "tableRow", "content": [
+                        { "type": "tableHeader", "content": [
+                            { "type": "paragraph", "content": [ { "type": "text", "text": "Col A" } ] }
+                        ] },
+                        { "type": "tableHeader", "content": [
+                            { "type": "paragraph", "content": [ { "type": "text", "text": "Col B" } ] }
+                        ] }
+                    ] },
+                    { "type": "tableRow", "content": [
+                        { "type": "tableCell", "content": [
+                            { "type": "paragraph", "content": [ { "type": "text", "text": "1" } ] }
+                        ] },
+                        { "type": "tableCell", "content": [
+                            { "type": "paragraph", "content": [ { "type": "text", "text": "2" } ] }
+                        ] }
+                    ] }
+                ] }
+            ]
+        }"#;
+        // It deserializes without UnknownNodeType (the assertion that fails pre-amendment).
+        let doc = from_json_string(captured).expect("real backend table must deserialize");
+        let table = doc.children[0].as_block().unwrap();
+        assert_eq!(table.kind, NodeKind::Table);
+        let header_row = table.children[0].as_block().unwrap();
+        let header_cell = header_row.children[0].as_block().unwrap();
+        assert_eq!(header_cell.kind, NodeKind::TableHeader, "first-row cells are tableHeader");
+        let body_row = table.children[1].as_block().unwrap();
+        let body_cell = body_row.children[0].as_block().unwrap();
+        assert_eq!(body_cell.kind, NodeKind::TableCell, "second-row cells are tableCell");
+
+        // And it re-serializes back to the same node TYPES (deserialize -> reserialize byte-shape
+        // compatibility against the captured value's structure — NOT a self-round-trip of our own
+        // output; we re-parse our re-serialization and assert the kinds survive).
+        let reser = to_content_json_value(&doc);
+        assert_eq!(reser["content"][0]["content"][0]["content"][0]["type"], "tableHeader");
+        assert_eq!(reser["content"][0]["content"][1]["content"][0]["type"], "tableCell");
+        // Full round-trip equality (model -> json -> model).
+        let back = from_json_value(&reser).unwrap();
+        assert_eq!(doc, back);
+    }
 }

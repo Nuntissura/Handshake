@@ -80,6 +80,28 @@ pub enum FindReplaceShortcut {
     OpenReplace,
 }
 
+/// Decode this frame's events for the SAVE shortcut (Ctrl+S / Cmd+S — MT-020). Returns `true` when
+/// a Ctrl/Cmd+S (without Alt) was pressed this frame. Pure mapping; the widget applies it by calling
+/// the save manager. Ctrl+S produces no `Text` event and is not in the formatting keymap (verified:
+/// the keymap binds neither S as a chord), so it does not double-fire as typing or a format command.
+pub fn decode_save_shortcut(events: &[egui::Event]) -> bool {
+    for ev in events {
+        if let egui::Event::Key {
+            key: egui::Key::S,
+            pressed: true,
+            modifiers,
+            ..
+        } = ev
+        {
+            let ctrl = modifiers.command || modifiers.ctrl;
+            if ctrl && !modifiers.alt {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Decode this frame's events for a find/replace OPEN shortcut (Ctrl+F / Ctrl+H). Returns the LAST
 /// such shortcut in the frame (a frame normally carries at most one). Pure mapping; the widget
 /// applies the result by opening / re-focusing the find panel. The `command` modifier (Cmd on macOS)

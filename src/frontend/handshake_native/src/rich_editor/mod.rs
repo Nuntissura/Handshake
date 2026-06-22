@@ -26,5 +26,6 @@ pub mod find_replace;
 pub mod formatting;
 pub mod properties;
 pub mod renderer;
+pub mod save;
 pub mod slash_commands;
 pub mod wikilinks;

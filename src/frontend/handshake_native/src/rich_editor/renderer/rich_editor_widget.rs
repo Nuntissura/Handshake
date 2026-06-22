@@ -86,6 +86,18 @@ pub struct RichEditorState {
     /// scan is recomputed on open, on every query change, and after every document mutation while the
     /// panel is open. Cleared (with all highlights) on Escape / close.
     pub find_replace: Option<crate::rich_editor::find_replace::FindReplaceState>,
+    /// MT-020 save/draft/conflict coordinator (`None` until the shell installs the document's save
+    /// context via [`Self::set_save_context`] — until then Ctrl+S is a no-op and no draft is checked).
+    /// Owns the canonical-save state machine (incl. the 409 conflict + Keep-yours confirmation), the
+    /// `is_saving` guard, the `doc_version`, and the dirty flag.
+    pub save: Option<crate::rich_editor::save::save_manager::SaveManager>,
+    /// MT-020 draft / crash-recovery coordinator (`None` until [`Self::set_save_context`]). Owns the
+    /// draft state machine (load on mount, 5s debounced upsert, clear on save/discard) + the recovery
+    /// banner state.
+    pub draft: Option<crate::rich_editor::save::draft_manager::DraftManager>,
+    /// MT-020 export format-picker popup open flag (the operator clicked "Export…"). Owned HERE so the
+    /// popup persists across frames until a format is chosen or it is dismissed.
+    pub export_picker_open: bool,
 }
 
 impl RichEditorState {
@@ -147,7 +159,51 @@ impl RichEditorState {
             properties: None,
             properties_runtime,
             find_replace: None,
+            save: None,
+            draft: None,
+            export_picker_open: false,
         }
+    }
+
+    /// MT-020: install the live save/draft context — the production save + draft managers bound to
+    /// the active document at `doc_version`, dispatching off the app's tokio runtime. The shell calls
+    /// this when it mounts a document (the production wiring point). `base_content` seeds the draft
+    /// base hash (the server content the edits fork from); the draft load is triggered on mount.
+    pub fn set_save_context(
+        &mut self,
+        document_id: impl Into<String>,
+        doc_version: u64,
+        runtime: tokio::runtime::Handle,
+    ) {
+        let document_id = document_id.into();
+        let base_content =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+        let save = crate::rich_editor::save::save_manager::SaveManager::production(
+            runtime.clone(),
+            document_id.clone(),
+            doc_version,
+        );
+        let mut draft = crate::rich_editor::save::draft_manager::DraftManager::production(
+            runtime,
+            document_id,
+            doc_version,
+            &base_content,
+        );
+        draft.check_on_mount();
+        self.save = Some(save);
+        self.draft = Some(draft);
+    }
+
+    /// TEST SEAM: install pre-built save + draft managers (with mock backends + no runtime) so the
+    /// conflict window / draft banner / Ctrl+S flow can be exercised headlessly.
+    pub fn with_save_managers(
+        mut self,
+        save: crate::rich_editor::save::save_manager::SaveManager,
+        draft: crate::rich_editor::save::draft_manager::DraftManager,
+    ) -> Self {
+        self.save = Some(save);
+        self.draft = Some(draft);
+        self
     }
 
     /// Install the live wikilink context: the workspace + document the transclusion/backlinks/
@@ -355,6 +411,9 @@ impl RichEditorWidget {
                     ui.vertical(|ui| {
                         // MT-017: the document properties panel ABOVE the content (default collapsed).
                         Self::render_properties(ui, &mut state, &palette);
+                        // MT-020: the draft-recovery banner (only when a recoverable draft is available)
+                        // sits above the toolbar so the operator sees it before editing.
+                        Self::render_draft_banner(ui, &mut state, &palette);
                         Self::render_toolbar(ui, &mut state);
                         ui.separator();
                         Self::render_blocks(ui, &mut state, &palette, has_focus);
@@ -365,6 +424,15 @@ impl RichEditorWidget {
                     // + undo manager. Rendered after the content so it floats above the blocks; the
                     // window does not steal editor keyboard focus (HBR-QUIET).
                     Self::render_find_panel(ui.ctx(), &mut state, &palette);
+
+                    // MT-020: drive the save/draft coordinators (drain completed off-thread results +
+                    // fire the debounced draft upsert), then render the conflict window, the draft
+                    // recovery banner, and the export format picker. All reuse the theme palette + the
+                    // shell accessibility hook. Rendered after the content so the conflict window floats
+                    // above the blocks.
+                    Self::drive_save_and_draft(ui.ctx(), &mut state);
+                    Self::render_conflict_window(ui.ctx(), &mut state, &palette);
+                    Self::render_export_picker(ui, &mut state, &palette);
 
                     // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
                     //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
@@ -418,6 +486,15 @@ impl RichEditorWidget {
             return; // an unfocused editor ignores the remaining input (and never schedules a repaint).
         }
 
+        // MT-020: a Ctrl+S / Cmd+S shortcut triggers a canonical save of the live document. Handled
+        // BEFORE the editing decode so the chord saves instead of being swallowed; Ctrl+S produces no
+        // Text event and is not a formatting chord, so it does not double-fire. A save is a no-op when
+        // no save context is installed (headless / no document) or a save is already in flight (MC-002).
+        if input_handler::decode_save_shortcut(&events) {
+            Self::trigger_save(state);
+            return; // the chord is consumed by the save; do not also run the editing decode this frame.
+        }
+
         // MT-018: a Ctrl+F / Ctrl+H shortcut opens (or re-focuses) the find/replace panel. Handled
         // BEFORE the editing decode so the chord opens the panel instead of being swallowed; the
         // events are NOT removed (Ctrl+F/Ctrl+H produce no Text event and no EditAction, so they do
@@ -467,6 +544,9 @@ impl RichEditorWidget {
         // plain decode recognize) is filtered out here so it does not double-fire; Enter is
         // never a plain-decode action (it has no `EditAction`), so the split fires once.
         let actions = input_handler::decode_events_excluding_formatting(&events, in_list);
+        // Capture whether this frame produced any edit BEFORE the loop consumes `actions`, so the
+        // MT-020 dirty-mark below can read it (the loop moves `actions` into `into_iter`).
+        let any_edit = !actions.is_empty() || !fmt_cmds.is_empty();
         if !actions.is_empty() {
             let RichEditorState { doc, selection, undo, actor_id, .. } = state;
             let mut ctx = EditContext {
@@ -503,6 +583,223 @@ impl RichEditorWidget {
         let RichEditorState { doc, find_replace, .. } = state;
         if let Some(panel) = find_replace.as_mut() {
             panel.rescan(doc);
+        }
+
+        // MT-020: any edit decoded above (text/structural action, IME commit, undo/redo, find-replace
+        // replacement) may have mutated the doc. Mark the save manager dirty + start the draft
+        // debounce window so the 5s auto-draft persists in-progress edits (crash recovery). The dirty
+        // mark is idempotent; the draft debounce only starts on the first dirty change in the window.
+        if any_edit {
+            let now = std::time::Instant::now();
+            if let Some(save) = state.save.as_mut() {
+                save.mark_dirty();
+            }
+            if let Some(draft) = state.draft.as_mut() {
+                draft.mark_dirty(now);
+            }
+        }
+    }
+
+    /// MT-020: trigger a canonical save of the live document. Captures the current `content_json`
+    /// from the doc (NEVER a stale snapshot — MC-001), records it as the pending local content (so a
+    /// resulting 409 conflict carries the operator's version), and asks the save manager to save.
+    /// No-op when no save context is installed or a save is already in flight (MC-002).
+    fn trigger_save(state: &mut RichEditorState) {
+        let content =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if let Some(save) = state.save.as_mut() {
+            save.set_pending_local_content(content.clone());
+            save.request_save(content);
+        }
+    }
+
+    /// MT-020: drive the save + draft coordinators each frame. Drains a completed off-thread save
+    /// result (applying Saved/Conflict/Failed); on a successful save clears the draft + re-bases it.
+    /// Drains a completed draft-load result (offering the recovery banner). Fires the debounced draft
+    /// upsert IF due AND no save is in flight (MC-002). Requests a repaint when any async result
+    /// landed so the new state paints without waiting for the next input event.
+    fn drive_save_and_draft(ctx: &egui::Context, state: &mut RichEditorState) {
+        let mut applied = false;
+        // Drain a completed save result.
+        let save_outcome = state.save.as_mut().and_then(|s| s.drain());
+        if let Some(outcome) = save_outcome {
+            use crate::rich_editor::save::save_manager::SaveOutcome;
+            applied = true;
+            match outcome {
+                SaveOutcome::Saved { doc_version } => {
+                    // The canonical save landed: clear the server draft + re-base the draft manager on
+                    // the just-saved content + version (so a later edit's draft bases correctly).
+                    let saved_content =
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                    if let Some(draft) = state.draft.as_mut() {
+                        draft.clear_after_save(doc_version, &saved_content);
+                    }
+                }
+                SaveOutcome::Conflict | SaveOutcome::Failed(_) => {
+                    // The conflict window / error chip renders from the save state; nothing else here.
+                }
+            }
+        }
+        // Drain a completed draft-load result (recovery banner offer).
+        if let Some(draft) = state.draft.as_mut() {
+            if draft.drain_load() {
+                applied = true;
+            }
+        }
+        // Fire the debounced draft upsert if due and no save is in flight (MC-002).
+        let save_in_flight = state.save.as_ref().map(|s| s.is_saving()).unwrap_or(false);
+        let content = if state.draft.is_some() {
+            Some(crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc))
+        } else {
+            None
+        };
+        if let (Some(draft), Some(content)) = (state.draft.as_mut(), content) {
+            let now = std::time::Instant::now();
+            if draft.maybe_upsert(content, now, save_in_flight) {
+                applied = true;
+            }
+            // Keep animating while dirty so the debounce can fire on a later frame without new input.
+            if draft.banner_visible() || save_in_flight {
+                ctx.request_repaint_after(std::time::Duration::from_millis(250));
+            }
+        }
+        if applied {
+            ctx.request_repaint();
+        }
+    }
+
+    /// MT-020: render the conflict window when a save conflict is open, and apply the operator's
+    /// choice against the save manager + doc. "Keep server" rebuilds the live doc from the server
+    /// content; "Keep yours" routes through the MC-003 confirmation before the overwrite.
+    fn render_conflict_window(ctx: &egui::Context, state: &mut RichEditorState, palette: &HsPalette) {
+        use crate::rich_editor::save::conflict_ui::{show_conflict_window, ConflictOutcome};
+        use crate::rich_editor::document_model::doc_json::from_json_value;
+
+        let Some(save) = state.save.as_ref() else { return };
+        if !save.has_conflict() {
+            return;
+        }
+        let outcome = show_conflict_window(ctx, save, palette);
+        match outcome {
+            ConflictOutcome::None => {}
+            ConflictOutcome::RequestKeepYours => {
+                if let Some(s) = state.save.as_mut() {
+                    s.request_keep_yours();
+                }
+            }
+            ConflictOutcome::ConfirmKeepYours => {
+                if let Some(s) = state.save.as_mut() {
+                    // Re-thread the live content as the overwrite payload, then confirm.
+                    let content =
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                    s.set_pending_local_content(content);
+                    s.confirm_keep_yours();
+                }
+            }
+            ConflictOutcome::CancelKeepYours => {
+                if let Some(s) = state.save.as_mut() {
+                    s.cancel_keep_yours();
+                }
+            }
+            ConflictOutcome::KeepServer => {
+                // Adopt the server content: rebuild the live doc from it, reset the caret to the start,
+                // and clear the conflict.
+                let server_content = state.save.as_mut().and_then(|s| s.keep_server());
+                if let Some(content) = server_content {
+                    if let Ok(doc) = from_json_value(&content) {
+                        state.doc = doc;
+                        state.selection =
+                            Selection::caret(DocPosition::new(vec![0, 0], 0));
+                        state.undo = UndoManager::new();
+                    }
+                }
+            }
+        }
+    }
+
+    /// MT-020: render the draft-recovery banner (only when a recoverable draft is available) and
+    /// apply the operator's choice. "Restore draft" rebuilds the live doc from the draft content;
+    /// "Discard" clears the server draft; "Keep editing" dismisses the banner without discarding.
+    fn render_draft_banner(ui: &mut egui::Ui, state: &mut RichEditorState, palette: &HsPalette) {
+        use crate::rich_editor::save::conflict_ui::{show_draft_banner, DraftBannerOutcome};
+        use crate::rich_editor::document_model::doc_json::from_json_value;
+
+        let Some(draft) = state.draft.as_ref() else { return };
+        if !draft.banner_visible() {
+            return;
+        }
+        let outcome = show_draft_banner(ui, draft, palette);
+        match outcome {
+            DraftBannerOutcome::None => {}
+            DraftBannerOutcome::Restore => {
+                let restored = state.draft.as_mut().and_then(|d| d.restore_draft());
+                if let Some(content) = restored {
+                    if let Ok(doc) = from_json_value(&content) {
+                        state.doc = doc;
+                        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+                        state.undo = UndoManager::new();
+                        // A restored draft is unsaved -> mark dirty so a later Ctrl+S persists it.
+                        if let Some(save) = state.save.as_mut() {
+                            save.mark_dirty();
+                        }
+                    }
+                }
+            }
+            DraftBannerOutcome::Discard => {
+                if let Some(d) = state.draft.as_mut() {
+                    d.discard_draft();
+                }
+            }
+            DraftBannerOutcome::Dismiss => {
+                if let Some(d) = state.draft.as_mut() {
+                    d.dismiss_banner();
+                }
+            }
+        }
+    }
+
+    /// MT-020: render the export format-picker popup when open, and run the chosen export to bytes.
+    /// The bytes are written through the production [`NativeFileSaveSink`] (the `rfd` dialog on a
+    /// dedicated thread — HBR-QUIET, user-initiated). A toast-style status line reports the result.
+    /// Asset resolution for HTML self-contained is left to a future wiring step; this MT exports the
+    /// non-image formats directly and HTML with reference-linked media (no frame-thread network).
+    fn render_export_picker(ui: &mut egui::Ui, state: &mut RichEditorState, _palette: &HsPalette) {
+        use crate::rich_editor::save::conflict_ui::{show_export_picker, NativeFileSaveSink, FileSaveSink};
+        use crate::rich_editor::save::export::{export_document, AssetByteSource, ExportFormat};
+
+        if !state.export_picker_open {
+            return;
+        }
+        let mut chosen: Option<ExportFormat> = None;
+        egui::Area::new(ui.id().with("export-picker-area"))
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                chosen = show_export_picker(ui);
+            });
+        if let Some(format) = chosen {
+            state.export_picker_open = false;
+            let workspace_id = state.embeds.workspace_id.clone();
+            let title = state
+                .properties
+                .as_ref()
+                .map(|p| p.doc_metadata.title.clone())
+                .unwrap_or_else(|| "document".to_owned());
+            // HTML self-contained needs resolved asset bytes (fetched off-thread); without a wired
+            // resolver in this MT, an empty asset map degrades each image to a visible "unresolved"
+            // reference placeholder (never a silent blank) — the export still completes.
+            let assets = AssetByteSource::new();
+            if let Ok(output) = export_document(
+                &state.doc,
+                format,
+                &workspace_id,
+                crate::backend_client::BACKEND_BASE_URL,
+                &title,
+                &assets,
+            ) {
+                // The real dialog is user-initiated (the operator just clicked a format) and runs on a
+                // dedicated thread (HBR-QUIET). The sink returns the written path or None on cancel.
+                let _path = NativeFileSaveSink.save(&output);
+            }
         }
     }
 

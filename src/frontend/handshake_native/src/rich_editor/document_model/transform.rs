@@ -83,6 +83,25 @@ pub enum Step {
     AddMark { path: Vec<usize>, mark: Mark },
     /// Remove every mark of `mark`'s type from the text leaf at `path`.
     RemoveMark { path: Vec<usize>, mark: Mark },
+    /// Insert an INLINE child (`Text`, `HsLink`, or `Transclusion`) at `index` of the
+    /// inline-content block at `parent_path`. MT-020 amendment (carried from MT-015): MT-011's
+    /// [`Step::InsertNode`] only inserts a `Child::Block`, so inserting an inline atom (an `hsLink`
+    /// wikilink, a `loomTransclusion`, or a styled text run) bypassed the transaction/undo system —
+    /// an inline-atom insert was NOT undoable. This step makes inline-atom insertion go through
+    /// `apply_transaction` (atomic + schema-validated + invertible), so a wikilink/transclusion/text
+    /// insert is on the undo stack like every other edit. The inverse is a [`Step::DeleteInlineChild`].
+    InsertInlineChild {
+        parent_path: Vec<usize>,
+        index: usize,
+        child: Child,
+    },
+    /// Delete the INLINE child at `index` of the inline-content block at `parent_path`. The inverse
+    /// is a [`Step::InsertInlineChild`] re-inserting the captured child, so an inline-atom delete is
+    /// undoable (MT-020 amendment).
+    DeleteInlineChild {
+        parent_path: Vec<usize>,
+        index: usize,
+    },
 }
 
 /// An ordered batch of steps with actor metadata. Applied atomically.
@@ -334,6 +353,34 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
                 }),
             }
         }
+        Step::InsertInlineChild { parent_path, index, .. } => {
+            // Inverse of inserting an inline child is deleting it.
+            Ok(Step::DeleteInlineChild {
+                parent_path: parent_path.clone(),
+                index: *index,
+            })
+        }
+        Step::DeleteInlineChild { parent_path, index } => {
+            // Inverse of deleting an inline child is re-inserting the captured child verbatim (so a
+            // wikilink/transclusion/marked-text run restores exactly — undo losslessness).
+            let parent = block_at(doc, parent_path)?;
+            let parent_kind = parent.kind;
+            let parent_len = parent.children.len();
+            let child = parent
+                .children
+                .get(*index)
+                .ok_or(TransformError::ChildIndexOutOfRange {
+                    parent: parent_kind,
+                    index: *index,
+                    len: parent_len,
+                })?
+                .clone();
+            Ok(Step::InsertInlineChild {
+                parent_path: parent_path.clone(),
+                index: *index,
+                child,
+            })
+        }
     }
 }
 
@@ -385,6 +432,30 @@ fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
         Step::RemoveMark { path, mark } => {
             let leaf = text_leaf_at_mut(doc, path)?;
             leaf.remove_marks_of_type(mark);
+            Ok(())
+        }
+        Step::InsertInlineChild { parent_path, index, child } => {
+            let parent = block_at_mut(doc, parent_path)?;
+            if *index > parent.children.len() {
+                return Err(TransformError::ChildIndexOutOfRange {
+                    parent: parent.kind,
+                    index: *index,
+                    len: parent.children.len(),
+                });
+            }
+            parent.children.insert(*index, child.clone());
+            Ok(())
+        }
+        Step::DeleteInlineChild { parent_path, index } => {
+            let parent = block_at_mut(doc, parent_path)?;
+            if *index >= parent.children.len() {
+                return Err(TransformError::ChildIndexOutOfRange {
+                    parent: parent.kind,
+                    index: *index,
+                    len: parent.children.len(),
+                });
+            }
+            parent.children.remove(*index);
             Ok(())
         }
     }
@@ -688,6 +759,68 @@ mod tests {
         // Inverse restores the two paragraphs.
         apply_transaction(&mut doc, Transaction::operator(receipt.inverse)).unwrap();
         assert_eq!(doc, before);
+    }
+
+    #[test]
+    fn insert_inline_atom_is_undoable() {
+        // MT-020 amendment (carried MT-015): inserting an inline hsLink atom through
+        // InsertInlineChild goes through apply_transaction, so its inverse (DeleteInlineChild)
+        // restores the pre-insert doc exactly — the property the undo manager relies on.
+        use super::super::node::HsLinkNode;
+        let mut doc = BlockNode::doc(vec![BlockNode::paragraph("see ")]);
+        let before = doc.clone();
+        let tx = Transaction::operator(vec![Step::InsertInlineChild {
+            parent_path: vec![0], // the paragraph
+            index: 1,             // after the "see " text run
+            child: Child::HsLink(HsLinkNode::new("wp", "WP-KERNEL-012", "the WP")),
+        }]);
+        let receipt = apply_transaction(&mut doc, tx).unwrap();
+        // The atom landed as a sibling inline child of the text run.
+        let para = doc.children[0].as_block().unwrap();
+        assert_eq!(para.children.len(), 2);
+        assert!(para.children[1].as_hs_link().is_some());
+        // Undo restores the original (atom removed).
+        apply_transaction(&mut doc, Transaction::operator(receipt.inverse)).unwrap();
+        assert_eq!(doc, before);
+    }
+
+    #[test]
+    fn delete_inline_atom_is_undoable_and_lossless() {
+        // Deleting an inline atom and undoing restores the EXACT atom (payload intact).
+        use super::super::node::{HsLinkNode, TransclusionNode};
+        let mut para = BlockNode::new(NodeKind::Paragraph);
+        para.children.push(Child::Text(TextLeaf::new("a")));
+        para.children.push(Child::Transclusion(TransclusionNode::new("BLK-9")));
+        para.children.push(Child::HsLink(HsLinkNode::new("note", "N-1", "note one")));
+        let mut doc = BlockNode::doc(vec![para]);
+        let before = doc.clone();
+        // Delete the transclusion at inline index 1.
+        let tx = Transaction::operator(vec![Step::DeleteInlineChild {
+            parent_path: vec![0],
+            index: 1,
+        }]);
+        let receipt = apply_transaction(&mut doc, tx).unwrap();
+        assert_eq!(doc.children[0].as_block().unwrap().children.len(), 2);
+        // Undo restores the transclusion in place.
+        apply_transaction(&mut doc, Transaction::operator(receipt.inverse)).unwrap();
+        assert_eq!(doc, before);
+    }
+
+    #[test]
+    fn inline_atom_into_non_inline_block_rolls_back() {
+        // Inserting an inline atom into the doc root (which holds only block children) must fail
+        // schema validation and roll back atomically (RISK-2).
+        use super::super::node::HsLinkNode;
+        let mut doc = BlockNode::doc(vec![BlockNode::paragraph("x")]);
+        let before = doc.clone();
+        let tx = Transaction::operator(vec![Step::InsertInlineChild {
+            parent_path: vec![], // the doc root — inline atoms are not allowed here
+            index: 0,
+            child: Child::HsLink(HsLinkNode::new("wp", "W", "w")),
+        }]);
+        let err = apply_transaction(&mut doc, tx).unwrap_err();
+        assert!(matches!(err, TransformError::Schema(_)));
+        assert_eq!(doc, before, "doc must be unchanged after the rejected inline insert");
     }
 
     #[test]
