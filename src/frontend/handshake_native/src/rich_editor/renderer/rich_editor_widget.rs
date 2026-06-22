@@ -69,6 +69,10 @@ pub struct RichEditorState {
     /// BacklinkActivated / TransclusionOpenRequested). This MT only ENQUEUES; routing is owned by the
     /// shell (E11/MT-069). The shell drains this each frame after the editor renders.
     pub pending_events: Vec<crate::rich_editor::wikilinks::inline_view::EditorEvent>,
+    /// MT-016 active slash-command menu (`Some` while the operator has an open `/` trigger). Owned HERE
+    /// so the popup state (filter / selection / active prompt) persists across frames; closed on focus
+    /// loss (MC-004) and on Escape / execute / the `/` being deleted.
+    pub slash_menu: Option<crate::rich_editor::slash_commands::SlashMenuState>,
 }
 
 impl RichEditorState {
@@ -113,6 +117,7 @@ impl RichEditorState {
             wikilinks,
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
+            slash_menu: None,
         }
     }
 
@@ -254,6 +259,20 @@ impl RichEditorWidget {
                         "rich-editor-surface",
                     );
 
+                    // MT-016 (RISK-4 / MC-004): close the slash menu when the editor surface loses
+                    // focus (e.g. the operator clicked outside the window), so an open popup never
+                    // strands input to other surfaces. An ACTIVE PROMPT modal is left open — it is a
+                    // top-order egui::Window that holds its own focus, so the editor-surface losing
+                    // focus to the modal is expected and must NOT dismiss the modal.
+                    if !has_focus
+                        && state
+                            .slash_menu
+                            .as_ref()
+                            .is_some_and(|m| !m.prompt_active())
+                    {
+                        state.slash_menu = None;
+                    }
+
                     // 1) Apply input + IME for this frame (only meaningful when focused, but
                     //    we still drain events so a programmatically-focused test works).
                     Self::apply_frame_input(ui, &mut state, has_focus);
@@ -304,6 +323,18 @@ impl RichEditorWidget {
         // The claimed key events are removed from the event list before the normal editing path runs.
         if state.wikilink_autocomplete.is_some() {
             events = Self::handle_autocomplete_keys(state, events);
+        }
+
+        // MT-016: when the slash menu is OPEN (and no autocomplete is active, and no prompt modal is
+        // up — the prompt owns Enter/Escape via its own render), it CLAIMS the nav/confirm/cancel keys
+        // (Up/Down/Enter/Escape) so they drive the menu instead of the editor (Enter executes the
+        // selected command instead of splitting the paragraph; Escape closes + leaves the `/`). Like
+        // the autocomplete claim, this runs BEFORE the focus gate so Escape is not swallowed when egui
+        // releases focus in the same frame. The claimed keys are removed before the editing path runs.
+        if state.wikilink_autocomplete.is_none()
+            && state.slash_menu.as_ref().is_some_and(|m| !m.prompt_active())
+        {
+            events = Self::handle_slash_menu_keys(state, events);
         }
 
         if !has_focus {
@@ -367,6 +398,17 @@ impl RichEditorWidget {
         // text-before-caret. Typing `[[` opens the popup; typing more refines the query (bumping the
         // debounce + generation); typing/moving past `]]` (or out of the token) closes it.
         Self::refresh_autocomplete_trigger(state);
+
+        // MT-016: re-detect the `/` slash-command trigger from the caret's text-before-caret. Typing
+        // `/` at the start of a blank line or after whitespace opens the menu; typing more refines the
+        // filter; backspacing the `/`, typing a space, or moving out of the token closes it (AC-1/AC-2/
+        // AC-5). Skipped while a prompt modal is active (the prompt owns the input) or the autocomplete
+        // is open (mutually exclusive surfaces).
+        if state.wikilink_autocomplete.is_none()
+            && !state.slash_menu.as_ref().is_some_and(|m| m.prompt_active())
+        {
+            Self::refresh_slash_trigger(state);
+        }
     }
 
     /// Handle the autocomplete popup's navigation/confirm/cancel keys while it is open. Consumes
@@ -487,6 +529,152 @@ impl RichEditorWidget {
         match &state.selection {
             Selection::Text { head, .. } => head.char_offset,
             Selection::Node { .. } => 0,
+        }
+    }
+
+    /// MT-016: claim the slash menu's nav/confirm/cancel keys while it is open. Up/Down move the
+    /// selection (clamped to the filtered length), Enter executes the selected command, Escape cancels
+    /// (closing the menu and leaving the `/` in the text — AC-5). Returns the events NOT claimed (so
+    /// plain typing that refines the filter still reaches the editing path, and the filter is then
+    /// re-detected by [`Self::refresh_slash_trigger`]).
+    fn handle_slash_menu_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+        use crate::rich_editor::slash_commands::menu::SlashMenuOutcome;
+        use crate::rich_editor::slash_commands::registry::filter_slash_commands;
+
+        let mut remaining = Vec::with_capacity(events.len());
+        let mut decisive: SlashMenuOutcome = SlashMenuOutcome::None;
+        for ev in events {
+            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+                remaining.push(ev);
+                continue;
+            };
+            match key {
+                egui::Key::ArrowDown | egui::Key::ArrowUp => {
+                    if let Some(menu) = state.slash_menu.as_mut() {
+                        let filtered = filter_slash_commands(&menu.filter);
+                        if !filtered.is_empty() {
+                            let max = filtered.len() as i64 - 1;
+                            let delta = if matches!(key, egui::Key::ArrowDown) { 1 } else { -1 };
+                            let cur = (menu.selected as i64).min(max);
+                            menu.selected = (cur + delta).clamp(0, max) as usize;
+                        }
+                    }
+                }
+                egui::Key::Enter => {
+                    if let Some(menu) = state.slash_menu.as_ref() {
+                        let filtered = filter_slash_commands(&menu.filter);
+                        if !filtered.is_empty() {
+                            decisive = SlashMenuOutcome::Execute(menu.selected.min(filtered.len() - 1));
+                        } else {
+                            decisive = SlashMenuOutcome::Cancel;
+                        }
+                    }
+                }
+                egui::Key::Escape => {
+                    decisive = SlashMenuOutcome::Cancel;
+                }
+                // Any other key (plain typing, backspace) passes through; the trigger re-detection
+                // then refines/closes the menu from the resulting leaf text.
+                _ => remaining.push(ev),
+            }
+        }
+        match decisive {
+            SlashMenuOutcome::Execute(idx) => Self::execute_slash_selection(state, idx),
+            SlashMenuOutcome::Cancel => {
+                // AC-5: Escape (or Enter on an empty list) closes the menu, leaving the `/` in the text.
+                state.slash_menu = None;
+            }
+            SlashMenuOutcome::None => {}
+        }
+        remaining
+    }
+
+    /// MT-016: execute the slash command at `filtered_index` into the CURRENTLY filtered list, via the
+    /// executor. Translates the executor outcome into editor state: `Done` closes the menu;
+    /// `OpenPrompt` keeps the menu open carrying the prompt (the list hides, the modal shows);
+    /// `OpenWikilinkAutocomplete` closes the menu (the autocomplete refresh then opens the popup).
+    fn execute_slash_selection(state: &mut RichEditorState, filtered_index: usize) {
+        use crate::rich_editor::slash_commands::executor::{
+            execute_slash_command, SlashExecContext, SlashExecOutcome,
+        };
+        use crate::rich_editor::slash_commands::registry::filter_slash_commands;
+
+        let Some(menu) = state.slash_menu.clone() else { return };
+        let filtered = filter_slash_commands(&menu.filter);
+        let Some(cmd) = filtered.get(filtered_index).copied() else {
+            state.slash_menu = None;
+            return;
+        };
+        let outcome = {
+            let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            let mut ctx = SlashExecContext {
+                doc,
+                history: undo,
+                selection,
+                actor_id: actor_id.as_str(),
+            };
+            execute_slash_command(&mut ctx, &menu, cmd)
+        };
+        match outcome {
+            SlashExecOutcome::Done { .. } => state.slash_menu = None,
+            SlashExecOutcome::OpenPrompt(prompt) => {
+                // Keep the menu open carrying the prompt; the list hides and the modal renders.
+                if let Some(m) = state.slash_menu.as_mut() {
+                    m.prompt = Some(prompt);
+                }
+            }
+            SlashExecOutcome::OpenWikilinkAutocomplete => {
+                // The `[[` was inserted; close the slash menu and let the autocomplete refresh take it.
+                state.slash_menu = None;
+            }
+        }
+    }
+
+    /// MT-016: re-detect the `/` slash-command trigger from the caret's text-before-caret. Opens the
+    /// menu when a new open `/` trigger appears (at a blank-line start or after whitespace, never inside
+    /// a URL/path — RISK-1/MC-001), updates the filter when it refines, and closes the menu when the
+    /// trigger is gone (the `/` was backspaced, a space ended the token, or the caret moved out).
+    fn refresh_slash_trigger(state: &mut RichEditorState) {
+        use crate::rich_editor::slash_commands::{
+            caret_char_offset, caret_leaf_text, open_slash_trigger, SlashMenuState,
+        };
+
+        // The caret's leaf text + the caret's char offset within it.
+        let (Some((leaf_path, leaf_text)), Some(caret_char)) = (
+            caret_leaf_text(&state.doc, &state.selection),
+            caret_char_offset(&state.selection),
+        ) else {
+            state.slash_menu = None; // no text caret -> no menu.
+            return;
+        };
+        // A prompt modal owns the input — never touch the menu while one is up.
+        let prompt_active = state.slash_menu.as_ref().is_some_and(|m| m.prompt_active());
+        if prompt_active {
+            return;
+        }
+        match open_slash_trigger(&leaf_text, caret_char) {
+            Some((trigger_char, filter)) => {
+                // Is the existing menu the SAME open token (same leaf + trigger char)?
+                let same_token = state.slash_menu.as_ref().is_some_and(|m| {
+                    m.trigger_leaf_path == leaf_path && m.trigger_char == trigger_char
+                });
+                if same_token {
+                    // Refine the filter in place (reset the selection on a change).
+                    if let Some(menu) = state.slash_menu.as_mut() {
+                        if menu.filter != filter {
+                            menu.filter = filter;
+                            menu.selected = 0;
+                        }
+                    }
+                } else {
+                    // A new/relocated trigger -> open a fresh menu.
+                    let mut menu = SlashMenuState::open(leaf_path, trigger_char);
+                    menu.filter = filter;
+                    state.slash_menu = Some(menu);
+                }
+            }
+            // No open trigger -> close the menu.
+            None => state.slash_menu = None,
         }
     }
 
@@ -772,6 +960,18 @@ impl RichEditorWidget {
             Self::render_autocomplete_popup(ui, state, palette, caret_pixel);
         }
 
+        // MT-016: the slash-command menu popup (list) or its active prompt modal, anchored at the caret
+        // pixel (same caret-galley resolution as the autocomplete popup). Rendered AFTER the content so
+        // it sits above the blocks. The widget returns an outcome the host applies to the editor state.
+        if state.slash_menu.is_some() {
+            let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                let local = galley.pos_from_cursor(cursor);
+                egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
+            });
+            Self::render_slash_surface(ui, state, palette, caret_pixel);
+        }
+
         // RISK-3 idle-CPU control: schedule the next blink frame ONLY when focused. An
         // unfocused editor returns false here and never requests a repaint.
         let _scheduled = request_blink_repaint(ui.ctx(), has_focus);
@@ -860,6 +1060,76 @@ impl RichEditorWidget {
             let RichEditorState { doc, selection, .. } = state;
             confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
             state.wikilink_autocomplete = None;
+        }
+    }
+
+    /// MT-016: render the open slash-command surface — either the popup menu LIST (no prompt active) or
+    /// the active prompt MODAL (embed/transclusion/manual insert). Applies the widget's outcome to the
+    /// editor state: a clicked menu row executes via [`Self::execute_slash_selection`]; a confirmed
+    /// prompt inserts via the executor's `confirm_prompt`; a cancelled prompt/menu closes the surface.
+    fn render_slash_surface(
+        ui: &mut egui::Ui,
+        state: &mut RichEditorState,
+        palette: &HsPalette,
+        caret_pixel: Option<egui::Pos2>,
+    ) {
+        use crate::rich_editor::slash_commands::executor::{confirm_prompt, SlashExecContext};
+        use crate::rich_editor::slash_commands::menu::{
+            render_slash_menu, render_slash_prompt, SlashMenuOutcome, SlashPromptOutcome,
+        };
+
+        let Some(menu) = state.slash_menu.clone() else { return };
+
+        // A prompt modal is active -> render it (the list is hidden while a prompt is up).
+        if let Some(prompt) = menu.prompt.clone() {
+            let mut input = prompt.input.clone();
+            let outcome = render_slash_prompt(ui.ctx(), prompt.title(), prompt.hint(), &mut input);
+            // Persist the typed input back into the live menu state so it survives across frames.
+            if let Some(m) = state.slash_menu.as_mut() {
+                if let Some(p) = m.prompt.as_mut() {
+                    p.input = input.clone();
+                }
+            }
+            match outcome {
+                SlashPromptOutcome::Confirm => {
+                    let mut confirm_state = prompt.clone();
+                    confirm_state.input = input;
+                    let _inserted = {
+                        let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+                        let mut ctx = SlashExecContext {
+                            doc,
+                            history: undo,
+                            selection,
+                            actor_id: actor_id.as_str(),
+                        };
+                        confirm_prompt(&mut ctx, &confirm_state)
+                    };
+                    // Whether or not the insert happened (blank input is a no-op), close the surface on
+                    // confirm so a blank confirm dismisses cleanly.
+                    state.slash_menu = None;
+                    ui.ctx().request_repaint();
+                }
+                SlashPromptOutcome::Cancel => {
+                    state.slash_menu = None;
+                    ui.ctx().request_repaint();
+                }
+                SlashPromptOutcome::None => {}
+            }
+            return;
+        }
+
+        // No prompt -> render the menu list. A click executes the row (keyboard Enter is handled in the
+        // input pass via handle_slash_menu_keys).
+        let outcome = render_slash_menu(ui, &menu, palette, caret_pixel);
+        match outcome {
+            SlashMenuOutcome::Execute(idx) => {
+                Self::execute_slash_selection(state, idx);
+                ui.ctx().request_repaint();
+            }
+            SlashMenuOutcome::Cancel => {
+                state.slash_menu = None;
+            }
+            SlashMenuOutcome::None => {}
         }
     }
 }
