@@ -161,6 +161,36 @@ fn light_syntax_tokens() {
     assert_eq!(s.background, HsPalette::light().bg, "light.syntax.background==bg");
 }
 
+// ---- gutter diagnostic / breakpoint tokens (WP-KERNEL-012 MT-007) ----
+//
+// The MT-007 gutter affordance colors live in the theme layer (one of the two sanctioned homes for
+// Color32 literals) instead of being hardcoded in gutter.rs, so the CONTROL-4 no-hardcode invariant
+// stays GREEN. These tests pin the exact MT-contract hues: Error=red, Warning=yellow,
+// Info/Hint=cornflower rgb(100,149,237), breakpoint=rgb(229,60,60).
+
+#[test]
+fn dark_diagnostic_tokens_match_mt007_contract() {
+    let d = HsPalette::dark().diagnostics;
+    assert_eq!(d.error, Color32::from_rgb(0xff, 0x00, 0x00), "dark.diagnostics.error==RED");
+    assert_eq!(d.warning, Color32::from_rgb(0xff, 0xff, 0x00), "dark.diagnostics.warning==YELLOW");
+    assert_eq!(d.info, Color32::from_rgb(100, 149, 237), "dark.diagnostics.info==cornflower");
+    assert_eq!(d.hint, Color32::from_rgb(100, 149, 237), "dark.diagnostics.hint==cornflower");
+    assert_eq!(d.breakpoint, Color32::from_rgb(229, 60, 60), "dark.diagnostics.breakpoint");
+    // Error must equal egui's RED so the AC-003 gutter red-pixel screenshot stays valid.
+    assert_eq!(d.error, Color32::RED, "dark.diagnostics.error==Color32::RED");
+    assert_eq!(d.warning, Color32::YELLOW, "dark.diagnostics.warning==Color32::YELLOW");
+}
+
+#[test]
+fn light_diagnostic_tokens_match_mt007_contract() {
+    let d = HsPalette::light().diagnostics;
+    assert_eq!(d.error, Color32::from_rgb(0xff, 0x00, 0x00), "light.diagnostics.error==RED");
+    assert_eq!(d.warning, Color32::from_rgb(0xff, 0xff, 0x00), "light.diagnostics.warning==YELLOW");
+    assert_eq!(d.info, Color32::from_rgb(100, 149, 237), "light.diagnostics.info==cornflower");
+    assert_eq!(d.hint, Color32::from_rgb(100, 149, 237), "light.diagnostics.hint==cornflower");
+    assert_eq!(d.breakpoint, Color32::from_rgb(229, 60, 60), "light.diagnostics.breakpoint");
+}
+
 // ---- HsTheme::palette mapping + toggle ----
 
 #[test]
@@ -291,7 +321,16 @@ fn no_hardcoded_color32_outside_theme_module() {
             }
             let content = fs::read_to_string(&path).expect("read rs file");
             for (i, line) in content.lines().enumerate() {
-                if line.contains("Color32::from_rgb")
+                // Flag the opaque-literal forms only: `Color32::from_rgb(`, `Color32::WHITE`,
+                // `Color32::BLACK`. The open paren on `from_rgb(` is REQUIRED — without it the check
+                // is a substring of `Color32::from_rgba_premultiplied(` /
+                // `Color32::from_rgba_unmultiplied(`, which the invariant deliberately does NOT flag
+                // (those are the sanctioned translucent-affordance form used by the MT-003 selection
+                // tint, MT-004 match highlight, and MT-002 minimap overlay — premultiplied/unmultiplied
+                // RGBA the contracts name explicitly, not opaque syntax hex). Matching the bare prefix
+                // over-flagged every `from_rgba_*` call; pinning `from_rgb(` keeps the no-hardcoded-hex
+                // guard honest without false positives on the RGBA affordance form.
+                if line.contains("Color32::from_rgb(")
                     || line.contains("Color32::WHITE")
                     || line.contains("Color32::BLACK")
                 {

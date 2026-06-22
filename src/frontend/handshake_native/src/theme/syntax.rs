@@ -48,3 +48,53 @@ impl HsSyntaxTokens {
         }
     }
 }
+
+/// Editor gutter diagnostic + breakpoint affordance colors for a single theme.
+///
+/// These are UI affordances of the code-editor surface (the diagnostic severity dots / 3px left
+/// bars and the breakpoint circle), not arbitrary widget hex. They live here in `syntax.rs` — one of
+/// the two sanctioned homes for `Color32` literals (the other is `palette.rs`) — so the no-hardcode
+/// invariant (CONTROL-4, grep-enforced by `tests/test_theme.rs`) stays GREEN and the gutter reads
+/// these from the live theme instead of baking literals into widget code. Resolved per frame from
+/// the active `HsTheme` so the gutter affordances track dark/light like every other token.
+///
+/// Token values are the ones the WP-KERNEL-012 MT-007 contract names exactly: Error = pure red,
+/// Warning = pure yellow, Info/Hint = cornflower blue `rgb(100,149,237)`, breakpoint = `rgb(229,60,60)`.
+/// Dark and light currently share the same severity hues (these are saturated semantic signals that
+/// read on either background, matching VS Code, which also keeps severity hues constant across themes);
+/// the per-theme constructors exist so a later MT can diverge them via the override map without a
+/// signature change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HsDiagnosticTokens {
+    /// Error severity dot + 3px left bar (pure red — the AC-003 red-pixel affordance).
+    pub error: Color32,
+    /// Warning severity dot + left bar (pure yellow).
+    pub warning: Color32,
+    /// Info severity dot + left bar (cornflower blue).
+    pub info: Color32,
+    /// Hint severity dot + left bar (the dimmest level; shares the Info blue per the MT contract).
+    pub hint: Color32,
+    /// Filled breakpoint circle color (a slightly softened red so it reads distinct from the pure-red
+    /// error dot).
+    pub breakpoint: Color32,
+}
+
+impl HsDiagnosticTokens {
+    /// Dark-theme gutter diagnostic/breakpoint colors (the MT-007 contract values).
+    pub fn dark() -> Self {
+        Self {
+            error: Color32::from_rgb(0xff, 0x00, 0x00),
+            warning: Color32::from_rgb(0xff, 0xff, 0x00),
+            info: Color32::from_rgb(100, 149, 237),
+            hint: Color32::from_rgb(100, 149, 237),
+            breakpoint: Color32::from_rgb(229, 60, 60),
+        }
+    }
+
+    /// Light-theme gutter diagnostic/breakpoint colors. Currently identical to dark (saturated
+    /// severity signals that read on either background, matching VS Code's theme-constant severity
+    /// hues); kept as its own constructor so a later MT can diverge without a call-site change.
+    pub fn light() -> Self {
+        Self::dark()
+    }
+}

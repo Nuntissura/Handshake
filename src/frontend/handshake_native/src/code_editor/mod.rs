@@ -66,8 +66,8 @@ pub mod virtual_lines;
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};
 pub use gutter::{
-    DiagnosticSeverity, Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind,
-    GutterResponse, BREAKPOINT_COLOR,
+    breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
+    GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
 };
 pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
 pub use cursor::{

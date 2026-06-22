@@ -17,4 +17,4 @@ pub mod syntax;
 
 pub use egui_apply::apply_to_ctx;
 pub use palette::{parse_color, HsPalette, HsTheme};
-pub use syntax::HsSyntaxTokens;
+pub use syntax::{HsDiagnosticTokens, HsSyntaxTokens};

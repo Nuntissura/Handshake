@@ -12,7 +12,7 @@
 //! `rgba(34,197,94,0.18)` is `(6,36,17,46)`. Using egui's function avoids the "subtly wrong
 //! premultiplied alpha" defect RISK-2 warns about; see test_theme.rs for the deviation note.)
 
-use crate::theme::syntax::HsSyntaxTokens;
+use crate::theme::syntax::{HsDiagnosticTokens, HsSyntaxTokens};
 use egui::Color32;
 use std::collections::HashMap;
 
@@ -86,6 +86,10 @@ pub struct HsPalette {
     /// Dark: `#1E1E22` @ 0.3; Light: `#E0E0E8` @ 0.3.
     pub scrollbar_disabled: Color32,
     pub syntax: HsSyntaxTokens,
+    /// Editor gutter diagnostic-severity + breakpoint affordance colors (WP-KERNEL-012 MT-007). The
+    /// gutter resolves these from the live theme so its dots/bars/breakpoint circle are theme tokens,
+    /// not hardcoded literals (CONTROL-4 no-hardcode invariant).
+    pub diagnostics: HsDiagnosticTokens,
 }
 
 impl HsPalette {
@@ -118,6 +122,7 @@ impl HsPalette {
             scrollbar_grab: Color32::from_rgb(0x50, 0x50, 0xFF),
             scrollbar_disabled: rgba_premultiplied(0xE0, 0xE0, 0xE8, 0.3),
             syntax: HsSyntaxTokens::light(text_subtle, bg),
+            diagnostics: HsDiagnosticTokens::light(),
         }
     }
 
@@ -156,6 +161,7 @@ impl HsPalette {
             scrollbar_grab: Color32::from_rgb(0x7A, 0x7A, 0xFF),
             scrollbar_disabled: rgba_premultiplied(0x1E, 0x1E, 0x22, 0.3),
             syntax: HsSyntaxTokens::dark(text_subtle, bg),
+            diagnostics: HsDiagnosticTokens::dark(),
         }
     }
 
