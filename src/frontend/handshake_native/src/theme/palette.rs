@@ -90,6 +90,13 @@ pub struct HsPalette {
     /// gutter resolves these from the live theme so its dots/bars/breakpoint circle are theme tokens,
     /// not hardcoded literals (CONTROL-4 no-hardcode invariant).
     pub diagnostics: HsDiagnosticTokens,
+    /// Loom-graph "canvas" content-type node colour (WP-KERNEL-012 MT-021). A DERIVED token: the
+    /// 50/50 channel mean of `accent` and `diagnostics.breakpoint`, which reads as a desaturated
+    /// violet/plum on either theme (distinct from the note blue + tag_hub green). Derived here in
+    /// `palette.rs` — the sanctioned home for colour construction — so the graph widget never builds a
+    /// `Color32` of its own (CONTROL-4 no-hardcode invariant; the architecture-guard test scans every
+    /// widget `.rs` for `Color32::from_rgb(` and allows it only in palette.rs/syntax.rs).
+    pub graph_canvas: Color32,
 }
 
 impl HsPalette {
@@ -123,6 +130,12 @@ impl HsPalette {
             scrollbar_disabled: rgba_premultiplied(0xE0, 0xE0, 0xE8, 0.3),
             syntax: HsSyntaxTokens::light(text_subtle, bg),
             diagnostics: HsDiagnosticTokens::light(),
+            // canvas node colour (MT-021): 50/50 mean of accent (#2563eb) and breakpoint red
+            // (rgb 229,60,60) -> a violet/plum, derived here so the graph widget holds no literal.
+            graph_canvas: blend_channels(
+                Color32::from_rgb(0x25, 0x63, 0xeb),
+                HsDiagnosticTokens::light().breakpoint,
+            ),
         }
     }
 
@@ -162,6 +175,12 @@ impl HsPalette {
             scrollbar_disabled: rgba_premultiplied(0x1E, 0x1E, 0x22, 0.3),
             syntax: HsSyntaxTokens::dark(text_subtle, bg),
             diagnostics: HsDiagnosticTokens::dark(),
+            // canvas node colour (MT-021): 50/50 mean of accent (#22c55e) and breakpoint red
+            // (rgb 229,60,60), derived here so the graph widget holds no literal.
+            graph_canvas: blend_channels(
+                Color32::from_rgb(0x22, 0xc5, 0x5e),
+                HsDiagnosticTokens::dark().breakpoint,
+            ),
         }
     }
 
@@ -198,6 +217,7 @@ impl HsPalette {
                 "scrollbar_hover" => self.scrollbar_hover = color,
                 "scrollbar_grab" => self.scrollbar_grab = color,
                 "scrollbar_disabled" => self.scrollbar_disabled = color,
+                "graph_canvas" => self.graph_canvas = color,
                 _ => {} // unknown key: silently ignored
             }
         }
@@ -219,6 +239,19 @@ impl HsPalette {
 fn rgba_premultiplied(r: u8, g: u8, b: u8, a: f32) -> Color32 {
     let a8 = (a * 255.0).round().clamp(0.0, 255.0) as u8;
     Color32::from_rgba_unmultiplied(r, g, b, a8)
+}
+
+/// 50/50 per-channel mean of two opaque colours, used to derive the `graph_canvas` token (MT-021)
+/// from `accent` + `diagnostics.breakpoint`. Lives in `palette.rs` (a sanctioned Color32 home) so
+/// graph node colours stay theme-derived and no widget constructs a `Color32` of its own.
+fn blend_channels(a: Color32, b: Color32) -> Color32 {
+    let [ar, ag, ab, _] = a.to_array();
+    let [br, bg, bb, _] = b.to_array();
+    Color32::from_rgb(
+        ((ar as u16 + br as u16) / 2) as u8,
+        ((ag as u16 + bg as u16) / 2) as u8,
+        ((ab as u16 + bb as u16) / 2) as u8,
+    )
 }
 
 /// Parse a color string used in override maps / ported CSS. Accepts:

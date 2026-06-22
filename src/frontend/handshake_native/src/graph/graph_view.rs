@@ -154,36 +154,25 @@ impl GraphEdge {
 /// this widget — the theme/syntax no-hardcode invariant). The MT colour intent
 /// (note=blue, file=gray, tag_hub=green, journal=orange, canvas=purple, other=slate) is realised by
 /// picking the closest existing semantic token rather than inventing literals:
-///   - note      -> `syntax.keyword`  (the theme's blue)
-///   - file      -> `text_subtle`     (gray)
-///   - tag_hub   -> `success_text`    (green)
-///   - journal   -> `diagnostics.warning` (the theme's amber/yellow — closest to "orange")
-///   - canvas    -> `diagnostics.breakpoint` blended toward accent (a violet-leaning warm) — derived,
-///                  see below; falls back to `accent` if unavailable
-///   - other     -> `border_strong`   (slate)
+///   - note -> `syntax.keyword` (the theme's blue)
+///   - file -> `text_subtle` (gray)
+///   - tag_hub -> `success_text` (green)
+///   - journal -> `diagnostics.warning` (the theme's amber/yellow — closest to "orange")
+///   - canvas -> `graph_canvas`, a derived violet/plum token (accent blended with the breakpoint red);
+///     the blend is computed inside `palette.rs` so this widget holds no `Color32` literal
+///   - other -> `border_strong` (slate)
 pub fn content_type_color(content_type: &str, palette: &HsPalette) -> Color32 {
     match content_type {
         "note" => palette.syntax.keyword,
         "file" | "annotated_file" => palette.text_subtle,
         "tag_hub" => palette.success_text,
         "journal" => palette.diagnostics.warning,
-        // "purple" for canvas: blend the theme accent with the breakpoint red so the result leans
-        // violet on either theme without a literal. (A 50/50 mean of a blue/green accent and a warm
-        // red reads as a desaturated violet/plum, distinct from the note blue + tag_hub green.)
-        "canvas" => blend(palette.accent, palette.diagnostics.breakpoint),
+        // "purple" for canvas: a derived theme token (accent blended with the breakpoint red) so the
+        // result leans violet on either theme without this widget constructing a Color32. The blend
+        // lives in palette.rs (the sanctioned home); the graph widget only reads the token.
+        "canvas" => palette.graph_canvas,
         _ => palette.border_strong,
     }
-}
-
-/// 50/50 channel mean of two colours (used to derive the canvas "purple" from theme tokens).
-fn blend(a: Color32, b: Color32) -> Color32 {
-    let [ar, ag, ab, _] = a.to_array();
-    let [br, bg, bb, _] = b.to_array();
-    Color32::from_rgb(
-        ((ar as u16 + br as u16) / 2) as u8,
-        ((ag as u16 + bg as u16) / 2) as u8,
-        ((ab as u16 + bb as u16) / 2) as u8,
-    )
 }
 
 /// The typed event a graph interaction produces this frame, for the host to apply. `OpenNode` is the
