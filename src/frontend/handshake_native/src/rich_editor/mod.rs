@@ -23,3 +23,4 @@ pub mod document_model;
 pub mod embeds;
 pub mod formatting;
 pub mod renderer;
+pub mod wikilinks;

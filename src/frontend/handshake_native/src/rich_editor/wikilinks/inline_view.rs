@@ -1,0 +1,211 @@
+//! Inline wikilink chip rendering + the editor-event enqueue (WP-KERNEL-012 MT-015).
+//!
+//! A wikilink is the `hsLink` inline atom ([`HsLinkNode`]). This module renders it as a colored,
+//! rounded, clickable chip overlaid on the paragraph's egui [`epaint::Galley`] glyph positions
+//! (MT-012's layout engine — NOT cosmic-text), at the chip's char span. Clicking enqueues a
+//! [`EditorEvent::WikilinkActivated`] into `RichEditorState.pending_events` for the WP-011 shell to
+//! drain + route (E11/MT-069 host wiring) — this MT does NOT route it.
+//!
+//! ## Chip color (theme tokens only — CONTROL-4, no hardcoded hex)
+//!
+//! - resolved known kind  -> `accent_soft` background + `accent` text (the standard link affordance),
+//! - unresolved / unknown -> `error_bg` background + `error_text` text + a `?` prefix (a broken link
+//!   is VISIBLE, never silent — RISK-5).
+//!
+//! ## Scroll-adjusted Y (RISK-1 / MC-001)
+//!
+//! The chip rect is computed in GALLEY-LOCAL coordinates from `Galley::pos_from_cursor`, then offset
+//! by the block's painted screen origin. Because the renderer paints blocks at their already
+//! scroll-adjusted screen origin (the ScrollArea translates the content), the chip Y is correct under
+//! scroll WITHOUT a second manual subtraction — the single source of the paint origin is the
+//! scroll-adjusted `top` the renderer threads in. [`chip_rect_for_span`] is unit-tested to prove the
+//! local rect maps to the right screen rect for a non-zero origin (the scroll-offset case).
+
+use egui::accesskit;
+use egui::{Color32, Rect, Vec2};
+
+use crate::rich_editor::document_model::node::HsLinkNode;
+use crate::theme::HsPalette;
+
+/// An editor event enqueued into `RichEditorState.pending_events` for the WP-011 host shell to drain
+/// and route (E11/MT-069). This MT only ENQUEUES; routing (open the Loom block / navigate to the
+/// document) is owned by the parent shell (`app.rs` + `event_bus.rs` + `command_registry.rs`).
+///
+/// EXPECTED EVENT SHAPE (documented per MT impl note): the shell matches on the variant and uses the
+/// carried `ref_kind`/`ref_value` (for a wikilink) or `source_document_id` (for a backlink) to route
+/// through the existing navigation bus. The events are intentionally small value types (no borrows)
+/// so they survive being parked across frames.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EditorEvent {
+    /// A wikilink chip was clicked. The shell routes `ref_kind`/`ref_value` to Loom or the document
+    /// viewer (e.g. `ref_kind="wp"` -> open the WP record; `ref_kind="note"` -> open the document).
+    WikilinkActivated {
+        /// The backend ref kind (`wp`, `file`, `note`, … or `unknown`).
+        ref_kind: String,
+        /// The target value the shell resolves.
+        ref_value: String,
+        /// Whether the link resolved to a known kind (an unknown link still emits the event so the
+        /// shell can show a "cannot resolve" toast rather than silently doing nothing).
+        resolved: bool,
+    },
+    /// A backlink entry was clicked. The shell navigates to `source_document_id`.
+    BacklinkActivated {
+        /// The document that links to the current one (the navigation target).
+        source_document_id: String,
+    },
+    /// A transclusion's "Open block" button was clicked. The shell opens the referenced LoomBlock.
+    TransclusionOpenRequested {
+        /// The transcluded block id.
+        ref_value: String,
+    },
+}
+
+/// The AccessKit author_id for a wikilink chip (`wikilink-chip-{ref_value_hash}` per the MT contract).
+/// The hash is a deterministic FNV-1a of the ref value, so the same wikilink yields the same id
+/// across repaints (an out-of-process agent can target a chip by a value it computes independently).
+pub fn chip_author_id(ref_value: &str) -> String {
+    format!("wikilink-chip-{}", fnv1a_hash(ref_value.as_bytes()))
+}
+
+/// Deterministic 32-bit FNV-1a hash (the same stable, no-random-seed hash the renderer uses for block
+/// ids). Used for the chip author_id suffix so it is stable across runs (NOT `RandomState`).
+fn fnv1a_hash(bytes: &[u8]) -> u32 {
+    const FNV_OFFSET: u32 = 0x811c_9dc5;
+    const FNV_PRIME: u32 = 0x0100_0193;
+    let mut hash = FNV_OFFSET;
+    for &b in bytes {
+        hash ^= b as u32;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+/// The chip's display label: the explicit label, else `ref_kind:ref_value` (the React `hsLink`
+/// default), with a `?` prefix for an unresolved/unknown link so a broken chip is visible (RISK-5).
+pub fn chip_label(link: &HsLinkNode) -> String {
+    let base = if link.label.is_empty() {
+        format!("{}:{}", link.ref_kind, link.ref_value)
+    } else {
+        link.label.clone()
+    };
+    if link.resolved {
+        base
+    } else {
+        format!("? {base}")
+    }
+}
+
+/// The chip's (background, text) colors from the theme palette — resolved links use the accent
+/// affordance; unresolved/unknown links use the error affordance so they read as broken. NEVER a
+/// hardcoded hex (CONTROL-4).
+pub fn chip_colors(link: &HsLinkNode, palette: &HsPalette) -> (Color32, Color32) {
+    if link.resolved {
+        (palette.accent_soft, palette.accent)
+    } else {
+        (palette.error_bg, palette.error_text)
+    }
+}
+
+/// Compute the chip's SCREEN rect from the galley-local glyph span rect + the block's painted screen
+/// origin. `local_min`/`local_max` are the `Galley::pos_from_cursor` rects for the chip's start/end
+/// char offsets (galley-local, top=0); `origin` is the block's painted top-left in SCREEN space (the
+/// scroll-adjusted paint origin the renderer threads in — RISK-1 / MC-001: scroll adjustment lives in
+/// the single paint origin, so this is a pure offset). A small vertical padding makes the chip read
+/// as a pill around the glyphs.
+pub fn chip_rect_for_span(
+    local_start: Rect,
+    local_end: Rect,
+    origin: egui::Pos2,
+) -> Rect {
+    // The chip spans from the start glyph's left to the end glyph's right, the row's full height.
+    let x0 = origin.x + local_start.min.x;
+    let x1 = origin.x + local_end.max.x;
+    let y0 = origin.y + local_start.min.y;
+    let height = local_start.height().max(local_end.height());
+    // 1px pad each side horizontally so the pill does not clip the text; the height is the row height.
+    Rect::from_min_size(egui::pos2(x0 - 1.0, y0), Vec2::new((x1 - x0) + 2.0, height))
+}
+
+/// The AccessKit role for a wikilink chip — the field-correct nearest variant in accesskit 0.21.1
+/// (the MT names `Role::Link`).
+pub const CHIP_ROLE: accesskit::Role = accesskit::Role::Link;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::HsTheme;
+
+    fn dark() -> HsPalette {
+        HsTheme::Dark.palette()
+    }
+
+    #[test]
+    fn author_id_is_deterministic_and_prefixed() {
+        let a = chip_author_id("WP-KERNEL-012");
+        let b = chip_author_id("WP-KERNEL-012");
+        assert_eq!(a, b, "the chip id is deterministic for the same ref value");
+        assert!(a.starts_with("wikilink-chip-"), "the contract author_id prefix");
+        assert_ne!(chip_author_id("a"), chip_author_id("b"), "distinct refs -> distinct ids");
+    }
+
+    #[test]
+    fn label_uses_explicit_then_falls_back() {
+        let with_label = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-7".into(), label: "Seven".into(), resolved: true };
+        assert_eq!(chip_label(&with_label), "Seven");
+        let no_label = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-7".into(), label: String::new(), resolved: true };
+        assert_eq!(chip_label(&no_label), "wp:WP-7", "falls back to ref_kind:ref_value");
+    }
+
+    #[test]
+    fn unresolved_label_carries_question_prefix() {
+        let unknown = HsLinkNode { ref_kind: "unknown".into(), ref_value: "xyz".into(), label: String::new(), resolved: false };
+        assert_eq!(chip_label(&unknown), "? unknown:xyz", "an unresolved chip reads as broken");
+    }
+
+    #[test]
+    fn colors_come_from_theme_resolved_vs_unresolved() {
+        let pal = dark();
+        let resolved = HsLinkNode { ref_kind: "wp".into(), ref_value: "x".into(), label: String::new(), resolved: true };
+        let (bg, fg) = chip_colors(&resolved, &pal);
+        assert_eq!(bg, pal.accent_soft);
+        assert_eq!(fg, pal.accent);
+        let unresolved = HsLinkNode { ref_kind: "unknown".into(), ref_value: "x".into(), label: String::new(), resolved: false };
+        let (bg2, fg2) = chip_colors(&unresolved, &pal);
+        assert_eq!(bg2, pal.error_bg, "unresolved uses the error background (visible broken link)");
+        assert_eq!(fg2, pal.error_text);
+    }
+
+    #[test]
+    fn chip_rect_offsets_by_scroll_adjusted_origin_mc001() {
+        // MC-001: the chip rect = galley-local span + the (scroll-adjusted) block paint origin. A
+        // non-zero origin Y (the scrolled case) shifts the chip exactly by that origin, no double
+        // subtraction.
+        let local_start = Rect::from_min_size(egui::pos2(10.0, 0.0), Vec2::new(2.0, 18.0));
+        let local_end = Rect::from_min_size(egui::pos2(60.0, 0.0), Vec2::new(2.0, 18.0));
+        // Scrolled down: the block paints at screen y = 200 (origin already scroll-adjusted).
+        let origin = egui::pos2(40.0, 200.0);
+        let rect = chip_rect_for_span(local_start, local_end, origin);
+        // x spans from origin.x+10-1 to origin.x+62+1; y starts at origin.y+0.
+        assert_eq!(rect.min.x, 40.0 + 10.0 - 1.0);
+        assert_eq!(rect.max.x, 40.0 + 62.0 + 1.0);
+        assert_eq!(rect.min.y, 200.0, "chip Y follows the scroll-adjusted origin exactly");
+        assert!((rect.height() - 18.0).abs() < 0.01, "chip height is the glyph row height");
+    }
+
+    #[test]
+    fn editor_event_shapes_round_trip_for_shell_routing() {
+        // The events are small value types the shell drains; assert their fields carry the routing
+        // payload the WP-011 host needs.
+        let wl = EditorEvent::WikilinkActivated { ref_kind: "wp".into(), ref_value: "WP-1".into(), resolved: true };
+        match wl {
+            EditorEvent::WikilinkActivated { ref_kind, ref_value, resolved } => {
+                assert_eq!(ref_kind, "wp");
+                assert_eq!(ref_value, "WP-1");
+                assert!(resolved);
+            }
+            _ => panic!("variant"),
+        }
+        let bl = EditorEvent::BacklinkActivated { source_document_id: "DOC-2".into() };
+        assert!(matches!(bl, EditorEvent::BacklinkActivated { source_document_id } if source_document_id == "DOC-2"));
+    }
+}

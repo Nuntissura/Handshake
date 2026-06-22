@@ -50,7 +50,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as JsonValue};
 use thiserror::Error;
 
-use super::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
+use super::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf, TransclusionNode};
 
 /// The single source of the rich-document schema version. A bump is a one-line edit
 /// here (MT impl note). MUST equal the React `WP009_RICH_DOCUMENT_SCHEMA_VERSION`
@@ -75,6 +75,9 @@ pub enum DocJsonError {
     /// An `hsLink` node was missing a required attr (`refValue`).
     #[error("hsLink node missing required attr: {0}")]
     HsLinkMissingAttr(&'static str),
+    /// A `loomTransclusion` node was missing a required attr (`refValue`).
+    #[error("loomTransclusion node missing required attr: {0}")]
+    TransclusionMissingAttr(&'static str),
     /// The JSON text could not be parsed at all.
     #[error("invalid JSON: {0}")]
     Parse(String),
@@ -204,12 +207,28 @@ fn node_attrs_map(node: &BlockNode) -> Option<Map<String, JsonValue>> {
     }
 }
 
-/// Serialize a [`Child`] (block, text leaf, or hsLink atom) to a [`JsonNode`].
+/// Serialize a [`Child`] (block, text leaf, hsLink atom, or loomTransclusion atom) to a [`JsonNode`].
 fn child_to_json(child: &Child) -> JsonNode {
     match child {
         Child::Block(b) => block_to_json(b),
         Child::Text(leaf) => text_leaf_to_json(leaf),
         Child::HsLink(link) => hs_link_to_json(link),
+        Child::Transclusion(t) => transclusion_to_json(t),
+    }
+}
+
+/// Serialize a [`TransclusionNode`] to a `{type:"loomTransclusion", attrs:{refValue}}` inline atom
+/// node — the REAL backend shape from `app/src/components/LoomTransclusionView.tsx` (MT-015). The
+/// host stores ONLY the `refValue` reference; the body is resolved at view time.
+fn transclusion_to_json(node: &TransclusionNode) -> JsonNode {
+    let mut attrs = Map::new();
+    attrs.insert("refValue".to_string(), JsonValue::from(node.ref_value.clone()));
+    JsonNode {
+        ty: "loomTransclusion".to_string(),
+        attrs: Some(attrs),
+        content: None,
+        text: None,
+        marks: None,
     }
 }
 
@@ -339,8 +358,23 @@ fn json_to_child(node: &JsonNode) -> Result<Child, DocJsonError> {
             Ok(Child::Text(TextLeaf::with_marks(&text, marks)))
         }
         "hsLink" => Ok(Child::HsLink(json_to_hs_link(node)?)),
+        "loomTransclusion" => Ok(Child::Transclusion(json_to_transclusion(node)?)),
         _ => Ok(Child::Block(json_to_block(node)?)),
     }
+}
+
+/// Deserialize a `loomTransclusion` [`JsonNode`] into a [`TransclusionNode`], reading the
+/// `attrs.refValue` the React node persists (MT-015). `refValue` is required (a transclusion with no
+/// target block is malformed).
+fn json_to_transclusion(node: &JsonNode) -> Result<TransclusionNode, DocJsonError> {
+    let ref_value = node
+        .attrs
+        .as_ref()
+        .and_then(|m| m.get("refValue"))
+        .and_then(JsonValue::as_str)
+        .ok_or(DocJsonError::TransclusionMissingAttr("refValue"))?
+        .to_string();
+    Ok(TransclusionNode { ref_value })
 }
 
 /// Deserialize an `hsLink` [`JsonNode`] into an [`HsLinkNode`], reading the camelCase
@@ -502,6 +536,35 @@ mod tests {
         assert_eq!(link["attrs"]["refValue"], "WP-KERNEL-012");
         assert_eq!(link["attrs"]["label"], "the WP");
         assert_eq!(link["attrs"]["resolved"], true);
+    }
+
+    #[test]
+    fn transclusion_node_payload_survives_round_trip() {
+        // MT-015: a loomTransclusion is an inline atom node carrying `attrs.refValue` — the REAL
+        // backend shape (NOT a `{block_id}` attr). It round-trips through DocJson unchanged.
+        use super::super::node::TransclusionNode;
+        let mut para = BlockNode::new(NodeKind::Paragraph);
+        para.children.push(Child::Text(TextLeaf::new("embed: ")));
+        para.children.push(Child::Transclusion(TransclusionNode::new("BLK-42")));
+        let doc = BlockNode::doc(vec![para]);
+        let json = to_json_string(&doc).unwrap();
+        let back = from_json_string(&json).unwrap();
+        assert_eq!(doc, back);
+        // The node serializes with the camelCase `refValue` attr the backend round-trips.
+        let v: JsonValue = to_content_json_value(&doc);
+        let node = &v["content"][0]["content"][1];
+        assert_eq!(node["type"], "loomTransclusion");
+        assert_eq!(node["attrs"]["refValue"], "BLK-42");
+        assert!(node.get("content").is_none(), "an atom carries no content");
+    }
+
+    #[test]
+    fn transclusion_missing_ref_value_errors() {
+        let json = r#"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"loomTransclusion","attrs":{}}]}]}"#;
+        assert!(matches!(
+            from_json_string(json),
+            Err(DocJsonError::TransclusionMissingAttr("refValue"))
+        ));
     }
 
     #[test]

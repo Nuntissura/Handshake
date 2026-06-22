@@ -111,10 +111,51 @@ pub fn block_media_embed(block: &BlockNode) -> Option<&HsLinkNode> {
                 }
                 embed = Some(link);
             }
+            // A transclusion atom in the block means it is NOT a media embed; the renderer routes
+            // a standalone transclusion via the separate transclusion dispatch (block_transclusion).
+            Child::Transclusion(_) => return None,
             Child::Block(_) => return None,
         }
     }
     embed
+}
+
+/// MT-015 transclusion dispatch seam (mirrors [`block_media_embed`]): if `block` is a paragraph
+/// whose sole non-whitespace inline child is a `loomTransclusion` atom, return that atom so the
+/// renderer can route it to the INTERACTIVE
+/// [`crate::rich_editor::wikilinks::transclusion_view::render_transclusion`] path (which owns an
+/// `egui::Ui` for the read-through preview + "Open block" / "Remove embed" buttons) instead of the
+/// painter-only path.
+///
+/// Returns `None` for any block that is not a standalone transclusion (the normal text/inline path
+/// runs, which renders a mixed-paragraph transclusion as an inline reference label via
+/// [`super::line_layout`]).
+pub fn block_transclusion(
+    block: &BlockNode,
+) -> Option<&crate::rich_editor::document_model::node::TransclusionNode> {
+    if !matches!(block.kind, NodeKind::Paragraph) {
+        return None;
+    }
+    let mut found: Option<&crate::rich_editor::document_model::node::TransclusionNode> = None;
+    for child in &block.children {
+        match child {
+            Child::Text(t) => {
+                if !t.text.to_string().trim().is_empty() {
+                    return None; // mixed paragraph -> inline path, not a standalone transclusion.
+                }
+            }
+            Child::Transclusion(t) => {
+                if found.is_some() {
+                    return None; // more than one -> not a standalone transclusion block.
+                }
+                found = Some(t);
+            }
+            // A wikilink/media atom alongside a transclusion -> not a standalone transclusion block.
+            Child::HsLink(_) => return None,
+            Child::Block(_) => return None,
+        }
+    }
+    found
 }
 
 /// Lay out and paint an inline-content block (paragraph/heading) at `top_left`, indented

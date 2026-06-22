@@ -81,11 +81,11 @@ fn walk_resolve(
                     return Some(pos);
                 }
             }
-            Child::HsLink(_) => {
-                // An inline atom occupies one position unit but hosts no caret
-                // INTERIOR; a flat offset that lands on it resolves to the offset
-                // just past it (the next text leaf / boundary), so we just consume
-                // its single unit and keep walking.
+            Child::HsLink(_) | Child::Transclusion(_) => {
+                // An inline atom (hsLink or loomTransclusion) occupies one position
+                // unit but hosts no caret INTERIOR; a flat offset that lands on it
+                // resolves to the offset just past it (the next text leaf / boundary),
+                // so we just consume its single unit and keep walking.
                 if *remaining == 0 {
                     // A caret sitting just before this atom: clamp to the last text
                     // leaf boundary if one exists; otherwise fall through.

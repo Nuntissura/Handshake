@@ -59,6 +59,16 @@ pub struct RichEditorState {
     /// view states, and the async transport. Owned HERE (the shell frame) so resolved assets +
     /// uploaded textures + paging persist across frames (impl note 5: NOT inside a renderer fn).
     pub embeds: EmbedRuntime,
+    /// MT-015 wikilink runtime: transclusion-resolution cache, backlinks state (+ generation-counter
+    /// cancellation), the autocomplete search runtime, and the off-thread delivery cells. Owned HERE
+    /// so resolved transclusions/backlinks + popup state persist across frames.
+    pub wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime,
+    /// MT-015 active wikilink autocomplete popup (`Some` while the operator is typing a `[[` trigger).
+    pub wikilink_autocomplete: Option<crate::rich_editor::wikilinks::autocomplete::AutocompleteState>,
+    /// MT-015 editor events enqueued for the WP-011 host shell to drain + route (WikilinkActivated /
+    /// BacklinkActivated / TransclusionOpenRequested). This MT only ENQUEUES; routing is owned by the
+    /// shell (E11/MT-069). The shell drains this each frame after the editor renders.
+    pub pending_events: Vec<crate::rich_editor::wikilinks::inline_view::EditorEvent>,
 }
 
 impl RichEditorState {
@@ -79,6 +89,19 @@ impl RichEditorState {
             std::sync::Arc::new(ReqwestAssetFetcher::new(base)),
             None,
         );
+        // MT-015: the wikilink runtime defaults to the PRODUCTION reqwest backend, no tokio handle,
+        // and an empty workspace/document. The shell installs the live workspace id + runtime handle
+        // + document id via [`Self::set_wikilink_context`] when it mounts a document (so transclusion/
+        // backlinks/autocomplete actually resolve); a unit/kittest that does not exercise resolution
+        // leaves it as-is (a transclusion then shows the fail-closed spinner / typed chip, never a
+        // panic). A test injects a mock backend via [`Self::with_wikilink_runtime`].
+        let wikilinks = crate::rich_editor::wikilinks::runtime::WikilinkRuntime::new(
+            String::new(),
+            std::sync::Arc::new(
+                crate::rich_editor::wikilinks::client::ReqwestWikilinkBackend::new(base),
+            ),
+            None,
+        );
         Self {
             doc,
             selection: Selection::caret(DocPosition::new(vec![0, 0], 0)),
@@ -87,7 +110,35 @@ impl RichEditorState {
             theme: HsTheme::Dark,
             actor_id: "operator".to_owned(),
             embeds,
+            wikilinks,
+            wikilink_autocomplete: None,
+            pending_events: Vec::new(),
         }
+    }
+
+    /// Install the live wikilink context: the workspace + document the transclusion/backlinks/
+    /// autocomplete resolve against, and the tokio runtime handle resolutions spawn onto. The shell
+    /// calls this when it knows the active document (the production wiring point). Setting the
+    /// document triggers a backlinks generation bump (MC-004) so a prior document's in-flight
+    /// backlinks response is dropped.
+    pub fn set_wikilink_context(
+        &mut self,
+        workspace_id: impl Into<String>,
+        document_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+    ) {
+        let workspace_id = workspace_id.into();
+        self.wikilinks.workspace_id = workspace_id.clone();
+        self.wikilinks.autocomplete.workspace_id = workspace_id;
+        self.wikilinks.runtime = Some(runtime.clone());
+        self.wikilinks.autocomplete.runtime = Some(runtime);
+        self.wikilinks.set_document(document_id);
+    }
+
+    /// Replace the entire wikilink runtime (test seam: inject a mock backend / pre-seeded caches).
+    pub fn with_wikilink_runtime(mut self, wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime) -> Self {
+        self.wikilinks = wikilinks;
+        self
     }
 
     /// Install the live embed context: the workspace whose assets embeds resolve against and the
@@ -141,6 +192,9 @@ impl RichEditorState {
                 } else {
                     l.label.clone()
                 }),
+                // A transclusion atom contributes a short reference label so the block's plain text
+                // (used for AccessKit labels / hit-testing) reads sensibly.
+                Child::Transclusion(t) => s.push_str(&format!("[transclusion:{}]", t.ref_value)),
                 Child::Block(_) => {}
             }
         }
@@ -240,10 +294,21 @@ impl RichEditorWidget {
     /// route to [`ime_handler`]; key/text events route to [`input_handler`]. We snapshot
     /// the events from `ui.input` and apply them while holding the state lock.
     fn apply_frame_input(ui: &egui::Ui, state: &mut RichEditorState, has_focus: bool) {
-        if !has_focus {
-            return; // an unfocused editor ignores input (and never schedules a repaint).
+        let mut events: Vec<egui::Event> = ui.input(|i| i.events.clone());
+
+        // MT-015: when the wikilink autocomplete popup is OPEN, it CLAIMS the navigation/confirm/
+        // cancel keys (Up/Down/Enter/Tab/Escape) so they drive the popup instead of the editor (e.g.
+        // Enter inserts the selected wikilink instead of splitting the paragraph). This runs BEFORE
+        // the focus gate: egui may release editor focus on Escape in the SAME frame the key arrives,
+        // so gating the popup's Escape on `has_focus` would swallow it and leave the popup stuck open.
+        // The claimed key events are removed from the event list before the normal editing path runs.
+        if state.wikilink_autocomplete.is_some() {
+            events = Self::handle_autocomplete_keys(state, events);
         }
-        let events: Vec<egui::Event> = ui.input(|i| i.events.clone());
+
+        if !has_focus {
+            return; // an unfocused editor ignores the remaining input (and never schedules a repaint).
+        }
 
         // Split events into IME vs key/text in ARRIVAL order so a Preedit->Commit sequence
         // interleaved with typing applies in the right order. We process each event in
@@ -297,6 +362,180 @@ impl RichEditorWidget {
                 input_handler::apply_action(&mut ctx, action);
             }
         }
+
+        // MT-015: after applying input, re-detect the `[[` autocomplete trigger from the caret's
+        // text-before-caret. Typing `[[` opens the popup; typing more refines the query (bumping the
+        // debounce + generation); typing/moving past `]]` (or out of the token) closes it.
+        Self::refresh_autocomplete_trigger(state);
+    }
+
+    /// Handle the autocomplete popup's navigation/confirm/cancel keys while it is open. Consumes
+    /// Up/Down (move selection), Enter/Tab (confirm the selected result -> insert the hsLink atom),
+    /// and Escape (cancel -> remove the `[[` trigger text). Returns the events that were NOT claimed
+    /// by the popup (so the normal editing path still handles plain typing that refines the query).
+    fn handle_autocomplete_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+        use crate::rich_editor::wikilinks::confirm;
+
+        let mut remaining = Vec::with_capacity(events.len());
+        for ev in events {
+            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+                remaining.push(ev);
+                continue;
+            };
+            match key {
+                egui::Key::ArrowDown => {
+                    if let Some(ac) = state.wikilink_autocomplete.as_mut() {
+                        ac.select_next();
+                    }
+                }
+                egui::Key::ArrowUp => {
+                    if let Some(ac) = state.wikilink_autocomplete.as_mut() {
+                        ac.select_prev();
+                    }
+                }
+                egui::Key::Enter | egui::Key::Tab => {
+                    // Confirm the selected result as an inserted hsLink atom (NOT a mark).
+                    let confirmed = state.wikilink_autocomplete.as_ref().and_then(|ac| {
+                        let result = ac.selected_result()?;
+                        // The chosen result's content type maps to a backend ref kind; default to a
+                        // `note` link for a document/note hit (the common autocomplete target).
+                        let ref_kind = result_ref_kind(&result.content_type);
+                        Some((
+                            ac.leaf_path.clone(),
+                            ac.trigger_start_char,
+                            crate::rich_editor::document_model::node::HsLinkNode::new(
+                                ref_kind,
+                                result.block_id.clone(),
+                                result.title.clone(),
+                            ),
+                        ))
+                    });
+                    if let Some((leaf_path, trigger_start, link)) = confirmed {
+                        let caret_char = Self::caret_char_offset(state);
+                        let RichEditorState { doc, selection, .. } = state;
+                        confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
+                    }
+                    // Close the popup whether or not a result was selected (Enter on an empty popup
+                    // just closes it; the typed `[[` text is left as plain text).
+                    state.wikilink_autocomplete = None;
+                }
+                egui::Key::Escape => {
+                    // Cancel: remove the `[[query` trigger text and close (AC: Escape closes + removes).
+                    if let Some(ac) = state.wikilink_autocomplete.take() {
+                        let caret_char = Self::caret_char_offset(state);
+                        let RichEditorState { doc, selection, .. } = state;
+                        confirm::cancel_wikilink(doc, selection, &ac.leaf_path, ac.trigger_start_char, caret_char);
+                    }
+                }
+                // Any other key (plain typing, backspace) passes through to the normal editing path,
+                // which mutates the leaf text; the trigger re-detection then refines the query.
+                _ => remaining.push(ev),
+            }
+        }
+        remaining
+    }
+
+    /// Re-detect the `[[` autocomplete trigger from the caret's current text-before-caret. Opens the
+    /// popup when a new open trigger appears, updates the query (debounce/generation) when it refines,
+    /// and closes the popup when the caret leaves the open token (`]]` typed, or the trigger gone).
+    fn refresh_autocomplete_trigger(state: &mut RichEditorState) {
+        use crate::rich_editor::wikilinks::autocomplete::AutocompleteState;
+        use crate::rich_editor::wikilinks::parser::open_wikilink_query;
+
+        // The caret's text leaf + the text before the caret within it.
+        let Some((leaf_path, before)) = Self::caret_text_before(state) else {
+            state.wikilink_autocomplete = None; // no text caret -> no popup.
+            return;
+        };
+        match open_wikilink_query(&before) {
+            Some((trigger_start_char, query)) => {
+                match state.wikilink_autocomplete.as_mut() {
+                    // Same open token in the same leaf -> update the query (debounce + generation).
+                    Some(ac) if ac.leaf_path == leaf_path && ac.trigger_start_char == trigger_start_char => {
+                        ac.set_query(query);
+                    }
+                    // A new/relocated trigger -> open a fresh popup.
+                    _ => {
+                        state.wikilink_autocomplete =
+                            Some(AutocompleteState::open(trigger_start_char, leaf_path, query));
+                    }
+                }
+            }
+            // No open trigger before the caret -> close the popup.
+            None => state.wikilink_autocomplete = None,
+        }
+    }
+
+    /// The caret's text leaf path + the text before the caret within that leaf (for `[[` trigger
+    /// detection). Returns `None` when the selection is not a text caret resolving to a text leaf.
+    fn caret_text_before(state: &RichEditorState) -> Option<(Vec<usize>, String)> {
+        let Selection::Text { head, .. } = &state.selection else {
+            return None;
+        };
+        let (leaf_idx, block_path) = head.path.split_last()?;
+        let mut node = &state.doc;
+        for &idx in block_path {
+            node = node.children.get(idx)?.as_block()?;
+        }
+        let leaf = node.children.get(*leaf_idx)?.as_text()?;
+        let before = leaf.text.slice_chars(0, head.char_offset);
+        Some((head.path.clone(), before))
+    }
+
+    /// The caret's in-leaf char offset (the head's `char_offset`), or 0 for a non-text selection.
+    fn caret_char_offset(state: &RichEditorState) -> usize {
+        match &state.selection {
+            Selection::Text { head, .. } => head.char_offset,
+            Selection::Node { .. } => 0,
+        }
+    }
+
+    /// Paint ONE inline wikilink chip: a colored rounded rect at the (scroll-adjusted) glyph span +
+    /// the label text on top, an interactive AccessKit node (`wikilink-chip-{hash}`, Role::Link), and
+    /// click handling that returns a `WikilinkActivated` event (the caller enqueues it). `origin` is
+    /// the block's painted screen top-left (already scroll-adjusted — RISK-1 / MC-001).
+    fn paint_one_wikilink_chip(
+        ui: &mut egui::Ui,
+        spec: &WikilinkChipSpec,
+        origin: egui::Pos2,
+        _palette: &HsPalette,
+    ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
+        use crate::rich_editor::wikilinks::inline_view::{chip_author_id, chip_rect_for_span, EditorEvent, CHIP_ROLE};
+
+        let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
+        // Paint the chip background (rounded) then the label text in the chip text color, on top of
+        // the painter-drawn label (so the chip reads as a pill). Colors are theme tokens (CONTROL-4).
+        let painter = ui.painter();
+        painter.rect_filled(rect, 4.0, spec.bg);
+        painter.text(
+            egui::pos2(rect.min.x + 1.0, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            &spec.label,
+            egui::FontId::proportional(super::line_layout::BASE_FONT_SIZE),
+            spec.fg,
+        );
+
+        // An interactive (clickable) node over the chip rect, addressable by the stable chip author_id.
+        let author = chip_author_id(&spec.link.ref_value);
+        let chip_id = ui.id().with(("wikilink-chip", &author));
+        let resp = ui.interact(rect, chip_id, egui::Sense::click());
+        let role = CHIP_ROLE;
+        let author_for_node = author.clone();
+        let label_for_node = spec.label.clone();
+        ui.ctx().accesskit_node_builder(chip_id, move |node| {
+            node.set_role(role);
+            node.set_author_id(author_for_node.clone());
+            node.set_label(label_for_node.clone());
+        });
+        if resp.clicked() {
+            Some(EditorEvent::WikilinkActivated {
+                ref_kind: spec.link.ref_kind.clone(),
+                ref_value: spec.link.ref_value.clone(),
+                resolved: spec.link.resolved,
+            })
+        } else {
+            None
+        }
     }
 
     /// Render the MT-013 formatting toolbar (a horizontal glyph-button row grouped by
@@ -341,9 +580,36 @@ impl RichEditorWidget {
             ui.ctx().request_repaint();
         }
 
-        egui::ScrollArea::vertical()
+        // MT-015: drain any off-thread wikilink resolutions (transclusion / backlinks) + autocomplete
+        // search results into their caches BEFORE rendering, with generation-counter cancellation
+        // (MC-004). Then, while a popup is open, issue the debounced search (MC-002).
+        let mut wikilink_applied = state.wikilinks.drain();
+        if state.wikilinks.autocomplete.drain(&mut state.wikilink_autocomplete) {
+            wikilink_applied = true;
+        }
+        if let Some(ac) = state.wikilink_autocomplete.as_mut() {
+            // The autocomplete runtime lives inside the wikilink runtime; borrow it to issue the
+            // debounced search for the current query (no-op until the 150ms window elapses).
+            state.wikilinks.autocomplete.maybe_search(ac, std::time::Instant::now());
+            // Keep animating so the debounce fires on a later frame even without new input.
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
+        }
+        if wikilink_applied {
+            ui.ctx().request_repaint();
+        }
+
+        // MT-015: reserve a bottom strip for the backlinks panel so the full-height content scroll
+        // area does not push it off-screen (HBR-VIS: the panel must be visible, not just present in
+        // the tree). Cap the scroll area's height to leave room for the panel below; the panel
+        // collapses to its header height when closed, so the reserve is a soft upper bound.
+        const BACKLINKS_STRIP_PTS: f32 = 150.0;
+        let available_h = ui.available_height().max(1.0);
+        let scroll_max_h = (available_h - BACKLINKS_STRIP_PTS).max(available_h * 0.4);
+
+        let caret_galley_out = egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
             .auto_shrink([false, false])
+            .max_height(scroll_max_h)
             .show(ui, |ui| {
                 let content_width = ui.available_width().max(1.0);
                 let mut top = ui.cursor().min;
@@ -378,6 +644,43 @@ impl RichEditorWidget {
                         continue;
                     }
 
+                    // MT-015: a standalone transclusion block routes to the INTERACTIVE transclusion
+                    // read-through view (it owns an egui::Ui for the Open block / Remove embed buttons),
+                    // mirroring the media-embed dispatch. We clone the small node out so the doc borrow
+                    // ends before borrowing `state.wikilinks` mutably.
+                    if let Some(tnode) = super::block_renderer::block_transclusion(block).cloned() {
+                        let t_rect = egui::Rect::from_min_size(
+                            top,
+                            egui::vec2(content_width, ui.available_height().max(1.0)),
+                        );
+                        let mut child = ui.new_child(
+                            egui::UiBuilder::new()
+                                .max_rect(t_rect)
+                                .id_salt(("rich-editor-transclusion", idx))
+                                .layout(egui::Layout::top_down(egui::Align::Min)),
+                        );
+                        let (event, removed) = crate::rich_editor::wikilinks::transclusion_view::render_transclusion(
+                            &mut child,
+                            &tnode,
+                            &mut state.wikilinks,
+                            palette,
+                        );
+                        if let Some(ev) = event {
+                            state.pending_events.push(ev);
+                        }
+                        // MC-003: the operator clicked "Remove embed" on a 404 transclusion -> delete the
+                        // node from the doc (drop this standalone-transclusion paragraph).
+                        if removed {
+                            if let Some(parent) = state.doc.children.get_mut(idx).and_then(Child::as_block_mut) {
+                                parent.children.retain(|c| c.as_transclusion().is_none());
+                            }
+                            ui.ctx().request_repaint();
+                        }
+                        let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
+                        top.y += used + super::line_layout::BLOCK_GAP_PTS;
+                        continue;
+                    }
+
                     let block = state.doc.children[idx].as_block().expect("checked above");
                     let caret_offset = if caret_block == Some(idx) {
                         Some(caret.char_offset())
@@ -386,7 +689,22 @@ impl RichEditorWidget {
                     };
                     let bp = paint_block(&painter, block, top, content_width, palette, caret_offset, bold_available);
                     if let Some(g) = bp.caret_galley {
-                        caret_galley = Some(g);
+                        caret_galley = Some(g.clone());
+                    }
+
+                    // MT-015: overlay the inline wikilink CHIPs on this paragraph's hsLink atoms. We
+                    // re-layout the block (cheap) to get the galley, find each hsLink's char span in
+                    // the laid-out text, and paint a colored rounded chip at the glyph span — the chip
+                    // Y is the (already scroll-adjusted) paint origin `top` (RISK-1 / MC-001). Each chip
+                    // is an interactive AccessKit node (`wikilink-chip-{hash}`, Role::Link); a click
+                    // enqueues a WikilinkActivated event for the shell. The chip specs are computed
+                    // into an owned vec FIRST (ending the doc borrow) so `pending_events` can be
+                    // borrowed mutably when handling a click.
+                    let chip_specs = wikilink_chip_specs(block, palette, content_width, bold_available, &painter);
+                    for spec in chip_specs {
+                        if let Some(ev) = Self::paint_one_wikilink_chip(ui, &spec, top, palette) {
+                            state.pending_events.push(ev);
+                        }
                     }
 
                     // Per-block AccessKit node (re-block-{hash}, Role::Paragraph) for
@@ -422,15 +740,212 @@ impl RichEditorWidget {
                 ui.allocate_space(egui::vec2(content_width, used_height));
 
                 // Paint the blinking caret over the blocks (only when collapsed + blink-on).
-                if let Some((galley, origin)) = caret_galley {
+                if let Some((galley, origin)) = caret_galley.clone() {
                     paint_caret(&painter, &galley, origin, &caret, palette, blink_on);
                 }
+                // Return the caret galley+origin so the popup (rendered OUTSIDE this scroll closure)
+                // can anchor at the caret pixel.
+                caret_galley
+            })
+            .inner;
+
+        // MT-015: the backlinks side panel below the content area (a collapsible header listing every
+        // document linking to the current one). Reuses the existing shell theme; clicking an entry
+        // enqueues a BacklinkActivated event for the host shell to route.
+        ui.separator();
+        if let Some(ev) = crate::rich_editor::wikilinks::backlinks_panel::render_backlinks_panel(
+            ui,
+            &mut state.wikilinks,
+            palette,
+        ) {
+            state.pending_events.push(ev);
+        }
+
+        // MT-015: the autocomplete popup anchored at the CARET pixel (impl note: caret position, NOT
+        // mouse, so keyboard-only typing positions it). Resolved from the caret block's galley.
+        if state.wikilink_autocomplete.is_some() {
+            let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                let local = galley.pos_from_cursor(cursor);
+                egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
             });
+            Self::render_autocomplete_popup(ui, state, palette, caret_pixel);
+        }
 
         // RISK-3 idle-CPU control: schedule the next blink frame ONLY when focused. An
         // unfocused editor returns false here and never requests a repaint.
         let _scheduled = request_blink_repaint(ui.ctx(), has_focus);
     }
+
+    /// Render the wikilink autocomplete popup at the caret pixel (or, when the caret pixel is
+    /// unavailable, just below the content). Lists the result rows (selectable), the loading spinner,
+    /// or the typed error / "No results" state. Clicking a row confirms it (inserts the hsLink atom)
+    /// and closes the popup — the same effect as Enter. AccessKit: the popup is `wikilink-autocomplete`
+    /// and each row is `wikilink-result-{i}` (the contract ids).
+    fn render_autocomplete_popup(
+        ui: &mut egui::Ui,
+        state: &mut RichEditorState,
+        palette: &HsPalette,
+        caret_pixel: Option<egui::Pos2>,
+    ) {
+        use crate::rich_editor::wikilinks::autocomplete::SearchPhase;
+        use crate::rich_editor::wikilinks::confirm;
+
+        let Some(ac) = state.wikilink_autocomplete.clone() else { return };
+        // Anchor the popup at the caret pixel (impl note), defaulting to just below the editor when the
+        // caret pixel is not resolvable (e.g. an empty doc).
+        let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
+
+        let mut confirmed: Option<(Vec<usize>, usize, crate::rich_editor::document_model::node::HsLinkNode)> = None;
+        egui::Area::new(ui.id().with("wikilink-autocomplete-area"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(anchor + egui::vec2(0.0, 4.0))
+            .show(ui.ctx(), |ui| {
+                let frame = egui::Frame::popup(ui.style());
+                let resp = frame
+                    .show(ui, |ui| {
+                        ui.set_max_width(320.0);
+                        match &ac.phase {
+                            SearchPhase::Idle | SearchPhase::Loading => {
+                                ui.horizontal(|ui| {
+                                    ui.add(egui::Spinner::new());
+                                    ui.colored_label(palette.text_subtle, format!("Searching “{}”…", ac.query));
+                                });
+                            }
+                            SearchPhase::Err(e) => {
+                                ui.colored_label(palette.error_text, format!("Search failed ({}): {e}", e.kind_str()));
+                            }
+                            SearchPhase::Ready(rows) if rows.is_empty() => {
+                                ui.colored_label(palette.text_subtle, "No results");
+                            }
+                            SearchPhase::Ready(rows) => {
+                                for (i, row) in rows.iter().enumerate() {
+                                    let selected = i == ac.selected;
+                                    let label = format!("{}  ({})", row.title, row.content_type);
+                                    let item = ui.add(egui::Button::selectable(selected, label));
+                                    // AccessKit: each result row is `wikilink-result-{i}`.
+                                    let author = format!("wikilink-result-{i}");
+                                    let row_id = item.id;
+                                    let author_for_node = author.clone();
+                                    ui.ctx().accesskit_node_builder(row_id, move |node| {
+                                        node.set_author_id(author_for_node.clone());
+                                    });
+                                    if item.clicked() {
+                                        let ref_kind = result_ref_kind(&row.content_type);
+                                        confirmed = Some((
+                                            ac.leaf_path.clone(),
+                                            ac.trigger_start_char,
+                                            crate::rich_editor::document_model::node::HsLinkNode::new(
+                                                ref_kind,
+                                                row.block_id.clone(),
+                                                row.title.clone(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .response;
+                // AccessKit: the popup container is `wikilink-autocomplete` (the AC-9 id).
+                let popup_id = resp.id;
+                ui.ctx().accesskit_node_builder(popup_id, |node| {
+                    node.set_role(egui::accesskit::Role::ListBox);
+                    node.set_author_id("wikilink-autocomplete".to_owned());
+                });
+            });
+
+        if let Some((leaf_path, trigger_start, link)) = confirmed {
+            let caret_char = Self::caret_char_offset(state);
+            let RichEditorState { doc, selection, .. } = state;
+            confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
+            state.wikilink_autocomplete = None;
+        }
+    }
+}
+
+/// Map an autocomplete result's backend content type to the wikilink `ref_kind` an inserted hsLink
+/// atom carries. A `note`/`document` block becomes a `note` link (the knowledge-document ref kind);
+/// any other content type maps to that type verbatim (so a forward-compatible backend type still
+/// produces a sensible link). This is the single place the autocomplete-result -> wikilink-kind
+/// mapping lives.
+fn result_ref_kind(content_type: &str) -> String {
+    match content_type {
+        "document" | "note" => "note".to_owned(),
+        other => other.to_owned(),
+    }
+}
+
+/// One wikilink chip to paint: the local glyph-span rect (galley-local, top=0), the link node, and
+/// the (bg, text) chip colors. Computed by [`wikilink_chip_specs`] so the doc borrow ends before the
+/// chip is painted (and `pending_events` can be borrowed mutably on a click).
+struct WikilinkChipSpec {
+    /// The link the chip represents (carries the routing payload for the click event).
+    link: crate::rich_editor::document_model::node::HsLinkNode,
+    /// The galley-local rect of the chip's first glyph (top-left anchor).
+    local_start: egui::Rect,
+    /// The galley-local rect of the chip's last glyph (right edge).
+    local_end: egui::Rect,
+    /// The chip background color (theme token).
+    bg: egui::Color32,
+    /// The chip text color (theme token).
+    fg: egui::Color32,
+    /// The chip display label (the resolved/`?`-prefixed text).
+    label: String,
+}
+
+/// Compute the [`WikilinkChipSpec`]s for every hsLink atom in an inline-content block by re-laying it
+/// out (the same `line_layout` path the painter used) and hit-testing the galley for each atom's char
+/// span. Returns an owned vec so the caller's doc borrow can end before painting.
+fn wikilink_chip_specs(
+    block: &BlockNode,
+    palette: &HsPalette,
+    content_width: f32,
+    bold_available: bool,
+    painter: &egui::Painter,
+) -> Vec<WikilinkChipSpec> {
+    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label};
+    use egui::epaint::text::cursor::CCursor;
+
+    // Only inline-content blocks (paragraph/heading) carry inline hsLink atoms.
+    let layout = super::line_layout::layout_block(block, palette, content_width.max(1.0), bold_available);
+    let galley = painter.layout_job(layout.job);
+
+    let mut specs = Vec::new();
+    let mut char_cursor = 0usize; // running char offset into the laid-out plain text.
+    for child in &block.children {
+        match child {
+            Child::Text(t) => {
+                char_cursor += t.text.len_chars();
+            }
+            Child::HsLink(link) => {
+                let label = chip_label(link);
+                let label_chars = label.chars().count();
+                let start = char_cursor;
+                let end = char_cursor + label_chars;
+                let local_start = galley.pos_from_cursor(CCursor::new(start));
+                let local_end = galley.pos_from_cursor(CCursor::new(end.max(start)));
+                let (bg, fg) = chip_colors(link, palette);
+                specs.push(WikilinkChipSpec {
+                    link: link.clone(),
+                    local_start,
+                    local_end,
+                    bg,
+                    fg,
+                    label,
+                });
+                char_cursor = end;
+            }
+            // A loomTransclusion that is NOT a standalone block contributes its inline reference label
+            // (line_layout renders `⟢ {ref}`); it advances the cursor but is not a clickable chip here
+            // (the standalone transclusion block is the interactive surface).
+            Child::Transclusion(t) => {
+                char_cursor += format!("⟢ {}", t.ref_value).chars().count();
+            }
+            Child::Block(_) => {}
+        }
+    }
+    specs
 }
 
 impl egui::Widget for RichEditorWidget {

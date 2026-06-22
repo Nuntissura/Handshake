@@ -316,6 +316,33 @@ impl HsLinkNode {
     }
 }
 
+/// A note-transclusion reference as an inline ATOM node (`loomTransclusion`), matching the REAL
+/// backend `content_json` shape used by `app/src/components/LoomTransclusionView.tsx` (the host
+/// document stores ONLY `{type:"loomTransclusion", attrs:{refValue}}` — never the transcluded body;
+/// the body is resolved at view time through `GET /workspaces/{ws}/loom/blocks/{refValue}/transclusion`).
+///
+/// MT-015 NODE-SHAPE RECONCILIATION (KERNEL_BUILDER gate): the MT contract describes a
+/// `TransclusionNode` with a `{block_id}` attr, but MT-011's `NodeKind` had no transclusion variant
+/// and the REAL React node carries `refValue` (NOT `block_id`). Rather than invent a `{block_id}`
+/// shape that would not round-trip, this is added as the inline atom [`Child::Transclusion`] carrying
+/// `ref_value` (the backend block id the read-through resolves), anchored to the verified backend
+/// shape. The `loomTransclusion` node is selectable and atom-like exactly as the `hsLink` node is, so
+/// it lives in [`Child`] alongside it (one unified inline-atom family), NOT as a block-level
+/// [`NodeKind`] (block-level atoms are `hard_break`/`horizontal_rule`, which carry no attrs).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransclusionNode {
+    /// The transcluded LoomBlock id the read-through resolves (`attrs.refValue` in the backend
+    /// `content_json`). The host never stores the body — only this reference.
+    pub ref_value: String,
+}
+
+impl TransclusionNode {
+    /// Build a transclusion atom referencing the LoomBlock `ref_value`.
+    pub fn new(ref_value: impl Into<String>) -> Self {
+        Self { ref_value: ref_value.into() }
+    }
+}
+
 /// A child of a [`BlockNode`]: a nested block, a run of inline text, or an inline
 /// atom (`hsLink`).
 ///
@@ -331,6 +358,8 @@ pub enum Child {
     Text(TextLeaf),
     /// An inline atom: a typed `hsLink` wikilink node.
     HsLink(HsLinkNode),
+    /// An inline atom: a `loomTransclusion` note-transclusion reference (MT-015).
+    Transclusion(TransclusionNode),
 }
 
 impl Child {
@@ -338,7 +367,7 @@ impl Child {
     pub fn as_block(&self) -> Option<&BlockNode> {
         match self {
             Child::Block(b) => Some(b),
-            Child::Text(_) | Child::HsLink(_) => None,
+            Child::Text(_) | Child::HsLink(_) | Child::Transclusion(_) => None,
         }
     }
 
@@ -346,7 +375,7 @@ impl Child {
     pub fn as_block_mut(&mut self) -> Option<&mut BlockNode> {
         match self {
             Child::Block(b) => Some(b),
-            Child::Text(_) | Child::HsLink(_) => None,
+            Child::Text(_) | Child::HsLink(_) | Child::Transclusion(_) => None,
         }
     }
 
@@ -354,7 +383,7 @@ impl Child {
     pub fn as_text(&self) -> Option<&TextLeaf> {
         match self {
             Child::Text(t) => Some(t),
-            Child::Block(_) | Child::HsLink(_) => None,
+            Child::Block(_) | Child::HsLink(_) | Child::Transclusion(_) => None,
         }
     }
 
@@ -362,7 +391,7 @@ impl Child {
     pub fn as_text_mut(&mut self) -> Option<&mut TextLeaf> {
         match self {
             Child::Text(t) => Some(t),
-            Child::Block(_) | Child::HsLink(_) => None,
+            Child::Block(_) | Child::HsLink(_) | Child::Transclusion(_) => None,
         }
     }
 
@@ -370,19 +399,27 @@ impl Child {
     pub fn as_hs_link(&self) -> Option<&HsLinkNode> {
         match self {
             Child::HsLink(l) => Some(l),
-            Child::Block(_) | Child::Text(_) => None,
+            Child::Block(_) | Child::Text(_) | Child::Transclusion(_) => None,
+        }
+    }
+
+    /// Borrow the child as a `loomTransclusion` atom, or `None` if it is not one (MT-015).
+    pub fn as_transclusion(&self) -> Option<&TransclusionNode> {
+        match self {
+            Child::Transclusion(t) => Some(t),
+            Child::Block(_) | Child::Text(_) | Child::HsLink(_) => None,
         }
     }
 
     /// The char length this child contributes to a flat document offset: a text
     /// leaf contributes its char count; a block contributes the sum of its
-    /// descendants ([`BlockNode::char_len`]); an `hsLink` inline atom contributes 1
-    /// (a ProseMirror leaf/atom node has size 1 in document positions).
+    /// descendants ([`BlockNode::char_len`]); an `hsLink` / `loomTransclusion` inline
+    /// atom contributes 1 (a ProseMirror leaf/atom node has size 1 in document positions).
     pub fn char_len(&self) -> usize {
         match self {
             Child::Text(t) => t.text.len_chars(),
             Child::Block(b) => b.char_len(),
-            Child::HsLink(_) => 1,
+            Child::HsLink(_) | Child::Transclusion(_) => 1,
         }
     }
 }

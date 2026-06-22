@@ -255,6 +255,23 @@ pub fn layout_block(
                 job.append(&label, 0.0, fmt);
                 plain.push_str(&label);
             }
+            Child::Transclusion(t) => {
+                // A loomTransclusion inline atom that is NOT a standalone embed block (e.g. mixed
+                // into a paragraph) shows a short reference label in the subtle/link style so it is
+                // visible in the inline flow. A STANDALONE transclusion block is routed to the
+                // interactive transclusion_view by the renderer (the embed-dispatch seam), exactly
+                // like a media embed; this inline fallback keeps a mixed-paragraph transclusion
+                // visible rather than dropping it.
+                let label = format!("⟢ {}", t.ref_value);
+                let fmt = text_format_for_run(
+                    &[Mark::Link { href: String::new() }],
+                    style,
+                    palette,
+                    bold_available,
+                );
+                job.append(&label, 0.0, fmt);
+                plain.push_str(&label);
+            }
             Child::Block(_) => {
                 // An inline-content block holds no block children (schema-enforced); a
                 // stray block child is ignored here rather than panicking. Structural

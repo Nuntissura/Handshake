@@ -135,7 +135,9 @@ pub fn validate_node(node: &BlockNode) -> Result<(), SchemaError> {
                     }
                 }
             }
-            Child::HsLink(_) => {
+            Child::HsLink(_) | Child::Transclusion(_) => {
+                // Both inline atoms (hsLink wikilink, loomTransclusion reference) live in the same
+                // inline-content slot as text runs (paragraph/heading), enforced identically.
                 if !inline_atom_allowed(node.kind) {
                     return Err(SchemaError::InlineAtomNotAllowed { parent: node.kind });
                 }

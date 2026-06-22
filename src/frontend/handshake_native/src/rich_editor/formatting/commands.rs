@@ -401,7 +401,9 @@ fn collect_leaf_paths_in_range(
             Child::Block(b) => {
                 collect_leaf_paths_in_range(b, path, start_path, end_path, out);
             }
-            Child::HsLink(_) => {}
+            // Inline atoms (hsLink wikilink, loomTransclusion) carry no mark range, so they are
+            // not collected as mark-target leaf paths.
+            Child::HsLink(_) | Child::Transclusion(_) => {}
         }
         // Pop AFTER visiting the child so each child's full path is correct during its
         // own visit, and siblings do not accumulate stale indices.
