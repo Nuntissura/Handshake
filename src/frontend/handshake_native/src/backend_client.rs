@@ -2034,16 +2034,19 @@ async fn fetch_tag_members(
     Ok(members)
 }
 
-/// `GET {url}?{query}` against the verified workspace search route and parse the result blocks into
-/// add-tag [`AddTagCandidate`]s. The search response may be a bare array of blocks OR an object with a
-/// `results`/`blocks`/`hits` array (the route shape varies); we read whichever array is present and pull
-/// each entry's `block_id`/`ref_id` + `title`. An empty result yields no candidates, never an error.
-async fn fetch_add_tag_candidates(
-    client: &reqwest::Client,
-    url: &str,
-    query: &[(String, String)],
-) -> Result<Vec<AddTagCandidate>, AppError> {
-    let v = get_json(client, url, query).await?;
+/// Pure parser: turn a verified `/loom/search` JSON response into add-tag [`AddTagCandidate`]s. Split out
+/// (pure over `serde_json::Value`, no I/O) so the VERIFIED response shape is unit-testable without a live
+/// backend — the gap that hid the wrong-shape bug (the only candidate-producing widget test injected
+/// candidates directly, never exercising this parse).
+///
+/// VERIFIED shape (`api::loom::search_loom_blocks` -> `Json<Vec<LoomBlockSearchResult>>`, and
+/// `storage::loom::LoomBlockSearchResult { block: LoomBlock, score: f64 }` — NO `#[serde(flatten)]`): each
+/// array entry is `{ "block": { "block_id", "title", .. }, "score": f64 }`, so `block_id`/`title` live
+/// UNDER the `block` key, NOT at the entry's top level. We read the nested `block` object first (the real
+/// route), then fall back to a top-level `block_id`/`ref_id`/`title` read for a bare-block array (defensive
+/// — other search-shaped routes). The outer collection tolerates a bare array OR an object wrapping a
+/// `results`/`blocks`/`hits` array. An empty result yields no candidates, never an error.
+fn parse_add_tag_candidates(v: &serde_json::Value) -> Vec<AddTagCandidate> {
     let arr = v
         .as_array()
         .cloned()
@@ -2051,15 +2054,17 @@ async fn fetch_add_tag_candidates(
         .or_else(|| v.get("blocks").and_then(|x| x.as_array()).cloned())
         .or_else(|| v.get("hits").and_then(|x| x.as_array()).cloned())
         .unwrap_or_default();
-    let candidates = arr
-        .iter()
+    arr.iter()
         .filter_map(|entry| {
-            let id = entry
+            // The verified LoomBlockSearchResult nests the block under `block`; prefer that, then fall
+            // back to the entry itself for a bare-block array.
+            let block = entry.get("block").unwrap_or(entry);
+            let id = block
                 .get("block_id")
                 .and_then(|x| x.as_str())
-                .or_else(|| entry.get("ref_id").and_then(|x| x.as_str()))?
+                .or_else(|| block.get("ref_id").and_then(|x| x.as_str()))?
                 .to_owned();
-            let title = entry
+            let title = block
                 .get("title")
                 .and_then(|x| x.as_str())
                 .filter(|s| !s.trim().is_empty())
@@ -2067,8 +2072,19 @@ async fn fetch_add_tag_candidates(
                 .to_owned();
             Some(AddTagCandidate::new(id, title))
         })
-        .collect();
-    Ok(candidates)
+        .collect()
+}
+
+/// `GET {url}?{query}` against the verified workspace search route and parse the result blocks into
+/// add-tag [`AddTagCandidate`]s via [`parse_add_tag_candidates`]. An empty result yields no candidates,
+/// never an error.
+async fn fetch_add_tag_candidates(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<AddTagCandidate>, AppError> {
+    let v = get_json(client, url, query).await?;
+    Ok(parse_add_tag_candidates(&v))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2820,5 +2836,56 @@ mod tests {
         });
         let delivered = cell.lock().unwrap().take().expect("graph delivered");
         assert!(delivered.is_err(), "AC8: a 5xx must deliver Err (got {delivered:?}), never a fake graph");
+    }
+
+    // ── LoomTagClient: add-tag candidate parser (verified /loom/search response shape) ────────────────
+
+    /// AC6 / Spec-Realism Gate: the add-tag candidate parser MUST read the VERIFIED `/loom/search` shape
+    /// `Vec<LoomBlockSearchResult>` = `[{ "block": { "block_id", "title" }, "score" }]` — `block_id`/`title`
+    /// are nested UNDER `block`, not at the entry top level. This feeds the exact wrapper shape and asserts
+    /// a candidate is produced; a top-level-only read (the prior bug) would yield ZERO candidates and an
+    /// always-empty add-tag popup against the real backend. This exercises the parse directly (NOT the
+    /// widget's own `AddTagCandidate::new`, which the existing PROOF5 test injects).
+    #[test]
+    fn add_tag_candidates_parse_verified_search_result_shape() {
+        // The verified LoomBlockSearchResult wrapper: { block: {...}, score }.
+        let response = serde_json::json!([
+            { "block": { "block_id": "blk-1", "title": "Rust notes" }, "score": 0.9 },
+            { "block": { "block_id": "blk-2", "title": "" }, "score": 0.4 },
+        ]);
+        let candidates = parse_add_tag_candidates(&response);
+        assert_eq!(
+            candidates.len(),
+            2,
+            "verified [{{block,score}}] shape must yield one candidate per entry (got {candidates:?})"
+        );
+        assert_eq!(candidates[0].block_id, "blk-1");
+        assert_eq!(candidates[0].title, "Rust notes");
+        // Empty title falls back to the block id (never a fabricated label).
+        assert_eq!(candidates[1].block_id, "blk-2");
+        assert_eq!(candidates[1].title, "blk-2");
+    }
+
+    /// The bare-block fallback (defensive, for other search-shaped routes) still reads a top-level
+    /// `block_id`/`title` when there is no `block` wrapper, so the parser handles both shapes.
+    #[test]
+    fn add_tag_candidates_parse_bare_block_fallback() {
+        let bare = serde_json::json!([{ "block_id": "b9", "title": "Bare" }]);
+        let candidates = parse_add_tag_candidates(&bare);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].block_id, "b9");
+        assert_eq!(candidates[0].title, "Bare");
+
+        // An object wrapper exposing a `results` array is also unwrapped.
+        let wrapped = serde_json::json!({
+            "results": [{ "block": { "block_id": "b10", "title": "Wrapped" }, "score": 1.0 }]
+        });
+        let wrapped_candidates = parse_add_tag_candidates(&wrapped);
+        assert_eq!(wrapped_candidates.len(), 1);
+        assert_eq!(wrapped_candidates[0].block_id, "b10");
+        assert_eq!(wrapped_candidates[0].title, "Wrapped");
+
+        // Empty array => no candidates, never an error.
+        assert!(parse_add_tag_candidates(&serde_json::json!([])).is_empty());
     }
 }

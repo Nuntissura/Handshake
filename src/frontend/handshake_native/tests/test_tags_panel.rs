@@ -7,6 +7,7 @@
 //!     `tag-hub.member.*` node.
 //!   - PROOF5: click `tag-hub.add-tag.tag-hub-001`, select a candidate, assert the AddTagSelected event +
 //!     the verified `POST /loom/edges` request shape (`edge_type:"tag"`). (No Tauri — backend_client.)
+//!
 //! Plus AC3 (tag-row click fires OpenTag), AC5 (member-row click fires OpenMember), AC7 (the named
 //! author_ids present), AC8 (empty -> "No tags", no panic), and a screenshot (HBR-VIS).
 //!

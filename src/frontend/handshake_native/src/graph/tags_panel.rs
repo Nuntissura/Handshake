@@ -156,6 +156,14 @@ fn tag_chip_palette() -> [Color32; TAG_CHIP_PALETTE_LEN] {
 /// Number of distinct tag-chip colors (RISK-3: >= 12).
 pub const TAG_CHIP_PALETTE_LEN: usize = 12;
 
+/// Compile-time guarantee of the MC-3 ">= 12 distinct chip colors" invariant. A `const` assertion is
+/// evaluated by the compiler (it fails the build if the palette ever shrinks below 12), unlike a runtime
+/// `assert!` over a const — which the optimizer elides to a no-op (clippy `assertions_on_constants`).
+const _: () = assert!(
+    TAG_CHIP_PALETTE_LEN >= 12,
+    "RISK-3 / MC-3: >= 12 distinct chip colors required"
+);
+
 /// Deterministically map a tag title to one of the [`TAG_CHIP_PALETTE_LEN`] chip colors. The hash is a
 /// djb2 variant XOR-folded over the title bytes (the contract's "djb2 hash … XOR multiple hash words for
 /// better distribution", RISK-3 / MC-3). Pure + stable: the same title always yields the same color, so a
@@ -782,7 +790,17 @@ mod tests {
     /// the collision rate over a 50-tag sample is < 20%.
     #[test]
     fn tag_chip_color_distribution_under_20pct() {
-        assert!(TAG_CHIP_PALETTE_LEN >= 12, "RISK-3: >= 12 distinct chip colors required");
+        // RISK-3 / MC-3: >= 12 distinct chip colors. The const-size invariant is enforced at compile
+        // time by `const _: () = assert!(TAG_CHIP_PALETTE_LEN >= 12)`; here we additionally assert the
+        // CONSTRUCTED palette really yields >= 12 DISTINCT colors at runtime (a const assert can't see
+        // the actual rgb values), so an accidental duplicate hue is caught, not just a short array.
+        let distinct: std::collections::HashSet<(u8, u8, u8)> =
+            tag_chip_palette().iter().map(|c| (c.r(), c.g(), c.b())).collect();
+        assert!(
+            distinct.len() >= 12,
+            "RISK-3 / MC-3: >= 12 distinct chip colors required (got {} distinct)",
+            distinct.len()
+        );
         // Stable: same title -> same index.
         assert_eq!(tag_chip_color_index("rust"), tag_chip_color_index("rust"));
 
