@@ -5,11 +5,22 @@
 //! extend this module. The graph binds the EXISTING PostgreSQL/EventLedger backend through the WP-011
 //! [`crate::backend_client::LoomGraphClient`] — no new backend, no Tauri.
 
+pub mod canvas_board;
 pub mod folder_tree;
 pub mod graph_view;
 pub mod sidebar_panel;
 pub mod tags_panel;
 pub mod wiki_page_panel;
+
+// NOTE: `canvas_board::{ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID}` ("canvas.zoom-in"/"canvas.zoom-out")
+// intentionally collide by NAME with `graph_view`'s ("graph.zoom.in"/"graph.zoom.out"), so they are NOT
+// re-exported flat here. Consumers/tests import them as `graph::canvas_board::ZOOM_IN_AUTHOR_ID`.
+pub use canvas_board::{
+    placement_author_id, placement_remove_author_id, CanvasEvent, CanvasPlacementCard, EdgeMode,
+    LoomCanvasBoard, VisualEdge, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H, DEFAULT_CARD_W,
+    EDGE_MODE_AUTHOR_ID, GROUP_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
+    PLACEMENT_AUTHOR_ID_PREFIX, START_EDGE_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+};
 
 pub use graph_view::{
     content_type_color, node_author_id, GraphEdge, GraphEvent, GraphMode, GraphNode, LoomGraphView,

@@ -1489,6 +1489,390 @@ async fn fetch_local_graph(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-026 Loom CANVAS-BOARD transport (E3 — the Obsidian-Canvas-class surface).
+//
+// VERIFIED READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running
+// backend), NOT taken from the MT-026 contract body — whose `binds_backend_api` URLs were STALE
+// (the contract named `.../loom/canvas/{cb}/...`; the REAL routes are `.../loom/canvas-boards/...`
+// + the placement/visual-edge routes under `.../loom/canvas-placements` / `.../loom/canvas-visual-edges`,
+// matching the existing CanvasClient that already verified the placement DELETE/PATCH shape). The
+// MT-022/023/024 "verify, don't trust the contract" lesson. The nine routes this client binds:
+//   - GET    /workspaces/:ws/loom/canvas-boards/:block_id              get_canvas_board -> LoomCanvasBoardView
+//                                                                       { board{board_state{pan_x,pan_y,zoom}},
+//                                                                         placements[], visual_edges[] }
+//   - PUT    /workspaces/:ws/loom/canvas-boards/:block_id/viewport     update_canvas_board_state
+//                                                                       body { board_state:{schema_id,pan_x,pan_y,zoom} }
+//   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/placements   place_block_on_canvas
+//                                                                       body { placed_block_id,x,y,w,h }
+//   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/cards        create_canvas_card
+//                                                                       body { title,body,x,y,w,h }
+//   - PATCH  /workspaces/:ws/loom/canvas-placements/:placement_id      update_canvas_placement
+//                                                                       body { group_id } (NOT `.../canvas/{cb}/placements/{p}`)
+//   - DELETE /workspaces/:ws/loom/canvas-placements/:placement_id      remove_canvas_placement (source block kept)
+//   - POST   /workspaces/:ws/loom/edges                                create_loom_edge
+//                                                                       body { source_block_id,target_block_id,
+//                                                                              edge_type:"mention",created_by:"user" }
+//   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/visual-edges add_canvas_visual_edge
+//                                                                       body { from_placement_id,to_placement_id }
+//   - GET    /workspaces/:ws/loom/blocks/:block_id                     get_loom_block -> LoomBlock (live title resolve)
+//
+// Placement x/y/w/h are `f64` on the wire (the storage struct), so the request builders take f64.
+// All follow the MT-020/021 off-thread shape: spawn on the app's tokio runtime, deliver the outcome
+// into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET). Speaks
+// `serde_json::Value` so it never depends on the `handshake_core` crate's types; the parsed board
+// shape is the widget's own `graph::canvas_board::{CanvasPlacementCard, VisualEdge}`.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::canvas_board::{CanvasPlacementCard, VisualEdge};
+
+/// The parsed canvas board: placements + visual edges + viewport (pan/zoom), plus the live-title resolve
+/// map keyed by `placed_block_id` (filled by a follow-up `getLoomBlock` per distinct block). `Ok` carries
+/// the projection; `Err(msg)` a failure the board surfaces as an error label instead of crashing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CanvasBoardData {
+    pub placements: Vec<CanvasPlacementCard>,
+    pub visual_edges: Vec<VisualEdge>,
+    pub pan_x: f32,
+    pub pan_y: f32,
+    pub zoom: f32,
+}
+
+/// One-slot delivery cell for an off-thread `getCanvasBoard` fetch result.
+pub type CanvasBoardCell = Arc<Mutex<Option<Result<CanvasBoardData, String>>>>;
+
+/// One-slot delivery cell for an off-thread canvas MUTATION (place/card/viewport/group/remove/edge)
+/// result. `Ok(())` on a 2xx (the board re-fetches), `Err(msg)` the failure. Same shape as
+/// [`CanvasOpCell`].
+pub type CanvasBoardOpCell = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// One-slot delivery cell for an off-thread `getLoomBlock` live-title resolve. Delivers
+/// `(placed_block_id, Ok((title, content_type)))` / `(placed_block_id, Err(msg))`. A missing block
+/// (HTTP 404) is delivered as `Err` so the host shows `(stale reference)` — never a fabricated title.
+pub type LiveBlockCell = Arc<Mutex<Option<(String, Result<(Option<String>, String), String>)>>>;
+
+/// REST client for the VERIFIED Loom canvas-board surface (MT-261 backend). Drives the board read +
+/// all canvas mutations off the UI thread. Mirrors the `CanvasClient`/`LoomGraphClient` shape exactly.
+#[derive(Clone)]
+pub struct CanvasBoardClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl CanvasBoardClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn board_url(&self, workspace_id: &str, canvas_block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/canvas-boards/{}",
+            self.base_url, workspace_id, canvas_block_id
+        )
+    }
+
+    fn placement_url(&self, workspace_id: &str, placement_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/canvas-placements/{}",
+            self.base_url, workspace_id, placement_id
+        )
+    }
+
+    fn edges_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/edges", self.base_url, workspace_id)
+    }
+
+    fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    /// Pure request builder for `GET .../canvas-boards/:block_id` (getCanvasBoard).
+    pub fn get_board_request(&self, workspace_id: &str, canvas_block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.board_url(workspace_id, canvas_block_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `PUT .../canvas-boards/:block_id/viewport` (updateCanvasBoardViewport).
+    /// The verified body is `{ board_state:{schema_id,pan_x,pan_y,zoom} }` — NOT a top-level
+    /// `{pan_x,pan_y,zoom}` (the contract's stale shape).
+    pub fn viewport_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        pan_x: f32,
+        pan_y: f32,
+        zoom: f32,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: format!("{}/viewport", self.board_url(workspace_id, canvas_block_id)),
+            body: Some(serde_json::json!({
+                "board_state": {
+                    "schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID,
+                    "pan_x": pan_x,
+                    "pan_y": pan_y,
+                    "zoom": zoom,
+                }
+            })),
+        }
+    }
+
+    /// Pure request builder for `POST .../canvas-boards/:block_id/placements` (placeBlockOnCanvas).
+    #[allow(clippy::too_many_arguments)] // x/y/w/h geometry + ids — the verified placement body shape.
+    pub fn place_block_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        placed_block_id: &str,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/placements", self.board_url(workspace_id, canvas_block_id)),
+            body: Some(serde_json::json!({
+                "placed_block_id": placed_block_id,
+                "x": x, "y": y, "w": w, "h": h,
+            })),
+        }
+    }
+
+    /// Pure request builder for `POST .../canvas-boards/:block_id/cards` (createCanvasCard).
+    #[allow(clippy::too_many_arguments)] // x/y/w/h geometry + title + ids — the verified card body shape.
+    pub fn create_card_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        title: &str,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/cards", self.board_url(workspace_id, canvas_block_id)),
+            body: Some(serde_json::json!({
+                "title": title,
+                "body": "",
+                "x": x, "y": y, "w": w, "h": h,
+            })),
+        }
+    }
+
+    /// Pure request builder for `PATCH .../canvas-placements/:placement_id` (updateCanvasPlacement)
+    /// with a `group_id` (grouping). The verified body uses `group_id`.
+    pub fn group_request(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+        group_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.placement_url(workspace_id, placement_id),
+            body: Some(serde_json::json!({ "group_id": group_id })),
+        }
+    }
+
+    /// Pure request builder for `DELETE .../canvas-placements/:placement_id` (removeCanvasPlacement).
+    /// Removes the placement REFERENCE; the source block is KEPT (MC-4).
+    pub fn remove_placement_request(&self, workspace_id: &str, placement_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: self.placement_url(workspace_id, placement_id),
+            body: None,
+        }
+    }
+
+    /// Pure request builder for `POST /loom/edges` (createLoomEdge) — a real semantic `mention` edge.
+    pub fn semantic_edge_request(
+        &self,
+        workspace_id: &str,
+        source_block_id: &str,
+        target_block_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.edges_url(workspace_id),
+            body: Some(serde_json::json!({
+                "source_block_id": source_block_id,
+                "target_block_id": target_block_id,
+                "edge_type": "mention",
+                "created_by": "user",
+            })),
+        }
+    }
+
+    /// Pure request builder for `POST .../canvas-boards/:block_id/visual-edges` (addCanvasVisualEdge).
+    pub fn visual_edge_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        from_placement_id: &str,
+        to_placement_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/visual-edges", self.board_url(workspace_id, canvas_block_id)),
+            body: Some(serde_json::json!({
+                "from_placement_id": from_placement_id,
+                "to_placement_id": to_placement_id,
+            })),
+        }
+    }
+
+    /// Pure request builder for `GET /loom/blocks/:block_id` (getLoomBlock) — live-title resolve.
+    pub fn get_block_request(&self, workspace_id: &str, block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.block_url(workspace_id, block_id),
+            query: vec![],
+        }
+    }
+
+    /// Fetch the board off the UI thread, delivering the parsed projection into `cell`.
+    pub fn fetch_board(&self, workspace_id: &str, canvas_block_id: &str, cell: CanvasBoardCell) {
+        let spec = self.get_board_request(workspace_id, canvas_block_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_canvas_board(&client, &spec.url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Resolve a block's live title + content_type off the UI thread (`getLoomBlock`), delivering
+    /// `(placed_block_id, Ok((title, content_type)))` / `(placed_block_id, Err))` into `cell`.
+    pub fn resolve_block(&self, workspace_id: &str, placed_block_id: &str, cell: LiveBlockCell) {
+        let spec = self.get_block_request(workspace_id, placed_block_id);
+        let client = self.client.clone();
+        let id = placed_block_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_live_block(&client, &spec.url).await.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((id, result));
+            }
+        });
+    }
+
+    /// Send a prebuilt mutation [`RequestSpec`] (place/card/viewport/group/remove/edge) off the UI
+    /// thread, delivering `Ok(())`/`Err(msg)` into `cell`. The host re-fetches the board after a 2xx.
+    pub fn dispatch(&self, spec: RequestSpec, cell: CanvasBoardOpCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_canvas_mutation(&client, &spec).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+}
+
+/// The board-state schema id the backend stamps on the canvas viewport JSONB (mirrors
+/// `handshake_core::storage::LOOM_CANVAS_BOARD_SCHEMA_ID`). Kept as a const here so the native client
+/// never depends on the backend crate.
+pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
+
+/// Send one canvas mutation by method, treating any 2xx as success (the board re-fetches for the body).
+async fn send_canvas_mutation(client: &reqwest::Client, spec: &RequestSpec) -> Result<(), AppError> {
+    let empty = serde_json::json!({});
+    let body = spec.body.as_ref().unwrap_or(&empty);
+    match spec.method {
+        HttpMethod::Post => post_expect_success(client, &spec.url, body).await,
+        HttpMethod::Patch => patch_expect_success(client, &spec.url, body).await,
+        HttpMethod::Put => put_expect_success(client, &spec.url, body).await,
+        HttpMethod::Delete => delete_expect_success(client, &spec.url).await,
+        HttpMethod::Get => Err(AppError::Http("GET is not a mutation".to_owned())),
+    }
+}
+
+/// `GET {url}` and parse the verified `LoomCanvasBoardView` into a [`CanvasBoardData`]. Placements
+/// arrive WITHOUT live titles (the host resolves each via `getLoomBlock` after this returns — reference,
+/// not copy). A missing/empty board yields an EMPTY projection (0 placements), never an error (AC10).
+async fn fetch_canvas_board(client: &reqwest::Client, url: &str) -> Result<CanvasBoardData, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let placements = v
+        .get("placements")
+        .and_then(|p| p.as_array())
+        .map(|arr| arr.iter().filter_map(placement_from_json).collect())
+        .unwrap_or_default();
+    let visual_edges = v
+        .get("visual_edges")
+        .and_then(|e| e.as_array())
+        .map(|arr| arr.iter().filter_map(visual_edge_from_json).collect())
+        .unwrap_or_default();
+    let board_state = v.get("board").and_then(|b| b.get("board_state"));
+    let pan_x = board_state.and_then(|s| s.get("pan_x")).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let pan_y = board_state.and_then(|s| s.get("pan_y")).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let zoom = board_state.and_then(|s| s.get("zoom")).and_then(|x| x.as_f64()).unwrap_or(1.0) as f32;
+    Ok(CanvasBoardData { placements, visual_edges, pan_x, pan_y, zoom })
+}
+
+/// Parse one verified `LoomCanvasPlacement` JSON object into a [`CanvasPlacementCard`] (no live title
+/// yet). Returns `None` only when `placement_id` or `placed_block_id` is missing (a malformed row is
+/// skipped, not faked).
+fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
+    let placement_id = p.get("placement_id").and_then(|x| x.as_str())?.to_owned();
+    let placed_block_id = p.get("placed_block_id").and_then(|x| x.as_str())?.to_owned();
+    let x = p.get("x").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let y = p.get("y").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let w = p.get("w").and_then(|x| x.as_f64()).unwrap_or(200.0) as f32;
+    let h = p.get("h").and_then(|x| x.as_f64()).unwrap_or(120.0) as f32;
+    let mut card = CanvasPlacementCard::new(placement_id, placed_block_id, x, y, w, h);
+    card.z_index = p.get("z_index").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
+    card.group_id = p.get("group_id").and_then(|x| x.as_str()).map(ToOwned::to_owned);
+    Some(card)
+}
+
+/// Parse one verified `LoomCanvasVisualEdge` JSON object into a [`VisualEdge`]. Returns `None` when any
+/// required id is missing.
+fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
+    Some(VisualEdge {
+        visual_edge_id: e.get("visual_edge_id").and_then(|x| x.as_str())?.to_owned(),
+        from_placement_id: e.get("from_placement_id").and_then(|x| x.as_str())?.to_owned(),
+        to_placement_id: e.get("to_placement_id").and_then(|x| x.as_str())?.to_owned(),
+    })
+}
+
+/// `GET {url}` and read a verified `LoomBlock`'s `(title, content_type)` for the live-title resolve.
+/// `title` is `Option<String>` (a block can be untitled); `content_type` defaults to "note". A 404 (the
+/// block was deleted) is an [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
+async fn fetch_live_block(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<(Option<String>, String), AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let title = v
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(ToOwned::to_owned);
+    let content_type = v
+        .get("content_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("note")
+        .to_owned();
+    Ok((title, content_type))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WP-KERNEL-012 MT-022 Loom FOLDER-TREE transport (REUSE — extends the MT-021 Loom read surface).
 //
 // VERIFIED READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running
