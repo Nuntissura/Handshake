@@ -421,7 +421,7 @@ mod tests {
         let mut rt = rt();
         rt.transclusions.insert("BLK-1".into(), TransclusionState::Failed(WikilinkError::NotFound("BLK-1".into())));
         rt.mark_removed("BLK-1");
-        assert!(rt.transclusions.get("BLK-1").is_none(), "removed transclusion is dropped from the cache");
+        assert!(!rt.transclusions.contains_key("BLK-1"), "removed transclusion is dropped from the cache");
         assert!(rt.removed_transclusions.contains("BLK-1"));
     }
 }

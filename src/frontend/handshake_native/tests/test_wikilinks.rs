@@ -52,6 +52,21 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
+/// Serialize the `.wgpu()` screenshot tests. egui_kittest's `Harness::builder().wgpu()` spins up its
+/// own wgpu Instance/Adapter/Device; creating several of those concurrently on parallel test threads is
+/// a known Windows wgpu hazard that aborts the process with STATUS_ACCESS_VIOLATION (0xC0000005) — so
+/// `cargo test --test test_wikilinks` (default multi-threaded harness) would crash even though every
+/// test passes when run serially. This guard makes the documented proof command deterministic without a
+/// new dependency or a `--test-threads=1` requirement: each wgpu test holds the lock for the lifetime of
+/// its Harness, so at most one wgpu device exists at a time. Mirrors the crate's existing
+/// `WIRE_TEST_GUARD` idiom (test_mcp_tools.rs / test_swarm_concurrency.rs). A poisoned lock is recovered
+/// (a prior panic already failed that test). Non-wgpu tests run fully parallel.
+static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
+    WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner())
+}
+
 // ── Mock backend (no live backend) ─────────────────────────────────────────────────────────────
 
 /// A mock wikilink backend that serves canned transclusion + backlinks + search results from memory.
@@ -135,6 +150,7 @@ fn doc_with_chip(ref_kind: &str, ref_value: &str, label: &str, resolved: bool) -
 
 #[test]
 fn mt015_wikilink_chip_screenshot() {
+    let _wgpu_guard = wgpu_guard(); // serialize wgpu device creation (held for the Harness lifetime)
     let doc = doc_with_chip("wp", "WP-KERNEL-012", "My WP", true);
     let state = Arc::new(std::sync::Mutex::new(
         RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
@@ -340,6 +356,7 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
 
 #[test]
 fn mt015_transclusion_view_screenshot() {
+    let _wgpu_guard = wgpu_guard(); // serialize wgpu device creation (held for the Harness lifetime)
     // A standalone transclusion block, with the resolution PRE-SEEDED Resolved (the runtime's
     // resolved state, reproduced headlessly so the SCREENSHOT shows the read-through preview without
     // a backend). The real-backend variant is the #[ignore] integration test below.
@@ -461,6 +478,7 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
 
 #[test]
 fn mt015_backlinks_panel_screenshot() {
+    let _wgpu_guard = wgpu_guard(); // serialize wgpu device creation (held for the Harness lifetime)
     let doc = BlockNode::doc(vec![BlockNode::paragraph("A note with backlinks.")]);
     let mut runtime = headless_runtime(
         Err(WikilinkError::NotFound("none".into())),
