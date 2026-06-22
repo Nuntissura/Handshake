@@ -68,15 +68,24 @@ use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
 
 use super::buffer::TextBuffer;
+use super::code_nav::{
+    staleness_marker_for, CodeNavCache, CodeNavClient, CodeSymbolNavProjection, CompletionItem,
+    COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS, SYMBOL_LOOKUP_LIMIT,
+};
 use super::cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet,
     MAX_ACCESSKIT_CURSORS,
 };
+use super::editor_view::{
+    CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
+};
+use super::lsp_client::{LspClient, PublishedDiagnostics};
 use super::find_replace::{FindEngine, FindQuery, Match};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::folding::{FoldProvider, FoldSet};
 use super::gutter::{
-    Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
+    DiagnosticSeverity, Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind,
+    GutterResponse,
 };
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 use super::minimap::Minimap;
@@ -247,6 +256,26 @@ fn syntax_tokens_for(visuals: &egui::Visuals) -> HsSyntaxTokens {
     }
 }
 
+/// Map an LSP `publishDiagnostics` payload to MT-007 gutter markers (AC-008). The LSP severity integers
+/// (1=Error, 2=Warning, 3=Information, 4=Hint) map onto the gutter's [`DiagnosticSeverity`]; the LSP
+/// `range.start.line` is already 0-based (the gutter's coordinate space).
+fn lsp_diagnostics_to_markers(published: &PublishedDiagnostics) -> Vec<GutterMarker> {
+    published
+        .diagnostics
+        .iter()
+        .map(|d| {
+            let severity = match d.severity {
+                1 => DiagnosticSeverity::Error,
+                2 => DiagnosticSeverity::Warning,
+                3 => DiagnosticSeverity::Info,
+                4 => DiagnosticSeverity::Hint,
+                _ => DiagnosticSeverity::Error,
+            };
+            GutterMarker::diagnostic(d.line, severity, d.message.clone())
+        })
+        .collect()
+}
+
 /// The native code-editor panel widget. Holds the document buffer + highlighter and renders the
 /// visible lines as colored runs, virtualized through `ScrollArea::show_rows` (MT-002).
 ///
@@ -396,7 +425,60 @@ pub struct CodeEditorPanel {
     /// The gutter geometry of the most recent frame (origin/line_height/char_width), so a test can map a
     /// painted gutter row index to its screen y. `None` before the first render.
     last_gutter_geometry: Mutex<Option<GutterGeometry>>,
+
+    // ── MT-008 code intelligence (LSP + Handshake code-nav fallback) ──────────────────────────────
+
+    /// MT-008 completion popup state. `None` when no completion is showing; `Some` while the popup is
+    /// open. The render path draws the popup + emits its AccessKit nodes from this; the input handler
+    /// (Arrow/Enter/Escape) and the result-delivery drain mutate it. Behind a `Mutex` for the same
+    /// `Sync` reason as the buffer.
+    completion_state: Mutex<Option<CompletionState>>,
+    /// MT-008 hover tooltip state. `None` when no hover is showing; `Some` while the tooltip is open.
+    hover_state: Mutex<Option<HoverState>>,
+    /// MT-008 Handshake backend code-nav client (the fallback intelligence source). Reused for
+    /// completion + hover + go-to-def + references when no LSP server is attached. Cheap to clone.
+    code_nav_client: CodeNavClient,
+    /// MT-008 short-lived `lookup_symbols(prefix)` cache (RISK-002 / MC-004 — debounce + cache).
+    code_nav_cache: Mutex<CodeNavCache>,
+    /// MT-008 LSP client (lazily spawns a language server on first `did_open`). Defaults to
+    /// [`LspClient::disabled`] (graceful empty results — AC-004) until a server is configured. Behind a
+    /// `Mutex` so the `&self` render/input path can drive it under the `Sync` panel; an `Arc` so the
+    /// off-thread completion/hover task can hold it across an await.
+    lsp_client: Mutex<Arc<LspClient>>,
+    /// MT-008 active workspace id used for the backend code-nav lookups (empty = no workspace bound,
+    /// so code-nav requests are skipped — the React `activeWorkspaceId() == null` short-circuit).
+    workspace_id: Mutex<String>,
+    /// MT-008 instant of the last buffer edit (implementation note 2). The completion trigger only
+    /// fires when this is at least [`COMPLETION_DEBOUNCE_MS`] in the past, so fast typing does not flood
+    /// the backend (RISK-002). `None` until the first edit.
+    last_edit_instant: Mutex<Option<std::time::Instant>>,
+    /// MT-008 hover-dwell tracker (implementation note 3): the `(cursor_byte_offset, since)` the cursor
+    /// has rested at. A hover request fires once the dwell exceeds [`HOVER_DWELL_MS`] at the same
+    /// offset. `None` when the cursor is moving / no dwell is in progress.
+    hover_dwell: Mutex<Option<(usize, std::time::Instant)>>,
+    /// MT-008 off-thread completion result delivery cell. A spawned `lookup_symbols` task writes the
+    /// `(anchor, items)` here; the next `show` drains it into `completion_state` (HBR-QUIET — the egui
+    /// thread never blocks on the backend). `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
+    completion_result: CompletionResultCell,
+    /// MT-008 off-thread hover result delivery cell. A spawned hover task writes the `(anchor, hover)`
+    /// here; the next `show` drains it into `hover_state`.
+    hover_result: HoverResultCell,
+    /// MT-008 the LSP `publishDiagnostics` receiver, parked on the panel after it is taken (once) from
+    /// the LSP client, so [`drain_lsp_diagnostics`](Self::drain_lsp_diagnostics) can incrementally drain
+    /// it each frame and route notifications to the gutter (AC-008). `None` until the first drain takes
+    /// the receiver from a configured client.
+    lsp_diagnostics_rx:
+        Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
 }
+
+/// MT-008 off-thread completion result delivery cell: `(cursor anchor pixel, popup items)` written by
+/// a spawned `lookup_symbols` task and drained on the next frame. Aliased so the panel field type stays
+/// legible (clippy `type_complexity`).
+type CompletionResultCell = Arc<Mutex<Option<(egui::Pos2, Vec<CompletionItem>)>>>;
+
+/// MT-008 off-thread hover result delivery cell: `(cursor anchor pixel, hover state)` written by a
+/// spawned hover task and drained on the next frame. Aliased for the same legibility reason.
+type HoverResultCell = Arc<Mutex<Option<(egui::Pos2, HoverState)>>>;
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -608,6 +690,20 @@ impl CodeEditorPanel {
             last_gutter_rect: Mutex::new(None),
             last_gutter_rows: Mutex::new(Vec::new()),
             last_gutter_geometry: Mutex::new(None),
+            // MT-008 code intelligence: the code-nav fallback client + a DISABLED LSP client (graceful
+            // empty results until a server is configured — AC-004). No workspace bound yet (code-nav
+            // requests are skipped until `set_workspace_id`).
+            completion_state: Mutex::new(None),
+            hover_state: Mutex::new(None),
+            code_nav_client: CodeNavClient::production(),
+            code_nav_cache: Mutex::new(CodeNavCache::new()),
+            lsp_client: Mutex::new(Arc::new(LspClient::disabled())),
+            workspace_id: Mutex::new(String::new()),
+            last_edit_instant: Mutex::new(None),
+            hover_dwell: Mutex::new(None),
+            completion_result: Arc::new(Mutex::new(None)),
+            hover_result: Arc::new(Mutex::new(None)),
+            lsp_diagnostics_rx: Mutex::new(None),
         }
     }
 
@@ -1456,6 +1552,303 @@ impl CodeEditorPanel {
         self.buffer_version.load(Ordering::Relaxed)
     }
 
+    // ── MT-008 code intelligence API (completion / hover / code-nav / LSP) ─────────────────────────
+
+    /// Bind the active workspace id used for backend code-nav lookups. Empty = no workspace (code-nav
+    /// requests short-circuit to empty, the React `activeWorkspaceId() == null` behavior).
+    pub fn set_workspace_id(&self, workspace_id: impl Into<String>) {
+        *self.workspace_id.lock().unwrap_or_else(|e| e.into_inner()) = workspace_id.into();
+    }
+
+    /// The active workspace id (empty when unbound).
+    pub fn workspace_id(&self) -> String {
+        self.workspace_id.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Replace the LSP client (e.g. install a configured language server, or a mock LSP in a test). The
+    /// default is [`LspClient::disabled`] (graceful empty results — AC-004).
+    pub fn set_lsp_client(&self, client: Arc<LspClient>) {
+        *self.lsp_client.lock().unwrap_or_else(|e| e.into_inner()) = client;
+    }
+
+    /// A clone of the current LSP client handle (for the diagnostics-drain wiring + tests).
+    pub fn lsp_client(&self) -> Arc<LspClient> {
+        Arc::clone(&self.lsp_client.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// A snapshot of the completion popup state (`None` when no popup is showing). For tests + the
+    /// input handler.
+    pub fn completion_state(&self) -> Option<CompletionState> {
+        self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// True while the completion popup is showing.
+    pub fn is_completion_open(&self) -> bool {
+        self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// Open the completion popup with `items` anchored at the primary cursor's pixel (the deterministic
+    /// path the trigger + tests use). A no-op when `items` is empty (nothing to show).
+    pub fn open_completion(&self, items: Vec<CompletionItem>) {
+        if items.is_empty() {
+            self.close_completion();
+            return;
+        }
+        let anchor = self
+            .cursor_screen_pos()
+            .unwrap_or_else(|| egui::pos2(40.0, 40.0));
+        *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(CompletionState::new(items, anchor));
+    }
+
+    /// Close the completion popup (Escape / after accept / no items).
+    pub fn close_completion(&self) {
+        *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Move the completion selection down (ArrowDown). A no-op when closed.
+    pub fn completion_select_next(&self) {
+        if let Some(state) = self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+            state.select_next();
+        }
+    }
+
+    /// Move the completion selection up (ArrowUp). A no-op when closed.
+    pub fn completion_select_prev(&self) {
+        if let Some(state) = self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+            state.select_prev();
+        }
+    }
+
+    /// Accept the currently-selected completion item (Enter): insert its `insert_text` at the cursor,
+    /// then close the popup. Returns `true` when an item was inserted. The single accept path the Enter
+    /// keymap + the popup click both funnel through.
+    pub fn accept_completion(&self) -> bool {
+        let insert = {
+            let guard = self.completion_state.lock().unwrap_or_else(|e| e.into_inner());
+            guard.as_ref().and_then(|s| s.selected().map(|i| i.insert_text.clone()))
+        };
+        match insert {
+            Some(text) => {
+                self.insert_text(&text);
+                self.close_completion();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Accept the completion item at `index` (a click on a specific row). Inserts + closes.
+    pub fn accept_completion_index(&self, index: usize) -> bool {
+        let insert = {
+            let guard = self.completion_state.lock().unwrap_or_else(|e| e.into_inner());
+            guard.as_ref().and_then(|s| s.items.get(index).map(|i| i.insert_text.clone()))
+        };
+        match insert {
+            Some(text) => {
+                self.insert_text(&text);
+                self.close_completion();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// A snapshot of the hover tooltip state (`None` when no tooltip is showing).
+    pub fn hover_state(&self) -> Option<HoverState> {
+        self.hover_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// True while the hover tooltip is showing.
+    pub fn is_hover_open(&self) -> bool {
+        self.hover_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// Open the hover tooltip with `state` (the deterministic path the dwell trigger + tests use).
+    pub fn open_hover(&self, state: HoverState) {
+        *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = Some(state);
+    }
+
+    /// Close the hover tooltip (cursor moved / Escape / after go-to-def).
+    pub fn close_hover(&self) {
+        *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// The screen pixel of the primary cursor's head on the most recent frame, anchored below the
+    /// caret (for the completion popup / hover tooltip). `None` before the first render / off-screen.
+    pub fn cursor_screen_pos(&self) -> Option<egui::Pos2> {
+        let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let (line, col) = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let head = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).primary().head;
+            byte_to_line_col(head, &buffer)
+        };
+        let pos = self.screen_pos_for_line_col(line, col, glyph_width)?;
+        // Anchor a touch below the caret so the popup does not cover the current line.
+        Some(pos + egui::vec2(0.0, 14.0))
+    }
+
+    /// Build completion items from backend code-nav symbol projections (the React `suggestions.map`).
+    /// The deterministic mapping the off-thread completion task + tests use.
+    pub fn completions_from_symbols(symbols: &[CodeSymbolNavProjection]) -> Vec<CompletionItem> {
+        symbols.iter().map(CompletionItem::from_symbol).collect()
+    }
+
+    /// Push warning gutter markers for every NOT-FRESH symbol projection (AC-007): the native port of
+    /// `refreshHandshakeCodeIntelligenceMarkers`'s staleness branch. Each stale symbol with a definition
+    /// span yields a Warning marker on its line. Replaces the current diagnostic markers via the MT-007
+    /// [`push_diagnostics`] slot (so a swarm agent / a screenshot sees the staleness dot in the gutter).
+    /// Returns the number of markers pushed. A diagnostics push does NOT bump `buffer_version` (the
+    /// MT-007 perf invariant).
+    pub fn push_staleness_markers(&self, symbols: &[CodeSymbolNavProjection]) -> usize {
+        let markers: Vec<GutterMarker> =
+            symbols.iter().filter_map(staleness_marker_for).collect();
+        let count = markers.len();
+        self.push_diagnostics(markers);
+        count
+    }
+
+    /// Drain the LSP `publishDiagnostics` channel and map any pending notification onto the gutter via
+    /// [`push_diagnostics`] (AC-008). Called each frame (cheap when empty). Only the diagnostics whose
+    /// URI matches this panel's file are applied; the editor maps `range.start.line` (0-based) to a gutter
+    /// line and the LSP severity to a [`DiagnosticSeverity`]. Returns the number of markers pushed if a
+    /// notification was drained, else `None` (no notification this frame — leave the markers as-is).
+    pub fn drain_lsp_diagnostics(&self) -> Option<usize> {
+        let receiver = {
+            // Take the receiver from the client the first time; it is parked on the panel afterward.
+            let client = self.lsp_client.lock().unwrap_or_else(|e| e.into_inner());
+            client.take_diagnostics_receiver()
+        };
+        // The receiver lives on the panel between frames so we drain it incrementally. Store it here.
+        if let Some(rx) = receiver {
+            *self.lsp_diagnostics_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        }
+        let mut latest: Option<PublishedDiagnostics> = None;
+        if let Some(rx) = self.lsp_diagnostics_rx.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+            // Drain to the most recent notification for this document (LSP replaces the whole set).
+            while let Ok(published) = rx.try_recv() {
+                latest = Some(published);
+            }
+        }
+        let published = latest?;
+        let markers = lsp_diagnostics_to_markers(&published);
+        let count = markers.len();
+        self.push_diagnostics(markers);
+        Some(count)
+    }
+
+    /// Mark a buffer edit happened now (the completion-debounce clock — implementation note 2).
+    pub fn mark_edit_now(&self) {
+        *self.last_edit_instant.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(std::time::Instant::now());
+    }
+
+    /// True when the completion debounce window ([`COMPLETION_DEBOUNCE_MS`]) has elapsed since the last
+    /// edit (or no edit has happened) — i.e. it is safe to fire a completion request (RISK-002).
+    pub fn completion_debounce_elapsed(&self) -> bool {
+        match *self.last_edit_instant.lock().unwrap_or_else(|e| e.into_inner()) {
+            Some(at) => at.elapsed() >= std::time::Duration::from_millis(COMPLETION_DEBOUNCE_MS),
+            None => true,
+        }
+    }
+
+    /// Spawn an off-thread backend code-nav completion request for `prefix` and deliver the popup items
+    /// into the panel's completion-result cell (drained next frame). Caches the lookup (RISK-002 / MC-004).
+    /// A no-op when no workspace is bound / the prefix is too short (the React 2-char guard) / the
+    /// debounce window has not elapsed. `runtime` is the app's tokio handle (the editor passes it in;
+    /// the egui thread never blocks — HBR-QUIET).
+    pub fn trigger_completion(&self, runtime: &tokio::runtime::Handle, prefix: &str) {
+        let workspace_id = self.workspace_id();
+        if workspace_id.is_empty() || prefix.len() < 2 || !self.completion_debounce_elapsed() {
+            return;
+        }
+        let anchor = self
+            .cursor_screen_pos()
+            .unwrap_or_else(|| egui::pos2(40.0, 40.0));
+        // Cache hit: deliver immediately (no spawn).
+        if let Some(cached) = self.code_nav_cache.lock().unwrap_or_else(|e| e.into_inner()).get(prefix)
+        {
+            let items = Self::completions_from_symbols(&cached);
+            *self.completion_result.lock().unwrap_or_else(|e| e.into_inner()) = Some((anchor, items));
+            return;
+        }
+        let client = self.code_nav_client.clone();
+        let cell = Arc::clone(&self.completion_result);
+        let prefix_owned = prefix.to_owned();
+        runtime.spawn(async move {
+            let symbols = client
+                .lookup_symbols(&workspace_id, &prefix_owned, SYMBOL_LOOKUP_LIMIT)
+                .await
+                .unwrap_or_default(); // graceful empty on backend error (AC-004 analog).
+            let items = symbols.iter().map(CompletionItem::from_symbol).collect();
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((anchor, items));
+            }
+        });
+    }
+
+    /// Update the hover-dwell tracker for the current cursor byte offset and return `true` once the
+    /// cursor has rested at the SAME offset for at least [`HOVER_DWELL_MS`] (implementation note 3). A
+    /// cursor move resets the dwell. The editor calls this each frame with the live cursor offset; on a
+    /// `true` it calls [`trigger_hover`](Self::trigger_hover) to fetch the hover.
+    pub fn update_hover_dwell(&self, cursor_byte_offset: usize) -> bool {
+        let mut guard = self.hover_dwell.lock().unwrap_or_else(|e| e.into_inner());
+        match guard.as_ref() {
+            Some((offset, since)) if *offset == cursor_byte_offset => {
+                since.elapsed() >= std::time::Duration::from_millis(HOVER_DWELL_MS)
+            }
+            _ => {
+                // New offset (or first dwell): restart the dwell clock.
+                *guard = Some((cursor_byte_offset, std::time::Instant::now()));
+                false
+            }
+        }
+    }
+
+    /// Spawn an off-thread backend code-nav hover request for the identifier `word` and deliver the
+    /// rendered hover into the panel's hover-result cell (drained next frame). A no-op when no workspace
+    /// is bound / `word` is empty. The hover content is the same data the React `CodeSymbolPanel` shows:
+    /// the symbol heading + kind + key + staleness + (when available) the file-lens doc. `runtime` is the
+    /// app's tokio handle (the egui thread never blocks — HBR-QUIET).
+    pub fn trigger_hover(&self, runtime: &tokio::runtime::Handle, word: &str) {
+        let workspace_id = self.workspace_id();
+        if workspace_id.is_empty() || word.trim().is_empty() {
+            return;
+        }
+        let anchor = self
+            .cursor_screen_pos()
+            .unwrap_or_else(|| egui::pos2(40.0, 40.0));
+        let client = self.code_nav_client.clone();
+        let cell = Arc::clone(&self.hover_result);
+        let word_owned = word.to_owned();
+        runtime.spawn(async move {
+            // Look up the first symbol matching the word (the React `lookupFirstSymbol`).
+            let symbols = client
+                .lookup_symbols(&workspace_id, &word_owned, 5)
+                .await
+                .unwrap_or_default();
+            let Some(symbol) = symbols.into_iter().next() else {
+                return; // no symbol -> no hover (graceful).
+            };
+            let definition_line = symbol
+                .definition
+                .as_ref()
+                .and_then(|d| d.line_start)
+                .filter(|l| *l >= 1)
+                .map(|l| (l - 1) as usize);
+            let markdown = super::code_nav::markdown_for_symbol(&symbol, None);
+            let hover = HoverState {
+                markdown,
+                display_name: symbol.display_name.clone(),
+                anchor,
+                definition_line,
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((anchor, hover));
+            }
+        });
+    }
+
     /// The screen position of the CENTER of the gutter row that paints buffer `line` on the most recent
     /// frame, or `None` if that line was not painted (off-screen) / no frame has rendered. The
     /// deterministic basis for the AC-005 gutter-click test (compute the exact pixel to click for a
@@ -1956,6 +2349,61 @@ impl CodeEditorPanel {
         // AccessKit node) when the palette is closed (AC-005). Rendered AFTER the editor scope so it
         // floats above the editor rows.
         self.render_goto_line_modal(ui, &syntax);
+
+        // MT-008: drain any off-thread code-nav/LSP results into the popup state, then render the
+        // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
+        // A no-op (and no AccessKit nodes) when neither is open (AC-005/AC-006).
+        self.render_code_intelligence(ui);
+    }
+
+    /// MT-008: drain the off-thread completion/hover result cells into the popup state and render the
+    /// completion popup + hover tooltip overlays. Both are non-focus-stealing `egui::Area`s on the
+    /// Foreground order (RISK-005 — they never take the editor's keyboard, so opening the popup never
+    /// drops a character). A click on a completion item inserts it; a click on the hover go-to-def link
+    /// navigates. Emits the `code_editor_completion_popup` ListBox + `code_editor_completion_item_{n}`
+    /// Option nodes (AC-005) and the `code_editor_hover` Tooltip node (AC-006).
+    fn render_code_intelligence(&self, ui: &egui::Ui) {
+        // Drain delivered completion items into the popup state (HBR-QUIET — the spawn delivered them
+        // off-thread; here we just swap them in on the UI thread).
+        if let Some((anchor, items)) =
+            self.completion_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        {
+            if items.is_empty() {
+                self.close_completion();
+            } else {
+                *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                    Some(CompletionState::new(items, anchor));
+            }
+        }
+        // Drain a delivered hover result.
+        if let Some((_anchor, hover)) =
+            self.hover_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        {
+            self.open_hover(hover);
+        }
+
+        // Render the completion popup (a no-op when closed). The panel owns the state; the popup is a
+        // stateless renderer that returns the click outcome.
+        if let Some(state) = self.completion_state() {
+            match CompletionPopup::show(ui.ctx(), &state, &self.instance) {
+                CompletionOutcome::Accept(index) => {
+                    self.accept_completion_index(index);
+                }
+                CompletionOutcome::Dismiss => self.close_completion(),
+                CompletionOutcome::None => {}
+            }
+        }
+
+        // Render the hover tooltip (a no-op when closed).
+        if let Some(state) = self.hover_state() {
+            match HoverTooltip::show(ui.ctx(), &state, &self.instance) {
+                HoverOutcome::GotoDefinition(line) => {
+                    self.navigate_to_line(line);
+                    self.close_hover();
+                }
+                HoverOutcome::None => {}
+            }
+        }
     }
 
     /// Render the MT-006 outline (symbol) tree in the left side panel, with the AccessKit `Role::Tree`

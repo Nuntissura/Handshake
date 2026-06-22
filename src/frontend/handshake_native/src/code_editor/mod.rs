@@ -53,11 +53,14 @@
 
 pub mod breakpoints;
 pub mod buffer;
+pub mod code_nav;
 pub mod cursor;
+pub mod editor_view;
 pub mod find_replace;
 pub mod folding;
 pub mod gutter;
 pub mod highlight;
+pub mod lsp_client;
 pub mod minimap;
 pub mod outline;
 pub mod panel;
@@ -65,6 +68,22 @@ pub mod virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};
+pub use code_nav::{
+    code_symbol_staleness_label, markdown_for_symbol, staleness_marker_for, symbol_file_path,
+    CodeFileLensResponse, CodeNavCache, CodeNavClient, CodeStaleness, CodeSymbolDefinition,
+    CodeSymbolNavProjection, CodeSymbolReferencesResponse, CodeSymbolResponse, CompletionItem,
+    CompletionKind, HoverResult as CodeNavHoverResult, Location as CodeNavLocation,
+    COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS, LOOKUP_CACHE_TTL, SYMBOL_LOOKUP_LIMIT,
+};
+pub use editor_view::{
+    CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
+    CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID,
+    CODE_EDITOR_HOVER_AUTHOR_ID, CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID,
+};
+pub use lsp_client::{
+    published_diagnostics_from_lsp, HoverResult as LspHoverResult, LspClient, LspCompletionItem,
+    LspDiagnostic, LspServerConfig, PublishedDiagnostics, REQUEST_TIMEOUT, SHUTDOWN_TIMEOUT,
+};
 pub use gutter::{
     breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
     GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,

@@ -1268,6 +1268,71 @@ async fn put_expect_success(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-008 code-navigation transport (REUSE — not a second HTTP stack).
+//
+// The native code-editor's CodeNavClient (`code_editor::code_nav`) binds the EXISTING handshake_core
+// code-nav GET routes. Those routes (`api::knowledge_code_nav`) require four backend-navigation
+// identity headers on EVERY request, verified READ-ONLY against the running backend:
+//   x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id, x-hsk-actor-kind.
+// A missing header is a deterministic HTTP 400 ("<header> header is required"), so the transport must
+// attach them or the bind silently 400s. `actor-kind: system` is the verified valid kind for an
+// automated UI nav (the same kind the backend's own quiet-nav lane uses). The shared `code_nav_get`
+// helper below adds the headers + parses the JSON body via `serde_json::Value`, reusing the SAME
+// `reqwest`/timeout/error shape as every other client in this module (NO new HTTP stack, NO dependency
+// on the handshake_core crate). CodeNavClient calls THIS helper for all four routes.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// The backend-navigation identity headers required on every code-nav GET (verified against
+/// `handshake_core::api::knowledge_code_nav::nav_context`). A missing header is a hard 400.
+const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
+const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
+const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
+
+/// The stable actor identity the native editor presents to the backend code-nav API. `system` is the
+/// verified-valid `x-hsk-actor-kind` for an automated UI navigation (the backend maps it to
+/// `KernelActor::System`); the actor id names the native editor surface so the nav receipts are
+/// attributable to it (HBR-SWARM attribution).
+pub const CODE_NAV_ACTOR_ID: &str = "handshake-native-editor";
+pub const CODE_NAV_ACTOR_KIND: &str = "system";
+
+/// `GET {url}?{query}` against the code-nav API with the four required backend-nav identity headers
+/// attached, returning the parsed JSON body. `run_id` is folded into the per-request run ids so each
+/// editor nav action is individually traceable (it never reaches the wrong field — the headers are
+/// fixed names). A non-success status or a parse failure is an [`AppError`], never a panic — the
+/// CodeNavClient turns that into graceful empty results (no completion / no hover), so the editor keeps
+/// working when the backend is down (AC-004 graceful-degradation analog for the code-nav path).
+///
+/// REUSE: a fresh short-lived `reqwest::Client` + the same 5s timeout the other clients use. The
+/// editor calls this from a spawned tokio task (HBR-QUIET — never the egui UI thread), so a slow
+/// request never stalls the operator.
+pub async fn code_nav_get(
+    url: &str,
+    query: &[(String, String)],
+    run_id: &str,
+) -> Result<serde_json::Value, AppError> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(url)
+        .query(query)
+        .header(HSK_HEADER_ACTOR_ID, CODE_NAV_ACTOR_ID)
+        .header(HSK_HEADER_ACTOR_KIND, CODE_NAV_ACTOR_KIND)
+        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-{run_id}"))
+        .header(HSK_HEADER_SESSION_RUN_ID, format!("native-editor-session-{run_id}"))
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!(
+            "GET code-nav non-success status {}",
+            resp.status()
+        )));
+    }
+    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

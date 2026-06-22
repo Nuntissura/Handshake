@@ -75,6 +75,12 @@ bundled-fonts = []
 # tests/test_layout_persistence.rs (MT-009). OFF by default — that test needs managed-postgres +
 # handshake_core running on 127.0.0.1:37501; it is NOT part of the default `cargo test` run.
 integration_tests = []
+# integration (WP-KERNEL-012 MT-008, RISK-004 / MC-002): gates the live-PG code-nav backend ACs in
+# tests/test_code_nav_client.rs (AC-001/002/003 + the live-backend halves of AC-005/006/007). OFF by
+# default so CI does not fail without a running handshake_core + an indexed-code workspace. Enable with
+# `--features integration` against a live backend (HANDSHAKE_TEST_DB_URL or the managed backend on
+# 127.0.0.1:37501). The pure-logic + standalone-render ACs run WITHOUT this feature.
+integration = []
 
 [dependencies]
 egui = "0.33"
@@ -87,7 +93,11 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # `tokio::net::windows::named_pipe`; `io-util` brings `AsyncBufReadExt`/`AsyncWriteExt` for the
 # newline-delimited JSON-RPC framing; `sync` brings the shutdown broadcast; `time` bounds a slow read.
 # (rt/rt-multi-thread/macros were already required by MT-002's health/workspace polls.)
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
+# WP-KERNEL-012 MT-008 ADDS the `process` feature: the LSP client spawns the language-server
+# subprocess via `tokio::process::Command` (piped stdio, focus-safe CREATE_NO_WINDOW on Windows) and
+# reads/writes its stdio on the async runtime. No new dependency family — tokio is already the runtime;
+# this enables the already-present process module (gated behind the `process` feature).
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "process"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # MT-027 token auth: the contract mandates a per-session HMAC token validated by constant-time compare
@@ -126,6 +136,14 @@ ropey = "1.6"
 # declaration adds NO new download/dependency family. Deliberately NOT `fancy-regex` (which IS a
 # backtracking, ReDoS-prone engine) per the KERNEL_BUILDER gate correction in the MT-004 contract.
 regex = "1"
+# WP-KERNEL-012 MT-008 LSP client: `lsp-types` is the canonical Rust crate of the LSP 3.17 protocol
+# type definitions (the request/response/notification param + result structs, serde-derived). The MT
+# uses it ONLY for the wire types (CompletionParams, Hover, Location, PublishDiagnosticsParams, …) and
+# implements a lightweight raw JSON-RPC-over-stdio transport on top (research wf_ffa74d6d: do NOT use
+# tower-lsp, which is the SERVER stack with semantically-incorrect async notification ordering; lsp-types
+# is type-only and adds no runtime). Pinned to 0.95.* per the MT impl note (LSP 3.17 compatible). It is a
+# pure-Rust, serde-only crate (no native build, no transitive HTTP/server stack).
+lsp-types = "0.95"
 tree-sitter = "0.25"
 tree-sitter-language = "0.1"
 tree-sitter-rust = "0.24"
