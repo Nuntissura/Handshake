@@ -179,6 +179,16 @@ dirs = "5"
 # MT-010 finding, video uses a poster/play-button/filename/content-URL PLACEHOLDER (in-process decode is
 # a future MT); open::that() steals OS focus (HBR-QUIET) so it is deliberately omitted.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+# WP-KERNEL-012 MT-017 properties panel: `chrono` (0.4) parses the backend ISO-8601 `created_at`/
+# `updated_at` strings (`DateTime::parse_from_rfc3339`, which handles both `Z` and `+00:00`) and
+# formats them as a human-readable LOCAL date. The `clock` feature brings `chrono::Local`; MC-003 wraps
+# the local-offset resolution in a fallback to UTC (`tracing::warn` + no panic) because some headless /
+# minimal OS configs have no timezone database. chrono is the canonical pure-Rust date crate (no native
+# build); Cargo.lock pins the resolved version. The native crate is standalone, so chrono is NOT yet in
+# its locked graph (the handshake_core backend's chrono is a SEPARATE crate's graph) — this is the only
+# NEW dependency family MT-017 adds. Clipboard reuses the EXISTING `egui::Context::copy_text` surface
+# (used in app.rs / debug_console.rs), so NO `arboard` direct dep is added.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

@@ -73,6 +73,14 @@ pub struct RichEditorState {
     /// so the popup state (filter / selection / active prompt) persists across frames; closed on focus
     /// loss (MC-004) and on Escape / execute / the `/` being deleted.
     pub slash_menu: Option<crate::rich_editor::slash_commands::SlashMenuState>,
+    /// MT-017 document properties: the per-document metadata panel state (`None` until a document's
+    /// metadata loads — the panel renders an honest "no document loaded" placeholder until then). Owned
+    /// HERE so the title edit buffer + local tag list + collapsed state persist across frames.
+    pub properties: Option<crate::rich_editor::properties::PropertiesState>,
+    /// MT-017 properties async runtime: the title-save (rename) dispatch state + the backlinks-count
+    /// state with MC-004 generation cancellation + the off-thread delivery cells. Owned HERE so the
+    /// save/count state persists across frames; the count NEVER overwrites `properties.doc_metadata`.
+    pub properties_runtime: crate::rich_editor::properties::metadata_client::PropertiesRuntime,
 }
 
 impl RichEditorState {
@@ -106,6 +114,19 @@ impl RichEditorState {
             ),
             None,
         );
+        // MT-017: the properties runtime defaults to the PRODUCTION reqwest metadata backend, no tokio
+        // handle. The shell installs the live workspace/document + runtime handle via
+        // [`Self::set_properties_context`] when it loads a document's metadata (so a title rename +
+        // backlinks-count actually dispatch); a unit/kittest that does not exercise the backend leaves
+        // it as-is (no perpetual Saving/Loading without a runtime — the no-spinner discipline). A test
+        // injects a mock backend + seeded PropertiesState via [`Self::with_properties`].
+        let properties_runtime =
+            crate::rich_editor::properties::metadata_client::PropertiesRuntime::new(
+                std::sync::Arc::new(
+                    crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base),
+                ),
+                None,
+            );
         Self {
             doc,
             selection: Selection::caret(DocPosition::new(vec![0, 0], 0)),
@@ -118,6 +139,8 @@ impl RichEditorState {
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
             slash_menu: None,
+            properties: None,
+            properties_runtime,
         }
     }
 
@@ -144,6 +167,46 @@ impl RichEditorState {
     pub fn with_wikilink_runtime(mut self, wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime) -> Self {
         self.wikilinks = wikilinks;
         self
+    }
+
+    /// MT-017: install the live properties context — the loaded document metadata (so the panel shows
+    /// the real fields), the document id (so the backlinks-count + rename dispatch target the right
+    /// document), and the tokio runtime handle dispatches spawn onto. The shell calls this when it
+    /// loads a document's metadata (the production wiring point). Setting a different document bumps the
+    /// backlinks-count generation (MC-004) so a prior document's in-flight count is dropped.
+    pub fn set_properties_context(
+        &mut self,
+        doc_metadata: crate::rich_editor::properties::metadata_client::DocMetadata,
+        runtime: tokio::runtime::Handle,
+    ) {
+        let document_id = doc_metadata.rich_document_id.clone();
+        match self.properties.as_mut() {
+            Some(p) => p.set_metadata(doc_metadata),
+            None => self.properties = Some(crate::rich_editor::properties::PropertiesState::new(doc_metadata)),
+        }
+        self.properties_runtime.runtime = Some(runtime);
+        self.properties_runtime.set_document(document_id);
+    }
+
+    /// Replace the properties state + runtime (test seam: inject a seeded `PropertiesState` + a mock
+    /// metadata backend so the panel renders real fields and the title-save round-trips headlessly).
+    pub fn with_properties(
+        mut self,
+        properties: crate::rich_editor::properties::PropertiesState,
+        runtime: crate::rich_editor::properties::metadata_client::PropertiesRuntime,
+    ) -> Self {
+        self.properties_runtime = runtime;
+        self.properties = Some(properties);
+        self
+    }
+
+    /// MT-017 / MC-001: the CURRENT document content as the backend `content_json` BARE doc node, pulled
+    /// LIVE from `self.doc` (NOT a cached copy). The title-save path uses the `/rename` endpoint (which
+    /// never sends a content body, so it cannot clobber content), but this accessor exists so a future
+    /// content-bearing save and the MC-001 test can read the live content (proving the editor never
+    /// holds a stale snapshot for save purposes).
+    pub fn current_content_json(&self) -> serde_json::Value {
+        crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc)
     }
 
     /// Install the live embed context: the workspace whose assets embeds resolve against and the
@@ -284,6 +347,8 @@ impl RichEditorWidget {
                     //    command directly on it.
                     let palette = state.palette(); // re-resolve (theme unchanged, cheap)
                     ui.vertical(|ui| {
+                        // MT-017: the document properties panel ABOVE the content (default collapsed).
+                        Self::render_properties(ui, &mut state, &palette);
                         Self::render_toolbar(ui, &mut state);
                         ui.separator();
                         Self::render_blocks(ui, &mut state, &palette, has_focus);
@@ -724,6 +789,60 @@ impl RichEditorWidget {
         } else {
             None
         }
+    }
+
+    /// MT-017: render the document properties panel inside a default-collapsed `CollapsingHeader`
+    /// ABOVE the content area. The header's open/closed state is keyed per document_id in egui
+    /// persistent storage (impl note) so it does not reset on every re-render. Drains the properties
+    /// runtime FIRST so a completed rename/count lands before the panel paints. When no document
+    /// metadata is loaded yet, an honest "No document loaded" placeholder renders (NOT a spinner).
+    fn render_properties(ui: &mut egui::Ui, state: &mut RichEditorState, palette: &HsPalette) {
+        use crate::rich_editor::properties::metadata_client::EguiClipboard;
+        use crate::rich_editor::properties::panel::PropertiesPanel;
+
+        // Drain any completed rename/move + backlinks-count results. A fresh rename result refreshes the
+        // displayed metadata (the `set_metadata` keeps the local-only tags). The count NEVER overwrites
+        // the doc metadata (MC-004) — `drain` returns it separately, applied inside the runtime.
+        let (fresh_metadata, applied) = state.properties_runtime.drain();
+        if let (Some(meta), Some(props)) = (fresh_metadata, state.properties.as_mut()) {
+            props.set_metadata(meta);
+        }
+        if applied {
+            ui.ctx().request_repaint();
+        }
+
+        // Key the collapsing header per document so its open/closed state is per-document (impl note).
+        let doc_key = state
+            .properties
+            .as_ref()
+            .map(|p| p.doc_metadata.rich_document_id.clone())
+            .unwrap_or_else(|| "no-doc".to_owned());
+
+        let header = egui::CollapsingHeader::new("Properties")
+            .id_salt(("properties-header", &doc_key))
+            .default_open(false) // AC-1: collapsed by default.
+            .show(ui, |ui| {
+                if state.properties.is_some() {
+                    // Borrow the panel pieces. The clipboard sink wraps the egui context (production
+                    // surface); a headless test injects a mock via a direct `PropertiesPanel` call.
+                    let clipboard = EguiClipboard::new(ui.ctx().clone());
+                    let props = state.properties.as_mut().expect("checked is_some");
+                    PropertiesPanel::new(props, &mut state.properties_runtime, &clipboard, palette).show(ui);
+                } else {
+                    // Honest empty state — no document metadata loaded yet. NOT a spinner (the panel
+                    // only loads metadata when the shell installs the context).
+                    ui.colored_label(palette.text_subtle, "No document loaded.");
+                }
+            });
+
+        // The collapsing-header bar is an interactive (clickable) node, so it MUST carry a stable
+        // author_id or the shell HBR-SWARM gate (assert_no_unnamed_interactive) panics. Give the
+        // collapse control its own id (`properties-header`) distinct from the content container
+        // (`properties-panel`, emitted on the grid in panel.rs) so a swarm agent can expand/collapse the
+        // panel by a stable key without ambiguity.
+        ui.ctx().accesskit_node_builder(header.header_response.id, move |node| {
+            node.set_author_id("properties-header".to_owned());
+        });
     }
 
     /// Render the MT-013 formatting toolbar (a horizontal glyph-button row grouped by
