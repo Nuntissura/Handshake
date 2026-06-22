@@ -115,12 +115,27 @@ pub struct LanguageRegistry {
     by_ext: HashMap<String, RegisteredLanguage>,
 }
 
+/// A stable, language-family id used by downstream syntax-tree consumers (MT-005 folding's
+/// per-language foldable-node table) to select language-specific behavior without re-deriving it from
+/// the file extension. Maps the bundled grammars to the tree-sitter grammar family name (`"rust"` /
+/// `"javascript"`).
+pub fn language_id_for_extension(ext: &str) -> Option<&'static str> {
+    match ext.to_ascii_lowercase().as_str() {
+        "rs" => Some("rust"),
+        "js" | "jsx" | "mjs" | "cjs" => Some("javascript"),
+        _ => None,
+    }
+}
+
 /// A language + the highlight query text used to derive spans for it.
 #[derive(Clone)]
 struct RegisteredLanguage {
     language: SafeLanguage,
     /// tree-sitter highlight query source (a minimal subset of the grammar's `highlights.scm`).
     query_src: Arc<str>,
+    /// The stable language-family id ([`language_id_for_extension`]) so consumers that need the
+    /// language (folding's node-type table — MT-005) can read it off the highlighter.
+    language_id: &'static str,
 }
 
 impl LanguageRegistry {
@@ -162,11 +177,19 @@ impl LanguageRegistry {
     }
 
     /// Register `language` (with its highlight `query_src`) for one or more file extensions.
-    /// Extensions are stored lowercased so lookup is case-insensitive.
+    /// Extensions are stored lowercased so lookup is case-insensitive. The language-family id is
+    /// derived from the first extension via [`language_id_for_extension`] (falling back to `""` for an
+    /// unmapped extension), so the highlighter can report its language to folding (MT-005) without a
+    /// second lookup.
     pub fn register(&mut self, extensions: &[&str], language: SafeLanguage, query_src: &str) {
+        let language_id = extensions
+            .first()
+            .and_then(|ext| language_id_for_extension(ext))
+            .unwrap_or("");
         let entry = RegisteredLanguage {
             language,
             query_src: Arc::from(query_src),
+            language_id,
         };
         for ext in extensions {
             self.by_ext.insert(ext.to_ascii_lowercase(), entry.clone());
@@ -183,7 +206,7 @@ impl LanguageRegistry {
     /// fails to load into a parser (never panics — a bad grammar degrades to no highlighting).
     pub fn highlighter_for_extension(&self, ext: &str) -> Option<Highlighter> {
         let entry = self.get(ext)?;
-        Highlighter::new(entry.language.clone(), &entry.query_src)
+        Highlighter::with_language_id(entry.language.clone(), &entry.query_src, entry.language_id)
     }
 }
 
@@ -199,16 +222,33 @@ impl Default for LanguageRegistry {
 pub struct Highlighter {
     parser: Parser,
     query: Query,
-    /// Cached previous parse tree; passed to `Parser::parse` for O(edit) incremental re-parse.
+    /// Cached previous parse tree; passed to `Parser::parse` for O(edit) incremental re-parse, and
+    /// exposed via [`tree`](Highlighter::tree) so MT-005 folding can derive fold regions from the SAME
+    /// syntax tree (no second parse).
     old_tree: Option<Tree>,
+    /// The stable language-family id ([`language_id_for_extension`]) this highlighter parses, so a
+    /// consumer that needs the language (folding's foldable-node table — MT-005) can read it off the
+    /// highlighter rather than re-deriving it from the extension. `""` when the language is unmapped.
+    language_id: &'static str,
 }
 
 impl Highlighter {
     /// Build a highlighter from a language + its highlight query source. Returns `None` (never
     /// panics) if the language cannot be set on the parser or the query fails to compile against the
     /// grammar — a defensive boundary so a grammar/query mismatch degrades to "no highlighting"
-    /// rather than aborting (AC-006 spirit: fallible setup returns Option).
+    /// rather than aborting (AC-006 spirit: fallible setup returns Option). The language id is unknown
+    /// (`""`) on this path; use [`with_language_id`](Highlighter::with_language_id) to carry it.
     pub fn new(language: SafeLanguage, query_src: &str) -> Option<Self> {
+        Self::with_language_id(language, query_src, "")
+    }
+
+    /// Like [`new`](Highlighter::new) but records the language-family id so folding (MT-005) can read
+    /// it via [`language_id`](Highlighter::language_id).
+    pub fn with_language_id(
+        language: SafeLanguage,
+        query_src: &str,
+        language_id: &'static str,
+    ) -> Option<Self> {
         let lang = language.language();
         let mut parser = Parser::new();
         parser.set_language(&lang).ok()?;
@@ -217,7 +257,21 @@ impl Highlighter {
             parser,
             query,
             old_tree: None,
+            language_id,
         })
+    }
+
+    /// The most recent parse [`Tree`], or `None` before the first [`highlight`](Highlighter::highlight)
+    /// call. MT-005 folding reads this to derive fold regions from the SAME tree the highlighter built
+    /// (no second parse — the fold provider walks this tree with a `TreeCursor`).
+    pub fn tree(&self) -> Option<&Tree> {
+        self.old_tree.as_ref()
+    }
+
+    /// The stable language-family id this highlighter parses (`"rust"` / `"javascript"`, or `""` when
+    /// unmapped). Selects folding's foldable-node set (MT-005).
+    pub fn language_id(&self) -> &'static str {
+        self.language_id
     }
 
     /// Parse `source` (UTF-8 bytes) and return its highlight spans in source order. The previous tree

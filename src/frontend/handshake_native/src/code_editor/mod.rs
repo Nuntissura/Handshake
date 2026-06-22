@@ -18,15 +18,22 @@
 //! (`code_editor_cursor_{n}`; the contract named `Role::TextCursor`, which does not exist in accesskit
 //! 0.21 — `Caret` is the field-correct caret role) a swarm agent addresses.
 //!
-//! Later E1 MTs add find/replace (MT-004), folding
-//! (MT-005), minimap/outline (MT-006), the gutter (MT-007), the LSP client (MT-008), the diff editor
-//! (MT-009), and the Monaco-parity keymap (MT-010) on top of these primitives. They REUSE the WP-011
+//! MT-005 adds [`folding`] — tree-sitter-derived code folding ([`FoldProvider`], [`FoldRegion`],
+//! [`FoldSet`], [`FoldableNodeTypes`]). Foldable regions are identified from the SAME parse tree the
+//! highlighter builds (exposed via [`highlight::Highlighter::tree`]); a folded region collapses to a
+//! single summary line, the panel skips the hidden lines in the virtualized layout, and each foldable
+//! region surfaces a `Role::TreeItem` AccessKit node (`code_editor_fold_{start_line}`) with
+//! Expand/Collapse actions so a swarm agent can fold/unfold by id.
+//!
+//! Later E1 MTs add minimap/outline (MT-006), the gutter (MT-007), the LSP client (MT-008), the diff
+//! editor (MT-009), and the Monaco-parity keymap (MT-010) on top of these primitives. They REUSE the WP-011
 //! shell modules (`pane_registry`, `split_layout`, `theme/*`, `accessibility/*`, `backend_client`),
 //! which this MT also reuses rather than re-creating.
 
 pub mod buffer;
 pub mod cursor;
 pub mod find_replace;
+pub mod folding;
 pub mod highlight;
 pub mod panel;
 pub mod virtual_lines;
@@ -37,7 +44,11 @@ pub use cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,
     MAX_ACCESSKIT_CURSORS,
 };
-pub use highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry, SafeLanguage};
+pub use folding::{FoldProvider, FoldRegion, FoldSet, FoldableNodeTypes};
+pub use highlight::{
+    language_id_for_extension, HighlightScope, HighlightSpan, Highlighter, LanguageRegistry,
+    SafeLanguage,
+};
 pub use panel::{
     CodeEditorPanel, CodeEditorPaneFactory, FindState, PerfStats, CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
     CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,

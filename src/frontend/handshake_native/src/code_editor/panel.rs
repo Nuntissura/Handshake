@@ -72,6 +72,7 @@ use super::cursor::{
     MAX_ACCESSKIT_CURSORS,
 };
 use super::find_replace::{FindEngine, FindQuery, Match};
+use super::folding::{FoldProvider, FoldSet};
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
@@ -95,6 +96,23 @@ pub const CODE_EDITOR_FIND_BAR_AUTHOR_ID: &str = "code_editor_find_bar";
 pub const CODE_EDITOR_REPLACE_BAR_AUTHOR_ID: &str = "code_editor_replace_bar";
 pub const CODE_EDITOR_FIND_NEXT_AUTHOR_ID: &str = "code_editor_find_next";
 pub const CODE_EDITOR_FIND_PREV_AUTHOR_ID: &str = "code_editor_find_prev";
+
+/// The MT-005 author_id PREFIX for each foldable-region node (AC-005: `code_editor_fold_{start_line}`).
+/// Region starting on buffer line `L` gets `code_editor_fold_{L}` with accesskit `Role::TreeItem` and
+/// an `Action::Expand` (when folded) or `Action::Collapse` (when unfolded) action a swarm agent
+/// dispatches to fold/unfold by id. Only the foldable regions inside the painted window are surfaced
+/// (capped — RISK-001) so a 1000-fold file does not emit 1000 nodes per frame.
+pub const CODE_EDITOR_FOLD_AUTHOR_PREFIX: &str = "code_editor_fold_";
+
+/// Max foldable-region AccessKit nodes emitted per frame (RISK-001 / RISK-004 analog of the cursor
+/// cap). Only the regions intersecting the painted window are emitted, capped at this many so a
+/// pathological file with thousands of folds cannot blow the per-frame node budget.
+pub const MAX_ACCESSKIT_FOLDS: usize = 64;
+
+/// The fixed AccessKit `NodeId` band the per-fold `Role::TreeItem` nodes occupy for the default panel
+/// (300..300+MAX_ACCESSKIT_FOLDS), disjoint from the find-bar band (280..283), the cursor band
+/// (210..274), and the container/scroll/text band (200/201/202).
+const PANEL_FOLD_NODE_ID_BASE: u64 = 300;
 
 /// The fixed AccessKit `NodeId` band the per-cursor `Role::Caret` nodes occupy for the default panel
 /// (210..210+MAX_ACCESSKIT_CURSORS), disjoint from the panel container/scroll/text band (200/201/202)
@@ -243,6 +261,19 @@ pub struct CodeEditorPanel {
     /// opens/closes it on Ctrl+F / Ctrl+H / Escape. Behind a `Mutex` for the same `Sync` reason as the
     /// buffer.
     find_state: Mutex<Option<FindState>>,
+    /// MT-005 code-folding state: the fold regions derived from the tree-sitter parse tree plus their
+    /// folded flags. Recomputed only when `buffer_version` changes (MT impl note 3 — tracked by
+    /// `fold_version`), then carried across frames so a user's collapsed regions stay collapsed. Behind
+    /// a `Mutex` for the same `Sync` reason as the buffer.
+    fold_set: Mutex<FoldSet>,
+    /// The `buffer_version` the fold regions were last computed for. When it lags `buffer_version` the
+    /// next `show` recomputes the regions from the highlighter's current tree (MT impl note 3); on a
+    /// match the fold regions are reused (no re-walk every frame). `0` until the first computation.
+    fold_version: AtomicU64,
+    /// The stable language-family id (`"rust"` / `"javascript"`, or `""` when unmapped) used to select
+    /// folding's foldable-node table (MT-005). Captured at build time from the document extension so
+    /// the fold provider does not re-derive it every frame.
+    language_id: &'static str,
 }
 
 /// MT-004 find/replace UI + match state. Owned by [`CodeEditorPanel`] behind a `Mutex`; present only
@@ -326,11 +357,27 @@ impl CodeEditorPanel {
     fn build(text: &str, extension: &str, instance: String) -> Self {
         let registry = LanguageRegistry::with_bundled_languages();
         let mut highlighter = registry.highlighter_for_extension(extension);
-        let spans = match highlighter.as_mut() {
-            Some(hl) => hl.highlight(text.as_bytes()),
-            None => Vec::new(),
-        };
+        // Capture the language id from the highlighter (it carries the stable family id), so the fold
+        // provider selects the right foldable-node set without re-deriving it every frame (MT-005).
+        let language_id = highlighter.as_ref().map(|hl| hl.language_id()).unwrap_or("");
         let buffer = TextBuffer::new(text);
+        // Compute the initial fold regions from the first parse tree (when the language is known), so a
+        // freshly opened document is foldable on frame 1 (regions start UNfolded — the user/agent folds
+        // them). The spans come from the same highlight pass.
+        let (spans, fold_set) = match highlighter.as_mut() {
+            Some(hl) => {
+                let spans = hl.highlight(text.as_bytes());
+                let fold_set = match hl.tree() {
+                    Some(tree) => {
+                        let regions = FoldProvider::new().compute(tree, &buffer, language_id);
+                        FoldSet::from_regions(regions)
+                    }
+                    None => FoldSet::new(),
+                };
+                (spans, fold_set)
+            }
+            None => (Vec::new(), FoldSet::new()),
+        };
         let len_lines = buffer.len_lines();
         Self {
             buffer: Mutex::new(buffer),
@@ -352,6 +399,11 @@ impl CodeEditorPanel {
             glyph_width_px: Mutex::new(None),
             row_geometry: Mutex::new(None),
             find_state: Mutex::new(None),
+            fold_set: Mutex::new(fold_set),
+            // Fold regions were computed at buffer version 1 (the same version the highlight cache is
+            // filled at), so the first render is a fold cache hit; an edit bumps to 2+ and recomputes.
+            fold_version: AtomicU64::new(1),
+            language_id,
         }
     }
 
@@ -767,6 +819,125 @@ impl CodeEditorPanel {
         *self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some((spans, version));
     }
 
+    /// Recompute the fold regions iff the buffer version moved since they were last computed (MT-005
+    /// impl note 3: do NOT re-walk the tree every frame). Reuses the highlighter's CURRENT parse tree
+    /// (the same tree `ensure_highlight_cache` just parsed), so there is no second parse. The recomputed
+    /// regions are merged into the existing [`FoldSet`] via [`FoldSet::set_regions`], which preserves
+    /// the folded flag of any region whose start line survives the edit (a user's collapsed regions
+    /// stay collapsed across edits). A no-op highlighter / no-language document leaves the fold set
+    /// empty. Call AFTER [`ensure_highlight_cache`] so the tree reflects the current buffer.
+    fn ensure_fold_regions(&self) {
+        let version = self.buffer_version.load(Ordering::Relaxed);
+        if self.fold_version.load(Ordering::Relaxed) == version {
+            return; // fold regions already current for this buffer version (MT impl note 3).
+        }
+        // Recompute from the highlighter's current tree (no second parse).
+        let regions = {
+            let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+            match highlighter.as_ref().and_then(|hl| hl.tree()) {
+                Some(tree) => {
+                    let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                    FoldProvider::new().compute(tree, &buffer, self.language_id)
+                }
+                None => Vec::new(),
+            }
+        };
+        self.fold_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_regions(regions);
+        self.fold_version.store(version, Ordering::Relaxed);
+    }
+
+    // ── MT-005 code-folding API (the deterministic surface AC-001..AC-006 + the render/keymap drive) ──
+
+    /// A snapshot clone of the current fold set (regions + folded flags). For tests / the gutter
+    /// (MT-007) / later MTs. Recomputes the regions first if the buffer version moved.
+    pub fn fold_set(&self) -> FoldSet {
+        self.ensure_fold_regions();
+        self.fold_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Toggle the fold whose region starts on buffer line `start_line`. Returns `true` when a region
+    /// existed on that line (folded state flipped), `false` otherwise. The gutter fold-triangle click
+    /// handler (MT-007) and the Ctrl+Shift+[ / Ctrl+Shift+] keymap call this; idempotent in pairs
+    /// (AC-006: two toggles return to the original state).
+    pub fn toggle_fold(&self, start_line: usize) -> bool {
+        self.ensure_fold_regions();
+        self.fold_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .toggle(start_line)
+    }
+
+    /// Fold the innermost region that contains buffer line `line` (Ctrl+Shift+[ at the cursor). Picks
+    /// the region with the LARGEST start line that still covers `line` (the innermost enclosing fold).
+    /// Returns `true` when a region was folded. A no-op (false) when `line` is in no foldable region.
+    pub fn fold_at_line(&self, line: usize) -> bool {
+        self.set_fold_at_line(line, true)
+    }
+
+    /// Unfold the innermost folded region that contains `line` (Ctrl+Shift+]). Returns `true` when a
+    /// region was unfolded.
+    pub fn unfold_at_line(&self, line: usize) -> bool {
+        self.set_fold_at_line(line, false)
+    }
+
+    /// Set the folded state of the innermost region enclosing `line` to `folded`. Returns `true` when a
+    /// matching region's state changed.
+    fn set_fold_at_line(&self, line: usize, folded: bool) -> bool {
+        self.ensure_fold_regions();
+        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+        // The innermost region containing `line` is the one with the largest start_line that still
+        // covers it (regions are sorted enclosing-first, so the LAST match in iteration order is the
+        // innermost).
+        let target = set
+            .regions
+            .iter()
+            .filter(|r| r.start_line <= line && line <= r.end_line)
+            .map(|r| r.start_line)
+            .max();
+        match target {
+            Some(start_line) => {
+                let region = set
+                    .regions
+                    .iter()
+                    .find(|r| r.start_line == start_line)
+                    .map(|r| r.folded);
+                if region == Some(folded) {
+                    return false; // already in the requested state
+                }
+                set.toggle(start_line)
+            }
+            None => false,
+        }
+    }
+
+    /// Fold the region at the primary cursor's line (Ctrl+Shift+[). Convenience wrapper that resolves
+    /// the cursor line then calls [`fold_at_line`](Self::fold_at_line).
+    pub fn fold_at_cursor(&self) -> bool {
+        let line = self.primary_cursor_line();
+        self.fold_at_line(line)
+    }
+
+    /// Unfold the region at the primary cursor's line (Ctrl+Shift+]).
+    pub fn unfold_at_cursor(&self) -> bool {
+        let line = self.primary_cursor_line();
+        self.unfold_at_line(line)
+    }
+
+    /// The buffer line the primary cursor's head sits on (for the fold/unfold keymap).
+    fn primary_cursor_line(&self) -> usize {
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let head = self
+            .cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .primary()
+            .head;
+        byte_to_line_col(head, &buffer).0
+    }
+
     /// The per-frame virtualization diagnostics from the most recent `show` (MT-002 step 4). Before
     /// the first render `frame_lines_rendered` is 0; `buffer_len_lines` is always the document size.
     pub fn perf_stats(&self) -> PerfStats {
@@ -895,10 +1066,25 @@ impl CodeEditorPanel {
         // Highlights are computed at most once per buffer version (cache hit on an unchanged buffer),
         // so the per-frame render never re-parses (MT-002 step 3).
         self.ensure_highlight_cache();
+        // Fold regions are recomputed only when the buffer version moved (MT-005 impl note 3), reusing
+        // the tree `ensure_highlight_cache` just parsed (no second parse). Must run AFTER the highlight
+        // cache so the highlighter's tree reflects the current buffer.
+        self.ensure_fold_regions();
 
         // Cache the document line count BEFORE the ScrollArea so it is not re-queried inside the row
         // closure (implementation note).
         let total_lines = self.with_buffer(|b| b.len_lines());
+
+        // MT-005 step 6: the VISIBLE line count is the buffer line count minus the lines collapsed by
+        // folded regions. `show_rows` is driven over the visible count (NOT `total_lines`), and the row
+        // closure maps each visible row index back to a buffer line via the FoldSet. Rebuild the
+        // visible->buffer map against the LIVE buffer line count once here (cheap on a fold-state cache
+        // hit) so the per-row lookups in the closure are O(1) (RISK-001 / MC-001).
+        let visible_lines = self
+            .fold_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .rebuild_visible_map_for(total_lines);
 
         // OUTER container scope. egui gives every child `Ui` its own AccessKit node keyed by the
         // `Ui`'s id and nests it under the parent `Ui`'s node. We emit the CONTAINER node onto THIS
@@ -952,18 +1138,23 @@ impl CodeEditorPanel {
                 // recompute (which adds ±OVERSCAN_LINES egui never applies and divides by the
                 // sans-spacing height) — is the authoritative diagnostics + overlay-positioning surface.
                 let mut painted_range: std::ops::Range<usize> = 0..0;
+                // MT-005: drive `show_rows` over the VISIBLE (post-fold) line count, so a folded region
+                // collapses the scroll content (the scrollbar reflects the folded document). The
+                // `row_range` egui hands the closure is therefore in VISIBLE-line space; `render_rows`
+                // maps each visible row back to a buffer line via the FoldSet (MT step 4/6).
                 scroll_area.show_rows(
                     ui,
                     line_height,
-                    total_lines,
+                    visible_lines,
                     |ui, row_range| {
-                        // Record egui's actual painted window before forwarding it to the painter.
+                        // Record egui's actual painted window (visible-line space) before painting.
                         painted_range = row_range.clone();
                         self.render_rows(
                             ui,
                             row_range,
                             &syntax,
                             total_lines,
+                            visible_lines,
                             text_id,
                             &text_author,
                             line_height,
@@ -1266,6 +1457,7 @@ impl CodeEditorPanel {
         row_range: std::ops::Range<usize>,
         syntax: &HsSyntaxTokens,
         total_lines: usize,
+        visible_lines: usize,
         text_id: egui::Id,
         text_author: &str,
         line_height: f32,
@@ -1280,37 +1472,85 @@ impl CodeEditorPanel {
             // egui's next-widget position, i.e. the top-left of the first row about to be painted.
             let origin = ui.cursor().min;
 
-            // Paint ONLY the lines `show_rows` selected (the visible window + egui's overscan). Clamp
-            // the upper bound to the document length defensively (show_rows already clamps, but a
-            // stale range must never index past the buffer).
-            let end = row_range.end.min(total_lines);
+            // `row_range` is in VISIBLE (post-fold) line space (MT-005). Clamp the upper bound to the
+            // visible line count defensively (show_rows already clamps, but a stale range must never
+            // index past the visible document).
+            let visible_end = row_range.end.min(visible_lines);
 
-            // CLIP the highlight span list to the visible BYTE window ONCE per frame (MT-002 step 3),
-            // rather than scanning the whole span list per line. On a 100k-line file the cache holds
-            // hundreds of thousands of spans; an O(visible_lines * all_spans) per-line scan is the
-            // dominant frame cost. The cache is sorted by start byte, so a binary search bounds the
-            // window to just the spans that can touch the painted rows.
+            // Map the visible window to a BUFFER line window so the highlight-span clip + rendering use
+            // real buffer coordinates. The first visible row maps to its buffer line; the last visible
+            // row maps to its buffer line (its end is that buffer line + 1, but a folded region between
+            // visible rows means the buffer window can be WIDER than the visible window — that is fine,
+            // the per-row loop skips the hidden lines).
+            let (first_buffer_line, last_buffer_line) = {
+                let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                let first = set.visible_line_to_buffer_line(row_range.start);
+                // The buffer line of the last painted visible row (inclusive), for the span byte window.
+                let last = if visible_end > row_range.start {
+                    set.visible_line_to_buffer_line(visible_end - 1)
+                } else {
+                    first
+                };
+                (first, last)
+            };
+            // Buffer-line exclusive end for the span byte window: one past the last folded region's end
+            // if the last visible row is a folded region start, else last+1.
+            let buffer_end = {
+                let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                match set.region_starting_at(last_buffer_line) {
+                    Some(r) if r.folded => r.end_line + 1,
+                    _ => last_buffer_line + 1,
+                }
+            }
+            .min(total_lines);
+
+            // CLIP the highlight span list to the BUFFER byte window ONCE per frame (MT-002 step 3),
+            // rather than scanning the whole span list per line. The cache is sorted by start byte, so a
+            // binary search bounds the window to just the spans that can touch the painted rows.
             let (win_start, win_end) = self.with_buffer(|b| {
-                let ws = b.line_to_byte(row_range.start).unwrap_or(0);
-                let we = b.line_to_byte(end).unwrap_or_else(|| b.len_bytes());
+                let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
+                let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
                 (ws, we)
             });
             let visible_spans = self.spans_in_byte_window(win_start, win_end);
 
-            for line_idx in row_range.start..end {
-                self.render_line(ui, line_idx, &visible_spans, syntax);
+            // Paint one row per VISIBLE line index, mapping each to its buffer line (MT step 4). When the
+            // buffer line is the start of a FOLDED region, render the collapsed summary label instead of
+            // the line text; the hidden lines are simply never visited (they are not in the visible map).
+            for visible_idx in row_range.start..visible_end {
+                let buffer_line = {
+                    let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                    set.visible_line_to_buffer_line(visible_idx)
+                };
+                let folded_label = {
+                    let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                    match set.region_starting_at(buffer_line) {
+                        Some(r) if r.folded => Some(r.label.clone()),
+                        _ => None,
+                    }
+                };
+                match folded_label {
+                    Some(label) => self.render_fold_label_line(ui, &label, syntax),
+                    None => self.render_line(ui, buffer_line, &visible_spans, syntax),
+                }
             }
 
             // Store the painted-row geometry so `process_cursor_input` (pointer hit-testing) and the
             // overlay share egui's ACTUAL layout — no separate recompute (the MT-002 unit discipline:
-            // sans-spacing line_height, the SAME glyph FontId).
+            // sans-spacing line_height, the SAME glyph FontId). `first_line` is the BUFFER line of the
+            // first painted row; the overlay maps a cursor's buffer (line,col) against it. NOTE: with a
+            // folded region inside the window the buffer lines are non-contiguous, so the cursor overlay
+            // (MT-003) positions correctly only for cursors on visible lines — a cursor on a hidden line
+            // is simply not drawn (it is off the visible window), which is the correct behavior.
             let geometry = RowGeometry {
                 left: origin.x,
                 top: origin.y,
-                first_line: row_range.start,
+                first_line: first_buffer_line,
                 line_height,
             };
             *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+
+            let end = buffer_end; // alias kept for the overlay calls below (buffer-line exclusive end).
 
             // MT-004: paint the find-match highlights FIRST (below the carets) so a caret/selection
             // stays visible on top of a match rect. Restricted to the painted row window (the same
@@ -1340,7 +1580,100 @@ impl CodeEditorPanel {
             // which does not exist in accesskit 0.21; `Role::Caret` is the field-correct caret role —
             // see `emit_cursor_nodes` for the documented deviation.)
             self.emit_cursor_nodes(ui);
+
+            // MT-005 AC-005: emit one `Role::TreeItem` AccessKit node per foldable region intersecting
+            // the painted buffer window (capped at MAX_ACCESSKIT_FOLDS — RISK-001), with an
+            // Expand/Collapse action reflecting the fold state, so a swarm agent can fold/unfold each
+            // region by `code_editor_fold_{start_line}`. Nested under the text node like the cursors.
+            self.emit_fold_nodes(ui, first_buffer_line, buffer_end);
         });
+    }
+
+    /// Render a folded region's collapsed SUMMARY line (the start-line text + ` …`) in place of the
+    /// region's real lines (MT step 4). One row, monospace, in the editor foreground color — the same
+    /// row height as a real line so the virtualized layout stays on one unit. A subtle background tint
+    /// (the theme comment color at low alpha) marks it as a fold summary without a new theme token.
+    fn render_fold_label_line(&self, ui: &mut egui::Ui, label: &str, syntax: &HsSyntaxTokens) {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            let mono = egui::FontId::monospace(13.0);
+            // The label text in the normal foreground; the trailing ellipsis already conveys "folded".
+            let resp = ui.label(
+                egui::RichText::new(label)
+                    .font(mono)
+                    .color(syntax.punctuation),
+            );
+            // A faint highlight rect behind the summary so a folded line reads differently from a normal
+            // line (UI affordance, like the find-match tint — not a syntax token).
+            let tint = egui::Color32::from_rgba_unmultiplied(
+                syntax.comment.r(),
+                syntax.comment.g(),
+                syntax.comment.b(),
+                28,
+            );
+            ui.painter().rect_filled(resp.rect, 0.0, tint);
+        });
+    }
+
+    /// Emit the per-fold-region `Role::TreeItem` AccessKit nodes for the regions whose start line falls
+    /// in the painted buffer window `[first_buffer_line, buffer_end)` (AC-005 / HBR-SWARM). Each node:
+    /// - author_id `code_editor_fold_{start_line}` (the contract-named id; AC-005 asserts THIS id),
+    /// - role `Role::TreeItem` (exists in accesskit 0.21 — no fallback needed; verified at build),
+    /// - action `Action::Expand` when the region is FOLDED (the agent action that unfolds it) or
+    ///   `Action::Collapse` when UNFOLDED (the agent action that folds it) — MT impl note "accessible
+    ///   fold state",
+    /// - value carries the fold state + line span so an agent can read it without dispatching.
+    ///
+    /// Capped at [`MAX_ACCESSKIT_FOLDS`] nodes (RISK-001) so a file with thousands of folds cannot blow
+    /// the per-frame node budget. Fixed ids in the fold band (default panel) keep NodeIds stable across
+    /// frames; instances hash the suffixed author_id (RISK-004), the same scheme the cursor nodes use.
+    fn emit_fold_nodes(&self, ui: &egui::Ui, first_buffer_line: usize, buffer_end: usize) {
+        let regions: Vec<(usize, usize, bool)> = {
+            let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.regions
+                .iter()
+                .filter(|r| r.start_line >= first_buffer_line && r.start_line < buffer_end)
+                .take(MAX_ACCESSKIT_FOLDS)
+                .map(|r| (r.start_line, r.end_line, r.folded))
+                .collect()
+        };
+        for (slot, (start_line, end_line, folded)) in regions.into_iter().enumerate() {
+            let author = if self.instance.is_empty() {
+                format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}")
+            } else {
+                format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}", self.instance)
+            };
+            let value = if folded {
+                format!("folded lines {start_line}-{end_line}")
+            } else {
+                format!("unfolded lines {start_line}-{end_line}")
+            };
+            let node_id = self.fold_node_id(slot, start_line);
+            ui.ctx().accesskit_node_builder(node_id, move |node| {
+                node.set_role(accesskit::Role::TreeItem);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor fold".to_owned());
+                node.set_value(value.clone());
+                // The action an agent dispatches to CHANGE the state: Expand un-folds a folded region;
+                // Collapse folds an unfolded one (AC-005: a FOLDED region's node supports Expand).
+                if folded {
+                    node.add_action(accesskit::Action::Expand);
+                } else {
+                    node.add_action(accesskit::Action::Collapse);
+                }
+            });
+        }
+    }
+
+    /// The fixed `egui::Id` for fold node `slot` (default panel uses the fold band; instances hash the
+    /// suffixed author_id so two panels never share a fold id — RISK-004).
+    fn fold_node_id(&self, slot: usize, start_line: usize) -> egui::Id {
+        if self.instance.is_empty() {
+            // SAFETY: each slot maps to a distinct fixed id in the disjoint fold band; never reused.
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_FOLD_NODE_ID_BASE + slot as u64) }
+        } else {
+            egui::Id::new(format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}", self.instance))
+        }
     }
 
     /// Clip the sorted cached span list to the half-open byte window `[win_start, win_end)`, returning
@@ -1809,6 +2142,15 @@ impl CodeEditorPanel {
                     }
                     egui::Key::D if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
                         self.select_next_occurrence();
+                    }
+                    // MT-005 step 5: Ctrl+Shift+[ folds the region at the cursor; Ctrl+Shift+] unfolds.
+                    // (MT-010 will formalize the full keymap; pre-wired here.) Intercepted regardless of
+                    // pointer position so the fold keymap works whenever the editor has focus.
+                    egui::Key::OpenBracket if modifiers.ctrl && modifiers.shift && !modifiers.alt => {
+                        self.fold_at_cursor();
+                    }
+                    egui::Key::CloseBracket if modifiers.ctrl && modifiers.shift && !modifiers.alt => {
+                        self.unfold_at_cursor();
                     }
                     // MT-004 step 2: Ctrl+F opens find; Ctrl+H opens find with the replace row; Escape
                     // (when the bar is open) closes it. Enter / Shift+Enter step to the next / prev match
