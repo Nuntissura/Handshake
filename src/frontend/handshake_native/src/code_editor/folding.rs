@@ -367,21 +367,27 @@ impl FoldSet {
         }
     }
 
-    /// The number of visible (post-fold) lines: the buffer line count minus every collapsed region's
-    /// hidden-line count. The renderer passes this to `VirtualLineLayout` as the effective line count
-    /// (MT step 6). `buffer_len_lines` is the live buffer's `len_lines()`.
+    /// The number of visible (post-fold) lines: the buffer line count minus the buffer lines hidden by
+    /// the current fold state. The renderer passes this to `VirtualLineLayout` as the effective line
+    /// count (MT step 6). `buffer_len_lines` is the live buffer's `len_lines()`.
+    ///
+    /// Delegates to [`hidden_line_count`](Self::hidden_line_count) for the hidden-line total. That
+    /// counter is nesting-correct: an inner folded region inside an outer folded region adds nothing
+    /// (the outer already hides its lines), so this matches the line count
+    /// [`rebuild_visible_map_for`](Self::rebuild_visible_map_for) produces — which is the render path's
+    /// source of truth — even when both an outer AND a nested inner region are folded. A naive sum of
+    /// every folded region's `collapsed_line_count()` would double-count the overlap and return a
+    /// too-small count, mis-sizing any downstream consumer (gutter MT-007, minimap MT-006, scrollbar).
     pub fn visible_line_count(&self, buffer_len_lines: usize) -> usize {
-        let hidden: usize = self
-            .folded_regions()
-            .map(|r| r.collapsed_line_count())
-            .sum();
-        buffer_len_lines.saturating_sub(hidden)
+        buffer_len_lines.saturating_sub(self.hidden_line_count())
     }
 
-    /// The currently-folded regions, in start-line order. NOTE: this counts every folded region's
-    /// collapsed lines; nested folded regions inside an OUTER folded region are double-counted by a
-    /// naive sum, so [`hidden_line_count`](Self::hidden_line_count) (and the visible-map build) use the
-    /// outer-only accounting instead. Exposed for the gutter (MT-007) + tests.
+    /// The currently-folded regions, in start-line order. NOTE: this is the raw per-region list; a
+    /// naive sum of each region's `collapsed_line_count()` over this iterator double-counts nested
+    /// folds (an inner folded region inside an outer folded region). For a correct hidden-line total
+    /// use [`hidden_line_count`](Self::hidden_line_count) (which [`visible_line_count`](Self::visible_line_count)
+    /// delegates to). Exposed for the gutter (MT-007) + tests, which iterate folded regions to draw
+    /// fold markers rather than to count hidden lines.
     pub fn folded_regions(&self) -> impl Iterator<Item = &FoldRegion> {
         self.regions.iter().filter(|r| r.folded)
     }
@@ -395,7 +401,9 @@ impl FoldSet {
 
     /// Total buffer lines hidden by the current fold state, counting nested folds correctly (an inner
     /// folded region inside an outer folded region adds nothing — the outer already hides it). This is
-    /// the authoritative hidden-line count the visible-line math uses.
+    /// the authoritative hidden-line count the visible-line math uses: [`visible_line_count`](Self::visible_line_count)
+    /// delegates to it, so the count it returns agrees with the `is_line_visible`-driven map that
+    /// [`rebuild_visible_map_for`](Self::rebuild_visible_map_for) builds for the render path.
     pub fn hidden_line_count(&self) -> usize {
         // Walk lines once via the visibility predicate is O(N lines); instead, accumulate hidden
         // ranges from outer-most folded regions only. Because regions are sorted enclosing-first,
@@ -634,6 +642,37 @@ function greet(name) {
         assert!(!set.is_line_visible(8), "outer hides inner end");
         assert!(!set.is_line_visible(12), "outer hides its own end line");
         assert!(set.is_line_visible(13), "line after the outer region is visible");
+    }
+
+    #[test]
+    fn fold_set_nested_both_folded_visible_count_matches_render_map() {
+        // Regression guard for the double-count bug: BOTH an outer [2,12] and a nested inner [5,8]
+        // region are folded. The outer fold already hides lines 3..=12 (10 lines); the inner fold
+        // adds NOTHING because every line it would hide is already hidden by the outer. A naive
+        // per-region sum would subtract 10 + 3 = 13 hidden lines and report a too-small visible count.
+        // visible_line_count MUST equal the length of the map the render path actually builds via
+        // rebuild_visible_map_for (the is_line_visible-driven source of truth).
+        let outer = FoldRegion { start_line: 2, end_line: 12, folded: true, label: "o …".to_owned() };
+        let inner = FoldRegion { start_line: 5, end_line: 8, folded: true, label: "i …".to_owned() };
+        let mut set = FoldSet::from_regions(vec![outer, inner]);
+        let buffer_len = 20;
+
+        // The outer fold hides exactly 10 lines (3..=12); the nested inner fold double-counts under a
+        // naive sum, but hidden_line_count is nesting-correct.
+        assert_eq!(set.hidden_line_count(), 10, "nested inner fold adds no extra hidden lines");
+
+        let render_visible = set.rebuild_visible_map_for(buffer_len);
+        assert_eq!(
+            set.visible_line_count(buffer_len),
+            render_visible,
+            "visible_line_count must equal the render-path visible-map length when an outer AND a \
+             nested inner region are both folded (no double-count)"
+        );
+        assert_eq!(
+            set.visible_line_count(buffer_len),
+            buffer_len - 10,
+            "20 lines minus the 10 the outer fold hides = 10 visible"
+        );
     }
 
     // ── AC-003: visible_line_to_buffer_line mapping ───────────────────────────────────────────────

@@ -138,6 +138,29 @@ fn fold_set_visibility_nested_outer_hides_inner() {
     assert!(set.is_line_visible(13), "line after the outer region visible");
 }
 
+#[test]
+fn fold_set_visibility_nested_both_folded_visible_count_matches_map() {
+    // Regression guard (no double-count): outer [2,12] AND nested inner [5,8] BOTH folded. The outer
+    // already hides 3..=12 (10 lines); the inner adds nothing. visible_line_count must agree with the
+    // render-path map length (rebuild_visible_map_for) rather than a naive per-region sum, which would
+    // subtract 10 + 3 = 13 and report a too-small count.
+    let outer = make_region(2, 12, true);
+    let inner = make_region(5, 8, true);
+    let mut set = FoldSet::from_regions(vec![outer, inner]);
+    let buffer_len = 20;
+    let render_visible = set.rebuild_visible_map_for(buffer_len);
+    assert_eq!(
+        set.visible_line_count(buffer_len),
+        render_visible,
+        "nested both-folded: visible_line_count must equal the render-path visible-map length"
+    );
+    assert_eq!(
+        set.visible_line_count(buffer_len),
+        buffer_len - 10,
+        "nested both-folded: only the outer fold's 10 lines are hidden"
+    );
+}
+
 // ── PT-003 / AC-003: visible→buffer mapping ───────────────────────────────────────────────────────
 
 #[test]
