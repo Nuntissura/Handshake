@@ -306,3 +306,26 @@ fn parse_rgba_components(inner: &str) -> Option<Color32> {
     }
     Some(rgba_premultiplied(r, g, b, a))
 }
+
+/// A stable 12-hue identity palette for tag chips (WP-KERNEL-012 MT-023; relocated here 2026-06-23).
+/// A tag's chip color is a hash of its title (data-driven identity), NOT a theme token, so the same
+/// tag always looks the same across light/dark. It lives in palette.rs because that is a sanctioned
+/// home for `Color32` literals: the no-hardcoded-color guard (`tests/test_theme.rs`
+/// `no_hardcoded_color32_outside_theme_module`) exempts `palette.rs`/`syntax.rs` only. It was moved
+/// out of `graph/tags_panel.rs`, which the guard correctly flagged (CONTROL-4).
+pub fn tag_chip_palette() -> [Color32; 12] {
+    [
+        Color32::from_rgb(0xE5, 0x39, 0x35), // red
+        Color32::from_rgb(0xFB, 0x8C, 0x00), // orange
+        Color32::from_rgb(0xFD, 0xD8, 0x35), // amber
+        Color32::from_rgb(0x7C, 0xB3, 0x42), // lime
+        Color32::from_rgb(0x43, 0xA0, 0x47), // green
+        Color32::from_rgb(0x00, 0x89, 0x7B), // teal
+        Color32::from_rgb(0x00, 0xAC, 0xC1), // cyan
+        Color32::from_rgb(0x1E, 0x88, 0xE5), // blue
+        Color32::from_rgb(0x3F, 0x51, 0xB5), // indigo
+        Color32::from_rgb(0x8E, 0x24, 0xAA), // purple
+        Color32::from_rgb(0xD8, 0x1B, 0x60), // pink
+        Color32::from_rgb(0x6D, 0x4C, 0x41), // brown
+    ]
+}

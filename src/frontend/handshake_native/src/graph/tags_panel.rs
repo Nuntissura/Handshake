@@ -134,23 +134,13 @@ pub fn hub_add_result_author_id(block_id: &str) -> String {
 ///
 /// NOTE the no-hardcode-theme-token invariant: these are CHIP-IDENTITY colors derived from a tag's title
 /// hash, not semantic theme tokens — they intentionally do not come from [`HsPalette`] (a tag's identity
-/// hue must be stable across themes so the same tag always looks the same). The architecture-guard test
-/// allows `Color32::from_rgb` for this data-driven (non-theme) identity use.
+/// hue must be stable across themes so the same tag always looks the same). The identity-hue `Color32`
+/// literals therefore live in the sanctioned `theme/palette.rs` (the no-hardcoded-color guard,
+/// `tests/test_theme.rs` `no_hardcoded_color32_outside_theme_module`, exempts `palette.rs`/`syntax.rs`
+/// ONLY; relocated there 2026-06-23 after the guard correctly flagged the inline literals here — the
+/// earlier "the guard allows from_rgb here" claim was wrong). `TAG_CHIP_PALETTE_LEN == 12`.
 fn tag_chip_palette() -> [Color32; TAG_CHIP_PALETTE_LEN] {
-    [
-        Color32::from_rgb(0xE5, 0x39, 0x35), // red
-        Color32::from_rgb(0xFB, 0x8C, 0x00), // orange
-        Color32::from_rgb(0xFD, 0xD8, 0x35), // amber
-        Color32::from_rgb(0x7C, 0xB3, 0x42), // lime
-        Color32::from_rgb(0x43, 0xA0, 0x47), // green
-        Color32::from_rgb(0x00, 0x89, 0x7B), // teal
-        Color32::from_rgb(0x00, 0xAC, 0xC1), // cyan
-        Color32::from_rgb(0x1E, 0x88, 0xE5), // blue
-        Color32::from_rgb(0x3F, 0x51, 0xB5), // indigo
-        Color32::from_rgb(0x8E, 0x24, 0xAA), // purple
-        Color32::from_rgb(0xD8, 0x1B, 0x60), // pink
-        Color32::from_rgb(0x6D, 0x4C, 0x41), // brown
-    ]
+    crate::theme::palette::tag_chip_palette()
 }
 
 /// Number of distinct tag-chip colors (RISK-3: >= 12).
