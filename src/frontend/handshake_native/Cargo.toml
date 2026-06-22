@@ -154,6 +154,11 @@ tree-sitter = "0.25"
 tree-sitter-language = "0.1"
 tree-sitter-rust = "0.24"
 tree-sitter-javascript = "0.25"
+# WP-KERNEL-012 MT-010 Monaco-parity keymap: `dirs` (MIT) resolves the user home directory so the
+# operator keybinding override file lives at a PORTABLE `~/.handshake/keymap.json` rather than a
+# hardcoded absolute path (GLOBAL-PORTABILITY-004 / AC-007). Minimal, pure-Rust, no native build; it is
+# the canonical home-dir crate used across the Rust ecosystem. Cargo.lock pins the resolved version.
+dirs = "5"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

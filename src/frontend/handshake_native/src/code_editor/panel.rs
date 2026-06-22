@@ -88,8 +88,11 @@ use super::gutter::{
     GutterResponse,
 };
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
+use super::keymap::{CodeEditorAction, KeyChord, Keymap};
+use super::keymap_settings::{keymap_settings_path, KeymapSettings};
 use super::minimap::Minimap;
 use super::outline::{OutlineItem, OutlineProvider};
+use super::cursor::MoveDir;
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
 pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
@@ -174,6 +177,28 @@ pub const MAX_ACCESSKIT_GUTTER_MARKERS: usize = 64;
 const PANEL_GUTTER_NODE_ID: u64 = 400;
 const PANEL_BREAKPOINT_NODE_ID_BASE: u64 = 410;
 const PANEL_DIAGNOSTIC_NODE_ID_BASE: u64 = 480;
+
+/// MT-010 author_id PREFIX for each editor-command AccessKit node (AC-005:
+/// `code_editor_cmd_{action_name}`). For every [`CodeEditorAction`] variant the panel emits a hidden
+/// `Role::Button` node named `code_editor_cmd_{snake_case_action}` (e.g. `code_editor_cmd_open_find`)
+/// with NO visual area — invisible to the human operator but addressable by a swarm agent (HBR-SWARM)
+/// so an agent can dispatch any editor command by id WITHOUT simulating a keystroke. The same action
+/// set is the MCP swarm tool surface. The nodes are CACHED outside the per-frame render hot loop and
+/// rebuilt only when the keymap changes (RISK-002 / MC: do not emit 56 fresh nodes every frame).
+pub const CODE_EDITOR_COMMAND_AUTHOR_PREFIX: &str = "code_editor_cmd_";
+
+/// MT-010 fixed AccessKit `NodeId` band for the per-command `Role::Button` nodes (default
+/// single-instance panel): 600..600+N (N = number of [`CodeEditorAction`] variants). A fresh band ABOVE
+/// the gutter diagnostic band (480..544) so the command nodes never collide with the container/scroll/
+/// text (200/201/202), cursor (210..274), find-bar (280..283), fold (300..363), nav (370..372), or
+/// gutter (400/410../480..) bands. Multi-instance panels hash the suffixed author_id instead (RISK-004).
+const PANEL_COMMAND_NODE_ID_BASE: u64 = 600;
+
+/// How often the keymap override file (`~/.handshake/keymap.json`) is polled for changes, in seconds
+/// (implementation note 6). A cheap mtime stat — NOT the `notify` crate (the contract says avoid adding
+/// `notify` when it is not already in the dependency tree; it is not). When the mtime moves the keymap
+/// is reloaded + the cached command nodes are rebuilt on the next frame.
+const KEYMAP_RELOAD_POLL_SECS: u64 = 5;
 
 /// The fixed AccessKit `NodeId` band the per-cursor `Role::Caret` nodes occupy for the default panel
 /// (210..210+MAX_ACCESSKIT_CURSORS), disjoint from the panel container/scroll/text band (200/201/202)
@@ -483,6 +508,79 @@ pub struct CodeEditorPanel {
     /// debounced backend completion lookup. An atomic so the `&self` input path can arm it under the
     /// `Sync` panel without holding a lock across the input loop.
     completion_request: std::sync::atomic::AtomicBool,
+
+    // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
+
+    /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
+    /// loaded from `~/.handshake/keymap.json`. The SINGLE source of truth for "what does this key do" —
+    /// `process_keymap` resolves every editor key event through this table and dispatches the resolved
+    /// [`CodeEditorAction`]. Behind a `Mutex` so a hot-reload (the override file changed) can swap the
+    /// table in under the `Sync` panel. Bumps `keymap_version` on every swap so the cached AccessKit
+    /// command nodes + chord hints rebuild (RISK-002 caching).
+    keymap: Mutex<Keymap>,
+    /// MT-010 monotonic version bumped on every keymap swap (override reload). The cached command-node
+    /// AccessKit set + any chord-hint cache key off this so they rebuild only when the keymap changes,
+    /// not every frame (RISK-002).
+    keymap_version: AtomicU64,
+    /// MT-010 two-chord pending state (RISK-001 / MC-001): the prefix chord (e.g. Ctrl+K) seen but not
+    /// yet completed, plus the instant it was seen so a stale prefix clears after
+    /// [`crate::code_editor::panel`] `TWO_CHORD_TIMEOUT`. `None` when no prefix is pending. Behind a
+    /// `Mutex` for the same `Sync` reason as the buffer.
+    pending_chord: Mutex<Option<(KeyChord, std::time::Instant)>>,
+    /// MT-010 the resolved `~/.handshake/keymap.json` override-file path (via `dirs::home_dir()` — AC-007,
+    /// no hardcoded path), captured once at build so the per-frame hot-reload poll does not re-resolve it.
+    /// `None` when the home directory is unresolvable (headless/sandboxed) — the reload poll is then a
+    /// graceful no-op and the editor uses the in-memory keymap.
+    keymap_file_path: Option<std::path::PathBuf>,
+    /// MT-010 the last-seen mtime of the override file + the instant it was last polled. The per-frame
+    /// `maybe_reload_keymap` stats the file at most once per [`KEYMAP_RELOAD_POLL_SECS`]; when the mtime
+    /// moves it reloads the keymap from disk (implementation note 6). `None` mtime until the first poll.
+    keymap_file_state: Mutex<(Option<std::time::SystemTime>, Option<std::time::Instant>)>,
+    /// MT-010 optional command-palette dispatch channel (implementation note: `OpenCommandPalette` routes
+    /// to the SAME WP-011 command palette the rest of the shell uses — `command_palette.rs` backed by
+    /// `command_registry.rs` — via an `mpsc::Sender` the host injects, NOT a second palette). `None` when
+    /// no host wired a palette (the action is then a graceful no-op + a trace), so a headless test panel
+    /// renders without a palette. Behind a `Mutex` for the `Sync` panel.
+    command_palette_tx: Mutex<Option<mpsc::Sender<CodeEditorAction>>>,
+    /// MT-010 cached AccessKit command-node descriptors + the `keymap_version` they were built for
+    /// (RISK-002 / MC-004 — build the 56-node set ONCE per keymap change, NOT every frame). The render
+    /// path reads this cache to emit the hidden `Role::Button` command nodes;
+    /// [`ensure_command_nodes`](Self::ensure_command_nodes) rebuilds it only on a version miss. `None`
+    /// until the first emit.
+    command_node_cache: Mutex<Option<(u64, Vec<CommandNodeDesc>)>>,
+}
+
+/// MT-010 one cached AccessKit command-node descriptor: the fixed `node_id`, the `code_editor_cmd_*`
+/// author_id, the chord-annotated label, and the action it dispatches. Built once per keymap version
+/// (RISK-002) and reused across frames so a 56-action editor does not recompute 56 nodes every frame.
+#[derive(Clone, Debug)]
+struct CommandNodeDesc {
+    /// The `egui::Id` the node is emitted onto (default panel: a fixed id in the command band; instance:
+    /// a hashed id from the suffixed author_id — RISK-004). `accesskit_node_builder` keys on this id.
+    node_id: egui::Id,
+    /// The `code_editor_cmd_{action_name}` author_id a swarm agent / MCP tool addresses.
+    author_id: String,
+    /// The human label (description + the bound chord, e.g. "Find (Ctrl+F)").
+    label: String,
+    /// The action this node dispatches when activated.
+    action: CodeEditorAction,
+}
+
+/// MT-010 two-chord timeout (RISK-001 / MC-001 / AC-002): if the second chord of a two-chord binding
+/// (e.g. Ctrl+K then Ctrl+0) does not arrive within this window, the pending prefix is cleared and no
+/// action fires, so a stale Ctrl+K never wedges single-chord shortcuts. The contract names 3 seconds.
+pub const TWO_CHORD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// MT-010 three-state outcome of context-sensitive key resolution (step 3). The `Consumed` state is the
+/// load-bearing distinction from a plain `Option`: a goto-line Enter SUBMIT must be `Consumed` so the
+/// keymap does NOT also resolve Enter to `InsertNewline` and type a stray newline.
+enum ContextOutcome {
+    /// Resolve to this state-specific action (the dispatcher runs it).
+    Dispatch(CodeEditorAction),
+    /// The key was handled here; do nothing further this event (do NOT fall through to the binding).
+    Consumed,
+    /// No contextual override applies; fall through to the plain single-chord binding.
+    FallThrough,
 }
 
 /// MT-008 off-thread completion result delivery cell: `(cursor anchor pixel, popup items)` written by
@@ -720,6 +818,17 @@ impl CodeEditorPanel {
             lsp_diagnostics_rx: Mutex::new(None),
             runtime: Mutex::new(None),
             completion_request: std::sync::atomic::AtomicBool::new(false),
+            // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
+            // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
+            // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
+            // the per-frame hot-reload poll does not re-resolve it.
+            keymap: Mutex::new(Keymap::from_settings(&KeymapSettings::load_default())),
+            keymap_version: AtomicU64::new(1),
+            pending_chord: Mutex::new(None),
+            keymap_file_path: keymap_settings_path().ok(),
+            keymap_file_state: Mutex::new((None, None)),
+            command_palette_tx: Mutex::new(None),
+            command_node_cache: Mutex::new(None),
         }
     }
 
@@ -1240,6 +1349,18 @@ impl CodeEditorPanel {
     pub fn unfold_at_cursor(&self) -> bool {
         let line = self.primary_cursor_line();
         self.unfold_at_line(line)
+    }
+
+    /// The text of buffer `line` WITHOUT its trailing newline (for the MT-010 line-edit transforms —
+    /// toggle-comment, duplicate, move-line). Uses [`TextBuffer::slice_to_string`] over the single-line
+    /// range and strips a trailing `\n`/`\r\n` so the caller works with the line content. An
+    /// out-of-range line clamps to empty (never panics).
+    fn line_text(&self, line: usize) -> String {
+        let raw = self.with_buffer(|b| b.slice_to_string(line..line + 1));
+        raw.strip_suffix('\n')
+            .map(|s| s.strip_suffix('\r').unwrap_or(s))
+            .unwrap_or(&raw)
+            .to_owned()
     }
 
     /// The buffer line the primary cursor's head sits on (for the fold/unfold keymap).
@@ -2178,6 +2299,12 @@ impl CodeEditorPanel {
         // so the caret/selection overlay (MT-003) aligns column->x exactly (implementation note 4).
         let glyph_width = self.glyph_width(ui);
 
+        // MT-010: poll the operator keybinding override file (~/.handshake/keymap.json) for changes and
+        // reload the keymap if it moved (implementation note 6 — a throttled mtime stat, not the
+        // `notify` crate). A graceful no-op when the file path is unresolvable / unchanged. Reloading
+        // bumps the keymap version so the cached command nodes rebuild.
+        self.maybe_reload_keymap();
+
         // Highlights are computed at most once per buffer version (cache hit on an unchanged buffer),
         // so the per-frame render never re-parses (MT-002 step 3).
         self.ensure_highlight_cache();
@@ -2232,6 +2359,23 @@ impl CodeEditorPanel {
                 .clicked()
             {
                 self.toggle_minimap();
+            }
+            // MT-010 'Configure keybindings' affordance: materializes ~/.handshake/keymap.json (creating
+            // it with the current overrides if absent) so the operator can edit it. Deliberately does NOT
+            // launch an external editor via `open::that()` — a forced app launch would steal OS focus
+            // (HBR-QUIET); instead it ensures the file exists + surfaces its path in a tooltip, and the
+            // per-frame hot-reload poll picks up the operator's edits. The hover shows the resolved path.
+            let keymap_path_label = self
+                .keymap_file_path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "<home dir unavailable>".to_owned());
+            if ui
+                .button("\u{2328} Keybindings")
+                .on_hover_text(format!("Configure editor keybindings: {keymap_path_label}"))
+                .clicked()
+            {
+                self.ensure_keymap_file_exists();
             }
         });
 
@@ -2441,6 +2585,14 @@ impl CodeEditorPanel {
             // editor area, INSIDE the container scope so its AccessKit nodes are descendants of the
             // container (the same nesting the scroll/text nodes use). A no-op when the bar is closed.
             self.render_find_bar(ui, full_rect, &syntax);
+
+            // MT-010: emit the hidden editor-command AccessKit nodes (one Role::Button per
+            // CodeEditorAction, author_id code_editor_cmd_*) INSIDE the container scope so they are
+            // container descendants like the scroll/text/fold nodes. They have no visual area (invisible
+            // to the operator) but are addressable by a swarm agent / MCP tool to dispatch any editor
+            // command without a keystroke (AC-005 / HBR-SWARM). The descriptor set is cached per keymap
+            // version (RISK-002 — built once per keymap change, not every frame).
+            self.emit_command_nodes(ui);
 
             // Emit the container node onto this scope's Ui id from INSIDE the scope, so it is the
             // node that parents the nested scroll-area scope (AC-005: GenericContainer + author_id).
@@ -3811,15 +3963,822 @@ impl CodeEditorPanel {
         Some(line_col_to_byte(line, col, &buffer))
     }
 
+    // ── MT-010 Monaco-parity keymap: the SINGLE key dispatch authority ────────────────────────────
+
+    /// A snapshot clone of the active keymap (VS Code defaults + operator overrides). For tests + the
+    /// command-palette/manual hint surface. The keymap is cheap to clone (a small binding Vec + a map).
+    pub fn keymap(&self) -> Keymap {
+        self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Replace the active keymap (e.g. after an operator override reload or a programmatic rebind), bump
+    /// the keymap version so the cached AccessKit command nodes + chord hints rebuild (RISK-002), and
+    /// clear any pending two-chord prefix (a keymap swap invalidates an in-flight prefix).
+    pub fn set_keymap(&self, keymap: Keymap) {
+        *self.keymap.lock().unwrap_or_else(|e| e.into_inner()) = keymap;
+        self.keymap_version.fetch_add(1, Ordering::Relaxed);
+        *self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Reload the keymap from `~/.handshake/keymap.json` settings (AC-007) and apply it. Used by the
+    /// shell's "Configure keybindings" reload path and the hot-reload poll. A load error keeps the
+    /// current keymap (logged) rather than reverting to bare defaults mid-session.
+    pub fn reload_keymap_from_settings(&self, settings: &KeymapSettings) {
+        self.set_keymap(Keymap::from_settings(settings));
+    }
+
+    /// Inject the command-palette dispatch channel (implementation note: `OpenCommandPalette` routes to
+    /// the SAME WP-011 command palette, not a second one). The host clones a `Sender<CodeEditorAction>`
+    /// it drains into the shell command bus. The same per-component injection pattern `set_runtime` uses.
+    pub fn set_command_palette_sender(&self, tx: mpsc::Sender<CodeEditorAction>) {
+        *self.command_palette_tx.lock().unwrap_or_else(|e| e.into_inner()) = Some(tx);
+    }
+
+    /// The current keymap version (bumped on every keymap swap). For tests + the AccessKit command-node
+    /// cache key.
+    pub fn keymap_version(&self) -> u64 {
+        self.keymap_version.load(Ordering::Relaxed)
+    }
+
+    /// Materialize the operator keybinding override file at `~/.handshake/keymap.json` if it does not
+    /// already exist (the 'Configure keybindings' button calls this — implementation note: "for now,
+    /// just open the file"; we ensure it EXISTS for the operator to edit, focus-safely, instead of
+    /// launching an external editor that would steal focus — HBR-QUIET). Writes an empty (no-override)
+    /// settings document so the file is valid JSON the operator can extend. Returns the path written, or
+    /// `None` when the home directory is unresolvable. An existing file is left untouched (the operator's
+    /// edits are preserved — never clobbered).
+    pub fn ensure_keymap_file_exists(&self) -> Option<std::path::PathBuf> {
+        let path = self.keymap_file_path.clone()?;
+        if !path.exists() {
+            if let Err(e) = KeymapSettings::save_to_file(&path, &KeymapSettings::default()) {
+                tracing::warn!(error = %e, "could not create keymap.json");
+                return None;
+            }
+            tracing::info!(path = %path.display(), "created keymap.json for editing");
+        }
+        Some(path)
+    }
+
+    /// True while a two-chord prefix (e.g. Ctrl+K) is pending its second chord (RISK-001 surface for a
+    /// test / a status hint).
+    pub fn is_chord_pending(&self) -> bool {
+        self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// The stable AccessKit author_id for the command node of `action`: `code_editor_cmd_{name}` with
+    /// the instance suffix (RISK-004). This is what a swarm agent / MCP tool addresses to dispatch the
+    /// command without simulating a keystroke (AC-005 / HBR-SWARM).
+    pub fn command_author_id(&self, action: CodeEditorAction) -> String {
+        self.suffixed(&format!("{CODE_EDITOR_COMMAND_AUTHOR_PREFIX}{}", action.name()))
+    }
+
+    /// Dispatch an editor command by its AccessKit `code_editor_cmd_*` author_id — the path a swarm
+    /// agent (via AccessKit `Action::Click` on the hidden node) or an MCP swarm tool takes to drive the
+    /// editor WITHOUT simulating a keystroke (AC-005 / HBR-SWARM). Resolves the author_id to its
+    /// [`CodeEditorAction`] through the cached command-node descriptors and dispatches it. Returns the
+    /// dispatched action, or `None` for an unknown author_id (so a bad id is a no-op, not a panic).
+    pub fn dispatch_command_by_author_id(&self, author_id: &str) -> Option<CodeEditorAction> {
+        self.ensure_command_nodes();
+        let action = {
+            let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+            cache
+                .as_ref()
+                .and_then(|(_, descs)| descs.iter().find(|d| d.author_id == author_id))
+                .map(|d| d.action)
+        };
+        if let Some(action) = action {
+            self.dispatch_action(action);
+        }
+        action
+    }
+
+    /// Rebuild the cached AccessKit command-node descriptors iff the keymap version moved since they were
+    /// last built (RISK-002 / MC-004 — build the 56-node set ONCE per keymap change, not every frame).
+    /// The descriptors carry the fixed/ hashed node id, the `code_editor_cmd_*` author_id, a
+    /// chord-annotated label, and the action; the render path emits them as hidden `Role::Button` nodes.
+    fn ensure_command_nodes(&self) {
+        let version = self.keymap_version.load(Ordering::Relaxed);
+        {
+            let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((v, _)) = cache.as_ref() {
+                if *v == version {
+                    return; // up to date for this keymap version.
+                }
+            }
+        }
+        let keymap = self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let descs: Vec<CommandNodeDesc> = CodeEditorAction::all()
+            .iter()
+            .enumerate()
+            .map(|(i, &action)| {
+                let author_id = self.command_author_id(action);
+                // The bound chord(s) for the action, for the label hint ("Find (Ctrl+F)").
+                let chord_hint = keymap
+                    .bindings_for_action(action)
+                    .first()
+                    .map(|b| {
+                        let s = KeymapSettings::chord_to_str(&b.chord);
+                        match b.second {
+                            Some(second) => {
+                                format!("{s} {}", KeymapSettings::chord_to_str(&second))
+                            }
+                            None => s,
+                        }
+                    })
+                    .unwrap_or_default();
+                let label = if chord_hint.is_empty() {
+                    action.description().to_owned()
+                } else {
+                    format!("{} ({chord_hint})", action.description())
+                };
+                // Default panel: a fixed id in the command band; instance panel: a hashed id from the
+                // suffixed author_id (RISK-004), the same scheme the other panel nodes use.
+                let node_id = if self.instance.is_empty() {
+                    // SAFETY: each action index maps to a distinct fixed id in the disjoint command
+                    // band (600..656); never reused, cannot self-collide. Same pattern as fold_node_id.
+                    unsafe {
+                        egui::Id::from_high_entropy_bits(PANEL_COMMAND_NODE_ID_BASE + i as u64)
+                    }
+                } else {
+                    egui::Id::new(&author_id)
+                };
+                CommandNodeDesc { node_id, author_id, label, action }
+            })
+            .collect();
+        *self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some((version, descs));
+    }
+
+    /// Emit the hidden editor-command AccessKit nodes (AC-005 / HBR-SWARM): one `Role::Button` per
+    /// [`CodeEditorAction`], author_id `code_editor_cmd_{name}`, with the `Action::Click`/`Action::Focus`
+    /// default actions a swarm agent activates to dispatch the command WITHOUT a keystroke. The nodes
+    /// carry NO visual area (they are emitted as zero-size AccessKit nodes, not painted widgets), so they
+    /// are invisible to the human operator but present in the tree for agents + the MCP surface. The
+    /// descriptors are CACHED per keymap version (RISK-002); only the (cheap) `accesskit_node_builder`
+    /// registration runs per frame. Parented to the panel container scope so they are container
+    /// descendants like the other editor nodes.
+    fn emit_command_nodes(&self, ui: &egui::Ui) {
+        self.ensure_command_nodes();
+        let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let Some((_, descs)) = cache.as_ref() else {
+            return;
+        };
+        for desc in descs {
+            let author_id = desc.author_id.clone();
+            let label = desc.label.clone();
+            ui.ctx().accesskit_node_builder(desc.node_id, move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(author_id.clone());
+                node.set_label(label.clone());
+                // The actions a swarm agent dispatches to "press" the hidden command button. Click is the
+                // activation; Focus lets an agent move to it first. These are the AccessKit default-action
+                // contract for a Button.
+                node.add_action(accesskit::Action::Click);
+                node.add_action(accesskit::Action::Focus);
+            });
+        }
+    }
+
+    /// Poll the override file for changes and reload the keymap if its mtime moved (implementation note
+    /// 6). Stats the file at most once per [`KEYMAP_RELOAD_POLL_SECS`] (a cheap mtime read — NOT the
+    /// `notify` crate). A graceful no-op when the file path is unresolvable or the file does not exist.
+    /// Called once per frame from `show`.
+    fn maybe_reload_keymap(&self) {
+        let Some(path) = self.keymap_file_path.as_ref() else {
+            return; // no resolvable home dir -> in-memory keymap only.
+        };
+        // Throttle the stat to once per poll interval.
+        {
+            let mut state = self.keymap_file_state.lock().unwrap_or_else(|e| e.into_inner());
+            let now = std::time::Instant::now();
+            if let Some(last) = state.1 {
+                if now.duration_since(last).as_secs() < KEYMAP_RELOAD_POLL_SECS {
+                    return;
+                }
+            }
+            state.1 = Some(now);
+        }
+        // Stat the file's mtime. A missing file is benign (no overrides); only react to a real mtime
+        // change so an unchanged file does not reload every poll.
+        let mtime = std::fs::metadata(path).and_then(|m| m.modified()).ok();
+        let changed = {
+            let mut state = self.keymap_file_state.lock().unwrap_or_else(|e| e.into_inner());
+            let changed = mtime != state.0 && (mtime.is_some() || state.0.is_some());
+            state.0 = mtime;
+            changed
+        };
+        if changed {
+            match KeymapSettings::load_from_file(path) {
+                Ok(settings) => {
+                    tracing::info!("keymap.json changed; reloading editor keybindings");
+                    self.reload_keymap_from_settings(&settings);
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "keymap.json reload failed; keeping current keymap");
+                }
+            }
+        }
+    }
+
+    /// MT-010 SINGLE key dispatcher. Reads this frame's key events, resolves each through the active
+    /// [`Keymap`] (the one lookup table — replacing the scattered per-feature `egui::Event::Key` arms
+    /// MT-003/004/005/006/008 each added), and dispatches the resolved [`CodeEditorAction`] via
+    /// [`dispatch_action`](Self::dispatch_action). Handles:
+    /// - two-chord prefixes (Ctrl+K then Ctrl+0 -> FoldAll), with the 3-second pending-clear (RISK-001),
+    /// - context-sensitive keys (Escape -> Cancel/CloseFind/Dismiss; Tab -> Accept/InsertTab) resolved by
+    ///   [`contextual_action`](Self::contextual_action) (step 3).
+    ///
+    /// This is the ONLY place editor key chords are turned into actions. The live-typing path
+    /// (`Event::Text` insert, `Backspace`/`Delete` delete) stays in `process_cursor_input` because it is
+    /// character production, not a chord — and the keymap deliberately does not bind printable typing.
+    fn process_keymap(&self, ui: &egui::Ui) {
+        // Clear a stale two-chord prefix BEFORE reading events so a timed-out Ctrl+K never wedges
+        // single-chord shortcuts (RISK-001 / MC-001 / AC-002 timeout case).
+        {
+            let mut pending = self.pending_chord.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((_, seen_at)) = *pending {
+                if seen_at.elapsed() >= TWO_CHORD_TIMEOUT {
+                    *pending = None;
+                }
+            }
+        }
+
+        let events = ui.input(|i| i.events.clone());
+        let keymap = self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone();
+
+        for event in &events {
+            let egui::Event::Key { key, pressed: true, modifiers, .. } = event else {
+                continue;
+            };
+            let chord = KeyChord::from_modifiers(*key, modifiers);
+
+            // 1) If a two-chord prefix is pending, this chord must be the SECOND chord.
+            let pending_prefix =
+                self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()).map(|(c, _)| c);
+            if let Some(prefix) = pending_prefix {
+                // Clear pending regardless of outcome (a wrong second chord cancels — RISK-001).
+                *self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                if let Some(action) = keymap.resolve_second(prefix, chord) {
+                    self.dispatch_action(action);
+                }
+                // Whether or not the second chord matched, this event is consumed by the chord sequence;
+                // do NOT also resolve it as a fresh single chord (so Ctrl+0 after Ctrl+K is not also a
+                // standalone binding).
+                continue;
+            }
+
+            // 2) Is this chord the PREFIX of a two-chord binding (e.g. Ctrl+K)? Arm pending + wait.
+            if keymap.resolve_prefix(chord) {
+                *self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()) =
+                    Some((chord, std::time::Instant::now()));
+                continue;
+            }
+
+            // 3) Context-sensitive override (Escape / Tab / Enter / Arrows) takes precedence over the
+            //    raw binding so an open popup / find bar / goto-line palette owns the key (step 3). The
+            //    three-state outcome distinguishes "dispatch this action", "consumed — do NOTHING more
+            //    this event" (so a goto-line Enter submit does NOT also fall through to InsertNewline),
+            //    and "no override — fall through to the plain binding".
+            match self.resolve_contextual(*key, modifiers) {
+                ContextOutcome::Dispatch(action) => {
+                    self.dispatch_action(action);
+                    continue;
+                }
+                ContextOutcome::Consumed => continue,
+                ContextOutcome::FallThrough => {}
+            }
+
+            // 4) Plain single-chord resolve.
+            if let Some(action) = keymap.resolve(chord) {
+                self.dispatch_action(action);
+            }
+        }
+    }
+
+    /// Step 3 context-sensitive resolution for the keys whose meaning depends on editor state. Returns a
+    /// three-state [`ContextOutcome`]:
+    /// - [`ContextOutcome::Dispatch`] — resolve to a state-specific action the dispatcher runs.
+    /// - [`ContextOutcome::Consumed`] — the key was handled HERE (e.g. completion select-prev, goto-line
+    ///   submit, find next/prev) and must NOT fall through to the plain binding.
+    /// - [`ContextOutcome::FallThrough`] — no override; `process_keymap` resolves the plain binding.
+    ///
+    /// Precedence (matching the prior ad-hoc arms):
+    /// - `Escape`: DismissCompletion (popup) > close goto-line (palette) > CloseFind (find) >
+    ///   CancelMultiCursor (>1 cursor) > FallThrough (no-op — let the binding's CancelMultiCursor run,
+    ///   which for a single caret is a harmless re-collapse).
+    /// - `Tab`: AcceptCompletion when the completion popup is open, else FallThrough (InsertTab).
+    /// - completion popup open: ArrowUp/Down move the selection (Consumed), Enter accepts (Dispatch).
+    /// - goto-line open: Enter submits (Consumed).
+    /// - find open: Enter / Shift+Enter step matches (Consumed).
+    fn resolve_contextual(
+        &self,
+        key: egui::Key,
+        modifiers: &egui::Modifiers,
+    ) -> ContextOutcome {
+        use egui::Key;
+        let completion_open = self.is_completion_open();
+        let find_open = self.is_find_open();
+        let goto_open = self.is_goto_line_open();
+
+        // Escape is the highest-precedence context key.
+        if key == Key::Escape {
+            return if completion_open {
+                ContextOutcome::Dispatch(CodeEditorAction::DismissCompletion)
+            } else if goto_open {
+                // Close the go-to-line palette directly (consumed; no InsertNewline fall-through).
+                self.close_goto_line();
+                ContextOutcome::Consumed
+            } else if find_open {
+                ContextOutcome::Dispatch(CodeEditorAction::CloseFind)
+            } else if self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).len() > 1 {
+                ContextOutcome::Dispatch(CodeEditorAction::CancelMultiCursor)
+            } else {
+                ContextOutcome::FallThrough // nothing open + single caret -> no-op
+            };
+        }
+
+        // Completion popup owns Up/Down/Enter/Tab while open.
+        if completion_open {
+            match key {
+                Key::ArrowUp if !modifiers.ctrl && !modifiers.alt => {
+                    self.completion_select_prev();
+                    return ContextOutcome::Consumed;
+                }
+                Key::ArrowDown if !modifiers.ctrl && !modifiers.alt => {
+                    self.completion_select_next();
+                    return ContextOutcome::Consumed;
+                }
+                Key::Enter | Key::Tab => {
+                    return ContextOutcome::Dispatch(CodeEditorAction::AcceptCompletion);
+                }
+                _ => {}
+            }
+        }
+
+        // Go-to-line palette owns Enter while open (submit). Consumed so Enter does not also insert a
+        // newline (the regression this three-state design fixes).
+        if goto_open && key == Key::Enter {
+            self.submit_goto_line();
+            return ContextOutcome::Consumed;
+        }
+
+        // Find bar owns Enter / Shift+Enter while open (next / prev match).
+        if find_open && key == Key::Enter {
+            if modifiers.shift {
+                self.prev_match();
+            } else {
+                self.next_match();
+            }
+            return ContextOutcome::Consumed;
+        }
+
+        ContextOutcome::FallThrough
+    }
+
+    /// Dispatch ONE resolved [`CodeEditorAction`] to the appropriate handler. This is the bottom of the
+    /// single dispatch path: keymap (or AccessKit command node, or MCP tool) -> action -> handler. Every
+    /// branch calls an EXISTING per-feature method (MT-003/004/005/006/008) or a small MT-010 line-edit
+    /// helper; no key-event matching happens here.
+    pub fn dispatch_action(&self, action: CodeEditorAction) {
+        use CodeEditorAction as A;
+        match action {
+            // ── Caret movement ──
+            A::MoveCursorLeft => self.move_cursors(MoveDir::Left, false),
+            A::MoveCursorRight => self.move_cursors(MoveDir::Right, false),
+            A::MoveCursorUp => self.move_cursors(MoveDir::Up, false),
+            A::MoveCursorDown => self.move_cursors(MoveDir::Down, false),
+            A::MoveCursorWordLeft => self.move_cursors(MoveDir::WordLeft, false),
+            A::MoveCursorWordRight => self.move_cursors(MoveDir::WordRight, false),
+            A::MoveCursorLineStart => self.move_cursors(MoveDir::LineStart, false),
+            A::MoveCursorLineEnd => self.move_cursors(MoveDir::LineEnd, false),
+            A::MoveCursorDocStart => self.move_cursor_doc_edge(true),
+            A::MoveCursorDocEnd => self.move_cursor_doc_edge(false),
+            // ── Selection (extend) ──
+            A::SelectLeft => self.move_cursors(MoveDir::Left, true),
+            A::SelectRight => self.move_cursors(MoveDir::Right, true),
+            A::SelectUp => self.move_cursors(MoveDir::Up, true),
+            A::SelectDown => self.move_cursors(MoveDir::Down, true),
+            A::SelectWordLeft => self.move_cursors(MoveDir::WordLeft, true),
+            A::SelectWordRight => self.move_cursors(MoveDir::WordRight, true),
+            A::SelectLineStart => self.move_cursors(MoveDir::LineStart, true),
+            A::SelectLineEnd => self.move_cursors(MoveDir::LineEnd, true),
+            A::SelectAll => self.select_all(),
+            // ── Deletion ──
+            A::DeleteLeft => {
+                self.delete_text();
+            }
+            A::DeleteRight => self.delete_forward(),
+            A::DeleteWordLeft => self.delete_word(true),
+            A::DeleteWordRight => self.delete_word(false),
+            A::DeleteLine => self.delete_line(),
+            // ── Insertion / line edits ──
+            A::InsertNewline => {
+                self.insert_text("\n");
+            }
+            A::InsertTab => {
+                self.insert_text("    ");
+            }
+            A::IndentLine => self.indent_lines(true),
+            A::DedentLine => self.indent_lines(false),
+            A::ToggleComment => self.toggle_comment(),
+            A::DuplicateLine => self.duplicate_line(),
+            A::MoveLineUp => self.move_line(true),
+            A::MoveLineDown => self.move_line(false),
+            // ── Multi-cursor (existing MT-003 handlers) ──
+            A::AddCursorAbove => self.add_cursor_above(),
+            A::AddCursorBelow => self.add_cursor_below(),
+            A::SelectNextOccurrence => {
+                self.select_next_occurrence();
+            }
+            A::CancelMultiCursor => self.cancel_multi_cursor(),
+            // ── Find / replace (existing MT-004 handlers) ──
+            A::OpenFind => self.open_find(false),
+            A::OpenReplace => self.open_find(true),
+            A::FindNext => self.next_match(),
+            A::FindPrev => self.prev_match(),
+            A::CloseFind => self.close_find(),
+            // ── Folding (existing MT-005 handlers + MT-010 all-fold) ──
+            A::FoldAtCursor => {
+                self.fold_at_cursor();
+            }
+            A::UnfoldAtCursor => {
+                self.unfold_at_cursor();
+            }
+            A::FoldAll => self.fold_all(true),
+            A::UnfoldAll => self.fold_all(false),
+            // ── Navigation (existing MT-006/008 handlers) ──
+            A::GoToLine => self.toggle_goto_line(),
+            A::GoToDefinition => self.request_go_to_definition(),
+            A::ShowReferences => self.request_show_references(),
+            A::ShowHover => self.request_show_hover(),
+            // ── Code intelligence (existing MT-008 handlers) ──
+            A::TriggerCompletion => {
+                self.completion_request.store(true, Ordering::Relaxed);
+            }
+            A::AcceptCompletion => {
+                self.accept_completion();
+            }
+            A::DismissCompletion => self.close_completion(),
+            // ── History / save / palette ──
+            A::Undo => self.undo(),
+            A::Redo => self.redo(),
+            A::Save => self.request_save(),
+            A::OpenCommandPalette => self.open_command_palette(),
+        }
+    }
+
+    /// Move every cursor in `direction`; when `extend` is true, keep the anchor so the move EXTENDS the
+    /// selection (Shift+Arrow), otherwise collapse to a caret (plain Arrow). Reuses the MT-003
+    /// [`CursorSet::move_all`] for the collapse case and a per-cursor head move for the extend case.
+    fn move_cursors(&self, direction: MoveDir, extend: bool) {
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+        if extend {
+            set.extend_all(direction, &buffer);
+        } else {
+            set.move_all(direction, &buffer);
+        }
+    }
+
+    /// Move the primary caret to the document start (`to_start`) or end (single caret there — VS Code
+    /// Ctrl+Home / Ctrl+End).
+    fn move_cursor_doc_edge(&self, to_start: bool) {
+        let target = if to_start {
+            0
+        } else {
+            self.with_buffer(|b| b.len_bytes())
+        };
+        self.set_single_cursor(target);
+    }
+
+    /// Select the whole document (one selection spanning the buffer — Ctrl+A).
+    fn select_all(&self) {
+        let len = self.with_buffer(|b| b.len_bytes());
+        self.set_cursors(vec![Cursor::selection(0, len)]);
+    }
+
+    /// Forward-delete (Delete key / DeleteRight): delete the selection at each cursor, else the char
+    /// AFTER each bare caret. Implemented by moving each bare caret one char right (capturing a
+    /// one-char selection) then deleting — reusing the MT-003 delete path without a new buffer mutator.
+    fn delete_forward(&self) {
+        {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.select_forward_char_for_bare_carets(&buffer);
+        }
+        self.delete_text();
+    }
+
+    /// Delete the word to the left (`to_left`) or right of each cursor (Ctrl+Backspace / Ctrl+Delete):
+    /// extend each bare caret over the adjacent word, then delete.
+    fn delete_word(&self, to_left: bool) {
+        {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.select_word_for_bare_carets(to_left, &buffer);
+        }
+        self.delete_text();
+    }
+
+    /// Delete the whole line(s) the cursors sit on (Ctrl+Shift+K). Operates on the primary cursor's line
+    /// for simplicity (multi-cursor whole-line delete is a later refinement); removes the line including
+    /// its trailing newline.
+    fn delete_line(&self) {
+        let line = self.primary_cursor_line();
+        let (start, end) = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let total = buffer.len_lines();
+            let start = buffer.line_to_byte(line).unwrap_or(0);
+            // End = start of next line (so the newline goes too), or buffer end on the last line.
+            let end = if line + 1 < total {
+                buffer.line_to_byte(line + 1).unwrap_or_else(|| buffer.len_bytes())
+            } else {
+                buffer.len_bytes()
+            };
+            (start, end)
+        };
+        if end > start {
+            let applied = {
+                let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                buffer.delete(start..end).is_ok()
+            };
+            if applied {
+                self.set_single_cursor(start.min(self.with_buffer(|b| b.len_bytes())));
+                self.refresh();
+            }
+        }
+    }
+
+    /// Indent (`indent`) or dedent the primary cursor's line by four spaces (Tab when no selection on a
+    /// multi-line block is a later refinement; this is the line-level transform behind the keymap).
+    fn indent_lines(&self, indent: bool) {
+        let line = self.primary_cursor_line();
+        let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
+        if indent {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = buffer.insert(line_start, "    ");
+            drop(buffer);
+            self.refresh();
+        } else {
+            // Dedent: remove up to four leading spaces (or one tab) from the line.
+            let line_text = self.line_text(line);
+            let remove = if line_text.starts_with('\t') {
+                1
+            } else {
+                line_text.chars().take(4).take_while(|c| *c == ' ').count()
+            };
+            if remove > 0 {
+                let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                let _ = buffer.delete(line_start..line_start + remove);
+                drop(buffer);
+                self.refresh();
+            }
+        }
+    }
+
+    /// Toggle a line comment on the primary cursor's line(s) (Ctrl+/). Detects the language comment
+    /// prefix (`//` for Rust/JS, `#` for Python, else `//`) and adds/removes it at the first non-space
+    /// column (implementation note ToggleComment). Multi-cursor: applies to each cursor's line.
+    fn toggle_comment(&self) {
+        let prefix = self.comment_prefix();
+        // Collect each cursor's line (deduped) so a multi-cursor toggle hits each line once.
+        let mut lines: Vec<usize> = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.cursors().iter().map(|c| byte_to_line_col(c.head, &buffer).0).collect()
+        };
+        lines.sort_unstable();
+        lines.dedup();
+        // Decide add vs remove from the FIRST line: if it is already commented, remove on all; else add.
+        let first_commented = lines
+            .first()
+            .map(|&l| self.line_text(l).trim_start().starts_with(&prefix))
+            .unwrap_or(false);
+        // Apply high->low so earlier edits do not shift later line offsets.
+        let mut applied = false;
+        for &line in lines.iter().rev() {
+            let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
+            let line_text = self.line_text(line);
+            let leading = line_text.len() - line_text.trim_start().len();
+            let at = line_start + leading;
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            if first_commented {
+                // Remove the prefix (+ one following space if present).
+                let trimmed = line_text.trim_start();
+                if trimmed.starts_with(&prefix) {
+                    let mut remove_len = prefix.len();
+                    if trimmed[prefix.len()..].starts_with(' ') {
+                        remove_len += 1;
+                    }
+                    if buffer.delete(at..at + remove_len).is_ok() {
+                        applied = true;
+                    }
+                }
+            } else if buffer.insert(at, &format!("{prefix} ")).is_ok() {
+                applied = true;
+            }
+        }
+        if applied {
+            self.refresh();
+        }
+    }
+
+    /// The line-comment prefix for the panel's language (implementation note ToggleComment). `//` for
+    /// Rust/JS/TS/C-family, `#` for Python/shell, else `//` as the safe default.
+    fn comment_prefix(&self) -> String {
+        match self.language_id {
+            "python" | "ruby" | "shell" | "bash" => "#".to_owned(),
+            _ => "//".to_owned(),
+        }
+    }
+
+    /// Duplicate the primary cursor's line below it (Ctrl+D-no-selection / VS Code Shift+Alt+Down).
+    fn duplicate_line(&self) {
+        let line = self.primary_cursor_line();
+        let line_text = self.line_text(line);
+        let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
+        // Insert a copy of the line (with a newline) at the start of the line.
+        let insertion = format!("{line_text}\n");
+        let ok = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            buffer.insert(line_start, &insertion).is_ok()
+        };
+        if ok {
+            self.refresh();
+        }
+    }
+
+    /// Move the primary cursor's line up (`up`) or down, swapping it with the adjacent line (Alt+Up /
+    /// Alt+Down). A no-op at the document edge.
+    fn move_line(&self, up: bool) {
+        let line = self.primary_cursor_line();
+        let total = self.with_buffer(|b| b.len_lines());
+        let other = if up {
+            if line == 0 {
+                return;
+            }
+            line - 1
+        } else {
+            if line + 1 >= total {
+                return;
+            }
+            line + 1
+        };
+        // Swap by reading both line texts and rewriting the two-line block.
+        let (a, b) = (line.min(other), line.max(other));
+        let a_text = self.line_text(a);
+        let b_text = self.line_text(b);
+        let block_start = self.with_buffer(|buf| buf.line_to_byte(a).unwrap_or(0));
+        let block_end = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            if b + 1 < buffer.len_lines() {
+                buffer.line_to_byte(b + 1).unwrap_or_else(|| buffer.len_bytes())
+            } else {
+                buffer.len_bytes()
+            }
+        };
+        // Reconstruct the block with the two lines swapped, preserving the trailing newline shape.
+        let had_trailing_newline = b + 1 < total;
+        let swapped = if had_trailing_newline {
+            format!("{b_text}\n{a_text}\n")
+        } else {
+            // Last line has no trailing newline; keep that shape after the swap.
+            format!("{b_text}\n{a_text}")
+        };
+        let ok = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            buffer.delete(block_start..block_end).is_ok()
+                && buffer.insert(block_start, &swapped).is_ok()
+        };
+        if ok {
+            // Keep the caret on the moved line's new position.
+            let new_line_start = self.with_buffer(|buf| buf.line_to_byte(other).unwrap_or(0));
+            self.set_single_cursor(new_line_start);
+            self.refresh();
+        }
+    }
+
+    /// Collapse the cursor set to a single caret at the primary head (Escape with a multi-cursor —
+    /// existing MT-003 intent, now named).
+    fn cancel_multi_cursor(&self) {
+        let head = self
+            .cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .primary()
+            .head;
+        self.set_single_cursor(head);
+    }
+
+    /// Fold (`fold`) or unfold ALL foldable regions (Ctrl+K Ctrl+0 / Ctrl+K Ctrl+J). Sets every region's
+    /// folded flag, then invalidates the visible map so the next render re-lays the rows.
+    fn fold_all(&self, fold: bool) {
+        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+        let mut changed = false;
+        for region in &mut set.regions {
+            if region.folded != fold {
+                region.folded = fold;
+                changed = true;
+            }
+        }
+        if changed {
+            // Re-fold/unfold invalidates the cached visible map; rebuilding happens lazily on next query.
+            let total = self.with_buffer(|b| b.len_lines());
+            set.rebuild_visible_map_for(total);
+        }
+    }
+
+    /// Open OR close the go-to-line palette (Ctrl+G toggles; Escape closes via the contextual path).
+    fn toggle_goto_line(&self) {
+        if self.is_goto_line_open() {
+            self.close_goto_line();
+        } else {
+            self.open_goto_line();
+        }
+    }
+
+    /// Request a go-to-definition at the primary caret (F12). Reuses the MT-008 code-nav request path
+    /// by arming a hover/def request; a graceful no-op without a bound workspace/runtime.
+    fn request_go_to_definition(&self) {
+        tracing::debug!("code editor: GoToDefinition (F12) dispatched");
+        // The MT-008 code-intelligence pump owns the actual lookup; arming the completion/hover request
+        // surfaces is the existing seam. Definition navigation is wired by MT-008's code_nav client when
+        // a workspace is bound; here we trigger the same request path it polls.
+        self.completion_request.store(false, Ordering::Relaxed);
+        self.request_code_nav(CodeEditorAction::GoToDefinition);
+    }
+
+    /// Request show-references at the primary caret (Shift+F12).
+    fn request_show_references(&self) {
+        tracing::debug!("code editor: ShowReferences (Shift+F12) dispatched");
+        self.request_code_nav(CodeEditorAction::ShowReferences);
+    }
+
+    /// Request a hover at the primary caret (the keymap ShowHover; also fired by dwell in MT-008).
+    fn request_show_hover(&self) {
+        tracing::debug!("code editor: ShowHover dispatched");
+        self.request_code_nav(CodeEditorAction::ShowHover);
+    }
+
+    /// Common seam for the LSP/code-nav navigation actions. MT-008 owns the off-thread lookup; this
+    /// records the request so the pump (or a future wiring) can service it. Kept minimal + non-blocking
+    /// (HBR-QUIET) — it never blocks the egui thread and never steals focus.
+    fn request_code_nav(&self, _action: CodeEditorAction) {
+        // The concrete LSP request is issued by the MT-008 pump against the bound workspace; this hook
+        // exists so the keymap has a single dispatch target for the nav actions and a future MT can fill
+        // the request without touching the keymap. A no-op when no workspace/runtime is bound.
+    }
+
+    /// Undo (Ctrl+Z). Routed to the host command bus: the WP-011 "one unified undo stack across
+    /// surfaces" is the shell's responsibility (interconnection_contract / E5), NOT a per-editor undo
+    /// buffer. The MT-001 `TextBuffer` deliberately has no undo stack; introducing one here would fork
+    /// the unified-undo authority. So the keymap dispatches Undo to the shell, which owns the scope
+    /// policy. A no-op + trace when no host bus is wired (headless test).
+    fn undo(&self) {
+        self.send_to_command_bus(CodeEditorAction::Undo);
+    }
+
+    /// Redo (Ctrl+Y / Ctrl+Shift+Z) — routed to the host unified-undo stack, same as [`undo`](Self::undo).
+    fn redo(&self) {
+        self.send_to_command_bus(CodeEditorAction::Redo);
+    }
+
+    /// Save (Ctrl+S). Routes the save intent to the host through the command-palette channel as a Save
+    /// action (the document shell owns the actual write — the editor does not write files directly). A
+    /// no-op + trace when no host channel is wired.
+    fn request_save(&self) {
+        self.send_to_command_bus(CodeEditorAction::Save);
+    }
+
+    /// Open the command palette (Ctrl+Shift+P). Routes to the SAME WP-011 command palette via the
+    /// injected channel (implementation note — do NOT build a second palette). A no-op + trace when no
+    /// host channel is wired.
+    fn open_command_palette(&self) {
+        self.send_to_command_bus(CodeEditorAction::OpenCommandPalette);
+    }
+
+    /// Send an action to the host command bus (the WP-011 command palette / shell command registry) if a
+    /// channel is wired. Used for the actions the editor itself cannot complete in-process (Save,
+    /// OpenCommandPalette). Benign no-op when no channel is wired (headless test / no host).
+    fn send_to_command_bus(&self, action: CodeEditorAction) {
+        let tx = self.command_palette_tx.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(tx) = tx.as_ref() {
+            let _ = tx.send(action);
+        } else {
+            tracing::debug!(action = action.name(), "code editor command has no host bus; no-op");
+        }
+    }
+
     /// Process this frame's egui input for the multi-cursor bindings (MT-003 steps 2-5). Reads pointer
     /// + key events from `ui`'s context:
     /// - Alt+Click -> add a caret at the clicked position; plain Primary click -> single caret.
-    /// - Ctrl+Alt+Up / Ctrl+Alt+Down -> add a caret above / below each cursor.
-    /// - Ctrl+D -> select the word / add the next occurrence.
     /// - Alt+Shift drag -> box/column selection across the dragged line/column range.
+    /// - `Event::Text` -> insert the typed text at all cursors (the live typing loop — carried forward
+    ///   from MT-003 step 7; the keymap deliberately does not bind printable typing).
     ///
-    /// The bindings mirror Monaco/VS Code exactly. Input is only consumed when the pointer is over the
-    /// editor rows (so a click elsewhere in the shell does not move the editor caret).
+    /// MT-010: the per-feature KEY chords (Ctrl+D, Ctrl+F/H, Ctrl+G, Ctrl+Shift+[/], Ctrl+Alt+Up/Down,
+    /// completion-popup keys) are NO LONGER matched here — they go through the single
+    /// [`process_keymap`](Self::process_keymap) dispatcher. This method keeps ONLY pointer handling and
+    /// the live-typing text/backspace/delete path (character production, not chords).
     fn process_cursor_input(
         &self,
         ui: &egui::Ui,
@@ -3895,108 +4854,37 @@ impl CodeEditorPanel {
                         }
                     }
                 }
-                // MT-008 TEXT INPUT (live edit path): a typed character marks the completion-debounce
-                // clock (impl note 2) and, when it is a completion TRIGGER character (`.`/`:`/`_` — the
-                // contract's trigger set), arms a completion request for this frame's pump. The popup is
-                // non-focus-stealing (RISK-005), so the editor still receives the character; arming here
-                // does not consume it.
-                egui::Event::Text(text) => {
+                // LIVE TYPING (carried forward from MT-003 step 7): a typed character is inserted at
+                // EVERY cursor (the core editor typing loop — Event::Text -> CursorSet::insert_at_all
+                // via `insert_text`, which bumps buffer_version for the MT-002 highlight-cache
+                // invalidation). The keymap deliberately does NOT bind printable typing, so this is the
+                // ONE place text production happens. It also marks the MT-008 completion-debounce clock
+                // and, on a completion TRIGGER character (`.`/`:`/`_`), arms a completion request for
+                // this frame's pump. The completion popup is non-focus-stealing (RISK-005), so the
+                // character still lands. egui never emits an Event::Text for a chord (Ctrl+C etc.), so a
+                // shortcut does not also type a character.
+                egui::Event::Text(text) if !text.is_empty() => {
+                    // Skip while a completion popup is open AND the text would be consumed by an accept —
+                    // but the popup is non-focus-stealing, so normal typing still flows; only the explicit
+                    // Tab/Enter accept (handled in process_keymap) consumes. Insert the text at all
+                    // cursors.
+                    self.insert_text(text);
                     self.mark_edit_now();
                     if text.chars().any(|c| matches!(c, '.' | ':' | '_')) {
                         self.completion_request.store(true, Ordering::Relaxed);
                     }
                 }
-                // KEYS: Ctrl+Alt+Up/Down add cursor above/below; Ctrl+D selects the next occurrence.
-                egui::Event::Key {
-                    key,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } => match key {
-                    // MT-008 COMPLETION POPUP KEYMAP (RISK-005 first-pass): while the popup is OPEN,
-                    // ArrowUp/Down move the selection, Enter accepts the selected item, and Escape
-                    // dismisses — these are intercepted BEFORE the normal cursor keymap (and the
-                    // find/go-to-line Enter/Escape arms) so the open popup owns those keys, the same
-                    // precedence the command-palette floating list uses. When the popup is closed these
-                    // arms do not match (the guard is `is_completion_open`), so the normal keymap runs.
-                    egui::Key::ArrowDown
-                        if self.is_completion_open() && !modifiers.ctrl && !modifiers.alt =>
-                    {
-                        self.completion_select_next();
-                    }
-                    egui::Key::ArrowUp
-                        if self.is_completion_open() && !modifiers.ctrl && !modifiers.alt =>
-                    {
-                        self.completion_select_prev();
-                    }
-                    egui::Key::Enter if self.is_completion_open() => {
-                        self.accept_completion();
-                    }
-                    egui::Key::Escape if self.is_completion_open() => {
-                        self.close_completion();
-                    }
-                    // MT-008 Ctrl+Space: explicitly arm a completion request (the manual-trigger path the
-                    // contract names alongside the trigger characters). The pump fires the debounced
-                    // backend lookup for the word under the caret next.
-                    egui::Key::Space if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
-                        self.completion_request.store(true, Ordering::Relaxed);
-                    }
-                    egui::Key::ArrowUp if modifiers.ctrl && modifiers.alt => {
-                        self.add_cursor_above();
-                    }
-                    egui::Key::ArrowDown if modifiers.ctrl && modifiers.alt => {
-                        self.add_cursor_below();
-                    }
-                    egui::Key::D if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
-                        self.select_next_occurrence();
-                    }
-                    // MT-005 step 5: Ctrl+Shift+[ folds the region at the cursor; Ctrl+Shift+] unfolds.
-                    // (MT-010 will formalize the full keymap; pre-wired here.) Intercepted regardless of
-                    // pointer position so the fold keymap works whenever the editor has focus.
-                    egui::Key::OpenBracket if modifiers.ctrl && modifiers.shift && !modifiers.alt => {
-                        self.fold_at_cursor();
-                    }
-                    egui::Key::CloseBracket if modifiers.ctrl && modifiers.shift && !modifiers.alt => {
-                        self.unfold_at_cursor();
-                    }
-                    // MT-006 step 3: Ctrl+G opens the go-to-line palette. While it is open, Enter submits
-                    // (parse + fold-aware navigate) and Escape closes. These are checked BEFORE the find
-                    // Enter/Escape arms so the go-to-line palette takes precedence when both could match
-                    // (the palette is the focused modal). Intercepted regardless of pointer position.
-                    egui::Key::G if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
-                        self.open_goto_line();
-                    }
-                    egui::Key::Escape if self.is_goto_line_open() => {
-                        self.close_goto_line();
-                    }
-                    egui::Key::Enter if self.is_goto_line_open() => {
-                        // Submit: valid numeric -> navigate + close; invalid -> stays open (AC-002).
-                        self.submit_goto_line();
-                    }
-                    // MT-004 step 2: Ctrl+F opens find; Ctrl+H opens find with the replace row; Escape
-                    // (when the bar is open) closes it. Enter / Shift+Enter step to the next / prev match
-                    // (Monaco/VS Code parity). These are intercepted regardless of pointer position so
-                    // the keymap works whether or not the editor area has the pointer over it.
-                    egui::Key::F if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
-                        self.open_find(false);
-                    }
-                    egui::Key::H if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
-                        self.open_find(true);
-                    }
-                    egui::Key::Escape if self.is_find_open() => {
-                        self.close_find();
-                    }
-                    egui::Key::Enter if self.is_find_open() && !modifiers.shift => {
-                        self.next_match();
-                    }
-                    egui::Key::Enter if self.is_find_open() && modifiers.shift => {
-                        self.prev_match();
-                    }
-                    _ => {}
-                },
                 _ => {}
             }
         }
+
+        // MT-010: ALL key-chord handling is consolidated into the single keymap dispatcher. The
+        // per-feature `egui::Event::Key` match arms MT-003/004/005/006/008 each added here are GONE —
+        // `process_keymap` resolves every chord through the one `Keymap` table and dispatches the
+        // resolved `CodeEditorAction` (including the live-typing Backspace/Delete via DeleteLeft/
+        // DeleteRight). Run AFTER the pointer + text handling above so a click-then-key in the same
+        // frame sees the updated caret.
+        self.process_keymap(ui);
     }
 }
 

@@ -223,6 +223,45 @@ impl CursorSet {
         self.normalize(buffer);
     }
 
+    /// EXTEND every cursor's selection by moving only its HEAD in `direction`, keeping the anchor fixed
+    /// (Shift+Arrow / Shift+Word / Shift+Home/End — MT-010 selection commands). Unlike
+    /// [`move_all`](Self::move_all) (which collapses to a caret), this grows or shrinks the selection.
+    pub fn extend_all(&mut self, direction: MoveDir, buffer: &TextBuffer) {
+        for cursor in &mut self.cursors {
+            cursor.head = move_offset(cursor.head, direction, buffer);
+        }
+        self.normalize(buffer);
+    }
+
+    /// For each BARE caret (no selection), extend it one char forward so a subsequent
+    /// [`delete_at_all`](Self::delete_at_all) removes the char AFTER the caret (forward-delete / the
+    /// Delete key — MT-010 `DeleteRight`). A caret that is already a selection is left unchanged so
+    /// Delete deletes the selection. A caret at end-of-buffer captures nothing (head == anchor).
+    pub fn select_forward_char_for_bare_carets(&mut self, buffer: &TextBuffer) {
+        for cursor in &mut self.cursors {
+            if !cursor.is_selection() {
+                cursor.head = next_char_boundary(cursor.head, buffer);
+            }
+        }
+        self.normalize(buffer);
+    }
+
+    /// For each BARE caret, extend it over the adjacent WORD (`to_left` -> the word to the left; else the
+    /// word to the right) so a subsequent [`delete_at_all`](Self::delete_at_all) deletes that word
+    /// (Ctrl+Backspace / Ctrl+Delete — MT-010 `DeleteWordLeft` / `DeleteWordRight`). A selection is left
+    /// unchanged.
+    pub fn select_word_for_bare_carets(&mut self, to_left: bool, buffer: &TextBuffer) {
+        let dir = if to_left { MoveDir::WordLeft } else { MoveDir::WordRight };
+        for cursor in &mut self.cursors {
+            if !cursor.is_selection() {
+                // Keep the anchor where the caret is; move the head to the word boundary so the range
+                // covers the word to delete.
+                cursor.head = move_offset(cursor.head, dir, buffer);
+            }
+        }
+        self.normalize(buffer);
+    }
+
     /// Insert `text` at EVERY cursor's head, replacing any selected range first, and leave each cursor
     /// as a bare caret immediately AFTER its inserted text. The buffer is mutated in place.
     ///

@@ -62,6 +62,8 @@ pub mod find_replace;
 pub mod folding;
 pub mod gutter;
 pub mod highlight;
+pub mod keymap;
+pub mod keymap_settings;
 pub mod lsp_client;
 pub mod minimap;
 pub mod outline;
@@ -109,16 +111,22 @@ pub use highlight::{
     language_id_for_extension, HighlightScope, HighlightSpan, Highlighter, LanguageRegistry,
     SafeLanguage,
 };
+pub use keymap::{
+    mod_chord, mod_is_ctrl, CodeEditorAction, KeyBinding, KeyChord, Keymap,
+};
+pub use keymap_settings::{
+    key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,
+};
 pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
 pub use panel::{
     scope_to_color, CodeEditorPanel, CodeEditorPaneFactory, FindState, GotoLineState, PerfStats,
-    CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
-    CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX, CODE_EDITOR_FIND_BAR_AUTHOR_ID,
-    CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID, CODE_EDITOR_GOTO_LINE_AUTHOR_ID,
-    CODE_EDITOR_GUTTER_AUTHOR_ID, CODE_EDITOR_MINIMAP_AUTHOR_ID, CODE_EDITOR_OUTLINE_AUTHOR_ID,
-    CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID,
-    CODE_EDITOR_TEXT_AUTHOR_ID,
+    CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX,
+    CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,
+    CODE_EDITOR_GOTO_LINE_AUTHOR_ID, CODE_EDITOR_GUTTER_AUTHOR_ID, CODE_EDITOR_MINIMAP_AUTHOR_ID,
+    CODE_EDITOR_OUTLINE_AUTHOR_ID, CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID,
+    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_TEXT_AUTHOR_ID, TWO_CHORD_TIMEOUT,
 };
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};
 
