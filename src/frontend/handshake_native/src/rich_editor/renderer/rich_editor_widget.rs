@@ -81,6 +81,11 @@ pub struct RichEditorState {
     /// state with MC-004 generation cancellation + the off-thread delivery cells. Owned HERE so the
     /// save/count state persists across frames; the count NEVER overwrites `properties.doc_metadata`.
     pub properties_runtime: crate::rich_editor::properties::metadata_client::PropertiesRuntime,
+    /// MT-018 find/replace: the open find/replace panel state (`None` until Ctrl+F / Ctrl+H opens it).
+    /// Owned HERE so the query + scan result + active match + replacement persist across frames; the
+    /// scan is recomputed on open, on every query change, and after every document mutation while the
+    /// panel is open. Cleared (with all highlights) on Escape / close.
+    pub find_replace: Option<crate::rich_editor::find_replace::FindReplaceState>,
 }
 
 impl RichEditorState {
@@ -141,6 +146,7 @@ impl RichEditorState {
             slash_menu: None,
             properties: None,
             properties_runtime,
+            find_replace: None,
         }
     }
 
@@ -354,6 +360,12 @@ impl RichEditorWidget {
                         Self::render_blocks(ui, &mut state, &palette, has_focus);
                     });
 
+                    // MT-018: render the floating find/replace panel (a top-level egui::Window) when
+                    // open, and apply its outcome (Replace One / Replace All / Close) against the doc
+                    // + undo manager. Rendered after the content so it floats above the blocks; the
+                    // window does not steal editor keyboard focus (HBR-QUIET).
+                    Self::render_find_panel(ui.ctx(), &mut state, &palette);
+
                     // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
                     //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
                     //    under it. REUSES the same accesskit_node_builder hook as the shell.
@@ -404,6 +416,15 @@ impl RichEditorWidget {
 
         if !has_focus {
             return; // an unfocused editor ignores the remaining input (and never schedules a repaint).
+        }
+
+        // MT-018: a Ctrl+F / Ctrl+H shortcut opens (or re-focuses) the find/replace panel. Handled
+        // BEFORE the editing decode so the chord opens the panel instead of being swallowed; the
+        // events are NOT removed (Ctrl+F/Ctrl+H produce no Text event and no EditAction, so they do
+        // not double-fire as typing). Opening triggers an initial scan against the live doc.
+        if let Some(shortcut) = input_handler::decode_find_replace_shortcut(&events) {
+            Self::apply_find_replace_shortcut(state, shortcut);
+            return; // the chord is consumed by the panel; do not also run the editing decode this frame.
         }
 
         // Split events into IME vs key/text in ARRIVAL order so a Preedit->Commit sequence
@@ -473,6 +494,44 @@ impl RichEditorWidget {
             && !state.slash_menu.as_ref().is_some_and(|m| m.prompt_active())
         {
             Self::refresh_slash_trigger(state);
+        }
+
+        // MT-018: the find/replace panel recomputes its scan on every document change while open
+        // (the React "recompute on every document change"). Any typing/delete/undo this frame may
+        // have mutated the doc, so the scan + the active-index clamp are refreshed here. This is a
+        // synchronous in-memory walk (no spinner, no async); the panel renders only when open.
+        let RichEditorState { doc, find_replace, .. } = state;
+        if let Some(panel) = find_replace.as_mut() {
+            panel.rescan(doc);
+        }
+    }
+
+    /// MT-018: apply a Ctrl+F / Ctrl+H shortcut. Ctrl+F opens the panel in find-only mode; Ctrl+H in
+    /// find+replace mode. If a panel is ALREADY open, the shortcut re-focuses the find input and (for
+    /// Ctrl+H) reveals the replace row — it does NOT discard the in-progress query (re-pressing Ctrl+F
+    /// while searching keeps the term, matching VS Code). Opening recomputes the scan against the
+    /// current document so the count + highlights are live immediately.
+    fn apply_find_replace_shortcut(
+        state: &mut RichEditorState,
+        shortcut: input_handler::FindReplaceShortcut,
+    ) {
+        use crate::rich_editor::find_replace::FindReplaceState as FrState;
+        use input_handler::FindReplaceShortcut;
+
+        let with_replace = matches!(shortcut, FindReplaceShortcut::OpenReplace);
+        match state.find_replace.as_mut() {
+            Some(panel) => {
+                // Already open: re-focus the find input; Ctrl+H additionally reveals the replace row.
+                panel.focus_find_input = true;
+                if with_replace {
+                    panel.with_replace = true;
+                }
+            }
+            None => {
+                let mut panel = FrState::open(with_replace);
+                panel.rescan(&state.doc); // initial scan (empty query -> empty scan).
+                state.find_replace = Some(panel);
+            }
         }
     }
 
@@ -845,6 +904,72 @@ impl RichEditorWidget {
         });
     }
 
+    /// MT-018: render the find/replace panel (when open) and apply its outcome. The panel is a pure
+    /// view that edits `find_replace.query`/`replacement`/`active` in place and returns a typed
+    /// [`crate::rich_editor::find_replace::panel::PanelOutcome`]; this host re-scans on a query change
+    /// and performs the actual document replace through the MT-011 transaction path
+    /// (`find_replace::replace_one` / `replace_all`), so the doc-mutating logic lives in one place.
+    fn render_find_panel(ctx: &egui::Context, state: &mut RichEditorState, palette: &HsPalette) {
+        use crate::rich_editor::find_replace::panel::{show_find_panel, PanelOutcome};
+        use crate::rich_editor::find_replace::{replace_all, replace_one};
+
+        if state.find_replace.is_none() {
+            return;
+        }
+
+        // Render the panel against its own state (a temporary take avoids a double borrow of `state`
+        // while the panel edits its query/replacement; we put it back unless it asked to close).
+        let mut panel = state.find_replace.take().expect("checked is_some");
+        let (outcome, query_changed) = show_find_panel(ctx, &mut panel, palette);
+
+        // A query / option change re-runs the scan immediately so the count + highlights update this
+        // frame (the panel edited the query in place; the scan is the host's responsibility).
+        if query_changed {
+            panel.rescan(&state.doc);
+        }
+
+        match outcome {
+            PanelOutcome::None => {
+                state.find_replace = Some(panel);
+            }
+            PanelOutcome::ReplaceOne => {
+                // Replace the CURRENT match (default to the first match when none is active yet),
+                // then re-scan and advance to the next match (the React "keep going" behavior).
+                let index = panel.active.unwrap_or(0);
+                if let Some(m) = panel.scan.matches.get(index).cloned() {
+                    let RichEditorState { doc, undo, selection, .. } = state;
+                    let replaced = replace_one(doc, undo, selection, &m, &panel.replacement);
+                    if replaced {
+                        panel.rescan(&state.doc);
+                        // After the replacement, the match set shrank; keep the index pointing at the
+                        // NEXT match (clamped) so repeated Replace walks forward through the document.
+                        panel.active = if panel.scan.is_empty() {
+                            None
+                        } else {
+                            Some(index.min(panel.scan.len() - 1))
+                        };
+                    }
+                }
+                state.find_replace = Some(panel);
+            }
+            PanelOutcome::ReplaceAll => {
+                let matches = panel.scan.matches.clone();
+                {
+                    let RichEditorState { doc, undo, selection, .. } = state;
+                    let _n = replace_all(doc, undo, selection, &matches, &panel.replacement);
+                }
+                panel.rescan(&state.doc); // the doc changed -> the matches are gone (no active match).
+                panel.active = None;
+                state.find_replace = Some(panel);
+            }
+            PanelOutcome::Close => {
+                // Drop the panel state -> the highlights stop painting next frame (cleared) and the
+                // editor keeps focus. We deliberately do NOT put `panel` back.
+                ctx.request_repaint();
+            }
+        }
+    }
+
     /// Render the MT-013 formatting toolbar (a horizontal glyph-button row grouped by
     /// category) above the content area. The toolbar borrows the editor state by `&mut`
     /// (doc/undo/selection) so a button click dispatches a command STANDALONE on the local
@@ -1012,6 +1137,30 @@ impl RichEditorWidget {
                         if let Some(ev) = Self::paint_one_wikilink_chip(ui, &spec, top, palette) {
                             state.pending_events.push(ev);
                         }
+                    }
+
+                    // MT-018: overlay the find/replace match highlights on THIS block. Each match in
+                    // this top-level block resolves to a galley span (the same `pos_from_cursor`
+                    // mechanism as the chips), painted as a semi-transparent wash over the glyphs —
+                    // the current match brighter (~60%) than the others (~25%). The block is re-laid
+                    // inside `match_highlight_rects` (cheap) to get its galley; the rects are painted
+                    // AFTER the content so the wash sits on top. Computed into an owned vec so the doc
+                    // borrow ends before painting (the panel/scan live on `state`).
+                    if let Some(panel) = state.find_replace.as_ref() {
+                        let block = state.doc.children[idx].as_block().expect("checked above");
+                        let current = panel.active.and_then(|i| panel.scan.matches.get(i));
+                        let rects = crate::rich_editor::find_replace::highlight_layer::match_highlight_rects(
+                            block,
+                            idx,
+                            &panel.scan.matches,
+                            current,
+                            top,
+                            content_width,
+                            bold_available,
+                            palette,
+                            &painter,
+                        );
+                        crate::rich_editor::find_replace::highlight_layer::paint_highlights(&painter, &rects);
                     }
 
                     // Per-block AccessKit node (re-block-{hash}, Role::Paragraph) for

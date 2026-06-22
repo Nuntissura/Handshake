@@ -67,6 +67,47 @@ pub enum EditAction {
     Redo,
 }
 
+/// A decoded find/replace panel shortcut (MT-018): Ctrl+F opens the find-only panel, Ctrl+H opens
+/// the find+replace panel. Kept as an explicit enum (not applied inline) so the mapping is
+/// unit-testable without a live egui context. These are handled by the widget — they open the
+/// `RichEditorState.find_replace` panel — and are NOT in the formatting keymap (no collision: the
+/// keymap binds neither F nor H — verified in keymap.rs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FindReplaceShortcut {
+    /// Ctrl+F (or Cmd+F): open the find panel in find-only mode (no replace row).
+    OpenFind,
+    /// Ctrl+H (or Cmd+H): open the find panel in find+replace mode (replace row visible).
+    OpenReplace,
+}
+
+/// Decode this frame's events for a find/replace OPEN shortcut (Ctrl+F / Ctrl+H). Returns the LAST
+/// such shortcut in the frame (a frame normally carries at most one). Pure mapping; the widget
+/// applies the result by opening / re-focusing the find panel. The `command` modifier (Cmd on macOS)
+/// is treated the same as `ctrl` for cross-platform parity, matching `decode_events`.
+pub fn decode_find_replace_shortcut(events: &[egui::Event]) -> Option<FindReplaceShortcut> {
+    let mut found = None;
+    for ev in events {
+        if let egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            ..
+        } = ev
+        {
+            let ctrl = modifiers.command || modifiers.ctrl;
+            if !ctrl || modifiers.alt {
+                continue;
+            }
+            match key {
+                egui::Key::F => found = Some(FindReplaceShortcut::OpenFind),
+                egui::Key::H => found = Some(FindReplaceShortcut::OpenReplace),
+                _ => {}
+            }
+        }
+    }
+    found
+}
+
 /// Decode an egui input snapshot's events into ordered [`EditAction`]s. Pure mapping;
 /// does NOT mutate the doc (the widget applies the actions). `consume` is the set of keys
 /// the caller should mark consumed so egui does not double-handle them (the widget calls
@@ -574,6 +615,37 @@ mod tests {
             }
             _ => panic!("expected a range"),
         }
+    }
+
+    #[test]
+    fn decode_find_replace_shortcuts() {
+        // MT-018: Ctrl+F -> OpenFind, Ctrl+H -> OpenReplace; a bare F/H (no ctrl) -> None.
+        let mk = |key, ctrl| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers { ctrl, command: ctrl, ..Default::default() },
+        };
+        assert_eq!(
+            decode_find_replace_shortcut(&[mk(egui::Key::F, true)]),
+            Some(FindReplaceShortcut::OpenFind)
+        );
+        assert_eq!(
+            decode_find_replace_shortcut(&[mk(egui::Key::H, true)]),
+            Some(FindReplaceShortcut::OpenReplace)
+        );
+        // No ctrl -> not a find/replace shortcut (a bare 'f' is a typed char).
+        assert_eq!(decode_find_replace_shortcut(&[mk(egui::Key::F, false)]), None);
+        // Ctrl+Alt+F is NOT the shortcut (alt excluded).
+        let ctrl_alt_f = egui::Event::Key {
+            key: egui::Key::F,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers { ctrl: true, command: true, alt: true, ..Default::default() },
+        };
+        assert_eq!(decode_find_replace_shortcut(&[ctrl_alt_f]), None);
     }
 
     #[test]

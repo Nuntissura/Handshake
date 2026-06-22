@@ -21,6 +21,7 @@
 
 pub mod document_model;
 pub mod embeds;
+pub mod find_replace;
 pub mod formatting;
 pub mod properties;
 pub mod renderer;
