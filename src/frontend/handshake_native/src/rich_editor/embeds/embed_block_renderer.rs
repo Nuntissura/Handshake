@@ -48,6 +48,15 @@ type SingleDeliveryCell = Arc<Mutex<Option<(String, EmbedResolutionState)>>>;
 /// embed's ref_value, carrying the per-member items.
 type SequenceDeliveryCell = Arc<Mutex<Option<(String, Result<Vec<SequenceItem>, EmbedError>)>>>;
 
+/// Multi-slot delivery cell for off-thread image CONTENT decode results (MC-001): the spawned
+/// task fetches `GET .../content`, decodes the bytes on `tokio::spawn_blocking`, and writes the
+/// decoded [`egui::ColorImage`] (or a typed decode/fetch error) here keyed by asset id. The egui
+/// UI thread drains it next frame and uploads the `ColorImage` as a `TextureHandle` (the upload
+/// MUST happen on the egui thread — only the platform-independent RGBA `ColorImage` crosses the
+/// thread boundary, impl note 2). A `Vec` (not a single slot) so several images in one document
+/// can deliver in the same frame without clobbering each other.
+type ContentDeliveryCell = Arc<Mutex<Vec<(String, Result<egui::ColorImage, EmbedError>)>>>;
+
 /// A resolved (or failed) album/slideshow sequence, cached per ref_value so the sequence is
 /// resolved ONCE (AC-9 at the sequence level).
 #[derive(Clone)]
@@ -79,6 +88,14 @@ pub struct EmbedRuntime {
     pub sequences: std::collections::HashMap<String, SequenceState>,
     /// Per-asset uploaded GPU texture cache (avoid re-upload every frame).
     pub textures: EmbedTextureCache,
+    /// Per-asset decoded `ColorImage` awaiting upload on the egui thread. Populated by
+    /// [`Self::drain_deliveries`] from the off-thread content-fetch+decode pipeline; consumed
+    /// (uploaded + removed) by [`render_resolved_image`] on the egui thread. A decode error is
+    /// folded into the resolution cache as `Err` so the typed error chip shows (MC-005).
+    pub decoded_images: std::collections::HashMap<String, egui::ColorImage>,
+    /// Asset ids whose CONTENT fetch+decode has been kicked off (so the bytes pipeline runs
+    /// ONCE per asset, mirroring the metadata AC-9 caching for the content fetch).
+    content_in_flight: std::collections::HashSet<String>,
     /// Per-ref_value slideshow paging state.
     pub slideshow_states: std::collections::HashMap<String, SlideshowViewState>,
     /// Per-ref_value album modal state.
@@ -89,6 +106,8 @@ pub struct EmbedRuntime {
     single_cell: SingleDeliveryCell,
     /// Delivery cell for off-thread sequence resolutions (drained at frame top).
     sequence_cell: SequenceDeliveryCell,
+    /// Delivery cell for off-thread image-content decodes (drained at frame top).
+    content_cell: ContentDeliveryCell,
 }
 
 impl EmbedRuntime {
@@ -108,11 +127,14 @@ impl EmbedRuntime {
             resolutions: EmbedResolutionCache::new(),
             sequences: std::collections::HashMap::new(),
             textures: EmbedTextureCache::new(),
+            decoded_images: std::collections::HashMap::new(),
+            content_in_flight: std::collections::HashSet::new(),
             slideshow_states: std::collections::HashMap::new(),
             album_states: std::collections::HashMap::new(),
             video_states: std::collections::HashMap::new(),
             single_cell: Arc::new(Mutex::new(None)),
             sequence_cell: Arc::new(Mutex::new(None)),
+            content_cell: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -135,6 +157,23 @@ impl EmbedRuntime {
                     Err(e) => SequenceState::Err(e),
                 };
                 self.sequences.insert(ref_value, state);
+                applied = true;
+            }
+        }
+        // Drain off-thread image-content decode results. A decoded ColorImage is parked in
+        // `decoded_images` for the egui thread to upload (impl note 2: the upload must be on the
+        // egui thread). A decode/fetch FAILURE is folded into the resolution cache as Err so the
+        // typed error chip shows the failure (MC-005) instead of an eternal placeholder.
+        if let Ok(mut deliveries) = self.content_cell.lock() {
+            for (asset_id, result) in deliveries.drain(..) {
+                match result {
+                    Ok(image) => {
+                        self.decoded_images.insert(asset_id, image);
+                    }
+                    Err(e) => {
+                        self.resolutions.insert(asset_id, EmbedResolutionState::Err(e));
+                    }
+                }
                 applied = true;
             }
         }
@@ -172,6 +211,50 @@ impl EmbedRuntime {
             };
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((asset_id, state));
+            }
+        });
+    }
+
+    /// Ensure the CONTENT bytes for a resolved image asset are being (or have been) fetched +
+    /// decoded off-thread (MC-001): once metadata resolved Ok, this fetches `GET .../content` and
+    /// runs [`image_view::decode_rgba`] on `tokio::spawn_blocking`, delivering the decoded
+    /// [`egui::ColorImage`] back through the content delivery cell for the egui thread to upload.
+    /// Runs ONCE per asset (`content_in_flight` guard), mirroring the metadata AC-9 caching. A
+    /// no-op when there is no runtime (headless path — a test injects the decoded image directly).
+    /// This is the production path that makes [`render_resolved_image`] reach its texture branch.
+    fn ensure_image_content(&mut self, asset_id: &str) {
+        // Already uploaded, already decoded-and-waiting, or already fetching -> do not re-fetch.
+        if self.textures.contains(asset_id)
+            || self.decoded_images.contains_key(asset_id)
+            || self.content_in_flight.contains(asset_id)
+        {
+            return;
+        }
+        let Some(runtime) = self.runtime.clone() else {
+            return; // headless: the caller delivers the decoded image directly in tests.
+        };
+        self.content_in_flight.insert(asset_id.to_owned());
+        let fetcher = Arc::clone(&self.fetcher);
+        let cell = Arc::clone(&self.content_cell);
+        let workspace_id = self.workspace_id.clone();
+        let asset_id = asset_id.to_owned();
+        runtime.spawn(async move {
+            // 1) Fetch the raw content bytes (GET .../content).
+            let bytes = fetcher.fetch_content(&workspace_id, &asset_id).await;
+            // 2) Decode off the async/UI thread (MC-001: decode is CPU-heavy — spawn_blocking).
+            let decoded = match bytes {
+                Ok(bytes) => tokio::task::spawn_blocking(move || image_view::decode_rgba(&bytes))
+                    .await
+                    .unwrap_or_else(|join_err| {
+                        Err(EmbedError::MediaLoadFailed(format!(
+                            "image decode task failed: {join_err}"
+                        )))
+                    }),
+                Err(e) => Err(e),
+            };
+            // 3) Deliver the decoded ColorImage (or typed error) for the egui thread to upload.
+            if let Ok(mut deliveries) = cell.lock() {
+                deliveries.push((asset_id, decoded));
             }
         });
     }
@@ -272,14 +355,17 @@ fn render_single_image(
     }
 }
 
-/// Draw a resolved image: ensure the texture is uploaded (decode happened off-thread; the
-/// decoded `ColorImage` is uploaded here on the egui thread), then render it with an
-/// AccessKit-addressable clickable image. If the decode failed, the resolution state would
-/// already be `Err` (handled above), so here we only need the uploaded texture; if the texture
-/// is not yet cached we decode synchronously from the (already in-memory) content — but in the
-/// production path the bytes are fetched + decoded off-thread; in the headless test path the
-/// caller pre-seeds the texture. When neither a texture nor bytes are available we show the
-/// spinner (the bytes fetch is a follow-on; AC-1's image-content proof is the integration test).
+/// Draw a resolved image. This is where the off-thread content-fetch+decode pipeline lands on
+/// the egui thread:
+///   1. If a texture is already uploaded for this asset, render it (the steady state).
+///   2. Else, if the off-thread pipeline DELIVERED a decoded `ColorImage` (drained into
+///      `decoded_images` at frame top), upload it via [`EmbedTextureCache::upload`] HERE on the
+///      egui thread (impl note 2 — `ctx.load_texture` is egui-thread-only) and render it this
+///      frame. A repaint is requested so the just-uploaded texture shows without an idle stall.
+///   3. Else, kick off (once) the content fetch + off-thread decode via
+///      [`EmbedRuntime::ensure_image_content`] and show the "decoding pixels" spinner while it is
+///      in flight (never blank). A decode/fetch failure becomes `Err` in the resolution cache
+///      (drained in step 2's sibling path), so the NEXT frame shows the typed error chip (MC-005).
 fn render_resolved_image(
     ui: &mut egui::Ui,
     asset_id: &str,
@@ -289,6 +375,17 @@ fn render_resolved_image(
     max_width: f32,
 ) {
     let author = format!("embed-image-{asset_id}");
+
+    // (2) Upload a freshly-decoded image (delivered off-thread) on the egui thread, before the
+    // texture-branch check, so the first frame after delivery already renders the real texture.
+    if !runtime.textures.contains(asset_id) {
+        if let Some(image) = runtime.decoded_images.remove(asset_id) {
+            let _texture = runtime.textures.upload(ui.ctx(), asset_id, image);
+            ui.ctx().request_repaint();
+        }
+    }
+
+    // (1) Texture ready -> render the decoded image at aspect-correct width (AC-1).
     if let Some(texture) = runtime.textures.get(asset_id).cloned() {
         let resp = ui
             .scope(|ui| image_view::render_image(ui, &texture, resolved, max_width))
@@ -296,11 +393,11 @@ fn render_resolved_image(
         emit_node_author(ui.ctx(), resp.id, accesskit::Role::Image, &author);
         return;
     }
-    // No texture yet: the bytes-decode-upload pipeline has not delivered. Show a labelled
-    // placeholder frame carrying the asset metadata + content URL (never blank), so the embed is
-    // visible and inspectable while the content loads. This is the fail-closed "resolved metadata,
-    // pixels pending" state; the integration test (real backend + seeded asset) exercises the full
-    // decode-to-texture path.
+
+    // (3) No texture yet: drive the content fetch + off-thread decode (once) and show the
+    // decoding spinner while the pixels load (fail-closed, never blank). The content URL is shown
+    // beneath the spinner so the operator can inspect exactly what is loading.
+    runtime.ensure_image_content(asset_id);
     let label = resolved
         .asset
         .original_filename
@@ -313,7 +410,10 @@ fn render_resolved_image(
         .corner_radius(6.0);
     let resp = frame
         .show(ui, |ui| {
-            ui.colored_label(palette.text, format!("Image: {label}"));
+            ui.horizontal(|ui| {
+                ui.add(egui::Spinner::new());
+                ui.colored_label(palette.text, format!("Decoding {label}…"));
+            });
             ui.colored_label(palette.text_subtle, &resolved.content_url);
         })
         .response;

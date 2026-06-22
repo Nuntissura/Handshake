@@ -71,6 +71,51 @@ fn headless_runtime() -> EmbedRuntime {
     EmbedRuntime::new("ws", "http://b", Arc::new(ErrFetcher), None)
 }
 
+/// A fetcher that serves BOTH metadata AND real PNG content bytes from memory (no backend, no
+/// network). It proves the FULL production wiring — `resolve_one` (metadata) -> `fetch_content`
+/// (bytes) -> off-thread `decode_rgba` -> egui-thread `EmbedTextureCache::upload` — drives a real
+/// texture into the cache through the runtime, NOT a manual pre-seed. Counts content fetches so
+/// the test asserts the bytes GET actually fired.
+struct PngContentFetcher {
+    png: Vec<u8>,
+    content_calls: std::sync::atomic::AtomicUsize,
+}
+impl PngContentFetcher {
+    fn new(png: Vec<u8>) -> Self {
+        Self { png, content_calls: std::sync::atomic::AtomicUsize::new(0) }
+    }
+    fn content_calls(&self) -> usize {
+        self.content_calls.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+impl AssetMetadataFetcher for PngContentFetcher {
+    fn fetch_metadata<'a>(&'a self, ws: &'a str, id: &'a str) -> MetadataFuture<'a> {
+        let (ws, id) = (ws.to_owned(), id.to_owned());
+        Box::pin(async move {
+            Ok(EmbedAssetMetadata {
+                asset_id: id.clone(),
+                workspace_id: ws,
+                kind: "image".to_owned(),
+                mime: "image/png".to_owned(),
+                original_filename: Some(format!("{id}.png")),
+                content_hash: "hash".to_owned(),
+                size_bytes: 16,
+                width: Some(40),
+                height: Some(20),
+            })
+        })
+    }
+    fn fetch_content<'a>(
+        &'a self,
+        _ws: &'a str,
+        _id: &'a str,
+    ) -> handshake_native::rich_editor::embeds::asset_resolver::ContentFuture<'a> {
+        self.content_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let png = self.png.clone();
+        Box::pin(async move { Ok(png) })
+    }
+}
+
 /// A resolved image asset for seeding the cache (so the view renders without a live backend).
 fn resolved_image(asset_id: &str) -> ResolvedAsset {
     ResolvedAsset {
@@ -124,6 +169,13 @@ fn embed_editor(ref_kind: &str, ref_value: &str) -> RichEditorState {
     RichEditorState::new(doc).with_embed_runtime(headless_runtime())
 }
 
+/// Build a RichEditorState over a standalone embed block with a CALLER-PROVIDED embed runtime
+/// (used by the runtime-wiring test to inject a real tokio handle + content mock).
+fn embed_editor_with_runtime(ref_kind: &str, ref_value: &str, runtime: EmbedRuntime) -> RichEditorState {
+    let doc = BlockNode::doc(vec![embed_block(ref_kind, ref_value)]);
+    RichEditorState::new(doc).with_embed_runtime(runtime)
+}
+
 // ── PT-003 / AC-1: image embed renders (decoded image, seeded resolution + texture) ───────────
 
 #[test]
@@ -160,8 +212,12 @@ fn mt014_image_embed_screenshot() {
     harness.run();
     harness.run();
 
-    // The image control is AccessKit-addressable by its embed-image author_id (proves the view
-    // rendered the texture, not the metadata placeholder).
+    // The image control is AccessKit-addressable by its embed-image author_id. NOTE: both the
+    // texture branch and the decoding-spinner branch emit `embed-image-img1` with Role::Image, so
+    // the author_id alone does NOT distinguish them. The texture-vs-placeholder distinction is the
+    // texture-cache assertion below (the texture was uploaded on the first frame) + the runtime
+    // end-to-end test `mt014_runtime_decode_pipeline_uploads_texture` (which drives the upload
+    // through the production chain with no pre-seed).
     let root = harness.root();
     let mut image_node_found = false;
     for node in root.children_recursive() {
@@ -171,6 +227,12 @@ fn mt014_image_embed_screenshot() {
         }
     }
     assert!(image_node_found, "AC-1: the resolved image renders an 'embed-image-img1' node");
+    // The decoded texture is actually uploaded in the cache -> the texture branch (not the
+    // placeholder) is what rendered. This is the honest texture-vs-placeholder discriminator.
+    assert!(
+        state.lock().unwrap().embeds.textures.contains("img1"),
+        "AC-1: the decoded image texture is uploaded in the cache (texture branch, not placeholder)"
+    );
 
     match harness.render() {
         Ok(image) => {
@@ -193,6 +255,88 @@ fn mt014_image_embed_screenshot() {
     }
 
     assert_no_local_artifact_dir();
+}
+
+// ── AC-1 RUNTIME WIRING: the production resolve->fetch-content->decode->upload chain drives a ──
+// ── real texture into the cache through the EmbedRuntime (no manual pre-seed, no backend). ─────
+
+#[test]
+fn mt014_runtime_decode_pipeline_uploads_texture() {
+    // This is the runtime proof the adversarial review required: NOTHING is pre-seeded. The
+    // EmbedRuntime is wired with a REAL tokio runtime handle + a workspace id (the production
+    // shape `set_embed_context` installs) and a content-mock that serves real PNG bytes. Driving
+    // frames must take the FULL production path:
+    //   render -> ensure_single (spawn metadata fetch) -> drain Ok -> render_resolved_image
+    //   -> ensure_image_content (spawn content GET + spawn_blocking decode_rgba)
+    //   -> drain decoded ColorImage -> upload on the egui thread -> texture in cache.
+    // If the decode pipeline were not wired into production (the review's must-fix), no texture
+    // would ever appear and this test would TIME OUT.
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("test tokio runtime");
+
+    let fetcher = Arc::new(PngContentFetcher::new(sample_png()));
+    let fetcher_dyn: Arc<dyn AssetMetadataFetcher> = Arc::clone(&fetcher) as _;
+
+    let state = {
+        let runtime = EmbedRuntime::new("ws-live", "http://b", fetcher_dyn, Some(rt.handle().clone()));
+        let s = embed_editor_with_runtime("images", "img1", runtime);
+        Arc::new(std::sync::Mutex::new(s))
+    };
+
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(480.0, 240.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+
+    // Pump frames, giving the runtime time to complete the metadata fetch, then the content
+    // fetch + off-thread decode, then the egui-thread upload. Bounded so a genuine wiring failure
+    // fails fast (it never resolves) rather than hanging.
+    let mut uploaded = false;
+    for _ in 0..200 {
+        harness.run();
+        if state.lock().unwrap().embeds.textures.contains("img1") {
+            uploaded = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    assert!(
+        uploaded,
+        "AC-1 RUNTIME: the production resolve->content-fetch->off-thread-decode->upload chain must \
+         land a real texture in the cache (no pre-seed). If this times out, the decode pipeline is \
+         not wired into the runtime."
+    );
+    assert!(
+        fetcher.content_calls() >= 1,
+        "the content-bytes GET (.../content) must actually fire in the production chain"
+    );
+    // The metadata also resolved Ok through the same runtime (not pre-seeded).
+    assert!(
+        matches!(
+            state.lock().unwrap().embeds.resolutions.get("img1"),
+            Some(EmbedResolutionState::Ok(_))
+        ),
+        "metadata resolved Ok through the runtime (the chain's first stage)"
+    );
+
+    // One more frame now renders the texture branch: the embed-image node is present AND the
+    // texture is cached (this is what distinguishes a real decoded image from the placeholder).
+    harness.run();
+    let root = harness.root();
+    let mut image_node_found = false;
+    for node in root.children_recursive() {
+        if node.accesskit_node().author_id() == Some("embed-image-img1") {
+            image_node_found = true;
+            break;
+        }
+    }
+    assert!(image_node_found, "AC-1: the decoded image renders an 'embed-image-img1' node");
 }
 
 // ── PT-004 / AC-2: empty-ref embed renders the typed error chip (not blank) ────────────────────
@@ -347,9 +491,12 @@ fn mt014_album_click_opens_modal() {
 
 #[test]
 fn mt014_traversal_and_scheme_refs_render_typed_chip() {
-    for (ref_value, expect_kind, token) in [
-        ("../secret", "traversal_rejected", "..secret"), // first token of the single ref
-        ("http://evil/x", "scheme_rejected", "http"),    // ':' classified as scheme
+    // The error-chip author_id is `embed-error-{first_comma_token}` (the single ref verbatim here,
+    // since neither value has a comma). Assert BOTH the on-screen typed kind text AND the
+    // AccessKit author_id (so the chip-id shape is proven for the render path, not just the text).
+    for (ref_value, expect_kind, expect_author) in [
+        ("../secret", "traversal_rejected", "embed-error-../secret"),
+        ("http://evil/x", "scheme_rejected", "embed-error-http://evil/x"), // ':' -> scheme
     ] {
         let state = Arc::new(std::sync::Mutex::new(embed_editor("images", ref_value)));
         let state_for_ui = Arc::clone(&state);
@@ -369,7 +516,19 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
             harness.query_by_label_contains(expect_kind).is_some(),
             "AC-3/AC-4: ref '{ref_value}' must render the typed '{expect_kind}' chip"
         );
-        let _ = token;
+        // The chip is AccessKit-addressable by its typed embed-error author_id.
+        let root = harness.root();
+        let mut author_found = false;
+        for node in root.children_recursive() {
+            if node.accesskit_node().author_id() == Some(expect_author) {
+                author_found = true;
+                break;
+            }
+        }
+        assert!(
+            author_found,
+            "AC-3/AC-4: ref '{ref_value}' must render an addressable '{expect_author}' chip node"
+        );
     }
 }
 

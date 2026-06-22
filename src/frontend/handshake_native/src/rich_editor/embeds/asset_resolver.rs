@@ -328,17 +328,41 @@ pub fn asset_thumbnail_url(base_url: &str, workspace_id: &str, asset_id: &str) -
 pub type MetadataFuture<'a> =
     Pin<Box<dyn Future<Output = Result<EmbedAssetMetadata, EmbedError>> + Send + 'a>>;
 
-/// The transport an async resolution uses to fetch asset metadata. A trait (rather than a hard
-/// `reqwest` call) so the FULL resolution path — the kind/mime check, the caching skip, the
-/// typed error mapping, the concurrency cap — is unit-testable with a COUNTED in-memory mock
-/// (AC-9 second-render-no-refetch, MC-002 concurrency, the kind-mismatch test) WITHOUT a
-/// backend. The production implementation ([`ReqwestAssetFetcher`]) wraps the existing
-/// `handshake_native::backend_client` reqwest client (no new HTTP crate — MT scope).
+/// A boxed, `Send` future yielding fetched asset CONTENT bytes (the raw image/video bytes from
+/// `GET /workspaces/{ws}/assets/{id}/content`), returned by [`AssetMetadataFetcher::fetch_content`].
+/// These are the bytes the image-embed pipeline decodes off-thread (MC-001) into a texture.
+pub type ContentFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Vec<u8>, EmbedError>> + Send + 'a>>;
+
+/// The transport an async resolution uses to fetch asset metadata AND content bytes. A trait
+/// (rather than a hard `reqwest` call) so the FULL resolution + content-fetch + decode path —
+/// the kind/mime check, the caching skip, the typed error mapping, the concurrency cap, the
+/// content GET that feeds the off-thread decode — is unit-testable with a COUNTED in-memory mock
+/// (AC-9 second-render-no-refetch, MC-002 concurrency, the kind-mismatch test, the
+/// content->decode->texture wiring) WITHOUT a backend. The production implementation
+/// ([`ReqwestAssetFetcher`]) wraps the existing `handshake_native::backend_client` reqwest client
+/// (no new HTTP crate — MT scope).
 pub trait AssetMetadataFetcher: Send + Sync {
     /// Fetch the asset metadata for `(workspace_id, asset_id)`. The id is ALREADY validated by
     /// [`validate_asset_ref`] before this is called. Returns the typed metadata or a typed
     /// [`EmbedError`] (NotFound / Forbidden / ServerError / NetworkError).
     fn fetch_metadata<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> MetadataFuture<'a>;
+
+    /// Fetch the raw CONTENT bytes for `(workspace_id, asset_id)` (`GET .../content`). These feed
+    /// the off-thread image decode (MC-001). The id is ALREADY validated before this is called.
+    ///
+    /// The DEFAULT impl returns a typed [`EmbedError::MediaLoadFailed`] so a metadata-only mock
+    /// (one that only proves the resolution/validation path) does not have to implement content
+    /// fetching; the image-content pipeline (and its dedicated mock) overrides this. The
+    /// production [`ReqwestAssetFetcher`] overrides it with a real GET.
+    fn fetch_content<'a>(&'a self, _workspace_id: &'a str, asset_id: &'a str) -> ContentFuture<'a> {
+        let asset_id = asset_id.to_owned();
+        Box::pin(async move {
+            Err(EmbedError::MediaLoadFailed(format!(
+                "fetcher does not provide content bytes for asset '{asset_id}'"
+            )))
+        })
+    }
 }
 
 /// Resolve ONE media asset fail-closed: validate the ref, fetch metadata through `fetcher`,
@@ -437,6 +461,38 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                 .await
                 .map_err(|e| EmbedError::ServerError(format!("asset metadata body is invalid: {e}")))?;
             Ok(metadata)
+        })
+    }
+
+    fn fetch_content<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> ContentFuture<'a> {
+        let url = asset_content_url(&self.base_url, workspace_id, asset_id);
+        let client = self.client.clone();
+        let asset_id = asset_id.to_owned();
+        Box::pin(async move {
+            let response = client
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| EmbedError::NetworkError(format!("asset content request failed: {e}")))?;
+            let status = response.status();
+            if status.as_u16() == 404 {
+                return Err(EmbedError::NotFound(format!("asset content '{asset_id}' not found")));
+            }
+            if status.as_u16() == 401 || status.as_u16() == 403 {
+                return Err(EmbedError::Forbidden(format!(
+                    "asset content '{asset_id}' is not accessible (HTTP {status})"
+                )));
+            }
+            if !status.is_success() {
+                return Err(EmbedError::ServerError(format!(
+                    "asset content request returned HTTP {status}"
+                )));
+            }
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|e| EmbedError::NetworkError(format!("asset content body read failed: {e}")))?;
+            Ok(bytes.to_vec())
         })
     }
 }
