@@ -2,8 +2,9 @@
 //!
 //! These are the contract proof_targets that need a LIVE egui frame:
 //! - PT-2 / AC-1 + AC-7: `wysiwyg_screenshot` renders the demo doc (h1 heading + a
-//!   paragraph with a bold "world") through `egui_kittest`, saves
-//!   `tests/screenshots/mt012_wysiwyg.png`, and pixel-asserts >= 2 distinct foreground
+//!   paragraph with a bold "world") through `egui_kittest`, saves the PNG to the EXTERNAL
+//!   `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-012/` root (CX-212E — never
+//!   repo-local), and pixel-asserts >= 2 distinct foreground
 //!   colors (the bold "world" renders in the bold face over the regular "Hello "; the h1
 //!   renders larger) so "Hello **world**" is visibly styled.
 //! - PT-4 / AC-10: `accesskit_root_textinput` dumps the live AccessKit tree and asserts a
@@ -23,7 +24,7 @@
 //! the code-editor panel test uses).
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
@@ -35,11 +36,32 @@ use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
 use handshake_native::rich_editor::renderer::{block_author_id, RICH_EDITOR_ROOT_AUTHOR_ID};
 
-/// The repo-local screenshot path the MT contract names exactly
-/// (`src/frontend/handshake_native/tests/screenshots/mt012_wysiwyg.png`). The test is RUN
-/// from the crate dir, so this relative path lands under the crate's tests dir.
+/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the crate
+/// sits at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where
+/// `Handshake_Artifacts` is a sibling of the repo worktree.
+fn external_artifact_dir(subdir: &str) -> PathBuf {
+    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+}
+
+/// The screenshot path under the EXTERNAL artifact root. The MT contract's literal
+/// `tests/screenshots/` path is overridden by the CX-212E external-only artifact-hygiene rule
+/// applied across MT-001..010 — a committed repo-local PNG is a hygiene regression.
 fn screenshot_path() -> PathBuf {
-    PathBuf::from("tests/screenshots/mt012_wysiwyg.png")
+    external_artifact_dir("wp-kernel-012-mt-012").join("mt012_wysiwyg.png")
+}
+
+/// Assert no repo-local artifact dir exists under the crate (CX-212E): neither `test_output/` nor
+/// `tests/screenshots/` — screenshots/artifacts go to the external Handshake_Artifacts root ONLY.
+fn assert_no_local_artifact_dir() {
+    for local in ["test_output", "tests/screenshots"] {
+        let p = Path::new(local);
+        assert!(
+            !p.exists(),
+            "artifact hygiene: no repo-local {local} dir may exist — artifacts go to the external \
+             Handshake_Artifacts/handshake-test root only (found {})",
+            p.display()
+        );
+    }
 }
 
 /// Build a harness rendering the demo doc, with the shell Inter fonts installed (so the
@@ -169,7 +191,7 @@ fn wysiwyg_screenshot() {
             let (w, h) = (image.width(), image.height());
             assert!(w > 0 && h > 0, "rendered image must be non-empty");
 
-            // Save the PNG to the EXACT contract path.
+            // Save the PNG to the EXTERNAL artifact root (CX-212E), never repo-local.
             let path = screenshot_path();
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
@@ -206,7 +228,8 @@ fn wysiwyg_screenshot() {
                  (text glyphs over the bg); got {} (bg={bg:?})",
                 foreground.len()
             );
-            assert!(saved, "the mt012_wysiwyg.png screenshot must be saved to the contract path");
+            assert!(saved, "the mt012_wysiwyg.png screenshot must be saved to the external artifact root");
+            assert_no_local_artifact_dir();
         }
         Err(e) => {
             println!(
