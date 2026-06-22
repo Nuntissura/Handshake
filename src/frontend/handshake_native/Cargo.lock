@@ -1422,6 +1422,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "similar",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber",

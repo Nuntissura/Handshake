@@ -32,6 +32,7 @@ pub mod quick_links;
 pub mod quiet_mode;
 pub mod quick_switcher;
 pub mod rails;
+pub mod rich_editor;
 pub mod search_rail;
 pub mod settings_dialog;
 pub mod split_layout;
