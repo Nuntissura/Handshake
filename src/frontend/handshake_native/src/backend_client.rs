@@ -1489,6 +1489,231 @@ async fn fetch_local_graph(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-022 Loom FOLDER-TREE transport (REUSE — extends the MT-021 Loom read surface).
+//
+// VERIFIED READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running
+// backend), NOT taken from the MT-022 contract body — whose assumed surface (content_type='folder'
+// LoomBlocks, color in content_json.metadata.color_label, children via views/sorted?tag_ids=) does NOT
+// exist (the MT-022/023 "verify, don't trust the contract" lesson the LoomGraphClient + DrawerDataClient
+// already embody). The REAL folder authority is the dedicated `loom_folders` subsystem (MT-181
+// FolderTreeAndColorLabels, Master Spec §7.1.4.3), an organizational overlay over LoomBlocks with a
+// first-class `color` column. The three routes this client binds (mounted in `loom::routes`):
+//   - GET   /workspaces/:ws/loom/folders                    -> Vec<LoomFolder> (the tree rows; the
+//     parent/child shape is `parent_folder_id`, so the tree is built CLIENT-side from the flat list).
+//   - GET   /workspaces/:ws/loom/folders/:folder_id/blocks  -> Vec<LoomBlock> (the lazy child-block
+//     load on expand; supports `limit`/`offset`, default limit 100, capped 500).
+//   - PATCH /workspaces/:ws/loom/folders/:folder_id  body { "color": "#rrggbb" } -> LoomFolder (recolor).
+//     `LoomFolderUpdate.color` is `Option<Option<String>>` server-side, i.e. a TRUE JSON merge-patch:
+//     sending ONLY `color` leaves name/sort/parent untouched (RISK-2/MC-2: no whole-record clobber).
+//
+// Follows the MT-020/021/023 off-thread shape exactly: spawn on the app's tokio runtime, deliver the
+// parsed result into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET
+// — the render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends
+// on the `handshake_core` crate's types; the parsed shapes are the widget's own
+// `graph::folder_tree::{FolderRow, LeafBlock}` (the field-correct reuse of the verified backend shapes).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::folder_tree::{FolderRow, LeafBlock};
+
+/// The externally-meaningful result of a folder-list fetch: the flat [`FolderRow`] list the
+/// [`crate::graph::folder_tree::LoomFolderTree`] builds its forest from. `Ok` carries the rows (possibly
+/// empty -> the "No folders" empty state, AC7); `Err(msg)` a failure the view surfaces as an error
+/// banner + Retry (AC8) instead of crashing.
+pub type FolderListCell = Arc<Mutex<Option<Result<Vec<FolderRow>, String>>>>;
+
+/// The externally-meaningful result of a folder-children fetch: the leaf [`LeafBlock`] list for one
+/// expanded folder. `Ok` carries the blocks (possibly empty); `Err(msg)` a failure the node surfaces.
+/// The host clears the node's `loading` flag when this delivers (the bounded-spinner rule).
+pub type FolderChildrenCell = Arc<Mutex<Option<Result<Vec<LeafBlock>, String>>>>;
+
+/// REST client for the VERIFIED Loom folder-tree surface (MT-181 backend) the MT-022 folder tree binds:
+/// list folders, list a folder's child blocks, and recolor a folder. Mirrors the `LoomGraphClient` /
+/// `DrawerDataClient` shape exactly (off-thread + delivery cell). Speaks `serde_json::Value` so it never
+/// depends on the `handshake_core` crate's types.
+#[derive(Clone)]
+pub struct LoomFolderClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomFolderClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn folders_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/folders", self.base_url, workspace_id)
+    }
+
+    fn folder_url(&self, workspace_id: &str, folder_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/folders/{}", self.base_url, workspace_id, folder_id)
+    }
+
+    fn folder_blocks_url(&self, workspace_id: &str, folder_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/folders/{}/blocks",
+            self.base_url, workspace_id, folder_id
+        )
+    }
+
+    /// Pure request builder for the folder-list fetch: `GET /loom/folders` (no query). Split out so a
+    /// unit test asserts the EXACT verified URL without a live backend (the spawn path routes through
+    /// this same builder, so the test proves the production request construction).
+    pub fn list_folders_request(&self, workspace_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.folders_url(workspace_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the child-block fetch: `GET /loom/folders/{id}/blocks?limit=100`.
+    pub fn list_folder_blocks_request(&self, workspace_id: &str, folder_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.folder_blocks_url(workspace_id, folder_id),
+            query: vec![("limit".to_owned(), "100".to_owned())],
+        }
+    }
+
+    /// Pure request builder for the recolor PATCH: `PATCH /loom/folders/{id}` body `{ "color": "#hex" }`.
+    /// The body carries ONLY the `color` key — a true JSON merge-patch against the verified
+    /// `LoomFolderUpdate` (whose `color: Option<Option<String>>` means "set color, leave everything
+    /// else"), so a recolor can NEVER clobber the folder's name/sort/parent (RISK-2 / MC-2 / AC4).
+    pub fn recolor_request(&self, workspace_id: &str, folder_id: &str, hex: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.folder_url(workspace_id, folder_id),
+            body: Some(serde_json::json!({ "color": hex })),
+        }
+    }
+
+    /// Fetch the workspace's folder list off the UI thread, delivering the parsed rows into `cell` (the
+    /// initial AC1 tree load). The host sets `loading=true` before calling and clears it on delivery.
+    pub fn fetch_folders(&self, workspace_id: &str, cell: FolderListCell) {
+        let spec = self.list_folders_request(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_folder_rows(&client, &spec.url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch one folder's child blocks off the UI thread, delivering the parsed leaves into `cell` (the
+    /// AC2 lazy child load on expand). The host sets the node's `loading=true` before calling (so the
+    /// spinner animates ONLY during this genuine in-flight fetch) and clears it on delivery.
+    pub fn fetch_folder_blocks(&self, workspace_id: &str, folder_id: &str, cell: FolderChildrenCell) {
+        let spec = self.list_folder_blocks_request(workspace_id, folder_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_folder_leaves(&client, &spec.url, &spec.query).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Recolor a folder off the UI thread (AC4), delivering the outcome into `cell`. The PATCH body is
+    /// the single-`color`-key merge-patch from [`recolor_request`](Self::recolor_request). `Ok(())` on a
+    /// 2xx; `Err(msg)` on failure. The host updates the node swatch optimistically and reconciles on the
+    /// delivered result.
+    pub fn recolor_folder(&self, workspace_id: &str, folder_id: &str, hex: &str, cell: ScmReceiptCell) {
+        let spec = self.recolor_request(workspace_id, folder_id, hex);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = patch_expect_success(&client, &spec.url, &body).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+}
+
+/// Parse one verified `LoomFolder` JSON object into a [`FolderRow`]. `name` falls back to the folder id
+/// when null/empty. Returns `None` only when the row has no `folder_id` (a malformed row is skipped, not
+/// faked).
+fn folder_to_row(folder: &serde_json::Value) -> Option<FolderRow> {
+    let folder_id = folder.get("folder_id").and_then(|x| x.as_str())?.to_owned();
+    let parent_folder_id = folder
+        .get("parent_folder_id")
+        .and_then(|x| x.as_str())
+        .map(|s| s.to_owned());
+    let name = folder
+        .get("name")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&folder_id)
+        .to_owned();
+    let color = folder
+        .get("color")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.to_owned());
+    Some(FolderRow::new(folder_id, parent_folder_id, name, color))
+}
+
+/// Parse one verified `LoomBlock` JSON object into a folder-tree [`LeafBlock`]. Mirrors the graph
+/// view's `block_to_node` field reads (`block_id`/`title`/`content_type`) so the two surfaces agree on
+/// the verified block shape. `title` falls back to the block id; `content_type` defaults to "other".
+fn block_to_leaf(block: &serde_json::Value) -> Option<LeafBlock> {
+    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let title = block
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&block_id)
+        .to_owned();
+    let content_type = block
+        .get("content_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("other")
+        .to_owned();
+    Some(LeafBlock::new(block_id, title, content_type))
+}
+
+/// `GET {url}` and parse the verified `Vec<LoomFolder>` into [`FolderRow`]s. A missing/empty array
+/// yields an EMPTY list (0 folders -> the "No folders" empty state, AC7), never an error. A non-success
+/// status or parse failure is an [`AppError`] (the AC8 error banner).
+async fn fetch_folder_rows(client: &reqwest::Client, url: &str) -> Result<Vec<FolderRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let rows = v
+        .as_array()
+        .map(|arr| arr.iter().filter_map(folder_to_row).collect())
+        .unwrap_or_default();
+    Ok(rows)
+}
+
+/// `GET {url}?{query}` and parse the verified `Vec<LoomBlock>` into folder-tree [`LeafBlock`]s. An
+/// empty array yields an empty leaf list (the folder renders "(empty)"), never an error. A non-success
+/// status or parse failure is an [`AppError`].
+async fn fetch_folder_leaves(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<LeafBlock>, AppError> {
+    let v = get_json(client, url, query).await?;
+    let leaves = v
+        .as_array()
+        .map(|arr| arr.iter().filter_map(block_to_leaf).collect())
+        .unwrap_or_default();
+    Ok(leaves)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WP-KERNEL-012 MT-008 code-navigation transport (REUSE — not a second HTTP stack).
 //
 // The native code-editor's CodeNavClient (`code_editor::code_nav`) binds the EXISTING handshake_core
