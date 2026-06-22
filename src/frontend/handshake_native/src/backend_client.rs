@@ -1714,6 +1714,364 @@ async fn fetch_folder_leaves(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-023 Loom TAG-HUB transport (REUSE — extends the MT-021/022 Loom read surface).
+//
+// VERIFIED READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running
+// backend), NOT taken from the MT-023 contract body — whose assumed surface (`views/all?content_type=
+// tag_hub` list filter, `views/all?tag_ids={id}` member query, a `content_json` hub description) does
+// NOT exist (the MT-022/023 "verify, don't trust the contract" lesson). The REAL tag authority is the
+// dedicated tag-hub API (MT-182 "tags as first-class blocks"):
+//   - GET  /workspaces/:ws/loom/tags                       -> Vec<LoomBlock> (every `tag_hub` block; the
+//     flat list the panel renders. Because this route ALREADY returns only tag hubs, RISK-5's
+//     client-side content_type fallback is unnecessary — there is no `content_type` filter to fall back
+//     from). Supports `limit`/`offset` (default 100, capped 500).
+//   - GET  /workspaces/:ws/loom/tags/:tag_block_id         -> LoomTagHub { block, sub_tags,
+//     tagged_blocks, backlink_count } (the hub page: title from block.title, members from tagged_blocks).
+//   - GET  /workspaces/:ws/loom/tags/:tag_block_id/blocks  -> Vec<LoomBlock> (members; supports
+//     `include_subtags`/`limit`/`offset`). The exact member-count + member-list source.
+//   - POST /workspaces/:ws/loom/edges  body { source_block_id, target_block_id, edge_type:"tag",
+//     created_by:"user" } -> LoomEdge (tag a block with a hub). The backend HARD-rejects a non-tag_hub
+//     target with HSK-400-LOOM-TAG-TARGET-MUST-BE-TAG_HUB, so the hub is ALWAYS the edge TARGET and the
+//     tagged block the SOURCE (verified `create_loom_edge`). `created_by` is the verified
+//     `LoomEdgeCreatedBy` enum ("user"/"ai"); "user" is the operator-initiated tag.
+//
+// Follows the MT-020/021/022 off-thread shape exactly: spawn on the app's tokio runtime, deliver the
+// parsed result into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET
+// — the render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends
+// on the handshake_core crate; the parsed shapes are the widget's own graph::tags_panel types.
+//
+// AC6 / RISK-2 / MC-2 (the no-fixed-sleep correction): `tag_block` spawns the POST and delivers the
+// outcome into a `ScmReceiptCell`; the HOST awaits THAT delivery and only THEN re-queries the members
+// via `fetch_members`. There is NO 100ms sleep — the re-query is gated on the edge-create RESPONSE.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::tags_panel::{AddTagCandidate, HubMember, TagEntry};
+
+/// The externally-meaningful result of a tag-list fetch: the flat [`TagEntry`] list the
+/// [`crate::graph::tags_panel::LoomTagsPanel`] renders. `Ok` carries the entries (possibly empty -> the
+/// "No tags" empty state, AC8); `Err(msg)` a failure the panel surfaces as an error banner + Retry.
+pub type TagListCell = Arc<Mutex<Option<Result<Vec<TagEntry>, String>>>>;
+
+/// The externally-meaningful result of a hub-detail fetch: `(title, members)` for the hub page. `Ok`
+/// carries the resolved title + member list; `Err(msg)` a failure the hub page surfaces.
+pub type TagHubDetailCell = Arc<Mutex<Option<Result<(String, Vec<HubMember>), String>>>>;
+
+/// The externally-meaningful result of an add-tag candidate search: the candidate blocks to tag. `Ok`
+/// carries the candidates (possibly empty); `Err(msg)` a failure (the popup shows nothing rather than
+/// crashing).
+pub type AddTagCandidatesCell = Arc<Mutex<Option<Result<Vec<AddTagCandidate>, String>>>>;
+
+/// REST client for the VERIFIED Loom tag-hub surface (MT-182 backend) the MT-023 tags panel binds: list
+/// tag hubs, load a hub's detail + members, search for taggable blocks, and create a `tag` edge. Mirrors
+/// the `LoomFolderClient` / `LoomGraphClient` shape exactly (off-thread + delivery cell). Speaks
+/// `serde_json::Value` so it never depends on the handshake_core crate's types.
+#[derive(Clone)]
+pub struct LoomTagClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomTagClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn tags_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/tags", self.base_url, workspace_id)
+    }
+
+    fn tag_url(&self, workspace_id: &str, tag_block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/tags/{}", self.base_url, workspace_id, tag_block_id)
+    }
+
+    fn tag_blocks_url(&self, workspace_id: &str, tag_block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/tags/{}/blocks",
+            self.base_url, workspace_id, tag_block_id
+        )
+    }
+
+    fn edges_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/edges", self.base_url, workspace_id)
+    }
+
+    fn search_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/search", self.base_url, workspace_id)
+    }
+
+    /// Pure request builder for the tag-list fetch: `GET /loom/tags` (no query — default limit 100).
+    /// Split out so a unit test asserts the EXACT verified URL without a live backend (the spawn path
+    /// routes through this same builder, so the test proves the production request construction).
+    pub fn list_tags_request(&self, workspace_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.tags_url(workspace_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the hub-detail fetch: `GET /loom/tags/{id}`.
+    pub fn tag_detail_request(&self, workspace_id: &str, tag_block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.tag_url(workspace_id, tag_block_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the member-list fetch: `GET /loom/tags/{id}/blocks?limit=100`.
+    pub fn list_members_request(&self, workspace_id: &str, tag_block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.tag_blocks_url(workspace_id, tag_block_id),
+            query: vec![("limit".to_owned(), "100".to_owned())],
+        }
+    }
+
+    /// Pure request builder for the add-tag candidate search: `GET /loom/search?q={q}&limit=20`. The
+    /// verified workspace search route returns blocks matching `q` (the candidate blocks to tag).
+    pub fn search_blocks_request(&self, workspace_id: &str, q: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.search_url(workspace_id),
+            query: vec![
+                ("q".to_owned(), q.to_owned()),
+                ("limit".to_owned(), "20".to_owned()),
+            ],
+        }
+    }
+
+    /// Pure request builder for the tag-edge create: `POST /loom/edges` with the verified
+    /// `CreateLoomEdgeRequest` body. The tagged block is the edge SOURCE; the hub is the TARGET (the
+    /// backend rejects a non-tag_hub target). `created_by:"user"` is the operator-initiated tag (AC6).
+    pub fn tag_block_request(
+        &self,
+        workspace_id: &str,
+        source_block_id: &str,
+        hub_block_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.edges_url(workspace_id),
+            body: Some(serde_json::json!({
+                "source_block_id": source_block_id,
+                "target_block_id": hub_block_id,
+                "edge_type": "tag",
+                "created_by": "user",
+            })),
+        }
+    }
+
+    /// Fetch the workspace's tag-hub list off the UI thread, delivering the parsed entries into `cell`
+    /// (the initial AC1 load). The host sets `loading=true` before calling and clears it on delivery.
+    pub fn fetch_tags(&self, workspace_id: &str, cell: TagListCell) {
+        let spec = self.list_tags_request(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_tag_entries(&client, &spec.url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch one hub's detail (title + members) off the UI thread, delivering into `cell` (AC4). Parses
+    /// the verified `LoomTagHub` shape: title from `block.title`, members from `tagged_blocks`.
+    pub fn fetch_hub_detail(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
+        let spec = self.tag_detail_request(workspace_id, tag_block_id);
+        let client = self.client.clone();
+        let fallback_id = tag_block_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_tag_hub_detail(&client, &spec.url, &fallback_id).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch a hub's members off the UI thread, delivering into `cell`. Used for the lazy list
+    /// member-count resolution AND the AC6 post-tag member refresh (the host calls this AFTER the
+    /// tag-edge POST response resolves — no fixed sleep).
+    pub fn fetch_members(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
+        let spec = self.list_members_request(workspace_id, tag_block_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_tag_members(&client, &spec.url, &spec.query).await;
+            if let Ok(mut slot) = cell.lock() {
+                // The member-list route carries no hub title; deliver an empty title so the host keeps
+                // its existing title and replaces only the members.
+                *slot = Some(result.map(|m| (String::new(), m)).map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Search for candidate blocks to tag off the UI thread, delivering into `cell` (the add-tag popup).
+    pub fn search_blocks(&self, workspace_id: &str, q: &str, cell: AddTagCandidatesCell) {
+        let spec = self.search_blocks_request(workspace_id, q);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_add_tag_candidates(&client, &spec.url, &spec.query).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Create a `tag` edge (tag `source_block_id` with the hub `hub_block_id`) off the UI thread,
+    /// delivering the outcome into `cell` (AC6). The body is the verified `CreateLoomEdgeRequest`. The
+    /// HOST awaits this delivery and only THEN re-queries the members (no fixed sleep — RISK-2/MC-2).
+    pub fn tag_block(
+        &self,
+        workspace_id: &str,
+        source_block_id: &str,
+        hub_block_id: &str,
+        cell: ScmReceiptCell,
+    ) {
+        let spec = self.tag_block_request(workspace_id, source_block_id, hub_block_id);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_expect_success(&client, &spec.url, &body).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+}
+
+/// Parse one verified `tag_hub` `LoomBlock` JSON object into a [`TagEntry`]. `title` falls back to the
+/// block id when null/empty. `member_count` starts as `None` (the list never blocks on per-tag fetches;
+/// the host resolves the exact count lazily on hub open). Returns `None` only when the block has no
+/// `block_id` (a malformed row is skipped, not faked).
+fn block_to_tag_entry(block: &serde_json::Value) -> Option<TagEntry> {
+    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let title = block
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&block_id)
+        .to_owned();
+    Some(TagEntry::new(block_id, title, None))
+}
+
+/// Parse one verified `LoomBlock` JSON object into a hub-page [`HubMember`]. Mirrors the folder-tree
+/// `block_to_leaf` field reads so the surfaces agree on the verified block shape.
+fn block_to_hub_member(block: &serde_json::Value) -> Option<HubMember> {
+    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let title = block
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&block_id)
+        .to_owned();
+    let content_type = block
+        .get("content_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("other")
+        .to_owned();
+    Some(HubMember::new(block_id, title, content_type))
+}
+
+/// `GET {url}` and parse the verified `Vec<LoomBlock>` (tag hubs) into [`TagEntry`]s. An empty array
+/// yields an empty list (the "No tags" empty state, AC8), never an error. A non-success status / parse
+/// failure is an [`AppError`] (the error banner).
+async fn fetch_tag_entries(client: &reqwest::Client, url: &str) -> Result<Vec<TagEntry>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let entries = v
+        .as_array()
+        .map(|arr| arr.iter().filter_map(block_to_tag_entry).collect())
+        .unwrap_or_default();
+    Ok(entries)
+}
+
+/// `GET {url}` and parse the verified `LoomTagHub` `{ block, tagged_blocks, .. }` into `(title,
+/// members)`. The hub title is `block.title` (falling back to the block id); the members are the
+/// `tagged_blocks` array. A non-success status / parse failure is an [`AppError`].
+async fn fetch_tag_hub_detail(
+    client: &reqwest::Client,
+    url: &str,
+    fallback_id: &str,
+) -> Result<(String, Vec<HubMember>), AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let title = v
+        .get("block")
+        .and_then(|b| b.get("title"))
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(fallback_id)
+        .to_owned();
+    let members = v
+        .get("tagged_blocks")
+        .and_then(|b| b.as_array())
+        .map(|arr| arr.iter().filter_map(block_to_hub_member).collect())
+        .unwrap_or_default();
+    Ok((title, members))
+}
+
+/// `GET {url}?{query}` and parse the verified `Vec<LoomBlock>` (a hub's members) into [`HubMember`]s. An
+/// empty array yields an empty member list, never an error.
+async fn fetch_tag_members(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<HubMember>, AppError> {
+    let v = get_json(client, url, query).await?;
+    let members = v
+        .as_array()
+        .map(|arr| arr.iter().filter_map(block_to_hub_member).collect())
+        .unwrap_or_default();
+    Ok(members)
+}
+
+/// `GET {url}?{query}` against the verified workspace search route and parse the result blocks into
+/// add-tag [`AddTagCandidate`]s. The search response may be a bare array of blocks OR an object with a
+/// `results`/`blocks`/`hits` array (the route shape varies); we read whichever array is present and pull
+/// each entry's `block_id`/`ref_id` + `title`. An empty result yields no candidates, never an error.
+async fn fetch_add_tag_candidates(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<AddTagCandidate>, AppError> {
+    let v = get_json(client, url, query).await?;
+    let arr = v
+        .as_array()
+        .cloned()
+        .or_else(|| v.get("results").and_then(|x| x.as_array()).cloned())
+        .or_else(|| v.get("blocks").and_then(|x| x.as_array()).cloned())
+        .or_else(|| v.get("hits").and_then(|x| x.as_array()).cloned())
+        .unwrap_or_default();
+    let candidates = arr
+        .iter()
+        .filter_map(|entry| {
+            let id = entry
+                .get("block_id")
+                .and_then(|x| x.as_str())
+                .or_else(|| entry.get("ref_id").and_then(|x| x.as_str()))?
+                .to_owned();
+            let title = entry
+                .get("title")
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(&id)
+                .to_owned();
+            Some(AddTagCandidate::new(id, title))
+        })
+        .collect();
+    Ok(candidates)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WP-KERNEL-012 MT-008 code-navigation transport (REUSE — not a second HTTP stack).
 //
 // The native code-editor's CodeNavClient (`code_editor::code_nav`) binds the EXISTING handshake_core

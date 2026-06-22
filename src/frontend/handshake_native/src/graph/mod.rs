@@ -7,6 +7,7 @@
 
 pub mod folder_tree;
 pub mod graph_view;
+pub mod tags_panel;
 
 pub use graph_view::{
     content_type_color, node_author_id, GraphEdge, GraphEvent, GraphMode, GraphNode, LoomGraphView,
@@ -18,4 +19,12 @@ pub use folder_tree::{
     build_tree, color_author_id, color_to_hex, parse_hex_color, FolderNode, FolderRow,
     FolderTreeEvent, LeafBlock, LoomFolderTree, COLOR_AUTHOR_ID_PREFIX,
     NODE_AUTHOR_ID_PREFIX as FOLDER_TREE_NODE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID,
+};
+
+pub use tags_panel::{
+    hub_add_tag_author_id, hub_member_author_id, hub_title_author_id, tag_chip_color,
+    tag_chip_color_index, tag_row_author_id, AddTagCandidate, HubMember, LoomTagHubPanel,
+    LoomTagsPanel, TagEntry, TagHubEvent, TagsPanelEvent, HUB_ADD_SEARCH_AUTHOR_ID,
+    HUB_ADD_TAG_AUTHOR_ID_PREFIX, HUB_MEMBER_AUTHOR_ID_PREFIX, HUB_TITLE_AUTHOR_ID_PREFIX,
+    SEARCH_AUTHOR_ID, TAG_CHIP_PALETTE_LEN, TAG_ROW_AUTHOR_ID_PREFIX,
 };
