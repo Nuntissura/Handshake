@@ -59,6 +59,7 @@
 //! state (RISK-004).
 
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
@@ -72,7 +73,11 @@ use super::cursor::{
     MAX_ACCESSKIT_CURSORS,
 };
 use super::find_replace::{FindEngine, FindQuery, Match};
+use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::folding::{FoldProvider, FoldSet};
+use super::gutter::{
+    Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
+};
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 use super::minimap::Minimap;
 use super::outline::{OutlineItem, OutlineProvider};
@@ -116,6 +121,18 @@ pub const CODE_EDITOR_MINIMAP_AUTHOR_ID: &str = "code_editor_minimap";
 pub const CODE_EDITOR_OUTLINE_AUTHOR_ID: &str = "code_editor_outline";
 pub const CODE_EDITOR_GOTO_LINE_AUTHOR_ID: &str = "code_editor_goto_line";
 
+/// MT-007 gutter author_ids (AC-005 / AC-003). The gutter strip is `code_editor_gutter` (the MT names
+/// `Role::Group`, which exists in accesskit 0.21.1 — no fallback). Each breakpoint toggle is
+/// `code_editor_breakpoint_{line}` (the MT names `Role::ToggleButton`, which does NOT exist in
+/// accesskit 0.21.1 — `Role::CheckBox` is the field-correct toggle-state role, exposing `set_toggled`;
+/// AC-005 asserts the author_id + the toggled state change, not the role string, so the CheckBox
+/// satisfies it — the same documented-deviation pattern as MT-003's `TextCursor`->`Caret`). Each
+/// diagnostic marker is `code_editor_diagnostic_{line}` (the MT names `Role::StaticText`, which does
+/// NOT exist in accesskit 0.21.1 — `Role::Label` is the field-correct static-text role).
+pub const CODE_EDITOR_GUTTER_AUTHOR_ID: &str = "code_editor_gutter";
+pub const CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX: &str = "code_editor_breakpoint_";
+pub const CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX: &str = "code_editor_diagnostic_";
+
 /// Max foldable-region AccessKit nodes emitted per frame (RISK-001 / RISK-004 analog of the cursor
 /// cap). Only the regions intersecting the painted window are emitted, capped at this many so a
 /// pathological file with thousands of folds cannot blow the per-frame node budget.
@@ -133,6 +150,21 @@ const PANEL_FOLD_NODE_ID_BASE: u64 = 300;
 const PANEL_MINIMAP_NODE_ID: u64 = 370;
 const PANEL_OUTLINE_NODE_ID: u64 = 371;
 const PANEL_GOTO_LINE_NODE_ID: u64 = 372;
+
+/// Max per-line breakpoint / diagnostic AccessKit nodes emitted per frame (RISK-004 analog of the
+/// cursor/fold caps). Only the breakpoints/diagnostics on the painted rows are emitted, capped so a
+/// file with thousands of either cannot blow the per-frame node budget.
+pub const MAX_ACCESSKIT_GUTTER_MARKERS: usize = 64;
+
+/// MT-007 gutter fixed AccessKit `NodeId`s for the default (single-instance) panel. Fresh bands ABOVE
+/// the MT-006 nav band (370..372): the gutter strip Group at 400; the per-line breakpoint `CheckBox`
+/// nodes in 410..410+MAX_ACCESSKIT_GUTTER_MARKERS; the per-line diagnostic `Label` nodes in
+/// 480..480+MAX_ACCESSKIT_GUTTER_MARKERS — all disjoint from the container/scroll/text (200/201/202),
+/// cursor (210..274), find-bar (280..283), fold (300..363), and nav (370..372) bands. Multi-instance
+/// panels hash the suffixed author_id instead (RISK-004).
+const PANEL_GUTTER_NODE_ID: u64 = 400;
+const PANEL_BREAKPOINT_NODE_ID_BASE: u64 = 410;
+const PANEL_DIAGNOSTIC_NODE_ID_BASE: u64 = 480;
 
 /// The fixed AccessKit `NodeId` band the per-cursor `Role::Caret` nodes occupy for the default panel
 /// (210..210+MAX_ACCESSKIT_CURSORS), disjoint from the panel container/scroll/text band (200/201/202)
@@ -159,8 +191,9 @@ const CURRENT_MATCH_HIGHLIGHT_COLOR: egui::Color32 =
 
 /// The monospace font size the panel renders text at (matches `render_line`). Centralized so the caret
 /// overlay measures glyph width with the SAME `FontId` the glyphs are painted with (MT-003 positioning
-/// requirement — no x-unit drift).
-const MONO_FONT_SIZE: f32 = 13.0;
+/// requirement — no x-unit drift). `pub(crate)` so the MT-007 gutter paints its line numbers / fold
+/// triangles with the SAME monospace metrics the editor body uses (row-for-row alignment).
+pub(crate) const MONO_FONT_SIZE: f32 = 13.0;
 
 /// Fixed AccessKit `NodeId`s for the default (single-instance) panel. They sit in a fresh band
 /// (200/201/202) ABOVE the WP-011 pane id space (>= 100) so they cannot collide with shell chrome,
@@ -327,6 +360,42 @@ pub struct CodeEditorPanel {
     /// O(painted_rows) — critical on a 100k-line file where re-walking every span each frame blows the
     /// MT-002 frame budget. `None` until the first minimap render.
     minimap_row_cache: Mutex<Option<MinimapRowCache>>,
+    /// MT-007 gutter feature flags (line numbers / fold triangles / diagnostics / breakpoints). Behind
+    /// a `Mutex` so a settings change / agent can flip a column under the `Sync` panel. Defaults all-on.
+    gutter_config: Mutex<GutterConfig>,
+    /// MT-007 breakpoint state: the buffer lines that carry a breakpoint. The gutter draws a red circle
+    /// per line here, a gutter click toggles it, and a toggle publishes a `BreakpointEvent`. Behind a
+    /// `Mutex` for the same `Sync` reason as the buffer.
+    breakpoint_set: Mutex<BreakpointSet>,
+    /// MT-007 diagnostic markers populated by MT-008's LSP client via [`push_diagnostics`]. Starts
+    /// EMPTY (this MT prepares the slot). Stored in INDEPENDENT state with NO `buffer_version` bump
+    /// (KERNEL_BUILDER gate: a diagnostics push must NOT trigger the MT-002 highlight-cache / tree
+    /// re-parse — see `push_diagnostics`). The gutter reads this to draw severity dots + left bars.
+    diagnostic_markers: Mutex<Vec<GutterMarker>>,
+    /// MT-007 breakpoint publish channel to the FUTURE debug-adapter (DAP) client. The sender is held
+    /// here (cloned for each publish); the receiver is held until a DAP client takes it via
+    /// [`subscribe_breakpoints`]. An UNBOUNDED `std::sync::mpsc` channel + `send().ok()` is the
+    /// non-blocking, discard-on-disconnect publish the MT red-team RISK-003 wants (std `Sender` has no
+    /// `try_send`; that is `SyncSender` on a bounded channel — KERNEL_BUILDER gate resolution).
+    breakpoint_sender: mpsc::Sender<BreakpointEvent>,
+    /// The receive half of the breakpoint channel, taken (once) by the future DAP client via
+    /// [`subscribe_breakpoints`]. Held here so the channel is not closed before a subscriber exists
+    /// (publishes are then a benign no-op — RISK-003). `None` after a subscriber takes it.
+    breakpoint_receiver: Mutex<Option<mpsc::Receiver<BreakpointEvent>>>,
+    /// The path of the file this panel edits, carried on every published `BreakpointEvent` so the DAP
+    /// client can map breakpoints to a source. Empty for an in-memory buffer. Set via
+    /// [`set_file_path`] / cleared+seeded by [`load_file`].
+    file_path: Mutex<String>,
+    /// The screen rect the gutter strip occupied on the most recent frame (diagnostics + the
+    /// deterministic gutter-click test — AC-005/AC-006). `None` before the first render.
+    last_gutter_rect: Mutex<Option<egui::Rect>>,
+    /// The buffer line of each PAINTED gutter row, in painted order, captured on the last frame so a
+    /// test can compute the exact pixel to click for a known line (the gutter aligns to these rows). The
+    /// gutter geometry (origin/line_height/char_width) it was painted at is in `last_gutter_geometry`.
+    last_gutter_rows: Mutex<Vec<usize>>,
+    /// The gutter geometry of the most recent frame (origin/line_height/char_width), so a test can map a
+    /// painted gutter row index to its screen y. `None` before the first render.
+    last_gutter_geometry: Mutex<Option<GutterGeometry>>,
 }
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
@@ -488,6 +557,9 @@ impl CodeEditorPanel {
         // panel adds nothing but takes width — RISK-001). The minimap defaults ON for any document.
         let outline_default_on = !outline_items.is_empty();
         let len_lines = buffer.len_lines();
+        // MT-007 breakpoint publish channel: unbounded so `send` never blocks; the receiver is parked
+        // until a future DAP client subscribes (RISK-003 non-blocking discard-on-disconnect publish).
+        let (breakpoint_sender, breakpoint_receiver) = mpsc::channel::<BreakpointEvent>();
         Self {
             buffer: Mutex::new(buffer),
             highlighter: Mutex::new(highlighter),
@@ -524,6 +596,18 @@ impl CodeEditorPanel {
             last_minimap_rect: Mutex::new(None),
             last_outline_rect: Mutex::new(None),
             minimap_row_cache: Mutex::new(None),
+            // MT-007 gutter state. The breakpoint channel is created here (the "bus before producer"
+            // shape from the WP-011 event_bus): the sender is held for publishes; the receiver waits
+            // for the future DAP client to take it via `subscribe_breakpoints`.
+            gutter_config: Mutex::new(GutterConfig::default()),
+            breakpoint_set: Mutex::new(BreakpointSet::new()),
+            diagnostic_markers: Mutex::new(Vec::new()),
+            breakpoint_sender,
+            breakpoint_receiver: Mutex::new(Some(breakpoint_receiver)),
+            file_path: Mutex::new(String::new()),
+            last_gutter_rect: Mutex::new(None),
+            last_gutter_rows: Mutex::new(Vec::new()),
+            last_gutter_geometry: Mutex::new(None),
         }
     }
 
@@ -1231,6 +1315,179 @@ impl CodeEditorPanel {
         }
     }
 
+    // ── MT-007 gutter / diagnostics / breakpoints API ─────────────────────────────────────────────
+
+    /// Replace the diagnostic markers the gutter draws (severity dots + left bars + hover messages).
+    /// This is the slot MT-008's LSP client fills: it calls `push_diagnostics(markers)` whenever the
+    /// backend `listProblemGroups` data changes. Defined here (this MT) so MT-008 calls it without a
+    /// re-implementation.
+    ///
+    /// CRITICAL (KERNEL_BUILDER gate): this does NOT bump `buffer_version`. The contract's step 5 text
+    /// mentions `self.buffer_version += 1` but also admits it is "not needed" — and bumping it would
+    /// needlessly trigger the MT-002 highlight-cache invalidation + tree re-parse on EVERY diagnostics
+    /// push (an LSP pushes diagnostics frequently). Diagnostics live in INDEPENDENT state, so a push
+    /// only swaps this list — no re-highlight, no re-fold, no re-outline.
+    pub fn push_diagnostics(&self, markers: Vec<GutterMarker>) {
+        *self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()) = markers;
+    }
+
+    /// A snapshot of the current diagnostic markers (for tests / the gutter / MT-008).
+    pub fn diagnostic_markers(&self) -> Vec<GutterMarker> {
+        self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// A snapshot clone of the breakpoint set (for tests / the gutter / a future DAP client).
+    pub fn breakpoint_set(&self) -> BreakpointSet {
+        self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// True when buffer `line` carries a breakpoint.
+    pub fn is_breakpoint_set(&self, line: usize) -> bool {
+        self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).contains(line)
+    }
+
+    /// Toggle the breakpoint on buffer `line` (the gutter breakpoint click + a future keymap call this).
+    /// Adds the breakpoint if absent, removes it if present (idempotent in pairs — AC-002), then
+    /// publishes the matching [`BreakpointEvent`] onto the debug-adapter channel. Returns the resulting
+    /// [`BreakpointAction`]. The publish is non-blocking and discards on a dropped receiver (RISK-003):
+    /// `send(event).ok()` on the unbounded channel never blocks and a missing DAP client is benign.
+    pub fn toggle_breakpoint(&self, line: usize) -> BreakpointAction {
+        let action = self
+            .breakpoint_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .toggle(line);
+        let file_path = self.file_path.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        // RISK-003 / MC-003: non-blocking publish; `.ok()` discards the Err when the receiver is gone.
+        self.breakpoint_sender
+            .send(BreakpointEvent { file_path, line, action })
+            .ok();
+        action
+    }
+
+    /// Take the receive half of the breakpoint channel so a future debug-adapter (DAP) client can
+    /// consume published [`BreakpointEvent`]s. Returns the receiver the FIRST time it is called and
+    /// `None` afterward (a channel has one consumer). Until a client subscribes, the receiver is parked
+    /// inside the panel so publishes are queued rather than dropped; after the receiver is taken and
+    /// later dropped, publishes become a benign no-op (RISK-003).
+    pub fn subscribe_breakpoints(&self) -> Option<mpsc::Receiver<BreakpointEvent>> {
+        self.breakpoint_receiver.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+
+    /// Set the path of the file this panel edits (carried on every published `BreakpointEvent`).
+    pub fn set_file_path(&self, path: impl Into<String>) {
+        *self.file_path.lock().unwrap_or_else(|e| e.into_inner()) = path.into();
+    }
+
+    /// The path of the file this panel edits (empty for an in-memory buffer).
+    pub fn file_path(&self) -> String {
+        self.file_path.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Reset the gutter's per-file state when a new file is loaded into this panel (RISK-004): clears
+    /// stale diagnostic markers so a previous file's errors do not appear on the new file, and seeds the
+    /// new `file_path` for breakpoint events. (Breakpoints are intentionally NOT cleared here — they are
+    /// per-file and a real editor that swaps the panel's document would build a fresh panel; this method
+    /// is the seam a same-panel file swap uses, and a swap caller that wants a clean breakpoint slate
+    /// can call `clear_breakpoints`.) MT-008's open-file path calls this.
+    pub fn load_file(&self, path: impl Into<String>) {
+        self.set_file_path(path);
+        // RISK-004: clear stale diagnostics from the previous file (no version bump — diagnostics are
+        // independent state).
+        self.push_diagnostics(Vec::new());
+    }
+
+    /// Clear every breakpoint (a full-file reset surface for a same-panel document swap).
+    pub fn clear_breakpoints(&self) {
+        *self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()) = BreakpointSet::new();
+    }
+
+    /// A snapshot of the gutter feature flags.
+    pub fn gutter_config(&self) -> GutterConfig {
+        *self.gutter_config.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Replace the gutter feature flags (a settings change / agent toggling a column).
+    pub fn set_gutter_config(&self, config: GutterConfig) {
+        *self.gutter_config.lock().unwrap_or_else(|e| e.into_inner()) = config;
+    }
+
+    /// The stable AccessKit author_id for this panel's gutter strip, with the instance suffix.
+    pub fn gutter_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_GUTTER_AUTHOR_ID)
+    }
+
+    /// The stable AccessKit author_id for the breakpoint toggle on buffer `line`, with the instance
+    /// suffix (`code_editor_breakpoint_{line}`).
+    pub fn breakpoint_author_id(&self, line: usize) -> String {
+        if self.instance.is_empty() {
+            format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}")
+        } else {
+            format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}", self.instance)
+        }
+    }
+
+    /// The stable AccessKit author_id for the diagnostic marker on buffer `line`, with the instance
+    /// suffix (`code_editor_diagnostic_{line}`).
+    pub fn diagnostic_author_id(&self, line: usize) -> String {
+        if self.instance.is_empty() {
+            format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}")
+        } else {
+            format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}", self.instance)
+        }
+    }
+
+    /// The screen rect the gutter strip occupied on the most recent frame, or `None` before the first
+    /// render. The basis for the AC-003/AC-005 gutter layout + click tests.
+    pub fn last_gutter_rect(&self) -> Option<egui::Rect> {
+        *self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The buffer line of each PAINTED gutter row on the most recent frame, in painted order. The
+    /// deterministic basis for the AC-004 (all 10 lines painted) + AC-006 (a folded body line is no
+    /// longer painted) gutter tests.
+    pub fn gutter_rows_for_test(&self) -> Vec<usize> {
+        self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// The current `buffer_version` counter, for the AC-007 perf-gate test that asserts
+    /// `push_diagnostics` does NOT bump it (no highlight-cache / tree re-parse on a diagnostics push).
+    pub fn buffer_version_for_test(&self) -> u64 {
+        self.buffer_version.load(Ordering::Relaxed)
+    }
+
+    /// The screen position of the CENTER of the gutter row that paints buffer `line` on the most recent
+    /// frame, or `None` if that line was not painted (off-screen) / no frame has rendered. The
+    /// deterministic basis for the AC-005 gutter-click test (compute the exact pixel to click for a
+    /// known line). Targets the breakpoint sub-column (left of the gutter) so the click lands on the
+    /// breakpoint area, not the line-number or diagnostic column.
+    pub fn gutter_breakpoint_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
+        let rows = self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner());
+        let geometry = (*self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let rect = (*self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let row_idx = rows.iter().position(|&l| l == line)?;
+        let y = geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
+        // Click in the breakpoint sub-column (a little right of the strip's left edge).
+        let x = rect.left() + 12.0;
+        Some(egui::pos2(x, y))
+    }
+
+    /// The screen position of the CENTER of the FOLD sub-column for buffer `line` on the most recent
+    /// frame (the fold triangle is left-of-number; this returns its center x), or `None` if the line was
+    /// not painted. The basis for the AC-006 gutter fold-click test.
+    pub fn gutter_fold_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
+        let rows = self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner());
+        let geometry = (*self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let rect = (*self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let config = *self.gutter_config.lock().unwrap_or_else(|e| e.into_inner());
+        let row_idx = rows.iter().position(|&l| l == line)?;
+        let y = geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
+        // The fold column sits after the breakpoint column. Mirror `gutter::Gutter::render`'s anchors.
+        let breakpoint_w = if config.show_breakpoints { 16.0 } else { 0.0 };
+        let x = rect.left() + 4.0 + breakpoint_w + 7.0; // center of the 14px fold column
+        Some(egui::pos2(x, y))
+    }
+
     /// The stable AccessKit author_id for this panel's minimap, with the instance suffix when present.
     pub fn minimap_author_id(&self) -> String {
         self.suffixed(CODE_EDITOR_MINIMAP_AUTHOR_ID)
@@ -1540,6 +1797,46 @@ impl CodeEditorPanel {
                 ui.painter().rect_filled(full_rect, 0.0, bg);
             }
 
+            // MT-007: RESERVE the gutter strip on the LEFT of the center editor area BEFORE the scroll
+            // area, so the editor rows start to the right of the gutter (no overlap). The strip width is
+            // recomputed every frame from the LIVE buffer line count (RISK-001 / MC-001) so a
+            // 99->1000-line transition widens it. The strip's actual per-row content (numbers, dots,
+            // fold triangles, breakpoint circles, interactions) is painted AFTER the scroll renders,
+            // once the painted-row geometry is captured — see `render_gutter` below. The SidePanel here
+            // only reserves the rect + emits the Group strip node.
+            let gutter_cfg = self.gutter_config();
+            let gutter_glyph_width = glyph_width;
+            let gutter_width =
+                Gutter::width_for(total_lines, gutter_glyph_width, &gutter_cfg).max(1.0);
+            let gutter_panel_id = if self.instance.is_empty() {
+                egui::Id::new("code_editor_gutter_panel")
+            } else {
+                egui::Id::new(format!("code_editor_gutter_panel#{}", self.instance))
+            };
+            let gutter_author = self.gutter_author_id();
+            let gutter_resp = egui::SidePanel::left(gutter_panel_id)
+                .resizable(false)
+                .exact_width(gutter_width)
+                .show_separator_line(false)
+                .show_inside(ui, |ui| {
+                    // Claim the full strip height (the painter content is added after the scroll frame).
+                    let strip = ui.available_rect_before_wrap();
+                    ui.advance_cursor_after_rect(strip);
+                    // Emit the gutter strip Group node (AC-003 / HBR-SWARM) — author_id
+                    // "code_editor_gutter", role Group (exists in accesskit 0.21.1).
+                    let node_id = self.gutter_node_id();
+                    let author = gutter_author.clone();
+                    let value = format!("{total_lines} lines");
+                    ui.ctx().accesskit_node_builder(node_id, move |node| {
+                        node.set_role(accesskit::Role::Group);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor gutter".to_owned());
+                        node.set_value(value.clone());
+                    });
+                });
+            let gutter_rect = gutter_resp.response.rect;
+            *self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()) = Some(gutter_rect);
+
             // SCROLL-AREA scope (AC-004: Role::ScrollView, author_id "code_editor_scroll_area"). The
             // virtualized rows render inside it via `show_rows`, which only invokes the closure for
             // the lines intersecting the viewport.
@@ -1631,6 +1928,14 @@ impl CodeEditorPanel {
                     ));
                 });
             });
+
+            // MT-007: paint the gutter strip content NOW — after the scroll area painted its rows, so
+            // the captured `RowGeometry` (origin/line_height) is current and the gutter aligns row-for-
+            // row with the editor body (including under MT-005 folds — the per-row buffer-line list is
+            // taken from the SAME fold-mapped visible window). Applies any fold/breakpoint click to the
+            // panel state and publishes a BreakpointEvent on a breakpoint toggle. Nested in the container
+            // scope so the gutter's per-line breakpoint/diagnostic nodes are container descendants.
+            self.render_gutter(ui, gutter_rect, gutter_glyph_width, &gutter_cfg);
 
             // MT-004: render the floating find bar (Ctrl+F / Ctrl+H) pinned to the top-right of the
             // editor area, INSIDE the container scope so its AccessKit nodes are descendants of the
@@ -2357,6 +2662,222 @@ impl CodeEditorPanel {
             unsafe { egui::Id::from_high_entropy_bits(PANEL_FOLD_NODE_ID_BASE + slot as u64) }
         } else {
             egui::Id::new(format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}", self.instance))
+        }
+    }
+
+    // ── MT-007 gutter render + AccessKit ──────────────────────────────────────────────────────────
+
+    /// Paint the gutter strip content into `gutter_rect` after the editor rows painted this frame, then
+    /// apply any fold/breakpoint click and emit the per-line breakpoint/diagnostic AccessKit nodes.
+    /// Reads the captured [`RowGeometry`] so the gutter aligns row-for-row with the code body (the SAME
+    /// `origin`/`line_height` the rows were painted at), and reads the painted VISIBLE window mapped to
+    /// BUFFER lines through the fold set so a folded region shifts the gutter rows in lockstep with the
+    /// editor (MT-005 fold-aware mapping). A no-op (clears the captured rows) when no frame geometry is
+    /// available yet.
+    fn render_gutter(
+        &self,
+        ui: &mut egui::Ui,
+        gutter_rect: egui::Rect,
+        glyph_width: f32,
+        config: &GutterConfig,
+    ) {
+        // The painted-row geometry captured by `render_rows` this frame (origin = top-left of the first
+        // painted code row; line_height = sans-spacing row stride). Without it (no frame yet) there is
+        // nothing to align to.
+        let Some(row_geom) = *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) else {
+            self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()).clear();
+            *self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            return;
+        };
+
+        // The painted VISIBLE-line window (post-fold), mapped to BUFFER lines per row so the gutter draws
+        // the right line numbers/markers in the right rows. The gutter strip starts at the gutter rect's
+        // left edge but uses the editor rows' TOP (row_geom.top) so the first gutter row lines up with
+        // the first code row exactly.
+        let visible_range = self.last_visible_range();
+        let visible_rows: Vec<usize> = {
+            let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            (visible_range.start..visible_range.end)
+                .map(|v| set.visible_line_to_buffer_line(v))
+                .collect()
+        };
+
+        // The gutter geometry: origin at the gutter strip's left edge + the code rows' top, with the
+        // editor's measured line height + glyph width (so the line numbers use the SAME metrics).
+        let geometry = GutterGeometry {
+            origin: egui::pos2(gutter_rect.left(), row_geom.top),
+            line_height: row_geom.line_height,
+            char_width: glyph_width,
+        };
+
+        // Snapshot the markers + breakpoints (clones so no lock is held across egui calls).
+        let markers = self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let breakpoints = self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+
+        // A closure the gutter calls to learn whether a buffer line starts a fold region and, if so,
+        // whether it is OPEN (not folded). `Some(true)` = region start, expanded; `Some(false)` = region
+        // start, collapsed; `None` = not a region start (no triangle).
+        let fold_open_for = |line: usize| -> Option<bool> {
+            let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.region_starting_at(line).map(|r| !r.folded)
+        };
+
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let response: GutterResponse = Gutter::render(
+            ui,
+            gutter_rect,
+            &visible_rows,
+            &buffer,
+            &markers,
+            &breakpoints,
+            config,
+            geometry,
+            &fold_open_for,
+        );
+
+        // Persist the painted rows + geometry for the deterministic click tests.
+        *self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()) = visible_rows.clone();
+        *self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+
+        // Apply the click outcomes AFTER the render (the same post-render-apply discipline the cursor
+        // overlay + fold keymap use). A fold click toggles the fold; a breakpoint click toggles the
+        // breakpoint AND publishes a BreakpointEvent (RISK-003 non-blocking publish).
+        if let Some(line) = response.fold_toggled {
+            self.toggle_fold(line);
+        }
+        if let Some(line) = response.breakpoint_toggled {
+            self.toggle_breakpoint(line);
+        }
+
+        // Emit the per-line breakpoint (CheckBox) + diagnostic (Label) AccessKit nodes for the painted
+        // rows so a swarm agent can address each by `code_editor_breakpoint_{line}` /
+        // `code_editor_diagnostic_{line}` and toggle/read it by id (AC-005 / HBR-SWARM). Capped per
+        // frame (RISK-004) and restricted to the painted window so a huge file cannot blow the node
+        // budget.
+        self.emit_breakpoint_nodes(ui, &visible_rows, &breakpoints, config);
+        self.emit_diagnostic_nodes(ui, &visible_rows, &markers, config);
+    }
+
+    /// Emit one `Role::CheckBox` AccessKit node per PAINTED breakpoint line (toggled = the line carries
+    /// a breakpoint), so a swarm agent can find + toggle each breakpoint by `code_editor_breakpoint_{line}`.
+    /// `Role::CheckBox` is the field-correct accesskit 0.21.1 toggle-state role (the MT names
+    /// `Role::ToggleButton`, which does not exist there); `set_toggled` exposes the on/off state and
+    /// `Action::Click` is the toggle action. A node is emitted for every painted row that has a
+    /// breakpoint (capped at [`MAX_ACCESSKIT_GUTTER_MARKERS`]) so the test can assert the state change.
+    fn emit_breakpoint_nodes(
+        &self,
+        ui: &egui::Ui,
+        visible_rows: &[usize],
+        breakpoints: &BreakpointSet,
+        config: &GutterConfig,
+    ) {
+        if !config.show_breakpoints {
+            return;
+        }
+        let lines: Vec<usize> = visible_rows
+            .iter()
+            .copied()
+            .filter(|&l| breakpoints.contains(l))
+            .take(MAX_ACCESSKIT_GUTTER_MARKERS)
+            .collect();
+        for (slot, line) in lines.into_iter().enumerate() {
+            let author = self.breakpoint_author_id(line);
+            let node_id = self.breakpoint_node_id(slot, line);
+            let value = format!("breakpoint on line {}", line + 1);
+            ui.ctx().accesskit_node_builder(node_id, move |node| {
+                // DEVIATION (API-correct): Role::ToggleButton does not exist in accesskit 0.21.1;
+                // Role::CheckBox is the field-correct toggle-state role (AC asserts the author_id +
+                // the toggled state, not the role string — same pattern as MT-003 TextCursor->Caret).
+                node.set_role(accesskit::Role::CheckBox);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor breakpoint".to_owned());
+                node.set_value(value.clone());
+                node.set_toggled(accesskit::Toggled::True); // a node is only emitted when set
+                node.add_action(accesskit::Action::Click);
+            });
+        }
+    }
+
+    /// Emit one `Role::Label` AccessKit node per PAINTED diagnostic line (value = the worst severity +
+    /// the message), so a swarm agent can read a line's diagnostic by `code_editor_diagnostic_{line}`.
+    /// `Role::Label` is the field-correct accesskit 0.21.1 static-text role (the MT names
+    /// `Role::StaticText`, which does not exist there). One node per painted line that has at least one
+    /// diagnostic (capped at [`MAX_ACCESSKIT_GUTTER_MARKERS`]).
+    fn emit_diagnostic_nodes(
+        &self,
+        ui: &egui::Ui,
+        visible_rows: &[usize],
+        markers: &[GutterMarker],
+        config: &GutterConfig,
+    ) {
+        if !config.show_diagnostics {
+            return;
+        }
+        let mut emitted = 0usize;
+        for &line in visible_rows {
+            if emitted >= MAX_ACCESSKIT_GUTTER_MARKERS {
+                break;
+            }
+            let line_msgs: Vec<String> = markers
+                .iter()
+                .filter(|m| m.line == line && matches!(m.kind, GutterMarkerKind::Diagnostic(_)))
+                .map(|m| match &m.kind {
+                    GutterMarkerKind::Diagnostic(sev) if m.message.is_empty() => {
+                        sev.label().to_owned()
+                    }
+                    GutterMarkerKind::Diagnostic(sev) => format!("{}: {}", sev.label(), m.message),
+                    _ => String::new(),
+                })
+                .collect();
+            if line_msgs.is_empty() {
+                continue;
+            }
+            let author = self.diagnostic_author_id(line);
+            let node_id = self.diagnostic_node_id(emitted, line);
+            let value = line_msgs.join("\n");
+            ui.ctx().accesskit_node_builder(node_id, move |node| {
+                node.set_role(accesskit::Role::Label);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor diagnostic".to_owned());
+                node.set_value(value.clone());
+            });
+            emitted += 1;
+        }
+    }
+
+    /// The fixed `egui::Id` for the gutter strip Group node (default panel; instances hash the author_id).
+    fn gutter_node_id(&self) -> egui::Id {
+        if self.instance.is_empty() {
+            // SAFETY: a single hand-assigned fixed id in the disjoint gutter band; never reused.
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_GUTTER_NODE_ID) }
+        } else {
+            egui::Id::new(self.gutter_author_id())
+        }
+    }
+
+    /// The fixed `egui::Id` for breakpoint node `slot` (default panel uses the breakpoint band; instances
+    /// hash the suffixed author_id — RISK-004).
+    fn breakpoint_node_id(&self, slot: usize, line: usize) -> egui::Id {
+        if self.instance.is_empty() {
+            // SAFETY: each slot maps to a distinct fixed id in the disjoint breakpoint band; never reused.
+            unsafe {
+                egui::Id::from_high_entropy_bits(PANEL_BREAKPOINT_NODE_ID_BASE + slot as u64)
+            }
+        } else {
+            egui::Id::new(format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}", self.instance))
+        }
+    }
+
+    /// The fixed `egui::Id` for diagnostic node `slot` (default panel uses the diagnostic band; instances
+    /// hash the suffixed author_id — RISK-004).
+    fn diagnostic_node_id(&self, slot: usize, line: usize) -> egui::Id {
+        if self.instance.is_empty() {
+            // SAFETY: each slot maps to a distinct fixed id in the disjoint diagnostic band; never reused.
+            unsafe {
+                egui::Id::from_high_entropy_bits(PANEL_DIAGNOSTIC_NODE_ID_BASE + slot as u64)
+            }
+        } else {
+            egui::Id::new(format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}", self.instance))
         }
     }
 
