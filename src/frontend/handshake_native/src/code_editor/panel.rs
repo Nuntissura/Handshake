@@ -469,6 +469,20 @@ pub struct CodeEditorPanel {
     /// the receiver from a configured client.
     lsp_diagnostics_rx:
         Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
+    /// MT-008 the app's tokio runtime handle, injected by the host (the same per-component injection
+    /// pattern `BackendClient`/`ProjectTree`/`QuickSwitcher` use — see [`set_runtime`](Self::set_runtime)).
+    /// The LIVE render/input loop reads it to drive the off-thread completion/hover triggers from
+    /// `show()`/`process_cursor_input` (HBR-QUIET — the egui thread never blocks; the triggers `spawn`
+    /// onto this handle). `None` until the host injects one; while `None` the live code-intelligence
+    /// loop is a graceful no-op (the synthetic `open_completion`/`open_hover` test paths still work), so
+    /// a runtime-less unit/kittest harness renders without spawning backend tasks.
+    runtime: Mutex<Option<tokio::runtime::Handle>>,
+    /// MT-008 "a completion request is armed this frame" flag. `process_cursor_input` sets it on
+    /// Ctrl+Space or a completion trigger character (`.`/`:`/`_`); the per-frame
+    /// [`pump_code_intelligence`](Self::pump_code_intelligence) consumes it (take + reset) and fires the
+    /// debounced backend completion lookup. An atomic so the `&self` input path can arm it under the
+    /// `Sync` panel without holding a lock across the input loop.
+    completion_request: std::sync::atomic::AtomicBool,
 }
 
 /// MT-008 off-thread completion result delivery cell: `(cursor anchor pixel, popup items)` written by
@@ -704,6 +718,8 @@ impl CodeEditorPanel {
             completion_result: Arc::new(Mutex::new(None)),
             hover_result: Arc::new(Mutex::new(None)),
             lsp_diagnostics_rx: Mutex::new(None),
+            runtime: Mutex::new(None),
+            completion_request: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -1552,6 +1568,13 @@ impl CodeEditorPanel {
         self.buffer_version.load(Ordering::Relaxed)
     }
 
+    /// Whether a completion request is currently armed (Ctrl+Space / trigger char) and not yet consumed
+    /// by the per-frame pump. The MT-008 live-path test reads it to prove the pump CONSUMED the arm in
+    /// the same frame (it does not linger to fire on a later, unrelated frame).
+    pub fn completion_request_armed_for_test(&self) -> bool {
+        self.completion_request.load(Ordering::Relaxed)
+    }
+
     // ── MT-008 code intelligence API (completion / hover / code-nav / LSP) ─────────────────────────
 
     /// Bind the active workspace id used for backend code-nav lookups. Empty = no workspace (code-nav
@@ -1574,6 +1597,90 @@ impl CodeEditorPanel {
     /// A clone of the current LSP client handle (for the diagnostics-drain wiring + tests).
     pub fn lsp_client(&self) -> Arc<LspClient> {
         Arc::clone(&self.lsp_client.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// Inject the app's tokio runtime handle so the LIVE render/input loop can drive the off-thread
+    /// completion/hover triggers (the same per-component injection pattern `BackendClient` and
+    /// `ProjectTree` use). The host calls this once after building the panel (e.g. from
+    /// `HandshakeApp::set_runtime_handle`). Until it is set, the live code-intelligence loop is a
+    /// graceful no-op (a runtime-less test harness renders without spawning backend tasks).
+    pub fn set_runtime(&self, handle: tokio::runtime::Handle) {
+        *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
+    }
+
+    /// A clone of the injected runtime handle, or `None` when the host has not injected one (the live
+    /// code-intelligence loop short-circuits to a no-op in that case).
+    fn runtime_handle(&self) -> Option<tokio::runtime::Handle> {
+        self.runtime.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// The primary cursor's head byte offset (the live-loop hover-dwell / completion-prefix anchor).
+    fn primary_cursor_offset(&self) -> usize {
+        self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).primary().head
+    }
+
+    /// The identifier word the primary caret currently sits in/just-after (the hover target + the
+    /// completion prefix), or an empty string when the caret is not in a word. Reuses the MT-003
+    /// [`word_at`] scanner against the live buffer.
+    fn word_at_primary_cursor(&self) -> String {
+        let offset = self.primary_cursor_offset();
+        self.with_buffer(|b| {
+            let range = word_at(offset, b);
+            if range.is_empty() {
+                String::new()
+            } else {
+                b.to_string()
+                    .get(range)
+                    .map(|s| s.to_owned())
+                    .unwrap_or_default()
+            }
+        })
+    }
+
+    /// MT-008 LIVE code-intelligence per-frame pump. Called once per `show()` AFTER the rows + cursor
+    /// input are processed, so the cursor offset is current. It is the production path that reaches the
+    /// off-thread triggers the AC tests exercise directly:
+    /// - drains any pending LSP `publishDiagnostics` onto the gutter (AC-008);
+    /// - advances the hover-dwell clock for the live cursor offset and, once the dwell elapses, fires a
+    ///   backend hover lookup for the word under the caret (impl note 3);
+    /// - if a completion request was armed this frame (Ctrl+Space or a trigger character — set by
+    ///   `process_cursor_input`), fires the debounced backend completion lookup for the caret word.
+    ///
+    /// Every step is a no-op without an injected runtime (the triggers need a `Handle` to `spawn`), and
+    /// the triggers themselves no-op when no workspace is bound — so a runtime-less / workspace-less
+    /// harness still renders cleanly while a live host with a workspace gets real intelligence.
+    fn pump_code_intelligence(&self) {
+        // AC-008: route any LSP diagnostics notification to the gutter. Cheap when the channel is empty,
+        // and independent of the runtime handle (the receiver is already on the panel).
+        self.drain_lsp_diagnostics();
+
+        let Some(runtime) = self.runtime_handle() else {
+            // No runtime injected: clear any armed completion request so it does not fire later, and
+            // skip the off-thread triggers (the synthetic open_completion/open_hover test paths and the
+            // diagnostics drain above still work without a runtime).
+            self.completion_request.store(false, Ordering::Relaxed);
+            return;
+        };
+
+        // HOVER: advance the dwell clock for the live caret offset; on a dwell hit, fetch the hover for
+        // the word under the caret (a no-op when the caret is not in a word / no workspace is bound).
+        let offset = self.primary_cursor_offset();
+        if self.update_hover_dwell(offset) && !self.is_hover_open() {
+            let word = self.word_at_primary_cursor();
+            if !word.is_empty() {
+                self.trigger_hover(&runtime, &word);
+            }
+        }
+
+        // COMPLETION: fire only when armed this frame (Ctrl+Space / trigger char) — the debounce +
+        // 2-char + workspace guards live inside `trigger_completion`.
+        let armed = self.completion_request.swap(false, Ordering::Relaxed);
+        if armed {
+            let word = self.word_at_primary_cursor();
+            if !word.is_empty() {
+                self.trigger_completion(&runtime, &word);
+            }
+        }
     }
 
     /// A snapshot of the completion popup state (`None` when no popup is showing). For tests + the
@@ -2349,6 +2456,14 @@ impl CodeEditorPanel {
         // AccessKit node) when the palette is closed (AC-005). Rendered AFTER the editor scope so it
         // floats above the editor rows.
         self.render_goto_line_modal(ui, &syntax);
+
+        // MT-008 LIVE loop: pump the code-intelligence triggers from the running frame — drain LSP
+        // diagnostics onto the gutter (AC-008), advance the hover dwell + fire a hover lookup on a dwell
+        // hit, and fire a completion lookup when one was armed this frame by `process_cursor_input`
+        // (Ctrl+Space / trigger char). Runs AFTER `process_cursor_input` (so the caret offset is current)
+        // and BEFORE the overlay render below (so a result delivered last frame paints this frame). A
+        // graceful no-op without an injected runtime / bound workspace.
+        self.pump_code_intelligence();
 
         // MT-008: drain any off-thread code-nav/LSP results into the popup state, then render the
         // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
@@ -3780,6 +3895,17 @@ impl CodeEditorPanel {
                         }
                     }
                 }
+                // MT-008 TEXT INPUT (live edit path): a typed character marks the completion-debounce
+                // clock (impl note 2) and, when it is a completion TRIGGER character (`.`/`:`/`_` — the
+                // contract's trigger set), arms a completion request for this frame's pump. The popup is
+                // non-focus-stealing (RISK-005), so the editor still receives the character; arming here
+                // does not consume it.
+                egui::Event::Text(text) => {
+                    self.mark_edit_now();
+                    if text.chars().any(|c| matches!(c, '.' | ':' | '_')) {
+                        self.completion_request.store(true, Ordering::Relaxed);
+                    }
+                }
                 // KEYS: Ctrl+Alt+Up/Down add cursor above/below; Ctrl+D selects the next occurrence.
                 egui::Event::Key {
                     key,
@@ -3787,6 +3913,34 @@ impl CodeEditorPanel {
                     modifiers,
                     ..
                 } => match key {
+                    // MT-008 COMPLETION POPUP KEYMAP (RISK-005 first-pass): while the popup is OPEN,
+                    // ArrowUp/Down move the selection, Enter accepts the selected item, and Escape
+                    // dismisses — these are intercepted BEFORE the normal cursor keymap (and the
+                    // find/go-to-line Enter/Escape arms) so the open popup owns those keys, the same
+                    // precedence the command-palette floating list uses. When the popup is closed these
+                    // arms do not match (the guard is `is_completion_open`), so the normal keymap runs.
+                    egui::Key::ArrowDown
+                        if self.is_completion_open() && !modifiers.ctrl && !modifiers.alt =>
+                    {
+                        self.completion_select_next();
+                    }
+                    egui::Key::ArrowUp
+                        if self.is_completion_open() && !modifiers.ctrl && !modifiers.alt =>
+                    {
+                        self.completion_select_prev();
+                    }
+                    egui::Key::Enter if self.is_completion_open() => {
+                        self.accept_completion();
+                    }
+                    egui::Key::Escape if self.is_completion_open() => {
+                        self.close_completion();
+                    }
+                    // MT-008 Ctrl+Space: explicitly arm a completion request (the manual-trigger path the
+                    // contract names alongside the trigger characters). The pump fires the debounced
+                    // backend lookup for the word under the caret next.
+                    egui::Key::Space if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
+                        self.completion_request.store(true, Ordering::Relaxed);
+                    }
                     egui::Key::ArrowUp if modifiers.ctrl && modifiers.alt => {
                         self.add_cursor_above();
                     }

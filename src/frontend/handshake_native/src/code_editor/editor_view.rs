@@ -451,20 +451,19 @@ mod tests {
         assert!(state.selected().is_none());
     }
 
-    #[test]
-    fn item_node_ids_are_disjoint_from_panel_bands() {
-        // The overlay band (600..) sits above every panel band (the highest panel band is the
-        // diagnostic band at 480..480+64=544). The completion-item band must not overrun into the
-        // hover node, and the whole overlay band must sit above the diagnostic band's top.
-        const DIAGNOSTIC_BAND_TOP: u64 = 544;
-        assert!(
-            COMPLETION_POPUP_NODE_ID > DIAGNOSTIC_BAND_TOP,
-            "popup node {COMPLETION_POPUP_NODE_ID} must sit above the diagnostic band top {DIAGNOSTIC_BAND_TOP}"
-        );
-        assert!(
-            HOVER_NODE_ID
-                > COMPLETION_ITEM_NODE_ID_BASE + MAX_ACCESSKIT_COMPLETION_ITEMS as u64,
-            "the hover node {HOVER_NODE_ID} must sit above the completion-item band's top"
-        );
-    }
+    // The overlay band (600..) sits above every panel band (the highest panel band is the
+    // diagnostic band at 480..480+64=544). The completion-item band must not overrun into the
+    // hover node, and the whole overlay band must sit above the diagnostic band's top. These are
+    // compile-time invariants over `const` node-id allocations, so they are enforced with
+    // `const { assert!(...) }` rather than a runtime `assert!` (which clippy would flag as
+    // assertions_on_constants / "optimized out").
+    const DIAGNOSTIC_BAND_TOP: u64 = 544;
+    const _: () = assert!(
+        COMPLETION_POPUP_NODE_ID > DIAGNOSTIC_BAND_TOP,
+        "popup node must sit above the diagnostic band top"
+    );
+    const _: () = assert!(
+        HOVER_NODE_ID > COMPLETION_ITEM_NODE_ID_BASE + MAX_ACCESSKIT_COMPLETION_ITEMS as u64,
+        "the hover node must sit above the completion-item band's top"
+    );
 }
