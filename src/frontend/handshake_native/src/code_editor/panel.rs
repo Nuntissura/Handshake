@@ -71,6 +71,7 @@ use super::cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet,
     MAX_ACCESSKIT_CURSORS,
 };
+use super::find_replace::{FindEngine, FindQuery, Match};
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
@@ -85,10 +86,38 @@ pub const CODE_EDITOR_TEXT_AUTHOR_ID: &str = "code_editor_text";
 /// first [`MAX_ACCESSKIT_CURSORS`] cursors are surfaced (RISK-004 / MC-004).
 pub const CODE_EDITOR_CURSOR_AUTHOR_PREFIX: &str = "code_editor_cursor_";
 
+/// MT-004 find/replace author_ids. The find input is `code_editor_find_bar` (the MT contract names
+/// `Role::SearchBox`, which does NOT exist in accesskit 0.21 — `Role::SearchInput` is the field-correct
+/// equivalent; see `emit_find_bar_nodes` for the documented deviation). The replace input is
+/// `code_editor_replace_bar` (`Role::TextInput`) and the Next button is `code_editor_find_next`
+/// (`Role::Button`). The Prev button reuses the same pattern with a fresh slot.
+pub const CODE_EDITOR_FIND_BAR_AUTHOR_ID: &str = "code_editor_find_bar";
+pub const CODE_EDITOR_REPLACE_BAR_AUTHOR_ID: &str = "code_editor_replace_bar";
+pub const CODE_EDITOR_FIND_NEXT_AUTHOR_ID: &str = "code_editor_find_next";
+pub const CODE_EDITOR_FIND_PREV_AUTHOR_ID: &str = "code_editor_find_prev";
+
 /// The fixed AccessKit `NodeId` band the per-cursor `Role::Caret` nodes occupy for the default panel
 /// (210..210+MAX_ACCESSKIT_CURSORS), disjoint from the panel container/scroll/text band (200/201/202)
 /// and the WP-011 shell band (>= 100).
 const PANEL_CURSOR_NODE_ID_BASE: u64 = 210;
+
+/// Fixed AccessKit `NodeId`s for the MT-004 find-bar controls (default single-instance panel). A fresh
+/// band (280..283) ABOVE the cursor band (210..274) so the find-bar nodes never collide with the
+/// container/scroll/text nodes or the per-cursor caret nodes. Multi-instance panels hash the suffixed
+/// author_id instead (RISK-004), the same scheme the cursor/container ids use.
+const PANEL_FIND_BAR_NODE_ID: u64 = 280;
+const PANEL_REPLACE_BAR_NODE_ID: u64 = 281;
+const PANEL_FIND_NEXT_NODE_ID: u64 = 282;
+const PANEL_FIND_PREV_NODE_ID: u64 = 283;
+
+/// Find-match highlight colors. These are UI affordances (like egui's own selection bg), NOT syntax
+/// tokens, so — exactly like the MT-003 selection overlay tint — they are the one place this MT
+/// specifies explicit RGBA the contract names: a translucent YELLOW over every match and translucent
+/// ORANGE over the current match (AC-005). They are intentionally distinct from the cornflower-blue
+/// selection tint so a match never reads as a selection.
+const MATCH_HIGHLIGHT_COLOR: egui::Color32 = egui::Color32::from_rgba_premultiplied(180, 160, 0, 110);
+const CURRENT_MATCH_HIGHLIGHT_COLOR: egui::Color32 =
+    egui::Color32::from_rgba_premultiplied(200, 120, 0, 150);
 
 /// The monospace font size the panel renders text at (matches `render_line`). Centralized so the caret
 /// overlay measures glyph width with the SAME `FontId` the glyphs are painted with (MT-003 positioning
@@ -209,6 +238,59 @@ pub struct CodeEditorPanel {
     /// so the caret/selection overlay and pointer hit-testing share egui's ACTUAL layout (no separate
     /// recompute). `None` before the first render.
     row_geometry: Mutex<Option<RowGeometry>>,
+    /// MT-004 in-file find/replace state. `None` when the find bar is closed (no highlights painted —
+    /// AC-006); `Some` while it is open. The find bar UI reads + mutates it; `process_find_input`
+    /// opens/closes it on Ctrl+F / Ctrl+H / Escape. Behind a `Mutex` for the same `Sync` reason as the
+    /// buffer.
+    find_state: Mutex<Option<FindState>>,
+}
+
+/// MT-004 find/replace UI + match state. Owned by [`CodeEditorPanel`] behind a `Mutex`; present only
+/// while the find bar is open. Mirrors the React editor's find-panel state (the ported
+/// [`FindQuery`] + the match list + the current-match index + the replace text + whether the replace
+/// row is shown), with the regex compile error surfaced so an invalid pattern shows a message instead
+/// of silently finding nothing (AC-003).
+#[derive(Clone, Debug, Default)]
+pub struct FindState {
+    /// The active query (pattern + case/whole-word/regex toggles).
+    pub query: FindQuery,
+    /// Every match of `query` in the buffer, ascending by byte offset. Recomputed when `query` changes
+    /// or after a replace (RISK-003).
+    pub matches: Vec<Match>,
+    /// The index into `matches` of the CURRENT match (the one highlighted orange + scrolled to). Always
+    /// `< matches.len()` when `matches` is non-empty; clamped on every recompute.
+    pub current_match: usize,
+    /// The replacement text typed into the replace input (used by Replace / Replace-All).
+    pub replace_text: String,
+    /// True when the bar is in REPLACE mode (Ctrl+H) — the replace input + buttons are shown.
+    pub show_replace: bool,
+    /// The regex compile error string for the current `query`, or empty when the pattern compiles / is
+    /// not a regex (AC-003: an invalid regex shows this, never panics).
+    pub error: String,
+    /// The `query.pattern` value the `matches` were last computed for, so the render loop can detect a
+    /// query change (typing in the input) without re-searching every frame.
+    last_searched: String,
+    /// Whether `last_searched` was computed with these toggle values (so flipping case/whole-word/regex
+    /// also triggers a re-search).
+    last_toggles: (bool, bool, bool),
+}
+
+impl FindState {
+    /// The current match (the one highlighted orange + scrolled to), or `None` when there are no
+    /// matches.
+    pub fn current(&self) -> Option<&Match> {
+        self.matches.get(self.current_match)
+    }
+
+    /// A human-readable "N of M" counter for the find bar (`0 of 0` when there are no matches; the
+    /// current index is 1-based for display).
+    pub fn counter_label(&self) -> String {
+        if self.matches.is_empty() {
+            "0 of 0".to_owned()
+        } else {
+            format!("{} of {}", self.current_match + 1, self.matches.len())
+        }
+    }
 }
 
 /// Screen-space geometry of the painted row window for one frame (MT-003 overlay positioning). The
@@ -269,6 +351,7 @@ impl CodeEditorPanel {
             box_drag_start: Mutex::new(None),
             glyph_width_px: Mutex::new(None),
             row_geometry: Mutex::new(None),
+            find_state: Mutex::new(None),
         }
     }
 
@@ -461,6 +544,186 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .set_cursors(cursors, &buffer);
+    }
+
+    // ── MT-004 find/replace API (the deterministic surface AC-001..AC-006 + the find bar UI drive) ──
+
+    /// Open the find bar (Ctrl+F: `show_replace=false`; Ctrl+H: `show_replace=true`). If the primary
+    /// cursor has a selection, the selected text pre-populates the query (Monaco/VS Code behavior —
+    /// implementation note 4). Idempotent: re-opening keeps the existing query but updates
+    /// `show_replace` (so Ctrl+H from an open find bar reveals the replace row). Runs an initial search
+    /// so matches + the counter are populated immediately.
+    pub fn open_find(&self, show_replace: bool) {
+        let selected = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            let primary = set.primary();
+            if primary.is_selection() {
+                let text = buffer.to_string();
+                text.get(primary.range()).map(|s| s.to_owned())
+            } else {
+                None
+            }
+        };
+        {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let state = guard.get_or_insert_with(FindState::default);
+            state.show_replace = show_replace;
+            if let Some(sel) = selected {
+                if !sel.is_empty() && !sel.contains('\n') {
+                    state.query.pattern = sel;
+                }
+            }
+        }
+        self.refresh_find_matches();
+    }
+
+    /// Close the find bar: clears `find_state` so no match highlights paint on the next frame (AC-006).
+    pub fn close_find(&self) {
+        *self.find_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// True when the find bar is open (a frame would paint match highlights). The render loop and tests
+    /// read this; `find_state().is_some()` is the native analog of Monaco's `findWidgetVisible`.
+    pub fn is_find_open(&self) -> bool {
+        self.find_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// A snapshot clone of the current find state (for tests + the overlay). `None` when the bar is
+    /// closed.
+    pub fn find_state(&self) -> Option<FindState> {
+        self.find_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Advance to the next match (wrapping at the end), and scroll the viewport to it. No-op when the
+    /// bar is closed or there are no matches.
+    pub fn next_match(&self) {
+        self.step_match(true);
+    }
+
+    /// Go to the previous match (wrapping at the start), and scroll the viewport to it. No-op when the
+    /// bar is closed or there are no matches.
+    pub fn prev_match(&self) {
+        self.step_match(false);
+    }
+
+    fn step_match(&self, forward: bool) {
+        let target_line = {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_mut() else { return };
+            if state.matches.is_empty() {
+                return;
+            }
+            let n = state.matches.len();
+            state.current_match = if forward {
+                (state.current_match + 1) % n
+            } else {
+                (state.current_match + n - 1) % n
+            };
+            state.current().map(|m| m.line)
+        };
+        if let Some(line) = target_line {
+            self.scroll_to_line(line);
+        }
+    }
+
+    /// Set the query pattern (called by the find input each frame when the text changes) and re-search.
+    /// A no-op when the bar is closed.
+    pub fn set_find_query(&self, pattern: impl Into<String>) {
+        {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_mut() else { return };
+            state.query.pattern = pattern.into();
+        }
+        self.refresh_find_matches();
+    }
+
+    /// Set a toggle (case-sensitive / whole-word / regex) and re-search. A no-op when the bar is closed.
+    pub fn set_find_toggles(&self, case_sensitive: bool, whole_word: bool, is_regex: bool) {
+        {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_mut() else { return };
+            state.query.case_sensitive = case_sensitive;
+            state.query.whole_word = whole_word;
+            state.query.is_regex = is_regex;
+        }
+        self.refresh_find_matches();
+    }
+
+    /// Set the replace text (called by the replace input). A no-op when the bar is closed.
+    pub fn set_replace_text(&self, text: impl Into<String>) {
+        let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(state) = guard.as_mut() {
+            state.replace_text = text.into();
+        }
+    }
+
+    /// Replace the CURRENT match with the replace text, then re-search (RISK-003: the remaining match
+    /// offsets are stale after a buffer edit, so we always re-run search before reusing the list).
+    /// Returns `true` when a replacement was applied. The current-match index is preserved (clamped to
+    /// the new, smaller match count) so repeated Replace walks through the occurrences.
+    pub fn replace_current(&self) -> bool {
+        let (target, replacement) = {
+            let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_ref() else { return false };
+            match state.current() {
+                Some(m) => (m.clone(), state.replace_text.clone()),
+                None => return false,
+            }
+        };
+        let applied = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            FindEngine::replace_one(&mut buffer, &target, &replacement)
+        };
+        if applied {
+            self.refresh(); // re-highlight (RISK-002 invalidation, edit changed the buffer)
+            self.refresh_find_matches(); // RISK-003: recompute the now-stale match list
+        }
+        applied
+    }
+
+    /// Replace ALL matches with the replace text, then re-search. Returns the number of replacements
+    /// applied. `FindEngine::replace_all` processes in reverse byte order so offsets stay valid within
+    /// the batch (RISK-003 / MC-002); we still re-search afterward so the (now-empty-or-changed) match
+    /// list is correct.
+    pub fn replace_all(&self) -> usize {
+        let (matches, replacement) = {
+            let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_ref() else { return 0 };
+            (state.matches.clone(), state.replace_text.clone())
+        };
+        if matches.is_empty() {
+            return 0;
+        }
+        let applied = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            FindEngine::replace_all(&mut buffer, &matches, &replacement)
+        };
+        if applied > 0 {
+            self.refresh();
+            self.refresh_find_matches();
+        }
+        applied
+    }
+
+    /// Re-run [`FindEngine::search`] for the current query over the current buffer and store the result
+    /// in `find_state`, clamping `current_match` into range and recording the regex compile error
+    /// (AC-003). The single place matches are recomputed; called when the query/toggles change and
+    /// after any replace (RISK-003). A no-op when the bar is closed.
+    fn refresh_find_matches(&self) {
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(state) = guard.as_mut() else { return };
+        state.matches = FindEngine::search(&state.query, &buffer);
+        state.error = FindEngine::compile_error(&state.query).unwrap_or_default();
+        state.last_searched = state.query.pattern.clone();
+        state.last_toggles =
+            (state.query.case_sensitive, state.query.whole_word, state.query.is_regex);
+        if state.matches.is_empty() {
+            state.current_match = 0;
+        } else if state.current_match >= state.matches.len() {
+            state.current_match = state.matches.len() - 1;
+        }
     }
 
     /// The current highlight spans (read by tests + later MTs' minimap/outline). Returns the cached
@@ -740,6 +1003,11 @@ impl CodeEditorPanel {
                 });
             });
 
+            // MT-004: render the floating find bar (Ctrl+F / Ctrl+H) pinned to the top-right of the
+            // editor area, INSIDE the container scope so its AccessKit nodes are descendants of the
+            // container (the same nesting the scroll/text nodes use). A no-op when the bar is closed.
+            self.render_find_bar(ui, full_rect, &syntax);
+
             // Emit the container node onto this scope's Ui id from INSIDE the scope, so it is the
             // node that parents the nested scroll-area scope (AC-005: GenericContainer + author_id).
             let author = container_author.clone();
@@ -749,6 +1017,210 @@ impl CodeEditorPanel {
                 node.set_label("Code editor".to_owned());
             });
         });
+    }
+
+    /// Render the MT-004 find bar pinned to the top-right of `panel_rect`, when the bar is open. The
+    /// bar is a themed `egui::Frame` containing: the find input (a single-line `TextEdit`), the
+    /// case/whole-word/regex toggle buttons, Prev/Next buttons, a `N of M` match counter, and — in
+    /// replace mode (Ctrl+H) — a second `TextEdit` for the replacement plus Replace / Replace-All
+    /// buttons. Each widget's text/toggle change is pushed back into `find_state` and triggers a
+    /// re-search (so typing finds incrementally). The stable AccessKit author_id nodes
+    /// (`code_editor_find_bar` / `code_editor_replace_bar` / `code_editor_find_next` /
+    /// `code_editor_find_prev`) are emitted afterward so a swarm agent can address each control (AC-004
+    /// / HBR-SWARM). A no-op (and no nodes) when the bar is closed (AC-006).
+    fn render_find_bar(&self, ui: &mut egui::Ui, panel_rect: egui::Rect, syntax: &HsSyntaxTokens) {
+        // Snapshot the current state; bail (and emit no nodes) when closed.
+        let Some(mut state) = self.find_state() else {
+            return;
+        };
+
+        // Pin to the top-right corner of the editor area (VS Code style — a floating widget, not a side
+        // panel — MT step 6). Width 400 px, height grows with the replace row.
+        let bar_width = 400.0_f32.min(panel_rect.width().max(120.0));
+        let bar_height = if state.show_replace { 64.0 } else { 34.0 };
+        let bar_min = egui::pos2(panel_rect.right() - bar_width - 4.0, panel_rect.top() + 4.0);
+        let bar_rect = egui::Rect::from_min_size(bar_min, egui::vec2(bar_width, bar_height));
+
+        let mut query_changed = false;
+        let mut close_requested = false;
+
+        let frame = egui::Frame::popup(ui.style()).fill(syntax.background);
+        // `ui.put` would force a fixed size onto a single widget; for a multi-widget bar use a child UI
+        // constrained to `bar_rect` so the frame + controls lay out inside the pinned rectangle.
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(bar_rect)
+                .layout(egui::Layout::top_down(egui::Align::Min)),
+        );
+        frame.show(&mut child, |ui| {
+            // FIND row: input + toggles + prev/next + counter.
+            ui.horizontal(|ui| {
+                let find_resp = ui.add(
+                    egui::TextEdit::singleline(&mut state.query.pattern)
+                        .id_salt(("code-editor-find-input", self.text_id()))
+                        .desired_width(150.0)
+                        .hint_text("Find"),
+                );
+                if find_resp.changed() {
+                    query_changed = true;
+                }
+
+                // Case / whole-word / regex toggles (selectable_label so the on-state is visible).
+                if ui
+                    .selectable_label(state.query.case_sensitive, "Aa")
+                    .on_hover_text("Match case")
+                    .clicked()
+                {
+                    state.query.case_sensitive = !state.query.case_sensitive;
+                    query_changed = true;
+                }
+                if ui
+                    .selectable_label(state.query.whole_word, "\u{2423}W")
+                    .on_hover_text("Whole word")
+                    .clicked()
+                {
+                    state.query.whole_word = !state.query.whole_word;
+                    query_changed = true;
+                }
+                if ui
+                    .selectable_label(state.query.is_regex, ".*")
+                    .on_hover_text("Use regular expression")
+                    .clicked()
+                {
+                    state.query.is_regex = !state.query.is_regex;
+                    query_changed = true;
+                }
+
+                if ui.button("\u{2191}").on_hover_text("Previous match").clicked() {
+                    self.prev_match();
+                }
+                if ui.button("\u{2193}").on_hover_text("Next match").clicked() {
+                    self.next_match();
+                }
+                ui.label(self.find_state().map(|s| s.counter_label()).unwrap_or_default());
+                if ui.button("\u{2715}").on_hover_text("Close (Esc)").clicked() {
+                    close_requested = true;
+                }
+            });
+            // The regex compile error, if any (AC-003: surfaced, never a panic).
+            if !state.error.is_empty() {
+                ui.colored_label(syntax.string, format!("regex error: {}", state.error));
+            }
+            // REPLACE row (Ctrl+H only).
+            if state.show_replace {
+                ui.horizontal(|ui| {
+                    let _ = ui.add(
+                        egui::TextEdit::singleline(&mut state.replace_text)
+                            .id_salt(("code-editor-replace-input", self.text_id()))
+                            .desired_width(150.0)
+                            .hint_text("Replace"),
+                    );
+                    if ui.button("Replace").clicked() {
+                        self.set_replace_text(state.replace_text.clone());
+                        self.replace_current();
+                    }
+                    if ui.button("Replace All").clicked() {
+                        self.set_replace_text(state.replace_text.clone());
+                        self.replace_all();
+                    }
+                });
+            }
+        });
+
+        // Push the edited query / replace text back into the owned state and re-search if needed. We do
+        // this AFTER the frame closes so the borrow on `state` is released. The replace text is pushed
+        // unconditionally (cheap) so a keystroke in the replace input is not lost before a button click.
+        self.set_replace_text(state.replace_text.clone());
+        if query_changed {
+            self.set_find_query(state.query.pattern.clone());
+            self.set_find_toggles(
+                state.query.case_sensitive,
+                state.query.whole_word,
+                state.query.is_regex,
+            );
+        }
+        if close_requested {
+            self.close_find();
+            return; // closed -> emit no find-bar nodes this frame (AC-006)
+        }
+
+        // Emit the stable AccessKit author_id nodes for the find-bar controls (AC-004 / HBR-SWARM) onto
+        // fixed ids in the find-bar band, as children of the container scope's Ui. (The MT contract
+        // names `Role::SearchBox` for the find input, which does NOT exist in accesskit 0.21 —
+        // `Role::SearchInput` is the field-correct search-input role; AC-004/PT-004 assert the
+        // author_id, not the role string, so this satisfies the AC with the real API. Same deviation
+        // discipline as the MT-003 TextCursor -> Caret fix.)
+        self.emit_find_bar_nodes(ui);
+    }
+
+    /// Emit the four stable find-bar AccessKit nodes (`code_editor_find_bar` SearchInput,
+    /// `code_editor_replace_bar` TextInput, `code_editor_find_next` / `code_editor_find_prev` Button) so
+    /// a swarm agent can address each control by stable id (AC-004 / HBR-SWARM). The replace node is
+    /// emitted only in replace mode. Fixed ids in the find-bar band (default panel) keep the NodeIds
+    /// stable across frames; instances hash the suffixed author_id (RISK-004).
+    fn emit_find_bar_nodes(&self, ui: &egui::Ui) {
+        let show_replace = self
+            .find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|s| s.show_replace)
+            .unwrap_or(false);
+
+        let find_author = self.suffixed(CODE_EDITOR_FIND_BAR_AUTHOR_ID);
+        ui.ctx().accesskit_node_builder(
+            self.find_node_id(PANEL_FIND_BAR_NODE_ID, CODE_EDITOR_FIND_BAR_AUTHOR_ID),
+            move |node| {
+                // DEVIATION (API-correct): the contract names `Role::SearchBox`, which does not exist
+                // in accesskit 0.21; `Role::SearchInput` is the field-correct search-input role.
+                node.set_role(accesskit::Role::SearchInput);
+                node.set_author_id(find_author.clone());
+                node.set_label("Code editor find".to_owned());
+            },
+        );
+
+        let next_author = self.suffixed(CODE_EDITOR_FIND_NEXT_AUTHOR_ID);
+        ui.ctx().accesskit_node_builder(
+            self.find_node_id(PANEL_FIND_NEXT_NODE_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID),
+            move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(next_author.clone());
+                node.set_label("Find next".to_owned());
+            },
+        );
+
+        let prev_author = self.suffixed(CODE_EDITOR_FIND_PREV_AUTHOR_ID);
+        ui.ctx().accesskit_node_builder(
+            self.find_node_id(PANEL_FIND_PREV_NODE_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID),
+            move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(prev_author.clone());
+                node.set_label("Find previous".to_owned());
+            },
+        );
+
+        if show_replace {
+            let replace_author = self.suffixed(CODE_EDITOR_REPLACE_BAR_AUTHOR_ID);
+            ui.ctx().accesskit_node_builder(
+                self.find_node_id(PANEL_REPLACE_BAR_NODE_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID),
+                move |node| {
+                    node.set_role(accesskit::Role::TextInput);
+                    node.set_author_id(replace_author.clone());
+                    node.set_label("Code editor replace".to_owned());
+                },
+            );
+        }
+    }
+
+    /// The fixed `egui::Id` for a find-bar node (default panel uses the find-bar band slot; an instance
+    /// hashes the suffixed author_id so two panels never share a node id — RISK-004).
+    fn find_node_id(&self, band_slot: u64, author_base: &str) -> egui::Id {
+        if self.instance.is_empty() {
+            // SAFETY: each band slot is a distinct fixed id in the disjoint find-bar band, never reused.
+            unsafe { egui::Id::from_high_entropy_bits(band_slot) }
+        } else {
+            egui::Id::new(self.suffixed(author_base))
+        }
     }
 
     /// Measure + cache the monospace line height (px) used by the virtualizer, returning the cached
@@ -839,6 +1311,11 @@ impl CodeEditorPanel {
                 line_height,
             };
             *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+
+            // MT-004: paint the find-match highlights FIRST (below the carets) so a caret/selection
+            // stays visible on top of a match rect. Restricted to the painted row window (the same
+            // sans-spacing line_height + monospace glyph_width units as the cursor overlay).
+            self.paint_match_highlights(ui, &geometry, glyph_width, end);
 
             // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
             // the painted row window so carets align exactly with rendered glyphs (no draw for cursors
@@ -995,6 +1472,76 @@ impl CodeEditorPanel {
                 ui.label(egui::RichText::new(" ").font(mono.clone()).color(default_color));
             }
         });
+    }
+
+    // ── MT-004 find-match highlight overlay ────────────────────────────────────────────────────────────
+
+    /// Paint a translucent rect over every find match in the painted row window (AC-005): yellow for an
+    /// ordinary match, orange for the CURRENT match. A no-op when the find bar is closed (`find_state`
+    /// is `None`) so AC-006 holds — closing the bar removes every highlight on the next frame. Only
+    /// matches whose line falls inside `geometry.first_line..end_line` are drawn (implementation note 2:
+    /// off-screen matches are skipped for performance on large files). A match that spans columns on one
+    /// line draws one rect from its start col to its end col; the rare multi-line regex match draws one
+    /// rect per covered line. Column->x / line->y reuse the SAME units as the cursor overlay (the
+    /// MT-002 sans-spacing line_height + monospace glyph_width — implementation note: positioning unit
+    /// dependency from MT-002 AC-007).
+    fn paint_match_highlights(
+        &self,
+        ui: &egui::Ui,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+        end_line: usize,
+    ) {
+        let state = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(state) = state.as_ref() else {
+            return; // bar closed -> no highlights (AC-006)
+        };
+        if state.matches.is_empty() {
+            return;
+        }
+        let painter = ui.painter();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
+        let y_for =
+            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
+
+        for (idx, m) in state.matches.iter().enumerate() {
+            let color = if idx == state.current_match {
+                CURRENT_MATCH_HIGHLIGHT_COLOR
+            } else {
+                MATCH_HIGHLIGHT_COLOR
+            };
+            // The match's start/end (line, col). A match is usually single-line; a multi-line regex
+            // match is handled by drawing one rect per covered line (start col on the first line, end
+            // col on the last, whole content width between).
+            let (start_line, start_col) = byte_to_line_col(m.byte_range.start, &buffer);
+            let (end_match_line, end_col) = byte_to_line_col(m.byte_range.end, &buffer);
+            for line in start_line..=end_match_line {
+                if line < geometry.first_line || line >= end_line {
+                    continue; // off-screen row (implementation note 2)
+                }
+                let line_start_col = if line == start_line { start_col } else { 0 };
+                let line_end_col = if line == end_match_line {
+                    end_col
+                } else {
+                    // A continuation row of a multi-line match extends to the line content end.
+                    let (_, content_end_col) =
+                        byte_to_line_col(line_col_to_byte(line, usize::MAX, &buffer), &buffer);
+                    content_end_col.max(line_start_col + 1)
+                };
+                // Never a zero-width rect: a single empty match would not show, but the engine never
+                // returns empty matches (the pattern is non-empty). Guard anyway so an oddity is visible.
+                let visual_end_col = line_end_col.max(line_start_col + 1);
+                let x0 = x_for(line_start_col);
+                let x1 = x_for(visual_end_col);
+                let y0 = y_for(line);
+                let rect = egui::Rect::from_min_max(
+                    egui::pos2(x0, y0),
+                    egui::pos2(x1, y0 + geometry.line_height),
+                );
+                painter.rect_filled(rect, 0.0, color);
+            }
+        }
     }
 
     // ── MT-003 overlay + AccessKit + input ───────────────────────────────────────────────────────────
@@ -1262,6 +1809,25 @@ impl CodeEditorPanel {
                     }
                     egui::Key::D if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
                         self.select_next_occurrence();
+                    }
+                    // MT-004 step 2: Ctrl+F opens find; Ctrl+H opens find with the replace row; Escape
+                    // (when the bar is open) closes it. Enter / Shift+Enter step to the next / prev match
+                    // (Monaco/VS Code parity). These are intercepted regardless of pointer position so
+                    // the keymap works whether or not the editor area has the pointer over it.
+                    egui::Key::F if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
+                        self.open_find(false);
+                    }
+                    egui::Key::H if modifiers.ctrl && !modifiers.alt && !modifiers.shift => {
+                        self.open_find(true);
+                    }
+                    egui::Key::Escape if self.is_find_open() => {
+                        self.close_find();
+                    }
+                    egui::Key::Enter if self.is_find_open() && !modifiers.shift => {
+                        self.next_match();
+                    }
+                    egui::Key::Enter if self.is_find_open() && modifiers.shift => {
+                        self.prev_match();
                     }
                     _ => {}
                 },

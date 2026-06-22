@@ -26,18 +26,22 @@
 
 pub mod buffer;
 pub mod cursor;
+pub mod find_replace;
 pub mod highlight;
 pub mod panel;
 pub mod virtual_lines;
 
 pub use buffer::{BufferError, TextBuffer};
+pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
 pub use cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,
     MAX_ACCESSKIT_CURSORS,
 };
 pub use highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry, SafeLanguage};
 pub use panel::{
-    CodeEditorPanel, CodeEditorPaneFactory, PerfStats, CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
-    CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_TEXT_AUTHOR_ID,
+    CodeEditorPanel, CodeEditorPaneFactory, FindState, PerfStats, CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
+    CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,
+    CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID, CODE_EDITOR_SCROLL_AREA_AUTHOR_ID,
+    CODE_EDITOR_TEXT_AUTHOR_ID,
 };
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};

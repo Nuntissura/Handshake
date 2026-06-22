@@ -120,6 +120,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 #   cleanly (the crate already ships crt-static via .cargo/config and other native deps build the same
 #   way).
 ropey = "1.6"
+# WP-KERNEL-012 MT-004 find/replace: the `regex` crate is Rust's standard RE2-style engine with
+# LINEAR-TIME guarantees (no backtracking -> no catastrophic ReDoS — RISK-001). Already present in the
+# locked graph transitively (Cargo.lock pins regex 1.12.4 via regex-automata/regex-syntax), so this
+# declaration adds NO new download/dependency family. Deliberately NOT `fancy-regex` (which IS a
+# backtracking, ReDoS-prone engine) per the KERNEL_BUILDER gate correction in the MT-004 contract.
+regex = "1"
 tree-sitter = "0.25"
 tree-sitter-language = "0.1"
 tree-sitter-rust = "0.24"

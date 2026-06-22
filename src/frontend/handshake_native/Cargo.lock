@@ -1392,6 +1392,7 @@ dependencies = [
  "image",
  "object",
  "rand",
+ "regex",
  "reqwest",
  "ropey",
  "serde",
