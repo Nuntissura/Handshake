@@ -21,6 +21,14 @@
 //! the debounce is deterministic. Each keystroke resets `last_edit_frame` (the debounce); MC-001 skips a
 //! new auto-save while one is in flight and re-arms afterward.
 //!
+//! The wiring runs every frame inside [`JournalPanelWidget::show`] via
+//! [`JournalPanelState::detect_edits_and_tick`]: the embedded [`RichEditorWidget`] does not expose a
+//! dirty/edit signal (its `show` returns only an [`egui::Response`]), so the panel detects real typing
+//! by diffing a cheap content fingerprint of the editor doc frame-to-frame and calls
+//! [`AutoSaveTimer::on_edit`] when it changes. `show` also `request_repaint_after(1 s)` while dirty so
+//! the idle frames keep accruing after the user stops typing, and binds Ctrl+S / Cmd+S to an immediate
+//! [`JournalPanelState::save_now`] (the contract scope's manual-save path).
+//!
 //! ## No perpetual spinner (KERNEL_BUILDER gate / MT-015 lesson)
 //!
 //! The animating spinner renders ONLY in [`JournalState::Loading`], which is only ever entered when a
@@ -172,6 +180,11 @@ pub struct JournalPanelState {
     pub theme: HsTheme,
     /// The document id currently loaded into `editor` (so we only re-load the editor when it changes).
     loaded_doc_id: Option<String>,
+    /// The content fingerprint of the editor doc as of the last frame. An edit is detected when this
+    /// changes frame-to-frame (so real typing in the embedded [`RichEditorWidget`] sets `dirty` via
+    /// [`AutoSaveTimer::on_edit`] — the wiring the must-fix review required). `None` until the first
+    /// frame computes it; a freshly synced document re-anchors it (a load is not an edit).
+    last_content_fingerprint: Option<u64>,
 }
 
 impl JournalPanelState {
@@ -187,6 +200,7 @@ impl JournalPanelState {
             editor,
             theme: HsTheme::Dark,
             loaded_doc_id: None,
+            last_content_fingerprint: None,
         }
     }
 
@@ -233,6 +247,9 @@ impl JournalPanelState {
         }
         self.loaded_doc_id = Some(doc.rich_document_id.clone());
         self.auto_save.dirty = false; // a freshly loaded document is clean.
+        // Re-anchor the edit-detection fingerprint to the freshly loaded content so the load itself is
+        // NOT mistaken for an edit on the next frame (the next `detect_edits_and_tick` recomputes it).
+        self.last_content_fingerprint = None;
         true
     }
 
@@ -248,10 +265,12 @@ impl JournalPanelState {
     /// loaded, dispatch the save through the store's seam (MC-001 skips when a save is already in
     /// flight). Returns true when a save was dispatched. Separated from the egui render so a mock-clock
     /// test drives it deterministically.
-    pub fn tick_auto_save(&mut self) -> bool {
+    ///
+    /// `content` is the live editor content (computed ONCE per frame by [`Self::detect_edits_and_tick`]
+    /// and threaded in, so a long document is not re-serialized here).
+    fn tick_auto_save_with(&mut self, content: serde_json::Value) -> bool {
         self.auto_save.tick();
         if self.auto_save.save_due() {
-            let content = self.current_content_json();
             self.store.dispatch_save(content);
             self.auto_save.mark_saved();
             // If the store actually entered InFlight, the save was dispatched (a live runtime). Headless
@@ -264,6 +283,92 @@ impl JournalPanelState {
         }
         false
     }
+
+    /// Advance the auto-save timer one frame, computing the live editor content ONCE. Kept for the
+    /// mock-clock unit tests that drive the debounce directly without rendering.
+    pub fn tick_auto_save(&mut self) -> bool {
+        let content = self.current_content_json();
+        self.tick_auto_save_with(content)
+    }
+
+    /// The single per-frame auto-save driver wired into [`JournalPanelWidget::show`] (the must-fix
+    /// review's required runtime wiring). Each frame it:
+    /// 1. computes the live editor content ONCE (so the whole document is serialized at most once per
+    ///    frame — the footer reuses the returned plain text instead of recomputing it, closing the
+    ///    every-frame O(doc) footer concern the review raised),
+    /// 2. fingerprints that content and, when the fingerprint CHANGED since the last frame AND a
+    ///    document is loaded (so a load/initial-anchor is not counted), calls [`AutoSaveTimer::on_edit`]
+    ///    — this is the real-typing edit detection the embedded [`RichEditorWidget`] does not signal on
+    ///    its own (its `show` returns only an [`egui::Response`]),
+    /// 3. ticks the frame counter and dispatches the save when the 3 s idle debounce is satisfied
+    ///    (MC-001 skip-while-in-flight is enforced by the store).
+    ///
+    /// Returns `(plain_text, save_dispatched)`: the footer reuses `plain_text` for its word/char counts.
+    pub fn detect_edits_and_tick(&mut self) -> (String, bool) {
+        // 1) Serialize the live editor content ONCE this frame.
+        let content = self.current_content_json();
+        let plain_text = content_plain_text(Some(&content));
+
+        // 2) Edit detection by content fingerprint. A loaded document is required for an edit to count
+        //    (an edit to nothing cannot be saved); the fingerprint is re-anchored on document load.
+        let doc_loaded = self
+            .store
+            .state
+            .ready()
+            .map(|r| r.doc.is_some())
+            .unwrap_or(false);
+        let fingerprint = content_fingerprint(&content);
+        match self.last_content_fingerprint {
+            // First frame after a load (or initial): just anchor — a load is not an edit.
+            None => {}
+            Some(prev) if prev != fingerprint && doc_loaded => {
+                // Real content change while a document is loaded → a genuine edit. Mark dirty + reset the
+                // idle debounce (each keystroke pushes the auto-save 3 s further out).
+                self.auto_save.on_edit();
+            }
+            Some(_) => {}
+        }
+        self.last_content_fingerprint = Some(fingerprint);
+
+        // 3) Advance the debounce and dispatch when due (reusing the content already serialized above).
+        let dispatched = self.tick_auto_save_with(content);
+        (plain_text, dispatched)
+    }
+
+    /// Manual save (the contract scope's Ctrl+S path): dispatch the live editor content immediately,
+    /// bypassing the 3 s idle debounce, and clear the dirty flag. MC-001 (skip while a save is already
+    /// in flight) and the no-document guard are enforced by the store's `dispatch_save`. Returns true
+    /// when a save was dispatched (a live runtime with a loaded document). Idempotent + safe to call on
+    /// any state (a no-op when not Ready / no document / save in flight).
+    pub fn save_now(&mut self) -> bool {
+        let content = self.current_content_json();
+        let before = matches!(
+            self.store.state.ready().map(|r| &r.save),
+            Some(SaveStatus::InFlight)
+        );
+        self.store.dispatch_save(content);
+        self.auto_save.mark_saved();
+        let now_in_flight = matches!(
+            self.store.state.ready().map(|r| &r.save),
+            Some(SaveStatus::InFlight)
+        );
+        // A save was dispatched if the store transitioned into InFlight this call.
+        now_in_flight && !before
+    }
+}
+
+/// A cheap, stable content fingerprint of an editor `content_json` value: hash its compact serialized
+/// bytes. Stable frame-to-frame for an unchanged document and changes on any text/structure edit, so a
+/// frame-to-frame diff detects real typing without the editor exposing a dirty signal. Computed at most
+/// once per frame (see [`JournalPanelState::detect_edits_and_tick`]).
+fn content_fingerprint(content: &serde_json::Value) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    // `serde_json::Value`'s `to_string` is deterministic for a given value (object key order is the
+    // value's own insertion/parse order; our doc value is built the same way each frame from the same
+    // tree, so the bytes are stable for an unchanged doc).
+    content.to_string().hash(&mut hasher);
+    hasher.finish()
 }
 
 /// The per-frame journal-panel view. Construct it with the shared state and call [`Self::show`].
@@ -288,6 +393,26 @@ impl JournalPanelWidget {
         }
         // Sync the editor with the (possibly newly) Ready document.
         let _changed = state.sync_editor_from_store();
+
+        // Auto-save wiring (must-fix): detect real edits to the embedded editor by a frame-to-frame
+        // content fingerprint, advance the frame-based debounce, and dispatch the save when 3 s idle.
+        // This is the runtime path that fires AC-10's auto-save during real rendering (the editor's
+        // `show` returns only a Response, so the panel must detect edits itself). The returned plain
+        // text is reused by the footer (so the document is serialized at most once per frame).
+        let (footer_text, _saved) = state.detect_edits_and_tick();
+        // Keep the idle frames accruing after the user stops typing so the debounce can actually elapse
+        // even when nothing else requests a repaint (the editor only repaints while focused). One frame
+        // per ~second is enough for the 180-frame (≈3 s) threshold; egui coalesces repaint requests.
+        if state.auto_save.dirty {
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+        }
+        // Manual save (the contract scope's Ctrl+S / Cmd+S path). `COMMAND` is Ctrl on Windows/Linux and
+        // Cmd on macOS. `consume_key` removes the chord so the editor's own keymap does not also see it.
+        if ui
+            .input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S))
+        {
+            state.save_now();
+        }
 
         let palette = state.palette();
         let response = ui
@@ -332,9 +457,10 @@ impl JournalPanelWidget {
                     // 3) Content area: spinner / error chip / editor / "Start writing".
                     Self::render_content(ui, &mut state, &palette);
 
-                    // 4) Footer: save status + word + char count.
+                    // 4) Footer: save status + word + char count. Reuse the plain text already computed
+                    // this frame by `detect_edits_and_tick` (no second full-document walk).
                     ui.separator();
-                    Self::render_footer(ui, &state, &palette);
+                    Self::render_footer(ui, &state, &palette, &footer_text);
 
                     // 5) Emit the panel root AccessKit node (a swarm agent addresses the whole surface).
                     let root_id = ui.unique_id();
@@ -424,11 +550,12 @@ impl JournalPanelWidget {
                 }
             }
             View::ReadyDoc => {
-                // The MT-012 editor renders the journal document. We track edits for the auto-save timer
-                // by snapshotting the content hash via the editor's live content_json length is overkill;
-                // instead, the host marks dirty when the editor surface reports changes. Here we render
-                // and let the timer tick happen each frame; a real edit sets dirty via on_edit (wired by
-                // the shell input loop). For the headless test, the panel exposes on_edit directly.
+                // The MT-012 editor renders the journal document. Edit tracking for the auto-save timer
+                // is handled BEFORE this render in `detect_edits_and_tick` (called once per frame from
+                // `show`): it diffs the editor's live content_json fingerprint frame-to-frame, so any
+                // real edit applied by the editor's input handler this frame is picked up next frame and
+                // sets `dirty` via `AutoSaveTimer::on_edit` — no dependence on the editor exposing a
+                // dirty/edit signal (its `show` returns only an `egui::Response`).
                 let editor = Arc::clone(&state.editor);
                 RichEditorWidget::new(editor).show(ui);
             }
@@ -436,28 +563,28 @@ impl JournalPanelWidget {
     }
 
     /// Render the footer: the save-status relative time, the word count, and the character count.
-    fn render_footer(ui: &mut egui::Ui, state: &JournalPanelState, palette: &HsPalette) {
-        // The counts come from the LIVE editor content (so they reflect typing), falling back to the
-        // store's loaded body when the editor is empty.
-        let text = {
-            let live = state.current_content_json();
-            let s = content_plain_text(Some(&live));
-            if s.is_empty() {
-                // Fall back to the store body (e.g. before the editor mounts).
-                state
-                    .store
-                    .state
-                    .ready()
-                    .and_then(|r| r.doc.as_ref())
-                    .and_then(|d| d.content_json.as_ref())
-                    .map(|c| content_plain_text(Some(c)))
-                    .unwrap_or_default()
-            } else {
-                s
-            }
+    ///
+    /// `live_text` is the editor's live plain text already computed this frame by
+    /// [`JournalPanelState::detect_edits_and_tick`] (so the document is walked at most once per frame —
+    /// closing the every-frame O(doc) footer cost the review raised). When the editor is empty, fall
+    /// back to the store's loaded body (e.g. for the brief window before the editor mounts).
+    fn render_footer(ui: &mut egui::Ui, state: &JournalPanelState, palette: &HsPalette, live_text: &str) {
+        let fallback;
+        let text: &str = if live_text.is_empty() {
+            fallback = state
+                .store
+                .state
+                .ready()
+                .and_then(|r| r.doc.as_ref())
+                .and_then(|d| d.content_json.as_ref())
+                .map(|c| content_plain_text(Some(c)))
+                .unwrap_or_default();
+            &fallback
+        } else {
+            live_text
         };
-        let words = word_count(&text);
-        let chars = char_count(&text);
+        let words = word_count(text);
+        let chars = char_count(text);
         ui.horizontal(|ui| {
             let save = state
                 .store
@@ -683,6 +810,100 @@ mod tests {
         assert!(p.auto_save.save_due());
         let _ = p.tick_auto_save();
         assert!(!p.auto_save.dirty, "the auto-save consumed the dirty edit (debounce satisfied)");
+    }
+
+    /// Stage a Ready state with a linked document loaded into the editor (the precondition for an edit
+    /// to count). Returns the panel ready for `detect_edits_and_tick`.
+    fn ready_panel_with_doc(date: chrono::NaiveDate) -> JournalPanelState {
+        let mut p = panel(date);
+        p.store.open(date.format("%Y-%m-%d").to_string());
+        let body = RichDocumentBody {
+            rich_document_id: "KRD-1".into(),
+            title: "Daily Note".into(),
+            doc_version: 2,
+            content_json: Some(serde_json::json!({
+                "type": "doc",
+                "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "start" }] }]
+            })),
+        };
+        let block = JournalBlock {
+            block_id: "LB-1".into(),
+            workspace_id: "ws".into(),
+            content_type: Some("journal".into()),
+            document_id: Some("KRD-1".into()),
+            title: Some("Daily Note".into()),
+            journal_date: Some(date.format("%Y-%m-%d").to_string()),
+        };
+        p.store.stage_load(&date.format("%Y-%m-%d").to_string(), Ok((block, Some(body))));
+        assert!(p.store.drain());
+        assert!(p.sync_editor_from_store(), "the loaded document mounted into the editor");
+        p
+    }
+
+    #[test]
+    fn detect_edits_and_tick_does_not_mark_dirty_on_load() {
+        // A freshly loaded document is clean — the first frame after a load must NOT count as an edit
+        // (the fingerprint is anchored, not diffed). This is the load-vs-edit distinction.
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 6, 19).unwrap();
+        let mut p = ready_panel_with_doc(date);
+        // First frame: anchors the fingerprint, no edit.
+        let _ = p.detect_edits_and_tick();
+        assert!(!p.auto_save.dirty, "the load itself is not an edit");
+        // Second frame with no change: still clean.
+        let _ = p.detect_edits_and_tick();
+        assert!(!p.auto_save.dirty, "no change → still clean");
+    }
+
+    #[test]
+    fn detect_edits_and_tick_marks_dirty_when_editor_content_changes() {
+        // The must-fix wiring proof at the PANEL level: a real change to the embedded editor doc is
+        // detected by the frame-to-frame fingerprint and sets dirty via on_edit (no editor dirty signal).
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 6, 19).unwrap();
+        let mut p = ready_panel_with_doc(date);
+        // Anchor on the first frame.
+        let _ = p.detect_edits_and_tick();
+        assert!(!p.auto_save.dirty);
+        // Simulate the editor's input handler having applied a keystroke: mutate the editor doc.
+        {
+            let mut editor = p.editor.lock().unwrap();
+            editor.doc = BlockNode::doc(vec![BlockNode::paragraph("start typed more")]);
+        }
+        // Next frame: the fingerprint changed → a genuine edit is detected.
+        let _ = p.detect_edits_and_tick();
+        assert!(p.auto_save.dirty, "the editor content change was detected as an edit");
+    }
+
+    #[test]
+    fn detect_edits_then_idle_dispatches_save_through_show_path_headless() {
+        // End-to-end through the panel driver (NOT calling on_edit/tick directly): an edit is detected,
+        // then >180 idle frames satisfy the debounce and a save is dispatched. Headless dispatch is a
+        // no-op against the runtime, but the debounce must consume the dirty edit (so it does not refire)
+        // — proving the auto-save fires from the detect_edits_and_tick path, not a standalone timer call.
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 6, 19).unwrap();
+        let mut p = ready_panel_with_doc(date);
+        let _ = p.detect_edits_and_tick(); // anchor
+        {
+            let mut editor = p.editor.lock().unwrap();
+            editor.doc = BlockNode::doc(vec![BlockNode::paragraph("edited body")]);
+        }
+        let _ = p.detect_edits_and_tick(); // detects the edit → dirty
+        assert!(p.auto_save.dirty);
+        // Idle frames: no further content change, so each frame only ticks the counter.
+        let mut dispatched = false;
+        for _ in 0..(AUTO_SAVE_IDLE_FRAMES + 5) {
+            let (_t, d) = p.detect_edits_and_tick();
+            dispatched |= d;
+        }
+        assert!(dispatched, "the auto-save fired after the idle debounce via the show driver");
+        assert!(!p.auto_save.dirty, "the debounce consumed the dirty edit (no refire)");
+    }
+
+    #[test]
+    fn save_now_is_a_noop_when_not_ready() {
+        // Ctrl+S on an Idle panel (no document) is a safe no-op (never panics, dispatches nothing).
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 6, 19).unwrap();
+        let mut p = panel(date);
+        assert!(!p.save_now(), "no Ready document → nothing to save");
     }
 
     #[test]

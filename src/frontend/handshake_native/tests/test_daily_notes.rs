@@ -194,6 +194,21 @@ impl JournalSaveSeam for MockSeam {
     }
 }
 
+/// A save seam that COUNTS dispatches (for the auto-save-through-show-path proof). The count is bumped
+/// the instant the save future runs — `dispatch_save` spawns it on the live runtime.
+struct CountingSeam {
+    saves: Arc<Mutex<u32>>,
+}
+impl JournalSaveSeam for CountingSeam {
+    fn save<'a>(&'a self, _id: &'a str, v: u64, _c: serde_json::Value) -> JournalFuture<'a, u64> {
+        let saves = Arc::clone(&self.saves);
+        Box::pin(async move {
+            *saves.lock().unwrap() += 1;
+            Ok(v + 1)
+        })
+    }
+}
+
 /// Build a headless panel state at `current` with the given mock backend behavior, opened (so a staged
 /// load can drive it to Ready).
 fn headless_panel(current: NaiveDate, link_document: bool, fail_open: bool) -> JournalPanelState {
@@ -509,6 +524,144 @@ fn mt019_calendar_popup_screenshot() {
         ),
     }
     assert_no_local_artifact_dir();
+}
+
+// ── AC-10 (runtime): auto-save fires from a real edit through the live show() render path ─────────
+
+#[test]
+fn mt019_auto_save_fires_from_edit_through_show_render_path() {
+    use handshake_native::rich_editor::document_model::node::BlockNode;
+
+    // A LIVE tokio runtime so the store's dispatch_save actually spawns the (counting) save seam. This
+    // is the must-fix proof: auto-save fires during REAL rendering (JournalPanelWidget::show), driven by
+    // an edit detected frame-to-frame — NOT by calling tick_auto_save()/on_edit() directly.
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let saves = Arc::new(Mutex::new(0u32));
+    let seam = Arc::new(CountingSeam { saves: Arc::clone(&saves) });
+    let store = JournalStore::new(
+        Arc::new(MockBackend::new(true, false)) as Arc<dyn JournalBackend>,
+        seam,
+        Some(rt.handle().clone()),
+    );
+    let mut p = JournalPanelState::new(store, DateNav::new(mock_today(), mock_today()));
+    p.theme = HsTheme::Dark;
+    p.store.workspace_id = "ws-1".into();
+    // Seed a Ready state with a loaded document so the editor mounts and a save has a target.
+    p.store.seed_ready(JournalReady::new(
+        "2026-06-19",
+        journal_block("2026-06-19", Some("KRD-1")),
+        Some(doc_body_with_text("KRD-1", "initial body")),
+    ));
+
+    let state = Arc::new(Mutex::new(p));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 520.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            JournalPanelWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+
+    // Frame 1-2: mount + sync the document into the editor, anchoring the edit-detection fingerprint.
+    harness.step();
+    harness.step();
+    assert_eq!(*saves.lock().unwrap(), 0, "no save before any edit");
+
+    // Simulate the user typing: mutate the embedded editor doc (what the editor's input handler does on
+    // a keystroke). The panel's show() detects this on the next frame via the content fingerprint.
+    {
+        let st = state.lock().unwrap();
+        let mut editor = st.editor.lock().unwrap();
+        editor.doc = BlockNode::doc(vec![BlockNode::paragraph("initial body plus typed words")]);
+    }
+
+    // Step enough frames to (a) detect the edit, then (b) accrue >180 idle frames so the debounce fires.
+    // Each show() call ticks the frame counter once via detect_edits_and_tick.
+    for _ in 0..190 {
+        harness.step();
+    }
+
+    // The save dispatch spawned on the runtime; poll briefly for the counting seam to record it.
+    let mut fired = false;
+    for _ in 0..200 {
+        if *saves.lock().unwrap() >= 1 {
+            fired = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(
+        fired,
+        "AC-10 (runtime): auto-save dispatched through the live show() path after an idle edit \
+         (save count = {})",
+        *saves.lock().unwrap()
+    );
+}
+
+// ── Ctrl+S manual save through the live show() render path ────────────────────────────────────────
+
+#[test]
+fn mt019_ctrl_s_dispatches_manual_save_through_show_path() {
+    use handshake_native::rich_editor::document_model::node::BlockNode;
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let saves = Arc::new(Mutex::new(0u32));
+    let seam = Arc::new(CountingSeam { saves: Arc::clone(&saves) });
+    let store = JournalStore::new(
+        Arc::new(MockBackend::new(true, false)) as Arc<dyn JournalBackend>,
+        seam,
+        Some(rt.handle().clone()),
+    );
+    let mut p = JournalPanelState::new(store, DateNav::new(mock_today(), mock_today()));
+    p.theme = HsTheme::Dark;
+    p.store.workspace_id = "ws-1".into();
+    p.store.seed_ready(JournalReady::new(
+        "2026-06-19",
+        journal_block("2026-06-19", Some("KRD-1")),
+        Some(doc_body_with_text("KRD-1", "body to save")),
+    ));
+
+    let state = Arc::new(Mutex::new(p));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 520.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            JournalPanelWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let mut editor = st.editor.lock().unwrap();
+        editor.doc = BlockNode::doc(vec![BlockNode::paragraph("body to save edited")]);
+    }
+    // Press Ctrl+S — the panel's show() consumes the chord (Modifiers::COMMAND == ctrl here) and
+    // dispatches an immediate save. Inject the key event the same way the editor keymap tests do.
+    harness.event(egui::Event::Key {
+        key: egui::Key::S,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            command: true,
+            ..Default::default()
+        },
+    });
+    for _ in 0..3 {
+        harness.step();
+    }
+
+    let mut fired = false;
+    for _ in 0..200 {
+        if *saves.lock().unwrap() >= 1 {
+            fired = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(fired, "Ctrl+S dispatched a manual save through show() (save count = {})", *saves.lock().unwrap());
 }
 
 // ── factory wiring (the sibling pane mounts through the WP-011 host) ──────────────────────────────
