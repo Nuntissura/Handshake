@@ -20,3 +20,4 @@
 //! re-creating shell infrastructure.
 
 pub mod document_model;
+pub mod renderer;
