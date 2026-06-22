@@ -21,12 +21,25 @@
 //!   `#[serde(flatten)]`, which loses type info — MT impl note 4). Unknown attrs
 //!   survive verbatim.
 //! - `marks` is a `"marks"` array of `{ "type": ..., "attrs"?: {...} }`. `link`
-//!   carries `attrs.href`; `wikilink` carries `attrs.{kind,value,label}`.
-//! - The doc-level [`RichDocument`] envelope carries `schema_version`
-//!   ([`RICH_DOCUMENT_SCHEMA_VERSION`] = `"rich_document_v1"`), matching the React
-//!   `WP009_RICH_DOCUMENT_SCHEMA_VERSION` so the backend accepts the document on
-//!   first save (RISK-5). A version bump is a one-line change to the const
-//!   (MT impl note: import from a single const).
+//!   carries `attrs.href`.
+//! - A typed wikilink is an inline ATOM node `{ "type": "hsLink", "attrs": {
+//!   refKind, refValue, label, resolved } }` living inside a paragraph's `content`
+//!   array (the REAL backend shape from `app/src/lib/tiptap/hs_link_node.ts`), NOT a
+//!   mark. The serializer emits and the deserializer reads exactly that node.
+//!
+//! ## content_json is a BARE doc node; schema_version is a SIBLING field
+//!
+//! The backend `RichDocument` record (`app/src/lib/api.ts`) carries `schema_version`
+//! and `content_json` as SEPARATE fields, and `content_json` is a BARE ProseMirror
+//! doc node (`{type:"doc", content:[...]}`) with NO `schema_version` key inside it
+//! (createRichDocument POSTs `content_json` alone). So:
+//! - [`to_content_json_value`] / [`to_content_json_string`] produce the BARE doc node
+//!   that is sent to POST/PUT `/knowledge/documents` `content_json` (the load-bearing
+//!   wire value). It has NO `schema_version` key.
+//! - [`RichDocument`] is the RECORD envelope, carrying `schema_version`
+//!   ([`RICH_DOCUMENT_SCHEMA_VERSION`] = `"rich_document_v1"`, matching the React
+//!   `WP009_RICH_DOCUMENT_SCHEMA_VERSION`) as a SIBLING of `content_json`, NOT
+//!   flattened into the doc node. A version bump is a one-line change to the const.
 //!
 //! The serde model uses an INTERMEDIATE typed JSON struct (`JsonNode`) rather than a
 //! hand-rolled `serde_json::Value` walk, so both the write and read paths are the
@@ -37,7 +50,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as JsonValue};
 use thiserror::Error;
 
-use super::node::{BlockNode, Child, HeadingLevel, Mark, NodeKind, TextLeaf};
+use super::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
 
 /// The single source of the rich-document schema version. A bump is a one-line edit
 /// here (MT impl note). MUST equal the React `WP009_RICH_DOCUMENT_SCHEMA_VERSION`
@@ -59,24 +72,30 @@ pub enum DocJsonError {
     /// A link mark was missing its required `href` attr.
     #[error("link mark missing href attr")]
     LinkMissingHref,
-    /// A wikilink mark was missing a required attr (`kind` or `value`).
-    #[error("wikilink mark missing required attr: {0}")]
-    WikilinkMissingAttr(&'static str),
+    /// An `hsLink` node was missing a required attr (`refValue`).
+    #[error("hsLink node missing required attr: {0}")]
+    HsLinkMissingAttr(&'static str),
     /// The JSON text could not be parsed at all.
     #[error("invalid JSON: {0}")]
     Parse(String),
 }
 
-/// The doc-level envelope: a `schema_version` plus the root `doc` node. This is the
-/// shape stored in `RichDocument.content_json` (the backend stamps the version, but
-/// the editor produces a matching one so a fresh save is accepted).
+/// The doc-level RECORD envelope, matching the backend `RichDocument` record
+/// (`app/src/lib/api.ts`): `schema_version` and `content_json` are SEPARATE sibling
+/// fields. `content_json` is the BARE doc node (`{type:"doc", content:[...]}`) with
+/// NO `schema_version` key inside it — the version lives only here, as a sibling.
+///
+/// This is NOT what is POSTed to `/knowledge/documents` (the API receives the bare
+/// `content_json` node alone — see [`to_content_json_value`]); it mirrors the record
+/// the backend STORES + RETURNS so a round-trip test can assert both the bare wire
+/// value and the version-carrying record shape.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RichDocument {
-    /// The schema version (always [`RICH_DOCUMENT_SCHEMA_VERSION`] on serialize).
+    /// The schema version (always [`RICH_DOCUMENT_SCHEMA_VERSION`] on serialize), a
+    /// SIBLING of `content_json`, never flattened into the doc node.
     pub schema_version: String,
-    /// The root `doc` node and its content.
-    #[serde(flatten)]
-    pub doc: JsonNode,
+    /// The BARE root `doc` node (no `schema_version` key inside).
+    pub content_json: JsonNode,
 }
 
 /// The serde wire representation of one node (block or text). This is the Tiptap
@@ -116,19 +135,28 @@ pub struct JsonMark {
 
 // ---- model -> JSON ----------------------------------------------------------
 
-/// Serialize a `doc` [`BlockNode`] to a [`RichDocument`] envelope (the round-trip
-/// entry point used by tests + the backend bridge). The doc's `attrs` and structure
-/// are preserved verbatim.
+/// Serialize a `doc` [`BlockNode`] to the [`RichDocument`] RECORD envelope
+/// (`schema_version` + bare `content_json` siblings). Mirrors the backend record
+/// shape; use [`to_content_json_value`] for the bare value actually POSTed.
 pub fn to_rich_document(doc: &BlockNode) -> RichDocument {
     RichDocument {
         schema_version: RICH_DOCUMENT_SCHEMA_VERSION.to_string(),
-        doc: block_to_json(doc),
+        content_json: block_to_json(doc),
     }
 }
 
-/// Serialize a `doc` [`BlockNode`] to a pretty JSON `String` envelope.
+/// Serialize a `doc` [`BlockNode`] to the BARE `content_json` value sent to
+/// POST/PUT `/knowledge/documents` (`createRichDocument` / `saveRichDocument`). This
+/// is a bare ProseMirror doc node (`{type:"doc", content:[...]}`) with NO
+/// `schema_version` key — the load-bearing wire value (binds_backend_api).
+pub fn to_content_json_value(doc: &BlockNode) -> JsonValue {
+    serde_json::to_value(block_to_json(doc)).unwrap_or(JsonValue::Null)
+}
+
+/// Serialize a `doc` [`BlockNode`] to the BARE `content_json` JSON `String`. This is
+/// the wire value sent to the backend; deserialize it back with [`from_json_string`].
 pub fn to_json_string(doc: &BlockNode) -> Result<String, DocJsonError> {
-    serde_json::to_string(&to_rich_document(doc)).map_err(|e| DocJsonError::Parse(e.to_string()))
+    serde_json::to_string(&block_to_json(doc)).map_err(|e| DocJsonError::Parse(e.to_string()))
 }
 
 /// Serialize a [`BlockNode`] to its bare [`JsonNode`] (no envelope) — used for
@@ -176,11 +204,31 @@ fn node_attrs_map(node: &BlockNode) -> Option<Map<String, JsonValue>> {
     }
 }
 
-/// Serialize a [`Child`] (block or text leaf) to a [`JsonNode`].
+/// Serialize a [`Child`] (block, text leaf, or hsLink atom) to a [`JsonNode`].
 fn child_to_json(child: &Child) -> JsonNode {
     match child {
         Child::Block(b) => block_to_json(b),
         Child::Text(leaf) => text_leaf_to_json(leaf),
+        Child::HsLink(link) => hs_link_to_json(link),
+    }
+}
+
+/// Serialize an [`HsLinkNode`] to a `{type:"hsLink", attrs:{refKind, refValue,
+/// label, resolved}}` inline atom node — the REAL backend shape from
+/// `app/src/lib/tiptap/hs_link_node.ts` (camelCase attr keys; an atom carries no
+/// `content`/`text`).
+fn hs_link_to_json(link: &HsLinkNode) -> JsonNode {
+    let mut attrs = Map::new();
+    attrs.insert("refKind".to_string(), JsonValue::from(link.ref_kind.clone()));
+    attrs.insert("refValue".to_string(), JsonValue::from(link.ref_value.clone()));
+    attrs.insert("label".to_string(), JsonValue::from(link.label.clone()));
+    attrs.insert("resolved".to_string(), JsonValue::from(link.resolved));
+    JsonNode {
+        ty: "hsLink".to_string(),
+        attrs: Some(attrs),
+        content: None,
+        text: None,
+        marks: None,
     }
 }
 
@@ -204,18 +252,6 @@ fn mark_to_json(mark: &Mark) -> JsonMark {
             attrs.insert("href".to_string(), JsonValue::from(href.clone()));
             JsonMark {
                 ty: "link".to_string(),
-                attrs: Some(attrs),
-            }
-        }
-        Mark::Wikilink { kind, value, label } => {
-            let mut attrs = Map::new();
-            attrs.insert("kind".to_string(), JsonValue::from(kind.clone()));
-            attrs.insert("value".to_string(), JsonValue::from(value.clone()));
-            if let Some(label) = label {
-                attrs.insert("label".to_string(), JsonValue::from(label.clone()));
-            }
-            JsonMark {
-                ty: "wikilink".to_string(),
                 attrs: Some(attrs),
             }
         }
@@ -289,20 +325,55 @@ fn json_to_block(node: &JsonNode) -> Result<BlockNode, DocJsonError> {
 }
 
 /// Deserialize a [`JsonNode`] into a [`Child`]: a `"text"` node becomes a text leaf,
-/// anything else a nested block.
+/// an `"hsLink"` node becomes an inline atom, anything else a nested block.
 fn json_to_child(node: &JsonNode) -> Result<Child, DocJsonError> {
-    if node.ty == "text" {
-        let text = node.text.clone().unwrap_or_default();
-        let mut marks = Vec::new();
-        if let Some(ms) = &node.marks {
-            for m in ms {
-                marks.push(json_to_mark(m)?);
+    match node.ty.as_str() {
+        "text" => {
+            let text = node.text.clone().unwrap_or_default();
+            let mut marks = Vec::new();
+            if let Some(ms) = &node.marks {
+                for m in ms {
+                    marks.push(json_to_mark(m)?);
+                }
             }
+            Ok(Child::Text(TextLeaf::with_marks(&text, marks)))
         }
-        Ok(Child::Text(TextLeaf::with_marks(&text, marks)))
-    } else {
-        Ok(Child::Block(json_to_block(node)?))
+        "hsLink" => Ok(Child::HsLink(json_to_hs_link(node)?)),
+        _ => Ok(Child::Block(json_to_block(node)?)),
     }
+}
+
+/// Deserialize an `hsLink` [`JsonNode`] into an [`HsLinkNode`], reading the camelCase
+/// `attrs.{refKind, refValue, label, resolved}` the React node persists. `refKind`
+/// defaults to `"unknown"`, `label` to `""`, `resolved` to `true` (the React node
+/// defaults). `refValue` is required (a wikilink with no target is malformed).
+fn json_to_hs_link(node: &JsonNode) -> Result<HsLinkNode, DocJsonError> {
+    let attrs = node.attrs.as_ref();
+    let ref_kind = attrs
+        .and_then(|m| m.get("refKind"))
+        .and_then(JsonValue::as_str)
+        .unwrap_or("unknown")
+        .to_string();
+    let ref_value = attrs
+        .and_then(|m| m.get("refValue"))
+        .and_then(JsonValue::as_str)
+        .ok_or(DocJsonError::HsLinkMissingAttr("refValue"))?
+        .to_string();
+    let label = attrs
+        .and_then(|m| m.get("label"))
+        .and_then(JsonValue::as_str)
+        .unwrap_or("")
+        .to_string();
+    let resolved = attrs
+        .and_then(|m| m.get("resolved"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(true);
+    Ok(HsLinkNode {
+        ref_kind,
+        ref_value,
+        label,
+        resolved,
+    })
 }
 
 /// Deserialize a [`JsonMark`] into a [`Mark`], reading the typed payloads.
@@ -323,40 +394,14 @@ fn json_to_mark(mark: &JsonMark) -> Result<Mark, DocJsonError> {
                 .to_string();
             Mark::Link { href }
         }
-        "wikilink" => {
-            let attrs = mark.attrs.as_ref();
-            let kind = attrs
-                .and_then(|m| m.get("kind"))
-                .and_then(JsonValue::as_str)
-                .ok_or(DocJsonError::WikilinkMissingAttr("kind"))?
-                .to_string();
-            let value = attrs
-                .and_then(|m| m.get("value"))
-                .and_then(JsonValue::as_str)
-                .ok_or(DocJsonError::WikilinkMissingAttr("value"))?
-                .to_string();
-            let label = attrs
-                .and_then(|m| m.get("label"))
-                .and_then(JsonValue::as_str)
-                .map(|s| s.to_string());
-            Mark::Wikilink { kind, value, label }
-        }
         other => return Err(DocJsonError::UnknownMarkType(other.to_string())),
     })
-}
-
-/// Keep [`HeadingLevel`] reachable for downstream MTs constructing headings from
-/// JSON (re-exported via the module). Marker use to avoid an unused-import warning
-/// while documenting the dependency.
-#[allow(dead_code)]
-fn _heading_level_is_used(level: u8) -> HeadingLevel {
-    HeadingLevel::new(level)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::node::{BlockNode, Child, Mark, NodeKind, TextLeaf};
+    use super::super::node::{BlockNode, Child, HsLinkNode, Mark, NodeKind, TextLeaf};
 
     fn rich_doc() -> BlockNode {
         // doc > [ heading(1,"Title"), paragraph("Bold italic", with bold+italic) ]
@@ -384,10 +429,24 @@ mod tests {
     }
 
     #[test]
+    fn content_json_is_bare_doc_with_no_schema_version() {
+        // MUST-FIX #2: the wire content_json is a BARE doc node with NO
+        // schema_version key inside it (the version is a sibling record field).
+        let v = to_content_json_value(&rich_doc());
+        assert_eq!(v["type"], "doc");
+        assert!(v.get("schema_version").is_none(), "content_json must NOT embed schema_version");
+        // The record envelope carries the version as a SIBLING of content_json.
+        let env: JsonValue = serde_json::to_value(to_rich_document(&rich_doc())).unwrap();
+        assert_eq!(env["schema_version"], "rich_document_v1");
+        assert_eq!(env["content_json"]["type"], "doc");
+        assert!(env["content_json"].get("schema_version").is_none());
+    }
+
+    #[test]
     fn json_shape_matches_tiptap() {
         let doc = rich_doc();
-        let v: JsonValue = serde_json::to_value(to_rich_document(&doc)).unwrap();
-        assert_eq!(v["schema_version"], "rich_document_v1");
+        // The bare content_json value (what the API receives) is a doc node.
+        let v: JsonValue = to_content_json_value(&doc);
         assert_eq!(v["type"], "doc");
         // First child: heading with attrs.level == 1.
         assert_eq!(v["content"][0]["type"], "heading");
@@ -413,8 +472,8 @@ mod tests {
         let json = to_json_string(&doc).unwrap();
         let back = from_json_string(&json).unwrap();
         assert_eq!(doc, back);
-        // The href is present in the JSON.
-        let v: JsonValue = serde_json::to_value(to_rich_document(&doc)).unwrap();
+        // The href is present in the bare content_json.
+        let v: JsonValue = to_content_json_value(&doc);
         assert_eq!(
             v["content"][0]["content"][0]["marks"][0]["attrs"]["href"],
             "https://example.com/docs"
@@ -422,20 +481,27 @@ mod tests {
     }
 
     #[test]
-    fn wikilink_payload_survives_round_trip() {
+    fn hs_link_node_payload_survives_round_trip() {
+        // MUST-FIX #1: a wikilink is an inline hsLink NODE, not a mark.
         let mut para = BlockNode::new(NodeKind::Paragraph);
-        para.children.push(Child::Text(TextLeaf::with_marks(
+        para.children.push(Child::Text(TextLeaf::new("see ")));
+        para.children.push(Child::HsLink(HsLinkNode::new(
+            "wp",
+            "WP-KERNEL-012",
             "the WP",
-            vec![Mark::Wikilink {
-                kind: "wp".to_string(),
-                value: "WP-KERNEL-012".to_string(),
-                label: Some("the WP".to_string()),
-            }],
         )));
         let doc = BlockNode::doc(vec![para]);
         let json = to_json_string(&doc).unwrap();
         let back = from_json_string(&json).unwrap();
         assert_eq!(doc, back);
+        // The hsLink serializes as a sibling node with camelCase backend attrs.
+        let v: JsonValue = to_content_json_value(&doc);
+        let link = &v["content"][0]["content"][1];
+        assert_eq!(link["type"], "hsLink");
+        assert_eq!(link["attrs"]["refKind"], "wp");
+        assert_eq!(link["attrs"]["refValue"], "WP-KERNEL-012");
+        assert_eq!(link["attrs"]["label"], "the WP");
+        assert_eq!(link["attrs"]["resolved"], true);
     }
 
     #[test]
@@ -456,7 +522,7 @@ mod tests {
 
     #[test]
     fn unknown_node_type_errors() {
-        let json = r#"{"schema_version":"rich_document_v1","type":"doc","content":[{"type":"bogus"}]}"#;
+        let json = r#"{"type":"doc","content":[{"type":"bogus"}]}"#;
         assert!(matches!(
             from_json_string(json),
             Err(DocJsonError::UnknownNodeType(_))

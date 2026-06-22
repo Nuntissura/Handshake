@@ -37,11 +37,12 @@ pub mod selection;
 pub mod transform;
 
 pub use doc_json::{
-    block_to_json, from_json_string, from_json_value, to_json_string, to_rich_document,
-    DocJsonError, JsonMark, JsonNode, RichDocument, RICH_DOCUMENT_SCHEMA_VERSION,
+    block_to_json, from_json_string, from_json_value, to_content_json_value, to_json_string,
+    to_rich_document, DocJsonError, JsonMark, JsonNode, RichDocument,
+    RICH_DOCUMENT_SCHEMA_VERSION,
 };
 pub use history::{UndoManager, DEFAULT_HISTORY_CAP};
-pub use node::{BlockNode, Child, HeadingLevel, Mark, NodeKind, TextLeaf};
+pub use node::{BlockNode, Child, HeadingLevel, HsLinkNode, Mark, NodeKind, TextLeaf};
 pub use position::{absolute_offset, resolve, DocPosition};
 pub use rope_text::RopeText;
 pub use schema::{

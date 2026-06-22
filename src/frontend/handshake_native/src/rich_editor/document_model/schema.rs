@@ -30,6 +30,10 @@ pub enum SchemaError {
     /// text directly inside a `doc` or a `bullet_list`).
     #[error("node {parent:?} may not contain inline text directly")]
     TextChildNotAllowed { parent: NodeKind },
+    /// An inline atom (`hsLink`) appeared under a kind that does not allow inline
+    /// atoms (only `paragraph`/`heading` do; a `code_block` holds plain text only).
+    #[error("node {parent:?} may not contain an inline hsLink atom")]
+    InlineAtomNotAllowed { parent: NodeKind },
     /// An atom kind (`hard_break`, `horizontal_rule`) was given children.
     #[error("atom node {parent:?} may not contain children")]
     AtomHasChildren { parent: NodeKind },
@@ -82,6 +86,14 @@ pub fn text_child_allowed(parent: NodeKind) -> bool {
     parent.holds_inline_content()
 }
 
+/// True when `parent` may directly contain an inline atom (`hsLink`). Only
+/// `paragraph` and `heading` hold inline atoms; a `code_block` is plain-text only
+/// (the Tiptap code block has no inline node content), so an `hsLink` there is
+/// rejected.
+pub fn inline_atom_allowed(parent: NodeKind) -> bool {
+    matches!(parent, NodeKind::Paragraph | NodeKind::Heading(_))
+}
+
 /// True when a text run inside `parent` may carry `mark`. Every prose run allows
 /// every mark; a `code_block`'s run carries NO marks (Tiptap `code_block` has
 /// `marks: ""`). A heading allows the full mark set (matching StarterKit).
@@ -121,6 +133,11 @@ pub fn validate_node(node: &BlockNode) -> Result<(), SchemaError> {
                             mark_type: mark.json_type(),
                         });
                     }
+                }
+            }
+            Child::HsLink(_) => {
+                if !inline_atom_allowed(node.kind) {
+                    return Err(SchemaError::InlineAtomNotAllowed { parent: node.kind });
                 }
             }
         }

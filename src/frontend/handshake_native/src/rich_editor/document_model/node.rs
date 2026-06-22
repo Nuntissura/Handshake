@@ -160,12 +160,19 @@ impl NodeKind {
 }
 
 /// An inline mark applied to a run of text. The variant set is exactly the MT-011
-/// contract list: `bold, italic, underline, strike, code, link, wikilink`.
+/// contract mark list: `bold, italic, underline, strike, code, link`.
 ///
-/// `link` and `wikilink` carry typed payloads (the render layer in MT-012/MT-015
-/// needs `href` and the wikilink ref triple), per the MT implementation note. The
-/// payload-free marks compare structurally so `AddMark`/`RemoveMark` and dedup work
-/// without special-casing.
+/// `link` carries a typed `href` payload (the render layer in MT-012 needs it), per
+/// the MT implementation note. The payload-free marks compare structurally so
+/// `AddMark`/`RemoveMark` and dedup work without special-casing.
+///
+/// NOTE on wikilinks (BACKEND-SHAPE ANCHOR reconciliation): the MT scope text models
+/// a "wikilink" as a mark, but the REAL backend `content_json` shape
+/// (`app/src/lib/tiptap/hs_link_node.ts`) is an inline ATOM NODE named `hsLink` with
+/// attrs `{refKind, refValue, label, resolved}`, NOT a mark. The mark-vs-node
+/// instruction is reconciled in favour of the real backend node so a real
+/// `loadRichDocument` response containing a wikilink deserializes (RISK-5). The
+/// wikilink therefore lives as [`HsLinkNode`] in [`Child::HsLink`], not here.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mark {
     /// Bold (`<strong>` / `**`).
@@ -181,22 +188,12 @@ pub enum Mark {
     /// A plain hyperlink. `href` is the only attr the React `link` mark carries
     /// (`marks:[{type:"link",attrs:{href:"..."}}]`).
     Link { href: String },
-    /// A typed Handshake wikilink. The MT models this as a MARK carrying the
-    /// `{kind, value, label}` triple (refKind / refValue / label in the React
-    /// `hsLink` node). `label` is optional (defaults to `kind:value` when absent).
-    Wikilink {
-        kind: String,
-        value: String,
-        label: Option<String>,
-    },
 }
 
 impl Mark {
-    /// The Tiptap mark `type` string this mark serializes to. Wikilink uses the
-    /// React node name `"wikilink"` is NOT a Tiptap default mark; the MT models it
-    /// as a mark, so it serializes as `{type:"wikilink", attrs:{kind,value,label}}`.
-    /// link serializes as `{type:"link", attrs:{href}}`. The payload-free marks use
-    /// their lowercase name.
+    /// The Tiptap mark `type` string this mark serializes to. `link` serializes as
+    /// `{type:"link", attrs:{href}}`; the payload-free marks use their lowercase
+    /// name. (Wikilinks are an `hsLink` NODE, not a mark — see [`HsLinkNode`].)
     pub fn json_type(&self) -> &'static str {
         match self {
             Mark::Bold => "bold",
@@ -205,7 +202,6 @@ impl Mark {
             Mark::Strike => "strike",
             Mark::Code => "code",
             Mark::Link { .. } => "link",
-            Mark::Wikilink { .. } => "wikilink",
         }
     }
 
@@ -284,59 +280,109 @@ impl TextLeaf {
     }
 }
 
-/// A child of a [`BlockNode`]: either a nested block or a run of inline text.
+/// A typed Handshake wikilink as an inline ATOM node (`hsLink`), matching the REAL
+/// backend `content_json` shape in `app/src/lib/tiptap/hs_link_node.ts`.
 ///
-/// A `paragraph`/`heading`/`code_block` holds `Text` children; every other
-/// container kind holds `Block` children. The schema ([`super::schema`]) enforces
-/// which is allowed where; this enum just makes both representable in one `Vec`.
+/// It is an inline atom: a single indivisible inline token that lives inside a
+/// paragraph/heading `content` array as a sibling of text leaves (NOT a mark on a
+/// text run). The backend persists it as `{type:"hsLink", attrs:{refKind, refValue,
+/// label, resolved}}`. `refKind` is the backend ref kind
+/// (`RichDocBacklink.link_kind` / `RichDocEmbed.ref_kind`); an unrecognized prefix is
+/// preserved as `refKind="unknown"` with `resolved=false` (never silently dropped).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HsLinkNode {
+    /// The backend ref kind (`"wp"`, `"file"`, …) or `"unknown"`. Defaults to
+    /// `"unknown"` in the React node when absent.
+    pub ref_kind: String,
+    /// The target value after the prefix (e.g. `"WP-KERNEL-012"`, `"src/app.ts"`).
+    pub ref_value: String,
+    /// Display label; the React node defaults this to the empty string (rendered as
+    /// `refKind:refValue` when blank).
+    pub label: String,
+    /// Whether the prefix matched a known wikilink kind. The React node defaults this
+    /// to `true` and forces it to `false` for an unknown/spoofed kind.
+    pub resolved: bool,
+}
+
+impl HsLinkNode {
+    /// Build an hsLink node, defaulting `resolved` to `true` (the React node default).
+    pub fn new(ref_kind: impl Into<String>, ref_value: impl Into<String>, label: impl Into<String>) -> Self {
+        Self {
+            ref_kind: ref_kind.into(),
+            ref_value: ref_value.into(),
+            label: label.into(),
+            resolved: true,
+        }
+    }
+}
+
+/// A child of a [`BlockNode`]: a nested block, a run of inline text, or an inline
+/// atom (`hsLink`).
+///
+/// A `paragraph`/`heading` holds `Text` and `HsLink` inline children; `code_block`
+/// holds `Text` only; every other container kind holds `Block` children. The schema
+/// ([`super::schema`]) enforces which is allowed where; this enum just makes them
+/// representable in one `Vec`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Child {
     /// A nested block node.
     Block(BlockNode),
     /// A run of inline text with marks.
     Text(TextLeaf),
+    /// An inline atom: a typed `hsLink` wikilink node.
+    HsLink(HsLinkNode),
 }
 
 impl Child {
-    /// Borrow the child as a block node, or `None` if it is a text leaf.
+    /// Borrow the child as a block node, or `None` if it is not one.
     pub fn as_block(&self) -> Option<&BlockNode> {
         match self {
             Child::Block(b) => Some(b),
-            Child::Text(_) => None,
+            Child::Text(_) | Child::HsLink(_) => None,
         }
     }
 
-    /// Mutably borrow the child as a block node, or `None` if it is a text leaf.
+    /// Mutably borrow the child as a block node, or `None` if it is not one.
     pub fn as_block_mut(&mut self) -> Option<&mut BlockNode> {
         match self {
             Child::Block(b) => Some(b),
-            Child::Text(_) => None,
+            Child::Text(_) | Child::HsLink(_) => None,
         }
     }
 
-    /// Borrow the child as a text leaf, or `None` if it is a block node.
+    /// Borrow the child as a text leaf, or `None` if it is not one.
     pub fn as_text(&self) -> Option<&TextLeaf> {
         match self {
             Child::Text(t) => Some(t),
-            Child::Block(_) => None,
+            Child::Block(_) | Child::HsLink(_) => None,
         }
     }
 
-    /// Mutably borrow the child as a text leaf, or `None` if it is a block node.
+    /// Mutably borrow the child as a text leaf, or `None` if it is not one.
     pub fn as_text_mut(&mut self) -> Option<&mut TextLeaf> {
         match self {
             Child::Text(t) => Some(t),
-            Child::Block(_) => None,
+            Child::Block(_) | Child::HsLink(_) => None,
+        }
+    }
+
+    /// Borrow the child as an hsLink atom, or `None` if it is not one.
+    pub fn as_hs_link(&self) -> Option<&HsLinkNode> {
+        match self {
+            Child::HsLink(l) => Some(l),
+            Child::Block(_) | Child::Text(_) => None,
         }
     }
 
     /// The char length this child contributes to a flat document offset: a text
     /// leaf contributes its char count; a block contributes the sum of its
-    /// descendants (computed by [`BlockNode::char_len`]).
+    /// descendants ([`BlockNode::char_len`]); an `hsLink` inline atom contributes 1
+    /// (a ProseMirror leaf/atom node has size 1 in document positions).
     pub fn char_len(&self) -> usize {
         match self {
             Child::Text(t) => t.text.len_chars(),
             Child::Block(b) => b.char_len(),
+            Child::HsLink(_) => 1,
         }
     }
 }

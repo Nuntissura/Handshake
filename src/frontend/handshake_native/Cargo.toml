@@ -102,11 +102,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # WP-KERNEL-012 MT-011 rich-text document model: `thiserror` derives the error enums
 # (SchemaError / TransformError / DocJsonError) in src/rich_editor/document_model/*.
-# Already present in the locked graph transitively (Cargo.lock pins it), so this adds
-# NO new download/dependency family — it only promotes it to a direct dep so the
-# document-model error types can `#[derive(thiserror::Error)]` (MT impl note: all
-# error types use thiserror::Error derives). Pure-Rust, no native build.
-thiserror = "1"
+# Pinned to "2" to match the thiserror 2.x ALREADY in the locked graph (the workspace
+# carries thiserror 2.0.x transitively); declaring "1" would pull a SECOND v1 proc-macro
+# family and create a v1/v2 duplicate (`cargo tree -d`). thiserror 2.x is API-compatible
+# for the `#[derive(Error)]` + `#[error("…")]` + `#[from]` usage here. Pure-Rust, no
+# native build, no new dependency family.
+thiserror = "2"
 # MT-027 token auth: the contract mandates a per-session HMAC token validated by constant-time compare
 # via the `hmac` + `sha2` crates. These two RustCrypto crates are the only NEW dependency families this
 # MT adds; both are audited, pure-Rust (no native build). `rand` (CSPRNG token bytes) is reused from the

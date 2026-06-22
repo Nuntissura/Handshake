@@ -274,9 +274,11 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
             })
         }
         Step::MergeNodes { parent_path, index } => {
-            // Merging child[index] into child[index-1] appends index's text to
-            // index-1; the inverse splits child[index-1] at the join point (the
-            // pre-merge length of child[index-1]'s text leaf).
+            // Merging child[index] into child[index-1] appends ALL of index's inline
+            // content AFTER child[index-1]'s existing content; the inverse splits
+            // child[index-1] at the join point, which is the pre-merge TOTAL flat
+            // char length of child[index-1] (not just its first text leaf — RISK FIX
+            // for multi-run nodes).
             let parent = block_at(doc, parent_path)?;
             if *index == 0 {
                 return Err(TransformError::InvalidStructuralStep {
@@ -290,7 +292,7 @@ fn compute_inverse(doc: &BlockNode, step: &Step) -> Result<Step, TransformError>
                 .ok_or_else(|| TransformError::InvalidStructuralStep {
                     reason: format!("previous sibling of index {index} is not a block"),
                 })?;
-            let join_at = first_text_leaf_len(prev);
+            let join_at = prev.char_len();
             let mut prev_path = parent_path.clone();
             prev_path.push(*index - 1);
             Ok(Step::SplitNode {
@@ -389,70 +391,122 @@ fn apply_step(doc: &mut BlockNode, step: &Step) -> Result<(), TransformError> {
 }
 
 /// Split the inline-content block at `path` at `char_offset`: the block keeps the
-/// head `[0, char_offset)`, and a new sibling of the SAME kind+attrs holding the
-/// tail `[char_offset, len)` is inserted right after it.
+/// head inline content `[0, char_offset)`, and a new sibling of the SAME kind+attrs
+/// holding the tail inline content `[char_offset, end)` is inserted right after it.
+///
+/// RISK FIX (multi-run): the WHOLE inline child sequence is split at the flat char
+/// offset, not just `children.first()`. A text run straddling the offset is split
+/// mid-run (each half keeps the run's marks); runs entirely before the offset stay in
+/// the head, runs entirely after move to the tail; an `hsLink` atom (size 1) goes
+/// wholesale to whichever side the offset falls on. This is the correct behaviour for
+/// every styled paragraph (bold/italic/link runs, embedded wikilinks), not only the
+/// single-run case.
 fn apply_split(doc: &mut BlockNode, path: &[usize], char_offset: usize) -> Result<(), TransformError> {
     let (parent_path, index) = split_path(path)?;
-    // First, build the tail node from the target (immutable read), then mutate.
-    let tail_node = {
+    let target_kind;
+    let target_attrs;
+    let (head_children, tail_children) = {
         let target = block_at(doc, path)?;
         if !target.kind.holds_inline_content() {
             return Err(TransformError::InvalidStructuralStep {
                 reason: format!("cannot split non-inline-content block {:?}", target.kind),
             });
         }
-        // The target's first text leaf is split; the tail leaf inherits its marks.
-        let (tail_text, tail_marks) = match target.children.first().and_then(Child::as_text) {
-            Some(leaf) => (
-                leaf.text.slice_chars(char_offset, leaf.text.len_chars()),
-                leaf.marks.clone(),
-            ),
-            None => (String::new(), Vec::new()),
-        };
-        let mut tail = BlockNode::new(target.kind);
-        tail.attrs = target.attrs.clone();
-        tail.children
-            .push(Child::Text(TextLeaf::with_marks(&tail_text, tail_marks)));
-        tail
+        target_kind = target.kind;
+        target_attrs = target.attrs.clone();
+        split_inline_children(&target.children, char_offset)
     };
-    // Truncate the target's text to the head, then insert the tail as a sibling.
+    // Replace the target's children with the head, then insert the tail sibling.
     {
         let target = block_at_mut(doc, path)?;
-        if let Some(leaf) = target.children.first_mut().and_then(Child::as_text_mut) {
-            let len = leaf.text.len_chars();
-            leaf.text.remove(char_offset, len);
-        }
+        target.children = head_children;
     }
+    let mut tail = BlockNode::new(target_kind);
+    tail.attrs = target_attrs;
+    tail.children = tail_children;
     let parent = block_at_mut(doc, &parent_path)?;
-    parent.children.insert(index + 1, Child::Block(tail_node));
+    parent.children.insert(index + 1, Child::Block(tail));
     Ok(())
 }
 
+/// Split a flat list of inline children (`Text` runs + `HsLink` atoms) at a flat
+/// CHAR offset into (head, tail). A text run straddling the offset is split mid-run
+/// with both halves keeping the run's marks; an atom (char_len 1) is placed wholly
+/// in the head when the offset is past it, else in the tail. The head always ends
+/// with at least one text leaf so the resulting block has addressable inline content
+/// even when the split lands exactly on a boundary.
+fn split_inline_children(children: &[Child], char_offset: usize) -> (Vec<Child>, Vec<Child>) {
+    let mut head: Vec<Child> = Vec::new();
+    let mut tail: Vec<Child> = Vec::new();
+    let mut consumed = 0usize;
+    for child in children {
+        let len = child.char_len();
+        if consumed >= char_offset {
+            // Entirely after the split point.
+            tail.push(child.clone());
+        } else if consumed + len <= char_offset {
+            // Entirely before the split point.
+            head.push(child.clone());
+        } else {
+            // Straddles the split point — only a text run can be split mid-run; an
+            // atom (len 1) is handled by the two branches above (consumed>=offset or
+            // consumed+1<=offset), so this branch is reached only for a text leaf.
+            match child {
+                Child::Text(leaf) => {
+                    let cut = char_offset - consumed;
+                    let head_text = leaf.text.slice_chars(0, cut);
+                    let tail_text = leaf.text.slice_chars(cut, len);
+                    head.push(Child::Text(TextLeaf::with_marks(&head_text, leaf.marks.clone())));
+                    tail.push(Child::Text(TextLeaf::with_marks(&tail_text, leaf.marks.clone())));
+                }
+                other => {
+                    // Defensive: a non-text child cannot straddle (len 1); place it in
+                    // the tail so nothing is dropped.
+                    tail.push(other.clone());
+                }
+            }
+        }
+        consumed += len;
+    }
+    // Guarantee each side has an addressable inline leaf (an empty paragraph still
+    // holds one empty text leaf, matching the model's `BlockNode::paragraph("")`).
+    if head.is_empty() {
+        head.push(Child::Text(TextLeaf::new("")));
+    }
+    if tail.is_empty() {
+        tail.push(Child::Text(TextLeaf::new("")));
+    }
+    (head, tail)
+}
+
 /// Merge child `index` of the block at `parent_path` into child `index-1` by
-/// appending the merged node's first text-leaf content to the previous node's first
-/// text leaf, then removing the merged node.
+/// appending ALL of the merged node's children onto the previous node, then removing
+/// the merged node.
+///
+/// RISK FIX (multi-run / dropped content): the previous implementation moved only the
+/// merged node's FIRST text leaf, dropping any further runs, embedded `hsLink` atoms,
+/// and block children. This now concatenates the FULL child sequence so a backspace-
+/// merge of a styled paragraph keeps every run, mark, and inline atom. When both
+/// sides are inline-content blocks, the boundary leaves are joined into one run only
+/// when their marks match (so a bold tail does not silently lose its boldness); else
+/// the merged children are appended as-is.
 fn apply_merge(doc: &mut BlockNode, parent_path: &[usize], index: usize) -> Result<(), TransformError> {
     if index == 0 {
         return Err(TransformError::InvalidStructuralStep {
             reason: "cannot merge the first child into a previous sibling".to_string(),
         });
     }
-    // Read the merged node's text first.
-    let merged_text = {
+    // Take the merged node's full child list first (immutable read + clone).
+    let merged_children = {
         let parent = block_at(doc, parent_path)?;
         let merged = parent.children.get(index).and_then(Child::as_block).ok_or_else(|| {
             TransformError::InvalidStructuralStep {
                 reason: format!("child {index} is not a block to merge"),
             }
         })?;
-        merged
-            .children
-            .first()
-            .and_then(Child::as_text)
-            .map(|l| l.text.to_string())
-            .unwrap_or_default()
+        merged.children.clone()
     };
-    // Append it to the previous sibling's first text leaf.
+    // Append the full sequence to the previous sibling.
     {
         let parent = block_at_mut(doc, parent_path)?;
         let prev = parent
@@ -462,15 +516,7 @@ fn apply_merge(doc: &mut BlockNode, parent_path: &[usize], index: usize) -> Resu
             .ok_or_else(|| TransformError::InvalidStructuralStep {
                 reason: format!("previous sibling of index {index} is not a block"),
             })?;
-        match prev.children.first_mut().and_then(Child::as_text_mut) {
-            Some(leaf) => {
-                let at = leaf.text.len_chars();
-                leaf.text.insert(at, &merged_text);
-            }
-            None => {
-                prev.children.push(Child::Text(TextLeaf::new(&merged_text)));
-            }
-        }
+        append_inline_children(prev, merged_children);
     }
     // Remove the merged node.
     let parent = block_at_mut(doc, parent_path)?;
@@ -485,6 +531,29 @@ fn apply_merge(doc: &mut BlockNode, parent_path: &[usize], index: usize) -> Resu
     Ok(())
 }
 
+/// Append `incoming` children onto `prev`, coalescing the join boundary only when
+/// both `prev`'s last child and `incoming`'s first child are text leaves with EQUAL
+/// marks (so "hello" + "world" becomes one "helloworld" run, but a bold tail stays a
+/// separate bold run). All other children — additional runs, `hsLink` atoms, block
+/// children — are pushed verbatim so nothing is dropped.
+fn append_inline_children(prev: &mut BlockNode, incoming: Vec<Child>) {
+    let mut iter = incoming.into_iter();
+    if let Some(first) = iter.next() {
+        match (prev.children.last_mut(), &first) {
+            (Some(Child::Text(prev_leaf)), Child::Text(in_leaf))
+                if prev_leaf.marks == in_leaf.marks =>
+            {
+                let at = prev_leaf.text.len_chars();
+                prev_leaf.text.insert(at, &in_leaf.text.to_string());
+            }
+            _ => prev.children.push(first),
+        }
+        for child in iter {
+            prev.children.push(child);
+        }
+    }
+}
+
 /// Split a node path into (parent_path, index_within_parent). Errors on the empty
 /// path (the root has no parent).
 fn split_path(path: &[usize]) -> Result<(Vec<usize>, usize), TransformError> {
@@ -494,15 +563,6 @@ fn split_path(path: &[usize]) -> Result<(Vec<usize>, usize), TransformError> {
             reason: "cannot address the root with a structural step".to_string(),
         }),
     }
-}
-
-/// The char length of the first text leaf of `node` (0 if it has none).
-fn first_text_leaf_len(node: &BlockNode) -> usize {
-    node.children
-        .first()
-        .and_then(Child::as_text)
-        .map(|l| l.text.len_chars())
-        .unwrap_or(0)
 }
 
 /// Resolve a child-index `path` to a shared block reference. The empty path is the

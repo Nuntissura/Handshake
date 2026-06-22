@@ -81,6 +81,22 @@ fn walk_resolve(
                     return Some(pos);
                 }
             }
+            Child::HsLink(_) => {
+                // An inline atom occupies one position unit but hosts no caret
+                // INTERIOR; a flat offset that lands on it resolves to the offset
+                // just past it (the next text leaf / boundary), so we just consume
+                // its single unit and keep walking.
+                if *remaining == 0 {
+                    // A caret sitting just before this atom: clamp to the last text
+                    // leaf boundary if one exists; otherwise fall through.
+                    if let Some(pos) = last_leaf.clone() {
+                        *found = Some(pos.clone());
+                        path.pop();
+                        return Some(pos);
+                    }
+                }
+                *remaining = remaining.saturating_sub(1);
+            }
         }
         path.pop();
     }
