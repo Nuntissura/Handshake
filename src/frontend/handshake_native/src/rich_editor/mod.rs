@@ -19,6 +19,7 @@
 //! `split_layout`, `theme/*`, `accessibility/*`, `backend_client`) rather than
 //! re-creating shell infrastructure.
 
+pub mod daily_notes;
 pub mod document_model;
 pub mod embeds;
 pub mod find_replace;
