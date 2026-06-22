@@ -2088,6 +2088,391 @@ async fn fetch_add_tag_candidates(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-024 Loom SIDEBAR transport (REUSE — extends the MT-021/022/023 Loom read surface).
+//
+// The native pins/favorites/backlinks/unlinked sidebar (`graph::sidebar_panel::LoomSidebarPanel`) binds
+// the EXISTING handshake_core Loom read + mutation APIs through THIS client (NO Tauri — the same HTTP
+// client every MT-008/014/021/022/023 surface uses). Every endpoint + body was VERIFIED READ-ONLY
+// against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the running backend), NOT taken from
+// the MT-024 contract body (the MT-022/023 "verify, don't trust the contract" lesson):
+//
+//   - PINS:      `GET /workspaces/:ws/loom/views/pins?limit=100`      -> `LoomViewResponse::Pins
+//     { blocks }`. `parse_view_type` accepts `pins` (CONFIRMED real this time, unlike the MT-022/023
+//     stale view types). The count is `blocks.len()`; there is NO `total` field.
+//   - FAVORITES: `GET /workspaces/:ws/loom/views/favorites?limit=100` -> `LoomViewResponse::Favorites
+//     { blocks }` (`parse_view_type` accepts `favorites`).
+//   - BACKLINKS (contract correction, disclosed): the contract named `graph-search?mention_ids={id}`.
+//     That param IS real, but the DEDICATED `GET /workspaces/:ws/loom/blocks/:id/backlinks` ->
+//     `Vec<LoomBacklink>` (MT-178 `get_backlinks_with_context`) is the field-correct surface: each
+//     backlink carries the incoming `edge` (with `edge_type`) + the `source_block`. That is exactly the
+//     AC4 "source block title + edge_type label", so this client binds THAT route (verified), not a
+//     synthesized graph-search star.
+//   - UNLINKED (contract correction, disclosed): the contract named `GET /loom/views/unlinked` (a
+//     WORKSPACE unlinked view). For the *per-active-block* Unlinked section the correct verified surface
+//     is the DEDICATED `GET /workspaces/:ws/loom/blocks/:id/unlinked-mentions` ->
+//     `Vec<LoomUnlinkedMention>` (MT-178 `scan_loom_block_unlinked_mentions`): blocks whose text mentions
+//     the active block's title with NO edge — exactly the AC5 semantics. The workspace `/views/unlinked`
+//     is NOT scoped to the active block, so it would be the wrong list.
+//   - REMOVE PIN (two-call, RISK-1 / MC-1): `PUT /workspaces/:ws/loom/blocks/:id/pin-order` body
+//     `{ "pin_order": null }` (`SetPinOrderRequest`, MT-183 — the field is `pin_order`, NOT the
+//     contract's `ordinal`) THEN `PATCH /workspaces/:ws/loom/blocks/:id` body `{ "pinned": false }`
+//     (`LoomBlockUpdate`, MT-022 confirmed `pinned` is an `Option<bool>` PATCH field). Both are issued in
+//     sequence (the React WorkspaceSidebar.tsx lines 297-298 flow); on the SECOND failure the host
+//     re-fetches Pins to determine true state (RISK-1 recovery).
+//   - REMOVE FAVORITE: `PATCH /workspaces/:ws/loom/blocks/:id` body `{ "favorite": false }`.
+//
+// All follow the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the parsed
+// result into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET — the
+// render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on the
+// `handshake_core` crate's types; the parsed shapes are the widget's own
+// `graph::sidebar_panel::{SidebarBlock, BacklinkRow, UnlinkedRow}` (field-correct reuse of the verified
+// backend shapes).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::sidebar_panel::{BacklinkRow, SidebarBlock, UnlinkedRow};
+
+/// The externally-meaningful result of a Pins/Favorites fetch: the [`SidebarBlock`] list the
+/// [`crate::graph::sidebar_panel::LoomSidebarPanel`] renders. `Ok` carries the blocks (possibly empty ->
+/// the section empty state); `Err(msg)` a failure the section surfaces as an inline banner + Retry (AC9).
+pub type SidebarBlockListCell = Arc<Mutex<Option<Result<Vec<SidebarBlock>, String>>>>;
+
+/// The externally-meaningful result of a backlinks fetch: the [`BacklinkRow`] list (source block + edge
+/// type). Stamped with the generation the host bumped on dispatch so a stale delivery is dropped (RISK-2).
+pub type SidebarBacklinksCell = Arc<Mutex<Option<(u64, Result<Vec<BacklinkRow>, String>)>>>;
+
+/// The externally-meaningful result of an unlinked-mentions fetch: the [`UnlinkedRow`] list. Stamped with
+/// the dispatch generation so a stale delivery is dropped (RISK-2).
+pub type SidebarUnlinkedCell = Arc<Mutex<Option<(u64, Result<Vec<UnlinkedRow>, String>)>>>;
+
+/// REST client for the VERIFIED Loom sidebar surfaces the MT-024 sidebar panel binds: pins/favorites
+/// view lists, per-block backlinks + unlinked-mentions, and the two-call pin removal + favorite removal.
+/// Mirrors the `LoomTagClient` / `LoomFolderClient` / `LoomGraphClient` shape exactly.
+#[derive(Clone)]
+pub struct LoomSidebarClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomSidebarClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn view_url(&self, workspace_id: &str, view_type: &str) -> String {
+        format!("{}/workspaces/{}/loom/views/{}", self.base_url, workspace_id, view_type)
+    }
+
+    fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    fn pin_order_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}/pin-order",
+            self.base_url, workspace_id, block_id
+        )
+    }
+
+    fn backlinks_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}/backlinks",
+            self.base_url, workspace_id, block_id
+        )
+    }
+
+    fn unlinked_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}/unlinked-mentions",
+            self.base_url, workspace_id, block_id
+        )
+    }
+
+    /// Pure request builder for the Pins fetch: `GET /loom/views/pins?limit=100`. Split out so a unit
+    /// test asserts the EXACT verified URL + query without a live backend (the spawn path routes through
+    /// this same builder, so the test proves the production request construction).
+    pub fn pins_request(&self, workspace_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.view_url(workspace_id, "pins"),
+            query: vec![("limit".to_owned(), "100".to_owned())],
+        }
+    }
+
+    /// Pure request builder for the Favorites fetch: `GET /loom/views/favorites?limit=100`.
+    pub fn favorites_request(&self, workspace_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.view_url(workspace_id, "favorites"),
+            query: vec![("limit".to_owned(), "100".to_owned())],
+        }
+    }
+
+    /// Pure request builder for the per-block Backlinks fetch: `GET /loom/blocks/{id}/backlinks` (the
+    /// verified dedicated MT-178 route — see the module comment for the contract correction).
+    pub fn backlinks_request(&self, workspace_id: &str, block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.backlinks_url(workspace_id, block_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the per-block Unlinked-mentions fetch: `GET
+    /// /loom/blocks/{id}/unlinked-mentions` (the verified dedicated MT-178 route).
+    pub fn unlinked_request(&self, workspace_id: &str, block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.unlinked_url(workspace_id, block_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the pin-order CLEAR (the FIRST of the two-call pin removal):
+    /// `PUT /loom/blocks/{id}/pin-order` body `{ "pin_order": null }` (RISK-1 / MC-1).
+    pub fn clear_pin_order_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: self.pin_order_url(workspace_id, block_id),
+            body: Some(serde_json::json!({ "pin_order": serde_json::Value::Null })),
+        }
+    }
+
+    /// Pure request builder for the unpin PATCH (the SECOND of the two-call pin removal):
+    /// `PATCH /loom/blocks/{id}` body `{ "pinned": false }`.
+    pub fn unpin_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.block_url(workspace_id, block_id),
+            body: Some(serde_json::json!({ "pinned": false })),
+        }
+    }
+
+    /// Pure request builder for the un-favorite PATCH: `PATCH /loom/blocks/{id}` body
+    /// `{ "favorite": false }` (AC3).
+    pub fn unfavorite_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.block_url(workspace_id, block_id),
+            body: Some(serde_json::json!({ "favorite": false })),
+        }
+    }
+
+    /// Fetch the Pins list off the UI thread, delivering the parsed blocks into `cell` (AC1). The host
+    /// sets the section loading flag before calling and clears it on delivery.
+    pub fn fetch_pins(&self, workspace_id: &str, cell: SidebarBlockListCell) {
+        let spec = self.pins_request(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch the Favorites list off the UI thread, delivering into `cell` (AC3 load).
+    pub fn fetch_favorites(&self, workspace_id: &str, cell: SidebarBlockListCell) {
+        let spec = self.favorites_request(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch the active block's Backlinks off the UI thread, delivering `(generation, Ok/Err)` into
+    /// `cell` (AC4). `generation` is the value the host bumped on dispatch; the host drops the delivery
+    /// if its generation has since advanced (RISK-2 stale-response guard).
+    pub fn fetch_backlinks(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        generation: u64,
+        cell: SidebarBacklinksCell,
+    ) {
+        let spec = self.backlinks_request(workspace_id, block_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_backlink_rows(&client, &spec.url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((generation, result.map_err(|e| e.to_string())));
+            }
+        });
+    }
+
+    /// Fetch the active block's Unlinked mentions off the UI thread, delivering `(generation, Ok/Err)`
+    /// into `cell` (AC5). Generation-stamped for the same RISK-2 stale-drop guard.
+    pub fn fetch_unlinked(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        generation: u64,
+        cell: SidebarUnlinkedCell,
+    ) {
+        let spec = self.unlinked_request(workspace_id, block_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_unlinked_rows(&client, &spec.url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((generation, result.map_err(|e| e.to_string())));
+            }
+        });
+    }
+
+    /// Remove a pin off the UI thread with the TWO-CALL flow (RISK-1 / MC-1 / AC2): `PUT /pin-order
+    /// {pin_order:null}` THEN `PATCH {pinned:false}`. Delivers `Ok(())` only when BOTH succeed; if either
+    /// fails, `Err(msg)` (the host rolls the optimistic removal back and re-fetches to find true state).
+    /// Both calls are always issued in sequence (the React WorkspaceSidebar.tsx lines 297-298 flow); the
+    /// pin-order clear is never skipped.
+    pub fn remove_pin(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+        let clear = self.clear_pin_order_request(workspace_id, block_id);
+        let unpin = self.unpin_request(workspace_id, block_id);
+        let clear_body = clear.body.unwrap_or_default();
+        let unpin_body = unpin.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            // Call 1: clear the pin order. A failure here aborts the unpin (true partial state -> the host
+            // re-fetches), exactly the RISK-1 recovery.
+            let result = match put_expect_success(&client, &clear.url, &clear_body).await {
+                Ok(()) => patch_expect_success(&client, &unpin.url, &unpin_body).await,
+                Err(e) => Err(e),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Remove a favorite off the UI thread: `PATCH {favorite:false}` (AC3). Single call.
+    pub fn remove_favorite(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+        let unfav = self.unfavorite_request(workspace_id, block_id);
+        let body = unfav.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = patch_expect_success(&client, &unfav.url, &body).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+}
+
+/// Parse one verified `LoomBlock` JSON object into a [`SidebarBlock`]. `title` falls back to the block id
+/// when null/empty; `content_type` defaults to "other". Returns `None` only when the block has no
+/// `block_id` (a malformed row is skipped, not faked). Mirrors the `block_to_node`/`block_to_hub_member`
+/// field reads so every Loom surface agrees on the verified block shape.
+fn block_to_sidebar_block(block: &serde_json::Value) -> Option<SidebarBlock> {
+    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let title = block
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&block_id)
+        .to_owned();
+    let content_type = block
+        .get("content_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("other")
+        .to_owned();
+    Some(SidebarBlock::new(block_id, title, content_type))
+}
+
+/// `GET {url}?{query}` and parse the verified `LoomViewResponse::{Pins,Favorites} { blocks }` shape into
+/// [`SidebarBlock`]s. A missing/empty `blocks` array yields an EMPTY list (the section empty state),
+/// never an error. A non-success status or parse failure is an [`AppError`] (the AC9 error banner).
+async fn fetch_view_blocks(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<SidebarBlock>, AppError> {
+    let v = get_json(client, url, query).await?;
+    let blocks = v
+        .get("blocks")
+        .and_then(|b| b.as_array())
+        .map(|arr| arr.iter().filter_map(block_to_sidebar_block).collect())
+        .unwrap_or_default();
+    Ok(blocks)
+}
+
+/// `GET {url}` and parse the verified `Vec<LoomBacklink>` shape into [`BacklinkRow`]s. Each backlink is
+/// `{ edge:{ edge_type, source_block_id, .. }, source_block:{ block_id, title, .. }, context_snippet }`.
+/// The row's open key + title come from `source_block`; the label is `edge.edge_type` (AC4). A backlink
+/// missing its `source_block.block_id` is skipped. An empty array yields an empty list, never an error.
+async fn fetch_backlink_rows(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<BacklinkRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let rows = v
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|bl| {
+                    let source = bl.get("source_block")?;
+                    let block_id = source.get("block_id").and_then(|x| x.as_str())?.to_owned();
+                    let title = source
+                        .get("title")
+                        .and_then(|x| x.as_str())
+                        .filter(|s| !s.trim().is_empty())
+                        .unwrap_or(&block_id)
+                        .to_owned();
+                    let edge_type = bl
+                        .get("edge")
+                        .and_then(|e| e.get("edge_type"))
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("mention")
+                        .to_owned();
+                    Some(BacklinkRow::new(block_id, title, edge_type))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(rows)
+}
+
+/// `GET {url}` and parse the verified `Vec<LoomUnlinkedMention>` shape into [`UnlinkedRow`]s. Each mention
+/// is `{ source_block:{ block_id, title, .. }, matched_term, snippet, match_offset }`; the row's open key
+/// + title come from `source_block` (AC5). An empty array yields an empty list, never an error.
+async fn fetch_unlinked_rows(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<UnlinkedRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let rows = v
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let source = m.get("source_block")?;
+                    let block_id = source.get("block_id").and_then(|x| x.as_str())?.to_owned();
+                    let title = source
+                        .get("title")
+                        .and_then(|x| x.as_str())
+                        .filter(|s| !s.trim().is_empty())
+                        .unwrap_or(&block_id)
+                        .to_owned();
+                    Some(UnlinkedRow::new(block_id, title))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(rows)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WP-KERNEL-012 MT-008 code-navigation transport (REUSE — not a second HTTP stack).
 //
 // The native code-editor's CodeNavClient (`code_editor::code_nav`) binds the EXISTING handshake_core

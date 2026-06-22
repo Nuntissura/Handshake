@@ -7,6 +7,7 @@
 
 pub mod folder_tree;
 pub mod graph_view;
+pub mod sidebar_panel;
 pub mod tags_panel;
 
 pub use graph_view::{
@@ -27,4 +28,13 @@ pub use tags_panel::{
     LoomTagsPanel, TagEntry, TagHubEvent, TagsPanelEvent, HUB_ADD_SEARCH_AUTHOR_ID,
     HUB_ADD_TAG_AUTHOR_ID_PREFIX, HUB_MEMBER_AUTHOR_ID_PREFIX, HUB_TITLE_AUTHOR_ID_PREFIX,
     SEARCH_AUTHOR_ID, TAG_CHIP_PALETTE_LEN, TAG_ROW_AUTHOR_ID_PREFIX,
+};
+
+pub use sidebar_panel::{
+    backlink_row_author_id, breadcrumb_author_id, favorite_remove_author_id, favorite_row_author_id,
+    pin_remove_author_id, pin_row_author_id, section_retry_author_id, truncate_label,
+    unlinked_row_author_id, BacklinkRow, BreadcrumbEntry, LoomSidebarPanel, SectionKind, SidebarBlock,
+    SidebarEvent, UnlinkedRow, BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX,
+    FAVORITE_ROW_AUTHOR_ID_PREFIX, MAX_BREADCRUMBS, PIN_ROW_AUTHOR_ID_PREFIX,
+    UNLINKED_ROW_AUTHOR_ID_PREFIX,
 };
