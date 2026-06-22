@@ -55,6 +55,8 @@ pub mod breakpoints;
 pub mod buffer;
 pub mod code_nav;
 pub mod cursor;
+pub mod diff_editor_panel;
+pub mod diff_engine;
 pub mod editor_view;
 pub mod find_replace;
 pub mod folding;
@@ -68,6 +70,15 @@ pub mod virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};
+pub use diff_editor_panel::{
+    build_line_map, right_line_for_left_line, DiffEditorPaneFactory, DiffEditorPanel, DiffMode, Side,
+    SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX, DIFF_EDITOR_PANEL_AUTHOR_ID,
+    DIFF_MODE_TOGGLE_AUTHOR_ID,
+};
+pub use diff_engine::{
+    diff_json_blocks, DiffBlock, DiffEngine, DiffStatus, MergeBlock, MergeChoice, MergeEngine,
+    MergeStatus,
+};
 pub use code_nav::{
     code_symbol_staleness_label, markdown_for_symbol, staleness_marker_for, symbol_file_path,
     CodeFileLensResponse, CodeNavCache, CodeNavClient, CodeStaleness, CodeSymbolDefinition,
@@ -110,3 +121,37 @@ pub use panel::{
     CODE_EDITOR_TEXT_AUTHOR_ID,
 };
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};
+
+use std::sync::Arc;
+
+/// Construct a diff editor surface for two documents and wrap it in a [`DiffEditorPaneFactory`] so it
+/// mounts in the WP-011 docking split layout through the EXISTING `pane_registry` + `split_layout`
+/// (no new shell layout system — MT-009 contract). Returns the factory ready to register against a
+/// pane record; the caller (the shell) adds it to its factory set the same way it registers
+/// [`CodeEditorPaneFactory`]. `extension` selects the grammar for both panes.
+///
+/// MT contract: `open_diff(left: TextBuffer, right: TextBuffer)`.
+pub fn open_diff(left: TextBuffer, right: TextBuffer, extension: &str) -> DiffEditorPaneFactory {
+    DiffEditorPaneFactory::new(DiffEditorPanel::diff(left, right, extension))
+}
+
+/// Construct a three-way merge editor surface (local/base/remote) wrapped in a
+/// [`DiffEditorPaneFactory`] for the same EXISTING pane registry + split layout. The merge view opens
+/// with the local/remote panes plus per-conflict accept controls (MT step 5).
+///
+/// MT contract: `open_merge(base, local, remote: TextBuffer)`.
+pub fn open_merge(
+    base: TextBuffer,
+    local: TextBuffer,
+    remote: TextBuffer,
+    extension: &str,
+) -> DiffEditorPaneFactory {
+    DiffEditorPaneFactory::new(DiffEditorPanel::merge(base, local, remote, extension))
+}
+
+/// A shared handle to a [`DiffEditorPanel`] for callers (and tests) that need to drive the panel
+/// (accept a merge choice, toggle mode, scroll) after [`open_diff`] / [`open_merge`] mounts it. The
+/// factory keeps an `Arc` to the same panel it renders, so this clone observes the live state.
+pub fn diff_panel_handle(factory: &DiffEditorPaneFactory) -> Arc<DiffEditorPanel> {
+    factory.panel()
+}

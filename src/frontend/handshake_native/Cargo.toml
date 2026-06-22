@@ -130,6 +130,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 #   cleanly (the crate already ships crt-static via .cargo/config and other native deps build the same
 #   way).
 ropey = "1.6"
+# WP-KERNEL-012 MT-009 diff/merge editor: `similar` is the production-grade, MIT-licensed Rust diff
+# library (used by insta/cargo-insta and many CLIs). It implements Myers' diff (the algorithm the
+# MT-009 contract names) over slices and exposes per-line change tags via `TextDiff::from_lines` +
+# `ChangeTag`. The contract explicitly sanctions `similar = "2"`. Pure-Rust, no native build, no new
+# runtime stack (it is a leaf algorithm crate); Cargo.lock pins the resolved version (MC reproducible).
+similar = "2"
 # WP-KERNEL-012 MT-004 find/replace: the `regex` crate is Rust's standard RE2-style engine with
 # LINEAR-TIME guarantees (no backtracking -> no catastrophic ReDoS — RISK-001). Already present in the
 # locked graph transitively (Cargo.lock pins regex 1.12.4 via regex-automata/regex-syntax), so this
