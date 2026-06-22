@@ -178,12 +178,16 @@ impl WikilinkRuntime {
         if self.document_id.trim().is_empty() {
             return;
         }
-        self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
-        self.backlinks = BacklinksState::Loading;
-        let generation = self.backlinks_generation;
+        // Only enter the Loading (spinner) state when a runtime can actually dispatch the fetch.
+        // Headless (no runtime) must NOT enter a perpetual Loading: nothing would ever resolve it, so
+        // the egui::Spinner would request a repaint every frame forever (idle-CPU burn + harness.run()
+        // max_steps in any full-widget test). Tests stage results directly via stage_backlinks.
         let Some(runtime) = self.runtime.clone() else {
             return;
         };
+        self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
+        self.backlinks = BacklinksState::Loading;
+        let generation = self.backlinks_generation;
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.backlinks_cell);
         let document_id = self.document_id.clone();
@@ -404,16 +408,23 @@ mod tests {
     }
 
     #[test]
-    fn ensure_backlinks_loaded_only_triggers_from_idle() {
+    fn ensure_backlinks_loaded_stays_idle_without_runtime() {
+        // Headless (no runtime) must NOT enter Loading: nothing would resolve it, so a Loading-state
+        // egui::Spinner would repaint forever (idle-CPU + harness.run() max_steps). It stays Idle and
+        // the panel renders a neutral non-animating "Backlinks not loaded." (tests stage state directly).
         let mut rt = rt();
         rt.set_document("DOC-A");
         assert!(matches!(rt.backlinks, BacklinksState::Idle));
-        rt.ensure_backlinks_loaded(); // headless: no runtime, but it bumps to Loading
-        assert!(matches!(rt.backlinks, BacklinksState::Loading), "Idle -> Loading on first load");
-        // A second call while Loading does NOT re-trigger (no per-frame polling).
         let gen = rt.backlinks_generation;
         rt.ensure_backlinks_loaded();
-        assert_eq!(rt.backlinks_generation, gen, "no re-fetch while Loading (RISK-4: no polling)");
+        assert!(
+            matches!(rt.backlinks, BacklinksState::Idle),
+            "headless (no runtime) stays Idle — no perpetual-spinner Loading"
+        );
+        assert_eq!(
+            rt.backlinks_generation, gen,
+            "no generation bump / fetch without a runtime to dispatch it (RISK-4 + no idle spinner)"
+        );
     }
 
     #[test]

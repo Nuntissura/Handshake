@@ -77,7 +77,13 @@ pub fn render_backlinks_panel(
             }
 
             match runtime.backlinks.clone() {
-                BacklinksState::Idle | BacklinksState::Loading => {
+                BacklinksState::Idle => {
+                    // No fetch in flight (no runtime/document, or load not yet dispatched). Show a
+                    // neutral, NON-animating state — an egui::Spinner here would request a repaint
+                    // every frame forever (idle-CPU + harness.run() max_steps) when nothing resolves it.
+                    ui.colored_label(palette.text_subtle, "Backlinks not loaded.");
+                }
+                BacklinksState::Loading => {
                     ui.horizontal(|ui| {
                         ui.add(egui::Spinner::new());
                         ui.colored_label(palette.text_subtle, "Loading backlinks…");
