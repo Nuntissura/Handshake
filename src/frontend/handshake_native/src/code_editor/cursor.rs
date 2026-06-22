@@ -477,7 +477,12 @@ pub fn line_col_to_byte(line: usize, column: usize, buffer: &TextBuffer) -> usiz
 
     let start_char = buffer.byte_to_char(line_start).unwrap_or(0);
     let end_char = buffer.byte_to_char(line_text_end).unwrap_or(start_char);
-    let target_char = (start_char + column).min(end_char);
+    // RISK-002 / overflow-safe: `column` may be `usize::MAX` (callers pass it to mean "to the line's
+    // content end", e.g. the whole-line selection paint branch). On any line where `line_start > 0`,
+    // `start_char > 0`, so a plain `start_char + column` would overflow `usize` and PANIC under
+    // debug overflow-checks (or wrap to a garbage column in release). Saturating add caps at the
+    // line's `end_char` clamp, so a giant column always lands on the line content end — never UB.
+    let target_char = start_char.saturating_add(column).min(end_char);
     buffer.char_to_byte(target_char).unwrap_or(line_start)
 }
 
@@ -680,5 +685,23 @@ mod tests {
         assert_eq!(line_col_to_byte(0, 10, &buf), 2);
         // column 2 on line 1 is byte 3 + 2 = 5 ("y" position).
         assert_eq!(line_col_to_byte(1, 2, &buf), 5);
+    }
+
+    /// Regression (must-fix, adversarial review): the whole-line selection paint branch calls
+    /// `line_col_to_byte(line, usize::MAX, &buffer)` to mean "snap to this line's content end". On any
+    /// line past the first, `start_char > 0`, so the old `start_char + usize::MAX` overflowed `usize`
+    /// and PANICKED under debug overflow-checks (or wrapped to garbage in release). With the saturating
+    /// add it must clamp to the line's content end on EVERY line without panicking.
+    #[test]
+    fn line_col_max_column_clamps_to_content_end_on_every_line() {
+        // 3 lines: "0123" (4), "5678" (4), "abcd" (4). Each line content is 4 chars wide.
+        let buf = TextBuffer::new("0123\n5678\nabcd");
+        // Line 0 content end = byte 4 (before '\n').
+        assert_eq!(line_col_to_byte(0, usize::MAX, &buf), 4);
+        // Line 1 starts at byte 5 ("5678"); content end = byte 9 (before its '\n'). This is the row that
+        // overflowed before (line_start > 0 => start_char > 0).
+        assert_eq!(line_col_to_byte(1, usize::MAX, &buf), 9);
+        // Line 2 (last, no trailing '\n') starts at byte 10; content end = buffer end (byte 14).
+        assert_eq!(line_col_to_byte(2, usize::MAX, &buf), 14);
     }
 }

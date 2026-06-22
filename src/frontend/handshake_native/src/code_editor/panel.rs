@@ -857,9 +857,11 @@ impl CodeEditorPanel {
                 node.set_value(format!("{total_lines} lines"));
             });
 
-            // MT-003 AC-004: emit one `Role::TextCursor` AccessKit node per cursor (capped at
+            // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
             // MAX_ACCESSKIT_CURSORS — RISK-004 / MC-004), nested under the text node so a swarm agent
-            // can address each caret by `code_editor_cursor_{n}`.
+            // can address each caret by `code_editor_cursor_{n}`. (The contract named `Role::TextCursor`,
+            // which does not exist in accesskit 0.21; `Role::Caret` is the field-correct caret role —
+            // see `emit_cursor_nodes` for the documented deviation.)
             self.emit_cursor_nodes(ui);
         });
     }
@@ -1073,11 +1075,13 @@ impl CodeEditorPanel {
         }
     }
 
-    /// Emit one `Role::TextCursor` AccessKit node per cursor (capped at [`MAX_ACCESSKIT_CURSORS`] —
+    /// Emit one `Role::Caret` AccessKit node per cursor (capped at [`MAX_ACCESSKIT_CURSORS`] —
     /// RISK-004 / MC-004) so a swarm agent can find each caret by `code_editor_cursor_{n}` (n = sorted
     /// index). Each node carries the cursor's `(line, col)` head position in its value field. The nodes
     /// are emitted onto fixed `egui::Id`s in the cursor band (default panel) so their `NodeId`s are
-    /// stable across frames; they are children of the current (text) scope's `Ui`.
+    /// stable across frames; they are children of the current (text) scope's `Ui`. (The MT contract
+    /// named `Role::TextCursor`, which does not exist in accesskit 0.21 — `Role::Caret` is the
+    /// field-correct equivalent; the body documents the deviation in full.)
     fn emit_cursor_nodes(&self, ui: &egui::Ui) {
         let cursors = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
