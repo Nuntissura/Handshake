@@ -147,13 +147,25 @@ mod tests {
         assert_eq!(authors.len(), 500);
     }
 
+    // The root id and every block id sit far above the shell's fixed bands (< 100) and the
+    // pane base (>= 100, but < 1_000_000), so a rich-editor node can never collide with shell
+    // chrome / panes. These are compile-time invariants over `const` node-id allocations, so
+    // they are enforced with `const { assert!(...) }` rather than a runtime `assert!` (which
+    // clippy would flag as assertions_on_constants / "optimized out") — same pattern as
+    // code_editor/editor_view.rs.
+    const _: () = assert!(
+        RICH_EDITOR_ROOT_NODE_ID > 100,
+        "root node id must sit above the shell chrome/pane bands"
+    );
+    const _: () = assert!(
+        BLOCK_NODE_ID_BASE > RICH_EDITOR_ROOT_NODE_ID,
+        "block node id band must sit above the root id"
+    );
+
     #[test]
     fn block_ids_disjoint_from_root_and_shell_bands() {
-        // The root id and every block id sit far above the shell's fixed bands (< 100)
-        // and the pane base (>= 100, but < 1_000_000), so a rich-editor node can never
-        // collide with shell chrome / panes.
-        assert!(RICH_EDITOR_ROOT_NODE_ID > 100);
-        assert!(BLOCK_NODE_ID_BASE > RICH_EDITOR_ROOT_NODE_ID);
+        // The runtime loop proves each concrete block id lands in its band and never equals
+        // the root id; the band ordering itself is proven by the `const _` asserts above.
         for i in [0usize, 1, 499, 1000] {
             let id = block_node_id(&[i]);
             assert!(id >= BLOCK_NODE_ID_BASE, "block id below its band");
