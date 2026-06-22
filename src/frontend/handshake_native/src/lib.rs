@@ -15,6 +15,7 @@ pub mod context_menu_surfaces;
 pub mod debug_console;
 pub mod drawer;
 pub mod error;
+pub mod graph;
 pub mod loom_graph;
 pub mod source_control;
 pub mod event_bus;

@@ -1268,6 +1268,227 @@ async fn put_expect_success(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-021 Loom-graph transport (REUSE the existing reqwest/timeout/error shape).
+//
+// The native Loom GRAPH VIEW (`graph::graph_view::LoomGraphView`) binds the EXISTING handshake_core
+// Loom read APIs through THIS client (NOT Tauri — the contract's "Tauri command" reference is the
+// legacy React/webview stack; this is the native egui app, so it uses the same HTTP client every other
+// MT-008/014/015 surface uses). Two modes, both VERIFIED READ-ONLY against `src/backend/handshake_core`:
+//   - GLOBAL: `GET /workspaces/:ws/loom/views/all` -> `LoomViewResponse::All { blocks }` (the SAME
+//     endpoint DrawerDataClient counts). Each block becomes a graph node; the global view returns NO
+//     edges (the flat enumeration has no edge payload), so the global graph is node-only until a node
+//     is focused. content_type drives the node colour.
+//   - LOCAL: `GET /workspaces/:ws/loom/graph-search?q={title}&backlink_depth=2&limit=200` ->
+//     `Vec<LoomGraphSearchResult>` (handler `search_loom_graph`). VERIFIED: the backend REJECTS an empty
+//     `q` with HTTP 400 HSK-400-LOOM-QUERY-REQUIRED, so Local mode MUST pass the focused block's title
+//     as `q` (the contract's "empty q to enumerate" is stale for graph-search; global enumeration is
+//     `views/all`, not `graph-search?q=`). Each result with a `block` becomes a node; an edge is
+//     synthesized from the focused block to every neighbour (the neighbourhood star), since the
+//     graph-search result list is the focused block's neighbourhood, not an edge list.
+//
+// Follows the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the parsed
+// graph into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET — the
+// render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on the
+// `handshake_core` crate's types; the parsed node/edge shapes are the widget's own
+// `graph::graph_view::{GraphNode, GraphEdge}` (the field-correct reuse of the verified backend shapes).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::graph_view::{GraphEdge, GraphNode};
+
+/// The externally-meaningful result of a Loom-graph fetch: the node + edge lists the
+/// [`crate::graph::graph_view::LoomGraphView`] renders. `Ok` carries the live graph; `Err(msg)` a
+/// failure the view surfaces as an error label (AC8) instead of crashing.
+pub type LoomGraphCell = Arc<Mutex<Option<Result<LoomGraphData, String>>>>;
+
+/// A parsed Loom graph (nodes + edges) plus the focus block id the fetch was for (so a stale delivery
+/// for a previous mode/block can be detected by the host).
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoomGraphData {
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
+
+/// REST client for the VERIFIED Loom graph read surfaces the MT-021 graph view binds: `views/all`
+/// (global) and `graph-search` (local neighbourhood). Mirrors the `DrawerDataClient` shape exactly.
+#[derive(Clone)]
+pub struct LoomGraphClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomGraphClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn views_all_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/views/all", self.base_url, workspace_id)
+    }
+
+    fn graph_search_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/graph-search", self.base_url, workspace_id)
+    }
+
+    /// Pure request builder for the GLOBAL graph fetch: `GET /loom/views/all` (no query). Split out so a
+    /// unit test asserts the EXACT verified URL without a live backend (the spawn path routes through
+    /// this same builder).
+    pub fn global_request(&self, workspace_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.views_all_url(workspace_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for the LOCAL neighbourhood fetch: `GET /loom/graph-search?q={title}&
+    /// backlink_depth=2&limit=200`. `q` is the focused block's TITLE (the backend rejects an empty `q`).
+    pub fn local_request(&self, workspace_id: &str, title: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.graph_search_url(workspace_id),
+            query: vec![
+                ("q".to_owned(), title.to_owned()),
+                ("backlink_depth".to_owned(), "2".to_owned()),
+                ("limit".to_owned(), "200".to_owned()),
+            ],
+        }
+    }
+
+    /// Fetch the GLOBAL graph (all blocks) off the UI thread, delivering the parsed graph into `cell`.
+    pub fn fetch_global(&self, workspace_id: &str, cell: LoomGraphCell) {
+        let spec = self.global_request(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_global_graph(&client, &spec.url).await;
+            deliver_graph(&cell, result.map_err(|e| e.to_string()));
+        });
+    }
+
+    /// Fetch the LOCAL neighbourhood of the focused block off the UI thread, delivering the parsed graph
+    /// into `cell`. `focus_block_id` is the block whose neighbourhood is shown (the star centre);
+    /// `focus_title` is the graph-search `q`.
+    pub fn fetch_local(
+        &self,
+        workspace_id: &str,
+        focus_block_id: &str,
+        focus_title: &str,
+        cell: LoomGraphCell,
+    ) {
+        let spec = self.local_request(workspace_id, focus_title);
+        let client = self.client.clone();
+        let focus = focus_block_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_local_graph(&client, &spec.url, &spec.query, &focus).await;
+            deliver_graph(&cell, result.map_err(|e| e.to_string()));
+        });
+    }
+}
+
+/// Write a graph fetch result into a [`LoomGraphCell`].
+fn deliver_graph(cell: &LoomGraphCell, result: Result<LoomGraphData, String>) {
+    if let Ok(mut slot) = cell.lock() {
+        *slot = Some(result);
+    }
+}
+
+/// Parse one verified `LoomBlock` JSON object into a [`GraphNode`]. `title` falls back to the block id
+/// when null/empty so a node is never label-less. `content_type` defaults to "other" (slate) when
+/// absent. Returns `None` only when the block has no `block_id` (a malformed row is skipped, not faked).
+fn block_to_node(block: &serde_json::Value) -> Option<GraphNode> {
+    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let title = block
+        .get("title")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&block_id)
+        .to_owned();
+    let content_type = block
+        .get("content_type")
+        .and_then(|x| x.as_str())
+        .unwrap_or("other")
+        .to_owned();
+    Some(GraphNode::new(block_id, title, content_type))
+}
+
+/// `GET {url}` and parse the verified `LoomViewResponse::All { blocks }` into a node-only graph (the
+/// global enumeration carries no edge payload). A missing/empty `blocks` array yields an EMPTY graph
+/// (0 nodes), never an error (AC7). A non-success status or parse failure is an [`AppError`] (AC8).
+async fn fetch_global_graph(client: &reqwest::Client, url: &str) -> Result<LoomGraphData, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let nodes = v
+        .get("blocks")
+        .and_then(|b| b.as_array())
+        .map(|arr| arr.iter().filter_map(block_to_node).collect())
+        .unwrap_or_default();
+    Ok(LoomGraphData { nodes, edges: vec![] })
+}
+
+/// `GET {url}?{query}` and parse the verified `Vec<LoomGraphSearchResult>` into the focused block's
+/// neighbourhood graph: every result that carries a `block` becomes a node, and a star edge links the
+/// focused block to each neighbour. The focused block itself is added as a node if the backend did not
+/// return it among the results (so the centre is always present). A non-success status or parse failure
+/// is an [`AppError`] (AC8) — including the backend's HTTP 400 for an empty `q`.
+async fn fetch_local_graph(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+    focus_block_id: &str,
+) -> Result<LoomGraphData, AppError> {
+    let v = get_json(client, url, query).await?;
+    let mut nodes: Vec<GraphNode> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Some(arr) = v.as_array() {
+        for result in arr {
+            // A graph-search result references a block via the optional `block` object; the flat
+            // `ref_id`/`title` carry the addressing when `block` is absent.
+            if let Some(block) = result.get("block") {
+                if let Some(node) = block_to_node(block) {
+                    if seen.insert(node.block_id.clone()) {
+                        nodes.push(node);
+                    }
+                    continue;
+                }
+            }
+            // Fall back to ref_id + title when no embedded block object.
+            if let Some(ref_id) = result.get("ref_id").and_then(|x| x.as_str()) {
+                let title = result
+                    .get("title")
+                    .and_then(|x| x.as_str())
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(ref_id)
+                    .to_owned();
+                if seen.insert(ref_id.to_owned()) {
+                    nodes.push(GraphNode::new(ref_id.to_owned(), title, "other"));
+                }
+            }
+        }
+    }
+    // Ensure the focus block is present as the star centre.
+    if !seen.contains(focus_block_id) {
+        nodes.insert(0, GraphNode::new(focus_block_id.to_owned(), focus_block_id.to_owned(), "note"));
+        seen.insert(focus_block_id.to_owned());
+    }
+    // Star edges from the focus to each neighbour (the neighbourhood is the focus's local graph).
+    let edges = nodes
+        .iter()
+        .filter(|n| n.block_id != focus_block_id)
+        .map(|n| GraphEdge::new(focus_block_id.to_owned(), n.block_id.clone(), "mention"))
+        .collect();
+    Ok(LoomGraphData { nodes, edges })
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // WP-KERNEL-012 MT-008 code-navigation transport (REUSE — not a second HTTP stack).
 //
 // The native code-editor's CodeNavClient (`code_editor::code_nav`) binds the EXISTING handshake_core
@@ -1899,5 +2120,122 @@ mod tests {
             (DrawerDataKind::Lists, Ok(DrawerCardData { badge_count: 0, subtitle: "0 items".to_owned() })),
             "missing blocks field defaults to 0 (CONTROL-023-D), never an error"
         );
+    }
+
+    // ── MT-021 LoomGraphClient: verified URL/query builders + a live round-trip parse ────────────────
+
+    #[test]
+    fn loom_graph_global_request_url() {
+        let rt = rt();
+        let c = LoomGraphClient::new(BASE, rt.handle().clone());
+        let spec = c.global_request("ws-7");
+        assert_eq!(spec.method, HttpMethod::Get);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/views/all");
+        assert!(spec.query.is_empty(), "global enumeration carries no query");
+    }
+
+    #[test]
+    fn loom_graph_local_request_url_and_query() {
+        let rt = rt();
+        let c = LoomGraphClient::new(BASE, rt.handle().clone());
+        let spec = c.local_request("ws-7", "My Note");
+        assert_eq!(spec.method, HttpMethod::Get);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/graph-search");
+        // The focused block's TITLE is the graph-search `q` (the backend 400s on an empty q), plus the
+        // verified backlink_depth + limit caps.
+        assert_eq!(
+            spec.query,
+            vec![
+                ("q".to_owned(), "My Note".to_owned()),
+                ("backlink_depth".to_owned(), "2".to_owned()),
+                ("limit".to_owned(), "200".to_owned()),
+            ]
+        );
+    }
+
+    /// End-to-end: the REAL `fetch_global` spawn path hits a live capture server and parses the verified
+    /// `LoomViewResponse::All { blocks }` payload into graph nodes (proves the client is genuinely
+    /// CONSUMED — dispatch -> reqwest -> wire -> parse — not just arithmetic). 3 seeded blocks => 3 nodes,
+    /// content_type preserved.
+    #[test]
+    fn loom_graph_global_fetch_parses_blocks() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = LoomGraphClient::new(base, rt.handle().clone());
+        let cell: LoomGraphCell = Arc::new(Mutex::new(None));
+        client.fetch_global("ws1", cell.clone());
+
+        let body = r#"{"view_type":"all","blocks":[
+            {"block_id":"b1","title":"Alpha","content_type":"note"},
+            {"block_id":"b2","title":"Beta","content_type":"file"},
+            {"block_id":"b3","title":null,"content_type":"tag_hub"}
+        ]}"#;
+        let request_line = capture_one_request_reply(listener, body);
+        assert!(
+            request_line.contains("GET /workspaces/ws1/loom/views/all"),
+            "global fetch hits views/all (got '{request_line}')"
+        );
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        let data = cell.lock().unwrap().take().expect("graph delivered").expect("parse ok");
+        assert_eq!(data.nodes.len(), 3, "3 seeded blocks -> 3 nodes");
+        assert_eq!(data.nodes[0].block_id, "b1");
+        assert_eq!(data.nodes[0].content_type, "note");
+        // A null title falls back to the block id (never label-less).
+        assert_eq!(data.nodes[2].title, "b3", "null title falls back to block_id");
+        assert!(data.edges.is_empty(), "global enumeration has no edges");
+    }
+
+    /// AC8 binding: a backend 5xx (non-success status) delivers Err, NOT a panic and NOT a fake graph.
+    #[test]
+    fn loom_graph_global_fetch_error_on_5xx() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let base = format!("http://127.0.0.1:{port}");
+
+        let client = LoomGraphClient::new(base, rt.handle().clone());
+        let cell: LoomGraphCell = Arc::new(Mutex::new(None));
+        client.fetch_global("ws1", cell.clone());
+
+        // Reply 503 (backend unreachable analog).
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let resp = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n";
+            let _ = stream.write_all(resp.as_bytes());
+            let _ = stream.flush();
+        });
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        let delivered = cell.lock().unwrap().take().expect("graph delivered");
+        assert!(delivered.is_err(), "AC8: a 5xx must deliver Err (got {delivered:?}), never a fake graph");
     }
 }
