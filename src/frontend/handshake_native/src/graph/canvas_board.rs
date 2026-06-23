@@ -53,10 +53,15 @@
 //! [`crate::project_tree::stable_part`] before forming the author_id suffix (RISK / id-integrity).
 
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 use egui::{Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
+use crate::accessibility::knowledge_action_registry::{
+    self, AddEdgePayload, AxRole as KAxRole, EdgeIdPayload, KnowledgeActionRegistry,
+    KnowledgeNodeState, PlaceBlockPayload, PlacementIdPayload, CANVAS_CONTROL_CATALOG,
+};
 use crate::theme::HsPalette;
 
 /// Default card dimensions on a drop / new card (React `DEFAULT_CARD_W` / `DEFAULT_CARD_H`).
@@ -273,6 +278,9 @@ pub enum CanvasEvent {
     SemanticEdge { source_block_id: String, target_block_id: String },
     /// Create a board-local visual edge (`POST .../visual-edges`) between two PLACEMENTS.
     VisualEdgeAdded { from_placement_id: String, to_placement_id: String },
+    /// WP-KERNEL-012 MT-042: remove an edge by id — a swarm `canvas.remove-edge` dispatch. The host
+    /// routes it through the E6 loom client (semantic edge) or removes the board-local visual edge.
+    RemoveEdge { edge_id: String },
 }
 
 /// The board widget state. Held by the host pane, mutated in place by [`LoomCanvasBoard::show`]. Pan,
@@ -302,6 +310,15 @@ pub struct LoomCanvasBoard {
     last_canvas_rect: Option<Rect>,
     /// Group-id counter so the `Group` event always gets a unique id even within one process run.
     group_seq: u64,
+    /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
+    /// installs it. An `Arc` handle (cheap shared clone, never deep-copied) so the board stays `Clone`.
+    knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
+    /// MT-042 (IN-042-08): the live `egui::Id` of each TOOLBAR-owned control whose author_id collides
+    /// with the MT-042 canonical catalog (pan/zoom/add-card/place-block). Recorded by `show` each frame so
+    /// `take_knowledge_dispatched` can consume a swarm `Click` (incl. a parameterized JSON payload) at the
+    /// SAME node the toolbar emitted — avoiding a second parallel registry node. Not part of `Clone`
+    /// equality semantics (a transient per-frame map).
+    toolbar_control_ids: std::collections::HashMap<&'static str, egui::Id>,
 }
 
 impl LoomCanvasBoard {
@@ -323,7 +340,16 @@ impl LoomCanvasBoard {
             place_block_input: String::new(),
             last_canvas_rect: None,
             group_seq: 0,
+            knowledge_registry: None,
+            toolbar_control_ids: std::collections::HashMap::new(),
         }
+    }
+
+    /// MT-042: record a toolbar-owned control's live `egui::Id` (called by `show` for each colliding
+    /// control), so `take_knowledge_dispatched` consumes a swarm `Click` at the toolbar node rather than
+    /// a duplicate registry node (IN-042-08).
+    fn record_toolbar_id(&mut self, author_id: &'static str, id: egui::Id) {
+        self.toolbar_control_ids.insert(author_id, id);
     }
 
     /// The default canvas-space position for a fallback `Place` (MC-2): the centre of the
@@ -443,15 +469,26 @@ impl LoomCanvasBoard {
         let mut event: Option<CanvasEvent> = None;
 
         // ── Toolbar strip ─────────────────────────────────────────────────────────────────────────
+        // WP-KERNEL-012 MT-042 (IN-042-08 no-duplicate-node): the control author_ids the MT-026 toolbar
+        // shares with the MT-042 KnowledgeActionRegistry canonical catalog (pan-left/right, zoom-in/out,
+        // add-card, place-block) stay OWNED by the toolbar button (emitted on the button's own id so the
+        // node keeps its layout rect — kittest interaction depends on it). The registry does NOT emit a
+        // second parallel node for these (see `sync_knowledge_registry`, which skips the toolbar-owned
+        // ids); instead the pane RECORDS each toolbar button's NodeId here so `take_knowledge_dispatched`
+        // can consume a swarm `Click` (incl. a parameterized place-block/add-card JSON payload) targeting
+        // that one node. A plain (no-payload) swarm Click on a toolbar button also triggers egui's own
+        // synthetic `.clicked()` so pan/zoom apply through the existing handler — never double-applied.
         ui.horizontal(|ui| {
             let pan_left = ui.button("◀ Pan");
             emit_button_node(ui, pan_left.id, PAN_LEFT_AUTHOR_ID, "Pan left");
+            self.record_toolbar_id(PAN_LEFT_AUTHOR_ID, pan_left.id);
             if pan_left.clicked() {
                 self.pan.x -= PAN_STEP;
                 event = Some(self.viewport_event());
             }
             let pan_right = ui.button("Pan ▶");
             emit_button_node(ui, pan_right.id, PAN_RIGHT_AUTHOR_ID, "Pan right");
+            self.record_toolbar_id(PAN_RIGHT_AUTHOR_ID, pan_right.id);
             if pan_right.clicked() {
                 self.pan.x += PAN_STEP;
                 event = Some(self.viewport_event());
@@ -460,6 +497,7 @@ impl LoomCanvasBoard {
             ui.separator();
             let zoom_out = ui.button("−");
             emit_button_node(ui, zoom_out.id, ZOOM_OUT_AUTHOR_ID, "Zoom out");
+            self.record_toolbar_id(ZOOM_OUT_AUTHOR_ID, zoom_out.id);
             if zoom_out.clicked() {
                 self.step_zoom(-ZOOM_STEP);
                 event = Some(self.viewport_event());
@@ -469,6 +507,7 @@ impl LoomCanvasBoard {
             emit_status_node(ui, zlabel.id, ZOOM_VALUE_AUTHOR_ID, &zoom_label);
             let zoom_in = ui.button("+");
             emit_button_node(ui, zoom_in.id, ZOOM_IN_AUTHOR_ID, "Zoom in");
+            self.record_toolbar_id(ZOOM_IN_AUTHOR_ID, zoom_in.id);
             if zoom_in.clicked() {
                 self.step_zoom(ZOOM_STEP);
                 event = Some(self.viewport_event());
@@ -477,6 +516,7 @@ impl LoomCanvasBoard {
             ui.separator();
             let add_card = ui.button("+ Text card");
             emit_button_node(ui, add_card.id, ADD_CARD_AUTHOR_ID, "Add text card");
+            self.record_toolbar_id(ADD_CARD_AUTHOR_ID, add_card.id);
             if add_card.clicked() {
                 // React: title = `Card ${new Date().toISOString()}`; default position (40, 40).
                 let title = format!("Card {}", now_iso8601());
@@ -531,8 +571,15 @@ impl LoomCanvasBoard {
             emit_text_field_node(ui, field.id, PLACE_BLOCK_INPUT_AUTHOR_ID, &self.place_block_input);
             let block_id = self.place_block_input.trim().to_owned();
             let can_place = !block_id.is_empty();
+            // MT-042: the MC-2 fallback button stays `add_enabled(can_place, ..)` for the MOUSE path
+            // (disabled while the text field is empty — unchanged MT-026 behavior). The AccessKit node is
+            // emitted via `emit_button_node`, which does NOT propagate the widget's disabled state, so the
+            // node stays discoverable + dispatchable for the registry's parameterized
+            // `place-block {block_id,x,y}` swarm path (IN-042-08: the toolbar owns the id; the registry
+            // does not re-mint it, it consumes the dispatch at the recorded button NodeId).
             let place_btn = ui.add_enabled(can_place, egui::Button::new("Place"));
             emit_button_node(ui, place_btn.id, PLACE_BLOCK_AUTHOR_ID, "Place block by id");
+            self.record_toolbar_id(PLACE_BLOCK_AUTHOR_ID, place_btn.id);
             if place_btn.clicked() && can_place {
                 // Default canvas position: the centre of the currently-visible canvas, in canvas space,
                 // so the placed card lands where the user is looking regardless of pan/zoom.
@@ -737,6 +784,177 @@ impl LoomCanvasBoard {
             pan_x: self.pan.x,
             pan_y: self.pan.y,
             zoom: self.zoom,
+        }
+    }
+
+    // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
+
+    /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern).
+    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+        self.knowledge_registry = Some(registry);
+    }
+
+    /// The canvas control author_ids the MT-026 TOOLBAR already emits (so the MT-042 registry must NOT
+    /// re-mint them — IN-042-08). The registry owns the rest of `CANVAS_CONTROL_CATALOG` + the per-card
+    /// identities; the toolbar owns these and the pane consumes their dispatch at the recorded button id.
+    const TOOLBAR_OWNED: &'static [&'static str] = &[
+        PAN_LEFT_AUTHOR_ID,
+        PAN_RIGHT_AUTHOR_ID,
+        ZOOM_IN_AUTHOR_ID,
+        ZOOM_OUT_AUTHOR_ID,
+        ADD_CARD_AUTHOR_ID,
+        PLACE_BLOCK_AUTHOR_ID,
+    ];
+
+    /// Populate the knowledge registry with the canvas GLOBAL controls NOT already owned by the toolbar
+    /// (zoom-reset, deselect-all, remove-placement, add-edge, remove-edge, select-card — fixed Button
+    /// nodes regardless of content, AC-042-08) and one `canvas.card.<placement_id>` Group identity per
+    /// LIVE placement (AC-042-03). Each card node carries `block_id=<placed_block_id>` in its AccessKit
+    /// `value` so a swarm agent correlates a placement to its source block (IN-042-02). The toolbar-owned
+    /// ids (pan/zoom/add-card/place-block) are SKIPPED here to avoid a second parallel node — the toolbar
+    /// emits them and the pane consumes their dispatch at the recorded button id (IN-042-08). Fully
+    /// re-derived each frame so a removed placement DISAPPEARS (deletion-by-absence — IN-042-10).
+    /// placement_ids are real UUIDs minted by the backend (RISK-042-02 / CTRL-042-02), surfaced verbatim.
+    pub fn sync_knowledge_registry(&self) {
+        let Some(registry) = &self.knowledge_registry else { return };
+        let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+        reg.clear_nodes();
+        for entry in CANVAS_CONTROL_CATALOG {
+            if Self::TOOLBAR_OWNED.contains(&entry.author_id) {
+                continue; // toolbar owns this id (IN-042-08 no-duplicate)
+            }
+            reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
+        }
+        for card in &self.placements {
+            let author = knowledge_action_registry::canvas_card_author_id(&card.placement_id);
+            let value = Some(format!("block_id={};group_id={}", card.placed_block_id,
+                card.group_id.as_deref().unwrap_or("none")));
+            reg.upsert_identity(author, KAxRole::Group, card.display_title().to_owned(), value, KnowledgeNodeState::present());
+        }
+    }
+
+    /// Emit the knowledge registry's nodes into the live AccessKit tree (call inside the host's `show`,
+    /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
+    pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
+        if let Some(registry) = &self.knowledge_registry {
+            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+        }
+    }
+
+    /// Consume this frame's swarm AccessKit `Click` dispatches targeting the canvas knowledge nodes and
+    /// MAP each to a typed [`CanvasEvent`] (RISK-042-04). Parameterized actions parse JSON via the
+    /// no-unwrap [`knowledge_action_registry::parse_payload`] seam (RISK-042-03 / CTRL-042-03). Reads BOTH
+    /// the registry-owned nodes (zoom-reset/deselect/remove-placement/add-edge/remove-edge/select-card +
+    /// per-card identities) AND the toolbar-owned ids (pan/zoom/add-card/place-block) at their recorded
+    /// button NodeIds (IN-042-08 — one node per id, the toolbar's). A `canvas.card.<id>` click maps to a
+    /// select of that placement (the swarm select-by-identity path).
+    pub fn take_knowledge_dispatched(&mut self, ui: &egui::Ui) -> Vec<CanvasEvent> {
+        if self.knowledge_registry.is_none() {
+            return Vec::new();
+        }
+        // Registry-owned node dispatches (non-toolbar controls + per-card identities).
+        let registry = self.knowledge_registry.as_ref().unwrap();
+        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        // Toolbar-owned dispatches: read the raw AccessKit Click (+ payload) at each recorded button id.
+        let toolbar = self.toolbar_control_ids.clone();
+        let mut toolbar_dispatched: Vec<(String, Option<String>)> = Vec::new();
+        ui.input(|input| {
+            for (author_id, id) in &toolbar {
+                for request in input.accesskit_action_requests(*id, accesskit::Action::Click) {
+                    let payload = match &request.data {
+                        Some(accesskit::ActionData::Value(v)) => Some(v.to_string()),
+                        _ => None,
+                    };
+                    toolbar_dispatched.push(((*author_id).to_owned(), payload));
+                }
+            }
+        });
+
+        let mut events = Vec::new();
+        for (author_id, payload) in dispatched.into_iter().chain(toolbar_dispatched) {
+            if let Some(ev) = self.apply_knowledge_action(&author_id, payload.as_deref()) {
+                events.push(ev);
+            }
+        }
+        events
+    }
+
+    /// Map ONE canonical knowledge action (+ optional JSON payload) to a typed [`CanvasEvent`], applying
+    /// any in-pane state change (pan/zoom/select). Returns `Some` for an action that produces a
+    /// host-applied event, `None` for a purely in-pane action (pan/zoom/select) or a dropped malformed
+    /// payload (RISK-042-03 / CTRL-042-03 — never a panic).
+    fn apply_knowledge_action(&mut self, author_id: &str, payload: Option<&str>) -> Option<CanvasEvent> {
+        match author_id {
+            "canvas.pan-left" => { self.pan.x -= PAN_STEP; None }
+            "canvas.pan-right" => { self.pan.x += PAN_STEP; None }
+            "canvas.zoom-in" => { self.step_zoom(ZOOM_STEP); None }
+            "canvas.zoom-out" => { self.step_zoom(-ZOOM_STEP); None }
+            "canvas.zoom-reset" => { self.zoom = 1.0; None }
+            "canvas.deselect-all" => {
+                self.selected.clear();
+                self.edge_from = None;
+                None
+            }
+            "canvas.add-card" => {
+                // The payload may carry a title; fall back to the timestamp title (React parity).
+                let title = knowledge_action_registry::parse_payload::<serde_json::Value>(payload)
+                    .and_then(|v| v.get("title").and_then(|t| t.as_str().map(ToOwned::to_owned)))
+                    .unwrap_or_else(|| format!("Card {}", now_iso8601()));
+                let pos = self.default_place_pos();
+                Some(CanvasEvent::AddCard { title, x: pos.x, y: pos.y })
+            }
+            "canvas.place-block" => {
+                let p = knowledge_action_registry::parse_payload::<PlaceBlockPayload>(payload)?;
+                self.status = format!("Placed {} (reference)", p.block_id);
+                Some(CanvasEvent::PlaceBlock { placed_block_id: p.block_id, x: p.x, y: p.y })
+            }
+            "canvas.remove-placement" => {
+                let p = knowledge_action_registry::parse_payload::<PlacementIdPayload>(payload)?;
+                Some(CanvasEvent::RemovePlacement { placement_id: p.placement_id })
+            }
+            "canvas.add-edge" => {
+                let p = knowledge_action_registry::parse_payload::<AddEdgePayload>(payload)?;
+                // edge_mode=visual creates a board-local visual edge between PLACEMENTS; otherwise a real
+                // semantic loom edge between BLOCKS (the canvas edge_event semantics).
+                if p.edge_mode.as_deref() == Some("visual") {
+                    Some(CanvasEvent::VisualEdgeAdded {
+                        from_placement_id: p.source_id,
+                        to_placement_id: p.target_id,
+                    })
+                } else {
+                    Some(CanvasEvent::SemanticEdge {
+                        source_block_id: p.source_id,
+                        target_block_id: p.target_id,
+                    })
+                }
+            }
+            "canvas.remove-edge" => {
+                let p = knowledge_action_registry::parse_payload::<EdgeIdPayload>(payload)?;
+                Some(CanvasEvent::RemoveEdge { edge_id: p.edge_id })
+            }
+            "canvas.select-card" => {
+                let p = knowledge_action_registry::parse_payload::<PlacementIdPayload>(payload)?;
+                if self.placements.iter().any(|c| c.placement_id == p.placement_id) {
+                    self.selected.clear();
+                    self.selected.insert(p.placement_id);
+                }
+                None
+            }
+            other => {
+                // A per-identity `canvas.card.<sanitized_placement_id>` click -> select that card.
+                if let Some(stripped) = other.strip_prefix(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX) {
+                    if let Some(card) = self
+                        .placements
+                        .iter()
+                        .find(|c| crate::project_tree::stable_part(&c.placement_id) == stripped)
+                    {
+                        let pid = card.placement_id.clone();
+                        self.selected.clear();
+                        self.selected.insert(pid);
+                    }
+                }
+                None
+            }
         }
     }
 

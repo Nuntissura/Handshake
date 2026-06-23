@@ -37,10 +37,15 @@
 //! with slashes or colons can never break AccessKit-tree integrity.
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 use egui::{Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
+use crate::accessibility::knowledge_action_registry::{
+    self, AddEdgePayload, AxRole as KAxRole, BlockIdPayload, EdgeIdPayload, KnowledgeActionRegistry,
+    KnowledgeNodeState, GRAPH_CONTROL_CATALOG, VIEWPORT_LOOKAHEAD,
+};
 use crate::theme::HsPalette;
 
 /// Default node circle radius in WORLD space (px before zoom). Click detection uses this same radius
@@ -185,6 +190,16 @@ pub enum GraphEvent {
     ModeChanged { to_global: bool },
     /// The Re-layout button was pressed; positions were reset and layout restarts.
     Relayout,
+    /// WP-KERNEL-012 MT-042: a node was selected (not opened) — a swarm `graph.select-node` dispatch or
+    /// the host's selection sync. The host publishes the selection to the shared bus (E5).
+    SelectNode { block_id: String },
+    /// MT-042: create a real semantic Loom edge (`POST /loom/edges`) between two BLOCKS — a swarm
+    /// `graph.add-edge` dispatch. The host runs it through the E6 loom client (NEEDS_MANAGED_RESOURCE_PROOF
+    /// for the DB round-trip).
+    AddEdge { source_block_id: String, target_block_id: String },
+    /// MT-042: remove a Loom edge by id — a swarm `graph.remove-edge` dispatch. Host runs it via the E6
+    /// loom client.
+    RemoveEdge { edge_id: String },
 }
 
 /// The widget's full state. Held by the host (the pane), mutated in place by [`LoomGraphView::show`].
@@ -209,6 +224,10 @@ pub struct LoomGraphView {
     pub last_max_step: f32,
     /// True once the layout positions have been seeded (a circle) for the current node set.
     seeded: bool,
+    /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
+    /// installs it via [`LoomGraphView::install_knowledge_action_registry`]. Skipped from `Clone`/`Debug`
+    /// equality by being an `Arc` handle (cheap clone of the shared registry, never deep-copied).
+    knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
 }
 
 impl Default for LoomGraphView {
@@ -227,6 +246,7 @@ impl Default for LoomGraphView {
             iters_done: 0,
             last_max_step: f32::INFINITY,
             seeded: false,
+            knowledge_registry: None,
         }
     }
 }
@@ -571,6 +591,145 @@ impl LoomGraphView {
         }
 
         event
+    }
+
+    // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
+
+    /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern). After
+    /// this, [`Self::sync_knowledge_registry`] populates the registry each frame and
+    /// [`Self::take_knowledge_dispatched`] consumes swarm `Click` dispatches.
+    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+        self.knowledge_registry = Some(registry);
+    }
+
+    /// The viewport-visible node set plus a [`VIEWPORT_LOOKAHEAD`] lookahead (CTRL-042-06 / RISK-042-06):
+    /// returns the indices of `self.nodes` whose screen position falls within `rect`, plus up to
+    /// `VIEWPORT_LOOKAHEAD` additional nodes nearest the viewport, so a swarm agent has a small
+    /// off-screen margin without registering the whole (capped) graph. When `rect` is `None` (no render
+    /// yet) the whole capped set is visible (it is already bounded to `NODE_CAP`).
+    fn visible_node_indices(&self, rect: Option<Rect>, center: Vec2) -> Vec<usize> {
+        let Some(rect) = rect else {
+            return (0..self.nodes.len()).collect();
+        };
+        let mut visible = Vec::new();
+        let mut offscreen: Vec<(f32, usize)> = Vec::new();
+        let view_center = rect.center();
+        for (i, node) in self.nodes.iter().enumerate() {
+            let screen = self.to_screen(node.pos(), center);
+            if rect.contains(screen) {
+                visible.push(i);
+            } else {
+                let d = (screen - view_center).length();
+                offscreen.push((d, i));
+            }
+        }
+        // Lookahead buffer: the nearest off-screen nodes (CTRL-042-06).
+        offscreen.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        for (_, i) in offscreen.into_iter().take(VIEWPORT_LOOKAHEAD) {
+            visible.push(i);
+        }
+        visible
+    }
+
+    /// Populate the knowledge registry with the graph's GLOBAL controls (registered every frame as fixed
+    /// Button nodes regardless of content — AC-042-08) and the per-node `graph.node.<block_id>` TreeItem
+    /// identities for the viewport-visible set (CTRL-042-06). Re-derives the node set fully each frame so
+    /// a deleted block's node DISAPPEARS from the tree (deletion-by-absence — IN-042-10). HBR-QUIET: the
+    /// host calls [`KnowledgeActionRegistry::state_changed_since_last_push`] to decide whether to notify.
+    /// `last_rect` is the canvas rect recorded by a prior `show`; pass `None` before the first render.
+    pub fn sync_knowledge_registry(&self, last_rect: Option<Rect>) {
+        let Some(registry) = &self.knowledge_registry else { return };
+        let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+        // Fully re-derive: clear, then re-register controls + visible identities (deletion-by-absence).
+        reg.clear_nodes();
+        // Global controls — ALWAYS present, content-independent (AC-042-08). add/remove-edge are
+        // dispatch-only seams the host routes to the E6 loom client; they are enabled (discoverable +
+        // dispatchable) but carry a JSON payload.
+        for entry in GRAPH_CONTROL_CATALOG {
+            reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
+        }
+        // Per-node identities for the viewport-visible set + lookahead.
+        let center = last_rect.map(|r| r.center().to_vec2()).unwrap_or(Vec2::ZERO);
+        for i in self.visible_node_indices(last_rect, center) {
+            let node = &self.nodes[i];
+            let author = knowledge_action_registry::graph_node_author_id(&node.block_id);
+            // value carries the raw block_id so a swarm agent correlates the sanitized author_id to the
+            // real Loom id (IN-042-02 pattern). content_type is included for filtering context.
+            let value = Some(format!("block_id={};content_type={}", node.block_id, node.content_type));
+            reg.upsert_identity(author, KAxRole::TreeItem, node.title.clone(), value, KnowledgeNodeState::present());
+        }
+    }
+
+    /// Emit the knowledge registry's nodes into the live AccessKit tree (call inside the host's `show`,
+    /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
+    pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
+        if let Some(registry) = &self.knowledge_registry {
+            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+        }
+    }
+
+    /// Consume this frame's swarm AccessKit `Click` dispatches targeting the graph's knowledge nodes and
+    /// MAP each to a typed [`GraphEvent`] (RISK-042-04 — the dispatch REACHES the pane). Returns the
+    /// events in dispatch order. Parameterized actions parse their JSON payload via the no-unwrap
+    /// [`knowledge_action_registry::parse_payload`] seam (RISK-042-03 / CTRL-042-03 — a malformed payload
+    /// is logged + dropped, never a panic). A `graph.node.<id>` click maps to `OpenNode` (the swarm
+    /// open-by-identity path).
+    pub fn take_knowledge_dispatched(&mut self, ui: &egui::Ui) -> Vec<GraphEvent> {
+        let Some(registry) = &self.knowledge_registry else { return Vec::new() };
+        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        let mut events = Vec::new();
+        for (author_id, payload) in dispatched {
+            match author_id.as_str() {
+                "graph.pan-left" => self.pan.x -= 40.0,
+                "graph.pan-right" => self.pan.x += 40.0,
+                "graph.zoom-in" => self.zoom = (self.zoom * 1.15).clamp(MIN_ZOOM, MAX_ZOOM),
+                "graph.zoom-out" => self.zoom = (self.zoom / 1.15).clamp(MIN_ZOOM, MAX_ZOOM),
+                "graph.zoom-reset" => self.zoom = 1.0,
+                "graph.deselect-all" => self.selected = None,
+                "graph.open-node" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
+                        self.selected = Some(p.block_id.clone());
+                        events.push(GraphEvent::OpenNode { block_id: p.block_id });
+                    }
+                }
+                "graph.select-node" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
+                        self.selected = Some(p.block_id.clone());
+                        events.push(GraphEvent::SelectNode { block_id: p.block_id });
+                    }
+                }
+                "graph.add-edge" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<AddEdgePayload>(payload.as_deref()) {
+                        events.push(GraphEvent::AddEdge {
+                            source_block_id: p.source_id,
+                            target_block_id: p.target_id,
+                        });
+                    }
+                }
+                "graph.remove-edge" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<EdgeIdPayload>(payload.as_deref()) {
+                        events.push(GraphEvent::RemoveEdge { edge_id: p.edge_id });
+                    }
+                }
+                other => {
+                    // A per-identity node click: `graph.node.<sanitized_block_id>` -> open that node. We
+                    // resolve the sanitized author_id back to the real block_id by scanning the live node
+                    // set (the author_id is a sanitized projection, so a reverse map is needed).
+                    if let Some(stripped) = other.strip_prefix(knowledge_action_registry::GRAPH_NODE_AUTHOR_ID_PREFIX) {
+                        if let Some(node) = self
+                            .nodes
+                            .iter()
+                            .find(|n| crate::project_tree::stable_part(&n.block_id) == stripped)
+                        {
+                            let block_id = node.block_id.clone();
+                            self.selected = Some(block_id.clone());
+                            events.push(GraphEvent::OpenNode { block_id });
+                        }
+                    }
+                }
+            }
+        }
+        events
     }
 }
 

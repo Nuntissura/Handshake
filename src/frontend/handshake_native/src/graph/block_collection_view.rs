@@ -58,8 +58,14 @@
 //! `bcv.calendar.date-to`). Block ids / lane keys / date keys are sanitized to `[a-z0-9-]` via
 //! [`crate::project_tree::stable_part`] before forming the author_id suffix (id-integrity).
 
+use std::sync::{Arc, Mutex};
+
 use egui::accesskit;
 
+use crate::accessibility::knowledge_action_registry::{
+    self, AxRole as KAxRole, BlockIdPayload, KanbanMovePayload, KnowledgeActionRegistry,
+    KnowledgeNodeState, SortPayload, COLLECTION_CONTROL_CATALOG,
+};
 use crate::theme::HsPalette;
 
 /// The sentinel Kanban lane key for blocks with no tag in a tag-grouped view. MUST match the backend
@@ -543,6 +549,10 @@ pub enum BlockViewEvent {
         title: String,
         kind: BlockViewKind,
     },
+    /// WP-KERNEL-012 MT-042: open a block (a row / card / entry / swarm `collection.open-block` dispatch)
+    /// in the active editor pane (the cross-pane open the MT names). The host routes it through the E5
+    /// navigation bus; the local results vec is NOT mutated (the view is a projection).
+    OpenBlock { block_id: String },
 }
 
 /// Transient state of the "+ New view" popup (Window). `None` => closed.
@@ -587,6 +597,9 @@ pub struct BlockCollectionView {
     date_error: Option<String>,
     /// The "+ New view" popup form (`None` => closed).
     new_view: Option<NewViewForm>,
+    /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
+    /// installs it. An `Arc` handle so the view stays `Clone`.
+    knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
 }
 
 /// The card a Kanban drag started from: its block id + the lane it left. The drop target's lane key
@@ -616,6 +629,7 @@ impl BlockCollectionView {
             date_to_input: String::new(),
             date_error: None,
             new_view: None,
+            knowledge_registry: None,
         }
     }
 
@@ -640,6 +654,163 @@ impl BlockCollectionView {
         self.loading = false;
         self.in_flight = false;
         self.status.clear();
+    }
+
+    // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
+
+    /// Install the shared knowledge AccessKit action registry (the MT-041 `install_*` pattern).
+    pub fn install_knowledge_action_registry(&mut self, registry: Arc<Mutex<KnowledgeActionRegistry>>) {
+        self.knowledge_registry = Some(registry);
+    }
+
+    /// Populate the knowledge registry with the collection GLOBAL controls (fixed Button nodes — sort /
+    /// filter / kanban-move / calendar-nav / open-block) and the per-identity nodes: one
+    /// `collection.row.<block_id>` Row per result block (table/calendar AND kanban cards — every block in
+    /// the result is a row identity), plus one `collection.lane.<tag>` Group per Kanban lane (IN-042-03,
+    /// so a swarm agent can assert which lane a card is in). Fully re-derived each frame so a vanished
+    /// row/lane DISAPPEARS (deletion-by-absence — IN-042-10).
+    pub fn sync_knowledge_registry(&self) {
+        let Some(registry) = &self.knowledge_registry else { return };
+        let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+        reg.clear_nodes();
+        for entry in COLLECTION_CONTROL_CATALOG {
+            reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
+        }
+        let Some(results) = &self.results else { return };
+        // Flat table/calendar rows.
+        for row in &results.blocks {
+            let author = knowledge_action_registry::collection_row_author_id(&row.block_id);
+            let value = Some(format!("block_id={};content_type={}", row.block_id, row.content_type));
+            reg.upsert_identity(author, KAxRole::Row, row.display_title().to_owned(), value, KnowledgeNodeState::present());
+        }
+        // Kanban lanes + the rows inside them (a card is also a row identity, keyed by block_id, so a
+        // swarm agent reads which lane a block is in via the lane's value membership list).
+        for lane in &results.groups {
+            let lane_author = knowledge_action_registry::collection_lane_author_id(&lane.key);
+            let members: Vec<&str> = lane.blocks.iter().map(|b| b.block_id.as_str()).collect();
+            let value = Some(format!("lane_key={};members={}", lane.key, members.join(",")));
+            reg.upsert_identity(lane_author, KAxRole::Group, lane.label().to_owned(), value, KnowledgeNodeState::present());
+            for row in &lane.blocks {
+                let author = knowledge_action_registry::collection_row_author_id(&row.block_id);
+                let value = Some(format!("block_id={};lane={}", row.block_id, lane.key));
+                reg.upsert_identity(author, KAxRole::Row, row.display_title().to_owned(), value, KnowledgeNodeState::present());
+            }
+        }
+    }
+
+    /// Emit the knowledge registry's nodes into the live AccessKit tree (call inside the host's `show`,
+    /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
+    pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
+        if let Some(registry) = &self.knowledge_registry {
+            registry.lock().unwrap_or_else(|e| e.into_inner()).emit_into_tree(ui);
+        }
+    }
+
+    /// Find a Kanban lane key for a block id from the live result groups (the FROM lane for a move), so a
+    /// swarm `collection.kanban-move` that omits `from_lane` can still resolve it. Returns the sentinel
+    /// untagged lane when the block is not in any explicit lane.
+    fn lane_of_block(&self, block_id: &str) -> String {
+        if let Some(results) = &self.results {
+            for lane in &results.groups {
+                if lane.blocks.iter().any(|b| b.block_id == block_id) {
+                    return lane.key.clone();
+                }
+            }
+        }
+        BLOCK_VIEW_UNTAGGED_LANE.to_owned()
+    }
+
+    /// Consume this frame's swarm AccessKit `Click` dispatches targeting the collection knowledge nodes
+    /// and MAP each to a typed [`BlockViewEvent`] (RISK-042-04). Parameterized actions parse JSON via the
+    /// no-unwrap [`knowledge_action_registry::parse_payload`] seam (RISK-042-03 / CTRL-042-03). The
+    /// concurrency guard (RISK-042-04 / CTRL-042-04) is the existing single `in_flight` flag — a
+    /// mutation dispatch while `in_flight` is REJECTED (logged + dropped), relying on the existing
+    /// EventLedger ordering, NOT a new conflict mechanism. A `collection.row.<id>` click maps to
+    /// `OpenBlock` (the swarm open-by-identity path). The local lane/results vecs are NEVER mutated — the
+    /// re-query is truth (the load-bearing no-client-side-mutation invariant).
+    pub fn take_knowledge_dispatched(&mut self, ui: &egui::Ui) -> Vec<BlockViewEvent> {
+        let Some(registry) = &self.knowledge_registry else { return Vec::new() };
+        let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
+        let mut events = Vec::new();
+        for (author_id, payload) in dispatched {
+            // Mutation actions are rejected while a prior mutation is in flight (CTRL-042-04 — the single
+            // in_flight guard; no new conflict mechanism). Read-only nav (open/calendar) is always allowed.
+            let is_mutation = matches!(
+                author_id.as_str(),
+                "collection.sort" | "collection.kanban-move" | "collection.filter"
+            );
+            if is_mutation && self.in_flight {
+                tracing::warn!(action = %author_id, "collection mutation dispatch rejected while a prior mutation is in flight (CTRL-042-04)");
+                continue;
+            }
+            match author_id.as_str() {
+                "collection.sort" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<SortPayload>(payload.as_deref()) {
+                        if let Some(field) = BlockViewField::parse_str(&p.field) {
+                            // direction omitted -> flip the current (the React flipDirection rule).
+                            let current = self.definition.as_ref().and_then(|d| d.sort);
+                            let sort = match p.direction.as_deref() {
+                                Some("asc") => BlockViewSort { field, direction: BlockViewSortDirection::Asc },
+                                Some("desc") => BlockViewSort { field, direction: BlockViewSortDirection::Desc },
+                                _ => flip_direction(current, field),
+                            };
+                            events.push(BlockViewEvent::Sort { sort });
+                        }
+                    }
+                }
+                "collection.kanban-move" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<KanbanMovePayload>(payload.as_deref()) {
+                        // The contract's from_lane/to_lane; from_lane "" resolves from the live groups.
+                        let from = if p.from_lane.is_empty() { self.lane_of_block(&p.block_id) } else { p.from_lane };
+                        let (add_tags, remove_tags) = card_move_tags(&from, &p.to_lane);
+                        events.push(BlockViewEvent::CardMove { block_id: p.block_id, add_tags, remove_tags });
+                    }
+                }
+                "collection.filter" => {
+                    // Filter routes through the same DateRange/updateBlockView surface in this MT only for
+                    // a documented subset; a generic field filter is a typed gap (no silent no-op). We
+                    // surface the dispatch as a status note + no event so it is discoverable but honest.
+                    tracing::info!("collection.filter dispatched (generic field filter is a documented typed gap this MT — no silent backend write)");
+                }
+                "collection.calendar-next" | "collection.calendar-prev" | "collection.calendar-today" => {
+                    // Calendar navigation shifts the date window; emit a DateRange the host re-queries.
+                    // This MT wires the DISPATCH seam; the concrete window math reuses the existing
+                    // date_from/date_to inputs the host already round-trips (no new client-side bucketing).
+                    let (from, to) = (self.date_from_input.clone(), self.date_to_input.clone());
+                    events.push(BlockViewEvent::DateRange {
+                        date_from: (!from.is_empty()).then_some(from),
+                        date_to: (!to.is_empty()).then_some(to),
+                    });
+                }
+                "collection.open-block" => {
+                    if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(payload.as_deref()) {
+                        events.push(BlockViewEvent::OpenBlock { block_id: p.block_id });
+                    }
+                }
+                other => {
+                    // A per-identity `collection.row.<sanitized_block_id>` click -> open that block. Lanes
+                    // (`collection.lane.<tag>`) are containers, not openable; a click is a no-op.
+                    if let Some(stripped) = other.strip_prefix(knowledge_action_registry::COLLECTION_ROW_AUTHOR_ID_PREFIX) {
+                        if let Some(block_id) = self.block_id_for_sanitized(stripped) {
+                            events.push(BlockViewEvent::OpenBlock { block_id });
+                        }
+                    }
+                }
+            }
+        }
+        events
+    }
+
+    /// Resolve a sanitized `collection.row.` author_id suffix back to a real block_id by scanning the
+    /// live result set (rows + lane cards). `None` if no live block sanitizes to that suffix.
+    fn block_id_for_sanitized(&self, sanitized: &str) -> Option<String> {
+        let results = self.results.as_ref()?;
+        let in_blocks = results.blocks.iter().map(|b| &b.block_id);
+        let in_lanes = results.groups.iter().flat_map(|l| l.blocks.iter().map(|b| &b.block_id));
+        in_blocks
+            .chain(in_lanes)
+            .find(|id| crate::project_tree::stable_part(id) == sanitized)
+            .cloned()
     }
 
     /// Render the host + return the typed event (if any) this frame produced. The host applies the
