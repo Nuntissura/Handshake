@@ -47,8 +47,12 @@ use handshake_native::backend_client::{
 };
 use handshake_native::loom_search_v2::{
     facet_author_id, highlight_layout_job, parse_highlight_segments, result_author_id,
-    LoomSearchV2Callbacks, LoomSearchV2PanelState, QUERY_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID,
-    SEARCH_AUTHOR_ID, STATUS_AUTHOR_ID,
+    LoomSearchV2Callbacks, LoomSearchV2PaneFactory, LoomSearchV2PaneShared, LoomSearchV2PanelState,
+    QUERY_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, SEARCH_AUTHOR_ID, STATUS_AUTHOR_ID,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneRecord, PaneRegistry,
+    PaneType,
 };
 use handshake_native::theme::HsTheme;
 
@@ -509,6 +513,82 @@ fn loom_search_v2_screenshot() {
             );
         }
     }
+    assert_no_local_artifact_dir();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// PROOF8 (AC-9, the must-fix in-product render path): open the LoomSearchV2 pane THROUGH the WP-011
+// registry + PaneHostWidget (the SAME dispatch the running shell uses), not by calling show() directly.
+// Proves the concrete `LoomSearchV2PaneFactory` renders the REAL panel (the 6 contract author_ids appear
+// in the live AccessKit tree) and that a result-row click routed through the registry-dispatched pane
+// reaches the shared open-block cell the shell drains into the Loom block-open path.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// Build a one-pane registry holding a single `PaneType::LoomSearchV2` record (the surface the running
+/// shell hosts) so the pane host dispatches to its factory.
+fn loom_search_v2_registry() -> PaneRegistry {
+    let mut reg = PaneRegistry::new();
+    reg.insert(PaneRecord::new(
+        std::sync::Arc::from("loom-search-pane"),
+        PaneType::LoomSearchV2,
+        "p",
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    reg
+}
+
+#[test]
+fn pane_opens_via_registry_and_renders_real_panel() {
+    // A real client (no backend reached — the panel renders the seeded response; no search fires).
+    let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
+    let shared = Arc::new(Mutex::new(LoomSearchV2PaneShared::new(HsTheme::Dark.palette())));
+    {
+        // The shell pushes the live workspace id + palette into the shared cell each frame; mirror that.
+        let mut g = shared.lock().unwrap();
+        g.workspace_id = Some("ws-1".to_owned());
+    }
+    // Seed the panel state with a mock response so the registry-dispatched render shows real
+    // facets/rows/highlight (the in-product render path — NOT an out-of-band show() call).
+    let mut state = LoomSearchV2PanelState::new();
+    state.query = "alpha".to_owned();
+    state.response = Some(mock_response());
+    let factory: Box<dyn PaneFactory> =
+        Box::new(LoomSearchV2PaneFactory::with_state(client, Arc::clone(&shared), state));
+
+    let reg = loom_search_v2_registry();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .build_ui(move |ui| {
+            // Dispatch through the SAME pane host the shell's CentralPanel uses (AC-9 in-product path).
+            PaneHostWidget::show(ui, &reg, |_pane_type| factory.as_ref());
+        });
+    harness.run();
+
+    // The REAL panel rendered (not the placeholder): the 6 contract author_ids are in the live tree.
+    let ids = author_ids(&harness);
+    for required in [QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, STATUS_AUTHOR_ID] {
+        assert!(
+            ids.contains(required),
+            "AC-9: required author_id '{required}' missing — the pane rendered the placeholder, not the real panel ({ids:?})"
+        );
+    }
+    assert!(ids.contains(&facet_author_id("note")), "AC-9: facet.note missing from registry-dispatched pane");
+    assert!(ids.contains(&result_author_id("blk-1")), "AC-9: result.blk-1 missing from registry-dispatched pane");
+
+    // A result-row click through the registry-dispatched pane routes the block id into the shared cell
+    // the shell drains (open-in-place). Proves on_open_block is wired by the factory, not just show().
+    click_author_id(&harness, &result_author_id("blk-2"));
+    harness.run();
+    let opened = shared.lock().unwrap().open_requests.clone();
+    assert_eq!(
+        opened.as_slice(),
+        ["blk-2"],
+        "AC-9: clicking a result row via the registry-dispatched pane pushed the block id into the shell's open-block cell"
+    );
+    println!("AC-9: LoomSearchV2 pane opens via the WP-011 registry/PaneHostWidget and renders the REAL panel + open-block wiring");
     assert_no_local_artifact_dir();
 }
 

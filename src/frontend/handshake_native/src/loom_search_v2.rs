@@ -42,6 +42,7 @@ use crate::accessibility;
 use crate::backend_client::{
     LoomSearchCell, LoomSearchV2Body, LoomSearchV2Client, LoomSearchV2Response, SaveViewCell,
 };
+use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
 
 // ── Stable AccessKit author_ids (the MT-028 naming contract) ────────────────────────────────────────
@@ -497,6 +498,105 @@ pub fn show(
     }
     if fire_save {
         state.save_as_view(client, workspace_id);
+    }
+}
+
+// ── Pane factory (the in-product render path — AC-9) ──────────────────────────────────────────────────
+
+/// Per-frame inputs the shell pushes to the [`LoomSearchV2PaneFactory`] before the pane host renders,
+/// plus the open-block requests the factory pushes back. `PaneFactory::render` takes `&self`, so this
+/// shared cell (behind a `Mutex`) is how the live app threads the active workspace id + theme palette
+/// IN and drains result-row clicks OUT — without `&mut self` on the factory map. The shell updates
+/// `workspace_id`/`palette` at the top of each frame and drains `open_requests` after the pane host runs
+/// (routing each block id to the Loom block viewer via the same open path the bookmark rail uses).
+pub struct LoomSearchV2PaneShared {
+    /// The active workspace id, or `None` when no workspace is selected (the panel's no-workspace guard
+    /// then shows an error and fires NO HTTP call — MC-7).
+    pub workspace_id: Option<String>,
+    /// The live theme palette, so the `<mark>` highlight reads the themed `search_highlight_bg` and the
+    /// pane flips dark<->light with the rest of the shell.
+    pub palette: HsPalette,
+    /// Block ids the operator/agent clicked this frame, drained by the shell into the Loom block-open
+    /// path (FIFO). The factory's `on_open_block` callback pushes here.
+    pub open_requests: Vec<String>,
+}
+
+impl LoomSearchV2PaneShared {
+    /// Seed with no workspace and the given palette (the shell overwrites both each frame).
+    pub fn new(palette: HsPalette) -> Self {
+        Self { workspace_id: None, palette, open_requests: Vec::new() }
+    }
+}
+
+/// The CONCRETE `PaneFactory` for [`PaneType::LoomSearchV2`] — the in-product render path that makes the
+/// "Loom Search" pane render the REAL panel ([`show`]) instead of the centered placeholder (AC-9). The
+/// shell inserts ONE of these into its factory map AFTER the placeholder-fill loop, overriding the
+/// `PlaceholderPaneFactory` for this variant (the same override mechanism a concrete pane uses).
+///
+/// `PaneFactory::render` is `&self`, so the mutable panel state lives behind a `Mutex` (Send + Sync, as
+/// the trait requires) and the per-frame workspace id + palette + open-block drain flow through the
+/// shared [`LoomSearchV2PaneShared`] cell. The HTTP transport reuses the real
+/// [`LoomSearchV2Client`] (the SAME verified routes the request-builder + live-PG proofs bind).
+pub struct LoomSearchV2PaneFactory {
+    state: Mutex<LoomSearchV2PanelState>,
+    client: LoomSearchV2Client,
+    shared: Arc<Mutex<LoomSearchV2PaneShared>>,
+}
+
+impl LoomSearchV2PaneFactory {
+    /// Build the factory + return the shared cell the shell keeps a clone of (to push workspace id +
+    /// palette in and drain open-block requests out each frame). `client` is the real
+    /// [`LoomSearchV2Client::production`] bridged onto the app runtime.
+    pub fn new(client: LoomSearchV2Client, shared: Arc<Mutex<LoomSearchV2PaneShared>>) -> Self {
+        Self::with_state(client, shared, LoomSearchV2PanelState::new())
+    }
+
+    /// Like [`new`](Self::new) but seeds the panel state. Lets a proof open the pane THROUGH the registry
+    /// with a pre-populated response (so the registry-dispatched render shows real facets/rows/highlight),
+    /// rather than calling [`show`] out-of-band — the AC-9 in-product render path.
+    pub fn with_state(
+        client: LoomSearchV2Client,
+        shared: Arc<Mutex<LoomSearchV2PaneShared>>,
+        state: LoomSearchV2PanelState,
+    ) -> Self {
+        Self {
+            state: Mutex::new(state),
+            client,
+            shared,
+        }
+    }
+}
+
+impl PaneFactory for LoomSearchV2PaneFactory {
+    fn pane_type(&self) -> PaneType {
+        PaneType::LoomSearchV2
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        // Read the per-frame inputs (workspace id + palette) under a short lock, so the long-lived
+        // `show` borrow does not hold the shared mutex while the panel renders.
+        let (workspace_id, palette) = {
+            let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
+            (guard.workspace_id.clone(), guard.palette.clone())
+        };
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let shared_for_open = Arc::clone(&self.shared);
+        // The open-block callback pushes the clicked id into the shared cell; the shell drains it into
+        // the Loom block-open path after the pane host runs (open-in-place, a REFERENCE — never a copy).
+        let mut on_open = move |block_id: &str| {
+            if let Ok(mut guard) = shared_for_open.lock() {
+                guard.open_requests.push(block_id.to_owned());
+            }
+        };
+        let mut callbacks = LoomSearchV2Callbacks { on_open_block: &mut on_open };
+        show(
+            ui,
+            &mut state,
+            &palette,
+            &self.client,
+            workspace_id.as_deref(),
+            &mut callbacks,
+        );
     }
 }
 

@@ -125,6 +125,12 @@ pub struct HandshakeApp {
     /// real surface factory replaces it in a later MT, so an unhandled type can never blank/panic
     /// a pane (RISK-3 / CONTROL-3).
     factories: HashMap<PaneType, Box<dyn PaneFactory>>,
+    /// MT-028: the shared cell the concrete `LoomSearchV2PaneFactory` reads each frame (active workspace
+    /// id + live palette pushed IN) and the shell drains (clicked block ids pulled OUT into the Loom
+    /// block-open path). This is how the in-product Loom Search pane reaches a real workspace + theme +
+    /// open path through the `&self` `PaneFactory::render` signature (AC-9). `None` only in the unusual
+    /// case the concrete factory was not installed (never in the two real constructors).
+    loom_search_v2_shared: Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
     /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
@@ -532,6 +538,31 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
     map
 }
 
+/// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
+/// (MT-028, AC-9): start from the all-placeholder default, then OVERRIDE `PaneType::LoomSearchV2` with a
+/// real factory that renders [`crate::loom_search_v2::show`] through the verified
+/// [`LoomSearchV2Client`](crate::backend_client::LoomSearchV2Client). Returns the map plus the shared
+/// cell the shell keeps (to push the active workspace id + live palette in and drain clicked block ids
+/// out each frame). `runtime` bridges the search/save HTTP off the UI thread (HBR-QUIET); `palette`
+/// seeds the shared cell (overwritten every frame from the live theme).
+fn build_factories_with_loom_search_v2(
+    runtime: tokio::runtime::Handle,
+    palette: theme::HsPalette,
+) -> (
+    HashMap<PaneType, Box<dyn PaneFactory>>,
+    Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
+) {
+    let mut map = build_default_factories();
+    let shared = Arc::new(Mutex::new(
+        crate::loom_search_v2::LoomSearchV2PaneShared::new(palette),
+    ));
+    let client = crate::backend_client::LoomSearchV2Client::production(runtime);
+    let factory = crate::loom_search_v2::LoomSearchV2PaneFactory::new(client, Arc::clone(&shared));
+    // Insert AFTER the placeholder fill so this concrete factory wins for the LoomSearchV2 variant.
+    map.insert(PaneType::LoomSearchV2, Box::new(factory));
+    (map, shared)
+}
+
 /// Build a seeded registry from the default panes.
 fn seeded_registry() -> PaneRegistry {
     let mut reg = PaneRegistry::new();
@@ -702,6 +733,10 @@ impl HandshakeApp {
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        // MT-028: install the CONCRETE LoomSearchV2 pane factory over its placeholder so opening the
+        // "Loom Search" pane renders the REAL panel (AC-9), wired to the verified search/save routes.
+        let (factories, loom_search_v2_shared) =
+            build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -710,7 +745,8 @@ impl HandshakeApp {
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
-            factories: build_default_factories(),
+            factories,
+            loom_search_v2_shared,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -875,6 +911,12 @@ impl HandshakeApp {
         )));
         // MT-014 FIX-B: the in-process shell event bus (same construction as the production ctor).
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        // MT-028: install the CONCRETE LoomSearchV2 pane factory over its placeholder here too, so a
+        // headless/test shell opens the REAL panel via the registry-dispatched pane (AC-9). The
+        // current-thread runtime handle bridges the (no-backend) search/save spawns; with no live
+        // backend the request simply never delivers (the panel stays idle/neutral — no perpetual spinner).
+        let (factories, loom_search_v2_shared) =
+            build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         Self {
             health_status: state,
             rt,
@@ -882,7 +924,8 @@ impl HandshakeApp {
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
-            factories: build_default_factories(),
+            factories,
+            loom_search_v2_shared,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -3912,6 +3955,28 @@ impl HandshakeApp {
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
 
+        // MT-028: push the live workspace id + palette into the LoomSearchV2 pane's shared cell BEFORE
+        // the pane host renders, so the in-product Loom Search pane searches the active workspace and
+        // its `<mark>` highlight tracks the current theme. Prefer the project tree's resolved workspace
+        // id; fall back to the active project id when the tree has none yet (both are the workspace key
+        // the backend `/workspaces/{id}/loom/search-v2` route expects).
+        {
+            let workspace_id = self
+                .left_rail
+                .project_tree
+                .workspace_id()
+                .map(|s| s.to_owned())
+                .or_else(|| {
+                    let p = self.active_project_id.clone();
+                    (!p.is_empty()).then_some(p)
+                });
+            let palette = self.current_theme.palette();
+            if let Ok(mut shared) = self.loom_search_v2_shared.lock() {
+                shared.workspace_id = workspace_id;
+                shared.palette = palette;
+            }
+        }
+
         // Apply the integrated-rail scrollbar style (MT-010) every frame from the LIVE palette, so
         // egui's built-in `ScrollArea` scrollbars render in the rail dimensions + colors and track a
         // runtime theme toggle on the next frame. This overrides only scrollbar-specific
@@ -4266,6 +4331,20 @@ impl HandshakeApp {
                 },
             );
         });
+
+        // ── MT-028: drain LoomSearchV2 open-block requests into the Loom block-open path ─────────────
+        // A result-row click in the in-product Loom Search pane pushed the block id into the shared cell;
+        // route each id to the Loom block viewer on the active pane (open-in-place, a REFERENCE — the
+        // same open path the bookmark rail uses for a pinned Loom block). Drained AFTER the pane host so
+        // the click registered this frame opens the block this frame.
+        let open_block_requests: Vec<String> = self
+            .loom_search_v2_shared
+            .lock()
+            .map(|mut s| std::mem::take(&mut s.open_requests))
+            .unwrap_or_default();
+        for block_id in open_block_requests {
+            self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+        }
 
         // ── Apply MT-013 pane-header Lock/Unlock requests ───────────────────────────────────────────
         // A lock click from the pane header (pointer OR out-of-process AccessKit Click) toggles the
