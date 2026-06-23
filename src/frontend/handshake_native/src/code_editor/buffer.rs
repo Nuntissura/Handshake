@@ -153,6 +153,34 @@ impl TextBuffer {
         }
     }
 
+    /// Materialize ONLY the text in the BYTE range `byte_range` as a `String`, without stringifying the
+    /// whole rope (O(range), not O(document) — the same RISK-003 discipline `slice_to_string` follows for
+    /// the visible window). Out-of-range, inverted, or non-char-boundary ends are CLAMPED to the nearest
+    /// valid char boundary (never a panic — AC-006 / MC-001), so a stale selection range from a prior
+    /// edit yields a best-effort slice rather than a crash. Used by the MT-031 cross-pane selection-publish
+    /// + Copy path so selecting in a multi-MB file never allocates the entire document (the perf-lens cap).
+    pub fn byte_slice_to_string(&self, byte_range: Range<usize>) -> String {
+        let len_bytes = self.rope.len_bytes();
+        let end = byte_range.end.min(len_bytes);
+        let start = byte_range.start.min(end);
+        // Snap each end DOWN to a char boundary (ropey panics on a mid-char byte slice; clamp instead).
+        let snap = |b: usize| -> usize {
+            // Walk down at most 3 bytes (max UTF-8 continuation run) to the nearest boundary.
+            let mut b = b;
+            while b > 0 && self.rope.try_byte_to_char(b).is_err() {
+                b -= 1;
+            }
+            // Verify it is a true boundary; if ropey's lenient mapping disagrees, fall back to b.
+            b
+        };
+        let start = snap(start);
+        let end = snap(end).max(start);
+        match self.rope.get_byte_slice(start..end) {
+            Some(slice) => slice.to_string(),
+            None => String::new(),
+        }
+    }
+
     /// Insert `text` at `byte_offset`. Returns `Err(BufferError)` (never panics — AC-006) when the
     /// offset is out of range or lands inside a multi-byte char. On success the rope is mutated in
     /// place; ropey makes this O(log n) amortized, which is why retrofitting `String` later is

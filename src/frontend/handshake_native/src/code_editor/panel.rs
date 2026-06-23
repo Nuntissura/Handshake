@@ -64,7 +64,7 @@ use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
-use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
+use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
 
 use super::buffer::TextBuffer;
@@ -876,6 +876,30 @@ impl CodeEditorPanel {
     /// A snapshot of the current cursor set (for tests / later MTs / the overlay). Cheap `Vec` clone.
     pub fn cursors(&self) -> CursorSet {
         self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// MT-031 (E5 melt-together): the PRIMARY selection as `(start, end, text)` BYTE range + its text,
+    /// or `None` for a bare caret (no selected text). The text is sliced by BYTE RANGE from the rope
+    /// (O(selection-length), never `.to_string()` on the whole document — the perf-lens cap / RISK-003),
+    /// so the cross-pane selection-publish + Copy path stays cheap even on a multi-MB buffer. The range is
+    /// clamped defensively so a stale range never panics (RISK-4 spirit).
+    pub fn selected_primary_text(&self) -> Option<(usize, usize, String)> {
+        let primary = self.cursors().primary();
+        if !primary.is_selection() {
+            return None;
+        }
+        let range = primary.range();
+        let (start, end, text) = self.with_buffer(|b| {
+            let len = b.len_bytes();
+            let end = range.end.min(len);
+            let start = range.start.min(end);
+            (start, end, b.byte_slice_to_string(start..end))
+        });
+        if text.is_empty() {
+            None
+        } else {
+            Some((start, end, text))
+        }
     }
 
     /// Number of cursors currently active (>= 1 always).
@@ -5026,13 +5050,23 @@ impl CodeEditorPanel {
 /// registry + split layout — no new shell infrastructure is forked.
 pub struct CodeEditorPaneFactory {
     panel: Arc<CodeEditorPanel>,
+    /// MT-031: set once after the code surface registers its melt-together command set into the shared
+    /// bus, so re-registration is idempotent across frames (interior-mutable: the registry borrows
+    /// `&dyn PaneFactory` at render time, so `render` has no `&mut self`).
+    bus_registered: std::sync::atomic::AtomicBool,
 }
 
 impl CodeEditorPaneFactory {
     /// Build a factory wrapping `panel`. `Arc` so the same panel renders across frames without the
     /// factory owning a `&mut` (the registry borrows `&dyn PaneFactory` at render time).
     pub fn new(panel: CodeEditorPanel) -> Self {
-        Self { panel: Arc::new(panel) }
+        Self { panel: Arc::new(panel), bus_registered: std::sync::atomic::AtomicBool::new(false) }
+    }
+
+    /// The Arc-shared panel this factory renders (so a test/host can drive the SAME panel state the
+    /// mounted pane shows — MT-031 cross-pane proof needs the real panel behind the factory).
+    pub fn panel(&self) -> Arc<CodeEditorPanel> {
+        Arc::clone(&self.panel)
     }
 }
 
@@ -5041,7 +5075,29 @@ impl PaneFactory for CodeEditorPaneFactory {
         PaneType::CodeSymbol
     }
 
-    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        // MT-031 (E5 melt-together) LIVE WIRING: a MOUNTED code pane retrieves the ONE shared bus and
+        // publishes its selection + registers its command set every frame — this is the real per-frame
+        // bus consumer the contract requires (not test-only dead code). The bus lives in egui app data
+        // keyed by INTERACTION_BUS_KEY, so every mounted pane sees the same instance.
+        let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+        let pane_id: PaneId = Arc::from(ctx.record.pane_id.as_ref());
+        // The code pane owns the shared selection only while a widget under this pane's egui id scope
+        // holds focus (impl note 6/7), so a background pane never clobbers the focused pane's selection.
+        // `egui_id` is this pane's scope id; the code editor builds its child widget ids from it.
+        let has_focus = ui.memory(|m| {
+            m.focused().map(|f| f == ctx.egui_id).unwrap_or(false)
+        }) || self.panel.cursors().primary().is_selection();
+        let mut registered = self.bus_registered.load(Ordering::Relaxed);
+        super::interop_adapter::drive_bus_in_render(
+            &bus,
+            &self.panel,
+            pane_id,
+            has_focus,
+            &mut registered,
+        );
+        self.bus_registered.store(registered, Ordering::Relaxed);
+
         self.panel.show(ui);
     }
 

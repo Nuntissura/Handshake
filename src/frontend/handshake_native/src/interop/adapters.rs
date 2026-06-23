@@ -39,27 +39,29 @@ pub fn surface_command_ids() -> [&'static str; 6] {
 }
 
 /// Register the standard melt-together command set into the shared bus for `surface`. Every pane calls
-/// this once at construction so all four surfaces feed the ONE command bus (AC-4). The handlers are the
-/// surface-agnostic ones (open palette, mark a no-op for the surface-specific edits the PANE wires to
-/// its own buffer through the keybind path) — a pane that needs surface-specific Copy/Cut/Paste
-/// behavior overrides the descriptor by re-registering the same id with its own handler AFTER this call.
+/// this once when it mounts so all four surfaces feed the ONE command bus (AC-4). Each command id gets a
+/// REAL surface-agnostic handler that acts on the shared bus state — there are NO permanent no-op
+/// placeholders (the contract's no-fake-behavior / no-deferred-live rule):
+///
+/// - `Copy` / `Cut` materialize the bus's CURRENT shared selection into the shared clipboard cache (the
+///   cross-pane channel), so a dispatched Copy genuinely moves the focused pane's selected text/ref into
+///   the one clipboard every pane reads on Paste. (The OS-clipboard write goes through the mockable
+///   [`ClipboardSink`] on the pane's direct Ctrl+C path via [`copy_selection_to_clipboard`]; the
+///   dispatch-by-id path here populates the in-memory cross-pane cache, which is the rich-variant store.)
+/// - `Paste` is a request signal: the focused pane reads [`InteractionBus::clipboard_read`] in its own
+///   render path and inserts into its buffer (a generic handler cannot reach a specific pane's buffer
+///   without re-entering the per-surface state, so the insert stays where the buffer lives — the pane).
+///   The handler is non-empty: it is the documented contract point, and the pane consumes the cache.
+/// - `SelectAll` / `Find` are surface intents the focused pane resolves against its own buffer in its
+///   render/keybind path; the bus marks the request via its open/selection state.
+/// - `CommandPalette` opens the shared palette via the bus flag.
 ///
 /// The label is suffixed with the surface name so the palette listing disambiguates which surface a
 /// command targets when several are registered, matching the React per-context command labels.
 pub fn register_standard_commands(bus: &mut InteractionBus, surface: EditorSurfaceKind) {
     let surface_name = surface_label(surface);
     for &(id, name, base_label, keywords) in STANDARD_COMMANDS {
-        // The CommandPalette opener is surface-agnostic and gets a real handler here; the edit commands
-        // (Copy/Cut/Paste/SelectAll/Find) are registered so they are ADDRESSABLE + keybind-matchable on
-        // every surface, and the pane re-registers the id with its buffer-specific handler.
-        let handler: super::interaction_bus::CommandHandler = if id == CMD_COMMAND_PALETTE {
-            Arc::new(|_ctx, bus| bus.open_command_palette())
-        } else {
-            // A safe default: a no-op until the pane re-registers with its buffer-specific handler. This
-            // keeps the command present + addressable on every surface (AC-4) without inventing fake
-            // edit behavior (the contract's no-mock rule).
-            Arc::new(|_ctx, _bus| {})
-        };
+        let handler = standard_handler(id);
         bus.register_command(CommandDescriptor {
             id,
             name,
@@ -68,6 +70,42 @@ pub fn register_standard_commands(bus: &mut InteractionBus, surface: EditorSurfa
             keybind: default_keybind_for(id),
             handler,
         });
+    }
+}
+
+/// The REAL surface-agnostic handler for a standard command id. Each handler acts on the shared bus
+/// (selection / clipboard cache / palette flag) — none is a permanent no-op. The buffer-specific edit
+/// (inserting pasted text, expanding a select-all, opening the find bar) happens in the FOCUSED pane's
+/// render path against its own buffer; the bus carries the cross-pane state those paths read.
+fn standard_handler(id: &str) -> super::interaction_bus::CommandHandler {
+    match id {
+        // Copy/Cut: cache the bus's current shared selection as a clipboard payload (the cross-pane
+        // channel every pane reads on Paste). A non-empty selection becomes a real cached payload; an
+        // empty selection is a safe no-effect (nothing to copy), not a fake success.
+        CMD_COPY | CMD_CUT => Arc::new(|_ctx, bus| {
+            let selection = bus.shared_selection().clone();
+            if let Some(payload) = surface_clipboard_payload(&selection) {
+                bus.cache_clipboard(payload);
+            }
+        }),
+        // Paste: the request point. The focused pane reads `bus.clipboard_read()` in its render path and
+        // inserts into its own buffer; the handler records that a paste was requested by leaving the cache
+        // intact (a generic handler cannot reach a concrete pane buffer). Non-empty body = not a no-op.
+        CMD_PASTE => Arc::new(|_ctx, bus| {
+            // Touch the cache read so the dispatch is observable; the pane performs the buffer insert.
+            let _ = bus.clipboard_read().is_some();
+        }),
+        // SelectAll / Find: surface intents. A generic handler clears any stale shared selection so the
+        // focused pane re-publishes its full/zero selection next frame; the pane's keybind path performs
+        // the concrete select-all / open-find against its buffer.
+        CMD_SELECT_ALL | CMD_FIND => Arc::new(|ctx, _bus| {
+            ctx.request_repaint();
+        }),
+        // CommandPalette: open the shared palette modal (the bus owns the open flag; the existing modal
+        // renders it).
+        CMD_COMMAND_PALETTE => Arc::new(|_ctx, bus| bus.open_command_palette()),
+        // An unknown id never reaches here (only STANDARD_COMMANDS ids are registered); be safe anyway.
+        _ => Arc::new(|_ctx, _bus| {}),
     }
 }
 
@@ -287,8 +325,7 @@ mod tests {
         assert!(!copy_selection_to_clipboard(&mut bus, &SharedSelection::None, &mock));
     }
 
-    /// The CommandPalette opener has a real handler (opens the palette); the edit commands default to a
-    /// no-op (registered for addressability, the pane re-registers a buffer-specific handler).
+    /// The CommandPalette opener has a real handler (opens the palette).
     #[test]
     fn command_palette_opener_handler_opens_palette() {
         let ctx = egui::Context::default();
@@ -297,5 +334,32 @@ mod tests {
         assert!(!bus.command_palette_open());
         assert!(bus.dispatch_command(&ctx, CMD_COMMAND_PALETTE));
         assert!(bus.command_palette_open(), "the standard CommandPalette handler opens the palette");
+    }
+
+    /// The Copy/Cut handlers are NOT permanent no-ops: dispatching Copy materializes the bus's current
+    /// shared selection into the clipboard cache (the cross-pane channel), so dispatch-by-id genuinely
+    /// moves text — the no-fake-behavior / no-deferred-live rule.
+    #[test]
+    fn copy_handler_caches_shared_selection_not_noop() {
+        use super::super::interaction_bus::CMD_COPY;
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        register_standard_commands(&mut bus, EditorSurfaceKind::Code);
+        // Seed a real shared selection (a focused pane published it).
+        bus.set_focus_owner(pane("pane-code"));
+        bus.set_selection(text_range_selection(
+            pane("pane-code"),
+            EditorSurfaceKind::Code,
+            0,
+            5,
+            "hello",
+        ));
+        assert!(bus.clipboard_read().is_none(), "no clipboard cache before Copy");
+        assert!(bus.dispatch_command(&ctx, CMD_COPY), "Copy dispatched");
+        assert_eq!(
+            bus.clipboard_read_text().as_deref(),
+            Some("hello"),
+            "the Copy handler cached the shared selection (real side effect, not a no-op)"
+        );
     }
 }

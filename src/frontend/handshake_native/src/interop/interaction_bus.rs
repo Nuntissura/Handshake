@@ -432,6 +432,15 @@ impl InteractionBus {
         self.clipboard_cache = Some(payload);
     }
 
+    /// Cache `payload` as the richest cross-pane clipboard variant WITHOUT writing the OS clipboard. This
+    /// is the dispatch-by-id Copy/Cut path (a registered command handler has no [`ClipboardSink`] in its
+    /// signature, so it populates the in-memory cross-pane channel only). The pane's DIRECT Ctrl+C path
+    /// uses [`Self::clipboard_write`] (cache + OS write through the mockable sink). Keeping the two paths
+    /// distinct avoids forcing every command handler to thread a sink it cannot reach.
+    pub fn cache_clipboard(&mut self, payload: ClipboardPayload) {
+        self.clipboard_cache = Some(payload);
+    }
+
     /// Read the richest clipboard variant available for cross-pane Paste: the in-memory cache (which
     /// preserves the rich variant) when present, else `None`. A consumer that needs the OS clipboard's
     /// plain text reads it through egui directly; the in-memory cache is the cross-pane rich channel.

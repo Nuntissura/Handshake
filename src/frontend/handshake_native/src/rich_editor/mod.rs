@@ -96,4 +96,38 @@ pub mod interop_adapter {
     pub fn paste_text_from_bus(bus: &InteractionBus) -> Option<String> {
         bus.clipboard_read_text().filter(|t| !t.is_empty())
     }
+
+    /// Publish the rich editor's current selection to the shared bus + register its command set — the
+    /// LIVE per-frame wiring [`crate::rich_editor::renderer::rich_editor_widget::RichEditorPaneFactory`]
+    /// calls so a MOUNTED rich-text pane is a real bus consumer (not test-only dead code). Registers the
+    /// rich-text command set on first call (idempotent — last-registration-wins by id). `has_focus` gates
+    /// focus ownership so a background pane never clobbers the focused pane's selection (impl note 6/7).
+    /// `selected` is `(block_idx, start_char, end_char, text)` from
+    /// [`crate::rich_editor::renderer::rich_editor_widget::RichEditorState::selected_text`]. All bus
+    /// access is via `with_try_lock` so it never blocks the egui frame thread (RISK-1 / MC-1).
+    pub fn drive_bus_in_render(
+        bus: &std::sync::Arc<std::sync::Mutex<InteractionBus>>,
+        pane_id: PaneId,
+        has_focus: bool,
+        selected: Option<(usize, usize, usize, String)>,
+        already_registered: &mut bool,
+    ) {
+        let registered = *already_registered;
+        InteractionBus::with_try_lock(bus, |b| {
+            if !registered {
+                register(b);
+            }
+            if has_focus {
+                b.set_focus_owner(pane_id.clone());
+                let selection = match selected {
+                    Some((_, start, end, text)) => {
+                        text_selection(pane_id.clone(), start, end, text)
+                    }
+                    None => SharedSelection::None,
+                };
+                b.set_selection(selection);
+            }
+        });
+        *already_registered = true;
+    }
 }

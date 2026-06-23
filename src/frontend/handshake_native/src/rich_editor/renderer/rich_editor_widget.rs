@@ -317,6 +317,38 @@ impl RichEditorState {
         self.theme.palette()
     }
 
+    /// MT-031 (E5 melt-together): the currently selected text as `(block_idx, start, end, text)` when the
+    /// selection is a non-collapsed text range WITHIN A SINGLE BLOCK, else `None`. Cross-block / node
+    /// selections flatten to a whole-document plain string only in a downstream E5 MT (MT-032+ block
+    /// addressing); this MT publishes the single-block text range (the common Copy case) so a cross-pane
+    /// Copy from the rich editor carries the real selected text. The substring is sliced from the block's
+    /// plain text by CHAR OFFSET (the rich model is char-indexed), clamped so a stale offset never panics.
+    pub fn selected_text(&self) -> Option<(usize, usize, usize, String)> {
+        let (anchor, head) = match &self.selection {
+            Selection::Text { anchor, head } if anchor != head => (anchor, head),
+            _ => return None,
+        };
+        // Only a within-one-block range is materialized here (the block index is the path's first hop).
+        let block_idx = *anchor.path.first()?;
+        if head.path.first() != Some(&block_idx) {
+            return None;
+        }
+        let block_text = self.block_plain_text(block_idx)?;
+        let char_len = block_text.chars().count();
+        let lo = anchor.char_offset.min(head.char_offset).min(char_len);
+        let hi = anchor.char_offset.max(head.char_offset).min(char_len);
+        if lo == hi {
+            return None;
+        }
+        // Slice by CHAR boundary (the offsets are char indices), so multi-byte text is sliced safely.
+        let text: String = block_text.chars().skip(lo).take(hi - lo).collect();
+        if text.is_empty() {
+            None
+        } else {
+            Some((block_idx, lo, hi, text))
+        }
+    }
+
     /// The plain text of the block at `idx` (for hit-testing / tests).
     pub fn block_plain_text(&self, idx: usize) -> Option<String> {
         let block = self.doc.children.get(idx)?.as_block()?;
@@ -1842,12 +1874,22 @@ impl egui::Widget for RichEditorWidget {
 /// container's AccessKit role is `TextInput` (matching the root editor node).
 pub struct RichEditorPaneFactory {
     state: Arc<Mutex<RichEditorState>>,
+    /// MT-031: set once after the rich-text surface registers its melt-together command set into the
+    /// shared bus, so re-registration is idempotent across frames (the registry borrows
+    /// `&dyn PaneFactory` at render time, so `render` has no `&mut self`).
+    bus_registered: std::sync::atomic::AtomicBool,
 }
 
 impl RichEditorPaneFactory {
     /// Build the factory over shared editor state.
     pub fn new(state: Arc<Mutex<RichEditorState>>) -> Self {
-        Self { state }
+        Self { state, bus_registered: std::sync::atomic::AtomicBool::new(false) }
+    }
+
+    /// The Arc-shared editor state this factory renders (so a test/host can drive the SAME state the
+    /// mounted pane shows — MT-031 cross-pane proof needs the real editor behind the factory).
+    pub fn state(&self) -> Arc<Mutex<RichEditorState>> {
+        Arc::clone(&self.state)
     }
 }
 
@@ -1856,7 +1898,26 @@ impl PaneFactory for RichEditorPaneFactory {
         PaneType::LoomWikiPage
     }
 
-    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        use std::sync::atomic::Ordering;
+        // MT-031 (E5 melt-together) LIVE WIRING: a MOUNTED rich-text pane retrieves the ONE shared bus
+        // and publishes its selection + registers its command set every frame — the real per-frame bus
+        // consumer the contract requires (not test-only dead code). The bus is in egui app data keyed by
+        // INTERACTION_BUS_KEY, so every mounted pane sees the same instance.
+        let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+        let pane_id: crate::pane_registry::PaneId = Arc::from(ctx.record.pane_id.as_ref());
+        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
+        let selected = self.state.lock().unwrap_or_else(|e| e.into_inner()).selected_text();
+        let mut registered = self.bus_registered.load(Ordering::Relaxed);
+        crate::rich_editor::interop_adapter::drive_bus_in_render(
+            &bus,
+            pane_id,
+            has_focus,
+            selected,
+            &mut registered,
+        );
+        self.bus_registered.store(registered, Ordering::Relaxed);
+
         RichEditorWidget::new(Arc::clone(&self.state)).show(ui);
     }
 

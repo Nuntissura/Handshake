@@ -187,25 +187,44 @@ pub mod interop_adapter {
 
     /// Materialize the panel's PRIMARY selection as a [`SharedSelection::TextRange`] (the code pane
     /// publishes this to the bus when its selection changes). Returns [`SharedSelection::None`] for a
-    /// bare caret (no selected text). The selected text is sliced from the buffer by byte range (cursor
-    /// offsets are always char-boundary-aligned).
+    /// bare caret (no selected text). The selected text is sliced from the buffer BY BYTE RANGE
+    /// (O(selection-length) via [`CodeEditorPanel::selected_primary_text`]) — it NEVER `.to_string()`s the
+    /// whole document, so publishing on each selection change in a multi-MB file stays cheap (the
+    /// perf-lens cap / RISK-003). The range is clamped defensively (a stale range never panics — RISK-4).
     pub fn selection_for(panel: &CodeEditorPanel, pane_id: PaneId) -> SharedSelection {
-        let cursors = panel.cursors();
-        let primary = cursors.primary();
-        if !primary.is_selection() {
-            return SharedSelection::None;
+        match panel.selected_primary_text() {
+            Some((start, end, text)) => {
+                text_range_selection(pane_id, EditorSurfaceKind::Code, start, end, text)
+            }
+            None => SharedSelection::None,
         }
-        let range = primary.range();
-        let whole = panel.buffer().to_string();
-        // Byte-range slice; clamp defensively so a stale range never panics (RISK-4 spirit).
-        let end = range.end.min(whole.len());
-        let start = range.start.min(end);
-        let text = whole.get(start..end).unwrap_or("").to_owned();
-        if text.is_empty() {
-            SharedSelection::None
-        } else {
-            text_range_selection(pane_id, EditorSurfaceKind::Code, start, end, text)
-        }
+    }
+
+    /// Publish the code pane's current selection to the shared bus + run the keybind dispatch — the LIVE
+    /// per-frame wiring [`CodeEditorPaneFactory::render`] calls so a MOUNTED code pane is a real bus
+    /// consumer (not test-only dead code). On the first call it registers the code surface's command set
+    /// (idempotent — last-registration-wins by id). `has_focus` gates focus ownership so a background pane
+    /// never clobbers the focused pane's selection (impl note 6/7). All bus access is via `with_try_lock`
+    /// so it never blocks the egui frame thread (RISK-1 / MC-1).
+    pub fn drive_bus_in_render(
+        bus: &std::sync::Arc<std::sync::Mutex<InteractionBus>>,
+        panel: &CodeEditorPanel,
+        pane_id: PaneId,
+        has_focus: bool,
+        already_registered: &mut bool,
+    ) {
+        let registered = *already_registered;
+        InteractionBus::with_try_lock(bus, |b| {
+            if !registered {
+                register(b);
+            }
+            if has_focus {
+                b.set_focus_owner(pane_id.clone());
+                let selection = selection_for(panel, pane_id.clone());
+                b.set_selection(selection);
+            }
+        });
+        *already_registered = true;
     }
 
     /// Copy the code pane's current selection to the shared clipboard through the bus (Ctrl+C path).
