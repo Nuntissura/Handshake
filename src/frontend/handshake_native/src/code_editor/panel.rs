@@ -64,8 +64,14 @@ use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
+use crate::interop::cross_ref::{
+    find_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
+};
+use crate::interop::InteractionBus;
 use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
+
+use super::note_refs_panel::{render_note_refs_panel, NoteRefsState};
 
 use super::buffer::TextBuffer;
 use super::code_nav::{
@@ -150,6 +156,12 @@ pub const CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX: &str = "code_editor_diagnostic_"
 /// cap). Only the regions intersecting the painted window are emitted, capped at this many so a
 /// pathological file with thousands of folds cannot blow the per-frame node budget.
 pub const MAX_ACCESSKIT_FOLDS: usize = 64;
+
+/// MT-034: the bounded timeout (ms) for the BEST-EFFORT word->symbol_key resolution the code->notes
+/// dwell does before the find-notes search. If the code-nav backend is slow/unreachable, the dwell falls
+/// back to searching the raw caret word rather than pinning the NoteRefsPanel in Loading on a stuck
+/// connect (the MT-015 no-perpetual-spinner lesson — the off-thread task always completes promptly).
+pub const SYMBOL_KEY_LOOKUP_TIMEOUT_MS: u64 = 1500;
 
 /// The fixed AccessKit `NodeId` band the per-fold `Role::TreeItem` nodes occupy for the default panel
 /// (300..300+MAX_ACCESSKIT_FOLDS), disjoint from the find-bar band (280..283), the cursor band
@@ -560,7 +572,52 @@ pub struct CodeEditorPanel {
     /// [`ensure_command_nodes`](Self::ensure_command_nodes) rebuilds it only on a version miss. `None`
     /// until the first emit.
     command_node_cache: Mutex<Option<(u64, Vec<CommandNodeDesc>)>>,
+
+    // ── MT-034 code->notes cross-references (the NoteRefsPanel side surface) ───────────────────────────
+
+    /// MT-034: whether the "Notes referencing this symbol" panel is shown in the right sidebar
+    /// (RISK-001 / MC-001 — hideable so the center editor keeps a usable width, like the outline/minimap).
+    /// Default OFF (it loads only on a symbol dwell; an empty panel adds nothing but width until then —
+    /// the operator toggles it on). Atomic so the `&self` render path / an agent can flip it.
+    show_note_refs: std::sync::atomic::AtomicBool,
+    /// MT-034: the async load state of the NoteRefsPanel for the currently-dwelled symbol. The render
+    /// path reads it; [`pump_note_refs`](Self::pump_note_refs) sets it to `Loading` when it fires a
+    /// search and the drain swaps in the delivered `Loaded`/`Failed` result. Behind a `Mutex` for the
+    /// same `Sync` reason as the buffer.
+    note_refs_state: Mutex<NoteRefsState>,
+    /// MT-034: the 800ms cursor-dwell debounce (RISK-3 / MC-3 — fire the notes search ONCE per dwell, never
+    /// per cursor move / per frame). [`pump_note_refs`](Self::pump_note_refs) calls `observe` each frame
+    /// with the word under the caret; a dwell crossing fires the off-thread search. Behind a `Mutex` for
+    /// the same `Sync` reason as the buffer.
+    note_refs_dwell: Mutex<SymbolDwellTracker>,
+    /// MT-034: the symbol KEY the NoteRefsPanel last loaded/loads for (the panel header text + the search
+    /// query). `None` until the first dwell. Distinct from the raw caret word — it is the resolved
+    /// `symbol_key` from `lookup_symbols` (the precise multi-token `path#Symbol` that cuts false positives
+    /// — RISK-1). Behind a `Mutex` for the same `Sync` reason as the buffer.
+    note_refs_focused_symbol: Mutex<Option<String>>,
+    /// MT-034 off-thread find-notes result delivery cell: a spawned `find_notes_referencing_symbol` task
+    /// writes the resolved [`NoteRefsState`] (`Loaded`/`Failed`) here; the next frame's drain swaps it into
+    /// `note_refs_state` (HBR-QUIET — the egui thread never blocks on the backend; the MT-008 delivery-cell
+    /// shape). `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
+    note_refs_result: NoteRefsResultCell,
+    /// MT-034 the find-notes search backend (injectable so a kittest drives the live dwell->search->panel
+    /// path with a counted in-memory mock and NO backend, the MT-014/MT-015 fetcher-trait pattern). The
+    /// production default is [`FindNotesHttp`] (the verified `POST /workspaces/{ws}/loom/search-v2` route).
+    /// `Arc` so the off-thread spawn can hold it across an await. Behind a `Mutex` so a test can inject a
+    /// mock under the `Sync` panel.
+    find_notes_backend: Mutex<Arc<dyn FindNotesSearch>>,
+    /// MT-034 the cursor-dwell threshold the live `pump_note_refs` uses (default
+    /// [`crate::interop::NOTE_REFS_DWELL_MS`]ms). A kittest sets it to ZERO via
+    /// [`set_note_refs_dwell_threshold`](Self::set_note_refs_dwell_threshold) so the dwell crossing fires
+    /// on the first settled frame, driving the REAL dwell->search->panel pipeline deterministically
+    /// WITHOUT an 800ms wall-clock wait. Behind a `Mutex` for the `Sync` panel.
+    note_refs_dwell_threshold: Mutex<std::time::Duration>,
 }
+
+/// MT-034 off-thread find-notes result delivery cell: the resolved [`NoteRefsState`] written by a spawned
+/// `find_notes_referencing_symbol` task and drained on the next frame into `note_refs_state`. Aliased so
+/// the panel field type stays legible (clippy `type_complexity`).
+type NoteRefsResultCell = Arc<Mutex<Option<NoteRefsState>>>;
 
 /// MT-010 one cached AccessKit command-node descriptor: the fixed `node_id`, the `code_editor_cmd_*`
 /// author_id, the chord-annotated label, and the action it dispatches. Built once per keymap version
@@ -854,6 +911,18 @@ impl CodeEditorPanel {
             keymap_file_state: Mutex::new((None, None)),
             command_palette_tx: Mutex::new(None),
             command_node_cache: Mutex::new(None),
+            // MT-034 code->notes: the NoteRefsPanel is hidden until the operator toggles it on (it loads
+            // only on a symbol dwell). The dwell tracker + delivery cell start empty; the find-notes
+            // backend defaults to the verified live search-v2 route (a test injects a mock).
+            show_note_refs: std::sync::atomic::AtomicBool::new(false),
+            note_refs_state: Mutex::new(NoteRefsState::Idle),
+            note_refs_dwell: Mutex::new(SymbolDwellTracker::new()),
+            note_refs_focused_symbol: Mutex::new(None),
+            note_refs_result: Arc::new(Mutex::new(None)),
+            find_notes_backend: Mutex::new(Arc::new(FindNotesHttp::production())),
+            note_refs_dwell_threshold: Mutex::new(std::time::Duration::from_millis(
+                crate::interop::NOTE_REFS_DWELL_MS,
+            )),
         }
     }
 
@@ -2409,6 +2478,16 @@ impl CodeEditorPanel {
             {
                 self.toggle_minimap();
             }
+            // MT-034: toggle the "Notes referencing this symbol" panel (the code->notes cross-ref
+            // surface). When shown, dwelling on a symbol loads the notes that mention it (RISK-001 —
+            // hideable so the center editor keeps a usable width).
+            if ui
+                .selectable_label(self.is_note_refs_shown(), "\u{1F4DD} Note refs")
+                .on_hover_text("Toggle the panel listing notes that reference the focused code symbol")
+                .clicked()
+            {
+                self.toggle_note_refs();
+            }
             // MT-010 'Configure keybindings' affordance: materializes ~/.handshake/keymap.json (creating
             // it with the current overrides if absent) so the operator can edit it. Deliberately does NOT
             // launch an external editor via `open::that()` — a forced app launch would steal OS focus
@@ -2446,6 +2525,24 @@ impl CodeEditorPanel {
                 Some(resp.response.rect);
         } else {
             *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        }
+
+        // MT-034 NOTE-REFS side panel (right). Rendered BEFORE the minimap so the two right-edge panels
+        // stack (note-refs inboard of the minimap). The panel renders the current `note_refs_state` and
+        // routes a clicked row through the cross-pane Open-Document command (reuse — see
+        // `render_note_refs_panel_into`). Resizable so a long note title is readable.
+        if self.is_note_refs_shown() {
+            let note_refs_panel_id = if self.instance.is_empty() {
+                egui::Id::new("code_editor_note_refs_panel")
+            } else {
+                egui::Id::new(format!("code_editor_note_refs_panel#{}", self.instance))
+            };
+            egui::SidePanel::right(note_refs_panel_id)
+                .resizable(true)
+                .default_width(220.0)
+                .show_inside(ui, |ui| {
+                    self.render_note_refs_panel_into(ui);
+                });
         }
 
         // MINIMAP side panel (right). Non-resizable, exact 80px (Monaco's minimap width).
@@ -2665,6 +2762,15 @@ impl CodeEditorPanel {
         // and BEFORE the overlay render below (so a result delivered last frame paints this frame). A
         // graceful no-op without an injected runtime / bound workspace.
         self.pump_code_intelligence();
+
+        // MT-034 LIVE code->notes loop: advance the cursor-dwell debounce and, on a dwell crossing, fire
+        // the find-notes search off-thread (RISK-3 / MC-3 — once per dwell, never per frame); then drain
+        // any result delivered last frame into `note_refs_state` so the NoteRefsPanel (rendered above as a
+        // right SidePanel) shows it. Both are graceful no-ops when the panel is hidden / no runtime /
+        // workspace, so a headless harness renders cleanly. The drain runs every frame so a result that
+        // landed while the panel was briefly hidden is still picked up when it re-shows.
+        self.pump_note_refs();
+        self.drain_note_refs();
 
         // MT-008: drain any off-thread code-nav/LSP results into the popup state, then render the
         // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
@@ -4882,6 +4988,174 @@ impl CodeEditorPanel {
     /// (there is no rendered references panel in MT-010 scope).
     pub fn last_references(&self) -> Option<CodeSymbolReferencesResponse> {
         self.last_references.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    // ── MT-034 code->notes cross-references (the NoteRefsPanel live wiring) ─────────────────────────────
+
+    /// Show/hide the "Notes referencing this symbol" panel (RISK-001 / MC-001 — hideable like the
+    /// outline/minimap). The toggle button in the editor's panel-toggle row flips it; an agent can too.
+    pub fn set_show_note_refs(&self, show: bool) {
+        self.show_note_refs.store(show, Ordering::Relaxed);
+    }
+
+    /// Whether the NoteRefsPanel is shown.
+    pub fn is_note_refs_shown(&self) -> bool {
+        self.show_note_refs.load(Ordering::Relaxed)
+    }
+
+    /// Flip the NoteRefsPanel visibility (the toggle-button handler).
+    fn toggle_note_refs(&self) {
+        let now = !self.is_note_refs_shown();
+        self.set_show_note_refs(now);
+    }
+
+    /// A snapshot of the current NoteRefsPanel load state (for tests / the render path).
+    pub fn note_refs_state(&self) -> NoteRefsState {
+        self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// The symbol key the NoteRefsPanel currently tracks (the dwelled symbol), or `None`.
+    pub fn note_refs_focused_symbol(&self) -> Option<String> {
+        self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Inject a find-notes search backend (a kittest injects a counted in-memory mock so the live
+    /// dwell->search->panel pipeline is driven with NO backend — the MT-014/MT-015 fetcher-trait pattern).
+    /// The production default is the verified live search-v2 route ([`FindNotesHttp`]).
+    pub fn set_find_notes_backend(&self, backend: Arc<dyn FindNotesSearch>) {
+        *self.find_notes_backend.lock().unwrap_or_else(|e| e.into_inner()) = backend;
+    }
+
+    /// Set the cursor-dwell threshold the live `pump_note_refs` uses (default
+    /// [`crate::interop::NOTE_REFS_DWELL_MS`]ms). A kittest sets it to ZERO so the dwell->search->panel
+    /// pipeline fires on the first settled frame — driving the REAL wired path deterministically without
+    /// an 800ms wall-clock wait. Production never calls this (the 800ms default stands).
+    pub fn set_note_refs_dwell_threshold(&self, threshold: std::time::Duration) {
+        *self.note_refs_dwell_threshold.lock().unwrap_or_else(|e| e.into_inner()) = threshold;
+    }
+
+    /// MT-034 LIVE code->notes pump: drive the cursor-dwell debounce from the running frame and, on a
+    /// dwell crossing (the cursor settled on a NEW symbol for >= [`crate::interop::NOTE_REFS_DWELL_MS`]),
+    /// fire the find-notes search OFF-THREAD (RISK-3 / MC-3 — the search fires ONCE per dwell, never per
+    /// cursor move / per frame; the debounce suppresses backend spam). The result lands in
+    /// [`note_refs_result`](Self::note_refs_result) and the next frame's [`drain_note_refs`](Self::drain_note_refs)
+    /// swaps it into `note_refs_state`.
+    ///
+    /// Resolution: the dwelled WORD is resolved to a `symbol_key` via the SAME MT-008
+    /// [`CodeNavClient::lookup_symbols`] path go-to-definition uses, then the precise `symbol_key`
+    /// (`path#Symbol`, not a bare word) is the find-notes query — this is the RISK-1 false-positive
+    /// mitigation (a qualified key, restricted to rich-doc content types).
+    ///
+    /// A graceful no-op when: the panel is hidden, no runtime is injected, no workspace is bound, or the
+    /// caret is not in a word — so a runtime-less / workspace-less harness renders cleanly while a live
+    /// host with a workspace gets real code->notes intelligence. The dwell tracker is driven even while
+    /// the panel is hidden is AVOIDED (we skip when hidden so a hidden panel costs nothing).
+    fn pump_note_refs(&self) {
+        if !self.is_note_refs_shown() {
+            return;
+        }
+        let Some(runtime) = self.runtime_handle() else {
+            return; // runtime-less harness: nothing to spawn (graceful).
+        };
+        let workspace_id = self.workspace_id();
+        if workspace_id.is_empty() {
+            return;
+        }
+        // Observe the word under the caret this frame; the dwell tracker fires ONCE per dwell crossing.
+        let word = self.word_at_primary_cursor();
+        let current = if word.is_empty() { None } else { Some(word.as_str()) };
+        let threshold = *self.note_refs_dwell_threshold.lock().unwrap_or_else(|e| e.into_inner());
+        let fired = {
+            let mut dwell = self.note_refs_dwell.lock().unwrap_or_else(|e| e.into_inner());
+            dwell.observe_with_threshold(current, std::time::Instant::now(), threshold)
+        };
+        let Some(dwelled_word) = fired else {
+            return; // no dwell crossing this frame -> no search (the debounce suppressed it).
+        };
+
+        // IN-FLIGHT GUARD (RISK-3 / MC-3, belt-and-suspenders over the dwell debounce): if a search for
+        // the SAME word is already Loading, do NOT stack a second one. The dwell tracker already fires
+        // once per crossing, but a same-word re-dwell after the cursor briefly left the word would
+        // otherwise stack a redundant search while the first is still in flight — this collapses that to
+        // one outstanding search per focused symbol.
+        {
+            let state = self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner());
+            let focused = self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner());
+            if matches!(*state, NoteRefsState::Loading) && focused.as_deref() == Some(dwelled_word.as_str())
+            {
+                return;
+            }
+        }
+
+        // A dwell crossed: mark the panel Loading + record the focused word, then resolve the word to a
+        // precise symbol_key and fire the find-notes search off-thread.
+        *self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()) = NoteRefsState::Loading;
+        *self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(dwelled_word.clone());
+
+        let client = self.code_nav_client.clone();
+        let backend = Arc::clone(&self.find_notes_backend.lock().unwrap_or_else(|e| e.into_inner()));
+        let cell = Arc::clone(&self.note_refs_result);
+        let ws = workspace_id.clone();
+        runtime.spawn(async move {
+            // Resolve the dwelled word to a precise symbol_key (RISK-1: a qualified `path#Symbol` query
+            // cuts the false positives a bare word would produce). The lookup is BEST-EFFORT and bounded
+            // by a short timeout: if the code-nav backend is slow/unreachable (a headless harness, a flaky
+            // server), fall back to the raw word rather than pinning the panel in Loading on a stuck
+            // connect (the MT-015 no-perpetual-spinner lesson — the task always completes promptly).
+            let lookup = tokio::time::timeout(
+                std::time::Duration::from_millis(SYMBOL_KEY_LOOKUP_TIMEOUT_MS),
+                client.lookup_symbols(&ws, &dwelled_word, 5),
+            )
+            .await;
+            let symbol_key = match lookup {
+                Ok(Ok(syms)) => syms
+                    .into_iter()
+                    .map(|s| s.symbol_key)
+                    .find(|k| !k.trim().is_empty())
+                    .unwrap_or_else(|| dwelled_word.clone()),
+                // Lookup failed or timed out -> the raw word (the content-type filter still narrows).
+                _ => dwelled_word.clone(),
+            };
+            let state = match find_notes_with(backend.as_ref(), &symbol_key, &ws).await {
+                Ok(notes) => NoteRefsState::Loaded(notes),
+                Err(e) => NoteRefsState::Failed(e),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(state);
+            }
+        });
+    }
+
+    /// MT-034: drain a delivered find-notes result into `note_refs_state` (HBR-QUIET — the spawn delivered
+    /// it off-thread; here we just swap it in on the UI thread). A no-op when nothing was delivered.
+    fn drain_note_refs(&self) {
+        if let Some(state) = self.note_refs_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            *self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()) = state;
+        }
+    }
+
+    /// MT-034: render the NoteRefsPanel into `ui` (the right-sidebar surface) and route a clicked note row
+    /// through the EXISTING cross-pane Open-Document command on the shared [`InteractionBus`] (reuse, not a
+    /// fork). The bus is retrieved from egui app data (the same shared instance every pane uses); the click
+    /// is routed with a NON-BLOCKING `try_lock` so a contended frame never deadlocks (RISK-1 / MC-1).
+    fn render_note_refs_panel_into(&self, ui: &mut egui::Ui) {
+        let theme = if ui.visuals().dark_mode {
+            crate::theme::HsTheme::Dark
+        } else {
+            crate::theme::HsTheme::Light
+        };
+        let palette = theme.palette();
+        let state = self.note_refs_state();
+        let focused = self.note_refs_focused_symbol();
+        if let Some(doc_id) = render_note_refs_panel(ui, &state, focused.as_deref(), &palette) {
+            // Route the clicked row through the EXISTING Open-Document cross-pane command (MT-032).
+            let bus = InteractionBus::get_or_init(ui.ctx());
+            InteractionBus::with_try_lock(&bus, |b| {
+                b.register_open_document_command();
+                b.open_document(ui.ctx(), doc_id);
+            });
+        }
     }
 
     /// Undo (Ctrl+Z). Routed to the host command bus: the WP-011 "one unified undo stack across

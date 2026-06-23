@@ -31,6 +31,9 @@ use egui_kittest::Harness;
 use handshake_native::code_editor::note_refs_panel::{
     render_note_refs_panel, row_author_id, NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
+use handshake_native::code_editor::panel::CodeEditorPanel;
+use handshake_native::interop::cross_ref::FindNotesSearch;
+use handshake_native::backend_client::{LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response};
 use handshake_native::interop::{
     dispatch_code_ref_open, percent_encode_symbol, CrossRefError, InteractionBus, NoteRef,
     CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT,
@@ -192,8 +195,172 @@ fn ac2_click_code_ref_chip_dispatches_open_code_symbol() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-3 (kittest): the NoteRefsPanel lists a note for the focused symbol; clicking a row yields the doc
-// id the caller dispatches `open-document` for.
+// AC-3 (kittest, WIRED): drive the REAL CodeEditorPanel + SymbolDwellTracker + find_notes_with +
+// render_note_refs_panel pipeline. The panel is mounted in a live `show()` loop, a workspace + runtime
+// are injected (the production wiring), a counted in-memory FindNotesSearch mock is injected (NO
+// backend), the dwell threshold is set to ZERO (so the dwell crossing fires on the first settled frame
+// without an 800ms wall-clock wait), and the caret is parked on a symbol. After a few frames the dwell
+// fires the off-thread search, the result drains into the panel, and the NoteRefsPanel lists the note —
+// proving the dwell-debounce -> search -> panel integration end-to-end in the live host (not a bare
+// render of a hand-built Loaded state).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A counted in-memory find-notes search mock (NO backend): returns a seeded note for any query, so the
+/// wired dwell->search->panel test drives the real pipeline without a live PG. Counts calls so the test
+/// can assert the dwell fired the search EXACTLY ONCE (RISK-3 / MC-3 — no per-frame backend spam).
+struct CountingFindNotes {
+    note_block_id: String,
+    note_title: String,
+    calls: std::sync::atomic::AtomicUsize,
+}
+
+impl FindNotesSearch for CountingFindNotes {
+    fn search<'a>(
+        &'a self,
+        _workspace_id: &'a str,
+        _body: &'a LoomSearchV2Body,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
+    {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let hit = LoomSearchV2Hit {
+            block: LoomSearchBlock {
+                block_id: self.note_block_id.clone(),
+                content_type: "note".to_owned(),
+                title: Some(self.note_title.clone()),
+            },
+            score: 1.0,
+            fts_rank: 0.0,
+            trgm_sim: 0.0,
+            vector_sim: 0.0,
+            edge_degree: 0,
+            highlight: "uses <mark>MyStruct</mark> here".to_owned(),
+        };
+        Box::pin(async move {
+            Ok(LoomSearchV2Response {
+                hits: vec![hit],
+                content_type_facets: Default::default(),
+                semantic_available: false,
+                total: 1,
+            })
+        })
+    }
+}
+
+#[test]
+fn ac3_code_pane_dwell_loads_note_refs_panel() {
+    use std::sync::atomic::Ordering;
+
+    // A real multi-thread runtime (the same shape the MT-008/010 live-loop tests build) so the dwell
+    // crossing can `spawn` the off-thread find-notes search.
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+
+    // The mock the dwell-fired search resolves against (NO backend). One call expected (fired once).
+    let backend = std::sync::Arc::new(CountingFindNotes {
+        note_block_id: "DOC-7".to_owned(),
+        note_title: "Design notes".to_owned(),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let backend_dyn: std::sync::Arc<dyn FindNotesSearch> = backend.clone();
+
+    // The LIVE code pane (the host the review found untouched), now mounting the NoteRefsPanel.
+    let panel = std::sync::Arc::new(CodeEditorPanel::new("fn main() { let total = MyStruct::new(); }", "rs"));
+    panel.set_runtime(rt.handle().clone());
+    panel.set_workspace_id("ws-mt034");
+    panel.set_find_notes_backend(backend_dyn);
+    panel.set_show_note_refs(true);
+    // Zero dwell threshold so the dwell crosses on the first settled frame (deterministic, no 800ms wait).
+    panel.set_note_refs_dwell_threshold(std::time::Duration::from_millis(0));
+
+    // Park the caret inside the identifier "MyStruct" BEFORE the first frame so the dwell only ever
+    // observes that one symbol (a pre-frame caret at offset 0 could dwell on a different word and fire a
+    // second, unrelated search — we want exactly ONE dwell crossing to prove the once-per-dwell guard).
+    let offset = panel.buffer().to_string().find("MyStruct").expect("symbol present") + 2;
+    panel.set_single_cursor(offset);
+
+    let panel_ui = std::sync::Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 400.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    // Use STEP-bounded driving (NOT `harness.run()`): once the dwell fires, the panel enters Loading and
+    // the NoteRefsPanel renders an `egui::Spinner` that requests a repaint every frame — `run()` would
+    // exceed max_steps on a never-settling spinner. `step()` advances exactly one frame, so the loop is
+    // bounded regardless of the animating spinner (the review's coverage-gap mitigation: never run() a
+    // Loading state).
+    harness.step();
+
+    // Step the frame loop, giving the off-thread search a moment to land between frames, until the panel
+    // reaches Loaded (the dwell fires on the 2nd settled frame; the off-thread word->symbol_key lookup is
+    // bounded by SYMBOL_KEY_LOOKUP_TIMEOUT_MS, then the mock search + drain take a few more frames).
+    // Bounded at ~4s wall-clock so a regression (stuck Loading / dropped task) fails fast instead of
+    // hanging — proving the wired pipeline TERMINATES, not just that a spinner animates.
+    for _ in 0..80 {
+        if matches!(panel.note_refs_state(), NoteRefsState::Loaded(_)) {
+            break;
+        }
+        harness.step();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    // One more step so the SidePanel renders the Loaded state's note row into the live AccessKit tree.
+    harness.step();
+
+    // The REAL panel state is now Loaded with the seeded note (driven by the wired dwell->search pipeline,
+    // NOT a hand-built Loaded state). Re-read after the final render step.
+    let loaded = panel.note_refs_state();
+    match &loaded {
+        NoteRefsState::Loaded(notes) => {
+            assert_eq!(notes.len(), 1, "AC-3: the wired pipeline loaded the seeded note");
+            assert_eq!(notes[0].document_id, "DOC-7");
+            assert_eq!(notes[0].document_title, "Design notes");
+        }
+        other => panic!("AC-3: expected the dwell to load the note refs, got {other:?}"),
+    }
+
+    // The NoteRefsPanel is mounted in the live code pane (its container + the note row are addressable).
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(NOTE_REFS_PANEL_AUTHOR_ID),
+        "AC-3: the NoteRefsPanel is mounted in the live code pane; got {ids:?}"
+    );
+    let row = row_author_id("DOC-7");
+    assert!(ids.contains(&row), "AC-3: the dwell-loaded note row `{row}` is present in the live pane");
+
+    // RISK-3 / MC-3: the dwell fired the search exactly ONCE despite many frames (no per-frame spam). One
+    // dwell crossing runs one search PER rich-doc content type (`note` + `journal` = 2 backend calls); the
+    // load-bearing proof is that it is a small CONSTANT, not (frames × content_types) — the debounce
+    // suppressed the per-frame re-fire.
+    assert_eq!(
+        backend.calls.load(Ordering::SeqCst),
+        handshake_native::interop::cross_ref::NOTE_REF_CONTENT_TYPES.len(),
+        "AC-3/RISK-3: one dwell crossing ran exactly one search per content type (not per-frame spam)"
+    );
+
+    // The focused symbol the panel tracks is the dwelled symbol (resolved key falls back to the word with
+    // no live code-nav backend).
+    assert!(
+        panel.note_refs_focused_symbol().is_some(),
+        "AC-3: the panel records the dwelled symbol it loaded for"
+    );
+
+    println!(
+        "AC-3 WIRED: code-pane dwell on MyStruct -> find_notes fired once -> NoteRefsPanel loaded DOC-7 \
+         (Design notes) in the live CodeEditorPanel"
+    );
+
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-3 (leaf-widget): the NoteRefsPanel lists a note for the focused symbol; clicking a row yields the
+// doc id the caller dispatches `open-document` for. (Complements the WIRED test above: this isolates the
+// row-click -> open-document routing the wired panel uses.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]

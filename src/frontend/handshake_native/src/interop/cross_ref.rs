@@ -79,9 +79,29 @@ pub const NOTE_REFS_SEARCH_LIMIT: u32 = 25;
 
 /// The rich-document content types a code->notes search restricts to (RISK-1 / MC-1: a code symbol is
 /// referenced from NOTES, so a search filtered to these content types excludes unrelated block kinds
-/// and cuts false positives). The backend serializes `LoomBlockContentType` as a snake_case string;
-/// `note` + `document` are the rich-document surfaces a code-ref lives in.
-pub const NOTE_REF_CONTENT_TYPES: &[&str] = &["note", "document"];
+/// and cuts false positives).
+///
+/// BACKEND-SHAPE INVARIANT (verified read-only): the backend `content_type` filter deserializes into
+/// `LoomBlockContentType` (`src/backend/handshake_core/src/storage/loom.rs:41-69`), a snake_case enum
+/// with NO `#[serde(other)]` fallback — so an unknown value makes Axum's `Json` extractor return HTTP
+/// 422 and the WHOLE search fails. Every value here MUST therefore be a real
+/// `LoomBlockContentType::as_str()` token. The verified set is:
+/// `note, file, annotated_file, tag_hub, journal, canvas, view_def` (loom.rs:58-69) — there is NO
+/// `document` variant (an earlier draft used `"document"`, which 422'd against real PG; the `Document`
+/// at loom.rs:502 belongs to the UNRELATED `LoomSearchSourceKind` hit-source enum, not this filter).
+/// A code reference in a note lives in a `note` block, and daily-note coverage lives in a `journal`
+/// block — both are real tokens (asserted by the `note_ref_content_types_are_valid_backend_tokens`
+/// unit test against [`BACKEND_LOOM_CONTENT_TYPE_TOKENS`] so a mock can never hide an invalid value).
+pub const NOTE_REF_CONTENT_TYPES: &[&str] = &["note", "journal"];
+
+/// The complete verified `LoomBlockContentType::as_str()` allow-list, mirrored from the real backend
+/// (`src/backend/handshake_core/src/storage/loom.rs:58-69`) for a compile-adjacent guard: the unit test
+/// `note_ref_content_types_are_valid_backend_tokens` asserts every [`NOTE_REF_CONTENT_TYPES`] value is in
+/// this set, so a code->notes search can NEVER send a value the backend would reject with HTTP 422 (the
+/// drift the `MockSearch` happy-path would otherwise mask). This list is a verification fixture, NOT a
+/// second source of authority — the backend enum stays canonical; if it changes, update both together.
+pub const BACKEND_LOOM_CONTENT_TYPE_TOKENS: &[&str] =
+    &["note", "file", "annotated_file", "tag_hub", "journal", "canvas", "view_def"];
 
 /// Why a code<->note cross-reference resolution failed. Every variant renders as a VISIBLE state
 /// (empty / typed error chip), never a silent no-op or a panic. `kind_str` is a stable kebab-case
@@ -314,18 +334,35 @@ pub async fn find_notes_with(
     }
     // Restrict to rich-doc content types one at a time (the search-v2 body's `content_type` filter is a
     // single value), merging + de-duplicating by block id so a symbol mentioned in both a `note` and a
-    // `document` is listed once (RISK-1: tighter than an unfiltered full-text query).
+    // `journal` is listed once (RISK-1: tighter than an unfiltered full-text query).
+    //
+    // PARTIAL-FAILURE ROBUSTNESS (must-fix hardening): do NOT propagate a single content-type query
+    // failure with `?` (that would discard the hits already collected from the other content types).
+    // Collect every successful query's hits and remember the LAST error; surface an error ONLY when
+    // EVERY query failed (so one flaky content type cannot blank a panel that the other type populated).
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
+    let mut last_err: Option<CrossRefError> = None;
+    let mut any_ok = false;
     for content_type in NOTE_REF_CONTENT_TYPES {
         let body = LoomSearchV2Body::baseline(symbol_key.to_owned(), Some((*content_type).to_owned()));
-        let response = backend.search(workspace_id, &body).await?;
-        for hit in response.hits {
-            let note = NoteRef::from_hit(hit);
-            if seen.insert(note.block_id.clone()) {
-                out.push(note);
+        match backend.search(workspace_id, &body).await {
+            Ok(response) => {
+                any_ok = true;
+                for hit in response.hits {
+                    let note = NoteRef::from_hit(hit);
+                    if seen.insert(note.block_id.clone()) {
+                        out.push(note);
+                    }
+                }
             }
+            Err(e) => last_err = Some(e),
         }
+    }
+    // Every query failed (e.g. the backend is down) -> surface the typed error. At least one succeeded
+    // -> return the merged hits (an empty vec is the honest "no notes" state, never an error).
+    if !any_ok {
+        return Err(last_err.unwrap_or_else(|| CrossRefError::Backend("no content-type queries ran".to_owned())));
     }
     Ok(out)
 }
@@ -493,11 +530,20 @@ impl SymbolDwellTracker {
                             None
                         }
                     }
-                    // A DIFFERENT symbol (or first observation): reset the dwell timer to now and clear
-                    // the fired marker (so settling here later fires once). Cursor MOVED => no fire yet.
+                    // A DIFFERENT symbol (or first observation / re-entry after the cursor left all
+                    // symbols): reset the dwell timer to `now`. Cursor MOVED => no fire yet.
+                    //
+                    // NO-REFIRE on same-symbol re-entry (RISK-3 / MC-3 — the live backend-spam guard once
+                    // wired): clear `fired_for` ONLY when re-entering a DIFFERENT symbol than the one we
+                    // last fired for. Re-entering the SAME symbol (cursor left to `None`, then came back
+                    // without crossing an intervening different symbol) keeps `fired_for`, so settling on
+                    // it again does NOT refire the search. A genuine move to another symbol clears the
+                    // marker so that symbol fires once.
                     _ => {
                         self.dwelling = Some((symbol.to_owned(), now));
-                        self.fired_for = None;
+                        if self.fired_for.as_deref() != Some(symbol) {
+                            self.fired_for = None;
+                        }
                         None
                     }
                 }
@@ -580,9 +626,20 @@ mod tests {
 
     // A counted in-memory search mock (the MT-014/MT-015 counted-mock pattern; NO backend).
     struct MockSearch {
-        // The hits returned per content_type (note -> ..., document -> ...).
+        // The hits returned per content_type (note -> ..., journal -> ...).
         by_content_type: std::collections::HashMap<String, Vec<LoomSearchV2Hit>>,
+        // When true, EVERY query returns a typed backend error (the all-fail path).
+        fail: bool,
+        // When true, every query AFTER the first returns a typed backend error (the partial-failure path).
+        #[allow(dead_code)]
+        fail_after_first: bool,
         calls: AtomicUsize,
+    }
+    impl MockSearch {
+        // Convenience ctor for the existing tests that do not exercise the failure paths.
+        fn ok(by_content_type: std::collections::HashMap<String, Vec<LoomSearchV2Hit>>) -> Self {
+            Self { by_content_type, fail: false, fail_after_first: false, calls: AtomicUsize::new(0) }
+        }
     }
     impl FindNotesSearch for MockSearch {
         fn search<'a>(
@@ -591,10 +648,14 @@ mod tests {
             body: &'a LoomSearchV2Body,
         ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>> + Send + 'a>>
         {
-            self.calls.fetch_add(1, Ordering::SeqCst);
+            let call_index = self.calls.fetch_add(1, Ordering::SeqCst);
+            let fail = self.fail || (self.fail_after_first && call_index >= 1);
             let ct = body.content_type.clone().unwrap_or_default();
             let hits = self.by_content_type.get(&ct).cloned().unwrap_or_default();
             Box::pin(async move {
+                if fail {
+                    return Err(CrossRefError::Backend("mock content-type query failed".to_owned()));
+                }
                 Ok(LoomSearchV2Response {
                     hits,
                     content_type_facets: Default::default(),
@@ -615,7 +676,7 @@ mod tests {
 
     #[test]
     fn find_notes_requires_workspace() {
-        let mock = MockSearch { by_content_type: Default::default(), calls: AtomicUsize::new(0) };
+        let mock = MockSearch::ok(Default::default());
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#MyStruct", ""));
         assert_eq!(r, Err(CrossRefError::NoWorkspace));
         assert_eq!(mock.calls.load(Ordering::SeqCst), 0, "no backend call without a workspace");
@@ -623,7 +684,7 @@ mod tests {
 
     #[test]
     fn find_notes_empty_symbol_is_empty_not_error() {
-        let mock = MockSearch { by_content_type: Default::default(), calls: AtomicUsize::new(0) };
+        let mock = MockSearch::ok(Default::default());
         let r = block_on(find_notes_with(&mock, "  ", "ws-1")).unwrap();
         assert!(r.is_empty(), "an empty symbol yields an empty list, not an error");
         assert_eq!(mock.calls.load(Ordering::SeqCst), 0);
@@ -631,16 +692,82 @@ mod tests {
 
     #[test]
     fn find_notes_merges_content_types_and_dedups() {
-        // The same block matched under both `note` and `document` is listed ONCE (RISK-1 dedup); a
+        // The same block matched under both `note` and `journal` is listed ONCE (RISK-1 dedup); a
         // distinct block in each is kept. The search restricts to rich-doc content types (one call per).
+        // Seeds the REAL backend tokens (`note`/`journal`) — never the invalid `document` that 422'd.
         let mut by = std::collections::HashMap::new();
         by.insert("note".to_owned(), vec![hit("BLK-A", Some("A"), "note", "<mark>S</mark>"), hit("BLK-B", Some("B"), "note", "x")]);
-        by.insert("document".to_owned(), vec![hit("BLK-A", Some("A"), "document", "y"), hit("BLK-C", Some("C"), "document", "z")]);
-        let mock = MockSearch { by_content_type: by, calls: AtomicUsize::new(0) };
+        by.insert("journal".to_owned(), vec![hit("BLK-A", Some("A"), "journal", "y"), hit("BLK-C", Some("C"), "journal", "z")]);
+        let mock = MockSearch::ok(by);
         let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1")).unwrap();
         let ids: Vec<&str> = r.iter().map(|n| n.block_id.as_str()).collect();
         assert_eq!(ids, vec!["BLK-A", "BLK-B", "BLK-C"], "deduped, in content-type then hit order");
         assert_eq!(mock.calls.load(Ordering::SeqCst), 2, "one search per rich-doc content type");
+    }
+
+    /// BACKEND-SHAPE GUARD (must-fix): every `NOTE_REF_CONTENT_TYPES` value MUST be a real
+    /// `LoomBlockContentType::as_str()` token, so the code->notes search can never send a value the real
+    /// backend would reject with HTTP 422 (the `document` drift the MockSearch happy-path previously hid).
+    #[test]
+    fn note_ref_content_types_are_valid_backend_tokens() {
+        for ct in NOTE_REF_CONTENT_TYPES {
+            assert!(
+                BACKEND_LOOM_CONTENT_TYPE_TOKENS.contains(ct),
+                "content_type {ct:?} is NOT a real LoomBlockContentType token (loom.rs:58-69) — it would \
+                 422 against real PG; valid tokens: {BACKEND_LOOM_CONTENT_TYPE_TOKENS:?}"
+            );
+        }
+        // The invalid value that 422'd against real PG must NOT have crept back in.
+        assert!(
+            !NOTE_REF_CONTENT_TYPES.contains(&"document"),
+            "`document` is not a LoomBlockContentType variant (it 422s); use `note`/`journal`"
+        );
+    }
+
+    /// PARTIAL-FAILURE ROBUSTNESS (must-fix hardening): if ONE content-type query fails but another
+    /// succeeds, the merged hits from the successful query are returned (not discarded); the panel does
+    /// not blank because one content type was flaky.
+    #[test]
+    fn find_notes_returns_partial_hits_when_one_content_type_fails() {
+        let mut by = std::collections::HashMap::new();
+        by.insert("note".to_owned(), vec![hit("BLK-A", Some("A"), "note", "S")]);
+        // `journal` returns no seeded hits AND the mock is set to fail the SECOND call below.
+        let mock = MockSearch { by_content_type: by, fail_after_first: true, fail: false, calls: AtomicUsize::new(0) };
+        let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1")).unwrap();
+        let ids: Vec<&str> = r.iter().map(|n| n.block_id.as_str()).collect();
+        assert_eq!(ids, vec!["BLK-A"], "the successful query's hit survives a sibling query failure");
+    }
+
+    /// PARTIAL-FAILURE ROBUSTNESS (must-fix hardening): if EVERY content-type query fails, the typed
+    /// error is surfaced (the panel shows a fail-closed error chip, not a silent empty state).
+    #[test]
+    fn find_notes_errors_only_when_all_content_types_fail() {
+        let mock = MockSearch { by_content_type: Default::default(), fail_after_first: false, fail: true, calls: AtomicUsize::new(0) };
+        let r = block_on(find_notes_with(&mock, "fn:src/main.rs#S", "ws-1"));
+        assert!(matches!(r, Err(CrossRefError::Backend(_))), "all-fail surfaces the typed backend error");
+    }
+
+    /// RISK-3 / MC-3 (the live backend-spam guard, now that the tracker is WIRED): the cursor leaves all
+    /// symbols (`None`) and re-enters the SAME symbol without an intervening DIFFERENT symbol. The search
+    /// must NOT refire (it already fired for that symbol) — otherwise a hover-jiggle would spam the
+    /// backend. A genuine move to a DIFFERENT symbol still fires once for the new symbol.
+    #[test]
+    fn dwell_does_not_refire_on_same_symbol_reentry() {
+        let mut tracker = SymbolDwellTracker::new();
+        let z = Duration::from_millis(0);
+        let t = Instant::now();
+        // Settle on S1 and fire once.
+        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None);
+        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), Some("S1".to_owned()));
+        // Cursor leaves all symbols.
+        assert_eq!(tracker.observe_with_threshold(None, t, z), None);
+        // Re-enter the SAME symbol: this is a move frame (no fire), and crucially `fired_for` is KEPT.
+        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None, "re-entry move frame: no fire");
+        // Settling again must NOT refire (no backend spam from a hover-jiggle).
+        assert_eq!(tracker.observe_with_threshold(Some("S1"), t, z), None, "same-symbol re-entry must not refire");
+        // But a genuine move to a DIFFERENT symbol DOES fire once.
+        assert_eq!(tracker.observe_with_threshold(Some("S2"), t, z), None, "move to S2: no fire on move frame");
+        assert_eq!(tracker.observe_with_threshold(Some("S2"), t, z), Some("S2".to_owned()), "S2 fires once");
     }
 
     #[test]
