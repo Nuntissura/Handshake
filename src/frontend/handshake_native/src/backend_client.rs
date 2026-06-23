@@ -3332,6 +3332,470 @@ mod wiki_client_tests {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-027 BlockCollectionViews client: the VERIFIED saved-view surface (table / Kanban / calendar).
+//
+// Verified READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` + `app/src/lib/
+// api.ts` (the MT-022/023/024/026 lesson — bind only confirmed shapes):
+//   - GET    /workspaces/:ws/loom/views/definitions/:block_id          getBlockView -> BlockViewRecord
+//   - POST   /workspaces/:ws/loom/views/definitions/:block_id/results  queryBlockViewResults
+//       body {limit,offset} -> BlockViewResults{kind,blocks,groups,total_returned}  (POST, RISK-1)
+//   - PATCH  /workspaces/:ws/loom/views/definitions/:block_id          updateBlockView body {definition}
+//   - PATCH  /workspaces/:ws/loom/blocks/:block_id                     updateLoomBlock body
+//       {add_tags,remove_tags} (top-level alongside the flattened update) — Kanban lane move
+//   - POST   /workspaces/:ws/loom/views/definitions                    createBlockView body
+//       {block_id?,title?,definition}
+//
+// Mirrors the `CanvasBoardClient` shape: pure `*_request` builders return a [`RequestSpec`] /
+// [`GetRequestSpec`] (unit-testable WITHOUT a backend), and the off-thread fetch/dispatch methods
+// deliver into `Arc<Mutex<Option<..>>>` cells the egui UI drains next frame (HBR-QUIET). Speaks
+// `serde_json::Value` so it never depends on the `handshake_core` crate.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::graph::block_collection_view::{
+    BlockViewDefinition, BlockViewField, BlockViewKind, BlockViewLane, BlockViewQuery,
+    BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
+};
+
+/// The parsed result of a `getBlockView` fetch: the loaded definition + the view block id (so the host
+/// can confirm identity). The block's own fields are not modeled here — only the definition the
+/// sub-views need (the full `LoomBlock` is not required by the MT-027 surfaces).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockViewRecordData {
+    pub view_block_id: String,
+    pub definition: BlockViewDefinition,
+}
+
+/// One-slot delivery cell for an off-thread `getBlockView` result.
+pub type BlockViewRecordCell = Arc<Mutex<Option<Result<BlockViewRecordData, String>>>>;
+
+/// One-slot delivery cell for an off-thread `queryBlockViewResults` result.
+pub type BlockViewResultsCell = Arc<Mutex<Option<Result<BlockViewResults, String>>>>;
+
+/// One-slot delivery cell for an off-thread view MUTATION (updateBlockView / updateLoomBlock /
+/// createBlockView). `Ok(view_block_id)` carries the (possibly new) view block id the host should be
+/// on after the mutation; `Err(msg)` the failure. For a create, this is the NEW block id (so the host
+/// switches to it); for update/card-move it echoes the current id.
+pub type BlockViewOpCell = Arc<Mutex<Option<Result<String, String>>>>;
+
+/// REST client for the VERIFIED MT-262 block-collection-view surface. Drives the definition read, the
+/// query (POST!), the sort/kind/date persist, the Kanban card-move tag mutation, and view creation off
+/// the UI thread.
+#[derive(Clone)]
+pub struct BlockViewClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl BlockViewClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn definitions_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/views/definitions", self.base_url, workspace_id)
+    }
+
+    fn definition_url(&self, workspace_id: &str, view_block_id: &str) -> String {
+        format!("{}/{}", self.definitions_url(workspace_id), view_block_id)
+    }
+
+    fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+    }
+
+    /// Pure request builder for `GET .../views/definitions/:block_id` (getBlockView).
+    pub fn get_view_request(&self, workspace_id: &str, view_block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.definition_url(workspace_id, view_block_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `POST .../views/definitions/:block_id/results` (queryBlockViewResults).
+    /// The VERIFIED method is POST with a JSON body `{limit, offset}` — NOT a GET with query params
+    /// (RISK-1 / MC-1: a GET would 405 or silently send params as a query string).
+    pub fn query_results_request(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/results", self.definition_url(workspace_id, view_block_id)),
+            body: Some(serde_json::json!({ "limit": limit, "offset": offset })),
+        }
+    }
+
+    /// Pure request builder for `PATCH .../views/definitions/:block_id` (updateBlockView). The VERIFIED
+    /// body is `{definition: <BlockViewDefinition JSON>}` (NOT the bare definition at top level).
+    pub fn update_view_request(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        definition: &BlockViewDefinition,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.definition_url(workspace_id, view_block_id),
+            body: Some(serde_json::json!({ "definition": definition_to_json(definition) })),
+        }
+    }
+
+    /// Pure request builder for `PATCH .../loom/blocks/:block_id` (updateLoomBlock) carrying the Kanban
+    /// lane-move tag mutation. The VERIFIED body has `add_tags`/`remove_tags` at the TOP level (the
+    /// backend `LoomBlockPatchRequest` reads them alongside the flattened update).
+    pub fn card_move_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        add_tags: &[String],
+        remove_tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.block_url(workspace_id, block_id),
+            body: Some(serde_json::json!({
+                "add_tags": add_tags,
+                "remove_tags": remove_tags,
+            })),
+        }
+    }
+
+    /// Pure request builder for `POST .../views/definitions` (createBlockView). The VERIFIED body is
+    /// `{block_id?, title?, definition}`; the `block_id` is omitted so the backend mints a new one.
+    pub fn create_view_request(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        definition: &BlockViewDefinition,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.definitions_url(workspace_id),
+            body: Some(serde_json::json!({
+                "title": title,
+                "definition": definition_to_json(definition),
+            })),
+        }
+    }
+
+    /// Fetch the view definition off the UI thread, delivering the parsed [`BlockViewRecordData`] into
+    /// `cell`.
+    pub fn fetch_view(&self, workspace_id: &str, view_block_id: &str, cell: BlockViewRecordCell) {
+        let spec = self.get_view_request(workspace_id, view_block_id);
+        let client = self.client.clone();
+        let id = view_block_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_block_view(&client, &spec.url, &id).await.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Run the view query (POST!) off the UI thread, delivering the parsed [`BlockViewResults`] into
+    /// `cell`.
+    pub fn query_results(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        limit: u32,
+        offset: u32,
+        cell: BlockViewResultsCell,
+    ) {
+        let spec = self.query_results_request(workspace_id, view_block_id, limit, offset);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_block_view_results(&client, &spec.url, &body)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Send a prebuilt update/card-move [`RequestSpec`] off the UI thread, delivering `Ok(echo_id)` /
+    /// `Err(msg)` into `cell`. `echo_id` is the view block id the host stays on (the host passes its
+    /// current id). The host re-queries after a 2xx.
+    pub fn dispatch(&self, spec: RequestSpec, echo_id: String, cell: BlockViewOpCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_block_view_mutation(&client, &spec).await.map(|_| echo_id);
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Create a new view off the UI thread, delivering the NEW view block id into `cell` (so the host
+    /// switches to it). The body is `createBlockView`'s `{title, definition}`.
+    pub fn create_view(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        definition: &BlockViewDefinition,
+        cell: BlockViewOpCell,
+    ) {
+        let spec = self.create_view_request(workspace_id, title, definition);
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        let url = spec.url.clone();
+        self.runtime.spawn(async move {
+            let result = post_create_block_view(&client, &url, &body)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+/// Serialize a [`BlockViewDefinition`] to the VERIFIED wire JSON the backend `BlockViewDefinition`
+/// deserializes (snake_case kind/field/direction strings; `query` carries the date window). Only the
+/// fields the native surfaces set are written; the backend defaults the rest (serde `#[serde(default)]`).
+fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
+    let mut query = serde_json::Map::new();
+    if let Some(from) = &def.query.date_from {
+        query.insert("date_from".to_owned(), serde_json::Value::String(from.clone()));
+    }
+    if let Some(to) = &def.query.date_to {
+        query.insert("date_to".to_owned(), serde_json::Value::String(to.clone()));
+    }
+    let mut obj = serde_json::Map::new();
+    obj.insert("kind".to_owned(), serde_json::Value::String(def.kind.as_str().to_owned()));
+    if !query.is_empty() {
+        obj.insert("query".to_owned(), serde_json::Value::Object(query));
+    }
+    if !def.columns.is_empty() {
+        obj.insert(
+            "columns".to_owned(),
+            serde_json::Value::Array(
+                def.columns.iter().map(|f| serde_json::Value::String(f.as_str().to_owned())).collect(),
+            ),
+        );
+    }
+    if let Some(sort) = def.sort {
+        obj.insert(
+            "sort".to_owned(),
+            serde_json::json!({
+                "field": sort.field.as_str(),
+                "direction": sort.direction.as_str(),
+            }),
+        );
+    }
+    if let Some(field) = def.calendar_date_field {
+        obj.insert(
+            "calendar_date_field".to_owned(),
+            serde_json::Value::String(field.as_str().to_owned()),
+        );
+    }
+    serde_json::Value::Object(obj)
+}
+
+/// Parse the VERIFIED `BlockViewDefinition` JSON into the native projection. Unknown kinds default to
+/// table; unknown fields are dropped (never faked).
+pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
+    let kind = BlockViewKind::parse_str(v.get("kind").and_then(|x| x.as_str()).unwrap_or("table"));
+    let columns = v
+        .get("columns")
+        .and_then(|c| c.as_array())
+        .map(|arr| arr.iter().filter_map(|x| x.as_str()).filter_map(BlockViewField::parse_str).collect())
+        .unwrap_or_default();
+    let sort = v.get("sort").and_then(|s| {
+        let field = BlockViewField::parse_str(s.get("field").and_then(|x| x.as_str())?)?;
+        let direction = match s.get("direction").and_then(|x| x.as_str()) {
+            Some("asc") => BlockViewSortDirection::Asc,
+            _ => BlockViewSortDirection::Desc,
+        };
+        Some(BlockViewSort { field, direction })
+    });
+    let calendar_date_field = v
+        .get("calendar_date_field")
+        .and_then(|x| x.as_str())
+        .and_then(BlockViewField::parse_str);
+    let query = v.get("query").map(parse_block_view_query).unwrap_or_default();
+    BlockViewDefinition { kind, query, columns, sort, calendar_date_field }
+}
+
+/// Parse the date window out of the VERIFIED `BlockViewQuery` JSON. The backend stores `date_from`/
+/// `date_to` as ISO datetimes; the calendar surface only needs the `YYYY-MM-DD` prefix, so the native
+/// projection slices it.
+fn parse_block_view_query(v: &serde_json::Value) -> BlockViewQuery {
+    let slice_date = |key: &str| {
+        v.get(key)
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.chars().take(10).collect::<String>())
+    };
+    BlockViewQuery {
+        date_from: slice_date("date_from"),
+        date_to: slice_date("date_to"),
+    }
+}
+
+/// Parse one VERIFIED `LoomBlock` JSON object into a [`LoomBlockRow`] (the cell-value + bucket-key +
+/// title fields the sub-views read). `derived.{backlink,mention,tag}_count` live under the nested
+/// `derived` object; `title`/`journal_date`/`original_filename` are optional. Returns `None` only when
+/// `block_id` is missing (a malformed row is skipped, not faked).
+pub fn loom_block_row_from_json(b: &serde_json::Value) -> Option<LoomBlockRow> {
+    let block_id = b.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let derived = b.get("derived");
+    let count = |key: &str| {
+        derived
+            .and_then(|d| d.get(key))
+            .and_then(|x| x.as_i64())
+            .or_else(|| b.get(key).and_then(|x| x.as_i64()))
+            .unwrap_or(0)
+    };
+    Some(LoomBlockRow {
+        title: b.get("title").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        original_filename: b.get("original_filename").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        content_type: b.get("content_type").and_then(|x| x.as_str()).unwrap_or("note").to_owned(),
+        journal_date: b.get("journal_date").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        created_at: b.get("created_at").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+        updated_at: b.get("updated_at").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+        pinned: b.get("pinned").and_then(|x| x.as_bool()).unwrap_or(false),
+        favorite: b.get("favorite").and_then(|x| x.as_bool()).unwrap_or(false),
+        backlink_count: count("backlink_count"),
+        mention_count: count("mention_count"),
+        tag_count: count("tag_count"),
+        block_id,
+    })
+}
+
+/// Parse the VERIFIED `BlockViewResults` JSON (`{kind, blocks, groups?, total_returned}`) into the
+/// native projection. A missing/empty `blocks`/`groups` is an EMPTY result, never an error (AC10).
+pub fn results_from_json(v: &serde_json::Value) -> BlockViewResults {
+    let blocks = v
+        .get("blocks")
+        .and_then(|b| b.as_array())
+        .map(|arr| arr.iter().filter_map(loom_block_row_from_json).collect())
+        .unwrap_or_default();
+    let groups = v
+        .get("groups")
+        .and_then(|g| g.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|lane| {
+                    let key = lane.get("key").and_then(|x| x.as_str())?.to_owned();
+                    let blocks = lane
+                        .get("blocks")
+                        .and_then(|b| b.as_array())
+                        .map(|a| a.iter().filter_map(loom_block_row_from_json).collect())
+                        .unwrap_or_default();
+                    Some(BlockViewLane { key, blocks })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    BlockViewResults {
+        kind_str: v.get("kind").and_then(|x| x.as_str()).unwrap_or("table").to_owned(),
+        blocks,
+        groups,
+        total_returned: v.get("total_returned").and_then(|x| x.as_u64()).unwrap_or(0) as u32,
+    }
+}
+
+/// `GET {url}` and parse the verified `BlockViewRecord` (`{block, definition}`) into a
+/// [`BlockViewRecordData`]. The `block.block_id` (or the requested id) identifies the view.
+async fn fetch_block_view(
+    client: &reqwest::Client,
+    url: &str,
+    requested_id: &str,
+) -> Result<BlockViewRecordData, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let definition = v
+        .get("definition")
+        .map(definition_from_json)
+        .unwrap_or_else(|| BlockViewDefinition::of_kind(BlockViewKind::Table));
+    let view_block_id = v
+        .get("block")
+        .and_then(|b| b.get("block_id"))
+        .and_then(|x| x.as_str())
+        .unwrap_or(requested_id)
+        .to_owned();
+    Ok(BlockViewRecordData { view_block_id, definition })
+}
+
+/// `POST {url}` (body `{limit,offset}`) and parse the verified `BlockViewResults` (RISK-1: POST not GET).
+async fn post_block_view_results(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<BlockViewResults, AppError> {
+    let v = post_json(client, url, body).await?;
+    Ok(results_from_json(&v))
+}
+
+/// `POST {url}` (createBlockView body) and read the NEW view block id from the returned `BlockViewRecord`.
+async fn post_create_block_view(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<String, AppError> {
+    let v = post_json(client, url, body).await?;
+    let id = v
+        .get("block")
+        .and_then(|b| b.get("block_id"))
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| AppError::Parse("createBlockView response missing block.block_id".to_owned()))?
+        .to_owned();
+    Ok(id)
+}
+
+/// Send one block-view mutation (update/card-move) by method, treating any 2xx as success (the host
+/// re-queries for the body).
+async fn send_block_view_mutation(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+) -> Result<(), AppError> {
+    let empty = serde_json::json!({});
+    let body = spec.body.as_ref().unwrap_or(&empty);
+    match spec.method {
+        HttpMethod::Post => post_expect_success(client, &spec.url, body).await,
+        HttpMethod::Patch => patch_expect_success(client, &spec.url, body).await,
+        _ => Err(AppError::Http("block-view mutation must be POST or PATCH".to_owned())),
+    }
+}
+
+/// `POST {url}` with a JSON body and return the parsed JSON response. A non-success status or a parse
+/// failure is an [`AppError`]. Used by the block-view query + create (both POST + read a body).
+async fn post_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("POST non-success status {}", resp.status())));
+    }
+    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

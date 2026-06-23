@@ -5,6 +5,7 @@
 //! extend this module. The graph binds the EXISTING PostgreSQL/EventLedger backend through the WP-011
 //! [`crate::backend_client::LoomGraphClient`] — no new backend, no Tauri.
 
+pub mod block_collection_view;
 pub mod canvas_board;
 pub mod folder_tree;
 pub mod graph_view;
@@ -59,3 +60,22 @@ pub use wiki_page_panel::{
     EDIT_AREA_AUTHOR_ID_PREFIX, EDIT_AUTHOR_ID_PREFIX, OVERLAY_INPUT_CAP, SAVE_AUTHOR_ID_PREFIX,
     TITLE_AUTHOR_ID_PREFIX,
 };
+
+// MT-027 BlockCollectionViews (table / Kanban / calendar saved-view host). The author-id helpers and
+// host/sub-view types re-export flat for the host pane + the proof tests. The `bcv.*` author-id
+// namespace is unique, so `STATUS_AUTHOR_ID` is re-exported under an aliased name to avoid colliding
+// with `canvas_board::STATUS_AUTHOR_ID` (which is NOT re-exported flat) at the module path level.
+pub use block_collection_view::{
+    bucket_key, calendar_day_author_id, calendar_entry_author_id, card_move_tags, flip_direction,
+    is_iso_date, kanban_card_author_id, kanban_lane_author_id, table_row_author_id,
+    table_sort_author_id, BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewField,
+    BlockViewKind, BlockViewLane, BlockViewQuery, BlockViewResults, BlockViewSort,
+    BlockViewSortDirection, CalendarSubView, KanbanDragState, KanbanSubView, LoomBlockRow,
+    TableSubView, BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DATE_FROM_AUTHOR_ID, CALENDAR_DATE_TO_AUTHOR_ID,
+    CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX, KANBAN_CARD_AUTHOR_ID_PREFIX,
+    KANBAN_DRAG_MIME, KANBAN_LANE_AUTHOR_ID_PREFIX, KIND_CALENDAR_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID,
+    KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
+    NEW_VIEW_KIND_TABLE_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
+    TABLE_SORT_AUTHOR_ID_PREFIX,
+};
+pub use block_collection_view::STATUS_AUTHOR_ID as BCV_STATUS_AUTHOR_ID;
