@@ -5,6 +5,12 @@
 
 pub mod accessibility;
 pub mod app;
+// WP-KERNEL-012 MT-037 (E6 — backend reuse wiring): the typed native clients for the EXISTING
+// handshake_core HTTP surfaces. MT-037 adds backend::knowledge_documents — the consolidated typed
+// client for the full /knowledge/documents/* route family (create/import/load/draft/save/blocks/
+// history/projection/embeds/backlinks/rename/move/batch), reusing the WP-011 backend_client identity
+// headers + base URL rather than forking a second HTTP stack.
+pub mod backend;
 // WP-KERNEL-012 MT-033 (E5 — CKC embeds / drag-in): the CKC/Atelier side panel whose item rows are
 // egui drag-sources (DragPayload::AtelierRef) for dropping CKC media/characters/moodboards into a native
 // note (rich-text hsLink embed atom) or onto the canvas (loom:// block reference). Loads LIVE from the
