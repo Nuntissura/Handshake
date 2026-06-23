@@ -47,6 +47,7 @@ use std::sync::{Arc, Mutex};
 use crate::event_bus::ShellEventSender;
 use crate::pane_registry::PaneId;
 use crate::rich_editor::properties::metadata_client::ClipboardSink;
+use crate::undo_stack::{UndoAction, UndoResult, UnifiedUndoScope};
 
 /// Stable egui app-data key for the shared bus. Every pane retrieves the bus by this id in `update()`
 /// (`ctx.data_mut(|d| d.get_temp::<Arc<Mutex<InteractionBus>>>(INTERACTION_BUS_ID))`), so all panes
@@ -92,6 +93,17 @@ pub const CMD_ROUTE_TO_STAGE: &str = "interop.route-to-stage";
 /// `EditorPaneNotMounted` until the code pane mounts at E11/MT-069 — never a faked jump). This is the
 /// melt-together note->code navigation primitive, the symmetric counterpart of [`CMD_OPEN_DOCUMENT`].
 pub const CMD_OPEN_CODE_SYMBOL: &str = "interop.open-code-symbol";
+/// WP-KERNEL-012 MT-035 (E5 — unified undo): the local-first Undo command id (VS Code Ctrl+Z). Dispatch
+/// undoes the most recent action in the FOCUSED pane's ring (POLICY-1), falling back to nothing if that
+/// ring is empty. The focused pane id is staged on the bus ([`InteractionBus::focus_owner`]).
+pub const CMD_UNDO: &str = "interop.undo";
+/// WP-KERNEL-012 MT-035 (E5 — unified undo): the local-first Redo command id (VS Code Ctrl+Y). Redoes
+/// the most recently undone action in the focused pane's ring.
+pub const CMD_REDO: &str = "interop.redo";
+/// WP-KERNEL-012 MT-035 (E5 — unified undo): the cross-pane Undo command id (Ctrl+Shift+Z — POLICY-2).
+/// Dispatch undoes the most recent action on the single cross-pane ring (embed-from-atelier,
+/// route-to-stage, canvas placement), regardless of which pane is focused.
+pub const CMD_UNDO_CROSS_PANE: &str = "interop.undo-cross-pane";
 
 // ── AccessKit author_ids for the cross-pane command surface (the contract's named ids) ───────────────
 /// AccessKit author_id for the command-palette trigger button (Role::Button).
@@ -334,6 +346,15 @@ pub struct InteractionBus {
     /// and routes it through the MT-030 ShellNavigator `open_code_symbol` seam. `None` when nothing is
     /// pending.
     pending_code_symbol: Option<String>,
+    /// WP-KERNEL-012 MT-035 (E5): the ONE unified undo scope every pane shares (POLICY-1..5). Session-
+    /// scoped, in-memory only — the bus is held in egui app data which is NOT persisted, so the scope is
+    /// empty on restart (POLICY-3). The scope itself cannot serialize (no `Serialize` impl).
+    undo_scope: UnifiedUndoScope,
+    /// The app's tokio runtime handle, installed by the shell via [`Self::set_undo_runtime`] so the bus
+    /// can dispatch a canvas COMPENSATING undo (POLICY-4 `undo_async_fn`) onto the runtime off the egui
+    /// frame thread (HBR-QUIET). `None` in a headless unit test (an async undo is then reported as a
+    /// typed "no runtime" result rather than blocking the frame — never a fake success).
+    undo_runtime: Option<tokio::runtime::Handle>,
 }
 
 impl Default for InteractionBus {
@@ -356,6 +377,8 @@ impl InteractionBus {
             pending_navigation: None,
             pending_stage_content: None,
             pending_code_symbol: None,
+            undo_scope: UnifiedUndoScope::new(),
+            undo_runtime: None,
         }
     }
 
@@ -689,6 +712,170 @@ impl InteractionBus {
         self.request_open_code_symbol(symbol_entity_id);
         self.dispatch_command(ctx, CMD_OPEN_CODE_SYMBOL)
     }
+
+    // ── Unified undo scope (MT-035 — POLICY-1..5) ──────────────────────────────────────────────────────
+
+    /// Install the app's tokio runtime handle so the bus can dispatch a canvas COMPENSATING undo
+    /// (POLICY-4 `undo_async_fn`) onto the runtime off the egui frame thread (HBR-QUIET). The shell calls
+    /// this once at startup with the same handle the backend clients use. Absent a runtime (headless
+    /// test) an async undo is reported as a typed "no runtime" result, never faked.
+    pub fn set_undo_runtime(&mut self, runtime: tokio::runtime::Handle) {
+        self.undo_runtime = Some(runtime);
+    }
+
+    /// Borrow the unified undo scope (tests / the "Show Undo History" inspector — MC-5).
+    pub fn undo_scope(&self) -> &UnifiedUndoScope {
+        &self.undo_scope
+    }
+
+    /// Push a LOCAL-pane undo action onto `pane_id`'s ring (POLICY-1). Each pane calls this after
+    /// applying an edit, capturing the previous snapshot in the action's `undo_fn` via a `Weak` back-ref
+    /// (RISK-3 / MC-3).
+    pub fn push_undo_local(&mut self, pane_id: PaneId, action: UndoAction) {
+        self.undo_scope.push_local(pane_id, action);
+    }
+
+    /// Push a CROSS-PANE undo action onto the single cross-pane ring (POLICY-2). An atomic multi-pane
+    /// action (embed-from-atelier, route-to-stage, canvas placement) calls this.
+    pub fn push_undo_cross_pane(&mut self, action: UndoAction) {
+        self.undo_scope.push_cross_pane(action);
+    }
+
+    /// LOCAL-FIRST undo for `pane_id` (POLICY-1, the Ctrl+Z path). Pops the focused pane's most recent
+    /// action and invokes it: synchronously via `undo_fn`, or — for a canvas compensating action
+    /// (POLICY-4) — by dispatching `undo_async_fn` onto the installed runtime. Returns:
+    /// - `Some(UndoResult)` when an action was popped and invoked (sync result, or a `dispatched_async`
+    ///   acknowledgement for the async path), and
+    /// - `None` when the focused pane's ring is empty (the caller may then try [`Self::undo_cross_pane`]).
+    ///
+    /// A `Some(result)` whose `!result.ok` should be logged by the caller to the Flight Recorder
+    /// (MT-036); this method never panics on a failed undo.
+    pub fn undo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        let action = self.undo_scope.pop_undo_local(pane_id)?;
+        Some(self.invoke_undo(action))
+    }
+
+    /// LOCAL redo for `pane_id` (POLICY-1, the Ctrl+Y path). Pops the focused pane's most recently
+    /// undone action and re-applies it (sync `redo_fn`, or async `redo_async_fn` for canvas). `None`
+    /// when nothing to redo.
+    pub fn redo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        let action = self.undo_scope.pop_redo_local(pane_id)?;
+        Some(self.invoke_redo(action))
+    }
+
+    /// CROSS-PANE undo (POLICY-2, the Ctrl+Shift+Z path). Pops the most recent cross-pane action and
+    /// invokes its undo (sync or, for a canvas placement, the async compensating call — POLICY-4).
+    /// `None` when the cross-pane ring is empty.
+    pub fn undo_cross_pane(&mut self) -> Option<UndoResult> {
+        let action = self.undo_scope.pop_undo_cross_pane()?;
+        Some(self.invoke_undo(action))
+    }
+
+    /// CROSS-PANE redo. Pops the most recently undone cross-pane action and re-applies it.
+    pub fn redo_cross_pane(&mut self) -> Option<UndoResult> {
+        let action = self.undo_scope.pop_redo_cross_pane()?;
+        Some(self.invoke_redo(action))
+    }
+
+    /// The local "Undo ({n})" indicator count for `pane_id` (AC-6).
+    pub fn local_undo_count(&self, pane_id: &PaneId) -> usize {
+        self.undo_scope.local_undo_count(pane_id)
+    }
+
+    /// Invoke an action's UNDO half: the async compensating path when present (POLICY-4), else the
+    /// synchronous `undo_fn`. The async dispatch is fire-and-forget onto the runtime (the board
+    /// re-fetches after the compensating call lands), so it returns a `dispatched_async` acknowledgement
+    /// immediately rather than blocking the frame (HBR-QUIET). With no runtime installed it reports a
+    /// typed failure instead of faking success.
+    fn invoke_undo(&self, action: UndoAction) -> UndoResult {
+        match &action.undo_async_fn {
+            Some(async_fn) => self.dispatch_async(async_fn.clone()),
+            None => (action.undo_fn)(),
+        }
+    }
+
+    /// Invoke an action's REDO half (mirror of [`Self::invoke_undo`]).
+    fn invoke_redo(&self, action: UndoAction) -> UndoResult {
+        match &action.redo_async_fn {
+            Some(async_fn) => self.dispatch_async(async_fn.clone()),
+            None => (action.redo_fn)(),
+        }
+    }
+
+    /// Dispatch a POLICY-4 async compensating closure onto the installed runtime (off the egui frame
+    /// thread — HBR-QUIET). Returns a `dispatched_async` acknowledgement on success, or a typed "no
+    /// runtime" failure when none is installed (a headless test) — never a fabricated success.
+    fn dispatch_async(&self, async_fn: crate::undo_stack::UndoAsyncFn) -> UndoResult {
+        match &self.undo_runtime {
+            Some(handle) => {
+                handle.spawn(async move {
+                    let result = async_fn().await;
+                    if !result.ok {
+                        tracing::warn!(error = ?result.error, "MT-035 canvas compensating undo failed");
+                    }
+                });
+                UndoResult::dispatched_async()
+            }
+            None => UndoResult::err(
+                "no tokio runtime installed for canvas compensating undo (set_undo_runtime not called)",
+            ),
+        }
+    }
+
+    /// Register the three unified-undo commands on the cross-pane command bus so they appear in the
+    /// command palette AND match their keybinds (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z). The handlers read the
+    /// CURRENT focus owner from the locked bus and dispatch local-first (Ctrl+Z falls back to the
+    /// cross-pane ring when the focused pane has nothing to undo — the user's mental model of "undo my
+    /// last thing"). Idempotent (last registration wins). Call once when the first editor pane mounts.
+    pub fn register_undo_commands(&mut self) {
+        self.register_command(CommandDescriptor {
+            id: CMD_UNDO,
+            name: "Undo",
+            label: "Undo".to_owned(),
+            keywords: vec!["undo".to_owned(), "revert".to_owned()],
+            keybind: default_keybind_for(CMD_UNDO),
+            handler: Arc::new(|ctx, bus| {
+                // Local-first (POLICY-1): undo the focused pane's last action; fall back to the
+                // cross-pane ring so Ctrl+Z always reverts the user's most recent thing.
+                let undone = match bus.focus_owner().cloned() {
+                    Some(pane_id) => bus.undo(&pane_id).is_some(),
+                    None => false,
+                };
+                if !undone {
+                    bus.undo_cross_pane();
+                }
+                ctx.request_repaint();
+            }),
+        });
+        self.register_command(CommandDescriptor {
+            id: CMD_REDO,
+            name: "Redo",
+            label: "Redo".to_owned(),
+            keywords: vec!["redo".to_owned()],
+            keybind: default_keybind_for(CMD_REDO),
+            handler: Arc::new(|ctx, bus| {
+                let redone = match bus.focus_owner().cloned() {
+                    Some(pane_id) => bus.redo(&pane_id).is_some(),
+                    None => false,
+                };
+                if !redone {
+                    bus.redo_cross_pane();
+                }
+                ctx.request_repaint();
+            }),
+        });
+        self.register_command(CommandDescriptor {
+            id: CMD_UNDO_CROSS_PANE,
+            name: "UndoCrossPane",
+            label: "Undo Cross-Pane".to_owned(),
+            keywords: vec!["undo".to_owned(), "cross".to_owned(), "pane".to_owned()],
+            keybind: default_keybind_for(CMD_UNDO_CROSS_PANE),
+            handler: Arc::new(|ctx, bus| {
+                bus.undo_cross_pane();
+                ctx.request_repaint();
+            }),
+        });
+    }
 }
 
 /// Build the standard egui shortcut for a VS-Code-parity command id, or `None` for a palette-only id.
@@ -704,6 +891,12 @@ pub fn default_keybind_for(command_id: &str) -> Option<egui::KeyboardShortcut> {
         CMD_FIND => KeyboardShortcut::new(Modifiers::COMMAND, Key::F),
         CMD_COMMAND_PALETTE => {
             KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), Key::P)
+        }
+        // MT-035 unified undo: Ctrl+Z local-first undo, Ctrl+Y redo, Ctrl+Shift+Z cross-pane undo.
+        CMD_UNDO => KeyboardShortcut::new(Modifiers::COMMAND, Key::Z),
+        CMD_REDO => KeyboardShortcut::new(Modifiers::COMMAND, Key::Y),
+        CMD_UNDO_CROSS_PANE => {
+            KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), Key::Z)
         }
         _ => return None,
     };

@@ -149,6 +149,44 @@ impl StagePane {
     }
 }
 
+/// MT-035 (E5 unified undo) — POLICY-2 CROSS-PANE undo for route-to-Stage. A route-to-stage action
+/// touches two panes atomically (the source editor's selection/document AND the Stage pane), so it goes
+/// on the CROSS-PANE ring (Ctrl+Shift+Z), NOT a single pane's local ring. The undo_fn reverts the Stage
+/// pane's content to `previous` (its value BEFORE the route — captured AT ACTION-CREATE time, RISK-2);
+/// the redo_fn re-routes `next`. Both capture a `Weak<Mutex<StagePane>>` back-ref to the host-held Stage
+/// pane (RISK-3 / MC-3): they upgrade only during invocation and report a benign
+/// [`crate::undo_stack::UndoResult::pane_dropped`] if the Stage pane was dropped — no retain cycle, no
+/// panic. The route-to-stage command itself is the EXISTING MT-033 bus command; this only records the
+/// undo entry so Ctrl+Shift+Z reverts the route (AC-2).
+pub fn push_route_to_stage_undo(
+    bus: &mut crate::interop::InteractionBus,
+    stage: &std::sync::Arc<std::sync::Mutex<StagePane>>,
+    previous: StageContent,
+    next: StageContent,
+    description: impl Into<String>,
+) {
+    use crate::undo_stack::{UndoAction, UndoFn, UndoResult};
+    use std::sync::{Arc, Weak};
+
+    let weak: Weak<std::sync::Mutex<StagePane>> = Arc::downgrade(stage);
+    let undo_weak = weak.clone();
+    let undo_fn: UndoFn = Arc::new(move || match undo_weak.upgrade() {
+        Some(pane) => {
+            pane.lock().unwrap_or_else(|e| e.into_inner()).set_content(previous.clone());
+            UndoResult::ok()
+        }
+        None => UndoResult::pane_dropped(),
+    });
+    let redo_fn: UndoFn = Arc::new(move || match weak.upgrade() {
+        Some(pane) => {
+            pane.lock().unwrap_or_else(|e| e.into_inner()).set_content(next.clone());
+            UndoResult::ok()
+        }
+        None => UndoResult::pane_dropped(),
+    });
+    bus.push_undo_cross_pane(UndoAction::sync(description, undo_fn, redo_fn));
+}
+
 /// Emit the Stage pane's Role::Region AccessKit node, with the staged-content summary as its value so an
 /// out-of-process agent reads what is currently on the stage (HBR-SWARM / AC-6).
 fn emit_region_node(ui: &egui::Ui, id: egui::Id, author_id: &str, summary: &str) {

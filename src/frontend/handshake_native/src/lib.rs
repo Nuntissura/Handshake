@@ -59,4 +59,9 @@ pub mod stash_shelf;
 pub mod tab_bar;
 pub mod theme;
 pub mod top_menu_bar;
+// WP-KERNEL-012 MT-035 (E5 — unified undo scope): the ONE session-scoped in-memory undo authority
+// (UnifiedUndoScope, PaneUndoRing, CrossPaneUndoRing, UndoAction) every editor pane shares through the
+// MT-031 InteractionBus. Local-first per-pane Ctrl+Z, a single cross-pane ring for Ctrl+Shift+Z, caps
+// 200/50, NO Serialize (session-scoped — never persisted). NOT CRDT undo (that is MT-038/039).
+pub mod undo_stack;
 pub mod workspace_settings;

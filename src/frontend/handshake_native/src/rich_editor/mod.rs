@@ -130,4 +130,112 @@ pub mod interop_adapter {
         });
         *already_registered = true;
     }
+
+    use crate::undo_stack::{UndoAction, UndoFn, UndoResult};
+    use std::sync::{Arc, Mutex, Weak};
+    use std::time::{Duration, Instant};
+
+    /// MT-035 (E5 unified undo): the rich-text 500ms batching window (RISK-1 / MC-1). A rich-text doc
+    /// snapshot is a `serde_json::Value` clone of the whole block tree — O(n), so a per-keystroke undo
+    /// push on a large document would lag. This batcher coalesces rapid edits within
+    /// [`RICH_UNDO_BATCH_MS`] (500ms) into a SINGLE undo entry: `should_push` returns `true` only when
+    /// the window since the last pushed edit has elapsed (or the edit is the first), so N keystrokes in
+    /// the same window produce ONE undo entry, not N. The pane calls `should_push` before
+    /// [`push_rich_edit_undo`]; within a window it keeps mutating the SAME tail entry's `after` snapshot
+    /// instead (the caller updates the redo target). This is the standard typing-coalescing model VS
+    /// Code / ProseMirror use.
+    #[derive(Debug, Clone)]
+    pub struct RichUndoBatcher {
+        last_push: Option<Instant>,
+        window: Duration,
+    }
+
+    /// The rich-text undo batching window in milliseconds (RISK-1 / MC-1 contract: 500ms).
+    pub const RICH_UNDO_BATCH_MS: u64 = 500;
+
+    impl Default for RichUndoBatcher {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl RichUndoBatcher {
+        /// A batcher with the default 500ms window.
+        pub fn new() -> Self {
+            Self { last_push: None, window: Duration::from_millis(RICH_UNDO_BATCH_MS) }
+        }
+
+        /// A batcher with an explicit window (focused tests use a tiny window).
+        pub fn with_window(window: Duration) -> Self {
+            Self { last_push: None, window }
+        }
+
+        /// True when a NEW undo entry should be pushed for an edit happening `at`: the first edit always
+        /// pushes; a later edit pushes only when the window has elapsed since the last push (so rapid
+        /// keystrokes coalesce into one entry — RISK-1). On a `true` result the batcher records `at` as
+        /// the new last-push time.
+        pub fn should_push(&mut self, at: Instant) -> bool {
+            let push = match self.last_push {
+                None => true,
+                Some(prev) => at.duration_since(prev) >= self.window,
+            };
+            if push {
+                self.last_push = Some(at);
+            }
+            push
+        }
+
+        /// Reset the window (e.g. after an explicit save / undo) so the next edit starts a fresh entry.
+        pub fn reset(&mut self) {
+            self.last_push = None;
+        }
+    }
+
+    /// A host-supplied applier that writes a content_json snapshot back into the live rich document
+    /// state `S` (the rich editor owns the doc-tree shape, so it injects HOW to apply a snapshot). Used
+    /// by [`push_rich_edit_undo`]'s undo/redo closures.
+    pub type RichSnapshotApplier<S> = Arc<dyn Fn(&mut S, &serde_json::Value) + Send + Sync>;
+
+    /// MT-035 (E5 unified undo): record a LOCAL rich-text-edit undo action on the shared scope for
+    /// `pane_id` (POLICY-1). `before`/`after` are content_json (`serde_json::Value`) snapshots of the
+    /// block document tree (cloned per the 500ms batching window — RISK-1 / MC-1). The undo_fn restores
+    /// `before` into the shared doc state; the redo_fn re-applies `after`. Both capture a `Weak` back-ref
+    /// to the doc state the host holds (RISK-3 / MC-3): they upgrade only during invocation and report a
+    /// benign [`UndoResult::pane_dropped`] when the pane closed — no retain cycle, no panic. `restore` is
+    /// the host-supplied applier that writes a snapshot back into the live document (the rich editor owns
+    /// the doc tree shape, so it injects how to apply a snapshot). The rich editor's existing
+    /// `document_model::history::UndoManager` stays the in-pane transaction history; THIS bridges that
+    /// surface into the ONE unified scope (no second parallel undo stack — wrap-not-fork).
+    pub fn push_rich_edit_undo<S>(
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+        doc_state: &Arc<Mutex<S>>,
+        before: serde_json::Value,
+        after: serde_json::Value,
+        restore: RichSnapshotApplier<S>,
+        description: impl Into<String>,
+    ) where
+        S: Send + 'static,
+    {
+        let weak: Weak<Mutex<S>> = Arc::downgrade(doc_state);
+        let undo_weak = weak.clone();
+        let undo_restore = restore.clone();
+        let undo_fn: UndoFn = Arc::new(move || match undo_weak.upgrade() {
+            Some(state) => {
+                let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+                undo_restore(&mut guard, &before);
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        let redo_fn: UndoFn = Arc::new(move || match weak.upgrade() {
+            Some(state) => {
+                let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+                restore(&mut guard, &after);
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        bus.push_undo_local(pane_id, UndoAction::sync(description, undo_fn, redo_fn));
+    }
 }

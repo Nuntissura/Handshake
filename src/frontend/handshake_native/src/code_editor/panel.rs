@@ -1103,6 +1103,36 @@ impl CodeEditorPanel {
         applied
     }
 
+    /// Replace the WHOLE buffer with `text` and re-highlight (MT-035 undo-snapshot restore). The unified
+    /// undo scope's `undo_fn` for a code edit captures a [`TextBuffer`] snapshot taken BEFORE the edit
+    /// (ropey clones are O(1) — implementation note 1/2) and calls this to restore it on Ctrl+Z. Bumping
+    /// the buffer version through [`Self::refresh`] invalidates the stale highlight spans (RISK-002, the
+    /// length-changing-undo case the buffer-version hook documents). Cursors are clamped to the new
+    /// length so a restored shorter document never leaves an out-of-range caret (panic-free — AC-006
+    /// spirit). Returns the new byte length.
+    pub fn set_text(&self, text: &str) -> usize {
+        let new_len = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            *buffer = TextBuffer::new(text);
+            let len = buffer.len_bytes();
+            // Collapse to a single primary caret clamped into the restored buffer so a shrink does not
+            // leave a stale out-of-range cursor (set_primary clamps the offset to the new length).
+            let prior = self
+                .cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .primary()
+                .min();
+            self.cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .set_primary(prior.min(len), &buffer);
+            len
+        };
+        self.refresh();
+        new_len
+    }
+
     /// Delete at every cursor (selection, else the char before the caret — Backspace), then
     /// re-highlight. Returns the number of deletions applied.
     pub fn delete_text(&self) -> usize {

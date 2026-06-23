@@ -35,8 +35,8 @@ pub mod cross_ref;
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
     CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COPY,
-    CMD_CUT, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_PASTE, CMD_ROUTE_TO_STAGE,
-    CMD_SELECT_ALL, CMD_COMMAND_PALETTE, COMMAND_LIST_ITEM_AUTHOR_PREFIX,
+    CMD_CUT, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_PASTE, CMD_REDO, CMD_ROUTE_TO_STAGE,
+    CMD_SELECT_ALL, CMD_COMMAND_PALETTE, CMD_UNDO, CMD_UNDO_CROSS_PANE, COMMAND_LIST_ITEM_AUTHOR_PREFIX,
     COMMAND_PALETTE_SEARCH_AUTHOR_ID, COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };
 
@@ -54,3 +54,42 @@ pub use cross_ref::{
     resolve_code_ref, resolve_code_ref_with, CodeRef, CrossRefError, FindNotesHttp, FindNotesSearch,
     NoteRef, SymbolDwellTracker, CODE_REF_KIND, NOTE_REFS_DWELL_MS, NOTE_REFS_SEARCH_LIMIT,
 };
+
+// ── MT-035 (E5 unified undo) — the per-pane "Undo ({n})" title-bar indicator ──────────────────────────
+
+/// AccessKit author_id PREFIX for a pane's undo-count indicator: `undo-count-{pane_id}` (the MT-035
+/// contract's exact id shape). The full id is built by [`undo_count_author_id`].
+pub const UNDO_COUNT_AUTHOR_PREFIX: &str = "undo-count-";
+
+/// The stable AccessKit author_id for one pane's undo-count indicator (`undo-count-{pane_id}`). The
+/// `pane_id` is sanitized to `[a-z0-9-]` (the same `project_tree::stable_part` slug the canvas placement
+/// + loom node ids use) so an arbitrary pane id yields a safe, collision-resistant address.
+pub fn undo_count_author_id(pane_id: &str) -> String {
+    format!("{UNDO_COUNT_AUTHOR_PREFIX}{}", crate::project_tree::stable_part(pane_id))
+}
+
+/// Render the "Undo ({n})" indicator into a pane title bar (AC-6). `count` is the focused pane's local
+/// undo-ring length (from [`InteractionBus::local_undo_count`]). The text color is the
+/// [`crate::theme::HsPalette::text_subtle`] semantic token — NO `Color32` literal (the no-hardcode
+/// invariant; the indicator tracks dark/light like every other token). Emits a `Role::Label` AccessKit
+/// node addressed `undo-count-{pane_id}` carrying the count string as its value, so an out-of-process
+/// swarm agent can READ the undo depth by stable id (HBR-SWARM). `Role::Label` is the field-correct
+/// accesskit role for the contract's `StaticText` (the documented MT-003/MT-007 role-deviation pattern).
+pub fn render_undo_count_indicator(
+    ui: &mut egui::Ui,
+    pane_id: &str,
+    count: usize,
+    palette: &crate::theme::HsPalette,
+) -> egui::Response {
+    let label_text = format!("Undo ({count})");
+    let resp = ui.label(egui::RichText::new(&label_text).color(palette.text_subtle));
+    let author_id = undo_count_author_id(pane_id);
+    let value = label_text.clone();
+    ui.ctx().accesskit_node_builder(resp.id, move |node| {
+        node.set_role(egui::accesskit::Role::Label);
+        node.set_author_id(author_id.clone());
+        node.set_label("Undo count".to_owned());
+        node.set_value(value.clone());
+    });
+    resp
+}

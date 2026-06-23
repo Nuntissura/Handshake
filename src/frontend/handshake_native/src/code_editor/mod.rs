@@ -258,4 +258,45 @@ pub mod interop_adapter {
             _ => 0,
         }
     }
+
+    use crate::undo_stack::{UndoAction, UndoResult};
+    use std::sync::{Arc, Weak};
+
+    /// MT-035 (E5 unified undo): record a LOCAL code-edit undo action on the shared scope for `pane_id`
+    /// (POLICY-1). `before` is the rope snapshot taken BEFORE the edit (ropey clones are O(1) — impl note
+    /// 1/2, safe to clone per edit), `after` is the snapshot AFTER. The undo_fn restores `before`; the
+    /// redo_fn re-applies `after`. Both capture a `Weak<CodeEditorPanel>` back-ref (RISK-3 / MC-3): they
+    /// upgrade only during invocation and report [`UndoResult::pane_dropped`] (a benign no-op) if the
+    /// code pane was closed, so a stale undo never panics and never forms a retain cycle with the
+    /// panel the host holds. The MT-001 `TextBuffer` deliberately has NO per-editor undo stack (it routes
+    /// Ctrl+Z to the bus), so THIS is the integration point that makes Ctrl+Z real for the code pane —
+    /// no second parallel undo stack is added (the wrap-not-fork discipline).
+    pub fn push_code_edit_undo(
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+        panel: &Arc<CodeEditorPanel>,
+        before: crate::code_editor::TextBuffer,
+        after: crate::code_editor::TextBuffer,
+        description: impl Into<String>,
+    ) {
+        let weak: Weak<CodeEditorPanel> = Arc::downgrade(panel);
+        let undo_weak = weak.clone();
+        let before_text = before.to_string();
+        let after_text = after.to_string();
+        let undo_fn: crate::undo_stack::UndoFn = Arc::new(move || match undo_weak.upgrade() {
+            Some(p) => {
+                p.set_text(&before_text);
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        let redo_fn: crate::undo_stack::UndoFn = Arc::new(move || match weak.upgrade() {
+            Some(p) => {
+                p.set_text(&after_text);
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        bus.push_undo_local(pane_id, UndoAction::sync(description, undo_fn, redo_fn));
+    }
 }

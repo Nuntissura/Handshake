@@ -137,4 +137,138 @@ pub mod interop_adapter {
     ) -> bool {
         copy_selection_to_clipboard(bus, selection, sink)
     }
+
+    use crate::backend_client::CanvasBoardClient;
+    use crate::undo_stack::{UndoAction, UndoAsyncFn, UndoFn, UndoResult};
+    use std::sync::{Arc, Weak};
+
+    /// MT-035 (E5 unified undo): record a LOCAL graph-edit undo action for `pane_id` (POLICY-1) — a node
+    /// MOVE or a TAG change. `undo_apply`/`redo_apply` mutate the graph pane's in-memory state (e.g.
+    /// restore the node's previous position / tag set); both capture a `Weak` back-ref to that state
+    /// (RISK-3 / MC-3) and report a benign [`UndoResult::pane_dropped`] when the pane closed. Graph node
+    /// moves are LOCAL (in-pane layout), so they go on the pane ring — NOT the cross-pane ring (which is
+    /// for backend-touching atomic actions). `loom_graph.rs` node identity is the source of the node id
+    /// (reuse, not a new node model).
+    pub fn push_graph_undo<S>(
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+        graph_state: &Arc<std::sync::Mutex<S>>,
+        undo_apply: Arc<dyn Fn(&mut S) + Send + Sync>,
+        redo_apply: Arc<dyn Fn(&mut S) + Send + Sync>,
+        description: impl Into<String>,
+    ) where
+        S: Send + 'static,
+    {
+        let weak: Weak<std::sync::Mutex<S>> = Arc::downgrade(graph_state);
+        let undo_weak = weak.clone();
+        let undo_fn: UndoFn = Arc::new(move || match undo_weak.upgrade() {
+            Some(state) => {
+                undo_apply(&mut state.lock().unwrap_or_else(|e| e.into_inner()));
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        let redo_fn: UndoFn = Arc::new(move || match weak.upgrade() {
+            Some(state) => {
+                redo_apply(&mut state.lock().unwrap_or_else(|e| e.into_inner()));
+                UndoResult::ok()
+            }
+            None => UndoResult::pane_dropped(),
+        });
+        bus.push_undo_local(pane_id, UndoAction::sync(description, undo_fn, redo_fn));
+    }
+
+    /// MT-035 (E5 unified undo) — POLICY-4 CANVAS COMPENSATING undo. A canvas node CREATION
+    /// (`POST .../placements`) calls the backend immediately, so it is NOT in-memory undoable; its undo
+    /// is a COMPENSATING backend call: `DELETE .../canvas-placements/{placement_id}` (the MT-026 verified
+    /// route — NOT the contract's stale `PUT /canvas/{id}/graph`). The created placement's id is captured
+    /// AT ACTION-CREATE TIME (RISK-2 / MC-2) so an intermediate canvas edit before the undo fires cannot
+    /// clobber it — undo removes exactly the placement this action created. Redo re-places the SAME block
+    /// at the SAME geometry (`POST .../placements`). This goes on the CROSS-PANE ring (POLICY-2): a canvas
+    /// placement is a backend-touching atomic action undone by Ctrl+Shift+Z.
+    ///
+    /// `client` is the shared [`CanvasBoardClient`] (its own `reqwest::Client` + runtime handle clone),
+    /// so the compensating call runs through the SAME verified transport the live board uses (no new
+    /// backend, reuse-only). The async closures send the prebuilt `RequestSpec` and await the result; the
+    /// bus dispatches them onto the tokio runtime off the egui frame thread (HBR-QUIET).
+    #[allow(clippy::too_many_arguments)] // ws/canvas/placement/block/x/y/w/h — the verified placement shape.
+    pub fn push_canvas_placement_undo(
+        bus: &mut InteractionBus,
+        client: Arc<CanvasBoardClient>,
+        workspace_id: String,
+        canvas_block_id: String,
+        placement_id: String,
+        placed_block_id: String,
+        geometry: (f64, f64, f64, f64),
+        description: impl Into<String>,
+    ) {
+        let (x, y, w, h) = geometry;
+        // UNDO = compensating DELETE of the created placement (snapshot captured NOW — RISK-2 / MC-2).
+        let undo_client = client.clone();
+        let undo_ws = workspace_id.clone();
+        let undo_placement = placement_id.clone();
+        let undo_async_fn: UndoAsyncFn = Arc::new(move || {
+            let client = undo_client.clone();
+            let ws = undo_ws.clone();
+            let placement = undo_placement.clone();
+            Box::pin(async move {
+                let spec = client.remove_placement_request(&ws, &placement);
+                match send_canvas_compensation(&client, spec).await {
+                    Ok(()) => UndoResult::ok(),
+                    Err(e) => UndoResult::err(format!("canvas undo (remove placement) failed: {e}")),
+                }
+            })
+        });
+        // REDO = re-place the SAME block at the SAME geometry (POST .../placements).
+        let redo_client = client.clone();
+        let redo_ws = workspace_id.clone();
+        let redo_canvas = canvas_block_id.clone();
+        let redo_block = placed_block_id.clone();
+        let redo_async_fn: UndoAsyncFn = Arc::new(move || {
+            let client = redo_client.clone();
+            let ws = redo_ws.clone();
+            let canvas = redo_canvas.clone();
+            let block = redo_block.clone();
+            Box::pin(async move {
+                let spec = client.place_block_request(&ws, &canvas, &block, x, y, w, h);
+                match send_canvas_compensation(&client, spec).await {
+                    Ok(()) => UndoResult::ok(),
+                    Err(e) => UndoResult::err(format!("canvas redo (re-place block) failed: {e}")),
+                }
+            })
+        });
+        // Sync fallbacks are benign no-ops (a canvas undo MUST go through the backend — there is no
+        // pure in-memory revert for a persisted placement; the async path is the real one).
+        let undo_fn: UndoFn = Arc::new(UndoResult::ok);
+        let redo_fn: UndoFn = Arc::new(UndoResult::ok);
+        bus.push_undo_cross_pane(UndoAction::async_compensating(
+            description,
+            undo_fn,
+            redo_fn,
+            undo_async_fn,
+            redo_async_fn,
+        ));
+    }
+
+    /// Send a prebuilt canvas mutation [`crate::backend_client::RequestSpec`] for a compensating
+    /// undo/redo and AWAIT the 2xx result (the board re-fetches after). Bridges the bus's async
+    /// dispatch to the same verified `CanvasBoardClient` transport via its dispatch cell.
+    async fn send_canvas_compensation(
+        client: &CanvasBoardClient,
+        spec: crate::backend_client::RequestSpec,
+    ) -> Result<(), String> {
+        let cell: crate::backend_client::CanvasBoardOpCell = Arc::new(std::sync::Mutex::new(None));
+        client.dispatch(spec, cell.clone());
+        // Poll the delivery cell briefly; the dispatch spawned its own task on the runtime. A short
+        // bounded wait keeps this honest (no infinite spin) while letting the spawned request land.
+        for _ in 0..600 {
+            if let Ok(slot) = cell.lock() {
+                if let Some(result) = slot.as_ref() {
+                    return result.clone();
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        Err("canvas compensating call timed out (no 2xx within bound)".to_owned())
+    }
 }
