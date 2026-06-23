@@ -576,18 +576,55 @@ impl LoomCanvasBoard {
         // CANVAS_DRAG_MIME `dataTransfer`) and RELEASED over the canvas places a REFERENCE card. The
         // drop position is computed in CANVAS space with the SAME screen_to_canvas inverse used by
         // hit-testing (RISK-1 / MC-1), exactly mirroring the React `(clientX-rect.left-pan.x)/zoom`.
-        if let Some(payload) = canvas_resp.dnd_release_payload::<CanvasDragPayload>() {
+        // DROP TYPE DISPATCH (egui take-payload hazard): `dnd_release_payload::<T>()` calls
+        // `DragAndDrop::take_payload::<T>()`, which UNCONDITIONALLY `take()`s the in-flight payload and
+        // only THEN downcasts — so calling it for the WRONG type silently DISCARDS the other type's
+        // payload. The canvas accepts two payload types (the native `CanvasDragPayload` and the
+        // cross-surface MT-033 `DragPayload`), so we must guard each take with `has_payload_of_type` so a
+        // `DragPayload` drop is never swallowed by the `CanvasDragPayload` take (RISK / MT-033 drop bug).
+        let drop_canvas_pos = || {
             let drop_screen = canvas_resp
                 .interact_pointer_pos()
                 .or_else(|| ui.input(|i| i.pointer.interact_pos()))
                 .unwrap_or_else(|| rect.center());
-            let canvas_pos = self.screen_to_canvas(drop_screen, origin);
-            self.status = format!("Placed {} (reference)", payload.block_id);
-            event = Some(CanvasEvent::PlaceBlock {
-                placed_block_id: payload.block_id.clone(),
-                x: canvas_pos.x,
-                y: canvas_pos.y,
-            });
+            self.screen_to_canvas(drop_screen, origin)
+        };
+        if egui::DragAndDrop::has_payload_of_type::<CanvasDragPayload>(ui.ctx()) {
+            if let Some(payload) = canvas_resp.dnd_release_payload::<CanvasDragPayload>() {
+                let canvas_pos = drop_canvas_pos();
+                self.status = format!("Placed {} (reference)", payload.block_id);
+                event = Some(CanvasEvent::PlaceBlock {
+                    placed_block_id: payload.block_id.clone(),
+                    x: canvas_pos.x,
+                    y: canvas_pos.y,
+                });
+            }
+        } else if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
+            // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item (or a Loom block) dragged from
+            // the atelier side panel via the cross-surface [`crate::interop::DragPayload`] channel and
+            // RELEASED over the canvas places a block REFERENCE — IFF the payload resolves to a
+            // `placed_block_id` (MT-026: the placement body takes a block id, never an `atelier_item_id`).
+            // An UNRESOLVED atelier item (no `loom_block_id`) is a typed no-op with a visible status — NOT
+            // a fake POST (RISK-3 / MC-3). Reuses the SAME `screen_to_canvas` inverse + `PlaceBlock` event.
+            if let Some(payload) = canvas_resp.dnd_release_payload::<crate::interop::DragPayload>() {
+                match payload.canvas_drag_payload() {
+                    Some(cdp) => {
+                        let canvas_pos = drop_canvas_pos();
+                        self.status = format!("Placed {} (reference)", cdp.block_id);
+                        event = Some(CanvasEvent::PlaceBlock {
+                            placed_block_id: cdp.block_id.clone(),
+                            x: canvas_pos.x,
+                            y: canvas_pos.y,
+                        });
+                    }
+                    None => {
+                        // A CKC item not yet resolved to a Loom block id cannot be placed (no fake field).
+                        self.status =
+                            "Dropped CKC item needs a loom block id before it can be placed on the canvas"
+                                .to_owned();
+                    }
+                }
+            }
         }
 
         // Pointer input: zoom (scroll), pan (drag on empty area), card click (select / edge).

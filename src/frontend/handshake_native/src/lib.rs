@@ -5,6 +5,11 @@
 
 pub mod accessibility;
 pub mod app;
+// WP-KERNEL-012 MT-033 (E5 — CKC embeds / drag-in): the CKC/Atelier side panel whose item rows are
+// egui drag-sources (DragPayload::AtelierRef) for dropping CKC media/characters/moodboards into a native
+// note (rich-text hsLink embed atom) or onto the canvas (loom:// block reference). Loads LIVE from the
+// existing WP-KERNEL-005 atelier backend via backend_client::AtelierClient (no mocks).
+pub mod atelier_side_panel;
 pub mod backend_client;
 pub mod canvas_board;
 pub mod code_editor;
@@ -46,6 +51,10 @@ pub mod rich_editor;
 pub mod search_rail;
 pub mod settings_dialog;
 pub mod split_layout;
+// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): the LOCAL Stage pane (Pillar 17) that DISPLAYS content
+// routed to it (a document, a selection, or a CKC item) via the route-to-stage command on the MT-031
+// InteractionBus. The deeper Stage backend interop (capture/embed-back with manifest provenance) is E10.
+pub mod stage_pane;
 pub mod stash_shelf;
 pub mod tab_bar;
 pub mod theme;

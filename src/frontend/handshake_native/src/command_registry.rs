@@ -205,6 +205,20 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-drawer-palette-bottom",
         disabled: false,
     },
+    // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): the discoverable palette entry for the Route-to-Stage
+    // melt-together command. The command itself is dispatched on the MT-031 InteractionBus (which carries
+    // the StageContent payload via request_route_to_stage); this catalog row makes the action SEEABLE in
+    // the palette (HBR-SWARM) and maps to the `interop.route-to-stage` dispatch. Enabled (the local Stage
+    // pane + bus command need no editor surface to exist — they route whatever the focused pane staged).
+    AppCommand {
+        id: "interop.route-to-stage",
+        kind: CommandKind::App,
+        label: "Route to Stage",
+        description: "Send the current selection, document, or CKC item to the Stage pane.",
+        keywords: &["route", "stage", "send", "ckc", "selection", "interop"],
+        stable_id: "hs-stage-palette-route",
+        disabled: false,
+    },
 ];
 
 /// A representative subset (13 entries) of the React `EDITOR_COMMANDS` catalog

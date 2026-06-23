@@ -1353,6 +1353,21 @@ impl HandshakeApp {
                 self.bottom_drawer_open = !self.bottom_drawer_open;
                 true
             }
+            "interop.route-to-stage" => {
+                // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): dispatch the Route-to-Stage command on the
+                // shared MT-031 InteractionBus. The bus command opens/focuses the local Stage pane with
+                // whatever content the focused pane staged (a selection / document / CKC item) via
+                // `request_route_to_stage`. The bus is the single melt-together command surface (the
+                // context-menu "Route to Stage" path stages content THEN dispatches the same command); the
+                // palette entry dispatches the command so it is discoverable + runnable out-of-process.
+                // Registering the command is idempotent, so a first palette use wires it up.
+                let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    bus.register_route_to_stage_command();
+                    bus.dispatch_command(ctx, crate::interop::CMD_ROUTE_TO_STAGE)
+                })
+                .unwrap_or(false)
+            }
             id if id.starts_with("editor.") => {
                 // The native editor surface is a future MT; an editor command dispatched through the
                 // palette is guarded (red-team R5/MC5) so it never panics with no active document. Today

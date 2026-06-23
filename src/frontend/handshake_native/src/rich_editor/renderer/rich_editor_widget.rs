@@ -441,6 +441,23 @@ impl RichEditorWidget {
                     //    we still drain events so a programmatically-focused test works).
                     Self::apply_frame_input(ui, &mut state, has_focus);
 
+                    // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
+                    // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
+                    // over the editor inserts an inline `hsLink` embed atom (by CKC `refKind`) at the
+                    // caret. The embed is the EXISTING hsLink atom (the MT-014 lesson), so it ROUND-TRIPS
+                    // the backend `content_json` (AC-2) — never an invented node the backend would drop.
+                    // Guard the take with `has_payload_of_type` (the egui take-payload hazard: an unguarded
+                    // `dnd_release_payload::<T>` unconditionally takes-then-downcasts, discarding a payload
+                    // of another type meant for a sibling surface).
+                    if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
+                        if let Some(payload) = surface.dnd_release_payload::<crate::interop::DragPayload>() {
+                            if let Some(link) = payload.to_hs_link() {
+                                Self::insert_atelier_embed_at_caret(&mut state, link);
+                                ui.ctx().request_repaint();
+                            }
+                        }
+                    }
+
                     // 2) MT-013: the formatting toolbar above the content area, then the
                     //    blocks below it, stacked vertically (contract step 6:
                     //    `ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); })`). The
@@ -1009,6 +1026,128 @@ impl RichEditorWidget {
             Selection::Text { head, .. } => head.char_offset,
             Selection::Node { .. } => 0,
         }
+    }
+
+    /// WP-KERNEL-012 MT-033 (E5 — CKC drag-in): insert `link` (a CKC/Atelier embed built from the dropped
+    /// item, an `hsLink` atom by CKC `refKind`) as an inline atom at the caret, splitting the caret's text
+    /// leaf so the atom lands at the exact drop position (text before stays in the original leaf; text
+    /// after moves to the trailing leaf). The caret is then placed just after the inserted atom. Returns
+    /// `true` when the insertion happened.
+    ///
+    /// The atom is the EXISTING [`crate::rich_editor::document_model::node::Child::HsLink`] variant (the
+    /// MT-014 media-embed lesson), so the inserted embed ROUND-TRIPS the backend `content_json` exactly
+    /// like a wikilink / media embed (AC-2) — never an invented `atelier_embed` node the backend would
+    /// drop on save. When the selection is not a text caret (e.g. an empty doc), the atom is appended to
+    /// the first paragraph's content so a drop is never a silent no-op.
+    pub fn insert_atelier_embed_at_caret(
+        state: &mut RichEditorState,
+        link: crate::rich_editor::document_model::node::HsLinkNode,
+    ) -> bool {
+        use crate::rich_editor::document_model::node::{Child, TextLeaf};
+        use crate::rich_editor::document_model::position::DocPosition;
+
+        // Resolve the caret leaf path + offset, or fall back to the first inline-content block.
+        let (leaf_path, caret_char) = match &state.selection {
+            Selection::Text { head, .. } => (head.path.clone(), head.char_offset),
+            Selection::Node { .. } => {
+                // No text caret: target the first paragraph/heading's last text leaf (append).
+                match Self::first_inline_leaf_path(&state.doc) {
+                    Some((path, end)) => (path, end),
+                    None => return false,
+                }
+            }
+        };
+
+        let Some((leaf_idx, parent_path)) = leaf_path.split_last() else {
+            return false;
+        };
+
+        // Split the caret leaf into head `[0, caret_char)` + tail `[caret_char, end)` so the atom lands at
+        // the exact drop position. The tail (when the caret is mid-leaf) becomes the caret-host leaf. When
+        // the caret is NOT on a text leaf (e.g. on an atom), there is no split (`None`) and the atom is
+        // inserted after that child.
+        let tail_text: Option<String> = {
+            let mut node = &mut state.doc;
+            for &idx in parent_path {
+                match node.children.get_mut(idx).and_then(Child::as_block_mut) {
+                    Some(b) => node = b,
+                    None => return false,
+                }
+            }
+            match node.children.get_mut(*leaf_idx).and_then(Child::as_text_mut) {
+                Some(leaf) => {
+                    let len = leaf.text.len_chars();
+                    let split = caret_char.min(len);
+                    if split < len {
+                        let full = leaf.text.to_string();
+                        let tail: String = full.chars().skip(split).collect();
+                        leaf.text.remove(split, len);
+                        Some(tail)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        };
+
+        // Re-resolve the parent block (the borrow above ended) and insert the atom after the caret leaf.
+        let mut node = &mut state.doc;
+        for &idx in parent_path {
+            match node.children.get_mut(idx).and_then(Child::as_block_mut) {
+                Some(b) => node = b,
+                None => return false,
+            }
+        }
+        if *leaf_idx >= node.children.len() {
+            return false;
+        }
+        let insert_at = *leaf_idx + 1;
+        node.children.insert(insert_at, Child::HsLink(link));
+
+        // The caret host is the leaf immediately after the atom: the split tail (if any) or a fresh empty
+        // leaf so the caret has a text position to land on (the caret model needs trailing inline text).
+        let trailing_idx = insert_at + 1;
+        let trailing_text = tail_text.unwrap_or_default();
+        let needs_new_trailing = node
+            .children
+            .get(trailing_idx)
+            .map(|c| c.as_text().is_none())
+            .unwrap_or(true);
+        if needs_new_trailing {
+            node.children
+                .insert(trailing_idx, Child::Text(TextLeaf::new(&trailing_text)));
+        } else if !trailing_text.is_empty() {
+            if let Some(leaf) = node.children.get_mut(trailing_idx).and_then(Child::as_text_mut) {
+                leaf.text.insert(0, &trailing_text);
+            }
+        }
+        // Mark the document dirty so the embed is persisted on the next save (AC-2 round-trip).
+        if let Some(save) = state.save.as_mut() {
+            save.mark_dirty();
+        }
+        let mut caret_path = parent_path.to_vec();
+        caret_path.push(trailing_idx);
+        state.selection = Selection::caret(DocPosition::new(caret_path, 0));
+        true
+    }
+
+    /// The path + end-offset of the first inline-content block's last text leaf, for an embed dropped when
+    /// no text caret is active. `None` when the doc has no inline-content block with a text leaf.
+    fn first_inline_leaf_path(doc: &BlockNode) -> Option<(Vec<usize>, usize)> {
+        for (bi, child) in doc.children.iter().enumerate() {
+            let Some(block) = child.as_block() else { continue };
+            if !block.kind.holds_inline_content() {
+                continue;
+            }
+            // Find the last text leaf in this block.
+            for (li, c) in block.children.iter().enumerate().rev() {
+                if let Some(t) = c.as_text() {
+                    return Some((vec![bi, li], t.text.len_chars()));
+                }
+            }
+        }
+        None
     }
 
     /// MT-016: claim the slash menu's nav/confirm/cancel keys while it is open. Up/Down move the

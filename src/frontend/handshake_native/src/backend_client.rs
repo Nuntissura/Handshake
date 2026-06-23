@@ -4724,6 +4724,244 @@ impl RichDocClient {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-033 (E5 — CKC embeds / drag-in): the atelier read surface the AtelierSidePanel loads.
+//
+// VERIFIED READ-ONLY against the REAL running backend (`src/backend/handshake_core/src/api/atelier.rs`,
+// WP-KERNEL-005), NOT taken from the MT contract body:
+//   - GET /atelier/intake/batches                 -> Vec<{batch_id(uuid), source_label, source_ref,
+//                                                          mode, status, created_at_utc, ...}>
+//   - GET /atelier/intake/batches/{batch_id}/items -> { lane_counts, items:[{item_id(uuid), file_name,
+//                                                          source_path, lane, byte_len}] }
+//   - GET /atelier/command-corpus                  -> Vec<{entry_id(uuid), action_id, owner,
+//                                                          execution_class, foreground_flag,
+//                                                          manual_anchor}>
+// These three reads are the ONLY atelier endpoints the side panel needs (the contract's two list reads +
+// the per-batch items read used to expand a batch into draggable item rows). No backend edit; a gap is a
+// typed blocker. Follows the MT-020/021/023/026 off-thread shape: spawn on the app's tokio runtime,
+// deliver the parsed projection into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next
+// frame (HBR-QUIET — the render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it
+// never depends on the `handshake_core` crate's types.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// One intake batch row the AtelierSidePanel lists (the verified subset of `IntakeBatchResponse`). The
+/// `batch_id` is the path arg for the items read; `source_label` is the row label; `status` is a muted
+/// chip.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierBatchRow {
+    pub batch_id: String,
+    pub source_label: String,
+    pub status: String,
+}
+
+/// One intake item row inside an expanded batch (the verified subset of `IntakeItemResponse`). The
+/// `item_id` is the atelier item id used as the embed `refValue`; `file_name` is the draggable row label;
+/// `source_path` is the thumbnail/path hint the contract asks the row to show.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierItemRow {
+    pub item_id: String,
+    pub file_name: String,
+    pub source_path: String,
+    pub lane: String,
+}
+
+/// One command-corpus entry row (the verified subset of `CommandCorpusEntryResponse`). `action_id` is the
+/// row label; `owner` + `execution_class` are muted detail.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCorpusRow {
+    pub entry_id: String,
+    pub action_id: String,
+    pub owner: String,
+    pub execution_class: String,
+}
+
+/// The externally-meaningful result of one atelier side-panel load: the batches + the command corpus
+/// (the two top-level sections). Items are loaded per-batch on demand via [`AtelierClient::fetch_items`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSidePanelData {
+    pub batches: Vec<AtelierBatchRow>,
+    pub corpus: Vec<AtelierCorpusRow>,
+}
+
+/// One-slot delivery cell for the off-thread side-panel load (`Ok(data)` / `Err(msg)`), drained by the
+/// egui UI thread next frame.
+pub type AtelierSidePanelCell = Arc<Mutex<Option<Result<AtelierSidePanelData, String>>>>;
+
+/// One-slot delivery cell for an off-thread per-batch items load, keyed by the batch id so a stale
+/// response for a previously-expanded batch is discardable.
+pub type AtelierItemsCell = Arc<Mutex<Option<(String, Result<Vec<AtelierItemRow>, String>)>>>;
+
+/// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
+#[derive(Clone)]
+pub struct AtelierClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl AtelierClient {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    /// Pure request builder for `GET /atelier/intake/batches`.
+    pub fn batches_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/intake/batches", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/command-corpus`.
+    pub fn corpus_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/command-corpus", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/intake/batches/{batch_id}/items`.
+    pub fn items_request(&self, batch_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/intake/batches/{}/items", self.base_url, batch_id),
+            query: vec![],
+        }
+    }
+
+    /// Load the batches + command corpus off the UI thread, delivering the parsed projection into `cell`.
+    /// A failure of EITHER read fails the whole load (the panel surfaces the error text, never a blank
+    /// half-loaded panel). The two reads run concurrently on the runtime.
+    pub fn fetch_side_panel(&self, cell: AtelierSidePanelCell) {
+        let batches_url = self.batches_request().url;
+        let corpus_url = self.corpus_request().url;
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = load_atelier_side_panel(&client, &batches_url, &corpus_url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Load one batch's items off the UI thread, delivering `(batch_id, Ok(items))` / `(batch_id, Err)`
+    /// into `cell`. The host matches the delivered `batch_id` against the currently-expanded batch so a
+    /// stale response for a since-collapsed batch is discarded.
+    pub fn fetch_items(&self, batch_id: &str, cell: AtelierItemsCell) {
+        let url = self.items_request(batch_id).url;
+        let client = self.client.clone();
+        let id = batch_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = fetch_atelier_items(&client, &url).await.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((id, result));
+            }
+        });
+    }
+}
+
+/// GET the two side-panel reads and assemble the projection. Either read failing fails the whole load.
+async fn load_atelier_side_panel(
+    client: &reqwest::Client,
+    batches_url: &str,
+    corpus_url: &str,
+) -> Result<AtelierSidePanelData, AppError> {
+    let batches = fetch_atelier_batches(client, batches_url).await?;
+    let corpus = fetch_atelier_corpus(client, corpus_url).await?;
+    Ok(AtelierSidePanelData { batches, corpus })
+}
+
+/// `GET {url}` and parse the `Vec<IntakeBatchResponse>` into [`AtelierBatchRow`]s. A row missing a
+/// `batch_id` is skipped (defensive — never a panic, never a fabricated id).
+async fn fetch_atelier_batches(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierBatchRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let arr = v.as_array().cloned().unwrap_or_default();
+    let rows = arr
+        .iter()
+        .filter_map(|row| {
+            let batch_id = row.get("batch_id").and_then(|x| x.as_str())?.to_owned();
+            if batch_id.is_empty() {
+                return None;
+            }
+            Some(AtelierBatchRow {
+                batch_id,
+                source_label: row
+                    .get("source_label")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("(unnamed batch)")
+                    .to_owned(),
+                status: row.get("status").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+            })
+        })
+        .collect();
+    Ok(rows)
+}
+
+/// `GET {url}` and parse the `Vec<CommandCorpusEntryResponse>` into [`AtelierCorpusRow`]s.
+async fn fetch_atelier_corpus(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierCorpusRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let arr = v.as_array().cloned().unwrap_or_default();
+    let rows = arr
+        .iter()
+        .filter_map(|row| {
+            let entry_id = row.get("entry_id").and_then(|x| x.as_str())?.to_owned();
+            let action_id = row.get("action_id").and_then(|x| x.as_str()).unwrap_or("").to_owned();
+            if entry_id.is_empty() {
+                return None;
+            }
+            Some(AtelierCorpusRow {
+                entry_id,
+                action_id,
+                owner: row.get("owner").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+                execution_class: row
+                    .get("execution_class")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
+            })
+        })
+        .collect();
+    Ok(rows)
+}
+
+/// `GET {url}` and parse the `IntakeBatchItemsResponse.items[]` into [`AtelierItemRow`]s.
+async fn fetch_atelier_items(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierItemRow>, AppError> {
+    let v = get_json(client, url, &[]).await?;
+    let items = v.get("items").and_then(|x| x.as_array()).cloned().unwrap_or_default();
+    let rows = items
+        .iter()
+        .filter_map(|row| {
+            let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
+            if item_id.is_empty() {
+                return None;
+            }
+            Some(AtelierItemRow {
+                item_id,
+                file_name: row
+                    .get("file_name")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("(unnamed item)")
+                    .to_owned(),
+                source_path: row.get("source_path").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+                lane: row.get("lane").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+            })
+        })
+        .collect();
+    Ok(rows)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

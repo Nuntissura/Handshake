@@ -77,6 +77,13 @@ pub const CMD_COMMAND_PALETTE: &str = "interop.command-palette";
 /// shell drains [`InteractionBus::take_pending_navigation`] and routes the open. This is the
 /// melt-together navigation primitive the "everything is a Loom block" backlinks/refs ride on.
 pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
+/// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): cross-pane Route-to-Stage command id. A rich-text
+/// selection / canvas node / CKC item dispatches this with the [`crate::stage_pane::StageContent`] staged
+/// via [`InteractionBus::request_route_to_stage`]; the shell drains
+/// [`InteractionBus::take_pending_stage_content`] and opens/focuses the Stage pane with that content.
+/// This is the melt-together Editors<->Stage (Pillar 17) navigation primitive. The DEEPER Stage backend
+/// interop (capture/embed-back with manifest provenance) is E10 (MT-066), NOT this command.
+pub const CMD_ROUTE_TO_STAGE: &str = "interop.route-to-stage";
 
 // ── AccessKit author_ids for the cross-pane command surface (the contract's named ids) ───────────────
 /// AccessKit author_id for the command-palette trigger button (Role::Button).
@@ -310,6 +317,10 @@ pub struct InteractionBus {
     /// backlink row click / loom:// reference). The shell drains it via [`Self::take_pending_navigation`]
     /// each frame and routes the open. `None` when no navigation is pending.
     pending_navigation: Option<String>,
+    /// WP-KERNEL-012 MT-033 (E5): the content a Route-to-Stage request staged (from a selection / canvas
+    /// node / CKC item). The shell drains it via [`Self::take_pending_stage_content`] each frame and
+    /// opens/focuses the Stage pane with it. `None` when nothing is pending.
+    pending_stage_content: Option<crate::stage_pane::StageContent>,
 }
 
 impl Default for InteractionBus {
@@ -330,6 +341,7 @@ impl InteractionBus {
             command_palette_open: false,
             event_sender: None,
             pending_navigation: None,
+            pending_stage_content: None,
         }
     }
 
@@ -563,6 +575,58 @@ impl InteractionBus {
     pub fn open_document(&mut self, ctx: &egui::Context, document_id: impl Into<String>) -> bool {
         self.request_open_document(document_id);
         self.dispatch_command(ctx, CMD_OPEN_DOCUMENT)
+    }
+
+    // ── Cross-pane Route-to-Stage navigation (MT-033 melt-together) ────────────────────────────────────
+
+    /// Stage [`crate::stage_pane::StageContent`] for a Route-to-Stage open (called just before
+    /// dispatching [`CMD_ROUTE_TO_STAGE`], e.g. from a right-click "Route to Stage" menu item on a
+    /// rich-text selection / canvas node). The shell drains it next frame via
+    /// [`Self::take_pending_stage_content`] to open/focus the Stage pane with it.
+    pub fn request_route_to_stage(&mut self, content: crate::stage_pane::StageContent) {
+        self.pending_stage_content = Some(content);
+    }
+
+    /// The content staged for a Route-to-Stage open, WITHOUT consuming it (tests / peek).
+    pub fn pending_stage_content(&self) -> Option<&crate::stage_pane::StageContent> {
+        self.pending_stage_content.as_ref()
+    }
+
+    /// Take (and clear) the staged Stage content. The shell calls this each frame; `Some(content)` means
+    /// open/focus the Stage pane and set its content, `None` means nothing pending.
+    pub fn take_pending_stage_content(&mut self) -> Option<crate::stage_pane::StageContent> {
+        self.pending_stage_content.take()
+    }
+
+    /// Register the cross-pane Route-to-Stage command (MT-033). Its handler is a no-op on the bus itself
+    /// (the stage content was staged by [`Self::request_route_to_stage`] BEFORE dispatch, and is consumed
+    /// by the shell drain) — the command exists so a "Route to Stage" menu item dispatches a REAL, named,
+    /// addressable cross-pane action rather than a per-pane ad-hoc callback. Idempotent (last
+    /// registration wins). Mirrors [`Self::register_open_document_command`] exactly (the MT-032 pattern).
+    pub fn register_route_to_stage_command(&mut self) {
+        self.register_command(CommandDescriptor {
+            id: CMD_ROUTE_TO_STAGE,
+            name: "RouteToStage",
+            label: "Route to Stage".to_owned(),
+            keywords: vec!["route".to_owned(), "stage".to_owned(), "send".to_owned()],
+            keybind: None,
+            // The content id was staged before dispatch (a generic handler carries no payload — the
+            // stage-then-dispatch split is the contract point); request a repaint so the shell drains it.
+            handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
+        });
+    }
+
+    /// Stage `content` and dispatch [`CMD_ROUTE_TO_STAGE`] in one call (the "Route to Stage" menu path —
+    /// AC-4). Returns `true` when the command was found and dispatched (it always is once
+    /// [`Self::register_route_to_stage_command`] ran). The staged content is then readable via
+    /// [`Self::pending_stage_content`] until the shell drains it.
+    pub fn route_to_stage(
+        &mut self,
+        ctx: &egui::Context,
+        content: crate::stage_pane::StageContent,
+    ) -> bool {
+        self.request_route_to_stage(content);
+        self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
     }
 }
 
@@ -798,6 +862,36 @@ mod tests {
         assert!(!bus.dispatch_command(&ctx, CMD_OPEN_DOCUMENT), "unknown command id is a no-op false");
         // The staged id still drains (the stage is independent of dispatch).
         assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-X"));
+    }
+
+    /// MT-033 AC-4: staging StageContent + dispatching the Route-to-Stage command stages the content on
+    /// the bus, where the shell drains it to open/focus the Stage pane. A real, named, addressable
+    /// cross-pane action — mirrors the MT-032 open-document staging.
+    #[test]
+    fn route_to_stage_stages_content() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.register_route_to_stage_command();
+        assert!(bus.commands().get(CMD_ROUTE_TO_STAGE).is_some(), "route-to-stage command registered");
+        assert!(bus.pending_stage_content().is_none(), "nothing staged before");
+        let content =
+            crate::stage_pane::StageContent::Selection("hello".to_owned(), "DOC-7".to_owned());
+        assert!(bus.route_to_stage(&ctx, content.clone()), "route-to-stage dispatched");
+        assert_eq!(bus.pending_stage_content(), Some(&content), "the staged content is observable");
+        // The shell drains it once.
+        assert_eq!(bus.take_pending_stage_content(), Some(content));
+        assert!(bus.take_pending_stage_content().is_none(), "drained once, then empty");
+    }
+
+    /// Dispatching Route-to-Stage WITHOUT registering it is a benign false (unknown id), not a panic;
+    /// the staged content still drains (the stage is independent of dispatch).
+    #[test]
+    fn route_to_stage_unregistered_is_benign() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.request_route_to_stage(crate::stage_pane::StageContent::Empty);
+        assert!(!bus.dispatch_command(&ctx, CMD_ROUTE_TO_STAGE), "unknown command id is a no-op false");
+        assert!(bus.take_pending_stage_content().is_some(), "the staged content still drains");
     }
 
     /// The default keybinds match the contract's VS Code mapping.
