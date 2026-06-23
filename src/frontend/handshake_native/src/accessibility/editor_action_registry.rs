@@ -482,12 +482,30 @@ pub enum CodeDispatch {
     MultiCursorAdd,
     /// Clear secondary cursors back to one.
     MultiCursorClear,
+    /// Toggle the find "match case" option, flipping the live `FindQuery` state and re-scanning (the
+    /// real mutator is `CodeEditorPanel::set_find_toggles`). A swarm `Click` on the `find-toggle-case`
+    /// node flips the option, mirroring the rich pane's `RichDispatch::FindToggleCase` — NOT a re-open
+    /// of the find panel.
+    FindToggleCase,
+    /// Toggle the find "whole word" option (see [`Self::FindToggleCase`]).
+    FindToggleWord,
+    /// Toggle the find "use regular expression" option (see [`Self::FindToggleCase`]).
+    FindToggleRegex,
     /// Open the language picker. The native editor has no language-picker action variant yet (the
     /// language is derived from the file extension), so this is a TYPED, present-but-disabled node
     /// pointing at the documented gap (NOT a silent no-op): it is discoverable so a swarm agent sees
     /// the action exists, but disabled so a dispatch is rejected by the MCP channel rather than
     /// silently dropped. The pane records this as a typed limitation (see the MT blocker note).
     LanguagePickerUnavailable,
+    /// Format the document. IN-041-03 specifies `format` as "format document via LSP or built-in
+    /// formatter", but [`CodeEditorAction`] has NO `Format`/`FormatDocument` variant (the keymap has
+    /// `IndentLine` only). Aliasing `format` to `IndentLine` would be a silent semantic substitution
+    /// (a swarm agent asking to format the document would silently get a single-line indent — the
+    /// mock-in-disguise AC-041-08 forbids). So `format` is a TYPED, present-but-disabled node pointing
+    /// at the documented gap, handled exactly like [`Self::LanguagePickerUnavailable`]: discoverable
+    /// so a swarm agent sees the action exists, but disabled so a dispatch is rejected rather than
+    /// mis-indenting. The pane records this as a typed limitation (see the MT blocker note).
+    FormatUnavailable,
 }
 
 /// One canonical CODE-editor action entry: its `action_id` (the `<action>` segment), AccessKit role,
@@ -515,13 +533,13 @@ pub const CODE_ACTION_CATALOG: &[CodeActionEntry] = &[
     CodeActionEntry { action_id: "find-open", role: AxRole::Button, label: "Find", dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind), always_present: true },
     CodeActionEntry { action_id: "find-next", role: AxRole::Button, label: "Find next", dispatch: CodeDispatch::Action(CodeEditorAction::FindNext), always_present: false },
     CodeActionEntry { action_id: "find-prev", role: AxRole::Button, label: "Find previous", dispatch: CodeDispatch::Action(CodeEditorAction::FindPrev), always_present: false },
-    CodeActionEntry { action_id: "find-toggle-case", role: AxRole::ToggleButton, label: "Match case", dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind), always_present: false },
-    CodeActionEntry { action_id: "find-toggle-word", role: AxRole::ToggleButton, label: "Match whole word", dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind), always_present: false },
-    CodeActionEntry { action_id: "find-toggle-regex", role: AxRole::ToggleButton, label: "Use regular expression", dispatch: CodeDispatch::Action(CodeEditorAction::OpenFind), always_present: false },
+    CodeActionEntry { action_id: "find-toggle-case", role: AxRole::ToggleButton, label: "Match case", dispatch: CodeDispatch::FindToggleCase, always_present: false },
+    CodeActionEntry { action_id: "find-toggle-word", role: AxRole::ToggleButton, label: "Match whole word", dispatch: CodeDispatch::FindToggleWord, always_present: false },
+    CodeActionEntry { action_id: "find-toggle-regex", role: AxRole::ToggleButton, label: "Use regular expression", dispatch: CodeDispatch::FindToggleRegex, always_present: false },
     CodeActionEntry { action_id: "replace-open", role: AxRole::Button, label: "Replace", dispatch: CodeDispatch::OpenReplace, always_present: true },
     CodeActionEntry { action_id: "replace-one", role: AxRole::Button, label: "Replace one", dispatch: CodeDispatch::ReplaceOne, always_present: false },
     CodeActionEntry { action_id: "replace-all", role: AxRole::Button, label: "Replace all", dispatch: CodeDispatch::ReplaceAll, always_present: false },
-    CodeActionEntry { action_id: "format", role: AxRole::Button, label: "Format document", dispatch: CodeDispatch::Action(CodeEditorAction::IndentLine), always_present: true },
+    CodeActionEntry { action_id: "format", role: AxRole::Button, label: "Format document", dispatch: CodeDispatch::FormatUnavailable, always_present: true },
     CodeActionEntry { action_id: "go-to-line", role: AxRole::Button, label: "Go to line", dispatch: CodeDispatch::Action(CodeEditorAction::GoToLine), always_present: true },
     CodeActionEntry { action_id: "multi-cursor-add", role: AxRole::Button, label: "Add cursor below", dispatch: CodeDispatch::MultiCursorAdd, always_present: true },
     CodeActionEntry { action_id: "multi-cursor-clear", role: AxRole::Button, label: "Clear multi-cursor", dispatch: CodeDispatch::MultiCursorClear, always_present: true },

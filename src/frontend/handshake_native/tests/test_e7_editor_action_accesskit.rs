@@ -427,13 +427,26 @@ fn ac05_format_bold_toggle_reflects_cursor_in_bold() {
     println!("AC-041-05: format-bold toggle tracks the cursor + dispatch applies the mark");
 }
 
-// ── AC-041-06: dispatch editor.code.save -> save intent reaches the host bus (spy) ────────────────
+// ── AC-041-06: dispatch editor.code.save -> Save intent reaches the host shell's save-routing seam ─
+//
+// HONEST SCOPE (must-fix #2, backend-shape): the CODE pane does NOT own a managed save client. Its
+// architecture (pre-existing, since MT-020/037) is "the document shell owns the write": the editor
+// routes `CodeEditorAction::Save` to the host through `command_palette_tx`, and the host shell is the
+// component that invokes the E6/MT-037 knowledge_documents save client. There is NO code-document
+// `SaveManager` in this crate (only the RICH pane has one). So this test proves exactly what is real
+// at the WIDGET layer: the AccessKit `editor.code.save` dispatch reaches the host save-routing seam
+// (the command bus) with the Save intent. It does NOT — and must not claim to — prove a
+// knowledge_documents backend touch; that lives in the host shell (MT-043/E11). The missing
+// code-document save client is reported as a typed gap in the handoff (NEEDS_MANAGED_RESOURCE_PROOF).
+// The spy is on the editor's real output seam (the channel the production shell installs), not a
+// fabricated backend.
 
 #[test]
-fn ac06_dispatch_save_reaches_backend_save_wiring() {
+fn ac06_dispatch_save_reaches_host_save_routing_seam() {
     let (panel, _registry, mut harness) = code_harness();
-    // Spy: the code editor routes Save to the host command bus (the E6/MT-037 knowledge_documents save
-    // wiring point — CTRL-041-06, not a new direct call). Inject the sender and assert Save arrives.
+    // Spy the editor's real save-output seam: the host command bus channel. The production shell owns
+    // the far end of this channel and routes Save to the E6 client; here we assert the dispatch reaches
+    // the seam with the Save intent (the widget-layer half of CTRL-041-06; the backend half is host).
     let (tx, rx) = mpsc::channel::<CodeEditorAction>();
     panel.set_command_palette_sender(tx);
     harness.run();
@@ -453,9 +466,13 @@ fn ac06_dispatch_save_reaches_backend_save_wiring() {
     }
     assert!(
         saw_save,
-        "AC-041-06: dispatching editor.code.save routed a Save to the host command bus (E6 save wiring)"
+        "AC-041-06: dispatching editor.code.save routed a Save intent to the host save-routing seam \
+         (command bus); the host shell owns the knowledge_documents write (typed gap, not asserted here)"
     );
-    println!("AC-041-06: editor.code.save dispatch reached the backend-save wiring (spy saw Save)");
+    println!(
+        "AC-041-06: editor.code.save dispatch reached the host save-routing seam (spy saw Save); the \
+         knowledge_documents backend touch is host-owned (MT-043) — reported as a typed gap"
+    );
 }
 
 // ── CTRL-041-01: stable ids survive a layout change (a panel added above the editor) ──────────────
@@ -617,4 +634,75 @@ fn ac08_language_picker_gap_is_disabled_not_mocked() {
         "AC-041-08: editor.code.language-picker-open is a typed gap -> present but DISABLED"
     );
     println!("AC-041-08: language-picker-open present-but-disabled (typed gap, no mock no-op)");
+}
+
+// ── AC-041-08: format gap is present-but-disabled (NOT aliased to IndentLine while enabled) ───────
+
+#[test]
+fn ac08_format_gap_is_disabled_not_aliased_to_indent() {
+    let (_panel, _registry, mut harness) = code_harness();
+    harness.run();
+    harness.run();
+    let root = harness.root();
+    // IN-041-03 specifies `format` = "format document via LSP or built-in formatter". CodeEditorAction
+    // has NO Format variant (only IndentLine), so `format` is a TYPED gap: present (discoverable) but
+    // DISABLED, exactly like language-picker — never a silent alias to IndentLine while enabled
+    // (that would be the mock-in-disguise AC-041-08 forbids).
+    let node = find_node(&root, "editor.code.format")
+        .expect("AC-041-08: format node is present (discoverable)");
+    assert!(
+        node.disabled,
+        "AC-041-08: editor.code.format is a typed gap (no native format-document action) -> present \
+         but DISABLED, not aliased to IndentLine while enabled"
+    );
+    println!("AC-041-08: editor.code.format present-but-disabled (typed gap, not a silent IndentLine alias)");
+}
+
+// ── must-fix #3/#4: dispatch editor.code.find-toggle-case via AccessKit -> the option FLIPS ────────
+
+/// A swarm `Click` on `editor.code.find-toggle-case` must FLIP the live `case_sensitive` find option
+/// (the real `set_find_toggles` mutator), NOT re-open the find panel. Mirrors the rich pane's
+/// FindToggleCase behavior. This is the dispatch-reaches-the-editor control (RISK-041-04 / CTRL-041-04)
+/// for the find option toggles, which the prior wiring (alias to OpenFind) silently violated.
+#[test]
+fn code_find_toggle_case_dispatch_flips_the_option() {
+    let (panel, _registry, mut harness) = code_harness();
+    harness.run();
+    // Open the find panel so the find-toggle nodes are present + enabled.
+    panel.open_find(false);
+    harness.run();
+    harness.run();
+
+    let before = panel
+        .find_state()
+        .expect("find open")
+        .query
+        .case_sensitive;
+    assert!(!before, "find starts with case_sensitive=false");
+
+    // Dispatch a Click at the canonical toggle node and let the editor consume it this frame.
+    let toggle = find_node(&harness.root(), "editor.code.find-toggle-case")
+        .expect("find-toggle-case node present while find is open");
+    assert_eq!(toggle.role, "CheckBox", "find-toggle-case is a ToggleButton -> CheckBox");
+    assert!(!toggle.disabled, "an open find toggle is enabled (dispatchable)");
+    assert_eq!(toggle.toggled, Some(false), "toggle reads the live case_sensitive=false");
+
+    harness.event(click_event(toggle.node_id));
+    harness.run(); // editor consumes the Click + runs set_find_toggles this frame
+    harness.run(); // settle so the node reflects the flipped state
+
+    // The underlying find option flipped (the dispatch reached the real mutator, did NOT re-open find).
+    assert!(
+        panel.find_state().expect("find still open").query.case_sensitive,
+        "must-fix #3: dispatching editor.code.find-toggle-case FLIPPED case_sensitive (real toggle, \
+         not a find-panel re-open)"
+    );
+    let after = find_node(&harness.root(), "editor.code.find-toggle-case")
+        .expect("find-toggle-case node still present");
+    assert_eq!(
+        after.toggled,
+        Some(true),
+        "must-fix #3: the find-toggle-case node reports checked=true after the dispatch flipped it"
+    );
+    println!("must-fix #3: editor.code.find-toggle-case dispatch flips case_sensitive (real mutator reached)");
 }

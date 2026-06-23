@@ -4398,10 +4398,14 @@ impl CodeEditorPanel {
         if !present {
             return EditorActionState::absent();
         }
-        // The language picker is a documented gap (no native language-picker action yet): present but
-        // DISABLED so a dispatch is rejected by the MCP channel rather than silently dropped.
-        let enabled = !matches!(entry.dispatch, CodeDispatch::LanguagePickerUnavailable)
-            && !(entry.action_id == "multi-cursor-clear" && !multi_cursor);
+        // The language picker AND format are documented gaps (no native language-picker action and no
+        // format-document action yet — the keymap has only IndentLine): present but DISABLED so a
+        // dispatch is rejected by the MCP channel rather than silently dropped or mis-applied
+        // (aliasing format to IndentLine would be a silent wrong action — AC-041-08).
+        let enabled = !matches!(
+            entry.dispatch,
+            CodeDispatch::LanguagePickerUnavailable | CodeDispatch::FormatUnavailable
+        ) && (entry.action_id != "multi-cursor-clear" || multi_cursor);
         match entry.role {
             AxRole::Button => EditorActionState { present, enabled, checked: None },
             AxRole::ToggleButton => {
@@ -4443,12 +4447,36 @@ impl CodeEditorPanel {
             }
             CodeDispatch::MultiCursorAdd => self.dispatch_action(CodeEditorAction::AddCursorBelow),
             CodeDispatch::MultiCursorClear => self.dispatch_action(CodeEditorAction::CancelMultiCursor),
-            // Disabled node — a dispatch should never reach here (the MCP channel rejects a disabled
+            // Flip the one find option, preserving the other two, then re-scan (the real mutator —
+            // NOT a re-open of the find panel; mirrors the rich pane's RichDispatch::FindToggle*).
+            // A no-op when the find bar is closed (find_state None), matching set_find_toggles.
+            CodeDispatch::FindToggleCase => {
+                if let Some(q) = self.find_state().map(|f| f.query) {
+                    self.set_find_toggles(!q.case_sensitive, q.whole_word, q.is_regex);
+                }
+            }
+            CodeDispatch::FindToggleWord => {
+                if let Some(q) = self.find_state().map(|f| f.query) {
+                    self.set_find_toggles(q.case_sensitive, !q.whole_word, q.is_regex);
+                }
+            }
+            CodeDispatch::FindToggleRegex => {
+                if let Some(q) = self.find_state().map(|f| f.query) {
+                    self.set_find_toggles(q.case_sensitive, q.whole_word, !q.is_regex);
+                }
+            }
+            // Disabled nodes — a dispatch should never reach here (the MCP channel rejects a disabled
             // target), but if it does it is a benign no-op + trace, never a silent wrong action.
             CodeDispatch::LanguagePickerUnavailable => {
                 tracing::debug!(
                     "editor.code.language-picker-open dispatched but no native language picker exists \
                      (typed gap); no-op"
+                );
+            }
+            CodeDispatch::FormatUnavailable => {
+                tracing::debug!(
+                    "editor.code.format dispatched but no native format-document action exists \
+                     (only IndentLine; typed gap); no-op — never silently indents"
                 );
             }
         }
