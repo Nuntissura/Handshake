@@ -429,6 +429,20 @@ fn canvas_loom_chip_screenshot() {
 #[cfg(feature = "integration")]
 const LIVE_BASE_URL: &str = "http://127.0.0.1:37501";
 
+/// Attach the three mandatory rich-document context headers the backend's `doc_context(&headers)`
+/// requires (`x-hsk-actor-id` / `x-hsk-kernel-task-run-id` / `x-hsk-session-run-id`). The real
+/// `create_document` (POST /knowledge/documents) and `list_backlinks`
+/// (GET /knowledge/documents/{id}/backlinks) handlers return HTTP 400 when any is absent; the React
+/// reference sends them via `richDocHeaders(ctx)` (api.ts), with `operator` as the default actor id.
+/// `getLoomBlock` (GET /workspaces/{ws}/loom/blocks/{id}) correctly needs NONE, so those calls stay
+/// header-free.
+#[cfg(feature = "integration")]
+fn with_rich_doc_headers(rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    rb.header("x-hsk-actor-id", "operator")
+        .header("x-hsk-kernel-task-run-id", "KTR-EDITOR-UI")
+        .header("x-hsk-session-run-id", "MT-032-integration")
+}
+
 /// AC-2: creating a rich document on the live backend yields a non-empty block_id that parses as a valid
 /// LoomBlockAddr, and GET backlinks for it returns 200.
 #[test]
@@ -458,7 +472,7 @@ fn live_pg_create_doc_block_id_is_addressable() {
         // GET backlinks returns 200 (an empty list for a fresh doc — never an error banner).
         let doc_id = doc.get("document_id").and_then(|x| x.as_str()).unwrap_or(&block_id).to_owned();
         let url = format!("{LIVE_BASE_URL}/knowledge/documents/{doc_id}/backlinks");
-        let resp = client.get(&url).send().await.expect("backlinks request");
+        let resp = with_rich_doc_headers(client.get(&url)).send().await.expect("backlinks request");
         assert_eq!(resp.status().as_u16(), 200, "AC-2: GET backlinks returns 200");
 
         // The resolver reads the block (and its content_hash if the backend carries one).
@@ -485,21 +499,26 @@ fn live_pg_backlink_appears_for_wikilink() {
         let b_id = doc_b.get("document_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
         let b_block = doc_b.get("block_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
 
+        // The backend backlink extractor (knowledge_document/backlink.rs) recognizes `hsLink` ONLY as an
+        // inline content NODE (it matches `obj["type"] == "hsLink"` and recurses into `content` children);
+        // it never scans a text node's `marks` array. So the wikilink to B must be an inline `hsLink` NODE
+        // in the paragraph's `content` (the canonical shape from backlink.rs's own fixture), NOT a mark on
+        // a text node — otherwise B's backlinks would be empty and AC-3 could never trigger.
         let doc_a = create_rich_document(&client, &workspace_id, "MT-032 AC-3 A", serde_json::json!({
             "type": "doc",
             "content": [{
                 "type": "paragraph",
-                "content": [{
-                    "type": "text", "text": "see target",
-                    "marks": [{ "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_block } }]
-                }]
+                "content": [
+                    { "type": "text", "text": "see " },
+                    { "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_block, "label": "target" } }
+                ]
             }]
         })).await.expect("create A linking B");
         let a_id = doc_a.get("document_id").and_then(|x| x.as_str()).unwrap_or_default().to_owned();
 
         // GET B's backlinks: it includes a backlink whose source is A.
         let url = format!("{LIVE_BASE_URL}/knowledge/documents/{b_id}/backlinks");
-        let resp = client.get(&url).send().await.expect("backlinks request");
+        let resp = with_rich_doc_headers(client.get(&url)).send().await.expect("backlinks request");
         assert_eq!(resp.status().as_u16(), 200, "AC-3: backlinks 200");
         let parsed: BacklinksResponse = resp.json().await.expect("backlinks body");
         assert!(
@@ -578,7 +597,10 @@ async fn create_rich_document(
         "title": title,
         "content_json": content_json,
     });
-    let resp = client.post(&url).json(&body).send().await.ok()?;
+    let resp = with_rich_doc_headers(client.post(&url).json(&body))
+        .send()
+        .await
+        .ok()?;
     if !resp.status().is_success() {
         return None;
     }

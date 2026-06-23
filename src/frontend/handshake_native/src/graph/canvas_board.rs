@@ -796,8 +796,11 @@ impl LoomCanvasBoard {
         let chip_text = card.loom_addr(&self.workspace_id).map(|addr| {
             let mut s = addr.to_uri();
             if let Some(hash) = card.loom_content_hash.as_deref().filter(|h| !h.trim().is_empty()) {
-                let short = &hash[..hash.len().min(8)];
-                s.push_str(&format!(" #{short}"));
+                // CHAR-BOUNDARY SAFE: route the short prefix through ContentHash::short() rather than a
+                // raw byte slice `&hash[..8]` — the backend hash is untrusted (from_backend does not
+                // validate hex), so a multi-byte first char would otherwise panic the egui render thread.
+                let short = crate::loom_address::ContentHash(hash.to_owned());
+                s.push_str(&format!(" #{}", short.short()));
             }
             s
         });

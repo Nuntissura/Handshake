@@ -112,10 +112,16 @@ impl ContentHash {
     }
 
     /// A short prefix (first 8 hex chars) for compact display in a chip/tooltip; the full hash stays in
-    /// [`ContentHash::as_str`].
+    /// [`ContentHash::as_str`]. CHAR-BOUNDARY SAFE: a real hash is ASCII hex, but [`ContentHash::from_backend`]
+    /// accepts ANY non-empty backend string (it does not validate hex), so a raw byte slice `&self.0[..8]`
+    /// could panic the egui render thread if the first 8 bytes landed inside a multi-byte UTF-8 char. We
+    /// take the first 8 CHARS instead (never splitting a code point) so an untrusted backend value can
+    /// never panic the UI.
     pub fn short(&self) -> &str {
-        let n = self.0.len().min(8);
-        &self.0[..n]
+        match self.0.char_indices().nth(8) {
+            Some((byte_idx, _)) => &self.0[..byte_idx],
+            None => &self.0,
+        }
     }
 }
 
@@ -376,6 +382,19 @@ mod tests {
         assert_eq!(h1.as_str().len(), 64);
         assert!(h1.as_str().chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         assert_eq!(h1.short().len(), 8, "short prefix is 8 chars");
+    }
+
+    #[test]
+    fn short_is_char_boundary_safe_on_untrusted_backend_value() {
+        // from_backend accepts any non-empty string (it does not validate hex). A value whose first 8
+        // BYTES split a multi-byte UTF-8 char must NOT panic short() (it would panic the egui render
+        // thread on a raw byte slice). short() takes the first 8 CHARS.
+        let multibyte = ContentHash("éééééééééé".to_owned()); // each 'é' is 2 bytes
+        assert_eq!(multibyte.short(), "éééééééé", "first 8 chars, no byte-boundary panic");
+        // A short value returns itself unchanged.
+        assert_eq!(ContentHash("abc".to_owned()).short(), "abc");
+        // Normal ASCII hex still yields the first 8 hex chars.
+        assert_eq!(ContentHash("deadbeefcafe".to_owned()).short(), "deadbeef");
     }
 
     #[test]
