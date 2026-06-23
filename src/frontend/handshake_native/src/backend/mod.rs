@@ -14,6 +14,14 @@
 //! them) and ADDS a stateless async [`loom::LoomClient`] for the genuinely-missing + editor-consumed
 //! routes (block CRUD, edges, daily journal, knowledge-bridge, transclusion, folder membership, wiki
 //! extras, markdown import, visual-debug). It is reachable as `handshake_native::backend::loom`.
+//!
+//! MT-039 delivers [`knowledge_code_nav`]: the consolidated, fully-typed client for the
+//! `/knowledge/code/*` symbol-navigation route family (lookup / get / references / tests / spans / file
+//! lens). It REUSES the MT-037 [`knowledge_documents::HskDocumentHeaders`] identity struct (no 4th header
+//! copy) and the shared transport, and is the typed binding the code-symbol panel + audit layer consumes
+//! (the MT-008 [`crate::code_editor::code_nav`] `Value` client remains the inline editor fast-path). It
+//! is reachable as `handshake_native::backend::knowledge_code_nav`.
 
+pub mod knowledge_code_nav;
 pub mod knowledge_documents;
 pub mod loom;
