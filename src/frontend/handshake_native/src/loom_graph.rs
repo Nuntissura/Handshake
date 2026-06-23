@@ -52,11 +52,18 @@ pub enum LoomGraphEvent {
     RevealInPanel { block_id: String },
 }
 
-/// One graph node rendered by the surface: its cached state + display title.
+/// One graph node rendered by the surface: its cached state + display title, plus the MT-032
+/// everything-is-a-Loom-block tooltip metadata (the node's live backlink count, resolved once when
+/// known). The node is ALWAYS a Loom block addressable as `loom://{workspace_id}/{block_id}` — the
+/// surface's `workspace_id` supplies the workspace half.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphNode {
     pub state: LoomNodeState,
     pub title: String,
+    /// WP-KERNEL-012 MT-032: the count of inbound backlinks the host resolved for this node (from
+    /// `GET /knowledge/documents/{id}/backlinks` — reused MT-015 binding). `None` when unresolved; the
+    /// tooltip then omits the count line (honestly absent, not a fabricated `0`).
+    pub backlink_count: Option<usize>,
 }
 
 impl GraphNode {
@@ -64,7 +71,21 @@ impl GraphNode {
         Self {
             state,
             title: title.into(),
+            backlink_count: None,
         }
+    }
+
+    /// Set the resolved backlink count (builder, used by the host after a backlinks fetch resolves).
+    pub fn with_backlink_count(mut self, count: usize) -> Self {
+        self.backlink_count = Some(count);
+        self
+    }
+
+    /// The node's `loom://{workspace_id}/{block_id}` address (MT-032). `None` when either id is empty
+    /// (RISK-3: no fabricated URI for an unaddressable node).
+    pub fn loom_addr(&self, workspace_id: &str) -> Option<crate::loom_address::LoomBlockAddr> {
+        let addr = crate::loom_address::LoomBlockAddr::new(workspace_id, &self.state.block_id);
+        addr.is_addressable().then_some(addr)
     }
 }
 
@@ -76,15 +97,26 @@ pub struct LoomGraphColors {
     pub node_text: egui::Color32,
 }
 
-/// The native Loom-graph node surface: a set of nodes, each right-clickable for the MT-021 menu.
+/// The native Loom-graph node surface: a set of nodes, each right-clickable for the MT-021 menu. The
+/// `workspace_id` (MT-032) is the workspace half of each node's `loom://` address shown in the tooltip;
+/// it defaults empty (a tooltip then shows only the block-id half — still a valid loom address once the
+/// host installs the workspace).
 #[derive(Debug, Clone, Default)]
 pub struct LoomGraphSurface {
     pub nodes: Vec<GraphNode>,
+    /// The workspace these nodes live in (MT-032 loom:// address). Empty until the host sets it.
+    pub workspace_id: String,
 }
 
 impl LoomGraphSurface {
     pub fn new(nodes: Vec<GraphNode>) -> Self {
-        Self { nodes }
+        Self { nodes, workspace_id: String::new() }
+    }
+
+    /// Build a surface for an explicit workspace (MT-032), so each node's tooltip shows the full
+    /// `loom://{workspace_id}/{block_id}` address.
+    pub fn with_workspace(nodes: Vec<GraphNode>, workspace_id: impl Into<String>) -> Self {
+        Self { nodes, workspace_id: workspace_id.into() }
     }
 
     /// Render the nodes; return the typed event a confirmed right-click menu item produced this frame.
@@ -129,10 +161,29 @@ impl LoomGraphSurface {
                 resp.widget_info(|| {
                     egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
                 });
-                ui.ctx().accesskit_node_builder(id, |node_b| {
+                // WP-KERNEL-012 MT-032 (E5 "everything is a Loom block"): the node's loom:// URI +
+                // backlink count, exposed BOTH as a hover tooltip (operator-visible) and as the
+                // AccessKit description (an out-of-process agent reads the loom address by stable id —
+                // HBR-SWARM). An unaddressable node (empty block id) shows no loom line (RISK-3).
+                let tooltip = node_tooltip_text(node, &self.workspace_id);
+                let resp = if let Some(tip) = &tooltip {
+                    let tip = tip.clone();
+                    resp.on_hover_ui(move |ui| {
+                        for line in tip.lines() {
+                            ui.label(line);
+                        }
+                    })
+                } else {
+                    resp
+                };
+                let desc = tooltip.clone();
+                ui.ctx().accesskit_node_builder(id, move |node_b| {
                     node_b.set_role(accesskit::Role::TreeItem);
                     node_b.set_author_id(author_id.clone());
                     node_b.set_label(label.clone());
+                    if let Some(desc) = &desc {
+                        node_b.set_description(desc.replace('\n', "; "));
+                    }
                 });
                 resp
             })
@@ -177,6 +228,21 @@ pub fn loom_node_author_id(block_id: &str) -> String {
     format!("loom_node_{}", crate::project_tree::stable_part(block_id))
 }
 
+/// The MT-032 tooltip text for a graph node: its `loom://{workspace_id}/{block_id}` URI plus a backlink
+/// count line when the count is resolved. `None` when the node is unaddressable (empty block id —
+/// RISK-3: no fabricated `loom://` URI). Newline-separated so the tooltip renders one line per fact and
+/// the AccessKit description joins them with "; ".
+pub fn node_tooltip_text(node: &GraphNode, workspace_id: &str) -> Option<String> {
+    let addr = node.loom_addr(workspace_id)?;
+    let mut text = addr.to_uri();
+    if let Some(count) = node.backlink_count {
+        text.push('\n');
+        let suffix = if count == 1 { "" } else { "s" };
+        text.push_str(&format!("{count} backlink{suffix}"));
+    }
+    Some(text)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,5 +285,33 @@ mod tests {
         let id = loom_node_author_id("blk 1/x");
         assert!(id.starts_with("loom_node_"));
         assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+    }
+
+    /// MT-032: the node tooltip shows the node's loom:// URI; with a resolved count it adds a backlink
+    /// line. Without a count the line is OMITTED (honestly absent, not a fabricated `0 backlinks`).
+    #[test]
+    fn tooltip_shows_loom_uri_and_optional_backlink_count() {
+        let n = node(false);
+        // No count resolved yet -> only the loom:// line.
+        assert_eq!(node_tooltip_text(&n, "ws-1").as_deref(), Some("loom://ws-1/blk-1"));
+        // A resolved count adds a second line, correctly singular/plural.
+        let n1 = node(false).with_backlink_count(1);
+        assert_eq!(node_tooltip_text(&n1, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n1 backlink"));
+        let n3 = node(false).with_backlink_count(3);
+        assert_eq!(node_tooltip_text(&n3, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n3 backlinks"));
+        let n0 = node(false).with_backlink_count(0);
+        assert_eq!(node_tooltip_text(&n0, "ws-1").as_deref(), Some("loom://ws-1/blk-1\n0 backlinks"));
+    }
+
+    /// MT-032 RISK-3: a node with an empty block id has no loom:// tooltip (no fabricated URI).
+    #[test]
+    fn unaddressable_node_has_no_tooltip() {
+        let n = GraphNode::new(
+            LoomNodeState { block_id: String::new(), pinned: false, favorite: false, has_edges: false },
+            "Orphan",
+        );
+        assert_eq!(node_tooltip_text(&n, "ws-1"), None);
+        // A node WITH a block id but no workspace also has no loom URI yet.
+        assert_eq!(node_tooltip_text(&node(false), ""), None);
     }
 }

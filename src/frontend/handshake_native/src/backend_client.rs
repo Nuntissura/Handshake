@@ -1545,10 +1545,18 @@ pub type CanvasBoardCell = Arc<Mutex<Option<Result<CanvasBoardData, String>>>>;
 /// [`CanvasOpCell`].
 pub type CanvasBoardOpCell = Arc<Mutex<Option<Result<(), String>>>>;
 
-/// One-slot delivery cell for an off-thread `getLoomBlock` live-title resolve. Delivers
-/// `(placed_block_id, Ok((title, content_type)))` / `(placed_block_id, Err(msg))`. A missing block
-/// (HTTP 404) is delivered as `Err` so the host shows `(stale reference)` — never a fabricated title.
-pub type LiveBlockCell = Arc<Mutex<Option<(String, Result<(Option<String>, String), String>)>>>;
+/// The resolved fields a `getLoomBlock` live-resolve carries: `(title, content_type, content_hash)`.
+/// `title` is `Option<String>` (a block can be untitled); `content_hash` is `Option<String>`, the
+/// backend-computed canonical-JSON SHA-256 the block carries (WP-KERNEL-012 MT-032 — READ-only, the
+/// canvas never writes a hash). `None` content_hash means the backend block omitted it (honestly
+/// absent, never fabricated).
+pub type LiveBlock = (Option<String>, String, Option<String>);
+
+/// One-slot delivery cell for an off-thread `getLoomBlock` live-resolve. Delivers
+/// `(placed_block_id, Ok((title, content_type, content_hash)))` / `(placed_block_id, Err(msg))`. A
+/// missing block (HTTP 404) is delivered as `Err` so the host shows `(stale reference)` — never a
+/// fabricated title.
+pub type LiveBlockCell = Arc<Mutex<Option<(String, Result<LiveBlock, String>)>>>;
 
 /// REST client for the VERIFIED Loom canvas-board surface (MT-261 backend). Drives the board read +
 /// all canvas mutations off the UI thread. Mirrors the `CanvasClient`/`LoomGraphClient` shape exactly.
@@ -1851,13 +1859,15 @@ fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
     })
 }
 
-/// `GET {url}` and read a verified `LoomBlock`'s `(title, content_type)` for the live-title resolve.
-/// `title` is `Option<String>` (a block can be untitled); `content_type` defaults to "note". A 404 (the
-/// block was deleted) is an [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
+/// `GET {url}` and read a verified `LoomBlock`'s `(title, content_type, content_hash)` for the
+/// live-resolve. `title` is `Option<String>` (a block can be untitled); `content_type` defaults to
+/// "note"; `content_hash` is the backend-computed canonical-JSON hash when present (MT-032, READ-only —
+/// `Option<String>`, honestly `None` when the backend omits it). A 404 (the block was deleted) is an
+/// [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
 async fn fetch_live_block(
     client: &reqwest::Client,
     url: &str,
-) -> Result<(Option<String>, String), AppError> {
+) -> Result<LiveBlock, AppError> {
     let v = get_json(client, url, &[]).await?;
     let title = v
         .get("title")
@@ -1869,7 +1879,12 @@ async fn fetch_live_block(
         .and_then(|x| x.as_str())
         .unwrap_or("note")
         .to_owned();
-    Ok((title, content_type))
+    let content_hash = v
+        .get("content_hash")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(ToOwned::to_owned);
+    Ok((title, content_type, content_hash))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════

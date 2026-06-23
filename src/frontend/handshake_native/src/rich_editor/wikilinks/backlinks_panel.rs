@@ -21,6 +21,7 @@
 
 use egui::accesskit;
 
+use crate::interop::interaction_bus::InteractionBus;
 use crate::rich_editor::wikilinks::client::RichDocBacklink;
 use crate::rich_editor::wikilinks::inline_view::EditorEvent;
 use crate::rich_editor::wikilinks::runtime::{BacklinksState, WikilinkRuntime};
@@ -127,6 +128,26 @@ pub fn render_backlinks_panel(
     emit_node_author(ui.ctx(), resp.header_response.id, accesskit::Role::Group, PANEL_AUTHOR_ID);
 
     event
+}
+
+/// WP-KERNEL-012 MT-032 (E5 melt-together): route a clicked backlink to the shared cross-pane
+/// Open-Document command on the [`InteractionBus`] (AC-4). The MT-015 panel reports a clicked entry as
+/// [`EditorEvent::BacklinkActivated`]; this bridge stages the target `source_document_id` on the bus and
+/// dispatches [`crate::interop::interaction_bus::CMD_OPEN_DOCUMENT`], so the click fires the ONE named
+/// cross-pane navigation command (not a per-pane ad-hoc callback). Returns the document id dispatched
+/// for, or `None` for a non-backlink event. The caller must have run
+/// [`InteractionBus::register_open_document_command`] once (the open command is then always present).
+pub fn dispatch_backlink_open(
+    ctx: &egui::Context,
+    bus: &mut InteractionBus,
+    event: &EditorEvent,
+) -> Option<String> {
+    if let EditorEvent::BacklinkActivated { source_document_id } = event {
+        bus.open_document(ctx, source_document_id.clone());
+        Some(source_document_id.clone())
+    } else {
+        None
+    }
 }
 
 /// Emit a stable AccessKit author_id (+ role) onto an already-rendered node (same helper shape as the

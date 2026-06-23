@@ -160,6 +160,11 @@ pub struct CanvasPlacementCard {
     pub live_title: Option<String>,
     /// Live block content_type (muted subtitle). `None` when unresolved.
     pub live_content_type: Option<String>,
+    /// WP-KERNEL-012 MT-032 (E5 "everything is a Loom block"): the backend-computed content hash read
+    /// from the resolved `LoomBlock` (getLoomBlock carries `content_hash`). `None` when unresolved or
+    /// the backend block had no hash. Shown as a short suffix on the `loom://` chip; READ-ONLY (the
+    /// canvas never writes a hash — the backend computes it).
+    pub loom_content_hash: Option<String>,
 }
 
 impl CanvasPlacementCard {
@@ -184,7 +189,16 @@ impl CanvasPlacementCard {
             group_id: None,
             live_title: None,
             live_content_type: None,
+            loom_content_hash: None,
         }
+    }
+
+    /// The `loom://{workspace_id}/{placed_block_id}` address of the block this card references, when
+    /// `placed_block_id` is non-empty (MT-032). `None` for a placement with no block id (RISK-3: the
+    /// chip is then skipped — no panic, no fabricated `loom://` URI). `workspace_id` is the board's.
+    pub fn loom_addr(&self, workspace_id: &str) -> Option<crate::loom_address::LoomBlockAddr> {
+        let addr = crate::loom_address::LoomBlockAddr::new(workspace_id, &self.placed_block_id);
+        addr.is_addressable().then_some(addr)
     }
 
     /// The display title: the live block title, or `(stale reference)` when the referenced block could
@@ -775,9 +789,33 @@ impl LoomCanvasBoard {
             );
         }
 
+        // WP-KERNEL-012 MT-032 (E5 "everything is a Loom block"): a `loom://` chip in the card footer
+        // for any placement that maps to a real Loom block (RISK-3: skipped — no panic, no fabricated
+        // URI — when `placed_block_id` is empty). The chip shows the full loom:// address; a resolved
+        // content_hash adds a short ` #<8hex>` suffix (READ from the backend block, never written).
+        let chip_text = card.loom_addr(&self.workspace_id).map(|addr| {
+            let mut s = addr.to_uri();
+            if let Some(hash) = card.loom_content_hash.as_deref().filter(|h| !h.trim().is_empty()) {
+                let short = &hash[..hash.len().min(8)];
+                s.push_str(&format!(" #{short}"));
+            }
+            s
+        });
+        if let Some(chip) = &chip_text {
+            painter.text(
+                Pos2::new(screen_rect.left() + 8.0, screen_rect.bottom() - 16.0),
+                egui::Align2::LEFT_TOP,
+                chip,
+                egui::FontId::monospace(10.0),
+                palette.accent,
+            );
+        }
+
         // The card is an addressable Role::Group node (label = live title; group_id exposed as the
-        // description so the AccessKit `data-group-id` is readable — AC6 / AC9).
-        emit_placement_node(ui, card, &title);
+        // description so the AccessKit `data-group-id` is readable — AC6 / AC9). MT-032 also exposes the
+        // `loom://` chip text as the node's DESCRIPTION so an out-of-process agent reads the placement's
+        // loom address by stable id (HBR-SWARM); a non-addressable placement has no chip description.
+        emit_placement_node(ui, card, &title, chip_text.as_deref());
 
         // Remove button ('x') at the card's top-right.
         let remove_size = Vec2::splat(18.0);
@@ -881,8 +919,11 @@ fn emit_text_field_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &st
 
 /// Emit a placement card's AccessKit node: Role::Group, label = live title, DefaultAction = select,
 /// plus a `value` carrying the `group_id` (so the AccessKit `data-group-id` is readable — AC6). The
-/// card is painter-drawn (no egui widget), so it gets a stable `egui::Id` from its author_id.
-fn emit_placement_node(ui: &egui::Ui, card: &CanvasPlacementCard, label: &str) {
+/// card is painter-drawn (no egui widget), so it gets a stable `egui::Id` from its author_id. When the
+/// placement maps to a real Loom block (MT-032), its `loom://` chip text is exposed as the node's
+/// DESCRIPTION so an out-of-process agent reads the placement's loom address (HBR-SWARM); a
+/// non-addressable placement passes `None` and gets no description.
+fn emit_placement_node(ui: &egui::Ui, card: &CanvasPlacementCard, label: &str, loom_chip: Option<&str>) {
     let author = placement_author_id(&card.placement_id);
     let id = egui::Id::new(&author);
     let label = label.to_owned();
@@ -893,11 +934,15 @@ fn emit_placement_node(ui: &egui::Ui, card: &CanvasPlacementCard, label: &str) {
         Some(g) => format!("group_id={g}"),
         None => "group_id=none".to_owned(),
     };
+    let loom_chip = loom_chip.map(ToOwned::to_owned);
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::Group);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
         node.set_value(group_value.clone());
+        if let Some(chip) = &loom_chip {
+            node.set_description(chip.clone());
+        }
         node.add_action(accesskit::Action::Click);
     });
 }
@@ -945,6 +990,26 @@ mod tests {
 
     /// Origin used by the transform tests (the canvas rect's top-left).
     const ORIGIN: Vec2 = Vec2 { x: 12.0, y: 80.0 };
+
+    /// MT-032 AC-5: a placement with a real `placed_block_id` is addressable as a `loom://` block; the
+    /// chip uses the BOARD's workspace id + the placement's block id.
+    #[test]
+    fn placed_card_has_loom_addr_chip() {
+        let card = CanvasPlacementCard::new("p-1", "blk-7", 0.0, 0.0, 200.0, 120.0);
+        let addr = card.loom_addr("ws-9").expect("a placed block is addressable");
+        assert_eq!(addr.to_uri(), "loom://ws-9/blk-7");
+    }
+
+    /// MT-032 RISK-3: a placement with an EMPTY `placed_block_id` is NOT addressable -> no chip, no
+    /// fabricated loom:// URI, no panic.
+    #[test]
+    fn empty_placed_block_id_has_no_loom_chip() {
+        let card = CanvasPlacementCard::new("p-1", "", 0.0, 0.0, 200.0, 120.0);
+        assert_eq!(card.loom_addr("ws-9"), None, "no chip for an empty placed_block_id (RISK-3)");
+        // An empty workspace also yields no chip (the board has no workspace yet).
+        let card2 = CanvasPlacementCard::new("p-2", "blk-7", 0.0, 0.0, 200.0, 120.0);
+        assert_eq!(card2.loom_addr(""), None, "no chip without a workspace");
+    }
 
     fn board_with(n: usize) -> LoomCanvasBoard {
         let mut b = LoomCanvasBoard::new("ws-test", "canvas-1");

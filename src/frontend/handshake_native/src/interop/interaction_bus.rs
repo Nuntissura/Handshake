@@ -72,6 +72,11 @@ pub const CMD_SELECT_ALL: &str = "interop.select-all";
 pub const CMD_FIND: &str = "interop.find";
 /// Cross-pane Command-Palette command id (VS Code Ctrl+Shift+P).
 pub const CMD_COMMAND_PALETTE: &str = "interop.command-palette";
+/// WP-KERNEL-012 MT-032 (E5): cross-pane Open-Document command id. A backlink row / loom:// reference
+/// dispatches this with the target document id staged via [`InteractionBus::request_open_document`]; the
+/// shell drains [`InteractionBus::take_pending_navigation`] and routes the open. This is the
+/// melt-together navigation primitive the "everything is a Loom block" backlinks/refs ride on.
+pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
 
 // ── AccessKit author_ids for the cross-pane command surface (the contract's named ids) ───────────────
 /// AccessKit author_id for the command-palette trigger button (Role::Button).
@@ -301,6 +306,10 @@ pub struct InteractionBus {
     /// The existing shell event bus sender (cross-pane fan-out). `None` until the shell installs it via
     /// [`Self::set_event_sender`]; the bus never invents a second event system.
     event_sender: Option<ShellEventSender>,
+    /// WP-KERNEL-012 MT-032 (E5): the document id a cross-pane Open-Document request staged (from a
+    /// backlink row click / loom:// reference). The shell drains it via [`Self::take_pending_navigation`]
+    /// each frame and routes the open. `None` when no navigation is pending.
+    pending_navigation: Option<String>,
 }
 
 impl Default for InteractionBus {
@@ -320,6 +329,7 @@ impl InteractionBus {
             clipboard_cache: None,
             command_palette_open: false,
             event_sender: None,
+            pending_navigation: None,
         }
     }
 
@@ -506,6 +516,53 @@ impl InteractionBus {
     /// Close the command palette modal.
     pub fn close_command_palette(&mut self) {
         self.command_palette_open = false;
+    }
+
+    // ── Cross-pane Open-Document navigation (MT-032 melt-together) ─────────────────────────────────────
+
+    /// Stage a document id for a cross-pane open (called just before dispatching [`CMD_OPEN_DOCUMENT`],
+    /// e.g. from a backlink row click). The shell drains it next frame via [`Self::take_pending_navigation`].
+    pub fn request_open_document(&mut self, document_id: impl Into<String>) {
+        self.pending_navigation = Some(document_id.into());
+    }
+
+    /// The document id staged for a cross-pane open, WITHOUT consuming it (tests / peek).
+    pub fn pending_navigation(&self) -> Option<&str> {
+        self.pending_navigation.as_deref()
+    }
+
+    /// Take (and clear) the staged document id. The shell calls this each frame; `Some(id)` means route
+    /// an open to that document, `None` means nothing pending.
+    pub fn take_pending_navigation(&mut self) -> Option<String> {
+        self.pending_navigation.take()
+    }
+
+    /// Register the cross-pane Open-Document command (MT-032). Its handler is a no-op on the bus itself
+    /// (the navigation target was staged by [`Self::request_open_document`] BEFORE dispatch, and is
+    /// consumed by the shell drain) — the command exists so a backlink row / loom:// ref dispatches a
+    /// REAL, named, addressable cross-pane action rather than a per-pane ad-hoc callback. Idempotent
+    /// (last registration wins). Returns nothing; call once per surface that can open documents.
+    pub fn register_open_document_command(&mut self) {
+        // The handler requests a repaint so the staged navigation is drained on the next frame; the
+        // document id itself was staged by `request_open_document` before dispatch (a generic handler
+        // signature carries no payload — the stage-then-dispatch split is the contract point).
+        self.register_command(CommandDescriptor {
+            id: CMD_OPEN_DOCUMENT,
+            name: "OpenDocument",
+            label: "Open Document".to_owned(),
+            keywords: vec!["open".to_owned(), "document".to_owned(), "backlink".to_owned()],
+            keybind: None,
+            handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
+        });
+    }
+
+    /// Stage `document_id` and dispatch [`CMD_OPEN_DOCUMENT`] in one call (the backlink-row /
+    /// loom://-reference open path — AC-4). Returns `true` when the command was found and dispatched
+    /// (it always is once [`Self::register_open_document_command`] ran). The staged id is then readable
+    /// via [`Self::pending_navigation`] until the shell drains it.
+    pub fn open_document(&mut self, ctx: &egui::Context, document_id: impl Into<String>) -> bool {
+        self.request_open_document(document_id);
+        self.dispatch_command(ctx, CMD_OPEN_DOCUMENT)
     }
 }
 
@@ -712,6 +769,35 @@ mod tests {
             suffix.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
             "author_id suffix must be [A-Za-z0-9-]; got '{suffix}'"
         );
+    }
+
+    /// MT-032 AC-4: staging a document id + dispatching the Open-Document command stages the target on
+    /// the bus, where the shell drains it. A real, named, addressable cross-pane action — not a no-op.
+    #[test]
+    fn open_document_stages_navigation_target() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.register_open_document_command();
+        assert!(bus.commands().get(CMD_OPEN_DOCUMENT).is_some(), "open-document command registered");
+        assert!(bus.pending_navigation().is_none(), "nothing pending before");
+        // The backlink-row click path: stage + dispatch in one call.
+        assert!(bus.open_document(&ctx, "DOC-A"), "open-document dispatched");
+        assert_eq!(bus.pending_navigation(), Some("DOC-A"), "the staged target is observable");
+        // The shell drains it once.
+        assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-A"));
+        assert!(bus.take_pending_navigation().is_none(), "drained once, then empty");
+    }
+
+    /// Dispatching Open-Document WITHOUT registering it is a benign false (unknown id), not a panic.
+    #[test]
+    fn open_document_unregistered_is_benign() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        // request_open_document stages even without the command; dispatch returns false (unknown id).
+        bus.request_open_document("DOC-X");
+        assert!(!bus.dispatch_command(&ctx, CMD_OPEN_DOCUMENT), "unknown command id is a no-op false");
+        // The staged id still drains (the stage is independent of dispatch).
+        assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-X"));
     }
 
     /// The default keybinds match the contract's VS Code mapping.

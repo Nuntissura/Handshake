@@ -22,7 +22,7 @@ pub mod interaction_bus;
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
     CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COPY,
-    CMD_CUT, CMD_FIND, CMD_PASTE, CMD_SELECT_ALL, CMD_COMMAND_PALETTE,
+    CMD_CUT, CMD_FIND, CMD_OPEN_DOCUMENT, CMD_PASTE, CMD_SELECT_ALL, CMD_COMMAND_PALETTE,
     COMMAND_LIST_ITEM_AUTHOR_PREFIX, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
     COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };

@@ -24,6 +24,12 @@ pub mod installer;
 pub mod interop;
 pub mod layout_persistence;
 pub mod left_rail;
+// WP-KERNEL-012 MT-032 (E5): the "everything is a Loom block" addressing layer (LoomBlockAddr,
+// ContentHash, loom://, LoomBlockResolver). The MT contract also named a `backlink_panel` module, but
+// the KERNEL_BUILDER anti-overlap gate established the backlinks panel ALREADY EXISTS
+// (rich_editor/wikilinks/backlinks_panel.rs, MT-015) — MT-032 REUSES it rather than minting a third
+// duplicate, so no `backlink_panel` module is declared here.
+pub mod loom_address;
 pub mod loom_search_v2;
 pub mod mcp;
 pub mod module_switcher;
