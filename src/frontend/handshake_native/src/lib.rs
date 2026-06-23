@@ -22,6 +22,7 @@ pub mod event_bus;
 pub mod installer;
 pub mod layout_persistence;
 pub mod left_rail;
+pub mod loom_search_v2;
 pub mod mcp;
 pub mod module_switcher;
 pub mod pane_header;

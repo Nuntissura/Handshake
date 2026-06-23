@@ -3900,6 +3900,249 @@ async fn post_json(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-028 LoomSearchV2 client: the VERIFIED hybrid-search + save-as-view surface.
+//
+// Verified READ-ONLY against `src/backend/handshake_core/src/{api,storage}/loom.rs` (the MT-022..027
+// lesson — bind only confirmed shapes; do NOT guess a route):
+//   - POST /workspaces/:ws/loom/search-v2  (api/loom.rs route table line 294 + handler `loom_search_v2`)
+//       body  `LoomSearchV2Body {query, content_type?, tag_ids?, graph_boost, limit, offset?}`
+//       reply `LoomSearchV2Response {hits:[LoomSearchV2Hit{block,score,fts_rank,trgm_sim,vector_sim,
+//              edge_degree,highlight}], content_type_facets: {ct->count}, semantic_available, total}`
+//       (storage/loom.rs 637-712; LoomBlockContentType serializes `snake_case`, e.g. `tag_hub`).
+//   - SAVE-AS-VIEW reuses the MT-027 VERIFIED createBlockView route:
+//       POST /workspaces/:ws/loom/views/definitions  body `{title, definition}` -> `{block:{block_id}}`
+//     The MT-028 contract's bare `/loom/views` is STALE (RISK-3 / MC-3); MT-027 proved the real route is
+//     `/loom/views/definitions` and the body is `{title, definition}` (NOT `{kind, query, columns}` at
+//     top level — the React `createBlockView(ws, definition, {title})` flattens to the SAME wire shape).
+//     The save-as-view `definition` carries `{kind:"table", query:{content_type?}, columns:[...]}`.
+//
+// Mirrors the `BlockViewClient` shape: pure `*_request` builders return a [`RequestSpec`] (unit-testable
+// WITHOUT a backend), and the off-thread methods deliver into `Arc<Mutex<Option<..>>>` cells the egui UI
+// drains next frame (HBR-QUIET: the search HTTP call is NEVER on the UI thread). The deserialized result
+// types are local serde structs whose field names match the snake_case backend JSON EXACTLY (RISK-6: a
+// rename would silently null a field), modelling only the fields the panel displays.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A Loom block REFERENCE returned in a search hit (open-in-place, never a content copy). Only the
+/// display fields the panel renders are modelled; the backend `LoomBlock` carries more (workspace_id,
+/// timestamps, derived counts) that the search surface does not need. `content_type` is a plain
+/// `String` (the backend serializes the `LoomBlockContentType` enum as a `snake_case` string, e.g.
+/// `"note"`, `"tag_hub"`), so the native struct never re-encodes the enum and an unknown future
+/// content_type degrades to its raw string instead of a deserialize error.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct LoomSearchBlock {
+    pub block_id: String,
+    pub content_type: String,
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+impl LoomSearchBlock {
+    /// The display title: the block's own `title`, or the `block_id` as a fallback (the React parity
+    /// reference renders `hit.block.title ?? hit.block.block_id`).
+    pub fn display_title(&self) -> &str {
+        self.title.as_deref().filter(|t| !t.is_empty()).unwrap_or(&self.block_id)
+    }
+}
+
+/// One hybrid-search hit. Field names match the backend `storage::LoomSearchV2Hit` snake_case JSON
+/// EXACTLY. The per-modality sub-scores (fts_rank/trgm_sim/vector_sim/edge_degree) are retained so a
+/// later MT or test can prove which modality matched; the panel itself renders `score` + `highlight`.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct LoomSearchV2Hit {
+    pub block: LoomSearchBlock,
+    pub score: f64,
+    #[serde(default)]
+    pub fts_rank: f64,
+    #[serde(default)]
+    pub trgm_sim: f64,
+    #[serde(default)]
+    pub vector_sim: f64,
+    #[serde(default)]
+    pub edge_degree: i64,
+    /// ts_headline highlight with literal `<mark>…</mark>` markers; rendered as colored runs (NOT raw
+    /// HTML) by [`crate::loom_search_v2::parse_highlight_segments`].
+    #[serde(default)]
+    pub highlight: String,
+}
+
+/// A faceted, ranked LoomSearchV2 result set. Field names match the backend `storage::LoomSearchV2Response`
+/// snake_case JSON EXACTLY. `content_type_facets` keeps the backend's `BTreeMap<String,i64>` shape so the
+/// facet order is deterministic before the panel re-sorts by count.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct LoomSearchV2Response {
+    pub hits: Vec<LoomSearchV2Hit>,
+    #[serde(default)]
+    pub content_type_facets: std::collections::BTreeMap<String, i64>,
+    /// `true` => the semantic (pgvector kNN) modality contributed; `false` => typed keyword/trigram
+    /// fallback (no embedding model configured). The status line reads this to show `(semantic on)`
+    /// vs `(keyword/fuzzy only)` HONESTLY (RISK-7: never claim semantic when it is off).
+    #[serde(default)]
+    pub semantic_available: bool,
+    #[serde(default)]
+    pub total: i64,
+}
+
+/// The request body for `POST /loom/search-v2`. Matches the backend `LoomSearchV2Body` (snake_case).
+/// `graph_boost` is always `1.0` and `limit` `25` for the MT-028 baseline (the React parity reference
+/// sends exactly these); `content_type` is the active facet filter (omitted via `skip_serializing_if`
+/// when `None`, exactly as the backend's `#[serde(default)] Option` accepts).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct LoomSearchV2Body {
+    pub query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    pub graph_boost: f64,
+    pub limit: u32,
+}
+
+impl LoomSearchV2Body {
+    /// The MT-028 baseline body: graph_boost 1.0, limit 25 (the React parity defaults), with the active
+    /// facet (if any) as the `content_type` filter.
+    pub fn baseline(query: impl Into<String>, content_type: Option<String>) -> Self {
+        Self {
+            query: query.into(),
+            content_type,
+            graph_boost: 1.0,
+            limit: 25,
+        }
+    }
+}
+
+/// One-slot delivery cell for an off-thread LoomSearchV2 result (the egui UI drains it next frame).
+pub type LoomSearchCell = Arc<Mutex<Option<Result<LoomSearchV2Response, String>>>>;
+
+/// One-slot delivery cell for an off-thread save-as-view result. `Ok(block_id)` is the NEW view block
+/// id (shown in the panel's view-status label); `Err(msg)` the failure string.
+pub type SaveViewCell = Arc<Mutex<Option<Result<String, String>>>>;
+
+/// REST client for the VERIFIED MT-264 LoomSearchV2 surface: the hybrid search POST and the save-results
+/// -as-view POST (reusing the MT-027 createBlockView route). Drives both off the UI thread, delivering
+/// into the delivery cells the egui panel drains. Speaks `serde_json` so it never depends on the
+/// `handshake_core` crate.
+#[derive(Clone)]
+pub struct LoomSearchV2Client {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl LoomSearchV2Client {
+    /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn search_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/search-v2", self.base_url, workspace_id)
+    }
+
+    fn views_definitions_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/views/definitions", self.base_url, workspace_id)
+    }
+
+    /// Pure request builder for `POST .../loom/search-v2`. The VERIFIED body is the snake_case
+    /// `LoomSearchV2Body`; asserting it proves the production request construction (the spawn path below
+    /// routes through this SAME builder) without a live backend.
+    pub fn search_request(&self, workspace_id: &str, body: &LoomSearchV2Body) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.search_url(workspace_id),
+            body: Some(serde_json::to_value(body).unwrap_or_default()),
+        }
+    }
+
+    /// Pure request builder for the save-as-view `POST .../loom/views/definitions` (createBlockView).
+    /// The VERIFIED body is `{title, definition}` where `definition = {kind:"table", query, columns}`
+    /// (MT-027's proven shape; the MT-028 contract's bare `/loom/views` is stale). `active_content_type`
+    /// becomes the saved view's `query.content_type` filter (omitted when `None`).
+    pub fn save_view_request(
+        &self,
+        workspace_id: &str,
+        query_text: &str,
+        active_content_type: Option<&str>,
+    ) -> RequestSpec {
+        let query = match active_content_type {
+            Some(ct) => serde_json::json!({ "content_type": ct }),
+            None => serde_json::json!({}),
+        };
+        let definition = serde_json::json!({
+            "kind": "table",
+            "query": query,
+            "columns": ["title", "content_type", "updated"],
+        });
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.views_definitions_url(workspace_id),
+            body: Some(serde_json::json!({
+                "title": format!("Search: {}", query_text.trim()),
+                "definition": definition,
+            })),
+        }
+    }
+
+    /// Run the hybrid search (POST) off the UI thread, delivering the parsed [`LoomSearchV2Response`]
+    /// into `cell`. The egui UI thread returns immediately; the spawned tokio task does the network I/O
+    /// and writes the result, which the UI drains next frame (HBR-QUIET — no UI-thread network block).
+    pub fn search(&self, workspace_id: &str, body: &LoomSearchV2Body, cell: LoomSearchCell) {
+        let spec = self.search_request(workspace_id, body);
+        let req_body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        let url = spec.url;
+        self.runtime.spawn(async move {
+            let result = post_loom_search_v2(&client, &url, &req_body)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Create the saved view (POST) off the UI thread, delivering the NEW view block id into `cell`.
+    pub fn save_view(
+        &self,
+        workspace_id: &str,
+        query_text: &str,
+        active_content_type: Option<&str>,
+        cell: SaveViewCell,
+    ) {
+        let spec = self.save_view_request(workspace_id, query_text, active_content_type);
+        let req_body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        let url = spec.url;
+        self.runtime.spawn(async move {
+            let result = post_create_block_view(&client, &url, &req_body)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+/// `POST {url}` (LoomSearchV2 body) and parse the verified [`LoomSearchV2Response`]. A non-success
+/// status or a parse failure is an [`AppError`] (NEVER a panic; the panel shows the error string).
+async fn post_loom_search_v2(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<LoomSearchV2Response, AppError> {
+    let v = post_json(client, url, body).await?;
+    serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

@@ -97,6 +97,16 @@ pub struct HsPalette {
     /// `Color32` of its own (CONTROL-4 no-hardcode invariant; the architecture-guard test scans every
     /// widget `.rs` for `Color32::from_rgb(` and allows it only in palette.rs/syntax.rs).
     pub graph_canvas: Color32,
+    /// Background fill for a `<mark>…</mark>` search-highlight run in the LoomSearchV2 results
+    /// (WP-KERNEL-012 MT-028). Ported from the React parity reference's `<mark>` amber
+    /// (`rgb(255, 214, 0)`). Defined HERE (a sanctioned `Color32` home) rather than in
+    /// `loom_search_v2.rs` because the no-hardcoded-color guard (`tests/test_theme.rs`
+    /// `no_hardcoded_color32_outside_theme_module`) flags `Color32::from_rgb(` outside
+    /// palette.rs/syntax.rs (the MT-028 THEME-GUARD correction). The highlight text run reads this
+    /// token for its `TextFormat::background`, so the panel widget holds no color literal. Identical
+    /// across themes: the amber reads against both the light and dark result-row surfaces, matching the
+    /// React surface's single `<mark>` colour.
+    pub search_highlight_bg: Color32,
 }
 
 impl HsPalette {
@@ -136,6 +146,8 @@ impl HsPalette {
                 Color32::from_rgb(0x25, 0x63, 0xeb),
                 HsDiagnosticTokens::light().breakpoint,
             ),
+            // <mark> search-highlight amber (MT-028), ported from the React `<mark>` rgb(255,214,0).
+            search_highlight_bg: Color32::from_rgb(255, 214, 0),
         }
     }
 
@@ -181,6 +193,9 @@ impl HsPalette {
                 Color32::from_rgb(0x22, 0xc5, 0x5e),
                 HsDiagnosticTokens::dark().breakpoint,
             ),
+            // <mark> search-highlight amber (MT-028), ported from the React `<mark>` rgb(255,214,0).
+            // Identical to light: the amber reads against both result-row surfaces (React parity).
+            search_highlight_bg: Color32::from_rgb(255, 214, 0),
         }
     }
 
@@ -218,6 +233,7 @@ impl HsPalette {
                 "scrollbar_grab" => self.scrollbar_grab = color,
                 "scrollbar_disabled" => self.scrollbar_disabled = color,
                 "graph_canvas" => self.graph_canvas = color,
+                "search_highlight_bg" => self.search_highlight_bg = color,
                 _ => {} // unknown key: silently ignored
             }
         }

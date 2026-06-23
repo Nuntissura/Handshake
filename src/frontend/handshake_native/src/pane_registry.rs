@@ -53,6 +53,8 @@ pub enum PaneType {
     FontManager,
     FlightRecorder,
     VisualDebugger,
+    /// WP-KERNEL-012 MT-028: the native LoomSearchV2 hybrid-search surface (E4 Search).
+    LoomSearchV2,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -81,6 +83,7 @@ impl PaneType {
             PaneType::FontManager => "Font Manager".to_owned(),
             PaneType::FlightRecorder => "Flight Recorder".to_owned(),
             PaneType::VisualDebugger => "Visual Debugger".to_owned(),
+            PaneType::LoomSearchV2 => "Loom Search".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -112,6 +115,7 @@ impl PaneType {
             PaneType::LoomWikiPage => "Wiki Page",
             PaneType::AtelierEditor => "Atelier",
             PaneType::VisualDebugger => "Visual Debugger",
+            PaneType::LoomSearchV2 => "Loom Search",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }

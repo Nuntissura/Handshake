@@ -423,6 +423,9 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::LoomWikiPage => "loom-wiki-page",
         PaneType::AtelierEditor => "atelier",
         PaneType::VisualDebugger => "visual-debugger",
+        // WP-KERNEL-012 MT-028: the native LoomSearchV2 surface (no React PaneTabId — it is a
+        // KERNEL-012 native addition, not part of the React MODULE_DEFINITIONS tab list).
+        PaneType::LoomSearchV2 => "loom-search-v2",
         // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
         PaneType::Placeholder(_) => "placeholder",
     }

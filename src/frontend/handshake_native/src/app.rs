@@ -522,6 +522,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
         PaneType::FontManager,
         PaneType::FlightRecorder,
         PaneType::VisualDebugger,
+        PaneType::LoomSearchV2,
         PaneType::Placeholder(String::new()),
     ];
     let mut map: HashMap<PaneType, Box<dyn PaneFactory>> = HashMap::new();
