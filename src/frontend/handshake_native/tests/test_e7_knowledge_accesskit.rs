@@ -168,16 +168,26 @@ struct FoundNode {
     node_id: egui::accesskit::NodeId,
     role: String,
     value: Option<String>,
+    /// The node's custom-action capability descriptions (e.g. a canvas card's `delete` — AC-042-03).
+    custom_actions: Vec<String>,
 }
 
 fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode> {
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
+            // The consumer wrapper proxies to the raw NodeData via `data()`; custom_actions live there.
+            let custom_actions = ak
+                .data()
+                .custom_actions()
+                .iter()
+                .map(|c| c.description.to_string())
+                .collect();
             return Some(FoundNode {
                 node_id: ak.id(),
                 role: format!("{:?}", ak.role()),
                 value: ak.value().map(|v| v.to_owned()),
+                custom_actions,
             });
         }
     }
@@ -212,6 +222,16 @@ fn click_event(node_id: egui::accesskit::NodeId, payload: Option<&str>) -> egui:
         action: egui::accesskit::Action::Click,
         target: node_id,
         data: payload.map(|p| egui::accesskit::ActionData::Value(p.to_owned().into_boxed_str())),
+    })
+}
+
+/// Build a CustomAction AccessKit request targeting `node_id` with capability index `custom_id` (the
+/// AC-042-03 card `delete` path — the swarm dispatches the node's i-th declared custom action).
+fn custom_action_event(node_id: egui::accesskit::NodeId, custom_id: i32) -> egui::Event {
+    egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+        action: egui::accesskit::Action::CustomAction,
+        target: node_id,
+        data: Some(egui::accesskit::ActionData::CustomAction(custom_id)),
     })
 }
 
@@ -356,6 +376,14 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
             found.value.as_deref().map(|v| v.contains("block_id=")).unwrap_or(false),
             "AC-042-03/IN-042-02: '{author}' value must carry block_id=; got {:?}",
             found.value
+        );
+        // AC-042-03: the card declares 'delete' (a real AccessKit custom action). 'activate' (Click) is
+        // structurally guaranteed by the registry emit (every node adds Action::Click) and proven by the
+        // dispatch tests; here we assert the delete capability is genuinely declared on the live node.
+        assert!(
+            found.custom_actions.iter().any(|a| a == "delete"),
+            "AC-042-03: '{author}' must declare a 'delete' action; got {:?}",
+            found.custom_actions
         );
     }
     drop(canvas);
@@ -517,6 +545,31 @@ fn ac05_dispatch_canvas_place_block_emits_place_and_new_card() {
         "PROOF-042-C: a new 'canvas.card.<new_placement_id>' node appears after the place + refresh"
     );
     println!("AC-042-05 + PROOF-042-C: place-block dispatch emitted PlaceBlock (route shape) + the new canvas.card node appeared after refresh");
+}
+
+// ── AC-042-03 (dispatch): a `delete` custom action on a card -> RemovePlacement for that placement ──
+
+#[test]
+fn ac03_dispatch_card_delete_emits_remove_placement() {
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+
+    let placement_id = h.canvas.lock().unwrap().placements[0].placement_id.clone();
+    let author = canvas_card_author_id(&placement_id);
+    let card = find_node(&h.harness.root(), &author).expect("card node present");
+    // The card declares exactly one custom action ('delete') at index 0.
+    assert_eq!(card.custom_actions, vec!["delete".to_owned()], "card declares the delete custom action");
+    h.harness.event(custom_action_event(card.node_id, 0));
+    h.harness.run();
+    h.harness.run();
+
+    let events = h.canvas_events.lock().unwrap();
+    assert!(
+        events.iter().any(|e| matches!(e, CanvasEvent::RemovePlacement { placement_id: p } if p == &placement_id)),
+        "AC-042-03: the card's delete custom action emitted RemovePlacement for that placement; got {events:?}"
+    );
+    println!("AC-042-03 (dispatch): card delete custom action emitted RemovePlacement");
 }
 
 // ── AC-042-06: dispatch collection.kanban-move {block_id,from,to} -> CardMove with the tag-edge shape ─

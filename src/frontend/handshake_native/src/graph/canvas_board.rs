@@ -827,9 +827,24 @@ impl LoomCanvasBoard {
         }
         for card in &self.placements {
             let author = knowledge_action_registry::canvas_card_author_id(&card.placement_id);
-            let value = Some(format!("block_id={};group_id={}", card.placed_block_id,
-                card.group_id.as_deref().unwrap_or("none")));
-            reg.upsert_identity(author, KAxRole::Group, card.display_title().to_owned(), value, KnowledgeNodeState::present());
+            // AC-042-03: the card carries its source block_id (IN-042-02) + advertises the delete route so
+            // a swarm reads how to delete this exact placement.
+            let value = Some(format!(
+                "block_id={};group_id={};delete=canvas.remove-placement",
+                card.placed_block_id,
+                card.group_id.as_deref().unwrap_or("none")
+            ));
+            // AC-042-03: a card declares BOTH 'activate' (Click) AND 'delete' (a real AccessKit custom
+            // action on the node), so the swarm-readable action set on canvas.card.<id> is {Click, Focus,
+            // delete}. A 'delete' custom-action dispatch on the card maps to RemovePlacement.
+            reg.upsert_identity_with_actions(
+                author,
+                KAxRole::Group,
+                card.display_title().to_owned(),
+                value,
+                &["delete"],
+                KnowledgeNodeState::present(),
+            );
         }
     }
 
@@ -939,6 +954,18 @@ impl LoomCanvasBoard {
                     self.selected.insert(p.placement_id);
                 }
                 None
+            }
+            // AC-042-03: a `delete` custom-action dispatch on a card -> RemovePlacement for that card.
+            other if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
+                && other.ends_with("#delete") =>
+            {
+                let sanitized = other
+                    .trim_start_matches(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
+                    .trim_end_matches("#delete");
+                self.placements
+                    .iter()
+                    .find(|c| crate::project_tree::stable_part(&c.placement_id) == sanitized)
+                    .map(|c| CanvasEvent::RemovePlacement { placement_id: c.placement_id.clone() })
             }
             other => {
                 // A per-identity `canvas.card.<sanitized_placement_id>` click -> select that card.

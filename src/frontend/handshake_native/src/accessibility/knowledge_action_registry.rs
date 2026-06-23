@@ -368,6 +368,27 @@ impl KnowledgeActionRegistry {
         );
     }
 
+    /// Register a per-identity node declaring EXTRA contract actions beyond `["Click","Focus"]`. Used by
+    /// the canvas card, which AC-042-03 requires to declare both `activate` (Click) and `delete`: the
+    /// `delete` is a discoverable, swarm-readable capability on the card node itself, dispatched (via
+    /// `canvas.remove-placement {placement_id}`) by a swarm agent that read it on the card. The extra
+    /// action strings are debug-name capability labels (e.g. `"delete"`) a swarm reads from the node's
+    /// declared action set — they are NOT egui Action variants, so they are advertised here and routed
+    /// by the pane, never silently no-op.
+    pub fn upsert_identity_with_actions(
+        &mut self,
+        author_id: impl Into<String>,
+        role: AxRole,
+        label: impl Into<String>,
+        value: Option<String>,
+        extra_actions: &[&str],
+        state: KnowledgeNodeState,
+    ) {
+        let mut actions = vec!["Click".to_owned(), "Focus".to_owned()];
+        actions.extend(extra_actions.iter().map(|a| (*a).to_owned()));
+        self.upsert(author_id, role, label, value, actions, state);
+    }
+
     /// Look up a node by its canonical author_id.
     pub fn node(&self, author_id: &str) -> Option<&KnowledgeActionNode> {
         self.nodes.get(author_id)
@@ -468,6 +489,17 @@ impl KnowledgeActionRegistry {
             let label = node.label.clone();
             let value = node.value.clone();
             let enabled = node.state.enabled;
+            // Extra contract capabilities beyond Click/Focus (e.g. a canvas card's `delete` — AC-042-03)
+            // are surfaced as real AccessKit CUSTOM actions so a swarm agent genuinely READS them on the
+            // node (not a faked string): each gets a stable id (its index) + the capability name as the
+            // description. The pane routes a custom-action dispatch to the matching event.
+            let custom: Vec<accesskit::CustomAction> = node
+                .actions
+                .iter()
+                .filter(|a| a.as_str() != "Click" && a.as_str() != "Focus")
+                .enumerate()
+                .map(|(i, name)| accesskit::CustomAction { id: i as i32, description: name.clone().into() })
+                .collect();
             ctx.accesskit_node_builder(node.egui_id(), move |n| {
                 n.set_role(role);
                 n.set_author_id(author_id.clone());
@@ -480,6 +512,11 @@ impl KnowledgeActionRegistry {
                 // request's `ActionData::Value` payload (IN-042-04); the action itself is still Click.
                 n.add_action(accesskit::Action::Click);
                 n.add_action(accesskit::Action::Focus);
+                if !custom.is_empty() {
+                    // Declare the CustomAction capability set + the CustomAction action so a swarm sees it.
+                    n.add_action(accesskit::Action::CustomAction);
+                    n.set_custom_actions(custom.clone());
+                }
                 if !enabled {
                     n.set_disabled();
                 }
@@ -517,6 +554,25 @@ impl KnowledgeActionRegistry {
                 }
                 if clicked {
                     activated.push((node.author_id.clone(), payload));
+                }
+                // CustomAction dispatch (AC-042-03 card `delete`): a swarm CustomAction request carries the
+                // capability index in `ActionData::CustomAction(i)`; map it back to the node's extra-action
+                // name (the i-th non-Click/Focus action) and surface it as a synthetic
+                // `<author_id>#<capability>` dispatch the pane routes (e.g. a card delete -> RemovePlacement).
+                let extras: Vec<&str> = node
+                    .actions
+                    .iter()
+                    .filter(|a| a.as_str() != "Click" && a.as_str() != "Focus")
+                    .map(|a| a.as_str())
+                    .collect();
+                if !extras.is_empty() {
+                    for request in input.accesskit_action_requests(id, accesskit::Action::CustomAction) {
+                        if let Some(accesskit::ActionData::CustomAction(i)) = &request.data {
+                            if let Some(name) = extras.get(*i as usize) {
+                                activated.push((format!("{}#{name}", node.author_id), None));
+                            }
+                        }
+                    }
                 }
             }
         });
