@@ -4143,6 +4143,547 @@ async fn post_loom_search_v2(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-029 Find-in-Files + Replace-in-Files transport (E4 Search).
+//
+// Three clients drive the native WorkspaceSearchPanel port, each binding a backend route VERIFIED
+// READ-ONLY against the running `src/backend/handshake_core` + the React reference (api.ts / loom.rs /
+// workspaces.rs / knowledge_documents.rs), NOT the MT-029 contract body (whose route names were partly
+// stale — the recurring backend-shape lesson):
+//
+//   - SEARCH binds `GET /workspaces/{ws}/loom/graph-search` (handler `search_loom_graph` ->
+//     `Vec<LoomGraphSearchResult>` carrying source_kind/result_kind/ref_id/title/excerpt/metadata/block).
+//     This is what the React `searchLoomGraph()` actually calls (api.ts:1320-1341) — NOT the plain
+//     `/loom/search` (handler `search_loom_blocks` -> `Vec<{block,score}>` with NO source_kind/ref_id,
+//     so it cannot satisfy documentIdFromHit). Verified params (loom.rs `LoomSearchQueryParams` +
+//     api.test.ts:771): q, source_kinds (comma-joined), tag_ids, mention_ids, case_sensitive,
+//     whole_word, `regex` (NOT isRegex), path, limit (server-capped at 500), offset.
+//   - BOOKMARKS bind `GET/PUT /workspaces/{ws}/search-bookmarks` (api/workspaces.rs:61-62,806-869). GET
+//     returns `{workspace_id, bookmark_state:Option<Value>, ..}`; PUT body is `{bookmark_state:Value}`.
+//     The bookmark blob (carried INSIDE bookmark_state) is `{schema_id:"hsk.workspace_search_bookmark_
+//     state@1", bookmarks:[..]}` — the schema_id lives in the blob (RISK-6).
+//   - RICH-DOC load binds `GET /knowledge/documents/{id}` -> `{document:{rich_document_id,doc_version,
+//     title,content_json,crdt_document_id,..}, tree, code_nodes}`; save binds `PUT /knowledge/documents/
+//     {id}/save` `{expected_version, content_json}` -> `{document:{doc_version,..}, save_receipt_event_id}`;
+//     409 = optimistic-concurrency conflict (the MT-017/020 VERIFIED routes — NOT the contract's
+//     /knowledge/rich-documents PATCH). The four `x-hsk-*` document identity headers are REQUIRED (a
+//     missing one is a hard 400 / read-only 403), reusing the canonical DOC_* constants above.
+//
+// All follow the MT-020/028 off-thread shape: spawn on the app runtime, deliver into an
+// `Arc<Mutex<Option<..>>>` cell the egui UI drains next frame (HBR-QUIET). Speaks `serde_json::Value`
+// so it never depends on the `handshake_core` crate types.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// One graph-search hit, the native projection of the backend `LoomGraphSearchResult`. Field names
+/// match the snake_case JSON EXACTLY. `metadata`/`block` are raw `serde_json::Value` so the
+/// documentId-from-hit logic can read whatever keys the backend attaches without coupling to a schema.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct LoomGraphSearchHit {
+    pub source_kind: String,
+    pub result_kind: String,
+    pub ref_id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub excerpt: String,
+    #[serde(default)]
+    pub metadata: serde_json::Value,
+    #[serde(default)]
+    pub block: Option<serde_json::Value>,
+}
+
+/// One-slot delivery cell for an off-thread paginated search: `Ok((hits, result_set_key))` carries the
+/// fully-paginated hit set tagged with the search-plan key it was fetched under (the stale-result
+/// guard); `Err(msg)` the failure.
+pub type GraphSearchCell = Arc<Mutex<Option<Result<(Vec<LoomGraphSearchHit>, String), String>>>>;
+
+/// One-slot delivery cell for an off-thread bookmark op: `Ok((bookmark_state_blob, status?))` carries
+/// the saved/loaded `bookmark_state` blob (re-parsed by the panel) and an optional status string;
+/// `Err(msg)` the failure.
+pub type BookmarkStateCell = Arc<Mutex<Option<Result<(serde_json::Value, Option<String>), String>>>>;
+
+/// The match options the search transport forwards as query params (a copy of the panel's toggles, kept
+/// here so backend_client does not depend on the find_in_files module).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SearchMatchOptions {
+    pub case_sensitive: bool,
+    pub whole_word: bool,
+    pub is_regex: bool,
+}
+
+/// The page size for the paginated workspace search (the React `SEARCH_PAGE_SIZE`). The backend caps a
+/// single page at 500, so requesting 500 and looping until a short page is the find-all contract.
+pub const SEARCH_PAGE_SIZE: u32 = 500;
+
+/// REST client for the VERIFIED workspace search + search-bookmark surfaces the MT-029 Find-in-Files
+/// panel binds: `GET /loom/graph-search` (paginated) and `GET/PUT /search-bookmarks`.
+#[derive(Clone)]
+pub struct WorkspaceSearchClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl WorkspaceSearchClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn graph_search_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/loom/graph-search", self.base_url, workspace_id)
+    }
+
+    fn bookmarks_url(&self, workspace_id: &str) -> String {
+        format!("{}/workspaces/{}/search-bookmarks", self.base_url, workspace_id)
+    }
+
+    /// Build the query params for ONE search page (the VERIFIED `LoomSearchQueryParams` names; note the
+    /// regex param is `regex`, NOT `isRegex`). `source_kind` is omitted for the All filter (AC-4); empty
+    /// tag/path filters are omitted. Split out so a unit test asserts the EXACT wire params without a
+    /// backend (the spawn path routes through this same builder).
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_page_query(
+        &self,
+        query: &str,
+        source_kind: Option<&str>,
+        tag_filter: &str,
+        path_filter: &str,
+        opts: SearchMatchOptions,
+        offset: u32,
+    ) -> Vec<(String, String)> {
+        let mut params: Vec<(String, String)> = vec![
+            ("q".to_owned(), query.to_owned()),
+            ("limit".to_owned(), SEARCH_PAGE_SIZE.to_string()),
+            ("offset".to_owned(), offset.to_string()),
+        ];
+        if let Some(sk) = source_kind {
+            params.push(("source_kinds".to_owned(), sk.to_owned()));
+        }
+        let tags: Vec<&str> = tag_filter.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+        if !tags.is_empty() {
+            params.push(("tag_ids".to_owned(), tags.join(",")));
+        }
+        if !path_filter.trim().is_empty() {
+            params.push(("path".to_owned(), path_filter.trim().to_owned()));
+        }
+        if opts.case_sensitive {
+            params.push(("case_sensitive".to_owned(), "true".to_owned()));
+        }
+        if opts.whole_word {
+            params.push(("whole_word".to_owned(), "true".to_owned()));
+        }
+        if opts.is_regex {
+            params.push(("regex".to_owned(), "true".to_owned()));
+        }
+        params
+    }
+
+    /// Run the paginated workspace search off the UI thread, delivering `(all_hits, result_set_key)`
+    /// into `cell`. Loops `offset += 500` until a page returns `< 500` hits (the find-all contract), so
+    /// a large workspace returns the WHOLE result set (the React pagination — a partial first page would
+    /// silently truncate replace-all, RISK-7).
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_paginated(
+        &self,
+        workspace_id: &str,
+        query: &str,
+        source_kind: Option<&str>,
+        tag_filter: &str,
+        path_filter: &str,
+        opts: SearchMatchOptions,
+        result_set_key: String,
+        cell: GraphSearchCell,
+    ) {
+        let url = self.graph_search_url(workspace_id);
+        let client = self.client.clone();
+        let query = query.to_owned();
+        let source_kind = source_kind.map(str::to_owned);
+        let tag_filter = tag_filter.to_owned();
+        let path_filter = path_filter.to_owned();
+        let this = self.clone();
+        self.runtime.spawn(async move {
+            let mut all: Vec<LoomGraphSearchHit> = Vec::new();
+            let mut offset = 0u32;
+            let result = loop {
+                let params = this.search_page_query(
+                    &query,
+                    source_kind.as_deref(),
+                    &tag_filter,
+                    &path_filter,
+                    opts,
+                    offset,
+                );
+                match get_json(&client, &url, &params).await {
+                    Ok(v) => {
+                        let page: Vec<LoomGraphSearchHit> = match v.as_array() {
+                            Some(arr) => arr
+                                .iter()
+                                .filter_map(|h| serde_json::from_value(h.clone()).ok())
+                                .collect(),
+                            None => Vec::new(),
+                        };
+                        let page_len = page.len();
+                        all.extend(page);
+                        if page_len < SEARCH_PAGE_SIZE as usize {
+                            break Ok((all, result_set_key));
+                        }
+                        offset += SEARCH_PAGE_SIZE;
+                    }
+                    Err(e) => break Err(e.to_string()),
+                }
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Load the saved-search bookmark state off the UI thread, delivering `(bookmark_state_blob, None)`
+    /// into `cell`. An absent `bookmark_state` (no bookmarks saved yet) yields an empty blob, never an
+    /// error.
+    pub fn load_bookmarks(&self, workspace_id: &str, cell: BookmarkStateCell) {
+        let url = self.bookmarks_url(workspace_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &url, &[])
+                .await
+                .map(|v| {
+                    let blob = v
+                        .get("bookmark_state")
+                        .filter(|b| !b.is_null())
+                        .cloned()
+                        .unwrap_or_else(|| serde_json::json!({}));
+                    (blob, None)
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Build the bookmark-save request (`PUT /search-bookmarks` with `{bookmark_state: <blob>}`). Split
+    /// out so a unit test asserts the EXACT wrapper without a backend.
+    pub fn save_bookmarks_request(&self, workspace_id: &str, bookmark_state: serde_json::Value) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Put,
+            url: self.bookmarks_url(workspace_id),
+            body: Some(serde_json::json!({ "bookmark_state": bookmark_state })),
+        }
+    }
+
+    /// Save the bookmark state off the UI thread, delivering `(saved_blob, Some(status))` into `cell`.
+    /// The saved blob is re-read from the PUT response's `bookmark_state` so the panel renders the
+    /// canonical persisted list (not the optimistic local copy).
+    pub fn save_bookmarks(
+        &self,
+        workspace_id: &str,
+        bookmark_state: serde_json::Value,
+        status: String,
+        cell: BookmarkStateCell,
+    ) {
+        let spec = self.save_bookmarks_request(workspace_id, bookmark_state.clone());
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = put_json(&client, &spec.url, &body)
+                .await
+                .map(|v| {
+                    let blob = v
+                        .get("bookmark_state")
+                        .filter(|b| !b.is_null())
+                        .cloned()
+                        .unwrap_or(bookmark_state);
+                    (blob, Some(status))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+/// `PUT {url}` with a JSON body, returning the parsed response body. A non-success status or parse
+/// failure is an [`AppError`]. Mirrors [`post_json`] for the bookmark-save path.
+async fn put_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .put(url)
+        .timeout(Duration::from_secs(10))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!("PUT non-success status {}", resp.status())));
+    }
+    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-029 rich-document load + save transport for the replace pipeline. Reuses the MT-020 VERIFIED
+// `/knowledge/documents/{id}` + `/save` routes + the four required identity headers. The preview +
+// apply orchestration (load each doc, walk content_json, save with expected_version, 409-no-overwrite,
+// partial-failure receipts) is owned by the find_in_files module; this client provides the raw load +
+// save primitives the module's off-thread pipeline calls.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A loaded rich document's verified fields the replace pipeline consumes.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RichDocBody {
+    pub document_id: String,
+    pub doc_version: u64,
+    pub title: String,
+    pub content_json: serde_json::Value,
+    pub crdt_document_id: Option<String>,
+}
+
+/// The outcome of one document save: the receipt event id, or a typed conflict / error.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DocSaveOutcome {
+    /// 200: the save committed; carries the `save_receipt_event_id`.
+    Saved(String),
+    /// 409: the document changed since preview — NOT overwritten (RISK-2 data-loss control).
+    Conflict,
+    /// A non-409 failure (network / server / schema).
+    Failed(String),
+}
+
+/// The typed delivery the find_in_files replace pipeline emits. Kept as a `serde_json::Value`-free
+/// enum so the module's `ReplaceDelivery` can be built from it without backend_client depending on the
+/// module. (The module defines its own `ReplaceDelivery`; this is the transport-level result feeding it
+/// via the closure the module passes — see `RichDocClient::preview_replace`/`apply_plans`.)
+pub type FindReplaceCell = Arc<Mutex<Option<crate::find_in_files::ReplaceDelivery>>>;
+
+/// REST client for the VERIFIED rich-document load + save routes the MT-029 replace pipeline drives.
+#[derive(Clone)]
+pub struct RichDocClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+    session_run_id: String,
+}
+
+impl RichDocClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+            session_run_id: format!("native-editor-fif-{}", std::process::id()),
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn document_url(&self, document_id: &str) -> String {
+        format!("{}/knowledge/documents/{}", self.base_url, document_id)
+    }
+
+    fn save_url(&self, document_id: &str) -> String {
+        format!("{}/knowledge/documents/{}/save", self.base_url, document_id)
+    }
+
+    /// Attach the four required document identity headers (the MT-020 missing-headers fix), reusing the
+    /// canonical DOC_* constants so the wire identity is constructed in ONE place.
+    fn attach_headers(&self, builder: reqwest::RequestBuilder, document_id: &str) -> reqwest::RequestBuilder {
+        builder
+            .header(HSK_HEADER_ACTOR_ID, DOC_ACTOR_ID)
+            .header(HSK_HEADER_ACTOR_KIND, DOC_ACTOR_KIND)
+            .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-doc-{document_id}"))
+            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id)
+    }
+
+    /// Run the PREVIEW pipeline off the UI thread: for each `document_id`, load the doc, walk its
+    /// content_json with `regex`/`replacement`/`opts`, and accumulate a [`crate::find_in_files::
+    /// ReplacementPlan`] for every doc with >= 1 match. Delivers a `ReplaceDelivery::Preview{plans,key}`
+    /// (or `PreviewError`) into `cell`. A load failure aborts with `PreviewError` (no partial preview).
+    pub fn preview_replace(
+        &self,
+        workspace_id: &str,
+        document_ids: Vec<String>,
+        regex: regex::Regex,
+        replacement: String,
+        opts: crate::find_in_files::MatchOptions,
+        key: String,
+        cell: FindReplaceCell,
+    ) {
+        let _ = workspace_id; // documents are addressed by global KRD- id, not workspace-scoped.
+        let this = self.clone();
+        self.runtime.spawn(async move {
+            let mut plans = Vec::new();
+            let mut error: Option<String> = None;
+            for document_id in &document_ids {
+                match this.load_document(document_id).await {
+                    Ok(doc) => {
+                        let replaced = crate::find_in_files::replace_in_content(
+                            &doc.content_json,
+                            &regex,
+                            &replacement,
+                            opts,
+                        );
+                        if replaced.count == 0 {
+                            continue;
+                        }
+                        plans.push(crate::find_in_files::ReplacementPlan {
+                            document_id: doc.document_id,
+                            title: doc.title,
+                            expected_version: doc.doc_version,
+                            content_json_after: replaced.content,
+                            crdt_document_id: doc.crdt_document_id,
+                            match_count: replaced.count,
+                            before_preview: replaced.before_preview,
+                            after_preview: replaced.after_preview,
+                            match_previews: replaced.match_previews,
+                        });
+                    }
+                    Err(e) => {
+                        error = Some(format!("Replace preview failed: {e}"));
+                        break;
+                    }
+                }
+            }
+            let delivery = match error {
+                Some(msg) => crate::find_in_files::ReplaceDelivery::PreviewError(msg),
+                None => crate::find_in_files::ReplaceDelivery::Preview { plans, key },
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(delivery);
+            }
+        });
+    }
+
+    /// Run the APPLY pipeline off the UI thread: save each plan with its captured `expected_version`
+    /// (optimistic concurrency). On a 409 or error, STOP but PRESERVE the receipts already collected
+    /// (RISK-1/MC-1 — never a silent partial loss): delivers `AppliedPartial{receipts,error}`. On full
+    /// success delivers `Applied{receipts,plan_count}`.
+    pub fn apply_plans(
+        &self,
+        workspace_id: &str,
+        plans: Vec<crate::find_in_files::ReplacementPlan>,
+        cell: FindReplaceCell,
+    ) {
+        let _ = workspace_id;
+        let this = self.clone();
+        let plan_count = plans.len();
+        self.runtime.spawn(async move {
+            let mut receipts: Vec<String> = Vec::new();
+            let mut failure: Option<String> = None;
+            for plan in &plans {
+                match this
+                    .save_document(&plan.document_id, &plan.content_json_after, plan.expected_version)
+                    .await
+                {
+                    DocSaveOutcome::Saved(receipt) => receipts.push(receipt),
+                    DocSaveOutcome::Conflict => {
+                        failure = Some(format!(
+                            "Document {} changed since preview (version conflict); not overwritten.",
+                            plan.document_id
+                        ));
+                        break;
+                    }
+                    DocSaveOutcome::Failed(msg) => {
+                        failure = Some(format!("Save of {} failed: {msg}", plan.document_id));
+                        break;
+                    }
+                }
+            }
+            let delivery = match failure {
+                // RISK-1/MC-1: a partial failure preserves the receipts already collected.
+                Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error },
+                None => crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count },
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(delivery);
+            }
+        });
+    }
+
+    /// `GET /knowledge/documents/{id}` -> the verified `{document:{..}}` body, parsed into a
+    /// [`RichDocBody`]. A non-success status or parse failure is an [`AppError`].
+    pub async fn load_document(&self, document_id: &str) -> Result<RichDocBody, AppError> {
+        let url = self.document_url(document_id);
+        let builder = self.client.get(&url).timeout(Duration::from_secs(10));
+        let resp = self
+            .attach_headers(builder, document_id)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e.to_string()))?;
+        if !resp.status().is_success() {
+            return Err(AppError::Http(format!("GET document non-success status {}", resp.status())));
+        }
+        let v: serde_json::Value = resp.json().await.map_err(|e| AppError::Parse(e.to_string()))?;
+        let doc = v.get("document").cloned().unwrap_or(serde_json::Value::Null);
+        Ok(RichDocBody {
+            document_id: doc
+                .get("rich_document_id")
+                .and_then(|x| x.as_str())
+                .unwrap_or(document_id)
+                .to_owned(),
+            doc_version: doc.get("doc_version").and_then(|x| x.as_u64()).unwrap_or(0),
+            title: doc.get("title").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+            content_json: doc
+                .get("content_json")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({ "type": "doc", "content": [] })),
+            crdt_document_id: doc
+                .get("crdt_document_id")
+                .and_then(|x| x.as_str())
+                .map(str::to_owned),
+        })
+    }
+
+    /// `PUT /knowledge/documents/{id}/save` with `{expected_version, content_json}` -> the
+    /// [`DocSaveOutcome`]. A 200 returns the `save_receipt_event_id`; a 409 is a [`DocSaveOutcome::
+    /// Conflict`] (NEVER an overwrite); any other failure is [`DocSaveOutcome::Failed`].
+    pub async fn save_document(
+        &self,
+        document_id: &str,
+        content_json: &serde_json::Value,
+        expected_version: u64,
+    ) -> DocSaveOutcome {
+        let url = self.save_url(document_id);
+        let body = serde_json::json!({
+            "expected_version": expected_version,
+            "content_json": content_json,
+        });
+        let builder = self.client.put(&url).timeout(Duration::from_secs(10)).json(&body);
+        let resp = match self.attach_headers(builder, document_id).send().await {
+            Ok(r) => r,
+            Err(e) => return DocSaveOutcome::Failed(e.to_string()),
+        };
+        let status = resp.status();
+        if status.is_success() {
+            let v: serde_json::Value = resp.json().await.unwrap_or(serde_json::Value::Null);
+            let receipt = v
+                .get("save_receipt_event_id")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_owned();
+            return DocSaveOutcome::Saved(receipt);
+        }
+        if status == reqwest::StatusCode::CONFLICT {
+            return DocSaveOutcome::Conflict;
+        }
+        let text = resp.text().await.unwrap_or_default();
+        DocSaveOutcome::Failed(format!("status {status}: {text}"))
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

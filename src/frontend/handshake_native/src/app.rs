@@ -131,6 +131,10 @@ pub struct HandshakeApp {
     /// open path through the `&self` `PaneFactory::render` signature (AC-9). `None` only in the unusual
     /// case the concrete factory was not installed (never in the two real constructors).
     loom_search_v2_shared: Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
+    /// MT-029: the shared cell the concrete `FindInFilesPaneFactory` reads each frame (active workspace
+    /// id + live palette pushed IN) and the shell drains (clicked hits pulled OUT into the open path).
+    /// Same role as `loom_search_v2_shared` for the Find-in-Files pane.
+    find_in_files_shared: Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
     /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
@@ -529,6 +533,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
         PaneType::FlightRecorder,
         PaneType::VisualDebugger,
         PaneType::LoomSearchV2,
+        PaneType::FindInFiles,
         PaneType::Placeholder(String::new()),
     ];
     let mut map: HashMap<PaneType, Box<dyn PaneFactory>> = HashMap::new();
@@ -551,16 +556,33 @@ fn build_factories_with_loom_search_v2(
 ) -> (
     HashMap<PaneType, Box<dyn PaneFactory>>,
     Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
+    Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
 ) {
     let mut map = build_default_factories();
     let shared = Arc::new(Mutex::new(
-        crate::loom_search_v2::LoomSearchV2PaneShared::new(palette),
+        crate::loom_search_v2::LoomSearchV2PaneShared::new(palette.clone()),
     ));
-    let client = crate::backend_client::LoomSearchV2Client::production(runtime);
+    let client = crate::backend_client::LoomSearchV2Client::production(runtime.clone());
     let factory = crate::loom_search_v2::LoomSearchV2PaneFactory::new(client, Arc::clone(&shared));
     // Insert AFTER the placeholder fill so this concrete factory wins for the LoomSearchV2 variant.
     map.insert(PaneType::LoomSearchV2, Box::new(factory));
-    (map, shared)
+
+    // MT-029: install the CONCRETE FindInFilesPaneFactory over its placeholder so opening the
+    // "Find in Files" pane renders the REAL panel, wired to the verified graph-search + bookmark +
+    // rich-document save routes. Mirrors the LoomSearchV2 factory wiring exactly.
+    let fif_shared = Arc::new(Mutex::new(
+        crate::find_in_files::FindInFilesPaneShared::new(palette),
+    ));
+    let search_client = crate::backend_client::WorkspaceSearchClient::production(runtime.clone());
+    let doc_client = crate::backend_client::RichDocClient::production(runtime);
+    let fif_factory = crate::find_in_files::FindInFilesPaneFactory::new(
+        search_client,
+        doc_client,
+        Arc::clone(&fif_shared),
+    );
+    map.insert(PaneType::FindInFiles, Box::new(fif_factory));
+
+    (map, shared, fif_shared)
 }
 
 /// Build a seeded registry from the default panes.
@@ -733,9 +755,10 @@ impl HandshakeApp {
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
-        // MT-028: install the CONCRETE LoomSearchV2 pane factory over its placeholder so opening the
-        // "Loom Search" pane renders the REAL panel (AC-9), wired to the verified search/save routes.
-        let (factories, loom_search_v2_shared) =
+        // MT-028 + MT-029: install the CONCRETE LoomSearchV2 + FindInFiles pane factories over their
+        // placeholders so opening the "Loom Search" / "Find in Files" panes renders the REAL panels,
+        // wired to the verified search/save/bookmark routes.
+        let (factories, loom_search_v2_shared, find_in_files_shared) =
             build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
@@ -747,6 +770,7 @@ impl HandshakeApp {
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories,
             loom_search_v2_shared,
+            find_in_files_shared,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -915,7 +939,7 @@ impl HandshakeApp {
         // headless/test shell opens the REAL panel via the registry-dispatched pane (AC-9). The
         // current-thread runtime handle bridges the (no-backend) search/save spawns; with no live
         // backend the request simply never delivers (the panel stays idle/neutral — no perpetual spinner).
-        let (factories, loom_search_v2_shared) =
+        let (factories, loom_search_v2_shared, find_in_files_shared) =
             build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         Self {
             health_status: state,
@@ -926,6 +950,7 @@ impl HandshakeApp {
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories,
             loom_search_v2_shared,
+            find_in_files_shared,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -3972,6 +3997,12 @@ impl HandshakeApp {
                 });
             let palette = self.current_theme.palette();
             if let Ok(mut shared) = self.loom_search_v2_shared.lock() {
+                shared.workspace_id = workspace_id.clone();
+                shared.palette = palette.clone();
+            }
+            // MT-029: mirror the same per-frame push into the Find-in-Files pane's shared cell so its
+            // search targets the active workspace and its highlight tracks the live theme.
+            if let Ok(mut shared) = self.find_in_files_shared.lock() {
                 shared.workspace_id = workspace_id;
                 shared.palette = palette;
             }
@@ -4344,6 +4375,27 @@ impl HandshakeApp {
             .unwrap_or_default();
         for block_id in open_block_requests {
             self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+        }
+
+        // ── MT-029: drain Find-in-Files open-hit requests into the appropriate open path ─────────────
+        // A result-row click in the in-product Find-in-Files pane pushed the hit into the shared cell;
+        // route each hit by its source_kind to the matching open path (rich document -> the document
+        // editor, loom_block/file/tag_hub -> the Loom block viewer). Open-in-place, a REFERENCE — the
+        // same open paths the bookmark rail + Loom Search pane use. Drained AFTER the pane host so the
+        // click registered this frame opens this frame.
+        let open_hit_requests: Vec<crate::backend_client::LoomGraphSearchHit> = self
+            .find_in_files_shared
+            .lock()
+            .map(|mut s| std::mem::take(&mut s.open_requests))
+            .unwrap_or_default();
+        for hit in open_hit_requests {
+            // Prefer a rich-document open when the hit resolves to a KRD- document; otherwise open the
+            // Loom block by its ref id (file/tag_hub/loom_block all open as a Loom block reference).
+            if let Some(document_id) = crate::find_in_files::document_id_from_hit(&hit) {
+                self.open_content_on_active_pane(PaneType::LoomBlock, Some(document_id));
+            } else if !hit.ref_id.trim().is_empty() {
+                self.open_content_on_active_pane(PaneType::LoomBlock, Some(hit.ref_id.clone()));
+            }
         }
 
         // ── Apply MT-013 pane-header Lock/Unlock requests ───────────────────────────────────────────

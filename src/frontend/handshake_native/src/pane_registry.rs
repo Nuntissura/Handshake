@@ -55,6 +55,8 @@ pub enum PaneType {
     VisualDebugger,
     /// WP-KERNEL-012 MT-028: the native LoomSearchV2 hybrid-search surface (E4 Search).
     LoomSearchV2,
+    /// WP-KERNEL-012 MT-029: the native Find-in-Files + Replace-in-Files surface (E4 Search).
+    FindInFiles,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -84,6 +86,7 @@ impl PaneType {
             PaneType::FlightRecorder => "Flight Recorder".to_owned(),
             PaneType::VisualDebugger => "Visual Debugger".to_owned(),
             PaneType::LoomSearchV2 => "Loom Search".to_owned(),
+            PaneType::FindInFiles => "Find in Files".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -116,6 +119,7 @@ impl PaneType {
             PaneType::AtelierEditor => "Atelier",
             PaneType::VisualDebugger => "Visual Debugger",
             PaneType::LoomSearchV2 => "Loom Search",
+            PaneType::FindInFiles => "Find in Files",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }

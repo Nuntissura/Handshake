@@ -19,6 +19,7 @@ pub mod graph;
 pub mod loom_graph;
 pub mod source_control;
 pub mod event_bus;
+pub mod find_in_files;
 pub mod installer;
 pub mod layout_persistence;
 pub mod left_rail;
