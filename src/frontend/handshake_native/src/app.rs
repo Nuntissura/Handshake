@@ -282,8 +282,11 @@ pub struct HandshakeApp {
     /// The last quick-switcher NAVIGATION status (MT-030): set when a jump dispatched through the
     /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) bus did NOT land on a real surface —
     /// most importantly the editor-pane TYPED SEAM ("Rich-text/Code editor pane not mounted yet
-    /// (E11/MT-069)"). Surfaced to the operator/agent instead of a silent no-op or a faked open. Cleared
-    /// on a successful `Opened` dispatch and read by tests + future E11 status wiring.
+    /// (E11/MT-069)"). When `Some`, it is RENDERED as a persistent status-bar segment and emitted as a
+    /// live AccessKit node (`quick-switcher.nav-status`) by
+    /// [`quick_switcher_nav_status_segment`](Self::quick_switcher_nav_status_segment), so the seam
+    /// outcome is perceivable to the operator AND a swarm agent after the overlay closes — never a
+    /// silent no-op or a faked open. Cleared on a successful `Opened` dispatch.
     quick_switcher_nav_status: Option<String>,
     /// Transient label carried from [`open_switcher_hit`](Self::open_switcher_hit) into the
     /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) arms so the opened tab is labelled with
@@ -1510,8 +1513,10 @@ impl HandshakeApp {
     /// The last quick-switcher NAVIGATION status (MT-030), if the most recent dispatch through the
     /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) bus did NOT land on a real surface — most
     /// importantly the editor-pane TYPED SEAM ("Rich-text/Code editor pane not mounted yet (E11/MT-069)").
-    /// `None` after a successful `Opened` dispatch. Read by the MT-030 dispatch tests and by future E11
-    /// status wiring; it is the observable proof that the editor-pane seam is honest (no silent no-op).
+    /// `None` after a successful `Opened` dispatch. When `Some` this same text is rendered as a
+    /// status-bar segment and emitted as the `quick-switcher.nav-status` AccessKit node (see
+    /// [`quick_switcher_nav_status_segment`](Self::quick_switcher_nav_status_segment)); this getter is the
+    /// programmatic mirror of that perceivable surface for the MT-030 dispatch tests and future E11 wiring.
     pub fn quick_switcher_nav_status(&self) -> Option<&str> {
         self.quick_switcher_nav_status.as_deref()
     }
@@ -3922,6 +3927,38 @@ impl HandshakeApp {
         action
     }
 
+    /// MT-030: render the quick-switcher NAVIGATION status as a SECOND, persistent status-bar segment
+    /// and emit it as a LIVE AccessKit node so the editor-pane typed seam is actually PERCEIVABLE after
+    /// the overlay closes — by the operator (a rendered status-bar label) AND by a swarm agent reading
+    /// the AccessKit tree (`quick-switcher.nav-status`, `Role::Status`). Before this segment existed the
+    /// seam status lived only in a private getter that no UI/AccessKit consumer read, so selecting a
+    /// document/symbol hit was an OBSERVABLE silent no-op. Reuses the `ChromeWidget::QuickSwitcherNavStatus`
+    /// fixed id + `emit_chrome_node` (the same live-node mechanism as the health segment + title bar).
+    ///
+    /// No-op (renders nothing, emits no node) when `quick_switcher_nav_status` is `None`, so the default
+    /// MT-025 snapshot does not gain a node and a successful `Opened` dispatch leaves the bar clean.
+    fn quick_switcher_nav_status_segment(&self, ui: &mut egui::Ui) {
+        let Some(text) = self.quick_switcher_nav_status.as_deref() else {
+            return;
+        };
+        let chrome = ChromeWidget::QuickSwitcherNavStatus;
+        // Use the theme's subtle text token (no Color32 literal — theme guard) so the seam status is
+        // visibly distinct from the primary health text without a hard-coded color.
+        let color = self.current_theme.palette().text_subtle;
+        // Render a REAL egui `Label` widget: egui creates a genuine live accessibility node for it this
+        // frame (Role::Label, the painted text), and its `Response::id` is the node egui keys builders
+        // by — so `accesskit_node_builder` for that id deterministically enriches THIS node (not a
+        // fallback) with the stable `author_id` + the `Status` role a swarm agent addresses. (A synthetic
+        // high-entropy id with no backing widget node attaches the label to the wrong/focused node.)
+        let rich = egui::RichText::new(text).color(color);
+        let response = ui.add(egui::Label::new(rich).sense(egui::Sense::hover()));
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(chrome.role());
+            node.set_author_id(chrome.author_id().to_owned());
+            node.set_label(text.to_owned());
+        });
+    }
+
     /// Apply a confirmed status-bar-segment menu action (MT-021). `segment_id` is the right-clicked
     /// segment; `display_text` its current text (for Copy). Returns `true` when app state changed (so
     /// the caller can repaint). `OpenPanel` opens the segment's related pane on the active pane.
@@ -4176,14 +4213,22 @@ impl HandshakeApp {
         let health_hidden = self.statusbar_hidden.contains("health");
         let status_action = egui::TopBottomPanel::bottom("handshake_status_bar")
             .show(ctx, |ui| {
-                if health_hidden {
-                    // Hidden segment: render a neutral non-interactive placeholder so the bar is never
-                    // blank (and the segment can still be restored via a future settings surface).
-                    ui.label("");
-                    None
-                } else {
-                    self.status_bar_segment(ui, &status_text)
-                }
+                ui.horizontal(|ui| {
+                    let action = if health_hidden {
+                        // Hidden segment: render a neutral non-interactive placeholder so the bar is
+                        // never blank (and the segment can still be restored via a settings surface).
+                        ui.label("");
+                        None
+                    } else {
+                        self.status_bar_segment(ui, &status_text)
+                    };
+                    // MT-030: the quick-switcher nav-status segment (the editor-pane typed seam) renders
+                    // here when present so the seam outcome is PERCEIVABLE (rendered label + live
+                    // AccessKit node) after the overlay closes; a no-op when no nav status is set.
+                    self.quick_switcher_nav_status_segment(ui);
+                    action
+                })
+                .inner
             })
             .inner;
         if let Some(action) = status_action {

@@ -963,6 +963,26 @@ fn document_hit_surfaces_editor_pane_not_mounted_seam() {
         Some("Rich-text editor pane not mounted yet (E11/MT-069)"),
         "the document hit surfaced the honest editor-pane seam status"
     );
+    // ... AND that status is PERCEIVABLE after the overlay closed: it renders as a status-bar segment
+    // and emits a live `quick-switcher.nav-status` AccessKit node (Role::Status) carrying the seam text,
+    // so an operator AND a swarm agent reading the AccessKit tree can see the seam outcome. This is the
+    // visibility assertion the must_fix demands — NOT just that the private getter returns Some.
+    harness.run();
+    let nav_node = live_author_nodes(&harness)
+        .into_iter()
+        .find(|(a, _, _)| a == "quick-switcher.nav-status")
+        .unwrap_or_else(|| {
+            panic!(
+                "the editor-pane seam status must be a LIVE AccessKit node, not only a getter; nodes: {:?}",
+                live_author_nodes(&harness)
+            )
+        });
+    assert_eq!(nav_node.1, "Status", "the nav-status node carries Role::Status");
+    assert_eq!(
+        nav_node.2.as_deref(),
+        Some("Rich-text editor pane not mounted yet (E11/MT-069)"),
+        "the perceivable nav-status node carries the seam text the operator/agent reads"
+    );
     // ... and NO rich-text/Atelier editor tab was opened for the document (no faked placeholder open).
     // The seeded shell ships default tabs, so the precise check is that the document's target pane type
     // (AtelierEditor) never appears AND no tab carries the document content id.
@@ -1009,6 +1029,15 @@ fn loom_block_hit_opens_real_tab_through_the_bus() {
     assert!(
         harness.state().quick_switcher_nav_status().is_none(),
         "a successful open leaves no nav status"
+    );
+    // ... and because the nav-status segment is a no-op when cleared, NO `quick-switcher.nav-status`
+    // AccessKit node is emitted on a successful open (the seam segment never lingers / pollutes chrome).
+    harness.run();
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(a, _, _)| a == "quick-switcher.nav-status"),
+        "a successful open emits NO nav-status node (the segment is no-op when cleared)"
     );
     let active = harness
         .state()

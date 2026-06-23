@@ -17,6 +17,11 @@ pub const TITLE_BAR_NODE_ID: u64 = 20;
 /// Fixed AccessKit/egui id for the bottom status bar's backend-health widget.
 pub const STATUS_BAR_NODE_ID: u64 = 21;
 
+/// Fixed AccessKit/egui id for the bottom status bar's quick-switcher NAVIGATION status segment
+/// (MT-030 editor-pane typed seam). Disjoint from the title (20), health (21), theme toggle (10),
+/// and pane id base (100+).
+pub const QUICK_SWITCHER_NAV_STATUS_NODE_ID: u64 = 22;
+
 /// The chrome widgets that carry a stable AccessKit identity. Each maps to a fixed `egui::Id` and a
 /// stable kebab-case `author_id`, so a model can address shell chrome the same way it addresses
 /// panes — by `author_id` — without depending on display text that may localize or change.
@@ -26,6 +31,11 @@ pub enum ChromeWidget {
     TitleBar,
     /// The bottom status bar showing live backend health.
     StatusBar,
+    /// The bottom status bar's quick-switcher NAVIGATION status segment (MT-030): the perceivable
+    /// surface for the editor-pane typed seam ("Rich-text/Code editor pane not mounted yet
+    /// (E11/MT-069)"). Only rendered + emitted when a nav status is present, so the default snapshot
+    /// does not gain this node.
+    QuickSwitcherNavStatus,
 }
 
 impl ChromeWidget {
@@ -34,6 +44,7 @@ impl ChromeWidget {
         match self {
             ChromeWidget::TitleBar => TITLE_BAR_NODE_ID,
             ChromeWidget::StatusBar => STATUS_BAR_NODE_ID,
+            ChromeWidget::QuickSwitcherNavStatus => QUICK_SWITCHER_NAV_STATUS_NODE_ID,
         }
     }
 
@@ -43,6 +54,7 @@ impl ChromeWidget {
         match self {
             ChromeWidget::TitleBar => "shell.chrome.title-bar",
             ChromeWidget::StatusBar => "shell.chrome.status-bar",
+            ChromeWidget::QuickSwitcherNavStatus => "quick-switcher.nav-status",
         }
     }
 
@@ -51,6 +63,7 @@ impl ChromeWidget {
         match self {
             ChromeWidget::TitleBar => accesskit::Role::TitleBar,
             ChromeWidget::StatusBar => accesskit::Role::Status,
+            ChromeWidget::QuickSwitcherNavStatus => accesskit::Role::Status,
         }
     }
 
