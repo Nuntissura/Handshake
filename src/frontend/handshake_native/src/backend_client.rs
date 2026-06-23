@@ -4460,6 +4460,39 @@ pub enum DocSaveOutcome {
     Failed(String),
 }
 
+/// Fold the per-document `(document_id, outcome)` results of the apply pipeline into the typed
+/// [`crate::find_in_files::ReplaceDelivery`] (RISK-1/MC-1). PURE so the partial-failure receipt-
+/// preservation control is unit-provable without a live backend: every `Saved` receipt seen BEFORE the
+/// first `Conflict`/`Failed` is preserved in `AppliedPartial`; an all-`Saved` run yields `Applied`.
+/// `plan_count` is the original number of plans (carried for the success status line).
+pub fn fold_apply_outcomes(
+    outcomes: &[(String, DocSaveOutcome)],
+    plan_count: usize,
+) -> crate::find_in_files::ReplaceDelivery {
+    let mut receipts: Vec<String> = Vec::new();
+    let mut failure: Option<String> = None;
+    for (document_id, outcome) in outcomes {
+        match outcome {
+            DocSaveOutcome::Saved(receipt) => receipts.push(receipt.clone()),
+            DocSaveOutcome::Conflict => {
+                failure = Some(format!(
+                    "Document {document_id} changed since preview (version conflict); not overwritten."
+                ));
+                break;
+            }
+            DocSaveOutcome::Failed(msg) => {
+                failure = Some(format!("Save of {document_id} failed: {msg}"));
+                break;
+            }
+        }
+    }
+    match failure {
+        // RISK-1/MC-1: a partial failure preserves the receipts already collected.
+        Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error },
+        None => crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count },
+    }
+}
+
 /// The typed delivery the find_in_files replace pipeline emits. Kept as a `serde_json::Value`-free
 /// enum so the module's `ReplaceDelivery` can be built from it without backend_client depending on the
 /// module. (The module defines its own `ReplaceDelivery`; this is the transport-level result feeding it
@@ -4511,6 +4544,7 @@ impl RichDocClient {
     /// content_json with `regex`/`replacement`/`opts`, and accumulate a [`crate::find_in_files::
     /// ReplacementPlan`] for every doc with >= 1 match. Delivers a `ReplaceDelivery::Preview{plans,key}`
     /// (or `PreviewError`) into `cell`. A load failure aborts with `PreviewError` (no partial preview).
+    #[allow(clippy::too_many_arguments)]
     pub fn preview_replace(
         &self,
         workspace_id: &str,
@@ -4569,7 +4603,8 @@ impl RichDocClient {
     /// Run the APPLY pipeline off the UI thread: save each plan with its captured `expected_version`
     /// (optimistic concurrency). On a 409 or error, STOP but PRESERVE the receipts already collected
     /// (RISK-1/MC-1 — never a silent partial loss): delivers `AppliedPartial{receipts,error}`. On full
-    /// success delivers `Applied{receipts,plan_count}`.
+    /// success delivers `Applied{receipts,plan_count}`. The fold from per-document outcomes to the typed
+    /// delivery lives in the pure [`fold_apply_outcomes`] so MC-1 is unit-provable without a backend.
     pub fn apply_plans(
         &self,
         workspace_id: &str,
@@ -4580,32 +4615,22 @@ impl RichDocClient {
         let this = self.clone();
         let plan_count = plans.len();
         self.runtime.spawn(async move {
-            let mut receipts: Vec<String> = Vec::new();
-            let mut failure: Option<String> = None;
+            // Save sequentially, capturing each (document_id, outcome) and STOPPING at the first
+            // non-success so a since-edited later doc is never overwritten on a stale plan. The break is
+            // realized inside the pure fold below by feeding outcomes only up to (and including) the first
+            // failure.
+            let mut outcomes: Vec<(String, DocSaveOutcome)> = Vec::with_capacity(plans.len());
             for plan in &plans {
-                match this
+                let outcome = this
                     .save_document(&plan.document_id, &plan.content_json_after, plan.expected_version)
-                    .await
-                {
-                    DocSaveOutcome::Saved(receipt) => receipts.push(receipt),
-                    DocSaveOutcome::Conflict => {
-                        failure = Some(format!(
-                            "Document {} changed since preview (version conflict); not overwritten.",
-                            plan.document_id
-                        ));
-                        break;
-                    }
-                    DocSaveOutcome::Failed(msg) => {
-                        failure = Some(format!("Save of {} failed: {msg}", plan.document_id));
-                        break;
-                    }
+                    .await;
+                let is_terminal = !matches!(outcome, DocSaveOutcome::Saved(_));
+                outcomes.push((plan.document_id.clone(), outcome));
+                if is_terminal {
+                    break;
                 }
             }
-            let delivery = match failure {
-                // RISK-1/MC-1: a partial failure preserves the receipts already collected.
-                Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error },
-                None => crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count },
-            };
+            let delivery = fold_apply_outcomes(&outcomes, plan_count);
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(delivery);
             }
@@ -5405,5 +5430,58 @@ mod tests {
 
         // Empty array => no candidates, never an error.
         assert!(parse_add_tag_candidates(&serde_json::json!([])).is_empty());
+    }
+
+    // ── Apply pipeline partial-failure fold (RISK-1/MC-1) ─────────────────────────────────────────────
+
+    /// MC-1: a SECOND document save returning 409 (Conflict) must PRESERVE the first document's receipt
+    /// and STOP — `AppliedPartial{receipts:[r1], ..}`, never a silent loss of the first receipt. This is
+    /// the red_team-named control that previously had no standalone (un-ignored) coverage.
+    #[test]
+    fn apply_fold_preserves_first_receipt_on_second_doc_conflict() {
+        let outcomes = vec![
+            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
+            ("KRD-2".to_owned(), DocSaveOutcome::Conflict),
+        ];
+        match fold_apply_outcomes(&outcomes, 2) {
+            crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
+                assert_eq!(receipts, vec!["evt-1".to_owned()], "first receipt must survive the conflict");
+                assert!(error.contains("KRD-2"), "error names the conflicting doc: {error}");
+                assert!(error.contains("conflict"), "error states the version conflict: {error}");
+            }
+            other => panic!("expected AppliedPartial preserving the first receipt, got {other:?}"),
+        }
+    }
+
+    /// MC-1 (Failed variant): a non-409 failure on the second doc also preserves the first receipt.
+    #[test]
+    fn apply_fold_preserves_first_receipt_on_second_doc_failure() {
+        let outcomes = vec![
+            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
+            ("KRD-2".to_owned(), DocSaveOutcome::Failed("status 500".to_owned())),
+        ];
+        match fold_apply_outcomes(&outcomes, 2) {
+            crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
+                assert_eq!(receipts, vec!["evt-1".to_owned()]);
+                assert!(error.contains("status 500"), "error carries the failure detail: {error}");
+            }
+            other => panic!("expected AppliedPartial, got {other:?}"),
+        }
+    }
+
+    /// An all-success run folds to `Applied{receipts, plan_count}` with every receipt.
+    #[test]
+    fn apply_fold_all_success_yields_applied_with_all_receipts() {
+        let outcomes = vec![
+            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
+            ("KRD-2".to_owned(), DocSaveOutcome::Saved("evt-2".to_owned())),
+        ];
+        match fold_apply_outcomes(&outcomes, 2) {
+            crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count } => {
+                assert_eq!(receipts, vec!["evt-1".to_owned(), "evt-2".to_owned()]);
+                assert_eq!(plan_count, 2);
+            }
+            other => panic!("expected Applied, got {other:?}"),
+        }
     }
 }

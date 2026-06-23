@@ -749,7 +749,7 @@ fn find_in_files_bookmark_roundtrip_live_pg() {
         is_regex: false,
         saved_at: "2026-06-23T00:00:00Z".to_owned(),
     };
-    let blob = bookmark_state_blob(&[bm.clone()]);
+    let blob = bookmark_state_blob(std::slice::from_ref(&bm));
     let save_cell: BookmarkStateCell = Arc::new(Mutex::new(None));
     client.save_bookmarks(&workspace_id, blob, "saved".to_owned(), Arc::clone(&save_cell));
     let deadline = Instant::now() + Duration::from_secs(5);

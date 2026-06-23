@@ -41,6 +41,7 @@
 //! 3. OPTIMISTIC CONCURRENCY: each save carries the `expected_version` captured at preview; a 409 is
 //!    surfaced and the OTHER receipts are preserved — never a silent overwrite (PARTIAL-FAILURE,
 //!    RISK-1/MC-1).
+//!
 //! The content_json walk mutates ONLY `node.text` + `node.attrs.code` and round-trips every other node
 //! VERBATIM (RISK-4: hsLink/embed/table nodes are preserved). Zero-length regex matches advance by 1
 //! (RISK-3, no infinite loop); a non-regex query is `regex::escape`'d (RISK-8); only `KRD-`-prefixed
@@ -384,6 +385,7 @@ pub struct SegmentReplaceResult {
 /// - When `whole_word`, a match that fails [`is_word_boundary`] is SKIPPED (left as-is).
 /// - In regex mode the replacement is `$1..$9`/`$&`/`$$`-expanded per match; in literal mode the
 ///   replacement is inserted verbatim.
+///
 /// Returns the rebuilt text + the count + a 24-char preview per replaced match.
 pub fn replace_segment(
     text: &str,
@@ -627,6 +629,14 @@ pub fn hit_matches_client_options(hit: &LoomGraphSearchHit, query: &str, opts: M
     let Ok(regex) = compile_search_regex(query, opts) else {
         return true;
     };
+    hit_matches_regex(hit, &regex, opts)
+}
+
+/// Whether a hit's `title\nexcerpt` haystack matches an ALREADY-COMPILED `regex`, respecting the
+/// whole-word boundary. Split out from [`hit_matches_client_options`] so the render path can compile the
+/// regex ONCE per (query, options) change and reuse it across all hits (perf hygiene) instead of
+/// recompiling per hit per frame.
+pub fn hit_matches_regex(hit: &LoomGraphSearchHit, regex: &Regex, opts: MatchOptions) -> bool {
     let haystack = format!("{}\n{}", hit.title, hit.excerpt);
     let mut search_from = 0usize;
     loop {
@@ -830,6 +840,18 @@ pub fn parse_bookmark_state(blob: &serde_json::Value) -> Vec<SearchBookmark> {
 
 // ── Panel state machine ───────────────────────────────────────────────────────────────────────────────
 
+/// The memoized client-side visible-hit filter (perf hygiene): the compiled regex + the filtered hit
+/// index list, valid only while `key` matches the live (query + options + results-generation) key. This
+/// hoists the per-hit `compile_search_regex` AND the per-frame filter+clone out of the render hot path —
+/// without it, `show()` recompiled one [`Regex`] PER HIT and rebuilt the visible Vec EVERY frame
+/// (typing/hover/scroll all repaint) for a paginated result set of hundreds-to-thousands of hits.
+struct VisibleCache {
+    /// `query + options + results_generation` digest; a mismatch invalidates the cache.
+    key: String,
+    /// The 0-based indices into `results` that pass the client-side option filter, in result order.
+    indices: Vec<usize>,
+}
+
 /// All Find-in-Files panel state (the React component's `useState` hooks as one struct), plus the
 /// off-thread delivery cells. Mirrors the MT-029 AC-1 required field set.
 pub struct FindInFilesPanelState {
@@ -860,6 +882,13 @@ pub struct FindInFilesPanelState {
     pub bookmarks: Vec<SearchBookmark>,
     /// The last bookmark op status string, or `None`.
     pub bookmark_status: Option<String>,
+
+    /// Bumps every time `results` is replaced (in [`poll`](Self::poll)); part of the visible-cache key so
+    /// a new result set invalidates the memoized filter even when query+options are unchanged.
+    results_generation: u64,
+    /// Memoized client-side visible-hit filter (perf hygiene — see [`VisibleCache`]). Interior mutability
+    /// lets the `&self` render/status path refresh it lazily without taking `&mut self`.
+    visible_cache: std::cell::RefCell<Option<VisibleCache>>,
 
     // ── Off-thread delivery cells ──
     search_cell: GraphSearchCell,
@@ -895,6 +924,8 @@ impl FindInFilesPanelState {
             result_set_key: None,
             bookmarks: Vec::new(),
             bookmark_status: None,
+            results_generation: 0,
+            visible_cache: std::cell::RefCell::new(None),
             search_cell: Arc::new(Mutex::new(None)),
             replace_cell: Arc::new(Mutex::new(None)),
             bookmark_cell: Arc::new(Mutex::new(None)),
@@ -920,13 +951,67 @@ impl FindInFilesPanelState {
         replace_plan_key(&self.current_search_key(), &self.replacement)
     }
 
-    /// The hits passing the client-side option filter (the React `visibleResults`).
-    pub fn visible_results(&self) -> Vec<&LoomGraphSearchHit> {
+    /// The current visible-cache key: live query + options + results generation. A change to ANY of these
+    /// (re-search, query edit, toggle flip) invalidates the memoized visible-hit filter.
+    fn visible_cache_key(&self) -> String {
         let opts = self.options();
-        self.results
-            .iter()
-            .filter(|h| hit_matches_client_options(h, &self.query, opts))
-            .collect()
+        format!(
+            "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
+            self.results_generation,
+            self.query,
+            opts.case_sensitive as u8,
+            opts.whole_word as u8,
+            opts.is_regex as u8,
+        )
+    }
+
+    /// Recompute (and cache) the indices of `results` that pass the client-side option filter, but ONLY
+    /// when the visible-cache key changed. The compiled [`Regex`] is built ONCE here per (query, options)
+    /// change and reused across all hits — never per hit, never per frame (perf hygiene). Runs the filtered
+    /// closure with the cached index slice borrowed from the [`RefCell`].
+    fn with_visible_indices<R>(&self, f: impl FnOnce(&[usize]) -> R) -> R {
+        let key = self.visible_cache_key();
+        {
+            let cache = self.visible_cache.borrow();
+            if cache.as_ref().is_some_and(|c| c.key == key) {
+                return f(&cache.as_ref().expect("checked is_some_and above").indices);
+            }
+        }
+        // Cache miss: rebuild the index list. Compile the option regex ONCE (or None when the query is
+        // empty / no match-option is active / it fails to compile — in those cases every hit passes,
+        // mirroring `hit_matches_client_options`).
+        let opts = self.options();
+        let regex = if self.query.trim().is_empty()
+            || (!opts.case_sensitive && !opts.whole_word && !opts.is_regex)
+        {
+            None
+        } else {
+            compile_search_regex(&self.query, opts).ok()
+        };
+        let indices: Vec<usize> = match &regex {
+            None => (0..self.results.len()).collect(),
+            Some(re) => self
+                .results
+                .iter()
+                .enumerate()
+                .filter(|(_, h)| hit_matches_regex(h, re, opts))
+                .map(|(i, _)| i)
+                .collect(),
+        };
+        *self.visible_cache.borrow_mut() = Some(VisibleCache { key, indices });
+        let cache = self.visible_cache.borrow();
+        f(&cache.as_ref().expect("just stored above").indices)
+    }
+
+    /// The hits passing the client-side option filter (the React `visibleResults`), via the memoized
+    /// index cache (no per-frame regex recompile or full-set clone — perf hygiene).
+    pub fn visible_results(&self) -> Vec<&LoomGraphSearchHit> {
+        self.with_visible_indices(|idx| idx.iter().map(|&i| &self.results[i]).collect())
+    }
+
+    /// The number of hits passing the client-side option filter, via the memoized cache (cheap — no clone).
+    pub fn visible_result_count(&self) -> usize {
+        self.with_visible_indices(<[usize]>::len)
     }
 
     /// `true` when a non-stale preview with plans exists (gates the Apply button — AC-8).
@@ -954,6 +1039,8 @@ impl FindInFilesPanelState {
                         self.error = Some(msg);
                     }
                 }
+                // A new (or cleared) result set invalidates the memoized visible-hit filter.
+                self.results_generation = self.results_generation.wrapping_add(1);
                 changed = true;
             }
         }
@@ -1262,7 +1349,7 @@ impl FindInFilesPanelState {
         if let Some(status) = &self.replace_status {
             return status.clone();
         }
-        let n = self.visible_results().len();
+        let n = self.visible_result_count();
         if self.result_set_key.is_some() {
             let plural = if n == 1 { "" } else { "s" };
             return format!("{n} result{plural}");
@@ -1450,17 +1537,26 @@ pub fn show(
         }
     }
 
-    // ── Results list ──
+    // ── Results list (VIRTUALIZED — perf hygiene) ──
+    // `open_hit_index` is a position into `visible_indices` (the on-screen visible list), resolved back
+    // to `state.results` after the borrows end. `visible_indices` is the memoized client-side filter
+    // result (cheap `Vec<usize>`, no per-frame regex recompile and no per-frame clone of the hits).
     let mut open_hit_index: Option<usize> = None;
-    let visible: Vec<LoomGraphSearchHit> = state.visible_results().into_iter().cloned().collect();
-    if !visible.is_empty() {
+    let visible_indices: Vec<usize> = state.with_visible_indices(<[usize]>::to_vec);
+    if !visible_indices.is_empty() {
         ui.separator();
+        // Borrow `results` (not all of `state`) so the row closure only holds the shared read it needs.
+        let results = &state.results;
+        // Uniform slot height so `show_rows` lays out ONLY the on-screen rows (title line + excerpt line +
+        // Frame::group padding) instead of materializing every row in a large paginated result set.
+        let row_height = ui.text_style_height(&egui::TextStyle::Body) * 2.0 + 18.0;
         egui::ScrollArea::vertical()
             .id_salt("find-in-files.results")
             .max_height(220.0)
             .auto_shrink([false, false])
-            .show(ui, |ui| {
-                for (i, hit) in visible.iter().enumerate() {
+            .show_rows(ui, row_height, visible_indices.len(), |ui, range| {
+                for vi in range {
+                    let hit = &results[visible_indices[vi]];
                     let frame = egui::Frame::group(ui.style());
                     let inner = frame.show(ui, |ui| {
                         ui.vertical(|ui| {
@@ -1484,7 +1580,7 @@ pub fn show(
                         &result_author_id(&hit.source_kind, &hit.ref_id),
                     );
                     if row.clicked() {
-                        open_hit_index = Some(i);
+                        open_hit_index = Some(vi);
                     }
                 }
             });
@@ -1537,8 +1633,8 @@ pub fn show(
     }
 
     // ── Dispatch deferred actions (after immutable borrows end) ──
-    if let Some(i) = open_hit_index {
-        if let Some(hit) = visible.get(i) {
+    if let Some(vi) = open_hit_index {
+        if let Some(hit) = visible_indices.get(vi).and_then(|&ri| state.results.get(ri)) {
             (callbacks.on_open_hit)(hit);
         }
     }
@@ -1922,7 +2018,7 @@ mod tests {
             is_regex: true,
             saved_at: "2026-06-23T00:00:00Z".into(),
         };
-        let blob = bookmark_state_blob(&[bm.clone()]);
+        let blob = bookmark_state_blob(std::slice::from_ref(&bm));
         // RISK-6: the schema_id MUST be exactly the backend-validated value.
         assert_eq!(blob["schema_id"], WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID);
         let parsed = parse_bookmark_state(&blob);

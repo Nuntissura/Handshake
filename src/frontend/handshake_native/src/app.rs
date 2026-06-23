@@ -543,6 +543,14 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
     map
 }
 
+/// The factory map plus the two shared cells the shell keeps live (LoomSearchV2 + Find-in-Files): named
+/// to keep [`build_factories_with_loom_search_v2`]'s return shape readable (clippy::type_complexity).
+type FactoriesWithSharedCells = (
+    HashMap<PaneType, Box<dyn PaneFactory>>,
+    Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
+    Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
+);
+
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
 /// (MT-028, AC-9): start from the all-placeholder default, then OVERRIDE `PaneType::LoomSearchV2` with a
 /// real factory that renders [`crate::loom_search_v2::show`] through the verified
@@ -553,11 +561,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
 fn build_factories_with_loom_search_v2(
     runtime: tokio::runtime::Handle,
     palette: theme::HsPalette,
-) -> (
-    HashMap<PaneType, Box<dyn PaneFactory>>,
-    Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
-    Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
-) {
+) -> FactoriesWithSharedCells {
     let mut map = build_default_factories();
     let shared = Arc::new(Mutex::new(
         crate::loom_search_v2::LoomSearchV2PaneShared::new(palette.clone()),
