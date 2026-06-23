@@ -29,3 +29,71 @@ pub mod renderer;
 pub mod save;
 pub mod slash_commands;
 pub mod wikilinks;
+
+/// MT-031 (E5 melt-together): the rich-text editor's thin adapter into the shared
+/// [`crate::interop::InteractionBus`]. The rich editor routes its clipboard + command surface through
+/// the ONE shared bus rather than owning ad-hoc per-pane clipboard state (the contract's AC-7 rule).
+/// These are the concrete `bus.register_command` + `bus.clipboard_write` call sites for the rich-text
+/// surface.
+///
+/// Note on selection text: extracting a flattened plain-text string across the block document tree is a
+/// downstream E5 concern (MT-032+ everything-is-a-block addressing); this MT exposes the two robust
+/// clipboard-write paths a rich-text pane needs — a PLAIN-TEXT copy (the caller passes the already
+/// materialized selected text its renderer produced) and a whole-BLOCK copy as a `loom://` reference.
+pub mod interop_adapter {
+    use crate::interop::adapters::register_standard_commands;
+    use crate::interop::interaction_bus::{
+        ClipboardPayload, EditorSurfaceKind, InteractionBus, SharedSelection,
+    };
+    use crate::pane_registry::PaneId;
+    use crate::rich_editor::properties::metadata_client::ClipboardSink;
+
+    /// Register the rich-text surface's melt-together command set into the shared bus (AC-4). Called
+    /// once when the rich-text pane mounts.
+    pub fn register(bus: &mut InteractionBus) {
+        register_standard_commands(bus, EditorSurfaceKind::RichText);
+    }
+
+    /// Build the rich-text surface's [`SharedSelection::TextRange`] from the already-materialized
+    /// selected text its renderer produced (the rich editor lays out galleys and knows the rendered
+    /// run); `start`/`end` are the flat character offsets into that run.
+    pub fn text_selection(pane_id: PaneId, start: usize, end: usize, text: impl Into<String>) -> SharedSelection {
+        SharedSelection::TextRange {
+            pane_id,
+            surface: EditorSurfaceKind::RichText,
+            start,
+            end,
+            text: text.into(),
+        }
+    }
+
+    /// Build a whole-block reference selection (a block copied as a `loom://` ref — the contract's
+    /// everything-is-addressable-as-a-Loom-block edge seed).
+    pub fn block_ref_selection(pane_id: PaneId, block_id: impl Into<String>) -> SharedSelection {
+        SharedSelection::BlockRef { pane_id, block_id: block_id.into() }
+    }
+
+    /// Copy a plain-text rich-text selection to the shared clipboard through the bus (Ctrl+C path on a
+    /// text run). Returns `true` when non-empty text was copied. OS write goes through the mockable
+    /// [`ClipboardSink`] (headless-safe — MT-017 precedent).
+    pub fn copy_text_to_bus(bus: &mut InteractionBus, text: &str, sink: &dyn ClipboardSink) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+        bus.clipboard_write(ClipboardPayload::PlainText(text.to_owned()), sink);
+        true
+    }
+
+    /// Copy a whole block as a `loom://` reference to the shared clipboard (the rich-text "copy block
+    /// reference" path). The bus caches the rich `LoomBlockRef` variant so a cross-pane Paste recovers
+    /// the reference the plain-text OS clipboard would have flattened to its URI string.
+    pub fn copy_block_ref_to_bus(bus: &mut InteractionBus, block_id: &str, sink: &dyn ClipboardSink) {
+        bus.clipboard_write(ClipboardPayload::LoomBlockRef(block_id.to_owned()), sink);
+    }
+
+    /// Read the shared clipboard's text for a rich-text Paste (Ctrl+V path). Returns the richest
+    /// cross-pane variant as text, when present.
+    pub fn paste_text_from_bus(bus: &InteractionBus) -> Option<String> {
+        bus.clipboard_read_text().filter(|t| !t.is_empty())
+    }
+}

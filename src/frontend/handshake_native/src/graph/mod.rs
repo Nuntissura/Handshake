@@ -79,3 +79,62 @@ pub use block_collection_view::{
     TABLE_SORT_AUTHOR_ID_PREFIX,
 };
 pub use block_collection_view::STATUS_AUTHOR_ID as BCV_STATUS_AUTHOR_ID;
+
+/// MT-031 (E5 melt-together): the graph + canvas surfaces' thin adapter into the shared
+/// [`crate::interop::InteractionBus`]. A graph node / canvas card selection feeds the ONE
+/// [`crate::interop::interaction_bus::SharedSelection`], and a node copy goes to the ONE shared
+/// clipboard as a `loom://{block_id}` reference (the contract's "copy node ref as loom:// URI") rather
+/// than ad-hoc per-pane clipboard state (AC-7). These are the concrete `bus.register_command` +
+/// `bus.clipboard_write` call sites for the graph + canvas surfaces. `loom_graph.rs`'s node identity is
+/// the source of the `node_id` / `block_id` (reuse, not a new node model).
+pub mod interop_adapter {
+    use crate::interop::adapters::{copy_selection_to_clipboard, register_standard_commands};
+    use crate::interop::interaction_bus::{EditorSurfaceKind, InteractionBus, SharedSelection};
+    use crate::pane_registry::PaneId;
+    use crate::rich_editor::properties::metadata_client::ClipboardSink;
+
+    /// Register the graph surface's melt-together command set into the shared bus (AC-4). Called once
+    /// when the graph pane mounts.
+    pub fn register_graph(bus: &mut InteractionBus) {
+        register_standard_commands(bus, EditorSurfaceKind::Graph);
+    }
+
+    /// Register the canvas surface's melt-together command set into the shared bus (AC-4). Called once
+    /// when the canvas (Loom canvas board, MT-026) pane mounts.
+    pub fn register_canvas(bus: &mut InteractionBus) {
+        register_standard_commands(bus, EditorSurfaceKind::Canvas);
+    }
+
+    /// Build a [`SharedSelection::NodeRef`] for a selected graph node (the graph pane publishes this to
+    /// the bus when the selected node changes). `block_id` comes from `loom_graph.rs` node identity.
+    pub fn graph_node_selection(pane_id: PaneId, block_id: impl Into<String>) -> SharedSelection {
+        SharedSelection::NodeRef {
+            pane_id,
+            surface: EditorSurfaceKind::Graph,
+            node_id: block_id.into(),
+        }
+    }
+
+    /// Build a [`SharedSelection::NodeRef`] for a selected canvas placement's referenced block (the
+    /// canvas pane publishes this when its selection changes). `placed_block_id` is the canvas card's
+    /// referenced Loom block.
+    pub fn canvas_node_selection(pane_id: PaneId, placed_block_id: impl Into<String>) -> SharedSelection {
+        SharedSelection::NodeRef {
+            pane_id,
+            surface: EditorSurfaceKind::Canvas,
+            node_id: placed_block_id.into(),
+        }
+    }
+
+    /// Copy a graph/canvas node-ref selection to the shared clipboard as a `loom://{block_id}` reference
+    /// through the bus (the Ctrl+C / "copy block id" path). Returns `true` when a node ref was copied.
+    /// OS write goes through the mockable [`ClipboardSink`] (headless-safe — MT-017 precedent), and the
+    /// bus caches the rich `LoomBlockRef` for a cross-pane Paste.
+    pub fn copy_node_to_bus(
+        bus: &mut InteractionBus,
+        selection: &SharedSelection,
+        sink: &dyn ClipboardSink,
+    ) -> bool {
+        copy_selection_to_clipboard(bus, selection, sink)
+    }
+}

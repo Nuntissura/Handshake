@@ -163,3 +163,71 @@ pub fn open_merge(
 pub fn diff_panel_handle(factory: &DiffEditorPaneFactory) -> Arc<DiffEditorPanel> {
     factory.panel()
 }
+
+/// MT-031 (E5 melt-together): the code editor's thin adapter into the shared
+/// [`crate::interop::InteractionBus`]. The code editor routes its Copy/Cut/Paste/SelectAll/Find
+/// through the ONE shared command + clipboard surface instead of owning ad-hoc per-pane clipboard
+/// state — the contract's "no per-pane ad-hoc clipboard" rule (AC-7). The functions here are the
+/// concrete `bus.register_command` + `bus.clipboard_write` call sites for the code surface.
+pub mod interop_adapter {
+    use crate::code_editor::panel::CodeEditorPanel;
+    use crate::interop::adapters::{
+        copy_selection_to_clipboard, register_standard_commands, text_range_selection,
+    };
+    use crate::interop::interaction_bus::{EditorSurfaceKind, InteractionBus, SharedSelection};
+    use crate::pane_registry::PaneId;
+    use crate::rich_editor::properties::metadata_client::ClipboardSink;
+
+    /// Register the code surface's melt-together command set into the shared bus (AC-4). Called once
+    /// when the code pane mounts. The Copy/Cut/Paste edit commands stay addressable + keybind-matchable;
+    /// the pane wires their buffer-specific behavior through the keybind path + [`copy_to_bus`].
+    pub fn register(bus: &mut InteractionBus) {
+        register_standard_commands(bus, EditorSurfaceKind::Code);
+    }
+
+    /// Materialize the panel's PRIMARY selection as a [`SharedSelection::TextRange`] (the code pane
+    /// publishes this to the bus when its selection changes). Returns [`SharedSelection::None`] for a
+    /// bare caret (no selected text). The selected text is sliced from the buffer by byte range (cursor
+    /// offsets are always char-boundary-aligned).
+    pub fn selection_for(panel: &CodeEditorPanel, pane_id: PaneId) -> SharedSelection {
+        let cursors = panel.cursors();
+        let primary = cursors.primary();
+        if !primary.is_selection() {
+            return SharedSelection::None;
+        }
+        let range = primary.range();
+        let whole = panel.buffer().to_string();
+        // Byte-range slice; clamp defensively so a stale range never panics (RISK-4 spirit).
+        let end = range.end.min(whole.len());
+        let start = range.start.min(end);
+        let text = whole.get(start..end).unwrap_or("").to_owned();
+        if text.is_empty() {
+            SharedSelection::None
+        } else {
+            text_range_selection(pane_id, EditorSurfaceKind::Code, start, end, text)
+        }
+    }
+
+    /// Copy the code pane's current selection to the shared clipboard through the bus (Ctrl+C path).
+    /// Returns `true` when text was copied. The OS write goes through the mockable [`ClipboardSink`]
+    /// (headless-safe — MT-017 precedent), and the bus caches the variant for a cross-pane Paste.
+    pub fn copy_to_bus(
+        bus: &mut InteractionBus,
+        panel: &CodeEditorPanel,
+        pane_id: PaneId,
+        sink: &dyn ClipboardSink,
+    ) -> bool {
+        let selection = selection_for(panel, pane_id);
+        copy_selection_to_clipboard(bus, &selection, sink)
+    }
+
+    /// Paste the shared clipboard's text into the code pane at its cursors (Ctrl+V path). Reads the
+    /// richest cross-pane variant from the bus (so a `loom://` ref pastes its URI text). Returns the
+    /// number of insertions applied.
+    pub fn paste_from_bus(bus: &InteractionBus, panel: &CodeEditorPanel) -> usize {
+        match bus.clipboard_read_text() {
+            Some(text) if !text.is_empty() => panel.insert_text(&text),
+            _ => 0,
+        }
+    }
+}

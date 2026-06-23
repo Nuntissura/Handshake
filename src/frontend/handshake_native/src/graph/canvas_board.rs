@@ -664,6 +664,22 @@ impl LoomCanvasBoard {
         event
     }
 
+    /// MT-031 (E5 melt-together): the canvas board's selected placement, as the referenced Loom block
+    /// id, for the shared [`crate::interop::InteractionBus`] selection model. Returns the
+    /// `placed_block_id` of the single selected placement (the first when several are selected — the
+    /// canvas multi-selects for grouping, but the shared selection is a single focus reference), or
+    /// `None` when nothing is selected. The host publishes this to the bus via
+    /// `graph::interop_adapter::canvas_node_selection` so a cross-pane Copy / backlink can address the
+    /// canvas's selected block by `loom://{block_id}` (the contract's "canvas node selection feeds
+    /// SharedSelection"). Reuses the existing `selected` set + `placements` projection — no new state.
+    pub fn shared_selection_block_id(&self) -> Option<String> {
+        let placement_id = self.selected.iter().next()?;
+        self.placements
+            .iter()
+            .find(|p| &p.placement_id == placement_id)
+            .map(|p| p.placed_block_id.clone())
+    }
+
     /// The current viewport-persist event (pan/zoom snapshot the host PUTs to `.../viewport`).
     fn viewport_event(&self) -> CanvasEvent {
         CanvasEvent::ViewportChanged {

@@ -21,6 +21,7 @@ pub mod source_control;
 pub mod event_bus;
 pub mod find_in_files;
 pub mod installer;
+pub mod interop;
 pub mod layout_persistence;
 pub mod left_rail;
 pub mod loom_search_v2;
