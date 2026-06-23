@@ -80,9 +80,56 @@ fn fnv1a_hash(bytes: &[u8]) -> u32 {
     hash
 }
 
+/// True when this hsLink atom is a WP-KERNEL-012 MT-034 CODE cross-reference (ref_kind="code"). A code
+/// ref gets a distinct chip author_id (`code-ref-chip-{ref_value}`) and a code-styled short label so
+/// it reads as a code-symbol pill, not a generic wikilink.
+pub fn is_code_ref(link: &HsLinkNode) -> bool {
+    link.ref_kind == crate::interop::cross_ref::CODE_REF_KIND
+}
+
+/// The AccessKit author_id for a CODE-reference chip (`code-ref-chip-{symbol_entity_id}` per the MT-034
+/// contract). For a code ref the `ref_value` IS the symbol entity id / resolution key, so it is used
+/// verbatim (NOT the hashed wikilink-chip id) — the contract names the id by the symbol entity id so a
+/// swarm agent / kittest can target the chip by the symbol it references.
+pub fn code_ref_chip_author_id(symbol_ref: &str) -> String {
+    format!("code-ref-chip-{symbol_ref}")
+}
+
+/// The SHORT display name for a code-symbol key/label (the last `::` segment, then the last `#`
+/// segment — `path/to/file.rs#Mod::MyStruct` -> `MyStruct`), per the MT-034 chip rendering note
+/// ("Show the symbol_key short form: last '::' segment"). Falls back to the whole string when there is
+/// no separator.
+pub fn code_ref_short_name(symbol_key_or_label: &str) -> String {
+    let after_hash = symbol_key_or_label.rsplit('#').next().unwrap_or(symbol_key_or_label);
+    let last_seg = after_hash.rsplit("::").next().unwrap_or(after_hash);
+    let trimmed = last_seg.trim();
+    if trimmed.is_empty() {
+        symbol_key_or_label.to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
 /// The chip's display label: the explicit label, else `ref_kind:ref_value` (the React `hsLink`
 /// default), with a `?` prefix for an unresolved/unknown link so a broken chip is visible (RISK-5).
+///
+/// MT-034: a CODE ref renders the SHORT symbol name (the last `::`/`#` segment) with a small code
+/// glyph prefix, so it reads as a monospace code-symbol pill. An UNRESOLVED code ref (the symbol was
+/// deleted -> a 404 marked it `resolved=false`) shows `unresolved` text + the `?` prefix, greyed (the
+/// caller's `chip_colors` gives it the error affordance), without crashing (AC-4 / RISK pt(e)).
 pub fn chip_label(link: &HsLinkNode) -> String {
+    if is_code_ref(link) {
+        let name = if link.label.trim().is_empty() {
+            code_ref_short_name(&link.ref_value)
+        } else {
+            code_ref_short_name(&link.label)
+        };
+        return if link.resolved {
+            format!("‹›{name}")
+        } else {
+            format!("? {name} (unresolved)")
+        };
+    }
     let base = if link.label.is_empty() {
         format!("{}:{}", link.ref_kind, link.ref_value)
     } else {
@@ -154,6 +201,41 @@ mod tests {
         assert_eq!(chip_label(&with_label), "Seven");
         let no_label = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-7".into(), label: String::new(), resolved: true };
         assert_eq!(chip_label(&no_label), "wp:WP-7", "falls back to ref_kind:ref_value");
+    }
+
+    #[test]
+    fn code_ref_chip_id_uses_symbol_ref_verbatim() {
+        // MT-034: the code-ref chip id is `code-ref-chip-{symbol_entity_id}` (the symbol the chip
+        // references), used verbatim — NOT the hashed wikilink-chip id.
+        assert_eq!(code_ref_chip_author_id("ent-42"), "code-ref-chip-ent-42");
+        let link = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-42".into(), label: String::new(), resolved: true };
+        assert!(is_code_ref(&link));
+        let wp = HsLinkNode { ref_kind: "wp".into(), ref_value: "WP-1".into(), label: String::new(), resolved: true };
+        assert!(!is_code_ref(&wp));
+    }
+
+    #[test]
+    fn code_ref_short_name_takes_last_segment() {
+        // MT-034 chip note: the short form is the last `::`/`#` segment.
+        assert_eq!(code_ref_short_name("src/main.rs#Mod::MyStruct"), "MyStruct");
+        assert_eq!(code_ref_short_name("src/main.rs#add"), "add");
+        assert_eq!(code_ref_short_name("bare"), "bare");
+        assert_eq!(code_ref_short_name(""), "");
+    }
+
+    #[test]
+    fn code_ref_label_resolved_vs_unresolved() {
+        // A resolved code ref shows the short name with a code glyph; an UNRESOLVED one (deleted symbol,
+        // 404 -> resolved=false) shows `(unresolved)` greyed, never crashing (AC-4 / RISK pt(e)).
+        let resolved = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-1".into(), label: "src/main.rs#MyStruct".into(), resolved: true };
+        let lbl = chip_label(&resolved);
+        assert!(lbl.contains("MyStruct"), "resolved code chip shows the short symbol name");
+        assert!(!lbl.contains("unresolved"));
+        let unresolved = HsLinkNode { ref_kind: "code".into(), ref_value: "ent-9".into(), label: "src/gone.rs#Gone".into(), resolved: false };
+        let ul = chip_label(&unresolved);
+        assert!(ul.contains("unresolved"), "an unresolved code chip reads as broken");
+        assert!(ul.starts_with("? "), "unresolved keeps the broken-link `?` prefix");
+        assert!(ul.contains("Gone"));
     }
 
     #[test]

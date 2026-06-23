@@ -39,6 +39,9 @@
 //! [`SlashMenuState`]'s close on `is_focused() == false`), so a click outside the window
 //! never strands an open popup blocking other surfaces.
 
+// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the `/code-ref` code-symbol search dialog state
+// + off-thread lookup. On select it inserts a `code`-kind hsLink atom (executor::insert_code_ref_atom).
+pub mod code_symbol_search;
 pub mod executor;
 pub mod menu;
 pub mod registry;
@@ -77,6 +80,29 @@ pub const SLASH_PROMPT_OK_AUTHOR_ID: &str = "slash-prompt-ok";
 
 /// The author_id of the prompt modal's cancel button.
 pub const SLASH_PROMPT_CANCEL_AUTHOR_ID: &str = "slash-prompt-cancel";
+
+/// WP-KERNEL-012 MT-034: the author_id of the code-symbol search dialog (`/code-ref`), Role::Dialog.
+pub const CODE_SYMBOL_SEARCH_AUTHOR_ID: &str = "code-symbol-search";
+
+/// WP-KERNEL-012 MT-034: the author_id of the code-symbol search dialog's text input, Role::TextField.
+pub const CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID: &str = "code-symbol-search-input";
+
+/// WP-KERNEL-012 MT-034: the author_id PREFIX for one code-symbol search result row
+/// (`code-symbol-result-{symbol_entity_id}`), Role::ListItem.
+pub const CODE_SYMBOL_RESULT_AUTHOR_ID_PREFIX: &str = "code-symbol-result-";
+
+/// The AccessKit role for the code-symbol search dialog container (the contract's `Role::Dialog`).
+pub const CODE_SYMBOL_SEARCH_ROLE: accesskit::Role = accesskit::Role::Dialog;
+
+/// The AccessKit role for the code-symbol search input (the contract's `Role::TextField` — the
+/// field-correct accesskit 0.21.1 variant is `TextInput`; both the contract `TextField` name and the
+/// real role are reconciled to `TextInput` here, the same documented-deviation pattern MT-003 used).
+pub const CODE_SYMBOL_SEARCH_INPUT_ROLE: accesskit::Role = accesskit::Role::TextInput;
+
+/// Build the stable AccessKit author_id for a code-symbol search result row.
+pub fn code_symbol_result_author_id(symbol_entity_id: &str) -> String {
+    format!("{CODE_SYMBOL_RESULT_AUTHOR_ID_PREFIX}{symbol_entity_id}")
+}
 
 /// Build the stable AccessKit author_id for the menu row of command `id`.
 pub fn slash_item_author_id(id: &str) -> String {
@@ -284,6 +310,115 @@ pub fn open_slash_trigger(leaf_text: &str, caret_char: usize) -> Option<(usize, 
     None
 }
 
+/// The outcome of rendering the `/code-ref` code-symbol search dialog one frame (MT-034).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodeSymbolSearchOutcome {
+    /// Nothing happened (the dialog stays open).
+    None,
+    /// The operator picked a result: insert a `code` hsLink atom with this `(symbol_entity_id,
+    /// display_name)` and close the dialog.
+    Selected { symbol_entity_id: String, display_name: String },
+    /// The operator cancelled (Escape / close button); close the dialog without inserting.
+    Cancelled,
+}
+
+/// Render the `/code-ref` code-symbol search dialog (MT-034). Draws a floating [`egui::Window`] with a
+/// search input + a results list, emits the `code-symbol-search` (Dialog), `code-symbol-search-input`
+/// (TextField), and `code-symbol-result-{id}` (ListItem) AccessKit nodes, and returns the
+/// [`CodeSymbolSearchOutcome`]. Re-runs the off-thread lookup when the query text changes (the caller
+/// already drained the delivery cell into `state.results`). The actual atom insert + close is the
+/// caller's job, driven by the returned outcome.
+pub fn render_code_symbol_search_dialog(
+    ctx: &egui::Context,
+    state: &mut code_symbol_search::CodeSymbolSearchState,
+    palette: &crate::theme::HsPalette,
+) -> CodeSymbolSearchOutcome {
+    let mut outcome = CodeSymbolSearchOutcome::None;
+    let mut open = true;
+    let prev_query = state.query.clone();
+
+    egui::Window::new("Insert code reference")
+        .id(egui::Id::new(CODE_SYMBOL_SEARCH_AUTHOR_ID))
+        .collapsible(false)
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            // The search input.
+            let input = ui.add(
+                egui::TextEdit::singleline(&mut state.query)
+                    .hint_text("Search code symbols (function, struct, …)")
+                    .desired_width(280.0),
+            );
+            ctx.accesskit_node_builder(input.id, |node| {
+                node.set_role(CODE_SYMBOL_SEARCH_INPUT_ROLE);
+                node.set_author_id(CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID.to_owned());
+                node.set_label("Search code symbols".to_owned());
+            });
+
+            ui.separator();
+
+            if state.loading {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Spinner::new());
+                    ui.colored_label(palette.text_subtle, "Searching symbols…");
+                });
+            } else if let Some(err) = &state.error {
+                ui.colored_label(palette.error_text, format!("Symbol search failed: {err}"));
+            } else if state.query.trim().is_empty() {
+                ui.colored_label(palette.text_subtle, "Type to search code symbols.");
+            } else if state.results.is_empty() {
+                ui.colored_label(palette.text_subtle, "No matching symbols.");
+            } else {
+                for sym in state.results.clone() {
+                    let label = ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!("{}  ({})", sym.display_name, sym.symbol_kind))
+                                .color(palette.accent),
+                        )
+                        .sense(egui::Sense::click()),
+                    );
+                    let author = code_symbol_result_author_id(&sym.symbol_entity_id);
+                    let name_for_node = sym.display_name.clone();
+                    ctx.accesskit_node_builder(label.id, move |node| {
+                        node.set_role(SLASH_ITEM_ROLE);
+                        node.set_author_id(author.clone());
+                        node.set_label(name_for_node.clone());
+                        node.add_action(accesskit::Action::Click);
+                    });
+                    if label.clicked() {
+                        outcome = CodeSymbolSearchOutcome::Selected {
+                            symbol_entity_id: sym.symbol_entity_id.clone(),
+                            display_name: sym.display_name.clone(),
+                        };
+                    }
+                }
+            }
+        });
+
+    // Emit the dialog container node (Role::Dialog) — attach to a stable id for the window area.
+    let dialog_id = egui::Id::new(CODE_SYMBOL_SEARCH_AUTHOR_ID).with("dialog-node");
+    ctx.accesskit_node_builder(dialog_id, |node| {
+        node.set_role(CODE_SYMBOL_SEARCH_ROLE);
+        node.set_author_id(CODE_SYMBOL_SEARCH_AUTHOR_ID.to_owned());
+        node.set_label("Insert code reference".to_owned());
+    });
+
+    // Escape closes the dialog (the same cancel affordance the slash menu uses).
+    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        outcome = CodeSymbolSearchOutcome::Cancelled;
+    }
+    if !open && matches!(outcome, CodeSymbolSearchOutcome::None) {
+        outcome = CodeSymbolSearchOutcome::Cancelled;
+    }
+
+    // Re-run the lookup when the query text changed this frame (the caller drained the cell first).
+    if state.query != prev_query {
+        state.spawn_lookup();
+    }
+
+    outcome
+}
+
 /// Collect every block child of a parsed template/manual `doc` node into an owned `Vec` of
 /// [`BlockNode`]s (dropping any stray non-block children defensively). The executor inserts
 /// these after the caret's block.
@@ -306,6 +441,16 @@ mod tests {
         assert_eq!(SLASH_MENU_AUTHOR_ID, "slash-menu");
         assert_eq!(slash_item_author_id("heading-1"), "slash-item-heading-1");
         assert_eq!(SLASH_ITEM_AUTHOR_ID_PREFIX, "slash-item-");
+    }
+
+    #[test]
+    fn code_symbol_search_author_ids_match_contract() {
+        // WP-KERNEL-012 MT-034 (AC-5): the code-symbol search dialog ids + roles.
+        assert_eq!(CODE_SYMBOL_SEARCH_AUTHOR_ID, "code-symbol-search");
+        assert_eq!(CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID, "code-symbol-search-input");
+        assert_eq!(code_symbol_result_author_id("ent-1"), "code-symbol-result-ent-1");
+        assert_eq!(CODE_SYMBOL_SEARCH_ROLE, accesskit::Role::Dialog);
+        assert_eq!(CODE_SYMBOL_SEARCH_INPUT_ROLE, accesskit::Role::TextInput);
     }
 
     #[test]

@@ -66,6 +66,11 @@ pub mod keymap;
 pub mod keymap_settings;
 pub mod lsp_client;
 pub mod minimap;
+// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the "Notes mentioning this symbol" side panel.
+// The native-only reverse-direction surface (the React CodeSymbolPanel has only the definition + file
+// lens). Lists rich docs that reference the focused symbol via interop::find_notes_referencing_symbol;
+// clicking a row dispatches the shared open-document command on the MT-031 bus.
+pub mod note_refs_panel;
 pub mod outline;
 pub mod panel;
 pub mod virtual_lines;
@@ -118,6 +123,10 @@ pub use keymap_settings::{
     key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,
 };
 pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
+pub use note_refs_panel::{
+    render_note_refs_panel, row_author_id as note_ref_row_author_id,
+    NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
+};
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
 pub use panel::{
     scope_to_color, CodeEditorPanel, CodeEditorPaneFactory, FindState, GotoLineState, PerfStats,

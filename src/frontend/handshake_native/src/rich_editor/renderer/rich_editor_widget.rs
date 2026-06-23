@@ -73,6 +73,18 @@ pub struct RichEditorState {
     /// so the popup state (filter / selection / active prompt) persists across frames; closed on focus
     /// loss (MC-004) and on Escape / execute / the `/` being deleted.
     pub slash_menu: Option<crate::rich_editor::slash_commands::SlashMenuState>,
+    /// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the open `/code-ref` code-symbol search
+    /// dialog (`Some` while the operator is picking a symbol). Owned HERE so the query + results + load
+    /// state persist across frames; closed on select / cancel. The workspace id + runtime it needs are
+    /// installed by [`Self::set_code_ref_context`] (reusing the wikilink workspace context by default).
+    pub code_symbol_search:
+        Option<crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState>,
+    /// WP-KERNEL-012 MT-034: the workspace id the `/code-ref` dialog scopes its symbol lookup to (set
+    /// alongside the wikilink context by [`Self::set_code_ref_context`] / [`Self::set_workspace_context`]).
+    pub code_ref_workspace_id: String,
+    /// WP-KERNEL-012 MT-034: the tokio runtime handle the `/code-ref` lookup spawns onto (`None` until
+    /// the shell installs it; a headless test drives the dialog state directly without it).
+    pub code_ref_runtime: Option<tokio::runtime::Handle>,
     /// MT-017 document properties: the per-document metadata panel state (`None` until a document's
     /// metadata loads — the panel renders an honest "no document loaded" placeholder until then). Owned
     /// HERE so the title edit buffer + local tag list + collapsed state persist across frames.
@@ -162,6 +174,9 @@ impl RichEditorState {
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
             slash_menu: None,
+            code_symbol_search: None,
+            code_ref_workspace_id: String::new(),
+            code_ref_runtime: None,
             properties: None,
             properties_runtime,
             find_replace: None,
@@ -228,8 +243,23 @@ impl RichEditorState {
         self.wikilinks.workspace_id = workspace_id.clone();
         self.wikilinks.autocomplete.workspace_id = workspace_id;
         self.wikilinks.runtime = Some(runtime.clone());
-        self.wikilinks.autocomplete.runtime = Some(runtime);
+        self.wikilinks.autocomplete.runtime = Some(runtime.clone());
         self.wikilinks.set_document(document_id);
+        // MT-034: the `/code-ref` symbol search shares the same workspace + runtime context.
+        self.code_ref_workspace_id = self.wikilinks.workspace_id.clone();
+        self.code_ref_runtime = Some(runtime);
+    }
+
+    /// WP-KERNEL-012 MT-034: install the live `/code-ref` code-symbol search context (the workspace the
+    /// symbol lookup scopes to + the tokio runtime it spawns onto). The shell may call this directly; it
+    /// is also set as a side effect of [`Self::set_wikilink_context`] (the editors share one workspace).
+    pub fn set_code_ref_context(
+        &mut self,
+        workspace_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+    ) {
+        self.code_ref_workspace_id = workspace_id.into();
+        self.code_ref_runtime = Some(runtime);
     }
 
     /// Replace the entire wikilink runtime (test seam: inject a mock backend / pre-seeded caches).
@@ -1245,6 +1275,18 @@ impl RichEditorWidget {
                 // The `[[` was inserted; close the slash menu and let the autocomplete refresh take it.
                 state.slash_menu = None;
             }
+            SlashExecOutcome::OpenCodeSymbolSearch => {
+                // MT-034: close the slash menu and open the code-symbol search dialog (scoped to the
+                // editor's code-ref workspace + runtime context). The dialog renders next frame; on
+                // select it inserts a `code` hsLink atom at the caret (where the `/code-ref` was).
+                state.slash_menu = None;
+                state.code_symbol_search = Some(
+                    crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState::open(
+                        state.code_ref_workspace_id.clone(),
+                        state.code_ref_runtime.clone(),
+                    ),
+                );
+            }
         }
     }
 
@@ -1306,7 +1348,10 @@ impl RichEditorWidget {
         origin: egui::Pos2,
         _palette: &HsPalette,
     ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
-        use crate::rich_editor::wikilinks::inline_view::{chip_author_id, chip_rect_for_span, EditorEvent, CHIP_ROLE};
+        use crate::rich_editor::wikilinks::inline_view::{
+            chip_author_id, chip_rect_for_span, code_ref_chip_author_id, is_code_ref, EditorEvent,
+            CHIP_ROLE,
+        };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
         // Paint the chip background (rounded) then the label text in the chip text color, on top of
@@ -1322,7 +1367,13 @@ impl RichEditorWidget {
         );
 
         // An interactive (clickable) node over the chip rect, addressable by the stable chip author_id.
-        let author = chip_author_id(&spec.link.ref_value);
+        // MT-034: a code ref gets the contract `code-ref-chip-{symbol_entity_id}` id (the symbol the
+        // chip references — what a kittest / swarm agent targets); other wikilinks keep the hashed id.
+        let author = if is_code_ref(&spec.link) {
+            code_ref_chip_author_id(&spec.link.ref_value)
+        } else {
+            chip_author_id(&spec.link.ref_value)
+        };
         let chip_id = ui.id().with(("wikilink-chip", &author));
         let resp = ui.interact(rect, chip_id, egui::Sense::click());
         let role = CHIP_ROLE;
@@ -1755,9 +1806,52 @@ impl RichEditorWidget {
             Self::render_slash_surface(ui, state, palette, caret_pixel);
         }
 
+        // MT-034: the `/code-ref` code-symbol search dialog (a floating Window, not caret-anchored).
+        if state.code_symbol_search.is_some() {
+            Self::drive_code_symbol_search(ui, state, palette);
+        }
+
         // RISK-3 idle-CPU control: schedule the next blink frame ONLY when focused. An
         // unfocused editor returns false here and never requests a repaint.
         let _scheduled = request_blink_repaint(ui.ctx(), has_focus);
+    }
+
+    /// WP-KERNEL-012 MT-034: drive the `/code-ref` code-symbol search dialog one frame. Drains the
+    /// off-thread lookup cell, renders the dialog (input + results + AccessKit nodes), and acts on the
+    /// outcome: a Selected result inserts a `code` hsLink atom at the caret via
+    /// [`insert_code_ref_atom`](crate::rich_editor::slash_commands::executor::insert_code_ref_atom) and
+    /// closes the dialog; a Cancel closes it without inserting. The insert is the SAME inline-atom path
+    /// the embed/wikilink confirms use, so the code-ref round-trips `content_json` (AC-1).
+    fn drive_code_symbol_search(ui: &mut egui::Ui, state: &mut RichEditorState, palette: &HsPalette) {
+        use crate::rich_editor::slash_commands::executor::{insert_code_ref_atom, SlashExecContext};
+        use crate::rich_editor::slash_commands::{render_code_symbol_search_dialog, CodeSymbolSearchOutcome};
+
+        let Some(dialog) = state.code_symbol_search.as_mut() else { return };
+        // Drain the off-thread lookup result; request a repaint so a just-delivered result shows.
+        if dialog.drain() {
+            ui.ctx().request_repaint();
+        }
+        if dialog.loading {
+            ui.ctx().request_repaint();
+        }
+        let outcome = render_code_symbol_search_dialog(ui.ctx(), dialog, palette);
+        match outcome {
+            CodeSymbolSearchOutcome::None => {}
+            CodeSymbolSearchOutcome::Cancelled => {
+                state.code_symbol_search = None;
+            }
+            CodeSymbolSearchOutcome::Selected { symbol_entity_id, display_name } => {
+                let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+                let mut ctx = SlashExecContext {
+                    doc,
+                    history: undo,
+                    selection,
+                    actor_id: actor_id.as_str(),
+                };
+                insert_code_ref_atom(&mut ctx, &symbol_entity_id, &display_name);
+                state.code_symbol_search = None;
+            }
+        }
     }
 
     /// Render the wikilink autocomplete popup at the caret pixel (or, when the caret pixel is

@@ -24,13 +24,20 @@ pub mod adapters;
 // node; the canvas-add resolves to a loom block id (MT-026 placement), NOT an unsupported field.
 pub mod drag_payload;
 pub mod interaction_bus;
+// WP-KERNEL-012 MT-034 (E5 — code<->note cross-references): the bidirectional resolution service. A
+// `[[code:path#Symbol]]` reference in a note is the EXISTING `hsLink` atom (ref_kind="code"); clicking
+// it dispatches `open-code-symbol` on the MT-031 bus (routed via the MT-030 ShellNavigator seam), and
+// `resolve_code_ref` turns the symbol entity id into a file+line target via the existing code-nav
+// backend. The reverse direction (`find_notes_referencing_symbol`) lists notes mentioning a symbol via
+// the verified loom search-v2 route, feeding the code pane's NoteRefsPanel.
+pub mod cross_ref;
 
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
     CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COPY,
-    CMD_CUT, CMD_FIND, CMD_OPEN_DOCUMENT, CMD_PASTE, CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL,
-    CMD_COMMAND_PALETTE, COMMAND_LIST_ITEM_AUTHOR_PREFIX, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
-    COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
+    CMD_CUT, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_PASTE, CMD_ROUTE_TO_STAGE,
+    CMD_SELECT_ALL, CMD_COMMAND_PALETTE, COMMAND_LIST_ITEM_AUTHOR_PREFIX,
+    COMMAND_PALETTE_SEARCH_AUTHOR_ID, COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };
 
 pub use adapters::{
@@ -40,4 +47,10 @@ pub use adapters::{
 
 pub use drag_payload::{
     AtelierItemKind, AtelierRef, DragPayload, LoomBlockRef, ATELIER_EMBED_REF_KINDS,
+};
+
+pub use cross_ref::{
+    dispatch_code_ref_open, find_notes_referencing_symbol, find_notes_with, percent_encode_symbol,
+    resolve_code_ref, resolve_code_ref_with, CodeRef, CrossRefError, FindNotesHttp, FindNotesSearch,
+    NoteRef, SymbolDwellTracker, CODE_REF_KIND, NOTE_REFS_DWELL_MS, NOTE_REFS_SEARCH_LIMIT,
 };

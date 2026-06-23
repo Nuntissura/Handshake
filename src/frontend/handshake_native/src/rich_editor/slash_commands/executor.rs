@@ -58,6 +58,11 @@ pub enum SlashExecOutcome {
     /// has already been removed and a `[[` has been inserted so the autocomplete opens. The
     /// widget closes the slash menu and lets the existing autocomplete refresh take over.
     OpenWikilinkAutocomplete,
+    /// WP-KERNEL-012 MT-034: open the code-symbol search dialog (`/code-ref`). The `/`+filter
+    /// trigger text has already been removed; the widget opens the `code-symbol-search` dialog,
+    /// fuzzy-searches code symbols, and on select calls [`insert_code_ref_atom`] to insert a
+    /// `code`-kind `hsLink` atom at the caret.
+    OpenCodeSymbolSearch,
 }
 
 /// The mutable editor state the executor drives (the same borrow shape the formatting command
@@ -123,6 +128,12 @@ pub fn execute_slash_command(
             // transactional InsertText (a text-leaf edit MT-011 supports).
             insert_text_at_caret(ctx, "[[");
             SlashExecOutcome::OpenWikilinkAutocomplete
+        }
+        SlashAction::OpenCodeSymbolSearch => {
+            // MT-034: the `/`+filter trigger text is already removed (the caret sits where the `/`
+            // was, ready for the inserted code-ref atom). Signal the widget to open the code-symbol
+            // search dialog; the actual atom insert happens on select via `insert_code_ref_atom`.
+            SlashExecOutcome::OpenCodeSymbolSearch
         }
         SlashAction::InsertTemplate(tid) => {
             let changed = insert_template(ctx, tid);
@@ -318,6 +329,25 @@ fn insert_embed_atom(ctx: &mut SlashExecContext<'_>, kind: EmbedKind, ref_value:
 /// the caret's text leaf. Returns `true` when inserted.
 fn insert_transclusion_atom(ctx: &mut SlashExecContext<'_>, ref_value: &str) -> bool {
     insert_inline_atom(ctx, Child::Transclusion(TransclusionNode::new(ref_value.to_string())))
+}
+
+/// WP-KERNEL-012 MT-034: insert a CODE cross-reference `hsLink` atom at the caret (the `/code-ref`
+/// select path). The atom is `ref_kind="code"` (the discriminator the note->code `open-code-symbol`
+/// dispatch keys on), `ref_value=symbol_entity_id` (the backend resolution key `resolve_code_ref`
+/// uses), `label=display_name` (the human chip text). It is the SAME `hsLink` node MT-014/MT-015
+/// render — NOT an invented `code_ref` node — so it ROUND-TRIPS the backend `content_json` (AC-1) and
+/// the backend backlink indexer picks up `ref_value`. Returns `true` when inserted.
+pub fn insert_code_ref_atom(
+    ctx: &mut SlashExecContext<'_>,
+    symbol_entity_id: &str,
+    display_name: &str,
+) -> bool {
+    let link = HsLinkNode::new(
+        crate::interop::cross_ref::CODE_REF_KIND,
+        symbol_entity_id.to_string(),
+        display_name.to_string(),
+    );
+    insert_inline_atom(ctx, Child::HsLink(link))
 }
 
 /// Insert `atom` (an `hsLink` or `loomTransclusion` inline atom) immediately AFTER the caret's

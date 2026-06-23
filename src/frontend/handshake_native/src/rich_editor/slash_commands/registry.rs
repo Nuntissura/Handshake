@@ -193,6 +193,11 @@ pub enum SlashAction {
     OpenEmbedPrompt(EmbedKind),
     /// Activate the MT-015 wikilink autocomplete (`[[…]]`) at the caret.
     OpenWikilinkAutocomplete,
+    /// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): open the code-symbol search dialog
+    /// (`/code-ref`). The dialog fuzzy-searches code symbols via the existing code-nav lookup; on
+    /// select it inserts a `code`-kind `hsLink` atom (the EXISTING node, NOT a new `code_ref` type)
+    /// at the caret. The widget hosts the dialog (`code-symbol-search` / `-input` AccessKit nodes).
+    OpenCodeSymbolSearch,
     /// Insert a transclusion atom (the MT-015 `loomTransclusion`) at the caret (advanced;
     /// the operator supplies the ref via the embed-prompt modal reused for transclusions).
     OpenTransclusionPrompt,
@@ -492,6 +497,15 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         category: SlashCategory::Wikilinks,
         action: SlashAction::OpenTransclusionPrompt,
         glyph: "⟢",
+    },
+    SlashCommand {
+        id: "code-ref",
+        label: "Code reference",
+        description: "Link a code symbol; jump to it from this note",
+        keywords: &["code", "symbol", "ref", "code-ref", "function", "struct"],
+        category: SlashCategory::Wikilinks,
+        action: SlashAction::OpenCodeSymbolSearch,
+        glyph: "ƒ",
     },
     // ── Templates ─────────────────────────────────────────────────────────────────────────
     SlashCommand {

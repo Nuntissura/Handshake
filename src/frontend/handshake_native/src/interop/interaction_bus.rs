@@ -84,6 +84,14 @@ pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
 /// This is the melt-together Editors<->Stage (Pillar 17) navigation primitive. The DEEPER Stage backend
 /// interop (capture/embed-back with manifest provenance) is E10 (MT-066), NOT this command.
 pub const CMD_ROUTE_TO_STAGE: &str = "interop.route-to-stage";
+/// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): cross-pane Open-Code-Symbol command id. A
+/// clicked `[[code:…]]` chip in a note dispatches this with the target symbol entity id staged via
+/// [`InteractionBus::request_open_code_symbol`]; the shell drains
+/// [`InteractionBus::take_pending_code_symbol`] each frame and routes it through the MT-030
+/// [`crate::quick_switcher::ShellNavigator::open_code_symbol`] seam (which returns a typed
+/// `EditorPaneNotMounted` until the code pane mounts at E11/MT-069 — never a faked jump). This is the
+/// melt-together note->code navigation primitive, the symmetric counterpart of [`CMD_OPEN_DOCUMENT`].
+pub const CMD_OPEN_CODE_SYMBOL: &str = "interop.open-code-symbol";
 
 // ── AccessKit author_ids for the cross-pane command surface (the contract's named ids) ───────────────
 /// AccessKit author_id for the command-palette trigger button (Role::Button).
@@ -321,6 +329,11 @@ pub struct InteractionBus {
     /// node / CKC item). The shell drains it via [`Self::take_pending_stage_content`] each frame and
     /// opens/focuses the Stage pane with it. `None` when nothing is pending.
     pending_stage_content: Option<crate::stage_pane::StageContent>,
+    /// WP-KERNEL-012 MT-034 (E5): the symbol entity id an Open-Code-Symbol request staged (from a
+    /// clicked `[[code:…]]` chip). The shell drains it via [`Self::take_pending_code_symbol`] each frame
+    /// and routes it through the MT-030 ShellNavigator `open_code_symbol` seam. `None` when nothing is
+    /// pending.
+    pending_code_symbol: Option<String>,
 }
 
 impl Default for InteractionBus {
@@ -342,6 +355,7 @@ impl InteractionBus {
             event_sender: None,
             pending_navigation: None,
             pending_stage_content: None,
+            pending_code_symbol: None,
         }
     }
 
@@ -628,6 +642,53 @@ impl InteractionBus {
         self.request_route_to_stage(content);
         self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
     }
+
+    // ── Cross-pane Open-Code-Symbol navigation (MT-034 code<->note cross-refs) ──────────────────────────
+
+    /// Stage a symbol entity id for a cross-pane Open-Code-Symbol (called just before dispatching
+    /// [`CMD_OPEN_CODE_SYMBOL`], e.g. from a clicked `[[code:…]]` chip). The shell drains it next frame
+    /// via [`Self::take_pending_code_symbol`] and routes it through the MT-030 ShellNavigator.
+    pub fn request_open_code_symbol(&mut self, symbol_entity_id: impl Into<String>) {
+        self.pending_code_symbol = Some(symbol_entity_id.into());
+    }
+
+    /// The symbol entity id staged for a cross-pane code-symbol open, WITHOUT consuming it (tests / peek).
+    pub fn pending_code_symbol(&self) -> Option<&str> {
+        self.pending_code_symbol.as_deref()
+    }
+
+    /// Take (and clear) the staged symbol entity id. The shell calls this each frame; `Some(id)` means
+    /// route an open-code-symbol to that symbol, `None` means nothing pending.
+    pub fn take_pending_code_symbol(&mut self) -> Option<String> {
+        self.pending_code_symbol.take()
+    }
+
+    /// Register the cross-pane Open-Code-Symbol command (MT-034). Its handler is a no-op on the bus
+    /// itself (the symbol id was staged by [`Self::request_open_code_symbol`] BEFORE dispatch, consumed
+    /// by the shell drain) — the command exists so a clicked code-ref chip dispatches a REAL, named,
+    /// addressable cross-pane action rather than a per-pane ad-hoc callback. Idempotent (last
+    /// registration wins). Mirrors [`Self::register_open_document_command`] exactly (the MT-032 pattern).
+    pub fn register_open_code_symbol_command(&mut self) {
+        self.register_command(CommandDescriptor {
+            id: CMD_OPEN_CODE_SYMBOL,
+            name: "OpenCodeSymbol",
+            label: "Open Code Symbol".to_owned(),
+            keywords: vec!["open".to_owned(), "code".to_owned(), "symbol".to_owned()],
+            keybind: None,
+            // The symbol id was staged before dispatch (a generic handler carries no payload — the
+            // stage-then-dispatch split is the contract point); request a repaint so the shell drains it.
+            handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
+        });
+    }
+
+    /// Stage `symbol_entity_id` and dispatch [`CMD_OPEN_CODE_SYMBOL`] in one call (the clicked code-ref
+    /// chip path — AC-2). Returns `true` when the command was found and dispatched (it always is once
+    /// [`Self::register_open_code_symbol_command`] ran). The staged id is then readable via
+    /// [`Self::pending_code_symbol`] until the shell drains it.
+    pub fn open_code_symbol(&mut self, ctx: &egui::Context, symbol_entity_id: impl Into<String>) -> bool {
+        self.request_open_code_symbol(symbol_entity_id);
+        self.dispatch_command(ctx, CMD_OPEN_CODE_SYMBOL)
+    }
 }
 
 /// Build the standard egui shortcut for a VS-Code-parity command id, or `None` for a palette-only id.
@@ -850,6 +911,35 @@ mod tests {
         // The shell drains it once.
         assert_eq!(bus.take_pending_navigation().as_deref(), Some("DOC-A"));
         assert!(bus.take_pending_navigation().is_none(), "drained once, then empty");
+    }
+
+    /// MT-034 AC-2: staging a symbol entity id + dispatching the Open-Code-Symbol command stages the
+    /// target on the bus, where the shell drains it and routes it through the ShellNavigator seam. A
+    /// real, named, addressable cross-pane action — the symmetric counterpart of Open-Document.
+    #[test]
+    fn open_code_symbol_stages_target() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.register_open_code_symbol_command();
+        assert!(bus.commands().get(CMD_OPEN_CODE_SYMBOL).is_some(), "open-code-symbol command registered");
+        assert!(bus.pending_code_symbol().is_none(), "nothing pending before");
+        // The clicked code-ref chip path: stage + dispatch in one call.
+        assert!(bus.open_code_symbol(&ctx, "ent-42"), "open-code-symbol dispatched");
+        assert_eq!(bus.pending_code_symbol(), Some("ent-42"), "the staged symbol id is observable");
+        // The shell drains it once.
+        assert_eq!(bus.take_pending_code_symbol().as_deref(), Some("ent-42"));
+        assert!(bus.take_pending_code_symbol().is_none(), "drained once, then empty");
+    }
+
+    /// Dispatching Open-Code-Symbol WITHOUT registering it is a benign false (unknown id), not a panic;
+    /// the staged id still drains independently.
+    #[test]
+    fn open_code_symbol_unregistered_is_benign() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.request_open_code_symbol("ent-X");
+        assert!(!bus.dispatch_command(&ctx, CMD_OPEN_CODE_SYMBOL), "unknown command id is a no-op false");
+        assert_eq!(bus.take_pending_code_symbol().as_deref(), Some("ent-X"));
     }
 
     /// Dispatching Open-Document WITHOUT registering it is a benign false (unknown id), not a panic.

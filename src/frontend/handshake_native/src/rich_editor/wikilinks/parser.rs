@@ -109,7 +109,16 @@ impl ParsedWikilink {
 pub fn wikilink_kind_by_prefix() -> &'static HashMap<&'static str, &'static str> {
     static TABLE: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
     TABLE.get_or_init(|| {
-        // (prefix lower-cased, backend ref kind) — verbatim from WP009_WIKILINK_KINDS.
+        // (prefix lower-cased, backend ref kind) — verbatim from WP009_WIKILINK_KINDS, plus the
+        // WP-KERNEL-012 MT-034 `code:` code-symbol cross-reference prefix.
+        //
+        // MT-034 (E5 code<->note cross-refs): a `[[code:path/to/file.rs#MyStruct]]` token in a note is
+        // an EXISTING `hsLink` inline atom (NOT an invented `code_ref` node — the KERNEL_BUILDER gate's
+        // THIRD embed instance after MT-014 images + MT-033 atelier), so the `code:` prefix is added to
+        // the SAME prefix table the wikilink parser drives. Its backend `ref_kind` is `code`, so the
+        // atom round-trips `content_json` (AC-1) and the backend backlink indexer keys it on
+        // `ref_value=symbol_key`. The historical `symbol:` prefix already existed (a Loom symbol ref);
+        // `code:` is the code-editor cross-ref discriminator MT-034 dispatches `open-code-symbol` on.
         [
             ("note", "note"),
             ("file", "file"),
@@ -122,6 +131,8 @@ pub fn wikilink_kind_by_prefix() -> &'static HashMap<&'static str, &'static str>
             ("video", "video"),
             ("hs_images", "images"),
             ("hs_slideshow", "slideshow"),
+            // WP-KERNEL-012 MT-034: the code-symbol cross-reference prefix.
+            ("code", "code"),
         ]
         .into_iter()
         .collect()
@@ -299,6 +310,22 @@ mod tests {
             assert!(parsed.resolved);
             assert_eq!(parsed.to_hs_link().ref_kind, backend);
         }
+    }
+
+    #[test]
+    fn parses_code_prefix_to_resolved_code_hs_link() {
+        // WP-KERNEL-012 MT-034 (AC-1 / cross_ref unit): `[[code:path#Symbol]]` parses to a RESOLVED
+        // hsLink atom with ref_kind="code" and ref_value carrying the `path#Symbol` symbol key — the
+        // node that round-trips content_json and that the backend backlink indexer keys on.
+        let parsed = parse_wikilink("[[code:src/main.rs#MyStruct]]").expect("a valid code wikilink");
+        assert_eq!(parsed.kind, WikilinkKind::Known("code".to_owned()));
+        assert_eq!(parsed.kind.ref_kind(), "code");
+        assert_eq!(parsed.ref_value, "src/main.rs#MyStruct");
+        assert!(parsed.resolved, "the code: prefix is a known kind");
+        let link = parsed.to_hs_link();
+        assert_eq!(link.ref_kind, "code");
+        assert_eq!(link.ref_value, "src/main.rs#MyStruct");
+        assert!(link.resolved);
     }
 
     #[test]
