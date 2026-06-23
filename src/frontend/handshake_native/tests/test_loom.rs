@@ -16,8 +16,11 @@
 //!     `api/loom.rs::create_loom_edge`/`delete_loom_edge` as `Json<LoomEdge>`.
 //!   * `transclusion_unresolved_body` <- `api/loom.rs::LoomTransclusionResponse` (~L577) — the
 //!     `resolved:false` 200 body a block with no source document returns (~L611).
-//!   * `search_v2_response_body`    <- `storage/loom.rs::LoomSearchV2Response` (~L687) returned by
-//!     `api/loom.rs::loom_search_v2`.
+//!   * `search_v2_response_body`    <- `storage/loom.rs::LoomSearchV2Response` (L687) whose `hits` are
+//!     `storage/loom.rs::LoomSearchV2Hit` (L667): each hit is a NESTED full `block` (`LoomBlock`) plus
+//!     `score`/`fts_rank`/`trgm_sim`/`vector_sim`/`edge_degree`/`highlight` (NO flat block id, NO
+//!     per-modality `*_score` fields) — returned VERBATIM by `api/loom.rs::loom_search_v2` (L2683,
+//!     `Json<LoomSearchV2Response>`, no `#[serde(flatten)]`).
 //!   * `markdown_import_body`       <- `storage/loom.rs::LoomMarkdownImport` (~L1329) returned by
 //!     `api/loom.rs::import_markdown_to_loom`.
 //!   * `journal_date_400_body`      <- `api/loom.rs::parse_journal_date` `bad_request("HSK-400-LOOM-
@@ -125,19 +128,22 @@ fn transclusion_unresolved_body() -> Value {
     })
 }
 
-/// `storage::loom::LoomSearchV2Response` — hits + content_type_facets + semantic_available + total.
+/// `storage::loom::LoomSearchV2Response` (L687) — `hits` + `content_type_facets` + `semantic_available`
+/// + `total`. Each hit is a `storage::loom::LoomSearchV2Hit` (L667): a NESTED full `block` (`LoomBlock`,
+/// reusing `block_response_body()`) plus the per-modality blend fields `score`/`fts_rank`/`trgm_sim`/
+/// `vector_sim`/`edge_degree`/`highlight`. There is NO flat block id and NO `keyword_score`/`trigram_score`
+/// /`semantic_score`/`graph_score` field — those keys do not exist on the real wire (verified against
+/// `storage/loom.rs:667-696`; handler returns `Json<LoomSearchV2Response>` verbatim at `api/loom.rs:2683`).
 fn search_v2_response_body() -> Value {
     json!({
         "hits": [
             {
-                "block_id": "BLK-1",
-                "title": "Design Notes",
-                "content_type": "note",
+                "block": block_response_body(),
                 "score": 0.91,
-                "keyword_score": 0.8,
-                "trigram_score": 0.4,
-                "semantic_score": 0.0,
-                "graph_score": 0.1,
+                "fts_rank": 0.8,
+                "trgm_sim": 0.4,
+                "vector_sim": 0.0,
+                "edge_degree": 1,
                 "highlight": "<mark>design</mark> notes"
             }
         ],
@@ -476,7 +482,29 @@ fn ac_search_v2_parses_non_empty_results_and_sends_no_embedding() {
     let result = resp.expect("loom_search_v2 must parse the real search response");
     let hits = result["hits"].as_array().expect("hits is an array");
     assert!(!hits.is_empty(), "the search result list is non-empty");
-    assert_eq!(hits[0]["block_id"], json!("BLK-1"));
+    // REAL backend shape (storage/loom.rs::LoomSearchV2Hit, L667): block identity is NESTED under
+    // hits[i]["block"] (a full LoomBlock), never a flat hits[i]["block_id"].
+    assert_eq!(hits[0]["block"]["block_id"], json!("BLK-1"));
+    // Pin the per-modality blend field NAMES to the real hit shape so a fabricated flat/*_score fixture
+    // can never silently pass again: these keys exist, the invented ones do not.
+    assert!(
+        hits[0].get("score").is_some()
+            && hits[0].get("fts_rank").is_some()
+            && hits[0].get("trgm_sim").is_some()
+            && hits[0].get("vector_sim").is_some()
+            && hits[0].get("edge_degree").is_some(),
+        "a LoomSearchV2Hit carries the real per-modality blend fields: {}",
+        hits[0]
+    );
+    assert!(
+        hits[0].get("keyword_score").is_none()
+            && hits[0].get("trigram_score").is_none()
+            && hits[0].get("semantic_score").is_none()
+            && hits[0].get("graph_score").is_none()
+            && hits[0].get("block_id").is_none(),
+        "no fabricated flat block_id / *_score keys exist on the real hit: {}",
+        hits[0]
+    );
     assert_eq!(result["semantic_available"], json!(false));
     assert!(
         exchange
