@@ -7,5 +7,13 @@
 //! MT-037 delivers [`knowledge_documents`]: the consolidated client for the full
 //! `/knowledge/documents/*` route family. It is reachable as
 //! `handshake_native::backend::knowledge_documents`.
+//!
+//! MT-038 delivers [`loom`]: the consolidated, unified client namespace for the
+//! `/workspaces/:ws/loom/*` route family. It RE-EXPORTS the existing WP-011/MT-021..032 egui-thread
+//! builder clients (so `handshake_native::backend::loom::<X>` resolves to the SAME type without forking
+//! them) and ADDS a stateless async [`loom::LoomClient`] for the genuinely-missing + editor-consumed
+//! routes (block CRUD, edges, daily journal, knowledge-bridge, transclusion, folder membership, wiki
+//! extras, markdown import, visual-debug). It is reachable as `handshake_native::backend::loom`.
 
 pub mod knowledge_documents;
+pub mod loom;
