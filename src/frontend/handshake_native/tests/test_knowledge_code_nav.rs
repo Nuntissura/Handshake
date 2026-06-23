@@ -28,6 +28,8 @@ use std::net::TcpListener;
 use handshake_native::backend::knowledge_code_nav::{
     code_nav_headers, CodeNavError, EditorSessionContext, KnowledgeCodeNavClient, LookupRequest,
 };
+#[allow(unused_imports)]
+use handshake_native::backend::knowledge_code_nav::{SymbolSpan, SymbolSpansResponse};
 use serde_json::{json, Value};
 
 // ── In-process mock HTTP server (proven MT-020/037 TcpListener pattern; no new dependency). ─────────
@@ -229,8 +231,8 @@ fn ac_lookup_symbols_by_name_returns_typed_response_with_matches() {
     assert_eq!(m.display_name, "Foo");
     assert!(m.staleness.is_fresh(), "the fresh staleness shape parses as fresh");
     let def = m.definition.as_ref().expect("definition span parsed");
-    assert_eq!(def.line_start, 10);
-    assert_eq!(def.line_end, 20);
+    assert_eq!(def.line_start, Some(10));
+    assert_eq!(def.line_end, Some(20));
     // AC: receipt ids preserved through deserialization (RISK-4/MC-4).
     assert_eq!(resp.nav_receipt_event_id, "KEV-nav-001");
     assert_eq!(resp.quiet_background_work_receipt_id, "QBW-quiet-001");
@@ -370,7 +372,7 @@ fn ac_symbol_references_populates_callers_and_callees() {
     assert_eq!(resp.callees.len(), 1, "callees populated");
     assert_eq!(resp.callers[0].symbol_key, "rust:src/a.rs#call_target");
     assert_eq!(resp.callers[0].evidence_spans.len(), 1);
-    assert_eq!(resp.callers[0].evidence_spans[0].line_start, 5);
+    assert_eq!(resp.callers[0].evidence_spans[0].line_start, Some(5));
     assert!((resp.callers[0].confidence - 0.92).abs() < 1e-9, "edge confidence parses as f64");
     assert_eq!(resp.callees[0].symbol_key, "rust:src/b.rs#helper");
     // RISK-3: the callee's "unindexed" staleness deserializes tolerantly and reads as STALE.
@@ -432,6 +434,70 @@ fn ac_unknown_future_staleness_state_does_not_break_a_real_nav_body() {
     // The definition was JSON null -> None (not a parse error).
     assert!(resp.symbol.definition.is_none());
     assert_eq!(resp.nav_receipt_event_id, "KEV-nav-future");
+}
+
+// ── BACKEND-SHAPE: a span whose line_start/line_end are JSON null deserializes to None, not Parse. ──
+
+#[test]
+fn ac_symbol_spans_with_null_line_numbers_deserializes_to_none_not_parse_error() {
+    // The backend `KnowledgeSpan.line_start` / `.line_end` columns are `Option<i32>`
+    // (`storage/knowledge.rs:763-764`) and `symbol_spans` projects them directly
+    // (`api/knowledge_code_nav.rs:667-668`), so a span with a NULL line serializes to JSON `null`.
+    // This is a REAL backend shape: the same `symbol_spans` 200 envelope (`:689-695`) with one span
+    // whose lines are null. Before the hardening fix the client bound `line_start: i64` (non-optional)
+    // and this body would have failed with `CodeNavError::Parse`, silently dropping the whole nav
+    // response. The fix binds `Option<i64>` + `#[serde(default)]`; a null line must read as `None`.
+    let body = json!({
+        "symbol_entity_id": "KE-null-lines",
+        "staleness": {"state": "fresh", "fresh": true,
+            "indexed_content_hash": "sha256:n", "indexed_parser_version": "rust@0.25"},
+        "spans": [
+            {
+                "span_id": "KSP-null",
+                "source_id": "file:src/lib.rs",
+                "span_kind": "reference",
+                "line_start": null,
+                "line_end": null,
+                "range_start": 100,
+                "range_end": 200,
+                "section_path": null,
+                "content_sha256": "sha256:c",
+                "parser_version": "rust@0.25"
+            }
+        ],
+        "nav_receipt_event_id": "KEV-nav-spans-null",
+        "quiet_background_work_receipt_id": "QBW-quiet-spans-null"
+    });
+    let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
+    let client = KnowledgeCodeNavClient::with_base_url(base_url);
+    let headers = code_nav_headers(&ctx());
+
+    let resp = rt().block_on(async { client.symbol_spans(&headers, "KE-null-lines").await });
+    let exchange = server.join().unwrap();
+
+    let resp = resp
+        .expect("a span with null line_start/line_end is a valid backend shape and MUST NOT be a Parse error");
+    assert_eq!(resp.symbol_entity_id, "KE-null-lines");
+    assert_eq!(resp.spans.len(), 1, "the span with null lines is preserved");
+    let span = &resp.spans[0];
+    assert_eq!(span.span_id, "KSP-null");
+    assert_eq!(span.line_start, None, "a JSON null line_start deserializes to None (tolerant, MC-3)");
+    assert_eq!(span.line_end, None, "a JSON null line_end deserializes to None (tolerant, MC-3)");
+    // The non-null sibling fields still parse.
+    assert_eq!(span.range_start, Some(100));
+    assert_eq!(span.range_end, Some(200));
+    assert_eq!(span.content_sha256.as_deref(), Some("sha256:c"));
+    // Receipt ids preserved through deserialization (RISK-4/MC-4).
+    assert_eq!(resp.nav_receipt_event_id, "KEV-nav-spans-null");
+    assert_eq!(resp.quiet_background_work_receipt_id, "QBW-quiet-spans-null");
+    // The request hit the right route (also closes the symbol_spans integration coverage gap).
+    assert!(
+        exchange
+            .captured_request_line
+            .starts_with("GET /knowledge/code/symbols/KE-null-lines/spans"),
+        "symbol_spans hits the right route : {}",
+        exchange.captured_request_line
+    );
 }
 
 // ── HYGIENE: this MT writes ZERO test artifacts; guard that no repo-local artifact dir exists. ──────

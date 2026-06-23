@@ -129,7 +129,7 @@ fn transclusion_unresolved_body() -> Value {
 }
 
 /// `storage::loom::LoomSearchV2Response` (L687) — `hits` + `content_type_facets` + `semantic_available`
-/// + `total`. Each hit is a `storage::loom::LoomSearchV2Hit` (L667): a NESTED full `block` (`LoomBlock`,
+/// and `total`. Each hit is a `storage::loom::LoomSearchV2Hit` (L667): a NESTED full `block` (`LoomBlock`,
 /// reusing `block_response_body()`) plus the per-modality blend fields `score`/`fts_rank`/`trgm_sim`/
 /// `vector_sim`/`edge_degree`/`highlight`. There is NO flat block id and NO `keyword_score`/`trigram_score`
 /// /`semantic_score`/`graph_score` field — those keys do not exist on the real wire (verified against

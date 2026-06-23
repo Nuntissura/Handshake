@@ -71,13 +71,16 @@
 //!     [SymbolCallerCallee], callees: [SymbolCallerCallee], nav_receipt_event_id,
 //!     quiet_background_work_receipt_id }`; each caller/callee (`:540-547`) is `{ symbol_entity_id,
 //!     symbol_key, display_name, confidence, evidence_spans: [EvidenceSpanRef], staleness }`; each
-//!     evidence span (`edge_span_refs`, `:782-786`) is `{ span_id, line_start, line_end }`.
+//!     evidence span (`edge_span_refs`, `:782-786`) is `{ span_id, line_start?, line_end? }`
+//!     (`line_start`/`line_end` are nullable: the backend `KnowledgeSpan` columns are `Option<i32>`,
+//!     `storage/knowledge.rs:763-764`, so the client binds `Option<i64>`).
 //!   * `symbol_tests` 200 body (`:634-640`): `{ symbol_entity_id, staleness, tests: [SymbolTestEntry],
 //!     ... }`; each test (`:611-618`) is `{ test_entity_id, test_symbol_key, display_name, confidence,
 //!     evidence_spans, staleness }`.
 //!   * `symbol_spans` 200 body (`:689-695`): `{ symbol_entity_id, staleness, spans: [SymbolSpan], ... }`;
-//!     each span (`:663-674`) is `{ span_id, source_id, span_kind, line_start, line_end, range_start?,
-//!     range_end?, section_path?, content_sha256?, parser_version? }`.
+//!     each span (`:663-674`) is `{ span_id, source_id, span_kind, line_start?, line_end?, range_start?,
+//!     range_end?, section_path?, content_sha256?, parser_version? }` (`line_start`/`line_end` nullable
+//!     per the `Option<i32>` backend columns, `storage/knowledge.rs:763-764`).
 //!   * `file_lens` 200 body (`:737-749` + `monaco_bridge::MonacoCodeLensPayload`/`CodeLensEntry`): the
 //!     SERIALIZED `MonacoCodeLensPayload` `{ workspace_id, relative_path, staleness: StalenessVerdict,
 //!     truncated, entries: [CodeLensEntry] }` with `nav_receipt_event_id` +
@@ -330,8 +333,14 @@ impl StalenessState {
 pub struct DefinitionSpan {
     pub span_id: String,
     pub source_id: String,
-    pub line_start: i64,
-    pub line_end: i64,
+    /// `None` when the backend `KnowledgeSpan.line_start` column is NULL
+    /// (`storage/knowledge.rs:763` declares `Option<i32>`). Tolerant per MC-3 so a null
+    /// line never turns a nav response into a `CodeNavError::Parse`.
+    #[serde(default)]
+    pub line_start: Option<i64>,
+    /// `None` when the backend `KnowledgeSpan.line_end` column is NULL (`storage/knowledge.rs:764`).
+    #[serde(default)]
+    pub line_end: Option<i64>,
     #[serde(default)]
     pub range_start: Option<i64>,
     #[serde(default)]
@@ -381,8 +390,13 @@ pub struct SymbolGetResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EvidenceSpanRef {
     pub span_id: String,
-    pub line_start: i64,
-    pub line_end: i64,
+    /// `None` when the backend `KnowledgeSpan.line_start` column is NULL
+    /// (`storage/knowledge.rs:763`); `edge_span_refs:784` projects it directly. Tolerant per MC-3.
+    #[serde(default)]
+    pub line_start: Option<i64>,
+    /// `None` when the backend `KnowledgeSpan.line_end` column is NULL (`storage/knowledge.rs:764`).
+    #[serde(default)]
+    pub line_end: Option<i64>,
 }
 
 /// One caller or callee of a symbol. `symbol_references:540-547` / `:553-560`.
@@ -437,8 +451,13 @@ pub struct SymbolSpan {
     pub span_id: String,
     pub source_id: String,
     pub span_kind: String,
-    pub line_start: i64,
-    pub line_end: i64,
+    /// `None` when the backend `KnowledgeSpan.line_start` column is NULL
+    /// (`storage/knowledge.rs:763`); `symbol_spans:667` projects it directly. Tolerant per MC-3.
+    #[serde(default)]
+    pub line_start: Option<i64>,
+    /// `None` when the backend `KnowledgeSpan.line_end` column is NULL (`storage/knowledge.rs:764`).
+    #[serde(default)]
+    pub line_end: Option<i64>,
     #[serde(default)]
     pub range_start: Option<i64>,
     #[serde(default)]
