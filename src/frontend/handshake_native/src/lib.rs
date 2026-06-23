@@ -20,6 +20,17 @@ pub mod context_menu_surfaces;
 pub mod debug_console;
 pub mod drawer;
 pub mod error;
+// WP-KERNEL-012 MT-036 (E5 — one event ledger across surfaces): the single NativeEditorEventEmitter that
+// turns a native editor action into a typed NativeEditorEvent and ships it to the EXISTING handshake_core
+// Flight Recorder ledger (Semaphore-bounded off-frame spawn + cap-20 in-memory error ring). LIVE-wired at
+// the rich-text save, rich-pane undo, and route-to-stage call sites; the code-edit + canvas live emits are
+// honestly DEFERRED to E11/MT-069. The full native→ledger round-trip is a TYPED BACKEND BLOCKER (the real
+// backend has no ingestion endpoint accepting a native-editor event — see the module doc).
+pub mod event_emitter;
+// WP-KERNEL-012 MT-036 (E5 — flight recorder pane): the native port of FlightRecorderView.tsx listing the
+// native editor events the ledger holds (HBR-VIS/HBR-SWARM). No perpetual spinner; theme tokens only;
+// flight-recorder-pane(Region) + fr-event-{id}(ListItem) AccessKit nodes.
+pub mod flight_recorder_pane;
 pub mod graph;
 pub mod loom_graph;
 pub mod source_control;
@@ -56,6 +67,11 @@ pub mod split_layout;
 // InteractionBus. The deeper Stage backend interop (capture/embed-back with manifest provenance) is E10.
 pub mod stage_pane;
 pub mod stash_shelf;
+// WP-KERNEL-012 MT-036 (E5 — designed extension seams): the DESIGN-ONLY EditorSurface trait +
+// EditorSurfaceRegistry by which FUTURE surfaces (image editor, spreadsheet, engine) attach to the shared
+// selection/event-ledger/undo substrate WITHOUT touching the existing emitter. Compiles + is unit-proven
+// object-safe; #[allow(dead_code)] — no production code calls it at runtime (the contract's explicit seam).
+pub mod surface_extension_seam;
 pub mod tab_bar;
 pub mod theme;
 pub mod top_menu_bar;

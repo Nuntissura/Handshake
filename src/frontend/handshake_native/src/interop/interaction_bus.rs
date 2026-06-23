@@ -355,6 +355,17 @@ pub struct InteractionBus {
     /// frame thread (HBR-QUIET). `None` in a headless unit test (an async undo is then reported as a
     /// typed "no runtime" result rather than blocking the frame — never a fake success).
     undo_runtime: Option<tokio::runtime::Handle>,
+    /// WP-KERNEL-012 MT-036 (E5 — one event ledger): the single native-editor event emitter, co-located
+    /// with the shared bus so every surface emits through ONE producer to ONE ledger. `None` until the
+    /// shell installs it via [`Self::set_event_emitter`]; a pane calling [`Self::emit_event`] before the
+    /// shell installs it is an honest no-op (never a fake emit), matching the unmounted-pane defer policy.
+    event_emitter: Option<crate::event_emitter::NativeEditorEventEmitter>,
+    /// WP-KERNEL-012 MT-036 (E5 — designed extension seams): the DESIGN-ONLY future-surface registry,
+    /// co-located with the bus per the contract. EMPTY in production (no future surface registers yet),
+    /// so the fan-out on selection-change / emit is a no-op until an image-editor/spreadsheet/engine
+    /// surface registers. Stored here so the seam attaches to the SAME substrate without touching the
+    /// emitter.
+    surface_registry: crate::surface_extension_seam::EditorSurfaceRegistry,
 }
 
 impl Default for InteractionBus {
@@ -379,6 +390,8 @@ impl InteractionBus {
             pending_code_symbol: None,
             undo_scope: UnifiedUndoScope::new(),
             undo_runtime: None,
+            event_emitter: None,
+            surface_registry: crate::surface_extension_seam::EditorSurfaceRegistry::new(),
         }
     }
 
@@ -459,6 +472,10 @@ impl InteractionBus {
         };
         if accept {
             self.selection = selection;
+            // MT-036 (E5 designed seam): fan the new selection out to every registered future surface
+            // (a no-op in production — the registry is empty until an image-editor/spreadsheet/engine
+            // surface registers). Kept INSIDE the accept branch so a rejected selection does not notify.
+            self.surface_registry.dispatch_selection_changed(&self.selection);
         }
         accept
     }
@@ -662,6 +679,25 @@ impl InteractionBus {
         ctx: &egui::Context,
         content: crate::stage_pane::StageContent,
     ) -> bool {
+        // MT-036 (E5 — one event ledger): emit a REAL `route_to_stage` FlightEvent at this LIVE
+        // route-to-stage call site (the MT-033 path). The content kind comes from the staged content; the
+        // source pane is the current focus owner (the surface the route originated from), falling back to
+        // a generic id. The emit is a no-op until the shell installs the emitter (defer policy).
+        let content_kind = content.content_kind();
+        let source_pane_id = self
+            .focus_owner
+            .as_ref()
+            .map(|p| p.as_ref().to_owned())
+            .unwrap_or_else(|| "stage-route-source".to_owned());
+        let workspace_id =
+            self.event_emitter.as_ref().map(|e| e.workspace_id().to_owned()).unwrap_or_default();
+        let ev = crate::event_emitter::NativeEditorEvent::route_to_stage(
+            content_kind,
+            &source_pane_id,
+            crate::event_emitter::native_editor_actor_id(&source_pane_id),
+            workspace_id,
+        );
+        self.emit_event(ev);
         self.request_route_to_stage(content);
         self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
     }
@@ -726,6 +762,50 @@ impl InteractionBus {
     /// Borrow the unified undo scope (tests / the "Show Undo History" inspector — MC-5).
     pub fn undo_scope(&self) -> &UnifiedUndoScope {
         &self.undo_scope
+    }
+
+    // ── One event ledger across surfaces (MT-036) ──────────────────────────────────────────────────────
+
+    /// Install the single native-editor event emitter (the shell calls this once at startup with the
+    /// production emitter bound to the app runtime + backend). Until installed, [`Self::emit_event`] is an
+    /// honest no-op (never a fake emit) — matching the unmounted-pane defer policy.
+    pub fn set_event_emitter(&mut self, emitter: crate::event_emitter::NativeEditorEventEmitter) {
+        self.event_emitter = Some(emitter);
+    }
+
+    /// Borrow the installed event emitter, if any (tests / the FlightRecorderPane reading the error ring).
+    pub fn event_emitter(&self) -> Option<&crate::event_emitter::NativeEditorEventEmitter> {
+        self.event_emitter.as_ref()
+    }
+
+    /// Emit a native editor event onto the ONE ledger (MT-036). Delegates to the installed emitter (off
+    /// the egui frame thread, Semaphore-bounded — HBR-QUIET / RISK-2) AND fans the event out to every
+    /// registered future surface ([`crate::surface_extension_seam::EditorSurface::on_event_emitted`]) —
+    /// a no-op fan-out in production (the registry is empty). Returns `true` when an emitter was installed
+    /// and the emit was DISPATCHED (it may still land in the error ring on a transport failure / drop);
+    /// `false` when no emitter is installed (honest no-op, never a fake). The dispatched/dropped outcome
+    /// is logged to the emitter's error ring; this method never panics the frame.
+    pub fn emit_event(&self, event: crate::event_emitter::NativeEditorEvent) -> bool {
+        let Some(emitter) = self.event_emitter.as_ref() else {
+            return false; // not installed yet (unmounted-pane defer): honest no-op, never faked.
+        };
+        // Fan out to the design-only future-surface registry FIRST (a no-op in production); then emit.
+        self.surface_registry.dispatch_event_emitted(&event, emitter);
+        let _ = emitter.emit(event); // a drop/transport-failure is recorded in the error ring, not panicked.
+        true
+    }
+
+    // ── Designed extension-seam registry (MT-036, DESIGN-ONLY) ───────────────────────────────────────────
+
+    /// Register a future editor surface into the co-located registry (DESIGN-ONLY — no production caller
+    /// today; an image-editor/spreadsheet/engine surface calls this at its own startup).
+    pub fn register_surface(&mut self, surface: Box<dyn crate::surface_extension_seam::EditorSurface>) {
+        self.surface_registry.register_surface(surface);
+    }
+
+    /// Borrow the future-surface registry (tests / diagnostics). Empty in production.
+    pub fn surface_registry(&self) -> &crate::surface_extension_seam::EditorSurfaceRegistry {
+        &self.surface_registry
     }
 
     /// Push a LOCAL-pane undo action onto `pane_id`'s ring (POLICY-1). Each pane calls this after

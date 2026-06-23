@@ -202,6 +202,12 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 # NEW dependency family MT-017 adds. Clipboard reuses the EXISTING `egui::Context::copy_text` surface
 # (used in app.rs / debug_console.rs), so NO `arboard` direct dep is added.
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# WP-KERNEL-012 MT-036 (E5 — one event ledger): `uuid` (v4) generates the per-event `event_id` and the
+# per-session `session_id` (a non-nil UUID the verified Flight Recorder `runtime_chat_event` endpoint
+# REQUIRES). uuid 1.23.x is ALREADY in the locked graph transitively (Cargo.lock pins 1.23.3 via the egui/
+# wasm + flight-recorder stack), so declaring it adds NO new dependency family — it only enables the `v4`
+# feature so the native crate can mint ids directly. Pure-Rust, no native build; Cargo.lock pins the version.
+uuid = { version = "1", features = ["v4"] }
 # WP-KERNEL-012 MT-020 save-to-format file dialog: `rfd` (0.14) is the native Rust file-dialog crate
 # (Windows: the Win32 IFileSaveDialog COM API; no wry/webview dependency, unlike tauri-plugin-dialog).
 # It is the ONLY new dependency family MT-020 adds — `sha2` (canonical draft hash) and `base64` (HTML

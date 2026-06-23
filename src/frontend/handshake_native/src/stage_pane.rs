@@ -79,6 +79,16 @@ impl StageContent {
     pub fn is_some(&self) -> bool {
         !matches!(self, StageContent::Empty)
     }
+
+    /// The stable content-kind wire string (the MT-036 `route_to_stage` payload `content_kind` field).
+    pub fn content_kind(&self) -> &'static str {
+        match self {
+            StageContent::Empty => "empty",
+            StageContent::Document(_) => "document",
+            StageContent::Selection(..) => "selection",
+            StageContent::AtelierItem(_) => "atelier_item",
+        }
+    }
 }
 
 /// The Stage pane widget state. Held by the host (in `app.rs`); mutated when the route-to-stage command

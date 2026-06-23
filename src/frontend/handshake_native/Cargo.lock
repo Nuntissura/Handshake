@@ -1508,6 +1508,7 @@ dependencies = [
  "tree-sitter-javascript",
  "tree-sitter-language",
  "tree-sitter-rust",
+ "uuid",
  "windows-sys 0.61.2",
 ]
 
@@ -4020,6 +4021,7 @@ version = "1.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "144d6b123cef80b301b8f72a9e2ca4370ddec21950d0a103dd22c437006d2db7"
 dependencies = [
+ "getrandom 0.4.3",
  "js-sys",
  "serde_core",
  "wasm-bindgen",

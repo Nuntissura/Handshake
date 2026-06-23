@@ -864,10 +864,27 @@ impl RichEditorWidget {
         };
         crate::interop::interaction_bus::InteractionBus::with_try_lock(bus, |b| {
             b.set_focus_owner(pane_id.clone());
-            match chord {
+            let fired = match chord {
                 UndoChord::Undo => b.undo(pane_id).is_some(),
                 UndoChord::Redo => b.redo(pane_id).is_some(),
+            };
+            // MT-036 (E5 — one event ledger): emit a REAL `undo_fired` FlightEvent at this LIVE undo
+            // dispatch (the MT-035 path that is wired + tested). Only emit when an action actually fired
+            // (a no-op chord on an empty ring is NOT an event). The bus is ALREADY locked here, so emit
+            // directly (no re-lock). scope=local — this is the focused-pane local-first Ctrl+Z/Ctrl+Y
+            // ring (POLICY-1). The emit is a no-op until the shell installs the emitter (defer policy).
+            if fired {
+                let workspace_id =
+                    b.event_emitter().map(|e| e.workspace_id().to_owned()).unwrap_or_default();
+                let ev = crate::event_emitter::NativeEditorEvent::undo_fired(
+                    crate::event_emitter::UndoScope::Local,
+                    pane_id.as_ref(),
+                    crate::event_emitter::native_editor_actor_id(pane_id.as_ref()),
+                    workspace_id,
+                );
+                b.emit_event(ev);
             }
+            fired
         })
         .unwrap_or(false)
     }
@@ -961,6 +978,37 @@ impl RichEditorWidget {
                     // the just-saved content + version (so a later edit's draft bases correctly).
                     let saved_content =
                         crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                    // MT-036 (E5 — one event ledger): emit a REAL `document_saved` FlightEvent at this
+                    // LIVE save-success call site (the MT-020 path that exists + is tested). The content
+                    // hash is recomputed locally via the MT-032 canonical writer (matches the backend's
+                    // server-side hash). The pane id is the MT-035 undo pane id; absent it (a bare unit
+                    // test that never mounted), the emit is skipped — never a fake. The emit routes off
+                    // the frame thread + bounded via the bus's installed emitter (a no-op until the shell
+                    // installs the emitter — the unmounted-pane defer policy).
+                    if let Some(pane_id) = state.undo_pane_id.clone() {
+                        let document_id =
+                            state.save.as_ref().map(|s| s.document_id().to_owned()).unwrap_or_default();
+                        if !document_id.is_empty() {
+                            let content_hash =
+                                crate::loom_address::ContentHash::of_content_json(&saved_content)
+                                    .as_str()
+                                    .to_owned();
+                            let bus =
+                                crate::interop::interaction_bus::InteractionBus::get_or_init(ctx);
+                            crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                                let ev = crate::event_emitter::NativeEditorEvent::document_saved(
+                                    document_id,
+                                    content_hash,
+                                    pane_id.as_ref(),
+                                    crate::event_emitter::native_editor_actor_id(pane_id.as_ref()),
+                                    b.event_emitter()
+                                        .map(|e| e.workspace_id().to_owned())
+                                        .unwrap_or_default(),
+                                );
+                                b.emit_event(ev);
+                            });
+                        }
+                    }
                     if let Some(draft) = state.draft.as_mut() {
                         draft.clear_after_save(doc_version, &saved_content);
                     }
