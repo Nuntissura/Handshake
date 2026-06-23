@@ -3349,11 +3349,23 @@ mod wiki_client_tests {
 // [`GetRequestSpec`] (unit-testable WITHOUT a backend), and the off-thread fetch/dispatch methods
 // deliver into `Arc<Mutex<Option<..>>>` cells the egui UI drains next frame (HBR-QUIET). Speaks
 // `serde_json::Value` so it never depends on the `handshake_core` crate.
+//
+// FIELD-TYPE VERIFICATION (adversarial-review hardening, must-fix #1/#2/#3 — the route+method match
+// was not enough; the query field VALUE TYPES and the group_by lane dependency had drifted):
+//   - `BlockViewQuery.date_from/date_to` are backend type `Option<DateTime<Utc>>` with the DEFAULT
+//     chrono serde (RFC3339, full timestamp). `definition_to_json` EXPANDS the calendar `YYYY-MM-DD`
+//     to `<date>T00:00:00Z` / `<date>T23:59:59Z` so the PATCH body actually deserializes (a bare date
+//     would 400/422). `date_serializes_as_rfc3339_*` prove the produced strings parse as `DateTime<Utc>`
+//     (the SAME type+serde the backend field uses) — an adapter-boundary check, not a self-tautology.
+//   - The native `BlockViewDefinition`/`BlockViewQuery` now model the FULL backend query
+//     (content_type/mime/tag_ids/mention_ids) + `group_by` ({"kind":"tag"} | {"kind":"field","field"}),
+//     so a sort/kind/date `updateBlockView` — which the backend persists as a FULL overwrite of
+//     `view_definition_json` — never silently drops a server-side filter or a Kanban lane grouping.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 use crate::graph::block_collection_view::{
-    BlockViewDefinition, BlockViewField, BlockViewKind, BlockViewLane, BlockViewQuery,
-    BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
+    BlockViewDefinition, BlockViewField, BlockViewGroupBy, BlockViewKind, BlockViewLane,
+    BlockViewQuery, BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
 };
 
 /// The parsed result of a `getBlockView` fetch: the loaded definition + the view block id (so the host
@@ -3567,16 +3579,66 @@ impl BlockViewClient {
     }
 }
 
-/// Serialize a [`BlockViewDefinition`] to the VERIFIED wire JSON the backend `BlockViewDefinition`
-/// deserializes (snake_case kind/field/direction strings; `query` carries the date window). Only the
-/// fields the native surfaces set are written; the backend defaults the rest (serde `#[serde(default)]`).
-fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
-    let mut query = serde_json::Map::new();
-    if let Some(from) = &def.query.date_from {
-        query.insert("date_from".to_owned(), serde_json::Value::String(from.clone()));
+/// Expand a calendar `YYYY-MM-DD` bound to the full RFC3339 instant the backend's
+/// `BlockViewQuery.date_from/date_to: Option<DateTime<Utc>>` (default chrono serde) ACCEPTS. The backend
+/// REJECTS a bare date-only string (must-fix #1 / backend-shape #4 — `updateBlockView` would 400/422),
+/// so `date_from` becomes the start-of-day `<date>T00:00:00Z` and `date_to` the INCLUSIVE end-of-day
+/// `<date>T23:59:59Z`. A value already carrying a time component (`T`) is passed through unchanged (so a
+/// future full-timestamp input still round-trips). `end_of_day=false` => 00:00:00, `true` => 23:59:59.
+fn expand_iso_date_to_rfc3339(date: &str, end_of_day: bool) -> String {
+    let trimmed = date.trim();
+    if trimmed.contains('T') {
+        // Already a full timestamp — leave it (the read path slices, but a caller may pass full).
+        return trimmed.to_owned();
     }
-    if let Some(to) = &def.query.date_to {
-        query.insert("date_to".to_owned(), serde_json::Value::String(to.clone()));
+    let time = if end_of_day { "23:59:59" } else { "00:00:00" };
+    format!("{trimmed}T{time}Z")
+}
+
+/// Serialize a [`BlockViewDefinition`] to the VERIFIED wire JSON the backend `BlockViewDefinition`
+/// deserializes (snake_case kind/field/direction strings). The FULL query (date window expanded to
+/// RFC3339, content_type, mime, tag_ids, mention_ids) and `group_by` are written so a sort/kind/date
+/// `updateBlockView` round-trip — which the backend persists as a FULL overwrite of
+/// `view_definition_json` — never silently drops a server-side filter or a Kanban grouping (must-fix
+/// #1/#2/#3). The backend defaults only genuinely-absent fields (serde `#[serde(default)]`).
+fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
+    let q = &def.query;
+    let mut query = serde_json::Map::new();
+    // date_from/date_to: EXPAND the calendar `YYYY-MM-DD` to a full RFC3339 instant — the backend field
+    // is `Option<DateTime<Utc>>` and rejects a bare date (must-fix #1).
+    if let Some(from) = &q.date_from {
+        query.insert(
+            "date_from".to_owned(),
+            serde_json::Value::String(expand_iso_date_to_rfc3339(from, false)),
+        );
+    }
+    if let Some(to) = &q.date_to {
+        query.insert(
+            "date_to".to_owned(),
+            serde_json::Value::String(expand_iso_date_to_rfc3339(to, true)),
+        );
+    }
+    if let Some(ct) = &q.content_type {
+        query.insert("content_type".to_owned(), serde_json::Value::String(ct.clone()));
+    }
+    if let Some(mime) = &q.mime {
+        query.insert("mime".to_owned(), serde_json::Value::String(mime.clone()));
+    }
+    if !q.tag_ids.is_empty() {
+        query.insert(
+            "tag_ids".to_owned(),
+            serde_json::Value::Array(
+                q.tag_ids.iter().map(|t| serde_json::Value::String(t.clone())).collect(),
+            ),
+        );
+    }
+    if !q.mention_ids.is_empty() {
+        query.insert(
+            "mention_ids".to_owned(),
+            serde_json::Value::Array(
+                q.mention_ids.iter().map(|m| serde_json::Value::String(m.clone())).collect(),
+            ),
+        );
     }
     let mut obj = serde_json::Map::new();
     obj.insert("kind".to_owned(), serde_json::Value::String(def.kind.as_str().to_owned()));
@@ -3590,6 +3652,11 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
                 def.columns.iter().map(|f| serde_json::Value::String(f.as_str().to_owned())).collect(),
             ),
         );
+    }
+    // group_by: serialize the verified tagged-enum shape ({"kind":"tag"} | {"kind":"field","field":..})
+    // so a Kanban view's lane grouping survives the full-overwrite persist (must-fix #3).
+    if let Some(group_by) = &def.group_by {
+        obj.insert("group_by".to_owned(), group_by_to_json(group_by));
     }
     if let Some(sort) = def.sort {
         obj.insert(
@@ -3609,6 +3676,30 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
     serde_json::Value::Object(obj)
 }
 
+/// Serialize the verified `BlockViewGroupBy` tagged-enum wire shape (`#[serde(tag="kind",
+/// rename_all="snake_case")]`): `{"kind":"tag"}` or `{"kind":"field","field":"<field>"}`.
+fn group_by_to_json(group_by: &BlockViewGroupBy) -> serde_json::Value {
+    match group_by {
+        BlockViewGroupBy::Tag => serde_json::json!({ "kind": "tag" }),
+        BlockViewGroupBy::Field { field } => {
+            serde_json::json!({ "kind": "field", "field": field.as_str() })
+        }
+    }
+}
+
+/// Parse the verified `BlockViewGroupBy` tagged-enum JSON. An unknown/missing `kind` (or a `field`
+/// variant with an unparseable field) yields `None` — a malformed grouping is dropped, never faked.
+fn group_by_from_json(v: &serde_json::Value) -> Option<BlockViewGroupBy> {
+    match v.get("kind").and_then(|x| x.as_str())? {
+        "tag" => Some(BlockViewGroupBy::Tag),
+        "field" => {
+            let field = BlockViewField::parse_str(v.get("field").and_then(|x| x.as_str())?)?;
+            Some(BlockViewGroupBy::Field { field })
+        }
+        _ => None,
+    }
+}
+
 /// Parse the VERIFIED `BlockViewDefinition` JSON into the native projection. Unknown kinds default to
 /// table; unknown fields are dropped (never faked).
 pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
@@ -3626,17 +3717,20 @@ pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
         };
         Some(BlockViewSort { field, direction })
     });
+    let group_by = v.get("group_by").and_then(group_by_from_json);
     let calendar_date_field = v
         .get("calendar_date_field")
         .and_then(|x| x.as_str())
         .and_then(BlockViewField::parse_str);
     let query = v.get("query").map(parse_block_view_query).unwrap_or_default();
-    BlockViewDefinition { kind, query, columns, sort, calendar_date_field }
+    BlockViewDefinition { kind, query, columns, group_by, sort, calendar_date_field }
 }
 
-/// Parse the date window out of the VERIFIED `BlockViewQuery` JSON. The backend stores `date_from`/
-/// `date_to` as ISO datetimes; the calendar surface only needs the `YYYY-MM-DD` prefix, so the native
-/// projection slices it.
+/// Parse the FULL VERIFIED `BlockViewQuery` JSON into the native projection. The backend stores
+/// `date_from`/`date_to` as ISO datetimes; the calendar surface only needs the `YYYY-MM-DD` prefix, so
+/// the native projection slices it (the write path re-expands it to RFC3339). `content_type`/`mime`/
+/// `tag_ids`/`mention_ids` are carried verbatim so a later `updateBlockView` round-trip never drops the
+/// user's server-side filters (must-fix #2).
 fn parse_block_view_query(v: &serde_json::Value) -> BlockViewQuery {
     let slice_date = |key: &str| {
         v.get(key)
@@ -3644,9 +3738,19 @@ fn parse_block_view_query(v: &serde_json::Value) -> BlockViewQuery {
             .filter(|s| !s.is_empty())
             .map(|s| s.chars().take(10).collect::<String>())
     };
+    let string_array = |key: &str| {
+        v.get(key)
+            .and_then(|x| x.as_array())
+            .map(|arr| arr.iter().filter_map(|x| x.as_str().map(ToOwned::to_owned)).collect())
+            .unwrap_or_default()
+    };
     BlockViewQuery {
         date_from: slice_date("date_from"),
         date_to: slice_date("date_to"),
+        content_type: v.get("content_type").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        mime: v.get("mime").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        tag_ids: string_array("tag_ids"),
+        mention_ids: string_array("mention_ids"),
     }
 }
 

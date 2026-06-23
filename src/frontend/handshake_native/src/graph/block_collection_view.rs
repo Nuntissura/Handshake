@@ -275,16 +275,49 @@ pub struct BlockViewSort {
     pub direction: BlockViewSortDirection,
 }
 
-/// The server-side query window for a saved view. Only the fields the native sub-views touch are
-/// modeled (`content_type` + the calendar date window); the host round-trips the rest as opaque JSON
-/// it loaded from `getBlockView` so a partial native model never DROPS a backend filter the user set
-/// elsewhere (the host carries the raw definition JSON; this struct is the editable projection).
+/// The server-side query window for a saved view. The native projection models EVERY field of the
+/// verified backend `BlockViewQuery` (`storage::loom::BlockViewQuery`) so a sort / kind / date-range
+/// `updateBlockView` round-trip — which the backend persists as a FULL overwrite of
+/// `view_definition_json` (`SET view_definition_json = $1`, NOT a merge) — never silently drops a
+/// server-side filter the user set elsewhere (the must-fix #2 / backend-shape #4 data-loss defect).
+///
+/// `date_from`/`date_to` are kept here as the calendar UI's `YYYY-MM-DD` shape (the read path slices
+/// the backend's full RFC3339 timestamp to 10 chars); they are EXPANDED back to a full RFC3339 instant
+/// at the serialization boundary (`definition_to_json`) because the backend field is
+/// `Option<DateTime<Utc>>` with the default chrono serde, which REJECTS a bare date-only string.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BlockViewQuery {
-    /// `date_from` (ISO `YYYY-MM-DD`) — applied SERVER-SIDE by the calendar date window.
+    /// `date_from` (ISO `YYYY-MM-DD`) — applied SERVER-SIDE by the calendar date window. Expanded to
+    /// `<date>T00:00:00Z` on the wire (backend type `Option<DateTime<Utc>>`).
     pub date_from: Option<String>,
-    /// `date_to` (ISO `YYYY-MM-DD`) — applied SERVER-SIDE by the calendar date window.
+    /// `date_to` (ISO `YYYY-MM-DD`) — applied SERVER-SIDE by the calendar date window. Expanded to the
+    /// inclusive end-of-day `<date>T23:59:59Z` on the wire (backend type `Option<DateTime<Utc>>`).
     pub date_to: Option<String>,
+    /// Server-side `content_type` filter. Carried so a `updateBlockView` round-trip never wipes it.
+    pub content_type: Option<String>,
+    /// Server-side `mime` filter. Carried so a round-trip never wipes it.
+    pub mime: Option<String>,
+    /// Server-side `tag_ids` filter (also the Kanban tag-grouping universe). Carried so a round-trip
+    /// never wipes the user's tag filter / lane universe.
+    pub tag_ids: Vec<String>,
+    /// Server-side `mention_ids` filter. Carried so a round-trip never wipes it.
+    pub mention_ids: Vec<String>,
+}
+
+/// How a Kanban view groups its cards — the native projection of the verified backend
+/// `BlockViewGroupBy` (`storage::loom`, `#[serde(tag = "kind", rename_all = "snake_case")]`):
+/// `{"kind":"tag"}` or `{"kind":"field","field":"<field>"}`. The backend builds Kanban lanes ONLY when
+/// `definition.group_by` is `Some(..)` (the wildcard arm returns zero lanes), so this MUST round-trip
+/// faithfully: a natively-created Kanban view defaults to `Tag` (so `+ New view` produces lanes), and
+/// an existing Kanban view's grouping survives every sort / kind / date `updateBlockView` (must-fix #3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BlockViewGroupBy {
+    /// Group by tag edge: one lane per tag block id (+ the implicit `__untagged__` lane). Drag between
+    /// lanes mutates the real tag edges (the Kanban card-move contract). Wire: `{"kind":"tag"}`.
+    Tag,
+    /// Group by a typed block field (e.g. content_type). Lane keys are field VALUES, not tag ids.
+    /// Wire: `{"kind":"field","field":"<field>"}`.
+    Field { field: BlockViewField },
 }
 
 /// The full definition of a saved view (the native projection of the verified `BlockViewDefinition`).
@@ -294,6 +327,11 @@ pub struct BlockViewDefinition {
     pub query: BlockViewQuery,
     /// Table columns (ordered). Empty => the React default `[title, updated]`.
     pub columns: Vec<BlockViewField>,
+    /// Kanban grouping (only meaningful for `kind = kanban`). The backend builds lanes ONLY when this
+    /// is `Some(..)`, so it MUST round-trip: dropping it would render zero lanes (native-created views)
+    /// or permanently wipe the grouping on the first sort/kind/date edit of an existing Kanban view
+    /// (the backend overwrites the whole `view_definition_json`). See must-fix #3.
+    pub group_by: Option<BlockViewGroupBy>,
     /// Server-side sort (table / calendar ordering). `None` => unsorted.
     pub sort: Option<BlockViewSort>,
     /// Which date field the calendar buckets by. `None` => `created` (the React default).
@@ -301,12 +339,20 @@ pub struct BlockViewDefinition {
 }
 
 impl BlockViewDefinition {
-    /// A minimal definition of the given kind (used by the New-view popup + tests).
+    /// A minimal definition of the given kind (used by the New-view popup + tests). A Kanban view
+    /// defaults to `group_by = Tag` so a natively-created Kanban view actually produces lanes (the
+    /// backend returns zero lanes for a Kanban view with `group_by = None` — must-fix #3); table and
+    /// calendar views carry no grouping.
     pub fn of_kind(kind: BlockViewKind) -> Self {
+        let group_by = match kind {
+            BlockViewKind::Kanban => Some(BlockViewGroupBy::Tag),
+            BlockViewKind::Table | BlockViewKind::Calendar => None,
+        };
         Self {
             kind,
             query: BlockViewQuery::default(),
             columns: Vec::new(),
+            group_by,
             sort: None,
             calendar_date_field: None,
         }
@@ -660,7 +706,7 @@ impl BlockCollectionView {
                 }
             }
             BlockViewKind::Kanban => {
-                if let Some(ev) = self.show_kanban(ui, palette, &results) {
+                if let Some(ev) = self.show_kanban(ui, palette, &definition, &results) {
                     event = Some(ev);
                 }
             }
@@ -772,6 +818,7 @@ impl BlockCollectionView {
         &mut self,
         ui: &mut egui::Ui,
         palette: &HsPalette,
+        definition: &BlockViewDefinition,
         results: &BlockViewResults,
     ) -> Option<BlockViewEvent> {
         let mut view = KanbanSubView {
@@ -780,9 +827,18 @@ impl BlockCollectionView {
         };
         let outcome = view.show(ui, palette, results);
         if let Some((block_id, from_key, to_key)) = outcome {
-            let (add_tags, remove_tags) = card_move_tags(&from_key, &to_key);
-            self.status = "Moving card…".to_owned();
-            return Some(BlockViewEvent::CardMove { block_id, add_tags, remove_tags });
+            // Card-move = a REAL tag-edge mutation. This is correct ONLY for TAG grouping (lane key = a
+            // tag block id). For FIELD grouping the lane key is a field VALUE ("note"/"pinned"/…), so a
+            // tag mutation would add a BOGUS tag edge to a non-existent TagHub id (the group_by=Field
+            // card-move risk). The MT-027 contract scopes card-move to tag-lane semantics, so a
+            // field-grouped drop is a SAFE no-op here (never a corrupting tag write) rather than an
+            // unconditional bogus mutation. `None`/`Tag` => tag semantics (the default Kanban grouping).
+            let tag_grouped = !matches!(definition.group_by, Some(BlockViewGroupBy::Field { .. }));
+            if tag_grouped {
+                let (add_tags, remove_tags) = card_move_tags(&from_key, &to_key);
+                self.status = "Moving card…".to_owned();
+                return Some(BlockViewEvent::CardMove { block_id, add_tags, remove_tags });
+            }
         }
         None
     }

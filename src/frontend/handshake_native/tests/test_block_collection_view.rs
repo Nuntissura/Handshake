@@ -49,8 +49,8 @@ use handshake_native::backend_client::BlockViewClient;
 use handshake_native::graph::block_collection_view::{
     calendar_day_author_id, calendar_entry_author_id, kanban_card_author_id, kanban_lane_author_id,
     table_row_author_id, table_sort_author_id, BlockCollectionView, BlockViewDefinition,
-    BlockViewEvent, BlockViewField, BlockViewKind, BlockViewLane, BlockViewQuery, BlockViewResults,
-    BlockViewSort, BlockViewSortDirection, LoomBlockRow, BLOCK_VIEW_UNTAGGED_LANE,
+    BlockViewEvent, BlockViewField, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewQuery,
+    BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow, BLOCK_VIEW_UNTAGGED_LANE,
     CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX, KIND_KANBAN_AUTHOR_ID,
     KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID,
     TABLE_ROW_AUTHOR_ID_PREFIX,
@@ -820,19 +820,151 @@ fn client_create_view_body() {
 }
 
 #[test]
-fn client_date_range_round_trips_through_definition_query() {
-    // AC6: a date-range applies via updateBlockView with query.date_from/date_to in the definition body.
+fn client_date_range_serializes_as_rfc3339_backend_accepts() {
+    // AC6 + must-fix #1 / backend-shape #4 (ADAPTER-BOUNDARY, NOT a self-tautology): the backend field
+    // `BlockViewQuery.date_from/date_to` is `Option<DateTime<Utc>>` with the DEFAULT chrono serde, which
+    // REJECTS a bare `YYYY-MM-DD`. The PATCH body MUST therefore carry a full RFC3339 instant. We assert
+    // the produced strings (a) are not the bare date and (b) actually parse via chrono's `DateTime<Utc>`
+    // Deserialize — the SAME type + serde the real backend uses — proving the wire would deserialize.
     let c = test_client();
     let mut def = BlockViewDefinition::of_kind(BlockViewKind::Calendar);
     def.query = BlockViewQuery {
         date_from: Some("2026-03-01".to_owned()),
         date_to: Some("2026-03-31".to_owned()),
+        ..Default::default()
     };
     let spec = c.update_view_request("ws1", "view-cal", &def);
     let body = spec.body.unwrap();
     let query = body.get("definition").and_then(|d| d.get("query")).expect("definition.query");
-    assert_eq!(query.get("date_from").and_then(|x| x.as_str()), Some("2026-03-01"));
-    assert_eq!(query.get("date_to").and_then(|x| x.as_str()), Some("2026-03-31"));
+
+    let from = query.get("date_from").and_then(|x| x.as_str()).expect("date_from present");
+    let to = query.get("date_to").and_then(|x| x.as_str()).expect("date_to present");
+    // It is NOT the bare date-only string the backend rejects.
+    assert_ne!(from, "2026-03-01", "date_from must be expanded to a full RFC3339 instant");
+    assert_ne!(to, "2026-03-31", "date_to must be expanded to a full RFC3339 instant");
+    // Inclusive window: from = start-of-day, to = end-of-day.
+    assert_eq!(from, "2026-03-01T00:00:00Z");
+    assert_eq!(to, "2026-03-31T23:59:59Z");
+
+    // The DECISIVE adapter-boundary check: the backend field is `Option<DateTime<Utc>>` with the default
+    // chrono serde, whose `Deserialize` for `DateTime<Utc>` parses RFC3339 (`parse_from_rfc3339`). We
+    // exercise that EXACT parser on the produced strings: a bare date errors; the expanded RFC3339
+    // instant parses. This catches the must-fix #1 400/422 the old tautology missed. (chrono's `serde`
+    // cargo feature is off in this crate's graph, so we call the underlying RFC3339 parser the backend's
+    // `DateTime<Utc>` Deserialize delegates to — the same acceptance, no extra dependency feature.)
+    let parsed_from = chrono::DateTime::parse_from_rfc3339(from)
+        .expect("date_from must parse as RFC3339 (the backend DateTime<Utc> Deserialize path)")
+        .with_timezone(&chrono::Utc);
+    let parsed_to = chrono::DateTime::parse_from_rfc3339(to)
+        .expect("date_to must parse as RFC3339 (the backend DateTime<Utc> Deserialize path)")
+        .with_timezone(&chrono::Utc);
+    assert!(parsed_from < parsed_to, "from is before to");
+}
+
+#[test]
+fn bare_date_only_string_is_rejected_by_backend_date_type() {
+    // Pin the failure the fix prevents: the OLD code sent a bare "2026-03-01", which the backend
+    // `DateTime<Utc>` (whose Deserialize parses RFC3339) CANNOT parse. This asserts that rejection so a
+    // regression that re-introduces the bare date is caught at the adapter boundary, not at runtime 422.
+    let bare = chrono::DateTime::parse_from_rfc3339("2026-03-01");
+    assert!(bare.is_err(), "a bare YYYY-MM-DD must NOT parse as RFC3339/DateTime<Utc> (the must-fix #1 bug)");
+    // The expanded instant the fix produces DOES parse.
+    assert!(chrono::DateTime::parse_from_rfc3339("2026-03-01T00:00:00Z").is_ok());
+}
+
+#[test]
+fn group_by_and_full_query_survive_update_round_trip() {
+    // must-fix #2 / #3 (the FULL-OVERWRITE data-loss defect): the backend persists updateBlockView as a
+    // full `SET view_definition_json = $1` overwrite, so ANY field absent from the native serialization
+    // is wiped. Load a Kanban view with group_by=Tag + a server-side query (tag_ids/content_type),
+    // apply a SORT, and assert the produced PATCH body STILL carries group_by AND the query filters —
+    // proving a sort click no longer destroys the grouping or the user's filters.
+    let loaded = serde_json::json!({
+        "kind": "kanban",
+        "group_by": { "kind": "tag" },
+        "columns": ["title", "updated"],
+        "query": {
+            "content_type": "note",
+            "tag_ids": ["tag-a", "tag-b"],
+            "mention_ids": ["m-1"],
+            "mime": "text/markdown"
+        }
+    });
+    // Parse the loaded definition the way getBlockView does.
+    let mut def = handshake_native::backend_client::definition_from_json(&loaded);
+    assert_eq!(def.group_by, Some(BlockViewGroupBy::Tag), "loaded group_by parses");
+    assert_eq!(def.query.tag_ids, vec!["tag-a".to_owned(), "tag-b".to_owned()]);
+    assert_eq!(def.query.content_type.as_deref(), Some("note"));
+
+    // Apply a native sort edit (a header click on Updated -> asc), exactly as the host would.
+    def.sort = Some(BlockViewSort { field: BlockViewField::Updated, direction: BlockViewSortDirection::Asc });
+
+    // Serialize through the SAME path updateBlockView uses.
+    let c = test_client();
+    let spec = c.update_view_request("ws1", "view-kanban", &def);
+    let body = spec.body.unwrap();
+    let def_json = body.get("definition").expect("definition wrapper");
+
+    // group_by SURVIVED the round-trip (must-fix #3): the Kanban grouping is not wiped by the sort.
+    assert_eq!(
+        def_json.get("group_by").and_then(|g| g.get("kind")).and_then(|x| x.as_str()),
+        Some("tag"),
+        "must-fix #3: group_by must survive a sort updateBlockView (full-overwrite persist)"
+    );
+    // The server-side query filters SURVIVED (must-fix #2): not dropped to serde defaults.
+    let query = def_json.get("query").expect("definition.query survived");
+    assert_eq!(query.get("content_type").and_then(|x| x.as_str()), Some("note"));
+    assert_eq!(query.get("mime").and_then(|x| x.as_str()), Some("text/markdown"));
+    let tag_ids: Vec<&str> =
+        query.get("tag_ids").and_then(|x| x.as_array()).unwrap().iter().filter_map(|x| x.as_str()).collect();
+    assert_eq!(tag_ids, vec!["tag-a", "tag-b"], "must-fix #2: tag_ids must survive the round-trip");
+    let mention_ids: Vec<&str> = query
+        .get("mention_ids")
+        .and_then(|x| x.as_array())
+        .unwrap()
+        .iter()
+        .filter_map(|x| x.as_str())
+        .collect();
+    assert_eq!(mention_ids, vec!["m-1"], "must-fix #2: mention_ids must survive the round-trip");
+    // And the sort we applied is present.
+    let sort = def_json.get("sort").expect("sort serialized");
+    assert_eq!(sort.get("field").and_then(|x| x.as_str()), Some("updated"));
+    assert_eq!(sort.get("direction").and_then(|x| x.as_str()), Some("asc"));
+}
+
+#[test]
+fn group_by_field_round_trips_and_native_kanban_defaults_to_tag() {
+    // group_by=Field must round-trip its field value, and a natively-created Kanban view must default to
+    // group_by=Tag so the backend produces lanes (must-fix #3 — a Kanban view with group_by=None returns
+    // zero lanes). Parse a field-grouped view, serialize, and assert the field-variant shape survives.
+    let loaded = serde_json::json!({
+        "kind": "kanban",
+        "group_by": { "kind": "field", "field": "content_type" }
+    });
+    let def = handshake_native::backend_client::definition_from_json(&loaded);
+    assert_eq!(def.group_by, Some(BlockViewGroupBy::Field { field: BlockViewField::ContentType }));
+    let c = test_client();
+    let body = c.update_view_request("ws1", "v", &def).body.unwrap();
+    let gb = body.get("definition").and_then(|d| d.get("group_by")).expect("group_by serialized");
+    assert_eq!(gb.get("kind").and_then(|x| x.as_str()), Some("field"));
+    assert_eq!(gb.get("field").and_then(|x| x.as_str()), Some("content_type"));
+
+    // A natively-created Kanban view defaults to group_by=Tag => '+ New view' kanban produces lanes.
+    let native_kanban = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
+    assert_eq!(native_kanban.group_by, Some(BlockViewGroupBy::Tag));
+    let native_body = c.update_view_request("ws1", "v2", &native_kanban).body.unwrap();
+    assert_eq!(
+        native_body
+            .get("definition")
+            .and_then(|d| d.get("group_by"))
+            .and_then(|g| g.get("kind"))
+            .and_then(|x| x.as_str()),
+        Some("tag"),
+        "native-created Kanban defaults to group_by=tag so the backend builds lanes"
+    );
+    // Table/calendar carry NO grouping.
+    assert!(BlockViewDefinition::of_kind(BlockViewKind::Table).group_by.is_none());
+    assert!(BlockViewDefinition::of_kind(BlockViewKind::Calendar).group_by.is_none());
 }
 
 // ── JSON parse proofs: the native projection of a real queryBlockViewResults / getBlockView body ──
