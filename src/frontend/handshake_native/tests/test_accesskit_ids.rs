@@ -453,6 +453,15 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     // intentionally NOT emitted (the rail does not wrap content in an egui ScrollArea — see left_rail.rs
     // note), so it adds no stable-id node and no anonymous interactive node.
     let expected_sorted = vec![
+        // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): the Atelier/CKC drag-source side panel is an
+        // ALWAYS-VISIBLE pinned RIGHT panel (open by default), so its container List node
+        // (`atelier-side-panel`) + its refresh Button (`atelier-side-panel.refresh`) are in the default
+        // frame. The headless shell has no atelier client, so the panel shows no item rows (the dynamic
+        // `atelier-item-{id}` ListItems appear only when rows are loaded/seeded) — these two nodes are the
+        // exactly two default-frame nodes MT-033 adds (80 → 82). The Stage pane is NOT here: it starts
+        // closed and is mounted only after a Route-to-Stage dispatch routes content in.
+        "atelier-side-panel",
+        "atelier-side-panel.refresh",
         // MT-022 bottom search rail (12): the rail is an ALWAYS-VISIBLE pinned bottom panel, so — unlike
         // the closed-by-default overlays (palette / switcher / settings) — its nodes ARE in the default
         // frame every paint. Three FIXED-band controls (`bottom-rail.input` Role::TextInput = NodeId 22,
@@ -551,9 +560,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     assert_eq!(
         snapshot.author_ids(),
         expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 80 stable-id nodes in sorted order (67 pre-MT-022 + \
-         12 MT-022 bottom-rail nodes + 1 MT-023 drawer-affordance node; the drawer's shelf/cards/resize \
-         nodes are open-only and absent from the collapsed-by-default frame)"
+        "LIVE-FRAME snapshot must list exactly the 82 stable-id nodes in sorted order (67 pre-MT-022 + \
+         12 MT-022 bottom-rail nodes + 1 MT-023 drawer-affordance node + 2 MT-033 atelier-side-panel \
+         nodes; the drawer's shelf/cards/resize nodes and the closed-by-default Stage pane are absent \
+         from the collapsed-by-default frame)"
     );
 
     // MT-023: the always-visible affordance tab is a Role::Button in the default (collapsed) frame.

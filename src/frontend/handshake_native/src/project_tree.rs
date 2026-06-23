@@ -166,6 +166,14 @@ pub enum ProjectTreeEvent {
         block_id: String,
         current_title: String,
     },
+    /// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): "Route to Stage" on a Document row. Carries the
+    /// document id + title so the app routes it to the Stage pane via the MT-031 Route-to-Stage command
+    /// (`InteractionBus::route_to_stage(StageContent::Document(..))`). Only produced for a Document row
+    /// (the Stage pane displays a routed document); canvas/bookmark rows' item is disabled.
+    RouteToStage {
+        document_id: String,
+        title: String,
+    },
 }
 
 /// The loaded content payload for one workspace: documents, canvases, and bookmarks (pinned Loom
@@ -797,6 +805,10 @@ fn row_context_menu(
                 ExplorerMenuAction::Rename => ProjectTreeEvent::RenameBlock {
                     block_id: target.id.clone(),
                     current_title: target.title.clone(),
+                },
+                ExplorerMenuAction::RouteToStage => ProjectTreeEvent::RouteToStage {
+                    document_id: target.id.clone(),
+                    title: target.title.clone(),
                 },
             });
         }

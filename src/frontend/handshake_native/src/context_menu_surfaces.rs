@@ -320,6 +320,12 @@ pub mod explorer_ids {
     pub const COPY_PATH: &str = "explorer.copy_path";
     pub const RENAME: &str = "explorer.rename";
     pub const REVEAL_IN_GRAPH: &str = "explorer.reveal_in_graph";
+    /// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): "Route to Stage" sends the row's document/canvas to
+    /// the Stage pane via the shared MT-031 InteractionBus Route-to-Stage command. ENABLED only for a
+    /// Document row (the Stage pane's `Document` content variant routes a rich document by id); a Canvas
+    /// or Bookmark row's Route-to-Stage is disabled + disclosed (the Stage pane displays a routed
+    /// DOCUMENT / selection / CKC item — a canvas/bookmark stage surface is a later MT).
+    pub const ROUTE_TO_STAGE: &str = "explorer.route_to_stage";
 }
 
 /// The kind of project-tree row a context menu is being built for. Drives which items are ENABLED:
@@ -354,6 +360,10 @@ pub enum ExplorerMenuAction {
     CopyPath,
     /// Rename the row's Loom block via `PATCH /workspaces/:id/loom/blocks/:block_id`.
     Rename,
+    /// MT-033: route the row's DOCUMENT to the Stage pane via the MT-031 Route-to-Stage command. Only
+    /// produced for a Document row (the Stage pane displays a routed document by id); a Canvas/Bookmark
+    /// row's Route-to-Stage item is disabled, so this never fires for them.
+    RouteToStage,
 }
 
 /// Build the explorer-row context-menu item list for a row of `kind`. ONLY a `Bookmark` row carries a
@@ -371,6 +381,23 @@ pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
         ExplorerRowKind::Canvas => ContextMenuItem::action(explorer_ids::RENAME, "Rename")
             .disabled("Canvas rows are not Loom blocks (no rename endpoint)"),
     };
+    // MT-033: "Route to Stage" — ENABLED only for a Document row (the Stage pane's `Document` content
+    // variant routes a rich document by id). A Canvas/Bookmark row's Route-to-Stage is disabled +
+    // disclosed (the Stage pane displays a routed document/selection/CKC item; a canvas/bookmark stage
+    // route is a later MT) — honest enable/disable, never faked.
+    let route_to_stage = match kind {
+        ExplorerRowKind::Document => {
+            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
+        }
+        ExplorerRowKind::Canvas => {
+            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
+                .disabled("Routing a canvas to the Stage pane is a later MT (Stage displays documents)")
+        }
+        ExplorerRowKind::Bookmark => {
+            ContextMenuItem::action(explorer_ids::ROUTE_TO_STAGE, "Route to Stage")
+                .disabled("Routing a bookmark to the Stage pane is a later MT (Stage displays documents)")
+        }
+    };
     ContextMenu::new("explorer")
         .item(ContextMenuItem::action(explorer_ids::OPEN, "Open"))
         .item(ContextMenuItem::action(explorer_ids::COPY_PATH, "Copy Path"))
@@ -380,6 +407,8 @@ pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
             ContextMenuItem::action(explorer_ids::REVEAL_IN_GRAPH, "Reveal in Graph")
                 .disabled("No graph/loom view surface in this build (future)"),
         )
+        .separator()
+        .item(route_to_stage)
         .into_items()
 }
 
@@ -395,6 +424,13 @@ pub fn explorer_action_for_id(id: &str, kind: ExplorerRowKind) -> Option<Explore
         explorer_ids::RENAME => match kind {
             ExplorerRowKind::Bookmark => Some(ExplorerMenuAction::Rename),
             ExplorerRowKind::Document | ExplorerRowKind::Canvas => None,
+        },
+        // MT-033: Route-to-Stage fires ONLY for a Document row (the Stage pane displays a routed
+        // document); a Canvas/Bookmark row's item is disabled, so even a confirmed id maps to None
+        // (belt-and-braces second line of defence, mirroring the rename gating).
+        explorer_ids::ROUTE_TO_STAGE => match kind {
+            ExplorerRowKind::Document => Some(ExplorerMenuAction::RouteToStage),
+            ExplorerRowKind::Canvas | ExplorerRowKind::Bookmark => None,
         },
         _ => None,
     }
@@ -1346,6 +1382,7 @@ mod tests {
                     "explorer.copy_path",
                     "explorer.rename",
                     "explorer.reveal_in_graph",
+                    "explorer.route_to_stage",
                 ],
                 "explorer ids for {kind:?}",
             );
@@ -1464,6 +1501,20 @@ mod tests {
                 explorer_action_for_id(explorer_ids::RENAME, kind),
                 None,
                 "{kind:?} rename maps to no action (disabled, not a Loom-block id)",
+            );
+        }
+        // MT-033: Route-to-Stage fires ONLY for a Document row (the Stage pane displays a routed
+        // document); a Canvas/Bookmark row's item is disabled, so even a confirmed id maps to None.
+        assert_eq!(
+            explorer_action_for_id(explorer_ids::ROUTE_TO_STAGE, ExplorerRowKind::Document),
+            Some(ExplorerMenuAction::RouteToStage),
+            "document Route-to-Stage fires the route-to-stage action",
+        );
+        for kind in [ExplorerRowKind::Canvas, ExplorerRowKind::Bookmark] {
+            assert_eq!(
+                explorer_action_for_id(explorer_ids::ROUTE_TO_STAGE, kind),
+                None,
+                "{kind:?} Route-to-Stage maps to no action (disabled)",
             );
         }
     }

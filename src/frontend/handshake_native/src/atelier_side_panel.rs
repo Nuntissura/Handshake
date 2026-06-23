@@ -134,6 +134,22 @@ impl AtelierSidePanel {
         p
     }
 
+    /// TEST SEAM: seed rows into an ALREADY-constructed panel (e.g. the one the live `HandshakeApp`
+    /// mounts), moving it to the `Loaded` state so a live-shell render shows real draggable item nodes
+    /// without a backend. Mirrors [`Self::with_rows`] but mutates in place rather than constructing.
+    pub fn seed_rows(
+        &mut self,
+        batches: Vec<crate::backend_client::AtelierBatchRow>,
+        corpus: Vec<AtelierCorpusRow>,
+        expanded: Option<(String, Vec<AtelierItemRow>)>,
+    ) {
+        self.batches = batches;
+        self.corpus = corpus;
+        self.expanded = expanded;
+        self.state = LoadState::Loaded;
+        self.error = None;
+    }
+
     /// Trigger a side-panel load (batches + corpus) if a client is present. Sets [`LoadState::Loading`]
     /// so the spinner shows ONLY while the fetch is genuinely in flight.
     pub fn request_load(&mut self) {

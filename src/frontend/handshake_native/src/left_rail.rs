@@ -159,6 +159,12 @@ pub enum LeftRailEvent {
         block_id: String,
         current_title: String,
     },
+    /// MT-033 explorer-row context menu: "Route to Stage" — route this DOCUMENT to the Stage pane via
+    /// the MT-031 Route-to-Stage command. Carries the document id + title the Stage pane displays.
+    RouteToStage {
+        document_id: String,
+        title: String,
+    },
     /// The Retry button on a failed project-tree load was clicked.
     RetryProjectTree,
     /// A quick-link row was clicked: focus this pane and activate its tab at `tab_index`.
@@ -264,6 +270,9 @@ impl LeftRail {
                                     LeftRailEvent::OpenBookmark { document_id, block_id }
                                 }
                                 ProjectTreeEvent::CopyPath(id) => LeftRailEvent::CopyPath(id),
+                                ProjectTreeEvent::RouteToStage { document_id, title } => {
+                                    LeftRailEvent::RouteToStage { document_id, title }
+                                }
                                 ProjectTreeEvent::RenameBlock { block_id, current_title } => {
                                     LeftRailEvent::RenameBlock { block_id, current_title }
                                 }

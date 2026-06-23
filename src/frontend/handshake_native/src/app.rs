@@ -26,6 +26,8 @@ use crate::project_tabs::{
     fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
 };
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
+use crate::atelier_side_panel::AtelierSidePanel;
+use crate::stage_pane::{StageContent, StagePane};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
@@ -476,6 +478,26 @@ pub struct HandshakeApp {
     /// when this is set, so publishing the live snapshot never consumes an async result or schedules a
     /// spurious save (the real frame owns those side effects).
     capturing_snapshot: bool,
+    /// WP-KERNEL-012 MT-033 (E5 — CKC drag-in): the live CKC / Atelier side panel mounted on the RIGHT
+    /// edge of the shell (the `egui::SidePanel::right` mirror of the left activity rail). This is the
+    /// drag SOURCE the rich-editor / canvas drop zones consume — it is rendered every frame so its
+    /// `dnd_drag_source` item rows are reachable in the real product, not only in a standalone test
+    /// harness. In the production shell it is `AtelierSidePanel::production(runtime)` (loads from the
+    /// real `/atelier` backend off the UI thread); the headless/test shell has no runtime, so the panel
+    /// stays idle/neutral (no perpetual spinner) until a test injects rows.
+    atelier_side_panel: AtelierSidePanel,
+    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. Defaults open so a fresh shell
+    /// shows the drag source. Toggled by the bus / future affordance; persisted state is a later MT.
+    atelier_panel_open: bool,
+    /// MT-033: the live Stage pane (the route-to-Stage DISPLAY surface). Held by the shell and mounted as
+    /// a bottom panel; the per-frame bus drain (`take_pending_stage_content`) sets its content when a
+    /// "Route to Stage" command is dispatched (palette or context menu). Read-only display — deeper Stage
+    /// capture/embed-back is E10 (MT-066).
+    stage_pane: StagePane,
+    /// MT-033: whether the Stage pane (bottom panel) is shown. Starts closed; the shell drain OPENS it the
+    /// frame content is routed in (so "Route to Stage" is observable, not a silent no-op). A future
+    /// affordance / pane-close action can flip it back.
+    stage_panel_open: bool,
 }
 
 /// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
@@ -894,6 +916,13 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
+            // UI thread (the same runtime handle every other off-thread client uses). Mounted on the right
+            // edge so its drag-source rows are reachable in the running product.
+            atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
+            atelier_panel_open: true,
+            stage_pane: StagePane::new(),
+            stage_panel_open: false,
         };
         app.spawn_mcp_server();
         app
@@ -1081,6 +1110,14 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            // MT-033: headless/test shell — no runtime to bridge the atelier client onto, so the panel has
+            // no client (it renders no rows + never touches the network; a test injects rows via the
+            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
+            // panel is still MOUNTED every frame so its List container node is in the live AccessKit tree.
+            atelier_side_panel: AtelierSidePanel::with_client(None),
+            atelier_panel_open: true,
+            stage_pane: StagePane::new(),
+            stage_panel_open: false,
         }
     }
 
@@ -1114,6 +1151,23 @@ impl HandshakeApp {
     /// Active base theme (for tests / future settings binding).
     pub fn current_theme(&self) -> HsTheme {
         self.current_theme
+    }
+
+    /// MT-033: mutable access to the mounted Atelier/CKC side panel (for tests that seed rows so the
+    /// live-shell render shows real draggable item nodes without a backend).
+    pub fn atelier_side_panel_mut(&mut self) -> &mut AtelierSidePanel {
+        &mut self.atelier_side_panel
+    }
+
+    /// MT-033: the Stage pane's currently-staged content (read-only; for tests asserting the shell drain
+    /// delivered routed content into the mounted pane).
+    pub fn stage_content(&self) -> &StageContent {
+        &self.stage_pane.content
+    }
+
+    /// MT-033: whether the Stage pane (bottom panel) is currently shown.
+    pub fn stage_panel_open(&self) -> bool {
+        self.stage_panel_open
     }
 
     /// A clonable producer handle onto the shell event bus (MT-014 FIX-B). A future surface that
@@ -1220,6 +1274,13 @@ impl HandshakeApp {
     /// persists through the debounced save.
     pub fn set_left_rail_open(&mut self, open: bool) {
         self.left_rail_open = open;
+    }
+
+    /// MT-033: open/close the right-edge Atelier/CKC side panel. Like the left rail, an OPEN panel is a
+    /// `SidePanel::right` that narrows + shifts the central 2x2 pane grid; geometry-sensitive tests
+    /// (live tab click/drag) close it for stable pane rects, exactly as they close the left rail.
+    pub fn set_atelier_panel_open(&mut self, open: bool) {
+        self.atelier_panel_open = open;
     }
 
     /// Whether the bottom stash drawer is open (MT-014). Persisted as `drawers.bottom`.
@@ -2946,6 +3007,27 @@ impl HandshakeApp {
                 });
                 true
             }
+            LeftRailEvent::RouteToStage { document_id, title } => {
+                // MT-033 (E5 — route-to-Stage) named context-menu surface: "Route to Stage" on a Document
+                // row STAGES the document on the shared MT-031 InteractionBus and dispatches the
+                // Route-to-Stage command (registering it idempotently first). `drive_ckc_interop` DRAINS
+                // the staged content into the mounted Stage pane next frame and opens it — so the
+                // context-menu path produces a visible result, not a silent no-op. The Stage pane displays
+                // the document's identity (title + id); deeper Stage capture/embed-back is E10 (MT-066).
+                let content = StageContent::Document(crate::rich_editor::save::save_manager::RichDocLoad {
+                    rich_document_id: document_id,
+                    doc_version: 0,
+                    title,
+                    content_json: None,
+                    updated_at: None,
+                });
+                let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    bus.register_route_to_stage_command();
+                    bus.route_to_stage(ctx, content)
+                })
+                .unwrap_or(false)
+            }
             LeftRailEvent::OpenModuleTab(pane_type) => {
                 self.open_content_on_active_pane(pane_type, None)
             }
@@ -3239,6 +3321,66 @@ impl HandshakeApp {
                 Err(msg) => self.loom_flag_error = Some(msg),
             }
             ctx.request_repaint();
+        }
+    }
+
+    /// WP-KERNEL-012 MT-033 (E5 — CKC embeds / drag-in + route-to-Stage): the live shell wiring that makes
+    /// the MT-033 melt-together surfaces REACHABLE in the running product.
+    ///
+    /// 1. **Route-to-Stage drain.** Pull any content a Route-to-Stage dispatch staged on the shared MT-031
+    ///    [`crate::interop::InteractionBus`] (`take_pending_stage_content`) into the mounted [`StagePane`]
+    ///    and OPEN the Stage panel, so the palette/context-menu "Route to Stage" command produces a visible
+    ///    result rather than a silent no-op. This is the exact per-frame drain the AC-4 kittest simulates in
+    ///    its `build_ui` closure — here it runs in the real shell. A non-blocking `with_try_lock` keeps the
+    ///    egui frame thread free under concurrent agent activity (HBR-SWARM).
+    /// 2. **Atelier/CKC drag source.** Render the [`AtelierSidePanel`] on the right edge so its
+    ///    `dnd_drag_source` item rows are reachable in the live app (the drop targets the rich-editor /
+    ///    canvas add this MT consume from it).
+    /// 3. **Stage pane.** Render the Stage pane as a bottom panel when open, displaying the routed content.
+    ///
+    /// HBR-QUIET: no foreground window is popped; both surfaces are docked panels drawn inside the frame.
+    fn drive_ckc_interop(&mut self, ctx: &egui::Context) {
+        // A snapshot-capture pass must NOT consume the bus (the real frame owns the drain), or a routed
+        // item would be lost to the throwaway capture context (the `drain_shell_events` guard pattern).
+        if !self.capturing_snapshot {
+            let bus = crate::interop::InteractionBus::get_or_init(ctx);
+            let routed: Option<StageContent> =
+                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    bus.take_pending_stage_content()
+                })
+                .flatten();
+            if let Some(content) = routed {
+                self.stage_pane.set_content(content);
+                self.stage_panel_open = true;
+                ctx.request_repaint();
+            }
+        }
+
+        let palette = self.current_theme.palette();
+
+        // ── Right edge: the Atelier/CKC drag-source side panel (mirrors the left activity rail) ─────────
+        if self.atelier_panel_open {
+            let panel = &mut self.atelier_side_panel;
+            let panel_palette = palette.clone();
+            egui::SidePanel::right("atelier-side-panel-host")
+                .resizable(true)
+                .min_width(200.0)
+                .default_width(260.0)
+                .show(ctx, |ui| {
+                    panel.show(ui, &panel_palette);
+                });
+        }
+
+        // ── Bottom edge: the Stage pane (route-to-Stage display surface), shown when content is routed ──
+        if self.stage_panel_open {
+            let stage = &mut self.stage_pane;
+            let stage_palette = palette;
+            egui::TopBottomPanel::bottom("stage-pane-host")
+                .resizable(true)
+                .default_height(160.0)
+                .show(ctx, |ui| {
+                    stage.show(ui, &stage_palette);
+                });
         }
     }
 
@@ -4355,6 +4497,15 @@ impl HandshakeApp {
         self.drive_source_control(ctx);
         self.drive_canvas(ctx);
         self.drive_loom_node(ctx);
+
+        // ── CKC / Atelier melt-together: drag-source panel + Route-to-Stage drain + Stage pane (MT-033) ──
+        // Rendered AFTER the left rail and BEFORE the CentralPanel borrow-split, so egui carves the right
+        // edge (Atelier drag source) and the bottom edge (Stage pane) from the remaining area before the
+        // central 2x2 pane grid claims the rest (the same edge-panel-before-central convention the left
+        // rail / drawer / search-rail use). This is what makes the MT-033 surfaces REACHABLE in the running
+        // product (not only in standalone test harnesses): the drag source can be dragged FROM, and a
+        // dispatched Route-to-Stage command (palette or context menu) is DRAINED into the visible pane.
+        self.drive_ckc_interop(ctx);
 
         // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
         // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same

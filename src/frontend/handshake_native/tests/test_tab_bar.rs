@@ -194,6 +194,10 @@ fn live_click_tab_activates_it() {
     // Wide+tall window so the pane has room for the MT-013 header strip ABOVE the tab strip and the
     // (now badge-widened) tab chips lay out with un-clipped, clickable bounding boxes.
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
+    // MT-033: close the right-edge Atelier/CKC side panel (a SidePanel::right that narrows + shifts the
+    // 2x2 pane grid) for stable, clickable tab rects — same reason the drag test below closes the left
+    // rail. The Atelier panel is irrelevant to the tab-activation behavior under test.
+    harness.state_mut().set_atelier_panel_open(false);
     harness.run();
 
     // Click the last tab (tab-pane-a-2 = InferenceLab after stabilization) by its stable author_id,
@@ -239,6 +243,9 @@ fn live_click_close_button_removes_tab() {
     // Wide+tall window so the MT-013 header strip + badge-widened tab chips lay out with un-clipped,
     // clickable close-button bounding boxes (the default size is now too tight after the header add).
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
+    // MT-033: close the right-edge Atelier/CKC side panel for stable, clickable close-button rects (same
+    // geometry reason as the tab-activation + drag tests).
+    harness.state_mut().set_atelier_panel_open(false);
     harness.run();
 
     let before = harness
@@ -282,6 +289,10 @@ fn live_drag_tab_across_panes_moves_it_exactly_once() {
     // behavior being proven, so collapsing it restores stable pane geometry without changing what this
     // test exercises (the cross-pane tab move). The rail's own behavior is covered by test_left_rail.
     harness.state_mut().set_left_rail_open(false);
+    // MT-033: also close the right-edge Atelier/CKC side panel — like the left rail it is a side panel
+    // that narrows + shifts the 2x2 pane grid, moving the tab + tab-bar rects under the live drag; the
+    // Atelier panel is irrelevant to the cross-pane tab-move behavior being proven.
+    harness.state_mut().set_atelier_panel_open(false);
     harness.run();
 
     // Source counts before.
