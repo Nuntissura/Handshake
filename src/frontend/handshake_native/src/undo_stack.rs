@@ -232,6 +232,23 @@ impl PaneUndoRing {
         Some(action)
     }
 
+    /// Replace the MOST RECENT undo entry in place (MT-035 typing-coalescing — RISK-1 / MC-1). Used by
+    /// the rich-text 500ms batcher: rapid keystrokes within the window coalesce into the SAME tail entry
+    /// (its `undo_fn` keeps restoring the batch-START snapshot; its `redo_fn` is swapped to re-apply the
+    /// latest `after`), so N keystrokes produce ONE undo entry rather than N and never silently drop the
+    /// in-between edits from history. Returns `true` when a tail entry existed and was replaced, `false`
+    /// when the ring was empty (the caller should `push` a fresh entry instead). Does NOT touch the redo
+    /// ring (a coalesced edit is still a fresh edit; the caller clears redo via `push` on the first entry
+    /// of a batch).
+    pub fn replace_tail(&mut self, action: UndoAction) -> bool {
+        if self.ring.is_empty() {
+            return false;
+        }
+        let last = self.ring.len() - 1;
+        self.ring[last] = action;
+        true
+    }
+
     /// Number of actions available to undo (the local "Undo ({n})" indicator count — AC-6).
     pub fn undo_len(&self) -> usize {
         self.ring.len()
@@ -369,6 +386,16 @@ impl UnifiedUndoScope {
     /// Pop the most recently undone local action for `pane_id` for redo.
     pub fn pop_redo_local(&mut self, pane_id: &PaneId) -> Option<UndoAction> {
         self.pane_rings.get_mut(pane_id)?.pop_redo()
+    }
+
+    /// Replace `pane_id`'s most recent local undo entry in place (MT-035 typing-coalescing — RISK-1 /
+    /// MC-1). Returns `true` when a tail entry existed and was replaced, `false` when the pane has no
+    /// ring or an empty ring (the caller then `push_local`s a fresh entry). See [`PaneUndoRing::replace_tail`].
+    pub fn replace_local_tail(&mut self, pane_id: &PaneId, action: UndoAction) -> bool {
+        match self.pane_rings.get_mut(pane_id) {
+            Some(ring) => ring.replace_tail(action),
+            None => false,
+        }
     }
 
     /// Push a cross-pane action onto the single cross-pane ring (POLICY-2).

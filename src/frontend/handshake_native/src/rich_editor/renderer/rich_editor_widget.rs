@@ -116,6 +116,19 @@ pub struct RichEditorState {
     /// NEVER blocks while the dialog is open (red-team RISK-4 — the frame-freeze fix). Cleared once the
     /// dialog resolves (path chosen / cancelled).
     pub pending_file_save: Option<crate::rich_editor::save::conflict_ui::PendingFileSave>,
+    /// WP-KERNEL-012 MT-035 (E5 — unified undo): the pane id this editor's undo entries are recorded
+    /// under on the shared [`crate::interop::InteractionBus`] (POLICY-1 local-first). `None` until the
+    /// pane mounts and [`RichEditorPaneFactory::render`] installs the live pane id; a bare unit test that
+    /// does not exercise undo leaves it unset (the bus undo wiring is then a no-op, never a fake).
+    pub undo_pane_id: Option<crate::pane_registry::PaneId>,
+    /// WP-KERNEL-012 MT-035: the 500ms typing-coalescing batcher (RISK-1 / MC-1). Decides whether a
+    /// frame's edit starts a NEW unified-undo entry or coalesces into the current one so a burst of
+    /// keystrokes is ONE undo, not N. Lives HERE so the window persists across frames.
+    pub undo_batcher: crate::rich_editor::interop_adapter::RichUndoBatcher,
+    /// WP-KERNEL-012 MT-035: the content_json snapshot captured at the START of the current undo batch
+    /// (the `before` an in-window coalesced entry restores). `None` between batches; set on a fresh push
+    /// and consumed/kept while the batcher window is open.
+    pub undo_batch_before: Option<serde_json::Value>,
 }
 
 impl RichEditorState {
@@ -184,6 +197,9 @@ impl RichEditorState {
             draft: None,
             export_picker_open: false,
             pending_file_save: None,
+            undo_pane_id: None,
+            undo_batcher: crate::rich_editor::interop_adapter::RichUndoBatcher::new(),
+            undo_batch_before: None,
         }
     }
 
@@ -401,6 +417,18 @@ impl RichEditorState {
     }
 }
 
+/// WP-KERNEL-012 MT-035 (E5 — unified undo): a decoded undo/redo keyboard chord the rich pane routes
+/// through the shared [`crate::interop::InteractionBus`] (POLICY-1). Carried OUT of the locked frame
+/// region so the bus entry's restore closure (which re-locks the shared state Arc) runs without a
+/// deadlock against the frame's own state guard.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UndoChord {
+    /// Ctrl/Cmd+Z (without Shift): undo the focused rich pane's most recent unified-scope entry.
+    Undo,
+    /// Ctrl/Cmd+Y: redo the focused rich pane's most recently undone entry.
+    Redo,
+}
+
 /// The per-frame editor view. Construct it with the shared state and call [`Self::show`]
 /// inside an egui `Ui` (or use it as an `egui::Widget` via [`Self::ui`]).
 pub struct RichEditorWidget {
@@ -417,6 +445,16 @@ impl RichEditorWidget {
     /// editor surface (so a caller can check focus / hover). This is the core entry the
     /// `egui::Widget` impl and the pane factory both call.
     pub fn show(self, ui: &mut egui::Ui) -> egui::Response {
+        // MT-035: keep the shared state Arc so the unified-undo entries recorded this frame can capture a
+        // `Weak<Mutex<RichEditorState>>` back-ref to the live document (RISK-3 / MC-3 — no retain cycle).
+        let state_arc = Arc::clone(&self.state);
+        // MT-035: a Ctrl+Z / Ctrl+Y chord decoded this frame is routed through the bus AFTER the state
+        // guard below is dropped (the bus restore closure re-locks the state Arc — invoking it while the
+        // guard is held would deadlock). The shared bus is captured before the scope for that post-frame
+        // invocation. The pane id is read from the state inside the scope.
+        let bus_for_undo = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+        let mut pending_undo_chord: Option<UndoChord> = None;
+        let mut undo_pane_id: Option<crate::pane_registry::PaneId> = None;
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         // OUTER container scope: a stable Ui id keeps the root AccessKit node id fixed
@@ -468,8 +506,22 @@ impl RichEditorWidget {
                     }
 
                     // 1) Apply input + IME for this frame (only meaningful when focused, but
-                    //    we still drain events so a programmatically-focused test works).
-                    Self::apply_frame_input(ui, &mut state, has_focus);
+                    //    we still drain events so a programmatically-focused test works). The ONE shared
+                    //    InteractionBus (MT-035 unified undo) is retrieved here so a rich-pane edit
+                    //    records its undo on the SAME scope the code/canvas panes share, and Ctrl+Z /
+                    //    Ctrl+Y / Ctrl+Shift+Z route THROUGH the bus (POLICY-1/POLICY-2) rather than a
+                    //    second per-pane stack. Bus access is via `with_try_lock` so it never blocks the
+                    //    egui frame thread (RISK-1 / MC-1).
+                    let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+                    undo_pane_id = state.undo_pane_id.clone();
+                    Self::apply_frame_input(
+                        ui,
+                        &mut state,
+                        has_focus,
+                        &bus,
+                        &state_arc,
+                        &mut pending_undo_chord,
+                    );
 
                     // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
                     // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
@@ -537,13 +589,49 @@ impl RichEditorWidget {
             )
             .inner;
 
+        // MT-035 (E5 — unified undo): now that the per-frame state guard is dropped, route any decoded
+        // Ctrl+Z / Ctrl+Y chord through the shared bus (POLICY-1). The bus entry's restore closure
+        // re-locks the shared state Arc cleanly here (the guard is gone), rebuilds the live doc from the
+        // recorded content_json snapshot, and resets the per-pane UndoManager so there is ONE undo
+        // authority. We request a repaint so the reverted doc paints immediately.
+        drop(state);
+        if let Some(chord) = pending_undo_chord {
+            let handled = Self::invoke_undo_chord(&bus_for_undo, undo_pane_id.as_ref(), chord);
+            if handled {
+                // The undo/redo mutated the doc; reset the typing batch + mark dirty so the draft/save
+                // state tracks the reverted content, then repaint.
+                let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                s.undo_batcher.reset();
+                s.undo_batch_before = None;
+                if let Some(save) = s.save.as_mut() {
+                    save.mark_dirty();
+                }
+                if let Some(draft) = s.draft.as_mut() {
+                    draft.mark_dirty(std::time::Instant::now());
+                }
+                let RichEditorState { doc, find_replace, .. } = &mut *s;
+                if let Some(panel) = find_replace.as_mut() {
+                    panel.rescan(doc);
+                }
+                drop(s);
+                ui.ctx().request_repaint();
+            }
+        }
+
         response
     }
 
     /// Drain this frame's egui input events and apply them to the editor state. IME events
     /// route to [`ime_handler`]; key/text events route to [`input_handler`]. We snapshot
     /// the events from `ui.input` and apply them while holding the state lock.
-    fn apply_frame_input(ui: &egui::Ui, state: &mut RichEditorState, has_focus: bool) {
+    fn apply_frame_input(
+        ui: &egui::Ui,
+        state: &mut RichEditorState,
+        has_focus: bool,
+        bus: &Arc<Mutex<crate::interop::interaction_bus::InteractionBus>>,
+        state_arc: &Arc<Mutex<RichEditorState>>,
+        pending_undo_chord: &mut Option<UndoChord>,
+    ) {
         let mut events: Vec<egui::Event> = ui.input(|i| i.events.clone());
 
         // MT-015: when the wikilink autocomplete popup is OPEN, it CLAIMS the navigation/confirm/
@@ -589,6 +677,29 @@ impl RichEditorWidget {
             Self::apply_find_replace_shortcut(state, shortcut);
             return; // the chord is consumed by the panel; do not also run the editing decode this frame.
         }
+
+        // WP-KERNEL-012 MT-035 (E5 — unified undo): DECIDE whether Ctrl+Z (undo) / Ctrl+Y (redo) is
+        // present, and STRIP those chords from `events` BEFORE the formatting/edit decode so the
+        // formatting pass (which maps Ctrl+Z -> FormattingCommand::Undo -> the parallel UndoManager) never
+        // fires — eliminating the second competing undo stack the adversarial review flagged. The ACTUAL
+        // bus undo/redo is invoked by the caller AFTER the state lock is released (the bus entry's
+        // snapshot-restore closure re-locks the shared state Arc, which would deadlock if invoked while
+        // this frame still holds the guard). Ctrl+Shift+Z is the bus's CROSS-PANE undo (POLICY-2), owned
+        // by the shell keybind dispatch — NOT the rich pane's redo.
+        let (events_after_undo, chord) = Self::decode_undo_chord(events);
+        events = events_after_undo;
+        if let Some(chord) = chord {
+            // Hand the chord up so `show()` can route it through the bus once the state guard is dropped.
+            // We do NOT run the normal edit decode this frame (the chord is consumed by undo/redo).
+            *pending_undo_chord = Some(chord);
+            return;
+        }
+
+        // MT-035: snapshot the doc BEFORE this frame's edits so a recorded undo entry can restore the
+        // pre-edit content_json (the batcher coalesces a burst into ONE entry). Cheap relative to the
+        // edit itself; only used when the frame actually mutates the doc.
+        let doc_before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
 
         // Split events into IME vs key/text in ARRIVAL order so a Preedit->Commit sequence
         // interleaved with typing applies in the right order. We process each event in
@@ -646,6 +757,19 @@ impl RichEditorWidget {
             }
         }
 
+        // WP-KERNEL-012 MT-035 (E5 — unified undo): if ANY input this frame (a typed/structural edit, a
+        // formatting chord, OR an IME commit) actually mutated the doc, record the edit on the SHARED bus
+        // scope (POLICY-1 local-first), coalesced by the 500ms batcher (RISK-1 / MC-1). This is the LIVE
+        // rich-pane bus-undo recording — the entry the Ctrl+Z routed above pops + restores. The
+        // `doc_after != doc_before` content_json diff is the real mutation signal (so an IME-only commit,
+        // which is not in `actions`/`fmt_cmds`, is still captured). A no-op without a mounted pane id.
+        // (`any_edit` is still used below for the MT-020 dirty-mark; here we use the snapshot diff.)
+        let doc_after =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if doc_after != doc_before {
+            Self::record_rich_edit_undo(state, bus, state_arc, doc_before, doc_after);
+        }
+
         // MT-015: after applying input, re-detect the `[[` autocomplete trigger from the caret's
         // text-before-caret. Typing `[[` opens the popup; typing more refines the query (bumping the
         // debounce + generation); typing/moving past `]]` (or out of the token) closes it.
@@ -684,6 +808,126 @@ impl RichEditorWidget {
                 draft.mark_dirty(now);
             }
         }
+    }
+
+    /// WP-KERNEL-012 MT-035 (E5 — unified undo): detect the FIRST Ctrl+Z (undo) / Ctrl+Y (redo) chord in
+    /// `events` and STRIP it, returning `(events_without_the_chord, chord)`. Decision-only: the actual bus
+    /// undo/redo is invoked by [`Self::show`] AFTER the state guard is dropped (the bus entry's restore
+    /// closure re-locks the shared state Arc, so invoking it while the frame holds the guard would
+    /// deadlock). Stripping the chord BEFORE the formatting decode is what removes the parallel-stack path
+    /// (the formatting keymap maps Ctrl+Z -> the rich `UndoManager`). Ctrl+Shift+Z is intentionally NOT
+    /// the rich redo here — it is the bus's cross-pane undo (POLICY-2), owned by the shell.
+    fn decode_undo_chord(events: Vec<egui::Event>) -> (Vec<egui::Event>, Option<UndoChord>) {
+        let mut decided: Option<UndoChord> = None;
+        let mut remaining = Vec::with_capacity(events.len());
+        for ev in events {
+            if let egui::Event::Key { key, pressed: true, modifiers, .. } = &ev {
+                let ctrl = modifiers.command || modifiers.ctrl;
+                if ctrl && !modifiers.alt {
+                    match key {
+                        egui::Key::Z if modifiers.shift => {
+                            // Ctrl+Shift+Z is the bus's CROSS-PANE undo (POLICY-2), owned by the shell
+                            // keybind dispatch. STRIP it so the rich formatting pass (which maps it to the
+                            // parallel `UndoManager` Redo) never fires — but do NOT route it as a rich
+                            // chord (the shell owns cross-pane undo). The rich pane's redo is Ctrl+Y.
+                            continue;
+                        }
+                        egui::Key::Z => {
+                            decided.get_or_insert(UndoChord::Undo);
+                            continue; // strip: do not let the formatting pass see Ctrl+Z.
+                        }
+                        egui::Key::Y => {
+                            decided.get_or_insert(UndoChord::Redo);
+                            continue; // strip Ctrl+Y.
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            remaining.push(ev);
+        }
+        (remaining, decided)
+    }
+
+    /// WP-KERNEL-012 MT-035 (E5 — unified undo): invoke a decoded undo/redo chord through the shared bus
+    /// (POLICY-1 local-first) for `pane_id`. MUST be called with NO `RichEditorState` lock held (the bus
+    /// entry's restore closure re-locks the shared state Arc). Returns `true` when the bus had an entry to
+    /// undo/redo (so the caller marks the doc dirty + repaints). A no-op (`false`) when no pane id is
+    /// mounted — never a fake.
+    fn invoke_undo_chord(
+        bus: &Arc<Mutex<crate::interop::interaction_bus::InteractionBus>>,
+        pane_id: Option<&crate::pane_registry::PaneId>,
+        chord: UndoChord,
+    ) -> bool {
+        let Some(pane_id) = pane_id else {
+            return false; // not mounted; nothing to route to (honest no-op, not a fake undo).
+        };
+        crate::interop::interaction_bus::InteractionBus::with_try_lock(bus, |b| {
+            b.set_focus_owner(pane_id.clone());
+            match chord {
+                UndoChord::Undo => b.undo(pane_id).is_some(),
+                UndoChord::Redo => b.redo(pane_id).is_some(),
+            }
+        })
+        .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-035 (E5 — unified undo): record a rich-text edit on the shared bus scope for this
+    /// pane (POLICY-1), coalesced by the 500ms batcher (RISK-1 / MC-1). The undo entry's `undo_fn`
+    /// restores the batch-START content_json; its `redo_fn` re-applies the latest content_json. The
+    /// restore applier rebuilds the live `doc` from the snapshot, resets the caret to the doc start, and
+    /// resets the per-pane `UndoManager` so the (now bus-driven) transaction history cannot replay stale
+    /// inverse steps — there is ONE undo authority (the bus), not two. No-op without a mounted pane id.
+    fn record_rich_edit_undo(
+        state: &mut RichEditorState,
+        bus: &Arc<Mutex<crate::interop::interaction_bus::InteractionBus>>,
+        state_arc: &Arc<Mutex<RichEditorState>>,
+        before: serde_json::Value,
+        after: serde_json::Value,
+    ) {
+        use crate::rich_editor::interop_adapter::{push_or_coalesce_rich_edit_undo, RichSnapshotApplier};
+
+        let Some(pane_id) = state.undo_pane_id.clone() else {
+            return; // not mounted; the bus undo wiring is inert (never faked).
+        };
+        let should_push = state.undo_batcher.should_push(std::time::Instant::now());
+        // The batch-start snapshot: on a fresh push it is THIS edit's `before`; within a window it is the
+        // snapshot captured at the batch start (kept on the state).
+        let batch_before = if should_push {
+            state.undo_batch_before = Some(before.clone());
+            before.clone()
+        } else {
+            state.undo_batch_before.clone().unwrap_or_else(|| before.clone())
+        };
+
+        // The applier the bus closures call to write a snapshot back into the live document. It rebuilds
+        // the doc tree from content_json (the verified MT-011 round-trip), resets the caret, and resets
+        // the parallel UndoManager so it cannot fight the bus (ONE authority).
+        let restore: RichSnapshotApplier<RichEditorState> = Arc::new(|s: &mut RichEditorState, snap| {
+            if let Ok(doc) =
+                crate::rich_editor::document_model::doc_json::from_json_value(snap)
+            {
+                s.doc = doc;
+                s.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+                s.undo = UndoManager::new();
+            }
+        });
+
+        // The entry captures a `Weak<Mutex<RichEditorState>>` to the SHARED state Arc the widget owns
+        // (RISK-3 / MC-3): it upgrades only during a bus-driven undo/redo and writes the snapshot back.
+        crate::interop::interaction_bus::InteractionBus::with_try_lock(bus, |b| {
+            let _pushed = push_or_coalesce_rich_edit_undo(
+                b,
+                pane_id.clone(),
+                state_arc,
+                should_push,
+                batch_before,
+                before,
+                after,
+                restore,
+                "rich: edit",
+            );
+        });
     }
 
     /// MT-020: trigger a canonical save of the live document. Captures the current `content_json`
@@ -2140,7 +2384,15 @@ impl PaneFactory for RichEditorPaneFactory {
         let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
         let pane_id: crate::pane_registry::PaneId = Arc::from(ctx.record.pane_id.as_ref());
         let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
-        let selected = self.state.lock().unwrap_or_else(|e| e.into_inner()).selected_text();
+        // MT-035 (E5 — unified undo): install the live pane id on the editor state so its undo entries are
+        // recorded + routed under THIS pane's ring on the shared bus (POLICY-1). Idempotent.
+        let selected = {
+            let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            if s.undo_pane_id.as_deref() != Some(pane_id.as_ref()) {
+                s.undo_pane_id = Some(pane_id.clone());
+            }
+            s.selected_text()
+        };
         let mut registered = self.bus_registered.load(Ordering::Relaxed);
         crate::rich_editor::interop_adapter::drive_bus_in_render(
             &bus,

@@ -735,6 +735,14 @@ impl InteractionBus {
         self.undo_scope.push_local(pane_id, action);
     }
 
+    /// Replace `pane_id`'s most recent LOCAL undo entry in place (MT-035 typing-coalescing — RISK-1 /
+    /// MC-1). The rich-text pane calls this for a keystroke WITHIN the 500ms batch window so rapid edits
+    /// coalesce into ONE undo entry instead of N. Returns `true` when a tail entry existed and was
+    /// replaced; `false` when the pane has no entry yet (the caller then pushes a fresh one).
+    pub fn replace_undo_local_tail(&mut self, pane_id: &PaneId, action: UndoAction) -> bool {
+        self.undo_scope.replace_local_tail(pane_id, action)
+    }
+
     /// Push a CROSS-PANE undo action onto the single cross-pane ring (POLICY-2). An atomic multi-pane
     /// action (embed-from-atelier, route-to-stage, canvas placement) calls this.
     pub fn push_undo_cross_pane(&mut self, action: UndoAction) {

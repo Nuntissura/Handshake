@@ -217,6 +217,68 @@ pub mod interop_adapter {
     ) where
         S: Send + 'static,
     {
+        let action = rich_edit_undo_action(doc_state, before, after, restore, description);
+        bus.push_undo_local(pane_id, action);
+    }
+
+    /// MT-035 (E5 unified undo): the LIVE coalescing entry point the mounted rich-text pane calls each
+    /// frame an edit landed (RISK-1 / MC-1). Given the [`RichUndoBatcher`] decision (`should_push`):
+    /// - a NEW batch (`should_push==true`) PUSHES a fresh undo entry whose `undo_fn` restores `before`
+    ///   (the batch-start snapshot) and whose `redo_fn` re-applies `after`;
+    /// - a CONTINUATION (`should_push==false`) REPLACES the tail entry's `redo_fn` to re-apply the latest
+    ///   `after` while KEEPING `batch_before` as the `undo_fn` snapshot, so N rapid keystrokes coalesce
+    ///   into ONE undo entry that reverts the WHOLE burst (never silently dropping the in-between edits).
+    ///
+    /// `batch_before` is the snapshot captured at the START of the current 500ms batch (the host tracks
+    /// it); `before` is the snapshot just before THIS frame's edit (used only on a fresh push). On a
+    /// fresh push the host should set `batch_before = before` for the next continuation. Returns `true`
+    /// when a fresh entry was pushed (so the host resets its batch-before tracking), `false` when the
+    /// edit coalesced into the existing tail.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_or_coalesce_rich_edit_undo<S>(
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+        doc_state: &Arc<Mutex<S>>,
+        should_push: bool,
+        batch_before: serde_json::Value,
+        before: serde_json::Value,
+        after: serde_json::Value,
+        restore: RichSnapshotApplier<S>,
+        description: impl Into<String>,
+    ) -> bool
+    where
+        S: Send + 'static,
+    {
+        if should_push {
+            let action = rich_edit_undo_action(doc_state, before, after, restore, description);
+            bus.push_undo_local(pane_id, action);
+            true
+        } else {
+            // Coalesce: rebuild the tail entry with the batch-start `before` and the latest `after`.
+            let action =
+                rich_edit_undo_action(doc_state, batch_before, after, restore, description);
+            // If there is no tail yet (first edit of the very first batch raced the batcher), fall back
+            // to a push so the edit is never lost from history.
+            if !bus.replace_undo_local_tail(&pane_id, action.clone()) {
+                bus.push_undo_local(pane_id, action);
+                return true;
+            }
+            false
+        }
+    }
+
+    /// Build the [`UndoAction`] a rich-text edit records: `undo_fn` restores `before`, `redo_fn`
+    /// re-applies `after`, both through the host `restore` applier via a `Weak` back-ref (RISK-3 / MC-3).
+    fn rich_edit_undo_action<S>(
+        doc_state: &Arc<Mutex<S>>,
+        before: serde_json::Value,
+        after: serde_json::Value,
+        restore: RichSnapshotApplier<S>,
+        description: impl Into<String>,
+    ) -> UndoAction
+    where
+        S: Send + 'static,
+    {
         let weak: Weak<Mutex<S>> = Arc::downgrade(doc_state);
         let undo_weak = weak.clone();
         let undo_restore = restore.clone();
@@ -236,6 +298,6 @@ pub mod interop_adapter {
             }
             None => UndoResult::pane_dropped(),
         });
-        bus.push_undo_local(pane_id, UndoAction::sync(description, undo_fn, redo_fn));
+        UndoAction::sync(description, undo_fn, redo_fn)
     }
 }
