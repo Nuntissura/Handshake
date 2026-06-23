@@ -6,11 +6,28 @@
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
 use serde_json::Value;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 /// handshake_core listens here (hardcoded in handshake_core/src/main.rs).
 pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
+
+/// The process-wide shared backend [`reqwest::Client`]. `reqwest::Client` owns a connection pool and is
+/// cheaply cloneable (an `Arc` internally), so the whole native app should share ONE pool rather than
+/// minting an independent pool/TLS stack per sub-client. New `/knowledge/documents/*` transport (the
+/// MT-037 consolidated client + the MT-029 find/replace `RichDocClient`, which now delegates to it)
+/// resolves its client from here so there is exactly ONE document-transport pool. Lazily initialized on
+/// first use; the build is infallible (`reqwest::Client::new()` with the crate's default rustls config).
+static SHARED_HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+/// Return a clone of the process-wide shared backend [`reqwest::Client`] (one connection pool for the
+/// whole app). Cloning is cheap (the pool is shared behind an `Arc`); callers that need to own a client
+/// should clone this rather than calling `reqwest::Client::new()` so they share the single pool.
+pub fn shared_http_client() -> reqwest::Client {
+    SHARED_HTTP_CLIENT
+        .get_or_init(reqwest::Client::new)
+        .clone()
+}
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
 pub const HEALTH_URL: &str = "http://127.0.0.1:37501/health";
 
@@ -4526,7 +4543,10 @@ pub struct RichDocClient {
 impl RichDocClient {
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            // Share the ONE process-wide pool rather than minting an independent connection pool/TLS
+            // stack: load/save now delegate to the consolidated MT-037 client (see `load_document` /
+            // `save_document`), so the find/replace pipeline and the editor client share one transport.
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
             session_run_id: format!("native-editor-fif-{}", std::process::id()),
@@ -4537,22 +4557,14 @@ impl RichDocClient {
         Self::new(BACKEND_BASE_URL, runtime)
     }
 
-    fn document_url(&self, document_id: &str) -> String {
-        format!("{}/knowledge/documents/{}", self.base_url, document_id)
-    }
-
-    fn save_url(&self, document_id: &str) -> String {
-        format!("{}/knowledge/documents/{}/save", self.base_url, document_id)
-    }
-
-    /// Attach the four required document identity headers (the MT-020 missing-headers fix), reusing the
-    /// canonical DOC_* constants so the wire identity is constructed in ONE place.
-    fn attach_headers(&self, builder: reqwest::RequestBuilder, document_id: &str) -> reqwest::RequestBuilder {
-        builder
-            .header(HSK_HEADER_ACTOR_ID, DOC_ACTOR_ID)
-            .header(HSK_HEADER_ACTOR_KIND, DOC_ACTOR_KIND)
-            .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-doc-{document_id}"))
-            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id)
+    /// The consolidated MT-037 client bound to the SAME shared pool + base URL. load/save delegate
+    /// through this so there is exactly ONE document load/save wire path with ONE conflict semantic
+    /// (the REUSE-NOT-DUPLICATE gate): `RichDocClient` no longer forks its own load/save transport.
+    fn consolidated(&self) -> crate::backend::knowledge_documents::KnowledgeDocumentsClient {
+        crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+            self.client.clone(),
+            self.base_url.clone(),
+        )
     }
 
     /// Run the PREVIEW pipeline off the UI thread: for each `document_id`, load the doc, walk its
@@ -4652,21 +4664,22 @@ impl RichDocClient {
         });
     }
 
-    /// `GET /knowledge/documents/{id}` -> the verified `{document:{..}}` body, parsed into a
-    /// [`RichDocBody`]. A non-success status or parse failure is an [`AppError`].
+    /// `GET /knowledge/documents/{id}` -> the verified `{document:{..}}` body, narrowed into a
+    /// [`RichDocBody`] for the replace pipeline. DELEGATES to the consolidated MT-037 client (ONE wire
+    /// load path — the REUSE-NOT-DUPLICATE gate); the rich [`crate::backend::knowledge_documents::
+    /// DocumentLoadResponse`] is narrowed here to the four fields the pipeline reads. A non-success
+    /// status or parse failure is an [`AppError`].
     pub async fn load_document(&self, document_id: &str) -> Result<RichDocBody, AppError> {
-        let url = self.document_url(document_id);
-        let builder = self.client.get(&url).timeout(Duration::from_secs(10));
+        let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
+            self.session_run_id.clone(),
+            document_id,
+        );
         let resp = self
-            .attach_headers(builder, document_id)
-            .send()
+            .consolidated()
+            .load_document(&headers, document_id)
             .await
             .map_err(|e| AppError::Http(e.to_string()))?;
-        if !resp.status().is_success() {
-            return Err(AppError::Http(format!("GET document non-success status {}", resp.status())));
-        }
-        let v: serde_json::Value = resp.json().await.map_err(|e| AppError::Parse(e.to_string()))?;
-        let doc = v.get("document").cloned().unwrap_or(serde_json::Value::Null);
+        let doc = &resp.document;
         Ok(RichDocBody {
             document_id: doc
                 .get("rich_document_id")
@@ -4687,39 +4700,39 @@ impl RichDocClient {
     }
 
     /// `PUT /knowledge/documents/{id}/save` with `{expected_version, content_json}` -> the
-    /// [`DocSaveOutcome`]. A 200 returns the `save_receipt_event_id`; a 409 is a [`DocSaveOutcome::
-    /// Conflict`] (NEVER an overwrite); any other failure is [`DocSaveOutcome::Failed`].
+    /// [`DocSaveOutcome`]. DELEGATES to the consolidated MT-037 client (ONE wire save path with ONE
+    /// conflict semantic — the REUSE-NOT-DUPLICATE gate): a 200 returns the `save_receipt_event_id`;
+    /// the consolidated [`crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict`]
+    /// (409) maps to [`DocSaveOutcome::Conflict`] (NEVER an overwrite — so the find/replace pipeline's
+    /// `AppliedPartial` / [`fold_apply_outcomes`] receipt-preservation control is unchanged); any other
+    /// failure is [`DocSaveOutcome::Failed`].
     pub async fn save_document(
         &self,
         document_id: &str,
         content_json: &serde_json::Value,
         expected_version: u64,
     ) -> DocSaveOutcome {
-        let url = self.save_url(document_id);
-        let body = serde_json::json!({
-            "expected_version": expected_version,
-            "content_json": content_json,
-        });
-        let builder = self.client.put(&url).timeout(Duration::from_secs(10)).json(&body);
-        let resp = match self.attach_headers(builder, document_id).send().await {
-            Ok(r) => r,
-            Err(e) => return DocSaveOutcome::Failed(e.to_string()),
+        let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
+            self.session_run_id.clone(),
+            document_id,
+        );
+        let body = crate::backend::knowledge_documents::SaveDocumentRequest {
+            // The replace pipeline carries `expected_version` as a u64; the backend optimistic-
+            // concurrency token is an i64. Versions are small non-negative monotone counters, so the
+            // saturating cast is lossless in practice and never produces a negative token.
+            expected_version: i64::try_from(expected_version).unwrap_or(i64::MAX),
+            content_json: content_json.clone(),
+            crdt_document_id: None,
+            crdt_snapshot_id: None,
+            promotion_receipt_event_id: None,
         };
-        let status = resp.status();
-        if status.is_success() {
-            let v: serde_json::Value = resp.json().await.unwrap_or(serde_json::Value::Null);
-            let receipt = v
-                .get("save_receipt_event_id")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_owned();
-            return DocSaveOutcome::Saved(receipt);
+        match self.consolidated().save_document(&headers, document_id, &body).await {
+            Ok(saved) => DocSaveOutcome::Saved(saved.save_receipt_event_id.unwrap_or_default()),
+            Err(crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict { .. }) => {
+                DocSaveOutcome::Conflict
+            }
+            Err(e) => DocSaveOutcome::Failed(e.to_string()),
         }
-        if status == reqwest::StatusCode::CONFLICT {
-            return DocSaveOutcome::Conflict;
-        }
-        let text = resp.text().await.unwrap_or_default();
-        DocSaveOutcome::Failed(format!("status {status}: {text}"))
     }
 }
 

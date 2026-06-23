@@ -3,25 +3,32 @@
 //! `api::knowledge_documents`). This is FRONTEND WIRING ONLY — it binds the routes the backend already
 //! serves; it does NOT change the backend (a backend gap is a typed blocker, never a backend edit).
 //!
-//! ## Why this module exists (and what it does NOT duplicate)
+//! ## Why this module exists (and the SINGLE load/save wire path)
 //!
-//! Prior MTs already bound TWO knowledge-document routes through [`crate::backend_client`]:
-//!   * `GET  /knowledge/documents/{id}`        — [`crate::backend_client::RichDocClient::load_document`]
-//!     (the MT-029 find/replace load primitive, returns the narrow [`crate::backend_client::RichDocBody`]).
-//!   * `PUT  /knowledge/documents/{id}/save`   — [`crate::backend_client::RichDocClient::save_document`]
-//!     (the MT-020/029 optimistic-concurrency save, 409 -> [`crate::backend_client::DocSaveOutcome::Conflict`]).
+//! Prior MTs bound TWO knowledge-document routes through [`crate::backend_client::RichDocClient`]:
+//!   * `GET  /knowledge/documents/{id}`        — the MT-029 find/replace load primitive (returns the
+//!     narrow [`crate::backend_client::RichDocBody`]).
+//!   * `PUT  /knowledge/documents/{id}/save`   — the MT-020/029 optimistic-concurrency save (409 ->
+//!     [`crate::backend_client::DocSaveOutcome::Conflict`]).
 //!
-//! MT-037 does NOT fork a second load/save with divergent conflict handling. It REUSES the canonical
-//! identity-header constants and base URL that `backend_client.rs` already owns
-//! ([`crate::backend_client::HSK_HEADER_ACTOR_ID`] etc., [`crate::backend_client::BACKEND_BASE_URL`],
+//! This MT is the CONSOLIDATED, single owner of the `/knowledge/documents/*` load + save wire path.
+//! There is NO second forked load/save: [`KnowledgeDocumentsClient::load_document`] and
+//! [`KnowledgeDocumentsClient::save_document`] are the ONE wire implementation, and
+//! `RichDocClient::load_document` / `RichDocClient::save_document` now DELEGATE here (mapping this
+//! client's [`DocumentLoadResponse`] -> `RichDocBody` and [`KnowledgeDocumentsError::SaveConflict`] ->
+//! `DocSaveOutcome::Conflict`), so the find/replace pipeline and the editor share ONE save path with
+//! ONE conflict semantic (the REUSE-NOT-DUPLICATE gate). The 409 -> [`KnowledgeDocumentsError::
+//! SaveConflict`] mapping IS the MT-020 conflict pattern, not a divergent re-implementation.
+//!
+//! This module also REUSES the canonical identity-header constants and base URL `backend_client.rs`
+//! owns ([`crate::backend_client::HSK_HEADER_ACTOR_ID`] etc., [`crate::backend_client::BACKEND_BASE_URL`],
 //! [`crate::backend_client::DOC_ACTOR_ID`] / [`crate::backend_client::DOC_ACTOR_KIND`]) so the wire
-//! identity is constructed in ONE place, and it CONSOLIDATES the full document surface by ADDING the
-//! 17 routes no prior MT bound (create / import / draft GET-PUT-DELETE / blocks / history + version /
-//! projection / embeds + broken + repair / backlinks list + rebuild / rename / move / batch) plus the
-//! richer typed response projections, the [`HskDocumentHeaders`] struct, and the typed
-//! [`KnowledgeDocumentsError`] enum. The two routes prior MTs already touch (load, save) are offered
-//! here as the consolidated typed surface built on the SAME header constants and the SAME 409 ->
-//! [`KnowledgeDocumentsError::SaveConflict`] pattern (MT-020's pattern), NOT a divergent re-implementation.
+//! identity is constructed in ONE place, and it shares the ONE process-wide
+//! [`crate::backend_client::shared_http_client`] connection pool (production() does NOT mint a second
+//! reqwest stack). On top of the shared transport it ADDS the 17 routes no prior MT bound (create /
+//! import / draft GET-PUT-DELETE / blocks / history + version / projection / embeds + broken + repair /
+//! backlinks list + rebuild / rename / move / batch) plus the richer typed response projections, the
+//! [`HskDocumentHeaders`] struct, and the typed [`KnowledgeDocumentsError`] enum.
 //!
 //! ## Stateless adapter
 //!
@@ -63,8 +70,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::backend_client::{
-    BACKEND_BASE_URL, DOC_ACTOR_ID, DOC_ACTOR_KIND, HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND,
-    HSK_HEADER_KERNEL_TASK_RUN_ID, HSK_HEADER_SESSION_RUN_ID,
+    shared_http_client, BACKEND_BASE_URL, DOC_ACTOR_ID, DOC_ACTOR_KIND, HSK_HEADER_ACTOR_ID,
+    HSK_HEADER_ACTOR_KIND, HSK_HEADER_KERNEL_TASK_RUN_ID, HSK_HEADER_SESSION_RUN_ID,
 };
 
 /// The optional `x-hsk-correlation-id` header constant. The other four document identity headers
@@ -378,8 +385,12 @@ where
     S: serde::Serializer,
 {
     match value {
-        // Unreachable in practice because the field carries skip_serializing_if = Option::is_none,
-        // but handled for correctness if a caller serializes the struct directly: omit by emitting unit.
+        // The outer-None arm is UNREACHABLE through the struct path: every field that uses this
+        // serializer carries `skip_serializing_if = "Option::is_none"`, so serde never calls this fn
+        // for an absent (outer-None) field — absence is realized by SKIPPING the key entirely, which
+        // is the correct "leave unchanged" wire shape (absent != null). The arm exists only so the fn
+        // is total; if it were ever reached it would emit `null` (serialize_none), matching the
+        // explicit-clear shape rather than panicking.
         None => serializer.serialize_none(),
         Some(None) => serializer.serialize_none(),
         Some(Some(s)) => serializer.serialize_some(s),
@@ -545,7 +556,7 @@ pub struct BacklinksResponse {
     pub tags: Value,
 }
 
-/// `POST /knowledge/documents/move` response.
+/// `POST /knowledge/documents/:document_id/move` response.
 #[derive(Debug, Clone, Deserialize)]
 pub struct MoveDocumentResponse {
     pub document: Value,
@@ -585,14 +596,18 @@ impl Default for KnowledgeDocumentsClient {
 
 impl KnowledgeDocumentsClient {
     /// Construct against the production backend base URL (the same `BACKEND_BASE_URL` every other
-    /// native client uses — config-resolved, not hardcoded here).
+    /// native client uses — config-resolved, not hardcoded here), sharing the ONE process-wide
+    /// [`crate::backend_client::shared_http_client`] connection pool rather than minting a second
+    /// reqwest stack (the REUSE-NOT-DUPLICATE pool concern). The find/replace `RichDocClient` delegates
+    /// to this same client + pool, so the whole `/knowledge/documents/*` surface shares one transport.
     pub fn production() -> Self {
-        Self::with_base_url(BACKEND_BASE_URL)
+        Self::with_client(shared_http_client(), BACKEND_BASE_URL)
     }
 
-    /// Construct against an explicit base URL (used by tests to point at a mock server; the production
-    /// path uses [`Self::production`]). The base URL is the authority for the host — a function never
-    /// hardcodes one.
+    /// Construct against an explicit base URL on a FRESH client (used by tests to point at a mock
+    /// server with an isolated pool; the production path uses [`Self::production`], which shares the
+    /// process-wide pool via [`Self::with_client`]). The base URL is the authority for the host — a
+    /// function never hardcodes one.
     pub fn with_base_url(base_url: impl Into<String>) -> Self {
         Self {
             client: reqwest::Client::new(),

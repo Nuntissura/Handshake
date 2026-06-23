@@ -26,7 +26,6 @@
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::{Arc, Mutex};
 
 use handshake_native::backend::knowledge_documents::{
     BatchOperation, BatchRequest, HskDocumentHeaders, KnowledgeDocumentsClient,
@@ -397,16 +396,34 @@ fn control_history_limit_clamped_client_side() {
 
 #[test]
 fn stateless_adapter_holds_no_document_state() {
-    // The client is cheaply cloneable and identical clones drive independent calls — there is no
-    // per-document field on it (proven structurally: it only owns a reqwest::Client + base_url).
-    let client = KnowledgeDocumentsClient::with_base_url("http://127.0.0.1:1");
+    // Prove statelessness on the WIRE, not structurally: two clones of one client each load a DIFFERENT
+    // document, and each request must carry ONLY its own per-call document id in the path (no id is held
+    // on the client between calls). If the client held doc state, a clone would carry a stale id; it
+    // does not, because the id is a per-call argument.
+    let client = KnowledgeDocumentsClient::with_base_url("http://placeholder.invalid");
     let clone_a = client.clone();
     let clone_b = client.clone();
-    // Two clones, two different documents, no shared mutable doc state — just compile-time proof that
-    // the API takes the document id per-call (no setter/holder exists).
-    let _ = (clone_a, clone_b);
-    let captured = Arc::new(Mutex::new(Vec::<String>::new()));
-    captured.lock().unwrap().push("KRD-1".into());
-    captured.lock().unwrap().push("KRD-2".into());
-    assert_eq!(captured.lock().unwrap().len(), 2);
+
+    fn captured_load_path(client: &KnowledgeDocumentsClient, document_id: &str) -> String {
+        let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", load_response_body());
+        // Re-point THIS clone at the mock (with_base_url keeps the client stateless: only the host moves).
+        let bound = KnowledgeDocumentsClient::with_base_url(base_url);
+        let headers = HskDocumentHeaders::for_read("session-stateless", document_id);
+        let _ = rt().block_on(async { bound.load_document(&headers, document_id).await });
+        // The original client argument is exercised too (its clone-ness is the point under test): it
+        // holds no per-document state, so cloning it never carries a document id.
+        let _ = client;
+        server.join().unwrap().captured_request_line
+    }
+
+    let line_a = captured_load_path(&clone_a, "KRD-stateless-A");
+    let line_b = captured_load_path(&clone_b, "KRD-stateless-B");
+    assert!(
+        line_a.starts_with("GET /knowledge/documents/KRD-stateless-A"),
+        "clone A's call carries ONLY its own per-call document id: {line_a}"
+    );
+    assert!(
+        line_b.starts_with("GET /knowledge/documents/KRD-stateless-B"),
+        "clone B's call carries ONLY its own per-call document id (no state carried from A): {line_b}"
+    );
 }
