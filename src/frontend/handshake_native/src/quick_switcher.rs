@@ -214,6 +214,155 @@ impl QuickSwitcherTarget {
     }
 }
 
+// ===========================================================================
+// MT-030: the ShellNavigator bus + typed dispatch seam (the integration core).
+//
+// MT-017 shipped the overlay + search + `open_target_for_hit`; the navigation
+// was dispatched INLINE in `app.rs`. MT-030 extracts that into a reusable
+// `ShellNavigator` trait so the E5 interconnection MTs (MT-031+) and the E11
+// GUI-continuation MTs (MT-069) drive editor/panel navigation through ONE
+// stable interface instead of re-reaching into `app.rs` internals. The quick
+// switcher itself is just the FIRST caller of this bus.
+//
+// The editor-pane targets (`open_document` -> the rich-text editor MT-012,
+// `open_code_symbol` -> the code editor MT-001) are a deliberate TYPED SEAM:
+// those editor panes are NOT yet mounted in the shell (E11/MT-069 owns that),
+// so the navigator returns `NavDispatchOutcome::EditorPaneNotMounted` rather
+// than silently faking the open. That honest typed status is what the overlay
+// surfaces and what E11 replaces with a real editor mount (carry-forward to
+// MT-069). The non-editor targets (loom block, wiki page, user-manual page,
+// work packet, microtask) open real shell tabs NOW.
+// ===========================================================================
+
+/// The typed outcome of dispatching a [`QuickSwitcherTarget`] through a [`ShellNavigator`].
+///
+/// This is an explicit enum (not a bare `bool`) so the editor-pane seam stays HONEST: a
+/// `Document` / `CodeSymbol` target routed before E11 mounts the editor panes returns
+/// [`EditorPaneNotMounted`](NavDispatchOutcome::EditorPaneNotMounted) — a visible "not wired yet"
+/// status, never a silent success or a faked placeholder open. The quick switcher reads this to set
+/// its status line; E11/MT-069 makes those two arms return [`Opened`](NavDispatchOutcome::Opened).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NavDispatchOutcome {
+    /// The navigator opened the target on a real shell surface. Carries the human/agent-readable name
+    /// of the surface it opened on (e.g. `"Loom Block"`, `"Kernel DCC"`) for status/diagnostics.
+    Opened { surface: String },
+    /// The target is an EDITOR-pane target (rich-text document or code symbol) whose pane is not yet
+    /// mounted in the shell (E11/MT-069 owns mounting the MT-012 / MT-001 editor panes). The caller
+    /// surfaces this as a typed status; it is NOT a silent no-op and NOT a faked open. Carries the
+    /// editor kind so the status message is specific.
+    EditorPaneNotMounted { editor: NavEditorKind },
+    /// There was no pane to open the target on (an empty work surface). A safe no-op, surfaced as a
+    /// status rather than a panic. (The seeded shell always has a pane, so this is the headless edge.)
+    NoTargetPane,
+    /// The target was [`QuickSwitcherTarget::Unsupported`] — the row was disabled and should never have
+    /// been dispatched. Carried as a typed value so a mis-dispatch is observable in tests, not a panic.
+    Unsupported,
+}
+
+impl NavDispatchOutcome {
+    /// True when the dispatch landed on a real surface (the jump succeeded).
+    pub fn opened(&self) -> bool {
+        matches!(self, NavDispatchOutcome::Opened { .. })
+    }
+
+    /// The operator/agent-facing status string for this outcome (shown on the switcher status line and
+    /// readable by a swarm agent that just dispatched a hit).
+    pub fn status_text(&self) -> String {
+        match self {
+            NavDispatchOutcome::Opened { surface } => format!("Opened on {surface}"),
+            NavDispatchOutcome::EditorPaneNotMounted { editor } => format!(
+                "{} editor pane not mounted yet (E11/MT-069)",
+                editor.label()
+            ),
+            NavDispatchOutcome::NoTargetPane => "No pane to open the target on".to_owned(),
+            NavDispatchOutcome::Unsupported => "No direct app target yet".to_owned(),
+        }
+    }
+}
+
+/// Which not-yet-mounted editor pane an [`EditorPaneNotMounted`](NavDispatchOutcome::EditorPaneNotMounted)
+/// outcome refers to (the MT-012 rich-text editor or the MT-001 code editor).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NavEditorKind {
+    /// The rich-text / document editor (MT-012 surface), target of `open_document`.
+    RichText,
+    /// The code editor (MT-001 surface), target of `open_code_symbol`.
+    Code,
+}
+
+impl NavEditorKind {
+    /// The human label used in the typed "not mounted yet" status.
+    pub fn label(self) -> &'static str {
+        match self {
+            NavEditorKind::RichText => "Rich-text",
+            NavEditorKind::Code => "Code",
+        }
+    }
+}
+
+/// The shell navigation bus the quick switcher (and, later, the E5/E11 interconnection MTs) drive to
+/// open a resolved target on the correct editor or panel. Extracting this from the inline `app.rs`
+/// dispatch is the MT-030 "integration core": ONE extensible interface every navigation caller shares.
+///
+/// Each method opens one target kind and returns a typed [`NavDispatchOutcome`]. The two editor-pane
+/// methods (`open_document`, `open_code_symbol`) MAY return
+/// [`EditorPaneNotMounted`](NavDispatchOutcome::EditorPaneNotMounted) until E11/MT-069 mounts the real
+/// MT-012 / MT-001 editor panes — that is the honest typed seam, not a faked open. Implementors must
+/// NOT panic and must NOT silently no-op on a missing surface; they return the typed outcome.
+///
+/// The trait is object-safe (`&dyn ShellNavigator` / `&mut dyn ShellNavigator`) so the quick switcher
+/// and tests can drive it without monomorphizing on the concrete shell.
+pub trait ShellNavigator {
+    /// Open a rich-text document by its `KRD-`-prefixed id (the MT-012 rich-text editor surface).
+    fn open_document(&mut self, document_id: &str) -> NavDispatchOutcome;
+    /// Open a Loom block / file / tag-hub by its block id (the Loom block viewer, mounted now).
+    fn open_loom_block(&mut self, block_id: &str) -> NavDispatchOutcome;
+    /// Open a code symbol by its entity id (the MT-001 code editor surface).
+    fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome;
+    /// Open a work packet in the Kernel DCC by its WP id (mounted now).
+    fn open_work_packet(&mut self, wp_id: &str) -> NavDispatchOutcome;
+    /// Open a microtask in the Kernel DCC by its MT id (+ optional WP id) (mounted now).
+    fn open_micro_task(&mut self, mt_id: &str, wp_id: Option<&str>) -> NavDispatchOutcome;
+    /// Open a built-in UserManual page by its slug (mounted now).
+    fn open_user_manual_page(&mut self, slug: &str) -> NavDispatchOutcome;
+    /// Open a Loom wiki page by its projection id (mounted now).
+    fn open_wiki_page(&mut self, projection_id: &str) -> NavDispatchOutcome;
+}
+
+/// Dispatch a resolved [`QuickSwitcherTarget`] through a [`ShellNavigator`] (the extensible mapping the
+/// quick switcher and the E5/E11 MTs share). This is the single place that knows which navigator method
+/// realizes which target variant — adding a new target kind or a new navigator implementor does not
+/// require touching the switcher render path. An [`Unsupported`](QuickSwitcherTarget::Unsupported)
+/// target (a disabled row that should never have been activated) returns
+/// [`NavDispatchOutcome::Unsupported`] rather than panicking.
+pub fn dispatch_target(
+    navigator: &mut dyn ShellNavigator,
+    target: &QuickSwitcherTarget,
+) -> NavDispatchOutcome {
+    match target {
+        QuickSwitcherTarget::Document { document_id } => navigator.open_document(document_id),
+        QuickSwitcherTarget::LoomBlock { block_id } => navigator.open_loom_block(block_id),
+        QuickSwitcherTarget::CodeSymbol { symbol_entity_id } => {
+            navigator.open_code_symbol(symbol_entity_id)
+        }
+        QuickSwitcherTarget::WorkPacket { wp_id } => navigator.open_work_packet(wp_id),
+        QuickSwitcherTarget::MicroTask { mt_id, wp_id } => {
+            navigator.open_micro_task(mt_id, wp_id.as_deref())
+        }
+        QuickSwitcherTarget::UserManual { slug } => navigator.open_user_manual_page(slug),
+        QuickSwitcherTarget::WikiPage { projection_id } => navigator.open_wiki_page(projection_id),
+        QuickSwitcherTarget::Unsupported => NavDispatchOutcome::Unsupported,
+    }
+}
+
+/// Resolve a [`LoomGraphSearchHit`] to its typed [`QuickSwitcherTarget`]. The MT-030 contract names this
+/// `resolve_open_target`; it is the same exhaustive 9-source-kind mapping as [`open_target_for_hit`]
+/// (the MT-017 name), kept as the canonical implementation. This alias exists so the contract-named
+/// symbol resolves and the E5/E11 MTs have a stable, intention-revealing entry point.
+pub fn resolve_open_target(hit: &LoomGraphSearchHit) -> QuickSwitcherTarget {
+    open_target_for_hit(hit)
+}
+
 /// Read a non-empty trimmed STRING field out of a hit's `metadata` object (port of the React
 /// `metadataString`). Returns `None` when metadata is not an object, the key is absent, the value is
 /// not a string, or the string is blank.

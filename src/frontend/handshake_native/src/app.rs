@@ -279,6 +279,17 @@ pub struct HandshakeApp {
     /// The last transient recents error (a failed `GET`/`POST quick-switcher/recents`), surfaced on the
     /// status row so a recents failure degrades ordering visibly without a crash (red-team MC3).
     quick_switcher_recents_error: Option<String>,
+    /// The last quick-switcher NAVIGATION status (MT-030): set when a jump dispatched through the
+    /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) bus did NOT land on a real surface —
+    /// most importantly the editor-pane TYPED SEAM ("Rich-text/Code editor pane not mounted yet
+    /// (E11/MT-069)"). Surfaced to the operator/agent instead of a silent no-op or a faked open. Cleared
+    /// on a successful `Opened` dispatch and read by tests + future E11 status wiring.
+    quick_switcher_nav_status: Option<String>,
+    /// Transient label carried from [`open_switcher_hit`](Self::open_switcher_hit) into the
+    /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) arms so the opened tab is labelled with
+    /// the hit title (the trait arms take only ids per the MT-030 contract signature). `Some` only for
+    /// the duration of one `dispatch_target` call; `None` otherwise.
+    nav_pending_label: Option<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
     /// Monotonic counter incremented each time [`settings_open`](Self::settings_open) flips from closed
@@ -811,6 +822,8 @@ impl HandshakeApp {
             quick_switcher_recents_cell: Arc::new(Mutex::new(None)),
             quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
             quick_switcher_recents_error: None,
+            quick_switcher_nav_status: None,
+            nav_pending_label: None,
             settings_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
@@ -997,6 +1010,8 @@ impl HandshakeApp {
             quick_switcher_recents_cell: Arc::new(Mutex::new(None)),
             quick_switcher_record_recent_cell: Arc::new(Mutex::new(None)),
             quick_switcher_recents_error: None,
+            quick_switcher_nav_status: None,
+            nav_pending_label: None,
             settings_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
@@ -1492,39 +1507,51 @@ impl HandshakeApp {
         self.active_pane.as_ref()
     }
 
-    /// Map a [`crate::quick_switcher::QuickSwitcherTarget`] to the `(PaneType, content_id)` tab that
-    /// realizes it on a pane (the native peer of the React `onOpen*` callbacks). `Unsupported` returns
-    /// `None` (the row was disabled, so this is never reached for it). The Kernel-DCC targets encode the
-    /// WP/MT focus in the tab `content_id` (`"WP:{id}"` / `"MT:{wp?}:{id}"`) so a single Kernel-DCC pane
-    /// can focus the right entity without a separate focus-state field.
-    fn target_to_tab(
-        target: &crate::quick_switcher::QuickSwitcherTarget,
-    ) -> Option<(PaneType, String)> {
-        use crate::quick_switcher::QuickSwitcherTarget as T;
-        match target {
-            T::UserManual { slug } => Some((PaneType::UserManual, slug.clone())),
-            T::WikiPage { projection_id } => {
-                Some((PaneType::LoomWikiPage, projection_id.clone()))
-            }
-            T::Document { document_id } => Some((PaneType::AtelierEditor, document_id.clone())),
-            T::LoomBlock { block_id } => Some((PaneType::LoomBlock, block_id.clone())),
-            T::CodeSymbol { symbol_entity_id } => {
-                Some((PaneType::CodeSymbol, symbol_entity_id.clone()))
-            }
-            T::WorkPacket { wp_id } => Some((PaneType::KernelDcc, format!("WP:{wp_id}"))),
-            T::MicroTask { mt_id, wp_id } => Some((
-                PaneType::KernelDcc,
-                format!("MT:{}:{mt_id}", wp_id.clone().unwrap_or_default()),
-            )),
-            T::Unsupported => None,
-        }
+    /// The last quick-switcher NAVIGATION status (MT-030), if the most recent dispatch through the
+    /// [`ShellNavigator`](crate::quick_switcher::ShellNavigator) bus did NOT land on a real surface — most
+    /// importantly the editor-pane TYPED SEAM ("Rich-text/Code editor pane not mounted yet (E11/MT-069)").
+    /// `None` after a successful `Opened` dispatch. Read by the MT-030 dispatch tests and by future E11
+    /// status wiring; it is the observable proof that the editor-pane seam is honest (no silent no-op).
+    pub fn quick_switcher_nav_status(&self) -> Option<&str> {
+        self.quick_switcher_nav_status.as_deref()
     }
 
-    /// Open a selected Loom-graph hit (MT-017): record the durable recent (`POST recents`, OFF the egui
-    /// UI thread — HBR-QUIET) with an immediate optimistic local prepend, then JUMP by opening the hit's
-    /// typed target as a tab on the active (or fallback) pane. Returns `true` when the pane/tab state
-    /// changed (so the caller can repaint + let the layout change-detector schedule a save). An
-    /// `Unsupported` target is a safe no-op (the row was disabled and never reaches here).
+    /// Open a `(PaneType, content_id)` tab on the module-target pane, labelled `label`, and make it the
+    /// active tab + pane. The shared tab-open primitive behind the [`ShellNavigator`] arms: it
+    /// de-duplicates by `(pane_type, content_id)` via `insert_tab`, activates the resulting tab, and
+    /// focuses the pane. Returns the surface name on success, or `None` when there is no pane to open on
+    /// (a headless empty surface) so the navigator can map that to [`NavDispatchOutcome::NoTargetPane`].
+    fn open_navigator_tab(
+        &mut self,
+        pane_type: PaneType,
+        content_id: String,
+        label: &str,
+    ) -> Option<String> {
+        let surface = pane_type.label();
+        let pane_id = self.module_target_pane()?;
+        if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
+            let tab = TabState {
+                pane_type,
+                content_id: Some(content_id),
+                pinned: false,
+                dirty: false,
+                label_override: Some(label.to_owned()),
+            };
+            let idx = bar.insert_tab(tab);
+            bar.activate(idx);
+        }
+        self.active_pane = Some(pane_id);
+        Some(surface)
+    }
+
+    /// Open a selected Loom-graph hit (MT-017 jump, refactored through the MT-030 [`ShellNavigator`]
+    /// bus): record the durable recent (`POST recents`, OFF the egui UI thread — HBR-QUIET) with an
+    /// immediate optimistic local prepend, then JUMP by dispatching the hit's typed target through the
+    /// shell navigation bus ([`crate::quick_switcher::dispatch_target`]). Returns the typed
+    /// [`NavDispatchOutcome`] so the caller can surface the editor-pane seam status (a `Document` /
+    /// `CodeSymbol` target before E11 mounts the editor panes returns `EditorPaneNotMounted`, NOT a
+    /// silent no-op or a faked open). An `Unsupported` target is a safe typed no-op (the row was disabled
+    /// and never reaches here in normal flow).
     ///
     /// The network POST is NEVER awaited on the frame thread. The optimistic local recents update uses
     /// the hit's own [`hit_key`](crate::quick_switcher::hit_key) (which equals the backend-confirmed key
@@ -1532,7 +1559,10 @@ impl HandshakeApp {
     /// waiting for the round-trip; the spawned task writes the backend-confirmed key (or an error) into
     /// `quick_switcher_record_recent_cell`, drained next frame by [`drive_quick_switcher`] to reconcile
     /// the key and surface failures via `recents_error` (red-team MC3).
-    fn open_switcher_hit(&mut self, hit: &crate::quick_switcher::LoomGraphSearchHit) -> bool {
+    fn open_switcher_hit(
+        &mut self,
+        hit: &crate::quick_switcher::LoomGraphSearchHit,
+    ) -> crate::quick_switcher::NavDispatchOutcome {
         // 1. Optimistic local recents prepend (immediate, no I/O): the hit_key matches what the backend
         //    returns for a well-formed hit, so ordering is correct on the next open without blocking.
         let optimistic_key = crate::quick_switcher::hit_key(hit);
@@ -1560,30 +1590,23 @@ impl HandshakeApp {
             });
         }
 
-        // 3. Navigate: open the hit's typed target as a tab on the target pane.
-        let target = crate::quick_switcher::open_target_for_hit(hit);
-        let Some((pane_type, content_id)) = Self::target_to_tab(&target) else {
-            return false;
-        };
-        let Some(pane_id) = self.module_target_pane() else {
-            tracing::warn!("quick switcher: no pane to open target on");
-            return false;
-        };
-        if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
-            let tab = TabState {
-                pane_type,
-                content_id: Some(content_id),
-                pinned: false,
-                dirty: false,
-                label_override: Some(hit.title.clone()),
-            };
-            // insert_tab de-duplicates by (pane_type, content_id) and returns the (existing or new)
-            // index; activate it so the jump lands on the opened tab.
-            let idx = bar.insert_tab(tab);
-            bar.activate(idx);
+        // 3. Navigate: resolve the typed target and dispatch it through the MT-030 ShellNavigator bus.
+        //    The hit title is stashed so the trait arms can label the opened tab (the arms take only ids
+        //    per the contract signature; the label is presentation carried alongside).
+        let target = crate::quick_switcher::resolve_open_target(hit);
+        self.nav_pending_label = Some(hit.title.clone());
+        let outcome = crate::quick_switcher::dispatch_target(self, &target);
+        self.nav_pending_label = None;
+        // Surface the dispatch status (the editor-pane seam shows "...not mounted yet (E11/MT-069)").
+        match &outcome {
+            crate::quick_switcher::NavDispatchOutcome::Opened { .. } => {
+                self.quick_switcher_nav_status = None;
+            }
+            other => {
+                self.quick_switcher_nav_status = Some(other.status_text());
+            }
         }
-        self.active_pane = Some(pane_id);
-        true
+        outcome
     }
 
     /// Drive one frame of the open quick switcher (MT-017): drain async deliveries, dispatch the
@@ -1714,9 +1737,11 @@ impl HandshakeApp {
         match frame.outcome {
             crate::quick_switcher::SwitcherOutcome::Open(hit) => {
                 self.close_quick_switcher();
-                if self.open_switcher_hit(&hit) {
-                    ctx.request_repaint();
-                }
+                // Dispatch through the MT-030 ShellNavigator bus. An `Opened` outcome changed pane/tab
+                // state (repaint to land the jump); a typed non-open outcome (editor-pane seam / no pane)
+                // is recorded in `quick_switcher_nav_status` and still repaints so the status shows.
+                let _outcome = self.open_switcher_hit(&hit);
+                ctx.request_repaint();
             }
             crate::quick_switcher::SwitcherOutcome::Close => {
                 self.close_quick_switcher();
@@ -4664,6 +4689,97 @@ impl HandshakeApp {
             // when docked, so out-of-process steering finds the pane regardless of host window.
             accessibility::emit_pane_node(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         });
+    }
+}
+
+/// The MT-030 navigation bus: the shell IS the [`ShellNavigator`](crate::quick_switcher::ShellNavigator)
+/// the quick switcher (and, later, the E5/E11 interconnection MTs) drive to open a resolved target on
+/// the correct editor or panel. Each arm reuses the shared [`open_navigator_tab`](HandshakeApp::open_navigator_tab)
+/// tab-open primitive (de-dupe + activate + focus) so there is ONE tab-mutation path, and returns the
+/// typed [`NavDispatchOutcome`](crate::quick_switcher::NavDispatchOutcome).
+///
+/// The TWO editor-pane arms (`open_document` -> the MT-012 rich-text editor, `open_code_symbol` -> the
+/// MT-001 code editor) are the honest typed seam: those editor panes are NOT yet mounted in the shell
+/// (`PaneType::AtelierEditor` / `PaneType::CodeSymbol` currently route to the labeled placeholder
+/// factory; E11/MT-069 mounts the real editors). Until then these arms return
+/// `EditorPaneNotMounted` — a visible typed status, never a faked open. The carry-forward to MT-069 is
+/// to swap these two arms to `open_navigator_tab(PaneType::AtelierEditor/CodeSymbol, ...)` once the
+/// editor panes mount. The other five arms open real shell tabs NOW.
+impl crate::quick_switcher::ShellNavigator for HandshakeApp {
+    fn open_document(&mut self, _document_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        // E11/MT-069 seam: the MT-012 rich-text editor pane is not mounted yet. Honest typed status, not
+        // a faked placeholder open. (When E11 mounts it:
+        //   let label = self.nav_pending_label.clone().unwrap_or_else(|| _document_id.to_owned());
+        //   return match self.open_navigator_tab(PaneType::AtelierEditor, _document_id.to_owned(), &label) {
+        //       Some(surface) => NavDispatchOutcome::Opened { surface }, None => NavDispatchOutcome::NoTargetPane };
+        // )
+        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted {
+            editor: crate::quick_switcher::NavEditorKind::RichText,
+        }
+    }
+
+    fn open_loom_block(&mut self, block_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| block_id.to_owned());
+        match self.open_navigator_tab(PaneType::LoomBlock, block_id.to_owned(), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
+    }
+
+    fn open_code_symbol(
+        &mut self,
+        _symbol_entity_id: &str,
+    ) -> crate::quick_switcher::NavDispatchOutcome {
+        // E11/MT-069 seam: the MT-001 code editor pane is not mounted yet. Honest typed status.
+        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted {
+            editor: crate::quick_switcher::NavEditorKind::Code,
+        }
+    }
+
+    fn open_work_packet(&mut self, wp_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| wp_id.to_owned());
+        match self.open_navigator_tab(PaneType::KernelDcc, format!("WP:{wp_id}"), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
+    }
+
+    fn open_micro_task(
+        &mut self,
+        mt_id: &str,
+        wp_id: Option<&str>,
+    ) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self.nav_pending_label.clone().unwrap_or_else(|| mt_id.to_owned());
+        let content_id = format!("MT:{}:{mt_id}", wp_id.unwrap_or_default());
+        match self.open_navigator_tab(PaneType::KernelDcc, content_id, &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
+    }
+
+    fn open_user_manual_page(&mut self, slug: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self.nav_pending_label.clone().unwrap_or_else(|| slug.to_owned());
+        match self.open_navigator_tab(PaneType::UserManual, slug.to_owned(), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
+    }
+
+    fn open_wiki_page(&mut self, projection_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| projection_id.to_owned());
+        match self.open_navigator_tab(PaneType::LoomWikiPage, projection_id.to_owned(), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
     }
 }
 

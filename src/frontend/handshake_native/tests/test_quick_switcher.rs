@@ -20,6 +20,7 @@
 //! with NO live PostgreSQL/handshake_core. The genuine PostgreSQL path is exercised by the
 //! `#[cfg(feature = "integration_tests")]` live test below when the operator provides the backend.
 
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -31,10 +32,37 @@ use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::pane_registry::PaneType;
 use handshake_native::quick_switcher::{
-    LoomGraphSearchHit, LoomGraphSearchTransport, SearchTransportError, SWITCHER_DIALOG_AUTHOR_ID,
-    SWITCHER_LIST_AUTHOR_ID, SWITCHER_SEARCH_AUTHOR_ID,
+    dispatch_target, resolve_open_target, LoomGraphSearchHit, LoomGraphSearchTransport,
+    NavDispatchOutcome, NavEditorKind, QuickSwitcherTarget, SearchTransportError, ShellNavigator,
+    SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_LIST_AUTHOR_ID, SWITCHER_SEARCH_AUTHOR_ID,
 };
 use serde_json::{json, Value};
+
+/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. EVERY screenshot
+/// this MT writes goes ONLY here (`Handshake_Artifacts/handshake-test/wp-kernel-012-mt-030/`), NEVER
+/// repo-local (the CX-212E / CX-212E screenshot rule overrides any repo-local path a contract names).
+fn external_artifact_dir(subdir: &str) -> PathBuf {
+    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+}
+
+/// Assert NO repo-local artifact directory exists under the crate (CX-212E hygiene). Checks BOTH
+/// `test_output/` and `tests/screenshots/`. Called by every screenshot test in this file.
+fn assert_no_local_artifact_dir() {
+    for local in [Path::new("test_output"), Path::new("tests/screenshots")] {
+        assert!(
+            !local.exists(),
+            "CX-212E: no repo-local artifact dir may exist — artifacts go to the external \
+             Handshake_Artifacts/handshake-test root only (found {})",
+            local.display()
+        );
+    }
+}
+
+/// Serialize the `.wgpu()` screenshot test (the documented Windows-wgpu concurrent-device hazard).
+static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
+    WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner())
+}
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -627,4 +655,492 @@ fn live_backend_quick_switcher_searches_real_graph() {
             "POST recents returns the expected hit_key"
         );
     }
+}
+
+// =============================================================================
+// MT-030 — ShellNavigator bus + typed editor-pane seam (the integration core).
+//
+// MT-017 shipped the overlay + search + `open_target_for_hit`; MT-030 extracts
+// navigation into the reusable `ShellNavigator` trait the E5 (MT-031+) / E11
+// (MT-069) MTs drive, and makes the editor-pane targets an HONEST typed seam
+// (`EditorPaneNotMounted`) instead of a silent no-op / faked open. These tests
+// prove: (PT-3) resolve_open_target maps all 9 source_kinds; (PT-5) dispatch
+// through a MOCK ShellNavigator routes each target to the right method with the
+// right id; the editor-pane seam returns the typed not-mounted status end-to-end
+// through the real shell; and the AccessKit snapshot screenshot.
+// =============================================================================
+
+/// A recording mock [`ShellNavigator`]: every method appends `(method, id, wp?)` to a shared log and
+/// returns `Opened` for the mounted arms / `EditorPaneNotMounted` for the editor arms — so a test can
+/// assert WHICH navigator method `dispatch_target` invoked and with WHICH id (PT-5: navigation dispatch),
+/// with no shell/pane state involved (pure interface proof).
+#[derive(Default)]
+struct MockNavigator {
+    calls: Vec<(String, String, Option<String>)>,
+}
+
+impl ShellNavigator for MockNavigator {
+    fn open_document(&mut self, document_id: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_document".into(), document_id.into(), None));
+        NavDispatchOutcome::EditorPaneNotMounted {
+            editor: NavEditorKind::RichText,
+        }
+    }
+    fn open_loom_block(&mut self, block_id: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_loom_block".into(), block_id.into(), None));
+        NavDispatchOutcome::Opened {
+            surface: "Loom Block".into(),
+        }
+    }
+    fn open_code_symbol(&mut self, symbol_entity_id: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_code_symbol".into(), symbol_entity_id.into(), None));
+        NavDispatchOutcome::EditorPaneNotMounted {
+            editor: NavEditorKind::Code,
+        }
+    }
+    fn open_work_packet(&mut self, wp_id: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_work_packet".into(), wp_id.into(), None));
+        NavDispatchOutcome::Opened {
+            surface: "Kernel DCC".into(),
+        }
+    }
+    fn open_micro_task(&mut self, mt_id: &str, wp_id: Option<&str>) -> NavDispatchOutcome {
+        self.calls.push((
+            "open_micro_task".into(),
+            mt_id.into(),
+            wp_id.map(|s| s.to_owned()),
+        ));
+        NavDispatchOutcome::Opened {
+            surface: "Kernel DCC".into(),
+        }
+    }
+    fn open_user_manual_page(&mut self, slug: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_user_manual_page".into(), slug.into(), None));
+        NavDispatchOutcome::Opened {
+            surface: "User Manual".into(),
+        }
+    }
+    fn open_wiki_page(&mut self, projection_id: &str) -> NavDispatchOutcome {
+        self.calls
+            .push(("open_wiki_page".into(), projection_id.into(), None));
+        NavDispatchOutcome::Opened {
+            surface: "Loom Wiki Page".into(),
+        }
+    }
+}
+
+// ── PT-3: resolve_open_target maps all 9 source_kinds (the contract-named symbol) ──────────────────────
+
+#[test]
+fn quick_switcher_resolve_open_target() {
+    // loom_block with no document_id -> LoomBlock{ref_id}.
+    let blk = make_hit("loom_block", "BLK-1", "Block One", Value::Null);
+    assert_eq!(
+        resolve_open_target(&blk),
+        QuickSwitcherTarget::LoomBlock {
+            block_id: "BLK-1".into()
+        }
+    );
+    // loom_block with metadata.rich_document_id=KRD-1 -> Document{KRD-1}.
+    let blk_doc = make_hit(
+        "loom_block",
+        "BLK-2",
+        "Block Two",
+        json!({ "rich_document_id": "KRD-1" }),
+    );
+    assert_eq!(
+        resolve_open_target(&blk_doc),
+        QuickSwitcherTarget::Document {
+            document_id: "KRD-1".into()
+        }
+    );
+    // symbol -> CodeSymbol{ref_id}.
+    let sym = make_hit("symbol", "SYM-1", "Symbol", Value::Null);
+    assert_eq!(
+        resolve_open_target(&sym),
+        QuickSwitcherTarget::CodeSymbol {
+            symbol_entity_id: "SYM-1".into()
+        }
+    );
+    // wiki_page -> WikiPage{ref_id}.
+    let wiki = make_hit("wiki_page", "WP-1", "Wiki", Value::Null);
+    assert_eq!(
+        resolve_open_target(&wiki),
+        QuickSwitcherTarget::WikiPage {
+            projection_id: "WP-1".into()
+        }
+    );
+    // document with KRD ref_id -> Document.
+    let doc = make_hit("document", "KRD-9", "Doc", Value::Null);
+    assert_eq!(
+        resolve_open_target(&doc),
+        QuickSwitcherTarget::Document {
+            document_id: "KRD-9".into()
+        }
+    );
+    // file / tag_hub -> LoomBlock.
+    assert_eq!(
+        resolve_open_target(&make_hit("file", "F-1", "File", Value::Null)),
+        QuickSwitcherTarget::LoomBlock {
+            block_id: "F-1".into()
+        }
+    );
+    assert_eq!(
+        resolve_open_target(&make_hit("tag_hub", "T-1", "Tag", Value::Null)),
+        QuickSwitcherTarget::LoomBlock {
+            block_id: "T-1".into()
+        }
+    );
+    // work_packet -> WorkPacket; micro_task -> MicroTask.
+    assert_eq!(
+        resolve_open_target(&make_hit(
+            "work_packet",
+            "WP-KERNEL-011",
+            "WP",
+            json!({ "work_packet_id": "WP-KERNEL-011" })
+        )),
+        QuickSwitcherTarget::WorkPacket {
+            wp_id: "WP-KERNEL-011".into()
+        }
+    );
+    assert_eq!(
+        resolve_open_target(&make_hit(
+            "micro_task",
+            "MT-030",
+            "MT",
+            json!({ "entity_key": "WP-KERNEL-012/MT-030" })
+        )),
+        QuickSwitcherTarget::MicroTask {
+            mt_id: "MT-030".into(),
+            wp_id: Some("WP-KERNEL-012".into())
+        }
+    );
+    // unknown source_kind -> Unsupported (the catch-all arm, RISK-4/MC-4).
+    assert_eq!(
+        resolve_open_target(&make_hit("totally_unknown_kind", "x", "X", Value::Null)),
+        QuickSwitcherTarget::Unsupported
+    );
+}
+
+// ── PT-5: dispatch_target routes each target to the right ShellNavigator method + id ───────────────────
+
+#[test]
+fn dispatch_target_routes_every_target_to_the_right_method() {
+    let cases: Vec<(QuickSwitcherTarget, &str, &str, Option<&str>, bool)> = vec![
+        (
+            QuickSwitcherTarget::Document {
+                document_id: "KRD-7".into(),
+            },
+            "open_document",
+            "KRD-7",
+            None,
+            false, // editor-pane seam: not "opened"
+        ),
+        (
+            QuickSwitcherTarget::LoomBlock {
+                block_id: "BLK-9".into(),
+            },
+            "open_loom_block",
+            "BLK-9",
+            None,
+            true,
+        ),
+        (
+            QuickSwitcherTarget::CodeSymbol {
+                symbol_entity_id: "SYM-3".into(),
+            },
+            "open_code_symbol",
+            "SYM-3",
+            None,
+            false, // editor-pane seam
+        ),
+        (
+            QuickSwitcherTarget::WorkPacket {
+                wp_id: "WP-7".into(),
+            },
+            "open_work_packet",
+            "WP-7",
+            None,
+            true,
+        ),
+        (
+            QuickSwitcherTarget::MicroTask {
+                mt_id: "MT-5".into(),
+                wp_id: Some("WP-3".into()),
+            },
+            "open_micro_task",
+            "MT-5",
+            Some("WP-3"),
+            true,
+        ),
+        (
+            QuickSwitcherTarget::UserManual {
+                slug: "getting-started".into(),
+            },
+            "open_user_manual_page",
+            "getting-started",
+            None,
+            true,
+        ),
+        (
+            QuickSwitcherTarget::WikiPage {
+                projection_id: "PROJ-2".into(),
+            },
+            "open_wiki_page",
+            "PROJ-2",
+            None,
+            true,
+        ),
+    ];
+
+    for (target, expected_method, expected_id, expected_wp, expected_opened) in cases {
+        let mut nav = MockNavigator::default();
+        let outcome = dispatch_target(&mut nav, &target);
+        assert_eq!(nav.calls.len(), 1, "exactly one navigator method invoked for {target:?}");
+        let (method, id, wp) = &nav.calls[0];
+        assert_eq!(method, expected_method, "method for {target:?}");
+        assert_eq!(id, expected_id, "id for {target:?}");
+        assert_eq!(wp.as_deref(), expected_wp, "wp_id for {target:?}");
+        assert_eq!(outcome.opened(), expected_opened, "opened() for {target:?}");
+    }
+
+    // Unsupported never reaches a navigator method (a disabled row): no call, typed Unsupported outcome.
+    let mut nav = MockNavigator::default();
+    let outcome = dispatch_target(&mut nav, &QuickSwitcherTarget::Unsupported);
+    assert!(nav.calls.is_empty(), "Unsupported dispatches no navigator method");
+    assert_eq!(outcome, NavDispatchOutcome::Unsupported);
+}
+
+// ── Editor-pane seam END-TO-END through the real shell: a document hit -> typed not-mounted status ─────
+//
+// Selecting a `document` (KRD-) hit resolves to `Document`, which dispatches to the shell's
+// `open_document` arm. Because the MT-012 rich-text editor pane is NOT yet mounted (E11/MT-069), the
+// shell returns `EditorPaneNotMounted` — surfaced via `quick_switcher_nav_status()` — and opens NO tab.
+// This is the honest typed seam (no silent no-op, no faked placeholder open). The switcher still closes.
+
+#[test]
+fn document_hit_surfaces_editor_pane_not_mounted_seam() {
+    let stub = StubTransport {
+        hits: vec![make_hit(
+            "document",
+            "KRD-501",
+            "Design Doc",
+            json!({ "rich_document_id": "KRD-501" }),
+        )],
+        recents: vec![],
+    };
+    let mut harness = shell_harness_with_stub(stub);
+    harness.run();
+    assert!(harness.state().active_pane().is_none(), "no active pane before");
+
+    harness.state_mut().open_quick_switcher();
+    harness.run();
+    harness.run();
+
+    switcher_search(&harness).type_text("design");
+    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    assert!(rendered, "graph-search delivered the document hit");
+    harness.step();
+    harness.step();
+
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+
+    // The switcher closed (the jump was attempted) ...
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "Enter on the document hit closed the switcher"
+    );
+    // ... but the editor pane is not mounted, so a TYPED status is surfaced (not a silent no-op).
+    assert_eq!(
+        harness.state().quick_switcher_nav_status(),
+        Some("Rich-text editor pane not mounted yet (E11/MT-069)"),
+        "the document hit surfaced the honest editor-pane seam status"
+    );
+    // ... and NO rich-text/Atelier editor tab was opened for the document (no faked placeholder open).
+    // The seeded shell ships default tabs, so the precise check is that the document's target pane type
+    // (AtelierEditor) never appears AND no tab carries the document content id.
+    let faked_doc_tab = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .flat_map(|bar| bar.tabs.iter())
+        .any(|t| {
+            t.pane_type == PaneType::AtelierEditor || t.content_id.as_deref() == Some("KRD-501")
+        });
+    assert!(
+        !faked_doc_tab,
+        "the editor-pane seam opened NO Atelier/document tab (no faked placeholder open)"
+    );
+}
+
+// ── A loom_block hit DOES open a real Loom Block tab through the bus (the mounted-arm end-to-end) ──────
+
+#[test]
+fn loom_block_hit_opens_real_tab_through_the_bus() {
+    let stub = StubTransport {
+        hits: vec![make_hit("loom_block", "BLK-77", "Block 77", Value::Null)],
+        recents: vec![],
+    };
+    let mut harness = shell_harness_with_stub(stub);
+    harness.run();
+    harness.state_mut().open_quick_switcher();
+    harness.run();
+    harness.run();
+
+    switcher_search(&harness).type_text("block");
+    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    assert!(rendered, "graph-search delivered the loom_block hit");
+    harness.step();
+    harness.step();
+
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+
+    assert!(!harness.state().quick_switcher_open(), "Enter closed the switcher");
+    // The mounted arm: a real Loom Block tab opened; nav status is cleared on a successful open.
+    assert!(
+        harness.state().quick_switcher_nav_status().is_none(),
+        "a successful open leaves no nav status"
+    );
+    let active = harness
+        .state()
+        .active_pane()
+        .map(|p| p.to_string())
+        .expect("active pane set after the loom_block open");
+    let bar = harness
+        .state()
+        .tab_bar_states()
+        .get(active.as_str())
+        .expect("active pane tab bar");
+    let opened = bar.active().expect("an active tab opened by the jump");
+    assert_eq!(opened.pane_type, PaneType::LoomBlock, "loom_block hit opened a Loom Block tab");
+    assert_eq!(opened.content_id.as_deref(), Some("BLK-77"));
+}
+
+// ── PT-4 (VIS): AccessKit snapshot screenshot of the open switcher with injected results ───────────────
+//
+// Renders the open quick switcher (4 hits: loom_block, document, symbol, work_packet) and asserts the
+// AccessKit tree contains the three fixed container ids + at least one result row, and the loom_block
+// row is NOT disabled. Writes the PNG ONLY to the EXTERNAL artifact root (CX-212E);
+// `assert_no_local_artifact_dir()` fails the run on any repo-local artifact dir.
+
+#[test]
+fn quick_switcher_accesskit_snapshot_and_screenshot() {
+    let _g = wgpu_guard();
+    let stub = StubTransport {
+        hits: vec![
+            make_hit("loom_block", "BLK-1", "Block One", Value::Null),
+            make_hit("document", "KRD-1", "Design Doc", json!({ "rich_document_id": "KRD-1" })),
+            make_hit("symbol", "SYM-1", "fn_main", Value::Null),
+            make_hit("work_packet", "WP-7", "Packet Seven", json!({ "work_packet_id": "WP-7" })),
+        ],
+        recents: vec![],
+    };
+
+    // Build the harness with wgpu (for render) + a real runtime so search delivers.
+    let rt = Box::leak(Box::new(
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("runtime"),
+    ));
+    let handle = rt.handle().clone();
+    let transport: Arc<dyn LoomGraphSearchTransport> = Arc::new(stub);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .wgpu()
+        .build_state(
+            move |ctx, a: &mut HandshakeApp| a.ui(ctx),
+            {
+                let mut app = ok_app();
+                app.set_runtime_handle(handle.clone());
+                app.set_quick_switcher_transport(transport.clone());
+                app
+            },
+        );
+
+    harness.run();
+    harness.state_mut().open_quick_switcher();
+    harness.run();
+    harness.run();
+    switcher_search(&harness).type_text("e");
+    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    assert!(rendered, "graph-search delivered the injected hits");
+    harness.step();
+    harness.step();
+
+    // AccessKit assertions: the three fixed container nodes + at least one result row are present.
+    let nodes = live_author_nodes(&harness);
+    for required in [
+        SWITCHER_DIALOG_AUTHOR_ID,
+        SWITCHER_SEARCH_AUTHOR_ID,
+        SWITCHER_LIST_AUTHOR_ID,
+    ] {
+        assert!(
+            nodes.iter().any(|(a, _, _)| a == required),
+            "AccessKit tree contains {required}: {nodes:?}"
+        );
+    }
+    assert!(
+        nodes
+            .iter()
+            .any(|(a, _, _)| a.starts_with("quick-switcher.option.")),
+        "at least one result row present: {nodes:?}"
+    );
+    // The loom_block row resolves to an ENABLED target; assert its row is present + not disabled.
+    let blk_row = harness
+        .query_all_by_role(egui::accesskit::Role::ListBoxOption)
+        .find(|n| n.accesskit_node().author_id() == Some("quick-switcher.option.loom_block.blk-1"))
+        .expect("the loom_block result row");
+    assert!(
+        !blk_row.accesskit_node().is_disabled(),
+        "the loom_block row is enabled (a mounted target)"
+    );
+
+    match harness.render() {
+        Ok(image) => {
+            let (w, h) = (image.width(), image.height());
+            assert!(w > 0 && h > 0, "rendered image must be non-empty");
+            let raw = image.as_raw();
+            let mut distinct: std::collections::HashSet<[u8; 4]> = std::collections::HashSet::new();
+            let mut i = 0usize;
+            while i + 4 <= raw.len() {
+                let px = [raw[i], raw[i + 1], raw[i + 2], raw[i + 3]];
+                if px[3] != 0 {
+                    distinct.insert(px);
+                }
+                i += 64;
+            }
+            assert!(
+                distinct.len() >= 2,
+                "the overlay (dim backdrop + card surface) yields >= 2 colours, got {}",
+                distinct.len()
+            );
+            let ext_dir = external_artifact_dir("wp-kernel-012-mt-030");
+            let _ = std::fs::create_dir_all(&ext_dir);
+            let png = ext_dir.join("MT-030-quick-switcher.png");
+            let saved = image.save(&png).is_ok();
+            println!(
+                "PT-4: {w}x{h} quick-switcher screenshot, {} distinct colours, saved={saved} ({})",
+                distinct.len(),
+                png.display()
+            );
+        }
+        Err(e) => {
+            println!(
+                "BLOCKER(non-fatal): quick-switcher screenshot render unavailable (no wgpu adapter): \
+                 {e}. The AccessKit assertions above passed; the PNG is a GPU-host item."
+            );
+        }
+    }
+    assert_no_local_artifact_dir();
 }
