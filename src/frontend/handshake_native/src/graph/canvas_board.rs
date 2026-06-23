@@ -319,6 +319,12 @@ pub struct LoomCanvasBoard {
     /// SAME node the toolbar emitted — avoiding a second parallel registry node. Not part of `Clone`
     /// equality semantics (a transient per-frame map).
     toolbar_control_ids: std::collections::HashMap<&'static str, egui::Id>,
+    /// MT-042: swarm AccessKit dispatches the in-render sync/emit/take loop consumed THIS frame but that
+    /// the single-`Option` `show` return cannot carry. The host drains them via
+    /// [`Self::drain_knowledge_events`] after `show`. This is the must-fix anti-scaffolding wiring: `show`
+    /// itself drives the registry, so any host that renders the board gets a populated AccessKit tree +
+    /// consumed dispatch with no extra calls.
+    pending_knowledge_events: Vec<CanvasEvent>,
 }
 
 impl LoomCanvasBoard {
@@ -342,6 +348,7 @@ impl LoomCanvasBoard {
             group_seq: 0,
             knowledge_registry: None,
             toolbar_control_ids: std::collections::HashMap::new(),
+            pending_knowledge_events: Vec::new(),
         }
     }
 
@@ -759,7 +766,25 @@ impl LoomCanvasBoard {
             ui.ctx().request_repaint();
         }
 
+        // ── WP-KERNEL-012 MT-042 (E7): drive the knowledge AccessKit surface FROM the render path. ───
+        // The must-fix anti-scaffolding wiring (the MT-041 pattern). Runs AFTER the toolbar so
+        // `take_knowledge_dispatched` sees the toolbar-owned NodeIds recorded this frame (IN-042-08).
+        // Gated on an installed registry so a bare `board.show(ui, &palette)` stays a pure no-op.
+        if self.knowledge_registry.is_some() {
+            self.sync_knowledge_registry();
+            self.emit_knowledge_accesskit(ui);
+            let dispatched = self.take_knowledge_dispatched(ui);
+            self.pending_knowledge_events.extend(dispatched);
+        }
+
         event
+    }
+
+    /// MT-042: drain the swarm AccessKit dispatches the in-render sync/emit/take loop consumed since the
+    /// last drain. The host calls this AFTER [`Self::show`] to route each dispatched [`CanvasEvent`] to the
+    /// E6 loom client (the same way it applies `show`'s `Option` return).
+    pub fn drain_knowledge_events(&mut self) -> Vec<CanvasEvent> {
+        std::mem::take(&mut self.pending_knowledge_events)
     }
 
     /// MT-031 (E5 melt-together): the canvas board's selected placement, as the referenced Loom block
@@ -870,24 +895,41 @@ impl LoomCanvasBoard {
         // Registry-owned node dispatches (non-toolbar controls + per-card identities).
         let registry = self.knowledge_registry.as_ref().unwrap();
         let dispatched = registry.lock().unwrap_or_else(|e| e.into_inner()).take_dispatched(ui);
-        // Toolbar-owned dispatches: read the raw AccessKit Click (+ payload) at each recorded button id.
+        // Toolbar-owned dispatches: read the raw AccessKit Click at each recorded button id, but ONLY
+        // forward the PARAMETERIZED (payload-carrying) ones to `apply_knowledge_action`.
+        //
+        // DOUBLE-APPLY GUARD (the diff comment at the toolbar emit asserts "never double-applied"; this is
+        // the mechanism): a PLAIN swarm Click on a toolbar-owned NodeId is ALSO consumed by egui's own
+        // synthetic `.clicked()` in `show` above, which already applied the pan/zoom/add-card effect once.
+        // Re-applying it here via `apply_knowledge_action` would move pan/zoom by 2x (the latent
+        // toolbar-double-apply bug the must-fix wiring would otherwise expose). So a plain (no-payload)
+        // toolbar Click is DROPPED here — the toolbar's own handler owns it. A PARAMETERIZED Click (a
+        // place-block/add-card JSON payload a swarm sends, which the toolbar's `.clicked()` either does not
+        // fire for — `Place` needs the text field — or would build from the wrong source) IS forwarded so
+        // the swarm's parameterized path produces the right `PlaceBlock`/`AddCard` event exactly once.
         let toolbar = self.toolbar_control_ids.clone();
-        let mut toolbar_dispatched: Vec<(String, Option<String>)> = Vec::new();
+        let mut toolbar_dispatched: Vec<(String, String)> = Vec::new();
         ui.input(|input| {
             for (author_id, id) in &toolbar {
                 for request in input.accesskit_action_requests(*id, accesskit::Action::Click) {
-                    let payload = match &request.data {
-                        Some(accesskit::ActionData::Value(v)) => Some(v.to_string()),
-                        _ => None,
-                    };
-                    toolbar_dispatched.push(((*author_id).to_owned(), payload));
+                    if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                        // Parameterized only: a JSON payload the swarm supplied (place-block/add-card).
+                        toolbar_dispatched.push(((*author_id).to_owned(), v.to_string()));
+                    }
+                    // A plain toolbar Click (no payload) is intentionally NOT collected — egui's
+                    // synthetic `.clicked()` already applied it (never double-applied).
                 }
             }
         });
 
         let mut events = Vec::new();
-        for (author_id, payload) in dispatched.into_iter().chain(toolbar_dispatched) {
+        for (author_id, payload) in dispatched {
             if let Some(ev) = self.apply_knowledge_action(&author_id, payload.as_deref()) {
+                events.push(ev);
+            }
+        }
+        for (author_id, payload) in toolbar_dispatched {
+            if let Some(ev) = self.apply_knowledge_action(&author_id, Some(payload.as_str())) {
                 events.push(ev);
             }
         }

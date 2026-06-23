@@ -228,6 +228,16 @@ pub struct LoomGraphView {
     /// installs it via [`LoomGraphView::install_knowledge_action_registry`]. Skipped from `Clone`/`Debug`
     /// equality by being an `Arc` handle (cheap clone of the shared registry, never deep-copied).
     knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
+    /// MT-042: the last canvas rect [`Self::show`] allocated, recorded so the in-`show` knowledge sync
+    /// drives the SAME viewport-visible set the frame rendered (CTRL-042-06). `None` before the first
+    /// render (the whole capped set is visible then). Transient per-frame state (not `Clone` semantics).
+    last_canvas_rect: Option<Rect>,
+    /// MT-042: swarm AccessKit dispatches the in-render sync/emit/take loop consumed THIS frame but that
+    /// the single-`Option` `show` return cannot carry. The host drains them via
+    /// [`Self::drain_knowledge_events`] after `show`. This is the wiring that makes the swarm surface LIVE
+    /// from the render path (the must-fix anti-scaffolding fix): `show` itself drives the registry, so any
+    /// host that renders the view gets a populated tree + consumed dispatch with no extra calls.
+    pending_knowledge_events: Vec<GraphEvent>,
 }
 
 impl Default for LoomGraphView {
@@ -247,6 +257,8 @@ impl Default for LoomGraphView {
             last_max_step: f32::INFINITY,
             seeded: false,
             knowledge_registry: None,
+            last_canvas_rect: None,
+            pending_knowledge_events: Vec::new(),
         }
     }
 }
@@ -499,6 +511,9 @@ impl LoomGraphView {
         // ── Canvas ───────────────────────────────────────────────────────────────────────────────
         let (rect, canvas_resp) =
             ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
+        // Record the canvas rect so the in-`show` knowledge sync derives the SAME viewport-visible node
+        // set this frame rendered (CTRL-042-06 / MT-042 in-render wiring).
+        self.last_canvas_rect = Some(rect);
         let painter = ui.painter_at(rect);
         let center = rect.center().to_vec2();
 
@@ -590,7 +605,28 @@ impl LoomGraphView {
             draw_overlay_label(&painter, rect, "0 nodes", palette.text_subtle, palette);
         }
 
+        // ── WP-KERNEL-012 MT-042 (E7): drive the knowledge AccessKit surface FROM the render path. ───
+        // This is the must-fix anti-scaffolding wiring (the MT-041 pattern: `CodeEditorPanel::show` calls
+        // `sync_editor_actions`). A swarm agent must DISCOVER + INVOKE the graph actions purely via the
+        // AccessKit channel; that only works if EVERY frame the host renders re-derives the registry,
+        // emits its nodes into the live tree, and consumes this frame's dispatch. Gated on an installed
+        // registry, so a bare `view.show(ui, &palette)` with no registry stays a pure no-op.
+        if self.knowledge_registry.is_some() {
+            self.sync_knowledge_registry(self.last_canvas_rect);
+            self.emit_knowledge_accesskit(ui);
+            let dispatched = self.take_knowledge_dispatched(ui);
+            self.pending_knowledge_events.extend(dispatched);
+        }
+
         event
+    }
+
+    /// MT-042: drain the swarm AccessKit dispatches the in-render sync/emit/take loop consumed since the
+    /// last drain. The host calls this AFTER [`Self::show`] to route each dispatched [`GraphEvent`] to the
+    /// E6 loom client (the same way it applies `show`'s `Option` return). Empty when no swarm dispatch
+    /// arrived (or no registry is installed).
+    pub fn drain_knowledge_events(&mut self) -> Vec<GraphEvent> {
+        std::mem::take(&mut self.pending_knowledge_events)
     }
 
     // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────

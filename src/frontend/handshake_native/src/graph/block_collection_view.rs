@@ -600,6 +600,12 @@ pub struct BlockCollectionView {
     /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
     /// installs it. An `Arc` handle so the view stays `Clone`.
     knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
+    /// MT-042: swarm AccessKit dispatches the in-render sync/emit/take loop consumed THIS frame but that
+    /// the single-`Option` `show` return cannot carry. The host drains them via
+    /// [`Self::drain_knowledge_events`] after `show`. The must-fix anti-scaffolding wiring: `show` itself
+    /// drives the registry, so any host that renders the collection gets a populated AccessKit tree +
+    /// consumed dispatch with no extra calls.
+    pending_knowledge_events: Vec<BlockViewEvent>,
 }
 
 /// The card a Kanban drag started from: its block id + the lane it left. The drop target's lane key
@@ -630,6 +636,7 @@ impl BlockCollectionView {
             date_error: None,
             new_view: None,
             knowledge_registry: None,
+            pending_knowledge_events: Vec::new(),
         }
     }
 
@@ -816,7 +823,34 @@ impl BlockCollectionView {
     /// Render the host + return the typed event (if any) this frame produced. The host applies the
     /// event (mutate via the backend client, set `in_flight`, then re-fetch + `set_loaded`). The widget
     /// performs NO network IO.
+    ///
+    /// MT-042: this wraps [`Self::show_inner`] (the real widget body) and then drives the knowledge
+    /// AccessKit surface FROM the render path (the must-fix anti-scaffolding wiring, the MT-041 pattern).
+    /// Running the sync/emit/take AFTER the body — for EVERY return path of the body, including the error /
+    /// loading early returns — means the global controls + per-identity nodes are in the live tree and a
+    /// swarm dispatch is consumed on every rendered frame, not only when a host happens to call the three
+    /// methods by hand. Gated on an installed registry so a bare `view.show(ui, &palette)` stays a no-op.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<BlockViewEvent> {
+        let event = self.show_inner(ui, palette);
+        if self.knowledge_registry.is_some() {
+            self.sync_knowledge_registry();
+            self.emit_knowledge_accesskit(ui);
+            let dispatched = self.take_knowledge_dispatched(ui);
+            self.pending_knowledge_events.extend(dispatched);
+        }
+        event
+    }
+
+    /// MT-042: drain the swarm AccessKit dispatches the in-render sync/emit/take loop consumed since the
+    /// last drain. The host calls this AFTER [`Self::show`] to route each dispatched [`BlockViewEvent`] to
+    /// the E6 loom client (the same way it applies `show`'s `Option` return).
+    pub fn drain_knowledge_events(&mut self) -> Vec<BlockViewEvent> {
+        std::mem::take(&mut self.pending_knowledge_events)
+    }
+
+    /// The real collection-view widget body. Returns the typed event (if any) the user produced this
+    /// frame. [`Self::show`] wraps this to also drive the MT-042 knowledge AccessKit surface.
+    fn show_inner(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<BlockViewEvent> {
         let mut event: Option<BlockViewEvent> = None;
 
         // ── Error state: a single alert label, nothing else (parity with the React error branch). ───

@@ -20,7 +20,12 @@
 //!   SHAPE (the request-shape half is standalone; the DB round-trip is the gated `#[ignore]` test).
 //! - AC-042-06: dispatch `collection.kanban-move {block_id,from,to}` => a CardMove event with the right
 //!   `add_tags`/`remove_tags` (the updateLoomBlock tag-edge request shape).
-//! - AC-042-07: dispatch `graph.add-edge {source_id,target_id}` => an AddEdge event (createLoomEdge shape).
+//! - AC-042-07: dispatch `graph.add-edge {source_id,target_id}` => an AddEdge INTENT event carrying ONLY
+//!   source + target (the host supplies `created_by` + `edge_type` when it builds the real
+//!   `CreateLoomEdgeRequest`). The createLoomEdge WIRE SHAPE itself is proven separately in
+//!   [`ac07_add_edge_event_builds_real_create_loom_edge_request`] against the real
+//!   `CanvasBoardClient::semantic_edge_request` / `backend::loom::CreateLoomEdgeRequest` builders, NOT at
+//!   the typed event (which is missing the two backend-required fields).
 //! - AC-042-08: all graph-level control nodes (`graph.pan-left`..`graph.zoom-reset`) present REGARDLESS
 //!   of whether any blocks are loaded (global controls, not per-node).
 //! - PROOF-042-B / HBR-VIS: print the full knowledge.* AccessKit tree to stdout; the reviewer can locate
@@ -58,6 +63,9 @@ use handshake_native::accessibility::knowledge_action_registry::{
     KnowledgeActionRegistry, CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
     HEALTH_CANARY_AUTHOR_ID,
 };
+use handshake_native::backend::loom::{CreateLoomEdgeRequest, LoomEdgeCreatedBy, LoomEdgeType};
+use handshake_native::backend_client::{BlockViewClient, CanvasBoardClient, HttpMethod};
+use handshake_native::graph::canvas_board::PAN_STEP;
 use handshake_native::graph::block_collection_view::{
     BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewLane,
     BlockViewResults, LoomBlockRow,
@@ -236,9 +244,12 @@ fn custom_action_event(node_id: egui::accesskit::NodeId, custom_id: i32) -> egui
 }
 
 /// A combined harness rendering all three knowledge panes into one CentralPanel, sharing ONE registry.
-/// Each frame: sync the registry from the live pane state, render the pane, emit the registry into the
-/// live AccessKit tree, then drain swarm dispatches into the typed event sinks (so a dispatched Click
-/// reaches the pane in the SAME frame — RISK-042-04). Returns the shared pane handles + the harness.
+/// Each frame it calls ONLY `pane.show(ui, &palette)` — the SAME call a production host makes — and then
+/// `pane.drain_knowledge_events()`. The sync/emit/take loop now lives INSIDE each `show` (the MT-042
+/// must-fix anti-scaffolding wiring, the MT-041 pattern), so the registry is populated, the nodes are
+/// emitted into the live tree, and a swarm dispatch is consumed PURELY from the render path — the harness
+/// no longer injects that wiring (the prior tautology the adversarial review flagged). A dispatched Click
+/// reaches the pane in the SAME frame (RISK-042-04). Returns the shared pane handles + the harness.
 struct KnowledgeHarness<'a> {
     graph: Arc<Mutex<LoomGraphView>>,
     canvas: Arc<Mutex<LoomCanvasBoard>>,
@@ -270,45 +281,35 @@ fn build_harness<'a>() -> KnowledgeHarness<'a> {
         .with_size(egui::vec2(1200.0, 800.0))
         .build_ui(move |ui| {
             ui.horizontal(|ui| {
-                // GRAPH pane.
+                // GRAPH pane — ONLY show() + drain (the sync/emit/take is INSIDE show now).
                 ui.vertical(|ui| {
                     let mut graph = g.lock().unwrap();
-                    let last_rect = ui.available_rect_before_wrap();
-                    graph.sync_knowledge_registry(Some(last_rect));
                     ui.allocate_ui(egui::vec2(380.0, 360.0), |ui| {
                         if let Some(ev) = graph.show(ui, &palette) {
                             ge.lock().unwrap().push(ev);
                         }
                     });
-                    graph.emit_knowledge_accesskit(ui);
-                    let dispatched = graph.take_knowledge_dispatched(ui);
-                    ge.lock().unwrap().extend(dispatched);
+                    ge.lock().unwrap().extend(graph.drain_knowledge_events());
                 });
                 // CANVAS pane.
                 ui.vertical(|ui| {
                     let mut canvas = cv.lock().unwrap();
-                    canvas.sync_knowledge_registry();
                     ui.allocate_ui(egui::vec2(380.0, 360.0), |ui| {
                         if let Some(ev) = canvas.show(ui, &palette) {
                             ce.lock().unwrap().push(ev);
                         }
                     });
-                    canvas.emit_knowledge_accesskit(ui);
-                    let dispatched = canvas.take_knowledge_dispatched(ui);
-                    ce.lock().unwrap().extend(dispatched);
+                    ce.lock().unwrap().extend(canvas.drain_knowledge_events());
                 });
                 // COLLECTION pane.
                 ui.vertical(|ui| {
                     let mut collection = col.lock().unwrap();
-                    collection.sync_knowledge_registry();
                     ui.allocate_ui(egui::vec2(380.0, 360.0), |ui| {
                         if let Some(ev) = collection.show(ui, &palette) {
                             cce.lock().unwrap().push(ev);
                         }
                     });
-                    collection.emit_knowledge_accesskit(ui);
-                    let dispatched = collection.take_knowledge_dispatched(ui);
-                    cce.lock().unwrap().extend(dispatched);
+                    cce.lock().unwrap().extend(collection.drain_knowledge_events());
                 });
             });
         });
@@ -422,11 +423,8 @@ fn ac08_graph_controls_present_with_no_blocks() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(500.0, 400.0))
         .build_ui(move |ui| {
-            let mut graph = g.lock().unwrap();
-            let last_rect = ui.available_rect_before_wrap();
-            graph.sync_knowledge_registry(Some(last_rect));
-            graph.show(ui, &palette);
-            graph.emit_knowledge_accesskit(ui);
+            // ONLY show() — the knowledge sync/emit/take is wired INSIDE show (MT-042 must-fix).
+            g.lock().unwrap().show(ui, &palette);
         });
     harness.run();
     harness.run();
@@ -626,9 +624,286 @@ fn ac07_dispatch_graph_add_edge_emits_add_edge() {
             e,
             GraphEvent::AddEdge { source_block_id, target_block_id } if source_block_id == &src && target_block_id == &tgt
         )),
-        "AC-042-07: graph.add-edge dispatch emitted AddEdge{{source,target}} (the createLoomEdge SHAPE); got {events:?}"
+        "AC-042-07: graph.add-edge dispatch emitted AddEdge{{source,target}} (the add-edge INTENT event; \
+         the host supplies created_by + edge_type when building the real CreateLoomEdgeRequest); got {events:?}"
     );
-    println!("AC-042-07: graph.add-edge dispatch emitted the AddEdge createLoomEdge request shape");
+    println!("AC-042-07: graph.add-edge dispatch emitted the AddEdge intent event (source+target); the createLoomEdge WIRE shape is proven in ac07_add_edge_event_builds_real_create_loom_edge_request");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// LIVE-RENDER reachability (the must-fix anti-scaffolding guard; mirrors test_ckc_embed.rs's MT-033
+// live-shell guard): a harness that calls ONLY `view.show(ui, &palette)` — NOT the manual
+// sync/emit/take — must still populate the knowledge AccessKit surface AND consume a swarm dispatch.
+// This is the regression guard for the "unwired scaffolding" finding: before the must-fix, the three
+// swarm methods had ZERO call sites in any render loop, so the surface was dead from the render path and
+// the old kittest passed only because the harness closure supplied the per-frame wiring the product
+// lacked. By driving ONLY `show`, this test proves the wiring is in the PRODUCT (each `show` body), not
+// in the test. If a future edit deletes the in-`show` sync/emit/take, this test goes RED.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn live_render_show_only_populates_surface_and_consumes_dispatch() {
+    // GRAPH: drive ONLY graph.show. The registry must populate + a dispatched Click must reach the pane.
+    let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
+    let graph = Arc::new(Mutex::new(graph_view(&registry)));
+    let graph_events = Arc::new(Mutex::new(Vec::<GraphEvent>::new()));
+    let palette = HsTheme::Dark.palette();
+    let g = Arc::clone(&graph);
+    let ge = Arc::clone(&graph_events);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 480.0))
+        .build_ui(move |ui| {
+            // ONLY show() — the knowledge sync/emit/take is wired INSIDE show (MT-042 must-fix).
+            let mut graph = g.lock().unwrap();
+            if let Some(ev) = graph.show(ui, &palette) {
+                ge.lock().unwrap().push(ev);
+            }
+            ge.lock().unwrap().extend(graph.drain_knowledge_events());
+        });
+    harness.run();
+    harness.run(); // settle so the viewport-derived per-identity nodes emit
+    let root = harness.root();
+
+    // The surface is LIVE from the render path: the canary, the global controls, and the per-node
+    // identities are all in the tree although the test never called sync/emit/take by hand.
+    assert!(
+        find_node(&root, HEALTH_CANARY_AUTHOR_ID).is_some(),
+        "live-render: the knowledge canary must be in the tree driven by show() ALONE"
+    );
+    for entry in GRAPH_CONTROL_CATALOG {
+        assert!(
+            find_node(&root, entry.author_id).is_some(),
+            "live-render: graph control '{}' must be present from show() alone (no manual sync/emit)",
+            entry.author_id
+        );
+    }
+    let block_id = graph.lock().unwrap().nodes[0].block_id.clone();
+    let author = graph_node_author_id(&block_id);
+    let node = find_node(&root, &author)
+        .expect("live-render: graph.node.<id> identity must be present from show() alone");
+
+    // A dispatched Click on the per-node identity REACHES the pane and produces OpenNode — purely because
+    // `show` itself drained the dispatch (RISK-042-04 / the must-fix wiring). The test never calls take.
+    harness.event(click_event(node.node_id, None));
+    harness.run();
+    harness.run();
+    assert!(
+        graph_events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, GraphEvent::OpenNode { block_id: b } if b == &block_id)),
+        "live-render: a swarm Click reached the pane through show()'s own take loop (no harness wiring)"
+    );
+    assert_no_local_artifact_dir();
+    println!("LIVE-RENDER: show() ALONE populated the knowledge surface (canary + controls + identities) and consumed a swarm dispatch — the surface is wired in the product, not the test");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// Toolbar double-apply guard (the RISK the adversarial review flagged + required a test for): a single
+// swarm Click on a TOOLBAR-OWNED canvas control (canvas.pan-left) must move pan by EXACTLY one PAN_STEP,
+// never two. The latent 2x-pan bug would fire the moment the must-fix wiring landed IF both egui's
+// synthetic `.clicked()` AND `take_knowledge_dispatched` applied the same plain Click. The guard in
+// `take_knowledge_dispatched` (drop plain toolbar Clicks; egui's `.clicked()` owns them) is proven here.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn toolbar_plain_click_applies_pan_exactly_once() {
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+
+    let pan_before = h.canvas.lock().unwrap().pan.x;
+    let pan_left = find_node(&h.harness.root(), "canvas.pan-left").expect("canvas.pan-left toolbar node");
+    // A PLAIN (no-payload) swarm Click on the toolbar-owned pan-left node.
+    h.harness.event(click_event(pan_left.node_id, None));
+    h.harness.run();
+    h.harness.run();
+    let pan_after = h.canvas.lock().unwrap().pan.x;
+
+    // Exactly ONE PAN_STEP to the left (not two — the double-apply guard holds).
+    let delta = pan_after - pan_before;
+    assert!(
+        (delta - (-PAN_STEP)).abs() < 0.01,
+        "toolbar double-apply guard: a single swarm Click on canvas.pan-left must move pan by exactly \
+         one PAN_STEP (expected {}, got {delta}; a value of {} would be the 2x-apply bug)",
+        -PAN_STEP,
+        -2.0 * PAN_STEP
+    );
+    println!("TOOLBAR-DOUBLE-APPLY: one swarm Click on canvas.pan-left moved pan by exactly one PAN_STEP (no 2x-pan)");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// BACKEND REQUEST-SHAPE proven STANDALONE (the contract's "the E6 request-SHAPE (right route/body built)
+// are provable STANDALONE" gate; the must-fix request-shape gap). These take a DISPATCHED knowledge event
+// (the same typed event a swarm dispatch produces) and feed it into the REAL production request builders
+// in backend_client.rs / backend/loom.rs, asserting the exact verified route + body. No live PG is needed
+// — the DB ROUND-TRIP stays the gated `#[ignore]` test; this proves the host wiring (MT-043/044) would
+// build a WELL-FORMED request from the event, which the typed-event-only assertions above cannot.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A tokio handle for the pure `*_request` builders (the sibling-test pattern — the builders never touch
+/// the network; the handle is only required by the client constructor).
+fn request_runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Runtime::new().expect("tokio runtime for the request builders")
+}
+
+#[test]
+fn ac05_place_block_event_builds_real_placements_request() {
+    // Dispatch canvas.place-block, capture the typed PlaceBlock event (the swarm path), then build the
+    // REAL CanvasBoardClient::place_block_request from it and assert the verified POST .../placements shape.
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+    let new_block = uuid::Uuid::new_v4().to_string();
+    let place = find_node(&h.harness.root(), "canvas.place-block").expect("canvas.place-block control");
+    let payload = format!(r#"{{"block_id":"{new_block}","x":100,"y":100}}"#);
+    h.harness.event(click_event(place.node_id, Some(&payload)));
+    h.harness.run();
+    h.harness.run();
+
+    let (placed_block_id, x, y) = {
+        let events = h.canvas_events.lock().unwrap();
+        events
+            .iter()
+            .find_map(|e| match e {
+                CanvasEvent::PlaceBlock { placed_block_id, x, y } => {
+                    Some((placed_block_id.clone(), *x as f64, *y as f64))
+                }
+                _ => None,
+            })
+            .expect("a PlaceBlock event was dispatched")
+    };
+
+    let rt = request_runtime();
+    let client = CanvasBoardClient::new("http://127.0.0.1:37501", rt.handle().clone());
+    // The default card geometry the host would supply (DEFAULT_CARD_W/H — the MT-026 verified body).
+    let spec = client.place_block_request("ws-test", "canvas-block-1", &placed_block_id, x, y, 200.0, 120.0);
+    assert!(matches!(spec.method, HttpMethod::Post), "placeBlockOnCanvas is a POST");
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws-test/loom/canvas-boards/canvas-block-1/placements",
+        "the REAL placements route (NOT the contract's stale /loom/canvas/{{cb}}/place)"
+    );
+    let body = spec.body.expect("placements POST carries a body");
+    assert_eq!(body.get("placed_block_id").and_then(|v| v.as_str()), Some(new_block.as_str()));
+    assert_eq!(body.get("x").and_then(|v| v.as_f64()), Some(100.0));
+    assert_eq!(body.get("y").and_then(|v| v.as_f64()), Some(100.0));
+    println!("AC-042-05 (request-shape): the dispatched PlaceBlock event builds the REAL POST .../placements request (route + body verified standalone)");
+}
+
+#[test]
+fn ac06_card_move_event_builds_real_update_loom_block_request() {
+    // Dispatch collection.kanban-move, capture the CardMove event, then build the REAL
+    // BlockViewClient::card_move_request from it and assert the verified PATCH .../loom/blocks/:id shape
+    // with top-level add_tags/remove_tags (the updateLoomBlock tag mutation).
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+    let block_id =
+        h.collection.lock().unwrap().results.as_ref().unwrap().groups[0].blocks[0].block_id.clone();
+    let mv = find_node(&h.harness.root(), "collection.kanban-move").expect("collection.kanban-move control");
+    let payload = format!(r#"{{"block_id":"{block_id}","from_lane":"todo","to_lane":"done"}}"#);
+    h.harness.event(click_event(mv.node_id, Some(&payload)));
+    h.harness.run();
+    h.harness.run();
+
+    let (mv_block, add_tags, remove_tags) = {
+        let events = h.collection_events.lock().unwrap();
+        events
+            .iter()
+            .find_map(|e| match e {
+                BlockViewEvent::CardMove { block_id, add_tags, remove_tags } => {
+                    Some((block_id.clone(), add_tags.clone(), remove_tags.clone()))
+                }
+                _ => None,
+            })
+            .expect("a CardMove event was dispatched")
+    };
+
+    let rt = request_runtime();
+    let client = BlockViewClient::new("http://127.0.0.1:37501", rt.handle().clone());
+    let spec = client.card_move_request("ws-test", &mv_block, &add_tags, &remove_tags);
+    assert!(matches!(spec.method, HttpMethod::Patch), "updateLoomBlock is a PATCH");
+    assert_eq!(
+        spec.url,
+        format!("http://127.0.0.1:37501/workspaces/ws-test/loom/blocks/{block_id}"),
+        "the REAL updateLoomBlock route (PATCH /loom/blocks/:id)"
+    );
+    let body = spec.body.expect("card_move PATCH carries a body");
+    // add_tags/remove_tags are TOP-LEVEL string arrays (the verified LoomBlockPatchRequest shape).
+    assert_eq!(body.get("add_tags").and_then(|v| v.as_array()).map(|a| a.len()), Some(1));
+    assert_eq!(body["add_tags"][0].as_str(), Some("done"));
+    assert_eq!(body["remove_tags"][0].as_str(), Some("todo"));
+    println!("AC-042-06 (request-shape): the dispatched CardMove event builds the REAL PATCH /loom/blocks/:id request (top-level add_tags/remove_tags verified standalone)");
+}
+
+#[test]
+fn ac07_add_edge_event_builds_real_create_loom_edge_request() {
+    // Dispatch graph.add-edge, capture the AddEdge INTENT event (source + target ONLY), then build the
+    // REAL backend CreateLoomEdgeRequest the host would send — supplying the two backend-REQUIRED fields
+    // the event omits (created_by + edge_type) — and assert it serializes to the verified createLoomEdge
+    // wire body. This closes the "AddEdge cannot construct a valid request body" gap: the event is an
+    // intent, and the host's createLoomEdge body is well-formed (matching loom.rs's request-shape pattern).
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+    let (src, tgt) = {
+        let g = h.graph.lock().unwrap();
+        (g.nodes[0].block_id.clone(), g.nodes[2].block_id.clone())
+    };
+    let add = find_node(&h.harness.root(), "graph.add-edge").expect("graph.add-edge control");
+    let payload = format!(r#"{{"source_id":"{src}","target_id":"{tgt}"}}"#);
+    h.harness.event(click_event(add.node_id, Some(&payload)));
+    h.harness.run();
+    h.harness.run();
+
+    let (ev_src, ev_tgt) = {
+        let events = h.graph_events.lock().unwrap();
+        events
+            .iter()
+            .find_map(|e| match e {
+                GraphEvent::AddEdge { source_block_id, target_block_id } => {
+                    Some((source_block_id.clone(), target_block_id.clone()))
+                }
+                _ => None,
+            })
+            .expect("an AddEdge event was dispatched")
+    };
+    assert_eq!((ev_src.as_str(), ev_tgt.as_str()), (src.as_str(), tgt.as_str()));
+
+    // (a) The host builds the REAL backend request, supplying the two backend-required fields the AddEdge
+    // intent event does NOT carry (created_by=user for a manual swarm edge, edge_type=mention).
+    let req = CreateLoomEdgeRequest {
+        edge_id: None,
+        source_block_id: ev_src.clone(),
+        target_block_id: ev_tgt.clone(),
+        edge_type: LoomEdgeType::Mention,
+        created_by: LoomEdgeCreatedBy::User,
+        crdt_site_id: None,
+        source_anchor: None,
+        target_title: None,
+    };
+    let v = serde_json::to_value(&req).expect("CreateLoomEdgeRequest serializes");
+    assert_eq!(v["source_block_id"].as_str(), Some(src.as_str()));
+    assert_eq!(v["target_block_id"].as_str(), Some(tgt.as_str()));
+    assert_eq!(v["edge_type"].as_str(), Some("mention"), "edge_type is a backend-required field");
+    assert_eq!(v["created_by"].as_str(), Some("user"), "created_by is a backend-required field");
+    assert!(v.get("edge_id").is_none(), "an absent edge_id is omitted (the backend mints it)");
+
+    // (b) And the SAME body is what the production CanvasBoardClient::semantic_edge_request builder emits,
+    // proving the host wiring (route + the two required fields) is correct against the real builder.
+    let rt = request_runtime();
+    let client = CanvasBoardClient::new("http://127.0.0.1:37501", rt.handle().clone());
+    let spec = client.semantic_edge_request("ws-test", &ev_src, &ev_tgt);
+    assert!(matches!(spec.method, HttpMethod::Post), "createLoomEdge is a POST");
+    assert_eq!(spec.url, "http://127.0.0.1:37501/workspaces/ws-test/loom/edges");
+    let body = spec.body.expect("edges POST carries a body");
+    assert_eq!(body["source_block_id"].as_str(), Some(src.as_str()));
+    assert_eq!(body["target_block_id"].as_str(), Some(tgt.as_str()));
+    assert_eq!(body["edge_type"].as_str(), Some("mention"));
+    assert_eq!(body["created_by"].as_str(), Some("user"));
+    println!("AC-042-07 (request-shape): the AddEdge intent event + host-supplied created_by/edge_type build the REAL createLoomEdge body (POST /loom/edges, verified standalone)");
 }
 
 // ── PROOF-042-B / HBR-VIS: dump the full knowledge.* AccessKit tree to stdout ───────────────────────
