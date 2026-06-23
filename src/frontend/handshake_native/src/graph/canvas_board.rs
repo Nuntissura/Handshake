@@ -98,6 +98,9 @@ pub const GROUP_AUTHOR_ID: &str = "canvas.group";
 pub const EDGE_MODE_AUTHOR_ID: &str = "canvas.edge-mode";
 pub const START_EDGE_AUTHOR_ID: &str = "canvas.start-edge";
 pub const STATUS_AUTHOR_ID: &str = "canvas.status";
+/// MC-2 fallback: the block-id text field and the `Place` button that place a reference without OS drag.
+pub const PLACE_BLOCK_INPUT_AUTHOR_ID: &str = "canvas.place-block-input";
+pub const PLACE_BLOCK_AUTHOR_ID: &str = "canvas.place-block";
 
 /// Author_id prefix for a placement card. The full id is `canvas.placement.{sanitized_placement_id}`.
 pub const PLACEMENT_AUTHOR_ID_PREFIX: &str = "canvas.placement.";
@@ -212,6 +215,30 @@ pub struct VisualEdge {
     pub to_placement_id: String,
 }
 
+/// The typed inter-panel drag payload a Loom block source (folder tree, graph view, search result)
+/// hands to the canvas via egui's [`egui::DragAndDrop`] channel. It carries the block id (and an
+/// optional title hint) under the logical MIME [`CANVAS_DRAG_MIME`] — the React reference passes the
+/// equivalent JSON `{blockId, title?}` through `dataTransfer.getData(CANVAS_DRAG_MIME)`
+/// (`LoomCanvasBoard.tsx` `onDrop`). The canvas reads it with
+/// [`egui::Response::dnd_release_payload`] when a drag is released over the surface, computes the
+/// canvas-space drop position with [`LoomCanvasBoard::screen_to_canvas`], and emits
+/// [`CanvasEvent::PlaceBlock`]. Must be `Send + Sync + 'static` for the egui DragAndDrop store
+/// (compile-gated by `canvas_drag_payload_is_send_sync_static`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanvasDragPayload {
+    /// The Loom block id to place as a REFERENCE (never a copy).
+    pub block_id: String,
+    /// An optional title hint from the drag source (the live title is still re-resolved on refresh).
+    pub title: Option<String>,
+}
+
+impl CanvasDragPayload {
+    /// A payload carrying just the block id (the common inter-panel case).
+    pub fn new(block_id: impl Into<String>) -> Self {
+        Self { block_id: block_id.into(), title: None }
+    }
+}
+
 /// The typed event a board interaction produces this frame, for the host to apply through the backend
 /// client and then re-fetch. Every variant maps 1:1 to a verified backend route; the widget itself
 /// performs NO network IO (HBR-QUIET — the host spawns the request off the UI thread).
@@ -252,6 +279,13 @@ pub struct LoomCanvasBoard {
     pub status: String,
     pub loading: bool,
     pub error: Option<String>,
+    /// MC-2 fallback input: a block id typed/pasted into the toolbar text field for backends where
+    /// OS / inter-panel drag is unavailable. The `Place` button emits the SAME
+    /// [`CanvasEvent::PlaceBlock`] the drop path produces, so the place behavior is always reachable.
+    pub place_block_input: String,
+    /// The last canvas surface rect (screen space), recorded each frame so the MC-2 fallback can place
+    /// a card at the centre of the currently-visible canvas. `None` until the board has rendered once.
+    last_canvas_rect: Option<Rect>,
     /// Group-id counter so the `Group` event always gets a unique id even within one process run.
     group_seq: u64,
 }
@@ -272,7 +306,19 @@ impl LoomCanvasBoard {
             status: String::new(),
             loading: false,
             error: None,
+            place_block_input: String::new(),
+            last_canvas_rect: None,
             group_seq: 0,
+        }
+    }
+
+    /// The default canvas-space position for a fallback `Place` (MC-2): the centre of the
+    /// currently-visible canvas. Falls back to `(40, 40)` (the React default) before the first render
+    /// records a canvas rect, so a headless place still lands on a deterministic spot.
+    fn default_place_pos(&self) -> Pos2 {
+        match self.last_canvas_rect {
+            Some(rect) => self.screen_to_canvas(rect.center(), rect.min.to_vec2()),
+            None => Pos2::new(40.0, 40.0),
         }
     }
 
@@ -458,6 +504,33 @@ impl LoomCanvasBoard {
                     self.status = "Click a second card to draw the edge".to_owned();
                 }
             }
+
+            // ── MC-2 / RISK-2 fallback: place a block by id when OS / inter-panel drag is unavailable.
+            // A small text field + 'Place' button emit the SAME PlaceBlock event the drop path produces,
+            // so the place behavior is reachable on every backend (the contract's documented fallback).
+            ui.separator();
+            let field = ui.add(
+                egui::TextEdit::singleline(&mut self.place_block_input)
+                    .desired_width(120.0)
+                    .hint_text("block id"),
+            );
+            emit_text_field_node(ui, field.id, PLACE_BLOCK_INPUT_AUTHOR_ID, &self.place_block_input);
+            let block_id = self.place_block_input.trim().to_owned();
+            let can_place = !block_id.is_empty();
+            let place_btn = ui.add_enabled(can_place, egui::Button::new("Place"));
+            emit_button_node(ui, place_btn.id, PLACE_BLOCK_AUTHOR_ID, "Place block by id");
+            if place_btn.clicked() && can_place {
+                // Default canvas position: the centre of the currently-visible canvas, in canvas space,
+                // so the placed card lands where the user is looking regardless of pan/zoom.
+                let pos = self.default_place_pos();
+                self.place_block_input.clear();
+                self.status = format!("Placed {block_id} (reference)");
+                event = Some(CanvasEvent::PlaceBlock {
+                    placed_block_id: block_id,
+                    x: pos.x,
+                    y: pos.y,
+                });
+            }
         });
 
         // ── Status bar (Role::Status) ─────────────────────────────────────────────────────────────
@@ -476,10 +549,32 @@ impl LoomCanvasBoard {
             ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
         let painter = ui.painter_at(rect);
         let origin = rect.min.to_vec2();
+        // Record the canvas rect so the MC-2 fallback can place at the visible centre (toolbar runs
+        // before this allocation, so it needs last frame's rect).
+        self.last_canvas_rect = Some(rect);
 
         // Background fill + dotted grid (canvas is never blank/white — PROOF6).
         painter.rect_filled(rect, 0.0, palette.bg);
         self.draw_grid(&painter, rect, origin, palette);
+
+        // ── AC4 / PROOF3: drop-to-place. A Loom block dragged from another panel via egui's
+        // DragAndDrop channel (payload [`CanvasDragPayload`], the native peer of the React
+        // CANVAS_DRAG_MIME `dataTransfer`) and RELEASED over the canvas places a REFERENCE card. The
+        // drop position is computed in CANVAS space with the SAME screen_to_canvas inverse used by
+        // hit-testing (RISK-1 / MC-1), exactly mirroring the React `(clientX-rect.left-pan.x)/zoom`.
+        if let Some(payload) = canvas_resp.dnd_release_payload::<CanvasDragPayload>() {
+            let drop_screen = canvas_resp
+                .interact_pointer_pos()
+                .or_else(|| ui.input(|i| i.pointer.interact_pos()))
+                .unwrap_or_else(|| rect.center());
+            let canvas_pos = self.screen_to_canvas(drop_screen, origin);
+            self.status = format!("Placed {} (reference)", payload.block_id);
+            event = Some(CanvasEvent::PlaceBlock {
+                placed_block_id: payload.block_id.clone(),
+                x: canvas_pos.x,
+                y: canvas_pos.y,
+            });
+        }
 
         // Pointer input: zoom (scroll), pan (drag on empty area), card click (select / edge).
         if let Some(pointer) = canvas_resp.hover_pos() {
@@ -756,6 +851,18 @@ fn emit_status_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
     });
 }
 
+/// Emit the MC-2 fallback text field's AccessKit node (Role::TextInput + author_id + current value) so
+/// a swarm agent can type a block id and drive the `Place` button without OS drag.
+fn emit_text_field_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
+    let author = author_id.to_owned();
+    let value = value.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::TextInput);
+        node.set_author_id(author.clone());
+        node.set_value(value.clone());
+    });
+}
+
 /// Emit a placement card's AccessKit node: Role::Group, label = live title, DefaultAction = select,
 /// plus a `value` carrying the `group_id` (so the AccessKit `data-group-id` is readable — AC6). The
 /// card is painter-drawn (no egui widget), so it gets a stable `egui::Id` from its author_id.
@@ -999,5 +1106,35 @@ mod tests {
         let b = board_with(0);
         assert!(b.placements.is_empty());
         assert_eq!(b.placement_at_canvas(Pos2::new(10.0, 10.0)), None);
+    }
+
+    /// RED-TEAM CONTROL: the inter-panel drag payload MUST be `Send + Sync + 'static` for egui's
+    /// DragAndDrop store (a compile error here is the gate — same control as `tab_bar`'s
+    /// `TabDragPayload`).
+    #[test]
+    fn canvas_drag_payload_is_send_sync_static() {
+        fn assert_send_sync_static<T: Send + Sync + 'static>() {}
+        assert_send_sync_static::<CanvasDragPayload>();
+    }
+
+    /// MC-2 fallback math: `default_place_pos` returns the canvas-space centre of the visible rect
+    /// (transform-correct), and the pre-render fallback is the React default `(40, 40)`.
+    #[test]
+    fn default_place_pos_is_visible_centre() {
+        let mut b = board_with(0);
+        // Before any render, the fallback is the React default (40, 40).
+        assert_eq!(b.default_place_pos(), Pos2::new(40.0, 40.0));
+        // After a render records the canvas rect, the default place is the rect centre in canvas space.
+        b.pan = Vec2::new(20.0, -10.0);
+        b.zoom = 2.0;
+        let rect = Rect::from_min_size(Pos2::new(10.0, 80.0), Vec2::new(800.0, 500.0));
+        b.last_canvas_rect = Some(rect);
+        let pos = b.default_place_pos();
+        // The returned canvas point must map back to the rect centre under the same transform (MC-1).
+        let back = b.canvas_to_screen(pos, rect.min.to_vec2());
+        assert!(
+            (back.x - rect.center().x).abs() < 0.5 && (back.y - rect.center().y).abs() < 0.5,
+            "default_place_pos must round-trip to the visible centre (got {pos:?} -> {back:?})"
+        );
     }
 }

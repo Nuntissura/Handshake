@@ -43,10 +43,11 @@ use egui_kittest::Harness;
 
 use handshake_native::backend_client::CanvasBoardClient;
 use handshake_native::graph::canvas_board::{
-    placement_author_id, placement_remove_author_id, CanvasEvent, CanvasPlacementCard, EdgeMode,
-    LoomCanvasBoard, ADD_CARD_AUTHOR_ID, EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID,
-    PAN_RIGHT_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID,
-    ZOOM_VALUE_AUTHOR_ID,
+    placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
+    CanvasPlacementCard, EdgeMode, LoomCanvasBoard, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,
+    DEFAULT_CARD_W, EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
+    PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_IN_AUTHOR_ID,
+    ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -264,6 +265,132 @@ fn canvas_add_card() {
         if title.starts_with("Card ") && *x == 40.0 && *y == 40.0));
     assert!(ok, "AC5: '+ Text card' must fire AddCard with a 'Card <ts>' title at (40,40) (got {ev:?})");
     println!("AC5: add-card fired AddCard with timestamp title");
+}
+
+// ── PROOF3 (AC4 / MC-2): drop-to-place via the fallback text field + 'Place' button ────────────────
+
+#[test]
+fn canvas_place_block_fallback_field() {
+    // MC-2 / RISK-2: on backends where OS / inter-panel drag is unavailable, the toolbar text field +
+    // 'Place' button must produce the SAME PlaceBlock event the drop path produces. This is the
+    // always-reachable place path the AC4 acceptance hinges on.
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let events_ck = Arc::clone(&events);
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+
+    // The 'Place' button is disabled until a block id is present (no empty-id placement).
+    {
+        let mut b = board.lock().unwrap();
+        assert!(b.place_block_input.is_empty(), "field starts empty");
+        b.place_block_input = "block-drop-1".to_owned();
+    }
+    harness.run();
+    // The fallback field exposes its value via AccessKit (a swarm agent can read the staged id).
+    assert_eq!(
+        value_for(&harness, PLACE_BLOCK_INPUT_AUTHOR_ID).as_deref(),
+        Some("block-drop-1"),
+        "MC-2: the place-block field must expose its value on AccessKit"
+    );
+
+    harness.get_by_label("Place block by id").click();
+    harness.run();
+
+    let ev = events_ck.lock().unwrap().clone();
+    let placed = ev.iter().find_map(|e| match e {
+        CanvasEvent::PlaceBlock { placed_block_id, x, y } if placed_block_id == "block-drop-1" => {
+            Some((*x, *y))
+        }
+        _ => None,
+    });
+    let (px, py) = placed.expect("PROOF3/AC4/MC-2: 'Place' must fire PlaceBlock for the typed block id");
+    // The default place position is the visible canvas centre in canvas space — a finite, on-board point.
+    assert!(px.is_finite() && py.is_finite(), "PROOF3: place position must be finite (got {px},{py})");
+    // The field is cleared after a successful place (no accidental double-place on the next click).
+    assert!(board.lock().unwrap().place_block_input.is_empty(), "field cleared after place");
+    // Find the author_id is present (AC9 coverage of the new control).
+    let ids = author_ids(&harness);
+    assert!(ids.contains(PLACE_BLOCK_AUTHOR_ID), "AC9: '{PLACE_BLOCK_AUTHOR_ID}' present");
+
+    // Host applies the place + refreshes: the board now has a 3rd placement (PROOF3 '3 nodes after
+    // refresh'). The placement appears at the emitted canvas position with the live title resolved.
+    {
+        let mut b = board.lock().unwrap();
+        let mut kept: Vec<CanvasPlacementCard> = b.placements.clone();
+        let mut card = CanvasPlacementCard::new("p-003", "block-drop-1", px, py, DEFAULT_CARD_W, DEFAULT_CARD_H);
+        card.live_title = Some("Dropped Block".to_owned());
+        card.live_content_type = Some("note".to_owned());
+        kept.push(card);
+        b.set_board(kept, vec![], egui::Vec2::ZERO, 1.0);
+    }
+    harness.run();
+    let ids = author_ids(&harness);
+    let placement_count = ids
+        .iter()
+        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove"))
+        .count();
+    assert_eq!(placement_count, 3, "PROOF3/AC4: 3 placement nodes after the place + refresh");
+    assert!(ids.contains(&placement_author_id("p-003")), "PROOF3: the placed card node is present");
+    println!("PROOF3/AC4/MC-2: fallback 'Place' fired PlaceBlock(block-drop-1) at ({px},{py}); 3 nodes after refresh");
+}
+
+// ── PROOF3 (AC4): drop-to-place via egui DragAndDrop — payload released over the canvas ────────────
+
+#[test]
+fn canvas_drop_to_place_via_drag_payload() {
+    // AC4: a Loom block dragged from another panel (egui DragAndDrop payload, the native peer of the
+    // React CANVAS_DRAG_MIME dataTransfer) and RELEASED over the canvas fires PlaceBlock with a
+    // transform-correct canvas position. We inject the payload onto the context (as a drag source in a
+    // sibling panel would) and synthesize a pointer release over the canvas surface.
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let events_ck = Arc::clone(&events);
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+
+    // The canvas surface sits below the toolbar + status strip. Drop near the centre of the 900x640
+    // harness so the pointer is unambiguously over the canvas rect (and clear of the toolbar/cards).
+    let drop_pos = egui::pos2(500.0, 400.0);
+
+    // Position the pointer over the canvas first (so contains_pointer() is true on the release frame).
+    harness.event(egui::Event::PointerMoved(drop_pos));
+    harness.run();
+
+    // A sibling panel's drag-source set this payload; synthesize the release over the canvas. Setting
+    // the payload on the ctx mirrors `dnd_set_drag_payload` from the (out-of-test) drag source.
+    egui::DragAndDrop::set_payload(&harness.ctx, CanvasDragPayload::new("block-drop-2"));
+    harness.event(egui::Event::PointerButton {
+        pos: drop_pos,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+
+    let ev = events_ck.lock().unwrap().clone();
+    let placed = ev.iter().find_map(|e| match e {
+        CanvasEvent::PlaceBlock { placed_block_id, x, y } if placed_block_id == "block-drop-2" => {
+            Some((*x, *y))
+        }
+        _ => None,
+    });
+    let (px, py) = placed.expect("AC4: a payload released over the canvas must fire PlaceBlock");
+
+    // The emitted position must be the drop point mapped through screen_to_canvas (pan=0, zoom=1, so it
+    // equals drop_pos - origin). origin is the canvas rect top-left, which is > 0 (below the toolbar),
+    // so the canvas x/y are strictly less than the screen drop coordinates and finite.
+    assert!(px.is_finite() && py.is_finite(), "AC4: placed position must be finite (got {px},{py})");
+    assert!(
+        px < drop_pos.x && py < drop_pos.y,
+        "AC4: canvas pos must be screen pos minus the canvas origin (got {px},{py} vs screen {drop_pos:?})"
+    );
+    // The payload was consumed (taken) — no lingering payload to double-place on a later frame.
+    assert!(
+        !egui::DragAndDrop::has_payload_of_type::<CanvasDragPayload>(&harness.ctx),
+        "AC4: the drop payload must be taken (consumed) on release, not left dangling"
+    );
+    println!("PROOF3/AC4: drag payload released over canvas fired PlaceBlock(block-drop-2) at ({px},{py})");
 }
 
 // ── AC6: shift-select 2 cards + Group(2) fires Group and exposes the group_id on each card ─────────

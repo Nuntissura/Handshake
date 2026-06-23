@@ -16,10 +16,11 @@ pub mod wiki_page_panel;
 // intentionally collide by NAME with `graph_view`'s ("graph.zoom.in"/"graph.zoom.out"), so they are NOT
 // re-exported flat here. Consumers/tests import them as `graph::canvas_board::ZOOM_IN_AUTHOR_ID`.
 pub use canvas_board::{
-    placement_author_id, placement_remove_author_id, CanvasEvent, CanvasPlacementCard, EdgeMode,
-    LoomCanvasBoard, VisualEdge, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H, DEFAULT_CARD_W,
-    EDGE_MODE_AUTHOR_ID, GROUP_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
-    PLACEMENT_AUTHOR_ID_PREFIX, START_EDGE_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+    placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
+    CanvasPlacementCard, EdgeMode, LoomCanvasBoard, VisualEdge, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,
+    DEFAULT_CARD_W, EDGE_MODE_AUTHOR_ID, GROUP_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
+    PLACEMENT_AUTHOR_ID_PREFIX, PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID,
+    START_EDGE_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
 };
 
 pub use graph_view::{
