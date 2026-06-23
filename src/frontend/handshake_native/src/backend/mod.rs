@@ -21,7 +21,16 @@
 //! copy) and the shared transport, and is the typed binding the code-symbol panel + audit layer consumes
 //! (the MT-008 [`crate::code_editor::code_nav`] `Value` client remains the inline editor fast-path). It
 //! is reachable as `handshake_native::backend::knowledge_code_nav`.
+//!
+//! MT-040 delivers [`knowledge_crdt`]: the typed client for the `/knowledge/crdt/*` collaborative-editing
+//! transport (push / pull / conflict_state) the rich-text editor binds for Yjs-update sync. It shares the
+//! same base URL + connection pool. NOTE: its identity scheme is CRDT-SPECIFIC (`actor_id` / `session_id`
+//! / `trace_id` in the push envelope BODY; `actor_id` / `session_id` / `correlation_id` as pull/conflict
+//! query params) — NOT the `x-hsk-*` headers the other three clients use — and a 409 push denial is a
+//! VALID DOMAIN OUTCOME (`Ok(YjsPushOutcomeV1::Denied)`), never an `Err`. It is reachable as
+//! `handshake_native::backend::knowledge_crdt`. This MT is the transport client ONLY — no Yjs merge engine.
 
 pub mod knowledge_code_nav;
+pub mod knowledge_crdt;
 pub mod knowledge_documents;
 pub mod loom;
