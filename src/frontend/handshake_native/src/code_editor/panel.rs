@@ -64,6 +64,10 @@ use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
+use crate::accessibility::editor_action_registry::{
+    CodeDispatch, EditorActionRegistry, EditorActionState, PaneType as EditorPaneType,
+    RegistrationHandle, CODE_ACTION_CATALOG,
+};
 use crate::interop::cross_ref::{
     find_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
 };
@@ -572,6 +576,14 @@ pub struct CodeEditorPanel {
     /// [`ensure_command_nodes`](Self::ensure_command_nodes) rebuilds it only on a version miss. `None`
     /// until the first emit.
     command_node_cache: Mutex<Option<(u64, Vec<CommandNodeDesc>)>>,
+    /// WP-KERNEL-012 MT-041 (E7): the consolidated editor-action AccessKit surface wiring. `None` until
+    /// the host (or a kittest) installs a shared [`EditorActionRegistry`] via
+    /// [`install_editor_action_registry`](Self::install_editor_action_registry). When installed, each
+    /// `show` registers/updates this pane's canonical `editor.code.<action>` nodes in the shared registry,
+    /// emits them into the live tree, and consumes any swarm `Action::Click` dispatched at them — the
+    /// single swarm-facing action surface that CONSOLIDATES (does not re-mint) the per-MT widget nodes.
+    /// Behind a `Mutex` for the `Sync` panel.
+    editor_action_wiring: Mutex<Option<EditorActionWiring>>,
 
     // ── MT-034 code->notes cross-references (the NoteRefsPanel side surface) ───────────────────────────
 
@@ -633,6 +645,14 @@ struct CommandNodeDesc {
     label: String,
     /// The action this node dispatches when activated.
     action: CodeEditorAction,
+}
+
+/// WP-KERNEL-012 MT-041 (E7): the installed editor-action AccessKit wiring for a code pane — the shared
+/// [`EditorActionRegistry`] this pane writes its canonical `editor.code.<action>` nodes into, plus the
+/// [`RegistrationHandle`] carrying its stable instance index (RISK-041-05).
+struct EditorActionWiring {
+    registry: Arc<Mutex<EditorActionRegistry>>,
+    handle: RegistrationHandle,
 }
 
 /// MT-010 two-chord timeout (RISK-001 / MC-001 / AC-002): if the second chord of a two-chord binding
@@ -911,6 +931,7 @@ impl CodeEditorPanel {
             keymap_file_state: Mutex::new((None, None)),
             command_palette_tx: Mutex::new(None),
             command_node_cache: Mutex::new(None),
+            editor_action_wiring: Mutex::new(None),
             // MT-034 code->notes: the NoteRefsPanel is hidden until the operator toggles it on (it loads
             // only on a symbol dwell). The dwell tracker + delivery cell start empty; the find-notes
             // backend defaults to the verified live search-v2 route (a test injects a mock).
@@ -4268,6 +4289,171 @@ impl CodeEditorPanel {
         action
     }
 
+    // ── WP-KERNEL-012 MT-041 (E7): consolidated editor-action AccessKit surface ──────────────────────
+
+    /// Install the shared [`EditorActionRegistry`] this code pane registers its canonical
+    /// `editor.code.<action>` nodes into (MT-041). `instance_index` is the pane's stable 0-based index
+    /// (0 for a single pane; >0 for a second+ code pane so the author_ids suffix `.<idx>` —
+    /// RISK-041-05). After install, every `show` syncs + emits + consumes through this registry. Idempotent.
+    pub fn install_editor_action_registry(
+        &self,
+        registry: Arc<Mutex<EditorActionRegistry>>,
+        instance_index: usize,
+    ) {
+        let handle = {
+            let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+            reg.register(EditorPaneType::Code, instance_index)
+        };
+        *self.editor_action_wiring.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(EditorActionWiring { registry, handle });
+    }
+
+    /// Sync this pane's canonical `editor.code.<action>` nodes into the installed registry, emit them
+    /// into the live AccessKit tree, and CONSUME any swarm `Action::Click` dispatched at them this frame
+    /// (routing each to the real editor action it aliases). Called from [`show`](Self::show) when a
+    /// registry is installed; a no-op when none is. Returns the canonical author_ids dispatched this
+    /// frame (so a test can assert the dispatch reached the editor — RISK-041-04 / CTRL-041-04).
+    ///
+    /// CONSOLIDATION (anti-duplication): the nodes here are the ONE swarm-facing surface; they alias the
+    /// existing `code_editor_cmd_*` / find-bar dispatch paths rather than re-minting parallel nodes
+    /// (IN-041-08). A find option toggle's `checked` state is read from the live `find_state` so a
+    /// ToggleButton never reports stale state (RISK-041-03 / CTRL-041-03).
+    pub fn sync_editor_actions(&self, ui: &egui::Ui) -> Vec<String> {
+        let wiring = self.editor_action_wiring.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(wiring) = wiring.as_ref() else {
+            return Vec::new();
+        };
+        let handle = wiring.handle;
+        let find_state = self.find_state();
+        let find_open = find_state.is_some();
+        let multi_cursor = self.cursor_count() > 1;
+        // 1) Register/refresh every catalog node with its live state.
+        {
+            use crate::accessibility::editor_action_registry::AxRole;
+            let mut reg = wiring.registry.lock().unwrap_or_else(|e| e.into_inner());
+            for entry in CODE_ACTION_CATALOG {
+                let author_id = handle.author_id(entry.action_id);
+                let state = self.code_action_state(entry, find_open, find_state.as_ref(), multi_cursor);
+                reg.upsert(author_id, entry.role, entry.label, state);
+            }
+            // AC-041-04: a `editor.code.find-panel` node appears in the tree ONLY while the find panel is
+            // open (its backing surface is the live find bar — `code_editor_find_bar`). Present-only (no
+            // dispatch); a swarm agent reads it to confirm `find-open` took effect. Absent when closed.
+            reg.upsert(
+                handle.author_id("find-panel"),
+                AxRole::Button,
+                "Find panel",
+                if find_open {
+                    EditorActionState { present: true, enabled: false, checked: None }
+                } else {
+                    EditorActionState::absent()
+                },
+            );
+            // HBR-QUIET: schedule a repaint only when the present-node set actually changed (IN-041-09).
+            if reg.state_changed_since_last_push() {
+                ui.ctx().request_repaint();
+            }
+        }
+        // 2) Emit into the live tree + 3) consume this frame's dispatch.
+        let (dispatched, to_run) = {
+            let reg = wiring.registry.lock().unwrap_or_else(|e| e.into_inner());
+            reg.emit_into_tree(ui);
+            let dispatched = reg.take_dispatched(ui);
+            let to_run: Vec<CodeDispatch> = dispatched
+                .iter()
+                .filter_map(|aid| {
+                    let action_id = Self::strip_code_author_prefix(aid, handle);
+                    CODE_ACTION_CATALOG
+                        .iter()
+                        .find(|e| e.action_id == action_id)
+                        .map(|e| e.dispatch)
+                })
+                .collect();
+            (dispatched, to_run)
+        };
+        // Run the dispatch targets AFTER dropping the registry lock (a handler may itself touch state).
+        for target in to_run {
+            self.run_code_dispatch(target);
+        }
+        dispatched
+    }
+
+    /// The live [`EditorActionState`] for one catalog entry, from the real editor state (no mocks).
+    fn code_action_state(
+        &self,
+        entry: &crate::accessibility::editor_action_registry::CodeActionEntry,
+        find_open: bool,
+        find_state: Option<&FindState>,
+        multi_cursor: bool,
+    ) -> EditorActionState {
+        use crate::accessibility::editor_action_registry::AxRole;
+        // Find-step + replace + find-toggle nodes are present ONLY while the find panel is open (their
+        // backing widget is not rendered otherwise — AC-041-08).
+        let find_scoped = matches!(
+            entry.action_id,
+            "find-next" | "find-prev" | "find-toggle-case" | "find-toggle-word" | "find-toggle-regex"
+                | "replace-one" | "replace-all"
+        );
+        let present = if find_scoped { find_open } else { entry.always_present };
+        if !present {
+            return EditorActionState::absent();
+        }
+        // The language picker is a documented gap (no native language-picker action yet): present but
+        // DISABLED so a dispatch is rejected by the MCP channel rather than silently dropped.
+        let enabled = !matches!(entry.dispatch, CodeDispatch::LanguagePickerUnavailable)
+            && !(entry.action_id == "multi-cursor-clear" && !multi_cursor);
+        match entry.role {
+            AxRole::Button => EditorActionState { present, enabled, checked: None },
+            AxRole::ToggleButton => {
+                // The find option toggles reflect the live FindQuery state (RISK-041-03).
+                let checked = find_state.map(|f| match entry.action_id {
+                    "find-toggle-case" => f.query.case_sensitive,
+                    "find-toggle-word" => f.query.whole_word,
+                    "find-toggle-regex" => f.query.is_regex,
+                    _ => false,
+                });
+                EditorActionState { present, enabled, checked }
+            }
+        }
+    }
+
+    /// Strip the `editor.code.` prefix (and the optional `.<idx>` instance suffix) from a canonical
+    /// author_id, returning the bare `<action>` id the catalog keys on.
+    fn strip_code_author_prefix(author_id: &str, handle: RegistrationHandle) -> String {
+        let rest = author_id.strip_prefix("editor.code.").unwrap_or(author_id);
+        // For a non-zero instance the id ends with `.<idx>`; drop it so the catalog lookup matches.
+        if handle.instance_index() > 0 {
+            let suffix = format!(".{}", handle.instance_index());
+            rest.strip_suffix(&suffix).unwrap_or(rest).to_owned()
+        } else {
+            rest.to_owned()
+        }
+    }
+
+    /// Run one canonical-action dispatch target against the real panel (the alias-to-real-action step).
+    fn run_code_dispatch(&self, target: CodeDispatch) {
+        match target {
+            CodeDispatch::Action(action) => self.dispatch_action(action),
+            CodeDispatch::OpenReplace => self.open_find(true),
+            CodeDispatch::ReplaceOne => {
+                self.replace_current();
+            }
+            CodeDispatch::ReplaceAll => {
+                self.replace_all();
+            }
+            CodeDispatch::MultiCursorAdd => self.dispatch_action(CodeEditorAction::AddCursorBelow),
+            CodeDispatch::MultiCursorClear => self.dispatch_action(CodeEditorAction::CancelMultiCursor),
+            // Disabled node — a dispatch should never reach here (the MCP channel rejects a disabled
+            // target), but if it does it is a benign no-op + trace, never a silent wrong action.
+            CodeDispatch::LanguagePickerUnavailable => {
+                tracing::debug!(
+                    "editor.code.language-picker-open dispatched but no native language picker exists \
+                     (typed gap); no-op"
+                );
+            }
+        }
+    }
+
     /// Rebuild the cached AccessKit command-node descriptors iff the keymap version moved since they were
     /// last built (RISK-002 / MC-004 — build the 56-node set ONCE per keymap change, not every frame).
     /// The descriptors carry the fixed/ hashed node id, the `code_editor_cmd_*` author_id, a
@@ -5345,6 +5531,12 @@ impl CodeEditorPanel {
         // DeleteRight). Run AFTER the pointer + text handling above so a click-then-key in the same
         // frame sees the updated caret.
         self.process_keymap(ui);
+
+        // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.code.<action>` AccessKit nodes
+        // and consume any swarm `Action::Click` dispatched at them THIS frame, so a swarm agent's
+        // dispatch reaches the editor before the next frame (RISK-041-04). A no-op when no registry is
+        // installed (a bare panel render). Run last so it sees the post-input editor state.
+        let _dispatched = self.sync_editor_actions(ui);
     }
 }
 

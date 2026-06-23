@@ -24,6 +24,10 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 
 use crate::accessibility; // REUSE the WP-011 a11y layer (live emission helpers).
+use crate::accessibility::editor_action_registry::{
+    rich_action_catalog, rich_heading_is_unsupported, AxRole, EditorActionRegistry,
+    EditorActionState, PaneType as EditorPaneType, RegistrationHandle, RichDispatch,
+};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::document_model::node::{BlockNode, Child, NodeKind};
@@ -129,6 +133,14 @@ pub struct RichEditorState {
     /// (the `before` an in-window coalesced entry restores). `None` between batches; set on a fresh push
     /// and consumed/kept while the batcher window is open.
     pub undo_batch_before: Option<serde_json::Value>,
+    /// WP-KERNEL-012 MT-041 (E7): the installed consolidated editor-action AccessKit wiring — the shared
+    /// [`EditorActionRegistry`] this rich pane writes its canonical `editor.rich.<action>` nodes into,
+    /// plus its stable instance handle. `None` until the host (or a kittest) installs one via
+    /// [`install_editor_action_registry`](RichEditorState::install_editor_action_registry); when present,
+    /// every `show` syncs + emits + consumes through it (the ONE swarm-facing rich-action surface,
+    /// consolidating — not re-minting — the toolbar/find/save author_ids).
+    pub editor_actions:
+        Option<(std::sync::Arc<std::sync::Mutex<EditorActionRegistry>>, RegistrationHandle)>,
 }
 
 impl RichEditorState {
@@ -200,7 +212,23 @@ impl RichEditorState {
             undo_pane_id: None,
             undo_batcher: crate::rich_editor::interop_adapter::RichUndoBatcher::new(),
             undo_batch_before: None,
+            editor_actions: None,
         }
+    }
+
+    /// WP-KERNEL-012 MT-041 (E7): install the shared [`EditorActionRegistry`] this rich pane registers
+    /// its canonical `editor.rich.<action>` nodes into. `instance_index` is the pane's stable 0-based
+    /// index (>0 suffixes the author_ids `.<idx>` — RISK-041-05). Idempotent.
+    pub fn install_editor_action_registry(
+        &mut self,
+        registry: std::sync::Arc<std::sync::Mutex<EditorActionRegistry>>,
+        instance_index: usize,
+    ) {
+        let handle = {
+            let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+            reg.register(EditorPaneType::Rich, instance_index)
+        };
+        self.editor_actions = Some((registry, handle));
     }
 
     /// MT-020: install the live save/draft context — the production save + draft managers bound to
@@ -571,6 +599,13 @@ impl RichEditorWidget {
                     Self::drive_save_and_draft(ui.ctx(), &mut state);
                     Self::render_conflict_window(ui.ctx(), &mut state, &palette);
                     Self::render_export_picker(ui, &mut state, &palette);
+
+                    // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.rich.<action>`
+                    // AccessKit nodes and consume any swarm Action::Click dispatched at them THIS frame,
+                    // so a swarm agent's dispatch reaches the editor before the next frame
+                    // (RISK-041-04). A no-op when no registry is installed. Run inside the editor scope
+                    // so the action nodes nest under the editor surface.
+                    Self::sync_editor_actions(ui, &mut state);
 
                     // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
                     //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
@@ -957,6 +992,239 @@ impl RichEditorWidget {
         if let Some(save) = state.save.as_mut() {
             save.set_pending_local_content(content.clone());
             save.request_save(content);
+        }
+    }
+
+    // ── WP-KERNEL-012 MT-041 (E7): consolidated editor-action AccessKit surface ──────────────────────
+
+    /// Sync this rich pane's canonical `editor.rich.<action>` nodes into the installed registry, emit
+    /// them into the live AccessKit tree, and CONSUME any swarm `Action::Click` dispatched at them this
+    /// frame, routing each to the real editor action it aliases (RISK-041-04 / CTRL-041-04). A no-op
+    /// when no registry is installed.
+    ///
+    /// CONSOLIDATION (anti-duplication): the nodes are the ONE swarm-facing surface; they alias the
+    /// existing toolbar / find / save dispatch paths rather than re-minting parallel nodes (IN-041-08).
+    /// A format ToggleButton's `checked` state is read live via `is_mark_active` so it never reports
+    /// stale state when the cursor moves into/out of a mark (RISK-041-03 / CTRL-041-03).
+    fn sync_editor_actions(ui: &egui::Ui, state: &mut RichEditorState) {
+        use crate::rich_editor::document_model::node::Mark;
+        use crate::rich_editor::formatting::commands::is_mark_active;
+
+        let Some((registry, handle)) = state.editor_actions.clone() else {
+            return;
+        };
+        let find_open = state.find_replace.is_some();
+        // Live toggle states from the real editor (no mocks).
+        let bold = is_mark_active(&state.doc, &state.selection, &Mark::Bold);
+        let italic = is_mark_active(&state.doc, &state.selection, &Mark::Italic);
+        let code = is_mark_active(&state.doc, &state.selection, &Mark::Code);
+        let (fc_case, fc_word, fc_regex) = state
+            .find_replace
+            .as_ref()
+            .map(|f| (f.query.case_sensitive, f.query.whole_word, f.query.is_regex))
+            .unwrap_or((false, false, false));
+
+        let catalog = rich_action_catalog();
+        // 1) Register/refresh every catalog node with its live state.
+        {
+            let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+            for entry in &catalog {
+                let author_id = handle.author_id(entry.action_id);
+                let state_for = Self::rich_action_state(
+                    entry, find_open, bold, italic, code, fc_case, fc_word, fc_regex,
+                );
+                reg.upsert(author_id, entry.role, entry.label, state_for);
+            }
+            // AC-041-04 analog: a present-only `editor.rich.find-panel` node while find is open.
+            reg.upsert(
+                handle.author_id("find-panel"),
+                AxRole::Button,
+                "Find panel",
+                if find_open {
+                    EditorActionState { present: true, enabled: false, checked: None }
+                } else {
+                    EditorActionState::absent()
+                },
+            );
+            // HBR-QUIET (IN-041-09): repaint only on a real present-set change.
+            if reg.state_changed_since_last_push() {
+                ui.ctx().request_repaint();
+            }
+        }
+        // 2) Emit + 3) consume this frame's dispatch.
+        let dispatched = {
+            let reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+            reg.emit_into_tree(ui);
+            reg.take_dispatched(ui)
+        };
+        for author_id in dispatched {
+            let action_id = Self::strip_rich_author_prefix(&author_id, handle);
+            if let Some(entry) = catalog.iter().find(|e| e.action_id == action_id) {
+                Self::run_rich_dispatch(state, &entry.dispatch, &action_id, ui.ctx());
+            }
+        }
+    }
+
+    /// The live [`EditorActionState`] for one rich catalog entry, from the real editor state.
+    #[allow(clippy::too_many_arguments)]
+    fn rich_action_state(
+        entry: &crate::accessibility::editor_action_registry::RichActionEntry,
+        find_open: bool,
+        bold: bool,
+        italic: bool,
+        code: bool,
+        fc_case: bool,
+        fc_word: bool,
+        fc_regex: bool,
+    ) -> EditorActionState {
+        // Find-step / replace / find-toggle nodes are present ONLY while the find panel is open.
+        let find_scoped = matches!(
+            entry.action_id,
+            "find-next" | "find-prev" | "find-toggle-case" | "find-toggle-word" | "find-toggle-regex"
+                | "replace-one" | "replace-all"
+        );
+        let present = if find_scoped { find_open } else { entry.always_present };
+        if !present {
+            return EditorActionState::absent();
+        }
+        // h4..6 are a documented model gap (only h1..3 exist): present but DISABLED so a dispatch is
+        // rejected by the MCP channel rather than silently mis-applied (typed limitation, no mock).
+        let enabled = !rich_heading_is_unsupported(entry.action_id);
+        match entry.role {
+            AxRole::Button => EditorActionState { present, enabled, checked: None },
+            AxRole::ToggleButton => {
+                let checked = Some(match entry.action_id {
+                    "format-bold" => bold,
+                    "format-italic" => italic,
+                    "format-code" => code,
+                    "find-toggle-case" => fc_case,
+                    "find-toggle-word" => fc_word,
+                    "find-toggle-regex" => fc_regex,
+                    _ => false,
+                });
+                EditorActionState { present, enabled, checked }
+            }
+        }
+    }
+
+    /// Strip the `editor.rich.` prefix (+ optional `.<idx>`) from a canonical author_id.
+    fn strip_rich_author_prefix(author_id: &str, handle: RegistrationHandle) -> String {
+        let rest = author_id.strip_prefix("editor.rich.").unwrap_or(author_id);
+        if handle.instance_index() > 0 {
+            let suffix = format!(".{}", handle.instance_index());
+            rest.strip_suffix(&suffix).unwrap_or(rest).to_owned()
+        } else {
+            rest.to_owned()
+        }
+    }
+
+    /// Run one canonical rich-action dispatch target against the real editor state (alias-to-real).
+    fn run_rich_dispatch(
+        state: &mut RichEditorState,
+        target: &RichDispatch,
+        action_id: &str,
+        ctx: &egui::Context,
+    ) {
+        use crate::rich_editor::find_replace::{self, FindReplaceState};
+        use crate::rich_editor::formatting::commands::{self, CommandContext};
+        match target {
+            RichDispatch::Format(cmd) => {
+                // h4..6 are disabled nodes; a dispatch should never reach here (MCP rejects disabled),
+                // but guard anyway so a stray dispatch is a no-op, not a wrong heading level.
+                if rich_heading_is_unsupported(action_id) {
+                    tracing::debug!(action_id, "rich heading >3 unsupported by the model; no-op");
+                    return;
+                }
+                let RichEditorState { doc, undo, selection, actor_id, .. } = state;
+                let mut cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
+                let _ = commands::dispatch(&mut cctx, cmd);
+            }
+            RichDispatch::FindOpen => {
+                if state.find_replace.is_none() {
+                    state.find_replace = Some(FindReplaceState::open(false));
+                    if let Some(f) = state.find_replace.as_mut() {
+                        f.rescan(&state.doc);
+                    }
+                }
+            }
+            RichDispatch::FindNext => {
+                if let Some(f) = state.find_replace.as_mut() {
+                    f.select_next();
+                }
+            }
+            RichDispatch::FindPrev => {
+                if let Some(f) = state.find_replace.as_mut() {
+                    f.select_prev();
+                }
+            }
+            RichDispatch::ReplaceOne => {
+                let RichEditorState { doc, undo, selection, find_replace, .. } = state;
+                if let Some(f) = find_replace.as_mut() {
+                    if let Some(active) = f.active.and_then(|i| f.scan.matches.get(i).cloned()) {
+                        let repl = f.replacement.clone();
+                        find_replace::replace_one(doc, undo, selection, &active, &repl);
+                        f.rescan(doc);
+                    }
+                }
+            }
+            RichDispatch::ReplaceAll => {
+                let RichEditorState { doc, undo, selection, find_replace, .. } = state;
+                if let Some(f) = find_replace.as_mut() {
+                    let matches = f.scan.matches.clone();
+                    let repl = f.replacement.clone();
+                    find_replace::replace_all(doc, undo, selection, &matches, &repl);
+                    f.rescan(doc);
+                }
+            }
+            RichDispatch::FindToggleCase => {
+                if let Some(f) = state.find_replace.as_mut() {
+                    f.query.case_sensitive = !f.query.case_sensitive;
+                    f.rescan(&state.doc);
+                }
+            }
+            RichDispatch::FindToggleWord => {
+                if let Some(f) = state.find_replace.as_mut() {
+                    f.query.whole_word = !f.query.whole_word;
+                    f.rescan(&state.doc);
+                }
+            }
+            RichDispatch::FindToggleRegex => {
+                if let Some(f) = state.find_replace.as_mut() {
+                    f.query.is_regex = !f.query.is_regex;
+                    f.rescan(&state.doc);
+                }
+            }
+            RichDispatch::Save => {
+                // CTRL-041-06: route through the MT-020 SaveManager (the E6/MT-037 knowledge_documents
+                // save client), never a new direct call.
+                Self::trigger_save(state);
+            }
+            RichDispatch::InsertSlashCommand => {
+                // Open the slash-command block-insert picker at the caret (the same `SlashMenuState`
+                // surface the `/` trigger opens). The caret's leaf path + char offset anchor it.
+                if state.slash_menu.is_none() {
+                    if let crate::rich_editor::document_model::selection::Selection::Text {
+                        head, ..
+                    } = &state.selection
+                    {
+                        state.slash_menu = Some(
+                            crate::rich_editor::slash_commands::SlashMenuState::open(
+                                head.path.clone(),
+                                head.char_offset,
+                            ),
+                        );
+                        ctx.request_repaint();
+                    }
+                }
+            }
+            RichDispatch::CommandPaletteOpen => {
+                // Route to the shared WP-011 command palette via the interaction bus command surface
+                // (the EXISTING command_palette.rs modal reads `command_palette_open` — no second palette).
+                let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ctx);
+                crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                    b.open_command_palette();
+                });
+            }
         }
     }
 

@@ -35,10 +35,15 @@
 //! Chrome widgets get fixed ids declared here; panes derive their stable id from the registry-owned
 //! `PaneRenderContext::egui_id` (which is itself derived from the registry's monotonic NodeId).
 
+pub mod editor_action_registry;
 mod live;
 mod registry;
 mod snapshot;
 
+pub use editor_action_registry::{
+    AxRole, EditorActionNode, EditorActionRegistry, EditorActionState, PaneType, RegistrationHandle,
+    HEALTH_CANARY_AUTHOR_ID,
+};
 pub use live::{
     emit_chrome_node, emit_interactive_node, emit_pane_node, ChromeWidget, STATUS_BAR_NODE_ID,
     TITLE_BAR_NODE_ID,
