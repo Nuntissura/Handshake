@@ -461,18 +461,60 @@ pub enum UndoChord {
 /// inside an egui `Ui` (or use it as an `egui::Widget` via [`Self::ui`]).
 pub struct RichEditorWidget {
     state: Arc<Mutex<RichEditorState>>,
+    /// WP-KERNEL-012 MT-055 (E2 — reading mode): when `true`, render the SAME MT-011 DocModel through
+    /// the SAME MT-012 block renderer but as a clean, read-only reading view (RISK-001 / MC-001 — NO
+    /// second renderer). The read-only branch (a) does NOT apply any input/edit dispatch and does NOT
+    /// resolve/paint a caret or selection (so the document cannot be mutated and no editable
+    /// TextEdit/TextInput node lands in the AccessKit tree — RISK-002/RISK-005), (b) widens the content
+    /// margins to a centered reading column via the WP-011 theme/spacing tokens, and (c) keeps wikilink
+    /// chips (MT-015) + embeds/node-views (MT-014) interactive (RISK-003). When `false`, behavior is
+    /// EXACTLY the MT-012 editable path (AC-008 — no regression).
+    read_only: bool,
 }
 
 impl RichEditorWidget {
-    /// Build a widget over shared editor state.
+    /// Build a widget over shared editor state in the editable (MT-012) mode (the default).
     pub fn new(state: Arc<Mutex<RichEditorState>>) -> Self {
-        Self { state }
+        Self { state, read_only: false }
+    }
+
+    /// WP-KERNEL-012 MT-055: build a widget that renders `state`'s document READ-ONLY (the Obsidian
+    /// reading view). Equivalent to `Self::new(state).with_read_only(true)`.
+    pub fn new_read_only(state: Arc<Mutex<RichEditorState>>) -> Self {
+        Self { state, read_only: true }
+    }
+
+    /// WP-KERNEL-012 MT-055: set the read-only (reading-mode) flag. The host reads
+    /// `store.get(document_id) == ViewMode::Reading` and passes the result here so the editor flips
+    /// between the editable and reading views without forking a second renderer.
+    pub fn with_read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
+        self
+    }
+
+    /// WP-KERNEL-012 MT-055: build a widget for the given [`crate::rich_editor::reading_mode::ViewMode`]
+    /// — `Reading` renders read-only, `Edit` renders the editable path. The ViewMode entry point the
+    /// contract names as an alternative to the bare `read_only` flag.
+    pub fn for_view_mode(
+        state: Arc<Mutex<RichEditorState>>,
+        mode: crate::rich_editor::reading_mode::ViewMode,
+    ) -> Self {
+        Self { state, read_only: mode.is_read_only() }
+    }
+
+    /// WP-KERNEL-012 MT-055: whether this widget renders read-only (the reading view). Read by tests
+    /// (AC-001) to assert a `ViewMode::Reading` host builds a `read_only=true` widget.
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
     }
 
     /// Render the editor into `ui`, returning the interaction [`egui::Response`] for the
     /// editor surface (so a caller can check focus / hover). This is the core entry the
     /// `egui::Widget` impl and the pane factory both call.
     pub fn show(self, ui: &mut egui::Ui) -> egui::Response {
+        // WP-KERNEL-012 MT-055: the read-only (reading-mode) flag for this frame. Threaded through the
+        // SAME render path (no fork) so the reading view shows exactly what Edit shows, minus editing.
+        let read_only = self.read_only;
         // MT-035: keep the shared state Arc so the unified-undo entries recorded this frame can capture a
         // `Weak<Mutex<RichEditorState>>` back-ref to the live document (RISK-3 / MC-3 — no retain cycle).
         let state_arc = Arc::clone(&self.state);
@@ -489,11 +531,20 @@ impl RichEditorWidget {
         // across frames (same pattern the code editor uses). We render the scroll area +
         // blocks inside it and emit the root node onto this scope's Ui id so the per-block
         // nodes are its descendants.
+        // WP-KERNEL-012 MT-055: in reading mode the editor surface is NON-focusable (it must never
+        // receive Text/Key/Ime events — RISK-002/RISK-005, the document is read-only), but it stays a
+        // CLICK sense so wikilink chips/embeds inside it remain interactive (RISK-003) and the surface
+        // is still scrollable/hoverable. In Edit mode it is click_and_drag (focusable) exactly as MT-012.
+        let surface_sense = if read_only {
+            egui::Sense::click()
+        } else {
+            egui::Sense::click_and_drag()
+        };
         let response = ui
             .scope_builder(
                 egui::UiBuilder::new()
                     .id_salt(root_egui_id())
-                    .sense(egui::Sense::click_and_drag()),
+                    .sense(surface_sense),
                 |ui| {
                     let palette = state.palette();
                     // Paint the editor background from the theme (no hardcoded hex).
@@ -502,15 +553,17 @@ impl RichEditorWidget {
                         ui.painter().rect_filled(full_rect, 0.0, palette.bg);
                     }
 
-                    // The surface response: clickable+focusable so the editor can hold
-                    // keyboard focus and receive Text/Key/Ime events. Interacting on the
-                    // full rect gives us a stable focusable widget. It is an interactive
-                    // node, so it MUST carry a stable author_id (the shell HBR-SWARM gate
-                    // panics on an unnamed interactive node) — we give it the editor-surface
-                    // id so a swarm agent can focus the editor by a stable key.
+                    // The surface response. In Edit mode: clickable+focusable so the editor can
+                    // hold keyboard focus and receive Text/Key/Ime events. In Reading mode (MT-055):
+                    // CLICK-only (NOT focusable) so it can never receive editing input — but it is
+                    // still an interactive node, so it MUST carry a stable author_id (the shell
+                    // HBR-SWARM gate panics on an unnamed interactive node) — we give it the
+                    // editor-surface id so a swarm agent can locate the surface by a stable key.
                     let surface_id = ui.id().with("rich-editor-surface");
-                    let surface = ui.interact(full_rect, surface_id, egui::Sense::click_and_drag());
-                    let has_focus = surface.has_focus();
+                    let surface = ui.interact(full_rect, surface_id, surface_sense);
+                    // RISK-005: in reading mode the surface is never treated as focused, so the input
+                    // path is skipped and no caret/selection state is ever advanced or allocated.
+                    let has_focus = !read_only && surface.has_focus();
                     // Attach the stable author_id to the interactive surface node (it keeps
                     // egui's derived focusable role/actions; we only add the address).
                     crate::accessibility::emit_interactive_node(
@@ -533,37 +586,45 @@ impl RichEditorWidget {
                         state.slash_menu = None;
                     }
 
-                    // 1) Apply input + IME for this frame (only meaningful when focused, but
-                    //    we still drain events so a programmatically-focused test works). The ONE shared
-                    //    InteractionBus (MT-035 unified undo) is retrieved here so a rich-pane edit
-                    //    records its undo on the SAME scope the code/canvas panes share, and Ctrl+Z /
-                    //    Ctrl+Y / Ctrl+Shift+Z route THROUGH the bus (POLICY-1/POLICY-2) rather than a
-                    //    second per-pane stack. Bus access is via `with_try_lock` so it never blocks the
-                    //    egui frame thread (RISK-1 / MC-1).
-                    let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
-                    undo_pane_id = state.undo_pane_id.clone();
-                    Self::apply_frame_input(
-                        ui,
-                        &mut state,
-                        has_focus,
-                        &bus,
-                        &state_arc,
-                        &mut pending_undo_chord,
-                    );
+                    // WP-KERNEL-012 MT-055: in reading mode SKIP the entire input/edit + drag-in path
+                    // (RISK-005 / MC-005 — no input dispatch, no caret/selection alloc, the DocModel is
+                    // never mutated). The bus undo wiring is also skipped (nothing to record). Wikilink
+                    // chips + embeds are still rendered+interactive below (RISK-003), since their click
+                    // handling lives in `render_blocks`, NOT in this editable input branch.
+                    if !read_only {
+                        // 1) Apply input + IME for this frame (only meaningful when focused, but
+                        //    we still drain events so a programmatically-focused test works). The ONE shared
+                        //    InteractionBus (MT-035 unified undo) is retrieved here so a rich-pane edit
+                        //    records its undo on the SAME scope the code/canvas panes share, and Ctrl+Z /
+                        //    Ctrl+Y / Ctrl+Shift+Z route THROUGH the bus (POLICY-1/POLICY-2) rather than a
+                        //    second per-pane stack. Bus access is via `with_try_lock` so it never blocks the
+                        //    egui frame thread (RISK-1 / MC-1).
+                        let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+                        undo_pane_id = state.undo_pane_id.clone();
+                        Self::apply_frame_input(
+                            ui,
+                            &mut state,
+                            has_focus,
+                            &bus,
+                            &state_arc,
+                            &mut pending_undo_chord,
+                        );
 
-                    // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
-                    // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
-                    // over the editor inserts an inline `hsLink` embed atom (by CKC `refKind`) at the
-                    // caret. The embed is the EXISTING hsLink atom (the MT-014 lesson), so it ROUND-TRIPS
-                    // the backend `content_json` (AC-2) — never an invented node the backend would drop.
-                    // Guard the take with `has_payload_of_type` (the egui take-payload hazard: an unguarded
-                    // `dnd_release_payload::<T>` unconditionally takes-then-downcasts, discarding a payload
-                    // of another type meant for a sibling surface).
-                    if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
-                        if let Some(payload) = surface.dnd_release_payload::<crate::interop::DragPayload>() {
-                            if let Some(link) = payload.to_hs_link() {
-                                Self::insert_atelier_embed_at_caret(&mut state, link);
-                                ui.ctx().request_repaint();
+                        // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
+                        // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
+                        // over the editor inserts an inline `hsLink` embed atom (by CKC `refKind`) at the
+                        // caret. The embed is the EXISTING hsLink atom (the MT-014 lesson), so it ROUND-TRIPS
+                        // the backend `content_json` (AC-2) — never an invented node the backend would drop.
+                        // Guard the take with `has_payload_of_type` (the egui take-payload hazard: an unguarded
+                        // `dnd_release_payload::<T>` unconditionally takes-then-downcasts, discarding a payload
+                        // of another type meant for a sibling surface). SKIPPED in reading mode (a read-only
+                        // document accepts no drag-in edits).
+                        if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
+                            if let Some(payload) = surface.dnd_release_payload::<crate::interop::DragPayload>() {
+                                if let Some(link) = payload.to_hs_link() {
+                                    Self::insert_atelier_embed_at_caret(&mut state, link);
+                                    ui.ctx().request_repaint();
+                                }
                             }
                         }
                     }
@@ -573,39 +634,59 @@ impl RichEditorWidget {
                     //    `ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); })`). The
                     //    toolbar borrows the SAME editor state so a button click dispatches a
                     //    command directly on it.
+                    //
+                    // WP-KERNEL-012 MT-055: in reading mode the EDITING chrome (properties panel,
+                    // draft banner, formatting toolbar) is SUPPRESSED — a read-only view has no edit
+                    // affordances, and the toolbar emits editable controls that must not appear. The
+                    // BLOCKS still render (the reading presentation), centered into the reading column.
                     let palette = state.palette(); // re-resolve (theme unchanged, cheap)
                     ui.vertical(|ui| {
-                        // MT-017: the document properties panel ABOVE the content (default collapsed).
-                        Self::render_properties(ui, &mut state, &palette);
-                        // MT-020: the draft-recovery banner (only when a recoverable draft is available)
-                        // sits above the toolbar so the operator sees it before editing.
-                        Self::render_draft_banner(ui, &mut state, &palette);
-                        Self::render_toolbar(ui, &mut state);
-                        ui.separator();
-                        Self::render_blocks(ui, &mut state, &palette, has_focus);
+                        if !read_only {
+                            // MT-017: the document properties panel ABOVE the content (default collapsed).
+                            Self::render_properties(ui, &mut state, &palette);
+                            // MT-020: the draft-recovery banner (only when a recoverable draft is available)
+                            // sits above the toolbar so the operator sees it before editing.
+                            Self::render_draft_banner(ui, &mut state, &palette);
+                            Self::render_toolbar(ui, &mut state);
+                            ui.separator();
+                        }
+                        Self::render_blocks(ui, &mut state, &palette, has_focus, read_only);
                     });
 
-                    // MT-018: render the floating find/replace panel (a top-level egui::Window) when
-                    // open, and apply its outcome (Replace One / Replace All / Close) against the doc
-                    // + undo manager. Rendered after the content so it floats above the blocks; the
-                    // window does not steal editor keyboard focus (HBR-QUIET).
-                    Self::render_find_panel(ui.ctx(), &mut state, &palette);
+                    // WP-KERNEL-012 MT-055: the find/replace, save/draft, conflict, and export chrome are
+                    // EDITING surfaces — skipped in reading mode (a read-only document is never saved,
+                    // never has a draft conflict, and exposes no find-in-doc editing surface here).
+                    if !read_only {
+                        // MT-018: render the floating find/replace panel (a top-level egui::Window) when
+                        // open, and apply its outcome (Replace One / Replace All / Close) against the doc
+                        // + undo manager. Rendered after the content so it floats above the blocks; the
+                        // window does not steal editor keyboard focus (HBR-QUIET).
+                        Self::render_find_panel(ui.ctx(), &mut state, &palette);
 
-                    // MT-020: drive the save/draft coordinators (drain completed off-thread results +
-                    // fire the debounced draft upsert), then render the conflict window, the draft
-                    // recovery banner, and the export format picker. All reuse the theme palette + the
-                    // shell accessibility hook. Rendered after the content so the conflict window floats
-                    // above the blocks.
-                    Self::drive_save_and_draft(ui.ctx(), &mut state);
-                    Self::render_conflict_window(ui.ctx(), &mut state, &palette);
-                    Self::render_export_picker(ui, &mut state, &palette);
+                        // MT-020: drive the save/draft coordinators (drain completed off-thread results +
+                        // fire the debounced draft upsert), then render the conflict window, the draft
+                        // recovery banner, and the export format picker. All reuse the theme palette + the
+                        // shell accessibility hook. Rendered after the content so the conflict window floats
+                        // above the blocks.
+                        Self::drive_save_and_draft(ui.ctx(), &mut state);
+                        Self::render_conflict_window(ui.ctx(), &mut state, &palette);
+                        Self::render_export_picker(ui, &mut state, &palette);
+                    }
 
                     // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.rich.<action>`
                     // AccessKit nodes and consume any swarm Action::Click dispatched at them THIS frame,
                     // so a swarm agent's dispatch reaches the editor before the next frame
                     // (RISK-041-04). A no-op when no registry is installed. Run inside the editor scope
                     // so the action nodes nest under the editor surface.
-                    Self::sync_editor_actions(ui, &mut state);
+                    //
+                    // WP-KERNEL-012 MT-055: the editor-action surface is the set of EDITING actions
+                    // (bold/italic/find/save/…) — suppressed in reading mode so a swarm agent cannot
+                    // dispatch an edit at a read-only document (RISK-005). The reading-view toggle is the
+                    // ONLY editor-chrome control the reading view exposes; it is mounted by the host
+                    // (E11) outside this widget.
+                    if !read_only {
+                        Self::sync_editor_actions(ui, &mut state);
+                    }
 
                     // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
                     //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
@@ -2121,11 +2202,18 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         palette: &HsPalette,
         has_focus: bool,
+        read_only: bool,
     ) {
+        // WP-KERNEL-012 MT-055: in reading mode NO caret/selection is resolved (RISK-005 / MC-005 —
+        // the read-only branch allocates no caret state and paints no caret). `caret_block = None`
+        // means `paint_block` is called with `caret_offset = None` for every block (the same value a
+        // non-caret block gets in Edit mode), so the SAME MT-012 block renderer runs with zero caret
+        // affordance — no second renderer (RISK-001 / MC-001). The blink repaint is likewise never
+        // scheduled in reading mode (HBR-QUIET: a static reading view does not animate).
         let caret = DocCaret::from_selection(&state.selection);
-        let caret_block = caret.block_index();
+        let caret_block = if read_only { None } else { caret.block_index() };
         let time = ui.input(|i| i.time);
-        let blink_on = blink_visible(time);
+        let blink_on = !read_only && blink_visible(time);
         // Query once per frame whether the bold Inter family is bound (the shell binds it
         // at startup; a bare/no-fonts context does not). Threaded into every block layout
         // so a bold run never requests an unbound family (panic guard).
@@ -2160,17 +2248,44 @@ impl RichEditorWidget {
         // area does not push it off-screen (HBR-VIS: the panel must be visible, not just present in
         // the tree). Cap the scroll area's height to leave room for the panel below; the panel
         // collapses to its header height when closed, so the reserve is a soft upper bound.
+        // WP-KERNEL-012 MT-055: in reading mode the backlinks strip (an editing/knowledge surface) is
+        // NOT shown, so the reading view uses the full content height.
         const BACKLINKS_STRIP_PTS: f32 = 150.0;
         let available_h = ui.available_height().max(1.0);
-        let scroll_max_h = (available_h - BACKLINKS_STRIP_PTS).max(available_h * 0.4);
+        let scroll_max_h = if read_only {
+            available_h
+        } else {
+            (available_h - BACKLINKS_STRIP_PTS).max(available_h * 0.4)
+        };
+
+        // WP-KERNEL-012 MT-055 (AC-005): reading typography. In reading mode the content column is
+        // CLAMPED to a centered reading measure ([`READING_COLUMN_WIDTH_PTS`]) and an extra
+        // paragraph gap is added between blocks, both NAMED consts (the THEME TYPOGRAPHY note allows
+        // named column-width/spacing consts; colors stay theme tokens). In Edit mode there is no
+        // clamp/indent and no extra gap (the exact MT-012 layout — AC-008 no regression).
+        use crate::rich_editor::reading_mode::{
+            READING_COLUMN_WIDTH_PTS, READING_EXTRA_BLOCK_SPACING_PTS,
+        };
+        let extra_block_gap = if read_only { READING_EXTRA_BLOCK_SPACING_PTS } else { 0.0 };
 
         let caret_galley_out = egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
             .auto_shrink([false, false])
             .max_height(scroll_max_h)
             .show(ui, |ui| {
-                let content_width = ui.available_width().max(1.0);
+                let avail_width = ui.available_width().max(1.0);
+                // The reading-mode content column: clamp to the reading measure and CENTER it (a left
+                // margin of half the slack) so long notes get a distraction-free measure. In Edit mode
+                // the column is the full available width with no left margin (MT-012 unchanged).
+                let (content_width, left_margin) = if read_only {
+                    let col = avail_width.min(READING_COLUMN_WIDTH_PTS);
+                    let margin = ((avail_width - col) / 2.0).max(0.0);
+                    (col, margin)
+                } else {
+                    (avail_width, 0.0)
+                };
                 let mut top = ui.cursor().min;
+                top.x += left_margin;
                 // Painter for the whole content region (block_renderer paints absolute).
                 let painter = ui.painter().clone();
 
@@ -2198,7 +2313,7 @@ impl RichEditorWidget {
                         );
                         embed_block_renderer::render_embed(&mut child, &link, &mut state.embeds, palette);
                         let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
-                        top.y += used + super::line_layout::BLOCK_GAP_PTS;
+                        top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
 
@@ -2235,7 +2350,7 @@ impl RichEditorWidget {
                             ui.ctx().request_repaint();
                         }
                         let used = child.min_rect().height().max(super::line_layout::BASE_FONT_SIZE);
-                        top.y += used + super::line_layout::BLOCK_GAP_PTS;
+                        top.y += used + super::line_layout::BLOCK_GAP_PTS + extra_block_gap;
                         continue;
                     }
 
@@ -2314,16 +2429,21 @@ impl RichEditorWidget {
                         });
                     }
 
-                    top.y += bp.height;
+                    top.y += bp.height + extra_block_gap;
                 }
 
-                // Reserve the painted vertical extent so the scroll area sizes correctly.
+                // Reserve the painted vertical extent so the scroll area sizes correctly. The reading
+                // column's left margin is included so the scroll content is sized to the centered column.
                 let used_height = (top.y - ui.cursor().min.y).max(0.0);
-                ui.allocate_space(egui::vec2(content_width, used_height));
+                ui.allocate_space(egui::vec2(content_width + left_margin, used_height));
 
-                // Paint the blinking caret over the blocks (only when collapsed + blink-on).
-                if let Some((galley, origin)) = caret_galley.clone() {
-                    paint_caret(&painter, &galley, origin, &caret, palette, blink_on);
+                // Paint the blinking caret over the blocks (only when collapsed + blink-on). WP-KERNEL-012
+                // MT-055: never in reading mode — `caret_galley` is `None` there (caret_block is None), so
+                // this is already inert, and `read_only` makes the guard explicit (RISK-005 belt-and-braces).
+                if !read_only {
+                    if let Some((galley, origin)) = caret_galley.clone() {
+                        paint_caret(&painter, &galley, origin, &caret, palette, blink_on);
+                    }
                 }
                 // Return the caret galley+origin so the popup (rendered OUTSIDE this scroll closure)
                 // can anchor at the caret pixel.
@@ -2331,48 +2451,57 @@ impl RichEditorWidget {
             })
             .inner;
 
-        // MT-015: the backlinks side panel below the content area (a collapsible header listing every
-        // document linking to the current one). Reuses the existing shell theme; clicking an entry
-        // enqueues a BacklinkActivated event for the host shell to route.
-        ui.separator();
-        if let Some(ev) = crate::rich_editor::wikilinks::backlinks_panel::render_backlinks_panel(
-            ui,
-            &mut state.wikilinks,
-            palette,
-        ) {
-            state.pending_events.push(ev);
-        }
+        // WP-KERNEL-012 MT-055: the backlinks panel + the caret-anchored autocomplete / slash-command /
+        // code-ref popups are EDITING/knowledge surfaces (they author links, insert blocks, or list
+        // backlinks). In reading mode they are SKIPPED — a clean read-only presentation has no editing
+        // popups, and skipping them guarantees no editable TextInput child lands in the AccessKit tree
+        // for the read-only document body (RISK-002 / AC-003). The inline wikilink chips painted above
+        // STAY interactive (RISK-003) so navigation still works in the reading view.
+        if !read_only {
+            // MT-015: the backlinks side panel below the content area (a collapsible header listing every
+            // document linking to the current one). Reuses the existing shell theme; clicking an entry
+            // enqueues a BacklinkActivated event for the host shell to route.
+            ui.separator();
+            if let Some(ev) = crate::rich_editor::wikilinks::backlinks_panel::render_backlinks_panel(
+                ui,
+                &mut state.wikilinks,
+                palette,
+            ) {
+                state.pending_events.push(ev);
+            }
 
-        // MT-015: the autocomplete popup anchored at the CARET pixel (impl note: caret position, NOT
-        // mouse, so keyboard-only typing positions it). Resolved from the caret block's galley.
-        if state.wikilink_autocomplete.is_some() {
-            let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
-                let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
-                let local = galley.pos_from_cursor(cursor);
-                egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
-            });
-            Self::render_autocomplete_popup(ui, state, palette, caret_pixel);
-        }
+            // MT-015: the autocomplete popup anchored at the CARET pixel (impl note: caret position, NOT
+            // mouse, so keyboard-only typing positions it). Resolved from the caret block's galley.
+            if state.wikilink_autocomplete.is_some() {
+                let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                    let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                    let local = galley.pos_from_cursor(cursor);
+                    egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
+                });
+                Self::render_autocomplete_popup(ui, state, palette, caret_pixel);
+            }
 
-        // MT-016: the slash-command menu popup (list) or its active prompt modal, anchored at the caret
-        // pixel (same caret-galley resolution as the autocomplete popup). Rendered AFTER the content so
-        // it sits above the blocks. The widget returns an outcome the host applies to the editor state.
-        if state.slash_menu.is_some() {
-            let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
-                let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
-                let local = galley.pos_from_cursor(cursor);
-                egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
-            });
-            Self::render_slash_surface(ui, state, palette, caret_pixel);
-        }
+            // MT-016: the slash-command menu popup (list) or its active prompt modal, anchored at the caret
+            // pixel (same caret-galley resolution as the autocomplete popup). Rendered AFTER the content so
+            // it sits above the blocks. The widget returns an outcome the host applies to the editor state.
+            if state.slash_menu.is_some() {
+                let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                    let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                    let local = galley.pos_from_cursor(cursor);
+                    egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
+                });
+                Self::render_slash_surface(ui, state, palette, caret_pixel);
+            }
 
-        // MT-034: the `/code-ref` code-symbol search dialog (a floating Window, not caret-anchored).
-        if state.code_symbol_search.is_some() {
-            Self::drive_code_symbol_search(ui, state, palette);
+            // MT-034: the `/code-ref` code-symbol search dialog (a floating Window, not caret-anchored).
+            if state.code_symbol_search.is_some() {
+                Self::drive_code_symbol_search(ui, state, palette);
+            }
         }
 
         // RISK-3 idle-CPU control: schedule the next blink frame ONLY when focused. An
-        // unfocused editor returns false here and never requests a repaint.
+        // unfocused editor returns false here and never requests a repaint. In reading mode
+        // `has_focus` is always false, so the reading view never animates (HBR-QUIET).
         let _scheduled = request_blink_repaint(ui.ctx(), has_focus);
     }
 

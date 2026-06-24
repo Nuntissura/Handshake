@@ -25,6 +25,9 @@ pub mod embeds;
 pub mod find_replace;
 pub mod formatting;
 pub mod properties;
+// WP-KERNEL-012 MT-055 (E2): per-document reading/preview mode (the Obsidian "reading view" parity
+// item). Defines `ViewMode`, the per-document `ReadingModeStore`, and the Edit|Reading toggle widget.
+pub mod reading_mode;
 pub mod renderer;
 pub mod save;
 pub mod slash_commands;
