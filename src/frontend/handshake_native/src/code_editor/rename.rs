@@ -46,11 +46,18 @@
 //! whose text equals the original name), and a visible `LSP-required for cross-file rename` banner is
 //! rendered so the operator is NEVER misled that a single-file rename was project-wide. The existing
 //! `GET /knowledge/code/symbols/{entity_id}/references` backend API is bound (consulted) by the panel to
-//! confirm the symbol is real, but — VERIFIED against the real backend — that endpoint returns only
-//! symbol-level callers/callees (`{ symbol_entity_id, display_name }`), NOT the precise byte/char
-//! occurrence RANGES a rename needs (see [`references_lack_precise_ranges`] and the MT typed blocker).
-//! So the in-file ranges come from tree-sitter (a safe local source), and the cross-file occurrence
-//! ranges are the recorded `NEEDS_BACKEND_ROUTE` typed blocker — never a backend edit (AC-009).
+//! confirm the symbol is real, but — VERIFIED against the real backend (handshake_core
+//! `api/knowledge_code_nav.rs` `symbol_references`/`edge_span_refs`, and the frontend client model
+//! `backend/knowledge_code_nav.rs` `SymbolCallerCallee.evidence_spans`) — each caller/callee that
+//! endpoint returns carries `evidence_spans: [{ span_id, line_start, line_end }]`, i.e. LINE-LEVEL spans
+//! only. The backend `KnowledgeSpan` storage row DOES hold `range_start`/`range_end` (the precise
+//! char/byte range, `storage/knowledge.rs:761-762`), but `edge_span_refs` (`knowledge_code_nav.rs:782-786`)
+//! does NOT project those columns to the wire — so the references response has NO occurrence-precise
+//! char RANGE a rename needs to edit at column granularity (see [`references_lack_precise_ranges`] and
+//! the MT typed blocker). Cross-file occurrence-precise rename therefore needs either widening that
+//! projection to include `range_start`/`range_end` (a backend change = typed blocker, not patched here)
+//! or an LSP server. So the in-file ranges come from tree-sitter (a safe local source), and the
+//! cross-file occurrence ranges are the recorded typed blocker — never a backend edit (AC-009).
 
 use std::ops::Range;
 use std::path::{Path, PathBuf};
@@ -763,12 +770,17 @@ pub fn write_file_atomic(path: &Path, content: &str) -> std::io::Result<()> {
 }
 
 /// TYPED BLOCKER MARKER (AC-009): the existing `GET /knowledge/code/symbols/{entity_id}/references`
-/// backend endpoint returns symbol-level callers/callees (`{ symbol_entity_id, display_name }`), NOT the
-/// precise byte/char occurrence RANGES a cross-file rename needs. This function documents that verified
-/// gap in code (the no-LSP fallback is therefore SINGLE-FILE via tree-sitter, and cross-file rename
-/// REQUIRES an LSP server). It always returns `true`: a cross-file references-based rename needs a NEW
-/// backend route (occurrence ranges), which is a typed blocker — NEVER a backend edit (the MT forbids
-/// touching `src/backend/**`). Kept as an explicit, testable assertion of the recorded blocker.
+/// backend endpoint DOES return per-caller/callee `evidence_spans: [{ span_id, line_start, line_end }]`,
+/// but those spans are LINE-LEVEL ONLY. The backend `KnowledgeSpan` storage row also stores the precise
+/// char/byte `range_start`/`range_end` (`storage/knowledge.rs:761-762`), yet `edge_span_refs`
+/// (`knowledge_code_nav.rs:782-786`) does NOT project those columns to the wire — so the references
+/// response carries no occurrence-precise char RANGE a column-granular rename needs. This function
+/// documents that verified gap in code (the no-LSP fallback is therefore SINGLE-FILE via tree-sitter,
+/// and cross-file occurrence-precise rename REQUIRES an LSP server). It always returns `true`: a
+/// cross-file references-based rename needs the references projection widened to include
+/// `range_start`/`range_end` (a backend change), which is a typed blocker — NEVER a backend edit here
+/// (the MT forbids touching `src/backend/**`). Kept as an explicit, testable assertion of the recorded
+/// blocker. The name reads "lacks precise ranges" = lacks the wire-exposed char range, NOT "no spans".
 pub fn references_lack_precise_ranges() -> bool {
     true
 }
@@ -794,6 +806,19 @@ fn rename_node_id(base_node_id: u64, base_author: &str, instance: &str) -> egui:
         unsafe { egui::Id::from_high_entropy_bits(base_node_id) }
     } else {
         egui::Id::new(format!("{base_author}#{instance}"))
+    }
+}
+
+/// The diff-preview "added" (green `+` line) color, resolved from the active theme's palette
+/// `success_text` token (CONTROL-4: no hardcoded Color32 in widget code). Mirrors the gutter's
+/// [`super::gutter::diagnostic_tokens_for`] dark/light branch so the added-hunk color tracks the shell
+/// theme like every other token. The removed (`-`) line reuses the diagnostic ERROR (red) token from
+/// that same resolver, so both hunk colors come from the theme rather than baked literals.
+fn rename_preview_added_color(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode {
+        crate::theme::HsTheme::Dark.palette().success_text
+    } else {
+        crate::theme::HsTheme::Light.palette().success_text
     }
 }
 
@@ -904,6 +929,13 @@ pub fn render_preview(
             ));
             ui.separator();
 
+            // Diff-hunk colors come from the live theme (CONTROL-4: no hardcoded Color32 in widget
+            // code). The removed ('before') line uses the active theme's diagnostic ERROR token (red)
+            // — the same `diagnostic_tokens_for(ui.visuals())` resolver the gutter affordances use —
+            // and the added ('after') line uses the active palette's `success_text` token (green), so
+            // both hunk colors track dark/light like every other widget instead of baking literals.
+            let diff_removed_color = super::gutter::diagnostic_tokens_for(ui.visuals()).error;
+            let diff_added_color = rename_preview_added_color(ui.visuals());
             egui::ScrollArea::vertical()
                 .max_height(360.0)
                 .auto_shrink([false, false])
@@ -926,12 +958,12 @@ pub fn render_preview(
                                     ui.label(
                                         egui::RichText::new(format!("- {}", hunk.before))
                                             .monospace()
-                                            .color(egui::Color32::from_rgb(0xd0, 0x6c, 0x6c)),
+                                            .color(diff_removed_color),
                                     );
                                     ui.label(
                                         egui::RichText::new(format!("+ {}", hunk.after))
                                             .monospace()
-                                            .color(egui::Color32::from_rgb(0x6c, 0xb0, 0x6c)),
+                                            .color(diff_added_color),
                                     );
                                 });
                             });
@@ -994,9 +1026,12 @@ pub fn render_preview(
 /// `code_editor_rename_no_lsp_banner` reading exactly [`NO_LSP_BANNER_TEXT`], so the operator (and a swarm
 /// agent reading the node value) is NEVER misled that a single-file rename was project-wide.
 pub fn render_no_lsp_banner(ui: &mut egui::Ui, instance: &str) {
-    let warn_color = egui::Color32::from_rgb(0xff, 0xcc, 0x00);
+    // CONTROL-4: source the banner icon/text color from the live theme's `warn_fg_color` (the same
+    // token already used for the frame fill below), so the warning affordance tracks dark/light like
+    // every other widget instead of baking an opaque Color32 literal into widget code.
+    let warn_color = ui.visuals().warn_fg_color;
     egui::Frame::group(ui.style())
-        .fill(ui.visuals().warn_fg_color.linear_multiply(0.08))
+        .fill(warn_color.linear_multiply(0.08))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("\u{26A0}").color(warn_color));
@@ -1365,8 +1400,14 @@ mod tests {
 
     #[test]
     fn references_endpoint_lacks_precise_ranges_typed_blocker() {
-        // AC-009: the recorded typed blocker — the references API has no occurrence ranges, so cross-file
-        // references-based rename needs a NEW backend route (never a backend edit here).
-        assert!(references_lack_precise_ranges());
+        // AC-009: the recorded typed blocker — VERIFIED against the real backend, the references API
+        // returns per-caller/callee `evidence_spans:[{span_id,line_start,line_end}]` (LINE-LEVEL only);
+        // the stored `KnowledgeSpan.range_start/range_end` char range is NOT projected to the wire by
+        // `edge_span_refs`. So cross-file occurrence-precise rename needs that projection widened (a
+        // backend change = typed blocker), never a backend edit here.
+        assert!(
+            references_lack_precise_ranges(),
+            "references endpoint exposes line-only evidence_spans, no wire char range",
+        );
     }
 }

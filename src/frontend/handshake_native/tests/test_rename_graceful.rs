@@ -8,9 +8,11 @@
 //!   (`begin_rename_at_cursor` -> confirm -> the single-file fallback preview -> apply).
 //! - AC-008 `write_file_atomic` (interruption): an atomic disk write fully replaces a file; a simulated
 //!   interruption (temp written, rename NOT done) leaves the original intact (never half-written).
-//! - AC-009 `references_lack_precise_ranges`: the recorded typed blocker — the existing references API
-//!   returns symbol-level callers/callees with NO occurrence ranges, so cross-file references-based rename
-//!   needs a NEW backend route (never a backend edit here).
+//! - AC-009 `references_lack_precise_ranges`: the recorded typed blocker — VERIFIED against the real
+//!   backend, the references API returns per-caller/callee `evidence_spans:[{span_id,line_start,line_end}]`
+//!   (LINE-LEVEL only); the stored `KnowledgeSpan.range_start/range_end` char range is NOT projected to
+//!   the wire by `edge_span_refs`, so cross-file occurrence-precise rename needs that projection widened
+//!   (a backend change), never a backend edit here.
 //!
 //! Provable WITHOUT a live PostgreSQL / a language server: the panel's LSP client defaults to
 //! `LspClient::disabled` (no server), so the rename takes the single-file tree-sitter fallback, and the
@@ -174,13 +176,16 @@ fn rename_atomic_disk_write_never_half_written() {
 
 #[test]
 fn rename_references_api_lacks_ranges_typed_blocker() {
-    // The verified gap: GET /knowledge/code/symbols/{entity_id}/references returns symbol-level
-    // callers/callees ({ symbol_entity_id, display_name }) with NO occurrence byte/char ranges. So the
-    // no-LSP fallback is SINGLE-FILE via tree-sitter, and a cross-file references-based rename needs a NEW
-    // backend route — recorded as a TYPED BLOCKER, never patched into src/backend/** (AC-009).
+    // The verified gap: GET /knowledge/code/symbols/{entity_id}/references DOES return per-caller/callee
+    // `evidence_spans:[{span_id,line_start,line_end}]`, but those spans are LINE-LEVEL only. The backend
+    // `KnowledgeSpan` storage row also holds the precise char/byte `range_start/range_end`, yet
+    // `edge_span_refs` does NOT project those columns to the wire — so the references response has no
+    // occurrence-precise char range a column-granular rename needs. So the no-LSP fallback is SINGLE-FILE
+    // via tree-sitter, and a cross-file references-based rename needs that projection widened (a backend
+    // change) — recorded as a TYPED BLOCKER, never patched into src/backend/** (AC-009).
     assert!(
         references_lack_precise_ranges(),
-        "AC-009: the references API has no occurrence ranges -> cross-file rename needs a new backend route (typed blocker)"
+        "AC-009: references API exposes line-only evidence_spans, no wire char range -> cross-file rename needs the projection widened (typed blocker)"
     );
-    println!("AC-009 rename_references_blocker: references API lacks precise ranges -> typed blocker (no backend edit)");
+    println!("AC-009 rename_references_blocker: references API exposes line-only spans, no wire char range -> typed blocker (no backend edit)");
 }
