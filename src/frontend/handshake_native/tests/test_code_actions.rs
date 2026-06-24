@@ -489,3 +489,104 @@ fn code_action_context_menu_routes_to_shared_controller() {
     assert!(!panel.is_quickfix_menu_open(), "AC-007: the menu closes after the shared apply");
     println!("PT (AC-007) code_action_context_menu_routes: ctx-menu node present; shared apply path applies once");
 }
+
+// ── RISK-005 / MC-005: a cross-file quick-fix whose to-disk write FAILS is SURFACED, not silently dropped ──
+
+#[test]
+fn code_action_cross_file_disk_write_failure_is_surfaced() {
+    // The exact gap the adversarial review flagged: when a chosen action's `WorkspaceEdit` touches the
+    // active buffer AND another file, the in-file edit commits FIRST (via `set_text`), then the cross-file
+    // edits are routed to disk through MT-048's `apply_preview`. If that to-disk write fails (a missing /
+    // locked target file, a stale BadRange) the result MUST be SURFACED + logged (MC-005), never discarded
+    // with `let _ =`. Drive a cross-file edit whose target file does NOT exist on disk and assert: the error
+    // path is taken (the typed cross-file result is `Err`), the in-file edit STILL applied, and no panic.
+    let panel = Arc::new(CodeEditorPanel::new("let foo = 1;", "rs"));
+    // The active document's self-URI resolves to `file:///mock.rs` (a relative, non-canonicalizable path),
+    // so an edit targeting that URI is applied in-buffer and a DIFFERENT URI is routed to disk.
+    panel.set_file_path("mock.rs");
+
+    // A cross-file URI pointing at a file that does NOT exist on disk: a unique name under the OS temp dir
+    // so the `std::fs::read_to_string` inside `apply_preview` fails with an IO error (RenameError::Io).
+    let missing = std::env::temp_dir().join(format!(
+        "handshake-mt049-missing-{}-{}.rs",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    assert!(!missing.exists(), "the cross-file target must not exist on disk for this proof");
+    let missing_uri = lsp_types::Url::from_file_path(&missing)
+        .map(|u| u.to_string())
+        .unwrap_or_else(|_| format!("file:///{}", missing.display()));
+
+    // A WorkspaceEdit touching BOTH the active file (replace `foo`->`bar`) and the missing cross-file file.
+    let mut changes = std::collections::HashMap::new();
+    changes.insert(
+        lsp_types::Url::parse("file:///mock.rs").unwrap(),
+        vec![lsp_types::TextEdit {
+            range: lsp_types::Range {
+                start: lsp_types::Position { line: 0, character: 4 },
+                end: lsp_types::Position { line: 0, character: 7 },
+            },
+            new_text: "bar".into(),
+        }],
+    );
+    changes.insert(
+        lsp_types::Url::parse(&missing_uri).unwrap(),
+        vec![lsp_types::TextEdit {
+            range: lsp_types::Range {
+                start: lsp_types::Position { line: 0, character: 0 },
+                end: lsp_types::Position { line: 0, character: 0 },
+            },
+            new_text: "// added\n".into(),
+        }],
+    );
+    let edit = lsp_types::WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    };
+    let item = CodeActionItem {
+        title: "Cross-file fix (one target missing)".into(),
+        kind: Some("quickfix".into()),
+        edit: Some(edit),
+        command: None,
+        is_preferred: true,
+    };
+    panel.set_quickfix_actions(0, vec![item], true);
+
+    // Apply through the panel's single apply path. This must NOT panic even though the cross-file write fails.
+    let applied = panel
+        .apply_quickfix()
+        .expect("the apply returns an outcome (the in-file part applies; the cross-file part is surfaced)");
+    assert!(
+        matches!(applied, AppliedAction::Edit { .. }),
+        "an edit-bearing action returns an Edit outcome"
+    );
+
+    // The in-file edit STILL applied (it commits before the cross-file disk write is attempted).
+    assert_eq!(
+        panel.buffer().to_string(),
+        "let bar = 1;",
+        "MC-005: the in-file edit applies even though the cross-file write fails"
+    );
+
+    // The cross-file outcome is SURFACED as an Err on the typed cell — NOT silently dropped (the must-fix).
+    let cross = panel
+        .last_quickfix_cross_file_result()
+        .expect("MC-005: a cross-file apply recorded an outcome (never silently dropped)");
+    let err = cross.expect_err("MC-005: the failing cross-file disk write surfaces an Err, not a silent Ok");
+    assert!(
+        err.contains("rename apply failed"),
+        "MC-005: the surfaced error names the rename apply failure (got: {err:?})"
+    );
+
+    // The target file was never created (the failed write left no partial artifact under temp).
+    assert!(!missing.exists(), "the missing cross-file target was not created by the failed apply");
+
+    println!(
+        "PT (RISK-005/MC-005) code_action_cross_file_disk_write_failure_is_surfaced: \
+         in-file edit applied, cross-file Err surfaced (not dropped), no panic"
+    );
+}

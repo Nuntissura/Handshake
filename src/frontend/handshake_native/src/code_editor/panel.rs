@@ -95,7 +95,7 @@ use super::signature_help::{
     active_parameter_from_commas, render_signature_popup, SignatureHelpState,
 };
 use super::rename::{
-    self, PreviewAction, RenameState, WorkspaceEditPreview,
+    self, PreviewAction, RenameApplyReport, RenameState, WorkspaceEditPreview,
 };
 use super::code_actions::{self, AppliedAction, CodeActionController, MenuAction};
 use super::find_replace::{FindEngine, FindQuery, Match};
@@ -685,6 +685,16 @@ pub struct CodeEditorPanel {
     /// by the per-frame pump which fires the code-action request AND opens the menu immediately (vs the
     /// passive cursor-rest path that only lights the bulb). Atomic so the `&self` dispatch can arm it.
     quick_fix_request: std::sync::atomic::AtomicBool,
+    /// MT-049 the LAST cross-file quick-fix apply outcome (RISK-005 / MC-005). When a chosen code action's
+    /// `WorkspaceEdit` touches files OTHER than the active buffer, [`apply_quickfix`](Self::apply_quickfix)
+    /// routes them through MT-048's [`rename::apply_preview`] (atomic to-disk write) and records the
+    /// `Result<RenameApplyReport, String>` here — `Ok` with the files/edits applied, or `Err` with the
+    /// `RenameError` message (e.g. a missing/locked target file). MC-005 requires the cross-file outcome be
+    /// SURFACED + logged, never silently dropped; this cell is the typed, queryable surface (a `tracing`
+    /// warn/info is emitted alongside) so the failure path is observable to a swarm agent + a unit test even
+    /// when the in-file edit already committed. `None` until the first cross-file apply. Behind a `Mutex`
+    /// for the same `Sync` reason as the buffer.
+    last_quickfix_cross_file: Mutex<Option<Result<RenameApplyReport, String>>>,
 
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
@@ -1109,6 +1119,9 @@ impl CodeEditorPanel {
                 CODE_ACTION_REST_MS,
             )),
             quick_fix_request: std::sync::atomic::AtomicBool::new(false),
+            // MT-049 cross-file quick-fix outcome surface (RISK-005 / MC-005): empty until the first
+            // cross-file apply records its Ok(report)/Err(message) here (never silently dropped).
+            last_quickfix_cross_file: Mutex::new(None),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -3034,12 +3047,48 @@ impl CodeEditorPanel {
                 // Install the in-file result back into the panel buffer + re-highlight (AC-002).
                 self.set_text(&new_text);
                 // Route any cross-file edits through MT-048's multi-file/atomic apply (RISK-005 / MC-005).
+                // The result MUST be surfaced, NEVER discarded: the in-file edit already committed via
+                // `set_text` above, so a cross-file to-disk write that fails (missing/locked file, a stale
+                // BadRange) would otherwise leave the workspace half-applied with NO operator-visible signal.
+                // Bind the Result, log it (warn on Err naming the cross-file URI + partial report; debug on
+                // Ok with the file/edit count), and record it on the typed cell so a swarm agent / a test can
+                // observe the cross-file outcome (MC-005 — surface/log, do not silently drop).
                 if !cross_file.files.is_empty() {
-                    let _ = rename::apply_preview(
+                    let outcome = rename::apply_preview(
                         cross_file,
                         |_uri| None, // cross-file targets are to-disk (read inside apply_preview).
                         |_uri, _text| {},
                     );
+                    match &outcome {
+                        Ok(report) => {
+                            tracing::debug!(
+                                files_changed = report.files_changed.len(),
+                                edits_applied = report.edits_applied,
+                                "code editor: quick-fix cross-file edits applied"
+                            );
+                        }
+                        Err(e) => {
+                            // A partial cross-file failure: the active buffer already changed, so this is an
+                            // inconsistent on-disk vs in-buffer state the operator MUST be able to see.
+                            let partial = match e {
+                                rename::RenameError::Io { partial, .. }
+                                | rename::RenameError::BadRange { partial, .. } => partial,
+                            };
+                            tracing::warn!(
+                                error = %e,
+                                cross_file_files_applied = partial.files_changed.len(),
+                                in_file_already_applied = true,
+                                "code editor: quick-fix cross-file apply FAILED — workspace is partially \
+                                 applied (in-file edit committed, a cross-file write did not); not silently \
+                                 dropped (MC-005)"
+                            );
+                        }
+                    }
+                    *self
+                        .last_quickfix_cross_file
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) =
+                        Some(outcome.map_err(|e| e.to_string()));
                 }
             }
             AppliedAction::Command { command } => {
@@ -3058,6 +3107,19 @@ impl CodeEditorPanel {
             AppliedAction::NoOp => {}
         }
         Some(applied)
+    }
+
+    /// MT-049 (RISK-005 / MC-005): the LAST cross-file quick-fix apply outcome recorded by
+    /// [`apply_quickfix`](Self::apply_quickfix). `None` until a chosen action with cross-file edits has been
+    /// applied; thereafter `Ok(report)` when every cross-file write succeeded, or `Err(message)` (the
+    /// `RenameError` text naming the failing URI) when a cross-file to-disk write failed — surfaced, never
+    /// silently dropped. The observation point a swarm agent / a unit test reads to prove the cross-file
+    /// error path is taken (the in-file edit still applies regardless).
+    pub fn last_quickfix_cross_file_result(&self) -> Option<Result<RenameApplyReport, String>> {
+        self.last_quickfix_cross_file
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// MT-049: the screen position to anchor the quick-fix lightbulb / menu for `line` — the start of the
