@@ -18,13 +18,15 @@
 //!    `rename::apply_text_edits_to_buffer` established (RISK-001 / MC-004 / AC-005). Applying ascending
 //!    silently corrupts the buffer; the `format_descending_order` test proves the descending result is
 //!    correct AND that a naive ascending application would differ.
-//! 2. **Single undo group** ([`format_document`] / [`format_selection`] at the panel boundary): the whole
-//!    `TextEdit` array is applied to ONE working buffer, then the panel records ONE `UndoAction` whose
-//!    `undo_fn` restores the pre-format snapshot. MT-010's undo model is a snapshot-based `UndoAction`
-//!    ring with NO `begin_group`/`end_group` API (verified — `undo_stack.rs`), so the single-undo
-//!    requirement is met by the single-transaction approach MT-048 used: one snapshot before, one after,
-//!    one entry. The `single_undo_entry` test proves exactly ONE entry is created and a single undo
-//!    reverts the entire format (RISK-002 / MC-001 / AC-001).
+//! 2. **Single undo group** ([`resolve_format_outcome`] feeds the panel boundary): the whole `TextEdit`
+//!    array is applied to ONE working buffer, then the panel records ONE `UndoAction` whose `undo_fn`
+//!    restores the pre-format snapshot. MT-010's undo model is a snapshot-based `UndoAction` ring with NO
+//!    `begin_group`/`end_group` API (verified — `undo_stack.rs`), so the single-undo requirement is met by
+//!    the single-transaction approach MT-048 used: one snapshot before, one after, one entry. The live path
+//!    is `CodeEditorPanel::pump_formatting` -> off-thread `LspClient::format_document` -> this module's
+//!    [`resolve_format_outcome`] -> `drain_format_result`, which installs the formatted text and records
+//!    exactly ONE undo entry; the `format_document_single_undo` test proves the single entry + single-undo
+//!    revert over the real MT-008 transport (RISK-002 / MC-001 / AC-001).
 //! 3. **UTF-16 column semantics** ([`lsp_range_to_byte_range`]): LSP positions are UTF-16 code units by
 //!    default (LSP 3.17 `general.positionEncodings` defaults to `utf-16`). Confusing them with raw byte
 //!    columns mis-places every edit on a line that contains a non-ASCII character. This module converts
@@ -350,119 +352,30 @@ pub fn lsp_error_reason(err: &LspError) -> String {
     format!("Formatting failed: {err}")
 }
 
-use super::panel::CodeEditorPanel;
-
-/// Apply an already-resolved formatting result (`edits`) to `panel` as a SINGLE undo step and return the
-/// typed [`FormatOutcome`]. This is the SHARED apply core both [`format_document`] and [`format_selection`]
-/// (and their async panel pump) funnel through, so the single-undo + descending-offset + re-clamp
-/// invariants live in ONE place:
+/// Resolve a delivered format `edits` array against the pre-format `before` text into
+/// `(formatted_text_if_changed, FormatOutcome)` — the SINGLE format-apply core the live panel pump funnels
+/// through (`CodeEditorPanel::pump_formatting` -> spawned task -> this -> `drain_format_result`). It takes
+/// only `(&str, &[LspTextEdit])` so the spawned off-thread task can call it without borrowing the panel
+/// (no `&self` captured across `.await`), and so it is a pure, independently-testable transform:
 ///
-/// - Snapshot the buffer BEFORE the format (the undo source).
-/// - Apply ALL `edits` to a working copy in DESCENDING-offset, UTF-16-correct order ([`apply_text_edits`]).
-/// - On an empty edit list -> [`FormatOutcome::NoChange`] (no buffer touch, no undo entry).
-/// - On a successful apply that changed the text -> install the formatted text via `panel.set_text`
-///   (which re-clamps the cursor to the new length — RISK-006), record ONE undo entry through the panel's
-///   host undo path, and return `Applied { edit_count }`.
-/// - On a resolve/apply failure -> [`FormatOutcome::LspError`] (the buffer is left untouched; never a
-///   partial corruption — RISK-001).
+/// - An empty edit list -> `(None, NoChange)` (no buffer touch, no undo entry).
+/// - A successful apply that did NOT change the text -> `(None, NoChange)`.
+/// - A successful apply that changed the text -> `(Some(after), Applied { edit_count })`. The UI-thread
+///   drain installs `after` via `set_text` (which re-clamps the cursor to the new length — RISK-006) and
+///   records ONE undo entry (before -> after) so a single Ctrl+Z reverts the WHOLE format (AC-001).
+/// - A resolve/apply failure -> `(None, LspError)` (the buffer is left untouched; never a partial
+///   corruption — RISK-001).
 ///
-/// `record_undo` is the panel's single-undo recorder (the before/after snapshot push). Passing it in keeps
-/// `formatting.rs` independent of the host bus type while still recording exactly ONE entry (AC-001).
-pub fn apply_format_result(
-    panel: &CodeEditorPanel,
-    edits: &[LspTextEdit],
-    mut record_undo: impl FnMut(&str, &str),
-) -> FormatOutcome {
+/// This is the ONE applier on the live path: there is no parallel synchronous applier. The descending-offset
+/// + UTF-16-correct apply lives in [`apply_text_edits`] / [`apply_text_edits_to_string`], which this calls.
+pub fn resolve_format_outcome(before: &str, edits: &[LspTextEdit]) -> (Option<String>, FormatOutcome) {
     if edits.is_empty() {
-        return FormatOutcome::NoChange;
+        return (None, FormatOutcome::NoChange);
     }
-    let before = panel.buffer().to_string();
-    match apply_text_edits_to_string(&before, edits) {
-        Ok(after) => {
-            if after == before {
-                return FormatOutcome::NoChange;
-            }
-            // Install the formatted text (set_text re-clamps the cursor to the new length — RISK-006), then
-            // record ONE undo entry (before -> after) so a single Ctrl+Z reverts the WHOLE format (AC-001).
-            panel.set_text(&after);
-            record_undo(&before, &after);
-            FormatOutcome::Applied { edit_count: edits.len() }
-        }
-        Err(e) => FormatOutcome::LspError(format!("Formatting failed: {e}")),
-    }
-}
-
-/// Format the WHOLE document (the EDIT-menu "Format Document" / the editor body context-menu / Alt+Shift+F
-/// entry point — the MT contract's `format_document(editor, lsp)`). This is the SYNCHRONOUS-orchestration
-/// surface the unit tests drive with a mock LSP client; the live panel uses the async pump
-/// ([`CodeEditorPanel::request_format_document`]) so the egui frame never blocks (RISK-005). The flow:
-///
-/// 1. Capability gate ([`formatter_available`]): no formatter -> [`FormatOutcome::NoFormatter`] (the action
-///    is disabled; this is the no-op the disabled keymap path returns — AC-003).
-/// 2. Build the request: the document URI + the editor's [`FormattingOptions`].
-/// 3. Issue `textDocument/formatting` over the EXISTING MT-008 transport via a blocking bridge on
-///    `runtime` (tests pass a runtime; the live panel uses the non-blocking pump instead).
-/// 4. Apply the returned `TextEdit` array as one undo step ([`apply_format_result`]).
-///
-/// `record_undo` records the single undo entry (before/after snapshot). Never panics on any path
-/// (AC-006): a no-formatter, an empty result, and an LSP error are all typed outcomes.
-pub fn format_document(
-    panel: &CodeEditorPanel,
-    lsp: &super::lsp_client::LspClient,
-    runtime: &tokio::runtime::Handle,
-    record_undo: impl FnMut(&str, &str),
-) -> FormatOutcome {
-    let language_id = panel.language_id();
-    if !formatter_available(lsp, &language_id) {
-        return FormatOutcome::NoFormatter;
-    }
-    let Some(uri) = panel.format_uri() else {
-        return FormatOutcome::NoFormatter; // no path/URI to format against.
-    };
-    let options = default_formatting_options();
-    // Bridge the async request to a sync result for the test/orchestration surface. The live panel uses
-    // the non-blocking pump (request_format_document) instead; this `block_on` is only called from a
-    // NON-runtime thread (the test's main thread passes a multi-thread runtime handle), so it cannot
-    // deadlock the worker pool.
-    let result = runtime.block_on(lsp.format_document(&uri, options));
-    match result {
-        Ok(edits) => apply_format_result(panel, &edits, record_undo),
-        Err(e) => FormatOutcome::LspError(format!("Formatting failed: {e}")),
-    }
-}
-
-/// Format the current SELECTION (the editor body context-menu "Format Selection" entry point — the MT
-/// contract's `format_selection(editor, lsp)`). Same flow as [`format_document`] but gated on
-/// [`range_formatter_available`] and issuing `textDocument/rangeFormatting` for the selection range. An
-/// empty/collapsed selection sends the CURRENT LINE's range (NOT whole-document — [`selection_range_for`]).
-/// Text outside the selected range is unchanged (AC-002 — the server only returns edits inside the range
-/// it was asked to format, and the applier touches only those ranges).
-pub fn format_selection(
-    panel: &CodeEditorPanel,
-    lsp: &super::lsp_client::LspClient,
-    runtime: &tokio::runtime::Handle,
-    record_undo: impl FnMut(&str, &str),
-) -> FormatOutcome {
-    let language_id = panel.language_id();
-    if !range_formatter_available(lsp, &language_id) {
-        return FormatOutcome::NoFormatter;
-    }
-    let Some(uri) = panel.format_uri() else {
-        return FormatOutcome::NoFormatter;
-    };
-    let (start, end) = panel.primary_selection_bytes();
-    let range = {
-        let buffer = panel.buffer();
-        match selection_range_for(&buffer, start, end) {
-            Some(r) => r,
-            None => return FormatOutcome::NoChange,
-        }
-    };
-    let options = default_formatting_options();
-    let result = runtime.block_on(lsp.format_range(&uri, range, options));
-    match result {
-        Ok(edits) => apply_format_result(panel, &edits, record_undo),
-        Err(e) => FormatOutcome::LspError(format!("Formatting failed: {e}")),
+    match apply_text_edits_to_string(before, edits) {
+        Ok(after) if after == before => (None, FormatOutcome::NoChange),
+        Ok(after) => (Some(after), FormatOutcome::Applied { edit_count: edits.len() }),
+        Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
     }
 }
 
@@ -606,5 +519,62 @@ mod tests {
         assert!(!range_formatter_available(&lsp, "rust"), "AC-003: no LSP -> no range formatter");
         // An empty language id is never a formatter (defensive).
         assert!(!formatter_available(&lsp, ""), "empty language id -> no formatter");
+    }
+
+    // ── resolve_format_outcome: the SINGLE live applier (the panel pump funnels through this) ───────
+    // This is the one format-apply core; the live path is pump_formatting -> off-thread
+    // LspClient::format_document -> resolve_format_outcome -> drain_format_result. Drive every arm here so
+    // the live applier has direct unit coverage (no parallel synchronous applier exists).
+    #[test]
+    fn resolve_format_outcome_empty_edits_is_nochange() {
+        // An empty edit array (server returned no edits) -> NoChange, no formatted text, no undo entry.
+        let (formatted, outcome) = resolve_format_outcome("a = 1\n", &[]);
+        assert_eq!(formatted, None, "empty edits install no text");
+        assert_eq!(outcome, FormatOutcome::NoChange);
+    }
+
+    #[test]
+    fn resolve_format_outcome_applied_multi_edit() {
+        // Two edits on one line whose ASCENDING application would corrupt offsets: descending-apply via
+        // the single applier yields the correct text AND the typed Applied { edit_count } the drain installs
+        // as ONE undo step (AC-001 / AC-005). `before` is the undo source; `after` is what set_text installs.
+        let before = "a b\n";
+        let edits = vec![edit(0, 0, 0, 1, "AAAA"), edit(0, 2, 0, 3, "BBBB")];
+        let (formatted, outcome) = resolve_format_outcome(before, &edits);
+        assert_eq!(
+            formatted.as_deref(),
+            Some("AAAA BBBB\n"),
+            "the single applier returns the formatted text the drain installs (descending, UTF-16-correct)"
+        );
+        assert_eq!(
+            outcome,
+            FormatOutcome::Applied { edit_count: 2 },
+            "AC-001: a changed format reports Applied with the edit count (drain records ONE undo entry)"
+        );
+    }
+
+    #[test]
+    fn resolve_format_outcome_idempotent_is_nochange() {
+        // A server edit that reproduces the same text (already formatted) -> NoChange, no text install, no
+        // undo entry (the drain stays silent). Proves the after==before short-circuit on the live applier.
+        let before = "x\n";
+        let edits = vec![edit(0, 0, 0, 1, "x")]; // replace "x" with "x" — net no-op
+        let (formatted, outcome) = resolve_format_outcome(before, &edits);
+        assert_eq!(formatted, None, "an idempotent format installs no text");
+        assert_eq!(outcome, FormatOutcome::NoChange);
+    }
+
+    #[test]
+    fn resolve_format_outcome_bad_range_is_lsperror() {
+        // A garbled edit range (line far past the buffer) cannot resolve to a byte range -> typed LspError,
+        // never a panic and never a partial buffer corruption (RISK-001 / AC-006 / MC-006).
+        let before = "one line\n";
+        let edits = vec![edit(99, 0, 99, 3, "boom")];
+        let (formatted, outcome) = resolve_format_outcome(before, &edits);
+        assert_eq!(formatted, None, "a bad range installs no text (no partial corruption)");
+        assert!(
+            matches!(outcome, FormatOutcome::LspError(_)),
+            "AC-006: an unresolvable edit range is a typed LspError, not a panic"
+        );
     }
 }

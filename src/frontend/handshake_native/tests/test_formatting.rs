@@ -71,6 +71,16 @@ fn edit(sl: u32, sc: u32, el: u32, ec: u32, new_text: &str) -> LspTextEdit {
     }
 }
 
+// ── CX-212E hygiene guard runs UNCONDITIONALLY (not only in the GPU-gated kittest) ────────────────────
+// The screenshot test calls assert_no_local_artifact_dir() AFTER its render block, but on a headless/no-GPU
+// lane the wgpu render branch errors out (non-fatal) and, if the whole kittest is excluded, the guard would
+// never execute. This standalone unit test always runs the guard so a tracked artifact under src/ fails the
+// suite even with no GPU adapter (CX-212E HARD).
+#[test]
+fn no_repo_local_artifact_dir_hygiene_guard() {
+    assert_no_local_artifact_dir();
+}
+
 // ── PT-001 / AC-001 / RISK-002 / MC-001: single undo entry, a single undo reverts the whole format ────
 
 #[test]

@@ -139,11 +139,11 @@ pub use gutter::{
 pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
 pub use formatting::{
     apply_text_edits, apply_text_edits_to_string as apply_format_edits_to_string,
-    byte_to_lsp_position, default_formatting_options, format_document, format_selection,
-    formatter_available, lsp_range_to_byte_range, menu_descriptors as format_menu_descriptors,
-    range_formatter_available, selection_range_for, FormatApplyError, FormatMenuDescriptor,
-    FormatOutcome, FORMAT_DOCUMENT_CTX_AUTHOR_ID, FORMAT_DOCUMENT_MENU_AUTHOR_ID,
-    FORMAT_SELECTION_CTX_AUTHOR_ID, NO_FORMATTER_TOOLTIP,
+    byte_to_lsp_position, default_formatting_options, formatter_available, lsp_range_to_byte_range,
+    menu_descriptors as format_menu_descriptors, range_formatter_available, resolve_format_outcome,
+    selection_range_for, FormatApplyError, FormatMenuDescriptor, FormatOutcome,
+    FORMAT_DOCUMENT_CTX_AUTHOR_ID, FORMAT_DOCUMENT_MENU_AUTHOR_ID, FORMAT_SELECTION_CTX_AUTHOR_ID,
+    NO_FORMATTER_TOOLTIP,
 };
 pub use cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,

@@ -91,7 +91,7 @@ use super::editor_view::{
     CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
 };
 use super::formatting::{self, FormatOutcome};
-use super::lsp_client::{LspClient, LspTextEdit, PublishedDiagnostics};
+use super::lsp_client::{LspClient, PublishedDiagnostics};
 use super::signature_help::{
     active_parameter_from_commas, render_signature_popup, SignatureHelpState,
 };
@@ -899,22 +899,6 @@ type RenameResultCell = Arc<Mutex<Option<Result<WorkspaceEditPreview, String>>>>
 /// only on an `Applied` outcome that changed the buffer); the `FormatOutcome` carries the typed result the
 /// drain reports + toasts. Aliased so the field type stays legible (clippy `type_complexity`).
 type FormatResultCell = Arc<Mutex<Option<(String, Option<String>, FormatOutcome)>>>;
-
-/// MT-050: resolve a delivered format `edits` array against the pre-format `before` text into
-/// `(formatted_text_if_changed, FormatOutcome)`, off the UI thread (no panel access). An empty edit array
-/// or a no-change result yields `(None, NoChange)`; a successful change yields `(Some(after), Applied)`; a
-/// resolve/apply failure yields `(None, LspError)`. The UI-thread drain then installs `after` + records the
-/// single undo entry. Kept module-level so the spawned task can call it without borrowing the panel.
-fn resolve_format_outcome(before: &str, edits: &[LspTextEdit]) -> (Option<String>, FormatOutcome) {
-    if edits.is_empty() {
-        return (None, FormatOutcome::NoChange);
-    }
-    match formatting::apply_text_edits_to_string(before, edits) {
-        Ok(after) if after == before => (None, FormatOutcome::NoChange),
-        Ok(after) => (Some(after), FormatOutcome::Applied { edit_count: edits.len() }),
-        Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
-    }
-}
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -3276,7 +3260,8 @@ impl CodeEditorPanel {
     /// format request is armed this frame, fires the off-thread `textDocument/formatting` /
     /// `rangeFormatting` request. The egui thread NEVER blocks on the LSP (HBR-QUIET / RISK-005): the
     /// request runs on the injected runtime and writes its typed outcome to the delivery cell for the next
-    /// frame's drain. A no-op without a runtime (the deterministic tests drive `apply_format_result`).
+    /// frame's drain. A no-op without a runtime (the deterministic tests drive
+    /// [`formatting::resolve_format_outcome`] directly + the kittest drives the live async pump).
     fn pump_formatting(&self) {
         // (1) Drain any delivered off-thread format result.
         self.drain_format_result();
@@ -3304,7 +3289,7 @@ impl CodeEditorPanel {
         if want_doc {
             runtime.spawn(async move {
                 let outcome = match lsp_client.format_document(&uri, options).await {
-                    Ok(edits) => resolve_format_outcome(&before, &edits),
+                    Ok(edits) => formatting::resolve_format_outcome(&before, &edits),
                     Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
                 };
                 if let Ok(mut slot) = cell.lock() {
@@ -3321,7 +3306,7 @@ impl CodeEditorPanel {
             let Some(range) = range else { return };
             runtime.spawn(async move {
                 let outcome = match lsp_client.format_range(&uri, range, options).await {
-                    Ok(edits) => resolve_format_outcome(&before, &edits),
+                    Ok(edits) => formatting::resolve_format_outcome(&before, &edits),
                     Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
                 };
                 if let Ok(mut slot) = cell.lock() {
