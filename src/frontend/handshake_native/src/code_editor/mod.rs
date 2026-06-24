@@ -75,6 +75,11 @@ pub mod folding;
 pub mod formatting;
 pub mod gutter;
 pub mod highlight;
+// WP-KERNEL-012 MT-052 (E1 — VS Code parity): jump history (the Navigate Back / Forward stack behind
+// Alt+Left / Alt+Right). Pure, egui-free, in-memory session state recording cross-file cursor positions
+// at the four navigation-jump sites (goto-def / references / outline / goto-line). VS Code semantics:
+// forward-tail truncation on a new jump, cross-file path retention, coalescing, cap at 50. No persistence.
+pub mod jump_history;
 pub mod keymap;
 pub mod keymap_settings;
 // WP-KERNEL-012 MT-051 (E1 — VS Code parity): Line-edit buffer transforms behind the MT-010 keymap. The
@@ -86,6 +91,11 @@ pub mod keymap_settings;
 pub mod line_ops;
 pub mod lsp_client;
 pub mod minimap;
+// WP-KERNEL-012 MT-052 (E1 — VS Code parity): diagnostic traversal (the F8 / Shift+F8 core behind Go to
+// Next/Previous Problem). Pure functions over the MT-007 gutter `GutterMarker` store (REUSED, never a
+// parallel marker type) with strict before/after comparison + wraparound; ordering matches
+// ProblemsView.tsx so F8 order equals the Problems-list order.
+pub mod navigation;
 // WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the "Notes mentioning this symbol" side panel.
 // The native-only reverse-direction surface (the React CodeSymbolPanel has only the definition + file
 // lens). Lists rich docs that reference the focused symbol via interop::find_notes_referencing_symbol;
@@ -172,7 +182,13 @@ pub use line_ops::{
 pub use keymap_settings::{
     key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,
 };
+pub use jump_history::{
+    JumpEntry, JumpHistory, COALESCE_LINE_TOLERANCE, MAX_ENTRIES as MAX_JUMP_ENTRIES,
+};
 pub use minimap::{Minimap, MinimapResponse, DEFAULT_MINIMAP_WIDTH};
+pub use navigation::{
+    next_diagnostic, prev_diagnostic, BufferPosition, DiagnosticNavigator,
+};
 pub use note_refs_panel::{
     render_note_refs_panel, row_author_id as note_ref_row_author_id,
     NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,

@@ -110,7 +110,9 @@ use super::gutter::{
     GutterResponse,
 };
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
+use super::jump_history::{JumpEntry, JumpHistory};
 use super::keymap::{CodeEditorAction, KeyChord, Keymap};
+use super::navigation::{next_diagnostic, prev_diagnostic, BufferPosition};
 use super::keymap_settings::{keymap_settings_path, KeymapSettings};
 use super::minimap::Minimap;
 use super::outline::{OutlineItem, OutlineProvider};
@@ -535,6 +537,17 @@ pub struct CodeEditorPanel {
     /// (KERNEL_BUILDER gate: a diagnostics push must NOT trigger the MT-002 highlight-cache / tree
     /// re-parse — see `push_diagnostics`). The gutter reads this to draw severity dots + left bars.
     diagnostic_markers: Mutex<Vec<GutterMarker>>,
+    /// MT-052 jump-history stack (Navigate Back / Forward — Alt+Left / Alt+Right). In-memory SESSION
+    /// state only (no PostgreSQL/EventLedger persistence — the MT is pure frontend). It records the
+    /// PRE-jump cursor location at the four navigation-jump dispatch sites (goto-def / references /
+    /// outline / goto-line) so Navigate Back can restore it, including across files. Behind a `Mutex` for
+    /// the same `Sync` reason as the buffer.
+    jump_history: Mutex<JumpHistory>,
+    /// MT-052 pending CROSS-FILE jump target: set when a Navigate Back/Forward restores a position in a
+    /// file OTHER than the one this panel currently shows. The actual document swap is the E11 host-mount
+    /// MT's job, so MT-052 parks the intent here (instead of moving the caret in the wrong file —
+    /// RISK-005) and the host drains it. `None` when the last restore was same-file or none happened.
+    pending_cross_file_jump: Mutex<Option<JumpEntry>>,
     /// MT-007 breakpoint publish channel to the FUTURE debug-adapter (DAP) client. The sender is held
     /// here (cloned for each publish); the receiver is held until a DAP client takes it via
     /// [`subscribe_breakpoints`]. An UNBOUNDED `std::sync::mpsc` channel + `send().ok()` is the
@@ -1138,6 +1151,8 @@ impl CodeEditorPanel {
             gutter_config: Mutex::new(GutterConfig::default()),
             breakpoint_set: Mutex::new(BreakpointSet::new()),
             diagnostic_markers: Mutex::new(Vec::new()),
+            jump_history: Mutex::new(JumpHistory::new()),
+            pending_cross_file_jump: Mutex::new(None),
             breakpoint_sender,
             breakpoint_receiver: Mutex::new(Some(breakpoint_receiver)),
             file_path: Mutex::new(String::new()),
@@ -1975,12 +1990,177 @@ impl CodeEditorPanel {
         };
         match target {
             Some(line) => {
+                // MT-052 jump-history record site #1 (goto-line): record the PRE-jump caret location so
+                // Navigate Back can return here, BEFORE the caret moves to the target line.
+                self.record_jump_origin();
                 self.navigate_to_line(line);
                 self.close_goto_line();
                 true
             }
             None => false, // invalid input: no navigation, palette stays open (AC-002).
         }
+    }
+
+    // ── MT-052 GO-menu navigation: diagnostic traversal (F8/Shift+F8) + jump history (Alt+Left/Right) ─
+
+    /// The primary caret's position as a [`BufferPosition`] (line, column). The bridge from the editor's
+    /// byte-offset cursor to diagnostic-traversal space.
+    fn primary_caret_position(&self) -> BufferPosition {
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let primary = self
+            .cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .primary();
+        BufferPosition::from_cursor(primary, &buffer)
+    }
+
+    /// Record the CURRENT caret location as the PRE-jump origin in the jump-history stack (MT-052). Called
+    /// at the four navigation-jump dispatch sites (goto-def / references / outline-symbol / goto-line)
+    /// BEFORE the caret moves, so Navigate Back can return here — including across files (the entry
+    /// carries this panel's `file_path`). Coalescing + forward-tail truncation + the 50-entry cap live in
+    /// [`JumpHistory::record`]. NOTE (RISK-006 / MC-006): only these four jump sites call this — ordinary
+    /// typing / arrow-key caret moves do NOT, so Alt+Left steps one JUMP at a time, not one char.
+    pub fn record_jump_origin(&self) {
+        let entry = self.current_jump_entry();
+        self.jump_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .record(entry);
+    }
+
+    /// A [`JumpEntry`] for the panel's current file + primary caret position.
+    fn current_jump_entry(&self) -> JumpEntry {
+        JumpEntry::new(self.file_path(), self.primary_caret_position())
+    }
+
+    /// Test hook: record an EXPLICIT jump origin (rather than the live caret), so a test can seed the
+    /// jump history with a cross-file origin to exercise the graceful different-file Navigate Back path
+    /// (MC-005) without a live multi-file host.
+    #[doc(hidden)]
+    pub fn record_jump_origin_for_test(&self, entry: JumpEntry) {
+        self.jump_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .record(entry);
+    }
+
+    /// Go to the NEXT diagnostic marker (F8). Reads the live MT-007 gutter marker store + the primary
+    /// caret, asks [`next_diagnostic`] for the first marker strictly after the caret (wrapping at the
+    /// end), and on `Some(pos)` RECORDS the pre-jump location (so Navigate Back returns here) then moves
+    /// the caret to that line via the shared [`navigate_to_line`](Self::navigate_to_line) primitive. A
+    /// graceful no-op (no record, no move) when there are no diagnostics — `next_diagnostic` returns
+    /// `None`.
+    fn go_to_next_diagnostic(&self) {
+        let markers = self.diagnostic_markers();
+        let cursor = self.primary_caret_position();
+        if let Some(target) = next_diagnostic(&markers, cursor) {
+            self.record_jump_origin();
+            self.navigate_to_line(target.line);
+        }
+    }
+
+    /// Go to the PREVIOUS diagnostic marker (Shift+F8). Symmetric to
+    /// [`go_to_next_diagnostic`](Self::go_to_next_diagnostic) via [`prev_diagnostic`].
+    fn go_to_prev_diagnostic(&self) {
+        let markers = self.diagnostic_markers();
+        let cursor = self.primary_caret_position();
+        if let Some(target) = prev_diagnostic(&markers, cursor) {
+            self.record_jump_origin();
+            self.navigate_to_line(target.line);
+        }
+    }
+
+    /// Navigate BACK (Alt+Left): pop the jump-history one step toward the past and restore that location.
+    /// Reuses the cross-file restore path: when the restored entry's `file_path` differs from this
+    /// panel's current file, the caret-move is deferred to the host (a follow-on host-mount MT opens the
+    /// other file) — in MT-052 scope a different-file Back updates the file_path label + records the
+    /// target but the actual document swap is the host's job; a SAME-file Back moves the caret here. A
+    /// MISSING / different file is handled gracefully (no panic, no spurious caret jump in the wrong
+    /// file). A no-op when there is nothing to go back to.
+    fn navigate_back(&self) {
+        let current = self.current_jump_entry();
+        let target = {
+            let mut hist = self.jump_history.lock().unwrap_or_else(|e| e.into_inner());
+            hist.back(current)
+        };
+        if let Some(entry) = target {
+            self.apply_jump_target(entry);
+        }
+    }
+
+    /// Navigate FORWARD (Alt+Right): step the jump-history one entry toward the future and restore that
+    /// location. A no-op when already at the tail.
+    fn navigate_forward(&self) {
+        let target = {
+            let mut hist = self.jump_history.lock().unwrap_or_else(|e| e.into_inner());
+            hist.forward()
+        };
+        if let Some(entry) = target {
+            self.apply_jump_target(entry);
+        }
+    }
+
+    /// Apply a restored jump target: when it is in THIS file, move the caret to its line (the live,
+    /// testable path); when it names a DIFFERENT file, the document swap is the host-mount MT's
+    /// responsibility, so MT-052 records the intent on the panel's pending cross-file target rather than
+    /// moving the caret in the wrong file (RISK-005 — never jump the caret to a line in a file that is
+    /// not loaded). A missing/empty path is a graceful no-op. The pending target is observable so the host
+    /// + tests can confirm the cross-file intent was produced.
+    fn apply_jump_target(&self, entry: JumpEntry) {
+        let target_path = entry.file_path.to_string_lossy().to_string();
+        let current_path = self.file_path();
+        if target_path == current_path {
+            // Same file: move the caret here (live + kittest-provable).
+            self.navigate_to_line(entry.position.line);
+            *self.pending_cross_file_jump.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        } else {
+            // Different file: the host opens it (follow-on host-mount MT). Park the intent; do NOT move
+            // the caret in the current (wrong) file. RISK-005: graceful, no panic, history cursor already
+            // advanced by back()/forward().
+            tracing::debug!(
+                target = %target_path,
+                current = %current_path,
+                line = entry.position.line,
+                "MT-052 navigate: cross-file jump target parked for the host to open"
+            );
+            *self.pending_cross_file_jump.lock().unwrap_or_else(|e| e.into_inner()) = Some(entry);
+        }
+    }
+
+    /// Whether Navigate Back would do something (drives the GO-menu Back item's enabled state).
+    pub fn can_navigate_back(&self) -> bool {
+        self.jump_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .can_back()
+    }
+
+    /// Whether Navigate Forward would do something (drives the GO-menu Forward item's enabled state).
+    pub fn can_navigate_forward(&self) -> bool {
+        self.jump_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .can_forward()
+    }
+
+    /// The pending cross-file jump target produced by a Navigate Back/Forward into a DIFFERENT file, or
+    /// `None`. The host-mount MT (E11) drains this to open the target document; observable so a test can
+    /// prove the cross-file intent without a live multi-file host.
+    pub fn pending_cross_file_jump(&self) -> Option<JumpEntry> {
+        self.pending_cross_file_jump
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// Test/diagnostic hook: a snapshot clone of the jump-history stack (for the jump_history proof to
+    /// observe the live panel-side wiring, not just the pure-module unit tests).
+    pub fn jump_history_snapshot(&self) -> JumpHistory {
+        self.jump_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     // ── MT-007 gutter / diagnostics / breakpoints API ─────────────────────────────────────────────
@@ -4275,6 +4455,9 @@ impl CodeEditorPanel {
         }
         // Drain a delivered go-to-definition target (F12): jump the caret + scroll to the def line.
         if let Some(line) = self.goto_def_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            // MT-052 jump-history record site #2 (goto-definition): record the PRE-jump caret location so
+            // Navigate Back returns to the call site, BEFORE the caret jumps to the definition line.
+            self.record_jump_origin();
             self.navigate_to_line(line);
         }
         // Drain a delivered references result (Shift+F12): park it for the observable accessor. No
@@ -4305,6 +4488,9 @@ impl CodeEditorPanel {
         if let Some(state) = self.hover_state() {
             match HoverTooltip::show(ui.ctx(), &state, &self.instance) {
                 HoverOutcome::GotoDefinition(line) => {
+                    // MT-052 jump-history record site #2b (hover "Go to definition" link — same
+                    // goto-definition jump class): record the pre-jump location before the caret moves.
+                    self.record_jump_origin();
                     self.navigate_to_line(line);
                     self.close_hover();
                 }
@@ -4658,6 +4844,9 @@ impl CodeEditorPanel {
 
             // Navigate AFTER the borrow on `items` is released (fold-aware scroll + caret move).
             if let Some(line) = navigate_to {
+                // MT-052 jump-history record site #3 (outline / in-file symbol jump): record the pre-jump
+                // caret location so Navigate Back returns here, before the caret moves to the symbol line.
+                self.record_jump_origin();
                 self.navigate_to_line(line);
             }
         });
@@ -6657,6 +6846,15 @@ impl CodeEditorPanel {
             A::Redo => self.redo(),
             A::Save => self.request_save(),
             A::OpenCommandPalette => self.open_command_palette(),
+            // MT-052 GO-menu navigation. F8 / Shift+F8 traverse the MT-007 diagnostic markers with
+            // wraparound (recording the pre-jump location so Back returns); Alt+Left / Alt+Right walk the
+            // cross-file jump-history stack. Menu click AND keybinding dispatch THIS same arm (one path
+            // through dispatch_action — RISK-007 / MC-007), so the GO menu and the F8/Alt keys never
+            // diverge.
+            A::GoToNextDiagnostic => self.go_to_next_diagnostic(),
+            A::GoToPrevDiagnostic => self.go_to_prev_diagnostic(),
+            A::NavigateBack => self.navigate_back(),
+            A::NavigateForward => self.navigate_forward(),
         }
     }
 

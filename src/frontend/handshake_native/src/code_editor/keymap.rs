@@ -196,6 +196,15 @@ pub enum CodeEditorAction {
     Redo,
     Save,
     OpenCommandPalette,
+    // WP-KERNEL-012 MT-052 (E1 — VS Code parity): GO-menu navigation. APPENDED to the MT-010 enum (do
+    // NOT reorder the variants above — RISK-008 / MC-008). F8 = Go to Next Problem, Shift+F8 = Go to
+    // Previous Problem (traverse the MT-007 diagnostic markers with wraparound); Alt+Left = Navigate
+    // Back, Alt+Right = Navigate Forward (walk the cross-file jump-history stack). The dispatch arms live
+    // in panel.rs::process_keymap (where MT-047..051 dispatch), not here — this enum only adds the ids.
+    GoToNextDiagnostic,
+    GoToPrevDiagnostic,
+    NavigateBack,
+    NavigateForward,
 }
 
 impl CodeEditorAction {
@@ -265,6 +274,11 @@ impl CodeEditorAction {
             Redo,
             Save,
             OpenCommandPalette,
+            // MT-052 (appended — keep after the MT-010/047-050 variants).
+            GoToNextDiagnostic,
+            GoToPrevDiagnostic,
+            NavigateBack,
+            NavigateForward,
         ]
     }
 
@@ -335,6 +349,11 @@ impl CodeEditorAction {
             Redo => "redo",
             Save => "save",
             OpenCommandPalette => "open_command_palette",
+            // MT-052 GO-menu navigation.
+            GoToNextDiagnostic => "go_to_next_diagnostic",
+            GoToPrevDiagnostic => "go_to_prev_diagnostic",
+            NavigateBack => "navigate_back",
+            NavigateForward => "navigate_forward",
         }
     }
 
@@ -402,6 +421,11 @@ impl CodeEditorAction {
             Redo => "Redo",
             Save => "Save",
             OpenCommandPalette => "Open command palette",
+            // MT-052 GO-menu navigation.
+            GoToNextDiagnostic => "Go to next problem",
+            GoToPrevDiagnostic => "Go to previous problem",
+            NavigateBack => "Navigate back",
+            NavigateForward => "Navigate forward",
         }
     }
 
@@ -519,6 +543,15 @@ impl Keymap {
             // ── LSP navigation (MT-008) ──
             KeyBinding::single(plain(Key::F12), A::GoToDefinition, "Go to definition"),
             KeyBinding::single(shift(Key::F12), A::ShowReferences, "Show references"),
+            // ── GO-menu navigation (MT-052) ── F8 / Shift+F8 traverse diagnostics; Alt+Left/Right walk
+            // the jump-history stack (VS Code parity). Appended after the MT-008 entries so the existing
+            // single-chord resolver entries are untouched (RISK-008 — the keymap suite re-proves no
+            // regression). Alt+ArrowLeft/Right do not collide with the plain ArrowLeft/Right caret moves
+            // (different modifier flags) or with Alt+ArrowUp/Down (different key).
+            KeyBinding::single(plain(Key::F8), A::GoToNextDiagnostic, "Go to next problem"),
+            KeyBinding::single(shift(Key::F8), A::GoToPrevDiagnostic, "Go to previous problem"),
+            KeyBinding::single(alt(Key::ArrowLeft), A::NavigateBack, "Navigate back"),
+            KeyBinding::single(alt(Key::ArrowRight), A::NavigateForward, "Navigate forward"),
             // ── Refactoring (MT-048) ── F2 = Rename Symbol (VS Code parity).
             KeyBinding::single(plain(Key::F2), A::RenameSymbol, "Rename symbol"),
             // ── Quick Fix (MT-049) ── Ctrl+. = code actions / quick-fix menu (VS Code parity).
@@ -669,9 +702,10 @@ mod tests {
     #[test]
     fn all_covers_every_variant_and_names_are_unique() {
         let all = CodeEditorAction::all();
-        // 60 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
-        // FormatDocument + FormatSelection).
-        assert_eq!(all.len(), 60, "all() must list every variant exactly once");
+        // 64 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
+        // FormatDocument + FormatSelection + MT-052 GoToNextDiagnostic/GoToPrevDiagnostic/NavigateBack/
+        // NavigateForward).
+        assert_eq!(all.len(), 64, "all() must list every variant exactly once");
         let mut names: Vec<&str> = all.iter().map(|a| a.name()).collect();
         names.sort_unstable();
         let before = names.len();

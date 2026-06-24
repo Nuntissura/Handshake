@@ -97,6 +97,22 @@ use egui::accesskit;
 /// restarts — the same convention the theme toggle, chrome, dividers, and module switcher use.
 pub const MENU_BAR_NODE_ID_BASE: u64 = 92;
 
+/// WP-KERNEL-012 MT-052 GO-menu editor-navigation leaf author_ids (the exact ids the MT contract names
+/// in step 6 so a swarm agent invokes navigation deterministically). These are LEAF items (dynamic —
+/// they exist only while the GO menu is open), so they live in egui's hashed id space addressed by these
+/// stable strings, NOT a fixed-band `NodeId` (the same pattern as every other leaf item). Each is a
+/// `Role::MenuItem` node carrying its author_id, so it is discoverable + passes the MT-025 gate even
+/// while rendered disabled-until-E11.
+pub const GO_NEXT_DIAGNOSTIC_AUTHOR_ID: &str = "menu-go-next-diagnostic";
+pub const GO_PREV_DIAGNOSTIC_AUTHOR_ID: &str = "menu-go-prev-diagnostic";
+pub const GO_BACK_AUTHOR_ID: &str = "menu-go-back";
+pub const GO_FORWARD_AUTHOR_ID: &str = "menu-go-forward";
+
+/// The disclosed reason shown on the disabled MT-052 GO-menu editor-navigation leaves until the editor is
+/// host-mounted (E11 MT-069), matching the MT-050 disabled-until-mounted precedent.
+pub const MENU_GO_EDITOR_DISABLED_REASON: &str =
+    "Needs the live code editor (host-mounted in E11 MT-069)";
+
 /// A top-level menu in the menu bar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuId {
@@ -262,6 +278,12 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.run.flight-recorder",
     "menu.help.user-manual",
     "menu.help.settings",
+    // WP-KERNEL-012 MT-052 GO-menu editor navigation (discoverable by swarm agents; they dispatch once
+    // the editor is host-mounted in E11).
+    GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+    GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+    GO_BACK_AUTHOR_ID,
+    GO_FORWARD_AUTHOR_ID,
 ];
 
 /// Read-only view of the live shell state the menu bar needs to render checkmarks + enable/disable
@@ -451,6 +473,18 @@ impl MenuBar {
                 ui.separator();
                 self.item(ui, "menu.go.next-pane", "Go to Next Pane", None, true, MenuBarAction::FocusNextPane, action);
                 self.item(ui, "menu.go.prev-pane", "Go to Previous Pane", None, true, MenuBarAction::FocusPrevPane, action);
+                ui.separator();
+                // WP-KERNEL-012 MT-052: editor navigation leaves. Present + AccessKit-addressable now
+                // (author_ids menu-go-next-diagnostic / menu-go-prev-diagnostic / menu-go-back /
+                // menu-go-forward, Role::MenuItem), rendered DISABLED with a disclosed reason until the
+                // editor is host-mounted (E11 MT-069). Once live, the host wires them to the matching
+                // CodeEditorAction through the editor command path (the SAME path F8/Shift+F8/Alt+Left/
+                // Alt+Right take — RISK-007), and Back/Forward reflect can_navigate_back /
+                // can_navigate_forward. No fake-enable (MT-050 precedent).
+                self.disabled_item(ui, GO_NEXT_DIAGNOSTIC_AUTHOR_ID, "Go to Next Problem", Some("F8"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, GO_PREV_DIAGNOSTIC_AUTHOR_ID, "Go to Previous Problem", Some("Shift+F8"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, GO_BACK_AUTHOR_ID, "Back", Some("Alt+Left"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, GO_FORWARD_AUTHOR_ID, "Forward", Some("Alt+Right"), MENU_GO_EDITOR_DISABLED_REASON);
             }
             MenuId::Run => {
                 self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
@@ -677,7 +711,17 @@ mod tests {
     fn swarm_accessible_actions_listed() {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
-        assert_eq!(SWARM_ACCESSIBLE_ACTIONS.len(), 7, "all overlay/navigation actions listed");
+        // 7 base overlay/navigation actions + the 4 MT-052 GO-menu editor-navigation leaves.
+        assert_eq!(SWARM_ACCESSIBLE_ACTIONS.len(), 11, "all overlay/navigation actions listed");
+        // MT-052 GO-menu editor navigation is swarm-discoverable.
+        for id in [
+            GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
+            GO_PREV_DIAGNOSTIC_AUTHOR_ID,
+            GO_BACK_AUTHOR_ID,
+            GO_FORWARD_AUTHOR_ID,
+        ] {
+            assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&id), "{id} is swarm-accessible");
+        }
         // Destructive/document actions are NOT swarm-exposed.
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.file.quit"));
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));
