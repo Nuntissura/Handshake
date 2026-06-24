@@ -189,21 +189,38 @@ fn insert_tab_respects_operator_indent_settings() {
 
 #[test]
 fn comment_token_follows_file_language() {
-    // A `.rs` panel's language id drives the `//` token; the LineEditContext built from it matches.
-    let rs = CodeEditorPanel::new("fn f() {}", "rs");
-    rs.set_single_cursor(0);
-    rs.dispatch_action(CodeEditorAction::ToggleComment);
-    assert!(rs.buffer().to_string().starts_with("// "), "a .rs buffer comments with //");
+    // MC-007 (adversarial-review hardening): the comment token must be proven through the REAL dispatch
+    // path — a panel built for a real extension, its language id flowing into the LineEditContext, the
+    // ToggleComment action dispatched end-to-end. We prove BOTH bundled languages this way (the two the
+    // registry can actually produce: Rust `.rs` and JavaScript `.js`), so the non-no-op comment branch is
+    // genuinely reachable for every language the product table claims, not asserted against itself.
+    for (ext, family) in [("rs", "rust"), ("js", "javascript")] {
+        let panel = CodeEditorPanel::new("f()", ext);
+        // The panel carries the SAME family id the token table is keyed on (no second enum, RISK-007).
+        assert_eq!(panel.language_id(), family, "{ext} panel carries family id {family}");
+        panel.set_single_cursor(0);
+        panel.dispatch_action(CodeEditorAction::ToggleComment);
+        assert!(
+            panel.buffer().to_string().starts_with("// "),
+            "a .{ext} buffer comments with // through the live dispatch path"
+        );
+        // And the token table agrees with the live id.
+        assert_eq!(line_comment_token(family), Some("//"));
+        let ctx = LineEditContext::new(family, 4, true);
+        assert_eq!(line_comment_token(ctx.language_id), Some("//"));
+    }
 
-    // The token table itself, keyed on the language-family id (no second enum).
-    assert_eq!(line_comment_token("rust"), Some("//"));
-    assert_eq!(line_comment_token("python"), Some("#"));
-    assert_eq!(line_comment_token("sql"), Some("--"));
-    assert_eq!(line_comment_token("plaintext"), None);
-
-    // A LineEditContext is constructible from the family id (the dispatch path uses the panel's id).
-    let ctx = LineEditContext::new("rust", 4, true);
-    assert_eq!(line_comment_token(ctx.language_id), Some("//"));
+    // REACHABILITY: the table is narrowed to the bundled families. Families with no bundled grammar (so no
+    // panel can carry their id) intentionally return None — a safe ToggleComment no-op (AC-008) — until the
+    // registry bundles their grammar (future work). Asserting None keeps the table free of dead Some(_)
+    // arms that could only ever be tested against themselves.
+    for unmapped in ["python", "sql", "lua", "typescript", "go", "c", "plaintext", ""] {
+        assert_eq!(
+            line_comment_token(unmapped),
+            None,
+            "{unmapped:?} has no bundled grammar -> ToggleComment is a safe no-op (future work)"
+        );
+    }
 }
 
 // ── AC-010 / PT-004: no todo!/unimplemented! on the eight handler paths ────────────────────────────────

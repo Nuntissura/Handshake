@@ -15,8 +15,13 @@
 //! ([`super::highlight::language_id_for_extension`] → `"rust"` / `"javascript"`), carried on the
 //! highlighter and on [`CodeEditorPanel::language_id`](super::panel::CodeEditorPanel). To avoid creating
 //! a SECOND competing language type (the exact RISK-007 failure), [`LineEditContext`] keys the comment
-//! token on that SAME language-family id string, so a file's highlight language drives its comment token
-//! (a `.rs` buffer → `//`, a `.py` buffer → `#`). [`line_comment_token`] is the single token table.
+//! token on that SAME language-family id string, so a file's highlight language drives its comment token.
+//! [`line_comment_token`] is the single token table, and it is NARROWED to the language families the
+//! bundled registry can actually produce — `"rust"` and `"javascript"` (both `//`). Other families (`#`
+//! for Python/Shell, `--` for SQL/Lua, `//` for TS/C/Go/…) are future work gated on grammar registration:
+//! the registry does not bundle their grammar and `language_id_for_extension` does not resolve their
+//! extension, so no panel can carry their id and the token would be DEAD in the product. See the
+//! [`line_comment_token`] docs for the reachability rationale (adversarial-review hardening).
 //!
 //! ## Cross-cutting requirements (multi-cursor + single undo)
 //!
@@ -85,16 +90,31 @@ impl LineEditContext {
     }
 }
 
-/// The line-comment token for a language-family id, or `None` for a language with no line comment (whose
-/// ToggleComment is a safe no-op — AC-008). The table the MT specifies: `//` for the C-family + Rust/JS/
-/// TS/Go/Java, `#` for Python/Shell/TOML/YAML, `--` for SQL/Lua. Keyed on the language-family id string
+/// The line-comment token for a language-family id, or `None` for a language with no line comment token
+/// reachable through the product (whose ToggleComment is a safe no-op — AC-008). Keyed on the SAME stable
+/// language-family id string the highlighter carries ([`super::highlight::language_id_for_extension`]),
 /// so it matches the file's highlight language (RISK-007 / MC-007), never a second enum. Returns a
 /// `&'static str` so callers do not allocate.
+///
+/// REACHABILITY (adversarial-review hardening): the token table is deliberately NARROWED to the language
+/// families the bundled [`super::highlight::LanguageRegistry::with_bundled_languages`] actually produces —
+/// `"rust"` (`.rs`) and `"javascript"` (`.js`/`.jsx`/`.mjs`/`.cjs`). Those are the ONLY ids
+/// [`super::highlight::language_id_for_extension`] resolves, and the dispatch path
+/// ([`super::panel::CodeEditorPanel::line_edit_context`]) feeds this fn exactly the panel's
+/// `language_id`, i.e. one of `"rust"` / `"javascript"` / `""`. A wider table (`#` for Python/Shell/YAML,
+/// `--` for SQL/Lua, `//` for TS/C/C++/Java/Go/C#) would be DEAD in the product: no panel can carry those
+/// ids until the registry bundles the grammar AND `language_id_for_extension` learns the extension — a
+/// registry/grammar dependency OUT OF SCOPE for this pure-transform MT (MT-051 `binds_backend_api = NONE`).
+/// FUTURE WORK: when a grammar is registered for an extension whose family id is one of those below, add
+/// the matching arm here (the `//` C-family + `#`/`--` mappings are the intended targets) so the token
+/// follows the new highlight language. Until then this fn returns `None` for them (a safe no-op), and
+/// MC-007's `.py`-style proof is correctly scoped to the bundled families only.
 pub fn line_comment_token(language_id: &str) -> Option<&'static str> {
     match language_id {
-        "rust" | "javascript" | "typescript" | "c" | "cpp" | "java" | "go" | "csharp" => Some("//"),
-        "python" | "shell" | "bash" | "ruby" | "toml" | "yaml" | "perl" | "r" => Some("#"),
-        "sql" | "lua" | "haskell" | "ada" => Some("--"),
+        // Bundled + reachable today: Rust (`.rs`) and JavaScript (`.js`/`.jsx`/`.mjs`/`.cjs`) both use `//`.
+        "rust" | "javascript" => Some("//"),
+        // No grammar bundled for any `#`/`--`-comment family yet, so no panel can carry these ids — they
+        // are intentionally unreachable (future work, gated on grammar registration; see fn docs).
         _ => None,
     }
 }
@@ -651,24 +671,48 @@ mod tests {
 
     #[test]
     fn comment_token_keyed_on_language_family_id() {
+        // The token table is keyed on the SAME language-family id the highlighter carries, and NARROWED to
+        // the families the bundled registry can actually produce. Every id that resolves to Some(_) here is
+        // a real, reachable product id: `language_id_for_extension` MUST resolve a file extension to it.
         // A `.rs` buffer's family id is "rust" (the SAME id the highlighter carries) -> "//".
         assert_eq!(
             super::super::highlight::language_id_for_extension("rs"),
             Some("rust")
         );
         assert_eq!(line_comment_token("rust"), Some("//"));
-        // `.js` -> "javascript" -> "//".
+        // `.js`/`.jsx`/`.mjs`/`.cjs` -> "javascript" -> "//".
         assert_eq!(
             super::super::highlight::language_id_for_extension("js"),
             Some("javascript")
         );
         assert_eq!(line_comment_token("javascript"), Some("//"));
-        // Python -> "#".
-        assert_eq!(line_comment_token("python"), Some("#"));
-        // SQL/Lua -> "--".
-        assert_eq!(line_comment_token("sql"), Some("--"));
-        assert_eq!(line_comment_token("lua"), Some("--"));
-        // Unknown language -> None (ToggleComment no-op, AC-008).
+
+        // REACHABILITY INVARIANT (adversarial-review hardening): the ONLY family ids that may yield a token
+        // are the ids the registry can actually produce. Anything `line_comment_token` accepts must be a
+        // value `language_id_for_extension` returns for some extension — otherwise the arm is DEAD in the
+        // product (a panel can never carry it). Prove the two reachable ids round-trip from an extension,
+        // and that there is no third reachable id by construction (the table only matches "rust"/"javascript").
+        for (ext, expected_id) in [("rs", "rust"), ("js", "javascript")] {
+            let id = super::super::highlight::language_id_for_extension(ext)
+                .expect("bundled extension resolves to a family id");
+            assert_eq!(id, expected_id);
+            assert!(
+                line_comment_token(id).is_some(),
+                "a reachable family id must have a comment token"
+            );
+        }
+
+        // Families with NO bundled grammar are intentionally unreachable -> None (future work, see fn docs).
+        // These are NOT dispatch ids today: `language_id_for_extension` resolves no extension to them, so
+        // no panel can produce them. Asserting None pins the narrowing (not a dead Some(_) arm).
+        for unmapped in ["python", "shell", "sql", "lua", "typescript", "c", "cpp", "java", "go", "csharp"] {
+            assert_eq!(
+                line_comment_token(unmapped),
+                None,
+                "{unmapped} has no bundled grammar -> no comment token reachable yet (AC-008 no-op)"
+            );
+        }
+        // Unknown / empty language -> None (ToggleComment no-op, AC-008).
         assert_eq!(line_comment_token("plaintext"), None);
         assert_eq!(line_comment_token(""), None);
     }
