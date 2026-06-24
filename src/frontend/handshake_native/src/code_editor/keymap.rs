@@ -205,6 +205,11 @@ pub enum CodeEditorAction {
     GoToPrevDiagnostic,
     NavigateBack,
     NavigateForward,
+    // WP-KERNEL-012 MT-053 (E1 — VS Code parity): in-file Go to Symbol (Ctrl+Shift+O). APPENDED to the
+    // enum (do NOT reorder the variants above — the same no-reorder discipline MT-052 used). Opens the
+    // file-scoped symbol palette (author_id code_editor_symbol_palette), STRICTLY DISTINCT from MT-030's
+    // global Ctrl+P/Ctrl+T quick-switcher. The dispatch arm lives in panel.rs::dispatch_action.
+    GoToSymbolInFile,
 }
 
 impl CodeEditorAction {
@@ -279,6 +284,8 @@ impl CodeEditorAction {
             GoToPrevDiagnostic,
             NavigateBack,
             NavigateForward,
+            // MT-053 (appended — keep after the MT-052 variants).
+            GoToSymbolInFile,
         ]
     }
 
@@ -354,6 +361,8 @@ impl CodeEditorAction {
             GoToPrevDiagnostic => "go_to_prev_diagnostic",
             NavigateBack => "navigate_back",
             NavigateForward => "navigate_forward",
+            // MT-053 in-file Go to Symbol.
+            GoToSymbolInFile => "go_to_symbol_in_file",
         }
     }
 
@@ -426,6 +435,8 @@ impl CodeEditorAction {
             GoToPrevDiagnostic => "Go to previous problem",
             NavigateBack => "Navigate back",
             NavigateForward => "Navigate forward",
+            // MT-053 in-file Go to Symbol.
+            GoToSymbolInFile => "Go to symbol in file",
         }
     }
 
@@ -552,6 +563,12 @@ impl Keymap {
             KeyBinding::single(shift(Key::F8), A::GoToPrevDiagnostic, "Go to previous problem"),
             KeyBinding::single(alt(Key::ArrowLeft), A::NavigateBack, "Navigate back"),
             KeyBinding::single(alt(Key::ArrowRight), A::NavigateForward, "Navigate forward"),
+            // ── In-file Go to Symbol (MT-053) ── Ctrl+Shift+O (Cmd+Shift+O on macOS) opens the
+            // file-scoped symbol palette. DISTINCT from MT-030's global quick-switcher (Ctrl+P/Ctrl+T) —
+            // different palette, different data scope (RISK-001 / MC-001 / AC-003). Appended after the
+            // MT-052 entries so the existing single-chord resolver entries are untouched; ms(Key::O) does
+            // not collide with any existing chord (no prior Mod+Shift+O binding).
+            KeyBinding::single(ms(Key::O), A::GoToSymbolInFile, "Go to symbol in file"),
             // ── Refactoring (MT-048) ── F2 = Rename Symbol (VS Code parity).
             KeyBinding::single(plain(Key::F2), A::RenameSymbol, "Rename symbol"),
             // ── Quick Fix (MT-049) ── Ctrl+. = code actions / quick-fix menu (VS Code parity).
@@ -702,10 +719,10 @@ mod tests {
     #[test]
     fn all_covers_every_variant_and_names_are_unique() {
         let all = CodeEditorAction::all();
-        // 64 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
+        // 65 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
         // FormatDocument + FormatSelection + MT-052 GoToNextDiagnostic/GoToPrevDiagnostic/NavigateBack/
-        // NavigateForward).
-        assert_eq!(all.len(), 64, "all() must list every variant exactly once");
+        // NavigateForward + MT-053 GoToSymbolInFile).
+        assert_eq!(all.len(), 65, "all() must list every variant exactly once");
         let mut names: Vec<&str> = all.iter().map(|a| a.name()).collect();
         names.sort_unstable();
         let before = names.len();

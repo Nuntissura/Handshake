@@ -157,6 +157,31 @@ pub const CODE_EDITOR_MINIMAP_AUTHOR_ID: &str = "code_editor_minimap";
 pub const CODE_EDITOR_OUTLINE_AUTHOR_ID: &str = "code_editor_outline";
 pub const CODE_EDITOR_GOTO_LINE_AUTHOR_ID: &str = "code_editor_goto_line";
 
+/// MT-053 in-file Go-to-Symbol palette author_ids (AC-003 / AC-005 / MC-005). The palette list
+/// container is `code_editor_symbol_palette` (`Role::List`); the search input is
+/// `code_editor_symbol_palette_search` (`Role::TextInput`); each result row is `symbol-{index}`
+/// (`Role::ListItem`). These are the exact ids the MT contract names so a swarm agent addresses the
+/// palette + its rows. The search/list/dialog are FIXED-band nodes (default panel); the per-row + the
+/// sticky-header nodes are DYNAMIC (count varies with the filter / scroll) and live in egui's hashed id
+/// space addressed by these stable strings, the same pattern as the fold/command per-item nodes.
+pub const CODE_EDITOR_SYMBOL_PALETTE_AUTHOR_ID: &str = "code_editor_symbol_palette";
+pub const CODE_EDITOR_SYMBOL_PALETTE_SEARCH_AUTHOR_ID: &str = "code_editor_symbol_palette_search";
+pub const CODE_EDITOR_SYMBOL_ROW_AUTHOR_PREFIX: &str = "symbol-";
+
+/// MT-053 sticky-scroll author_ids (AC-004 / AC-006 / MC-005). The pinned band container is
+/// `code_editor_sticky_scroll` (`Role::GenericContainer`); each pinned header is `sticky-header-{depth}`
+/// (`Role::Button`, so a swarm agent can click a header to scroll to its scope). The header nodes are
+/// DYNAMIC (count varies with the scroll position, capped at `max_sticky_lines`) and live in egui's
+/// hashed id space addressed by these stable strings.
+pub const CODE_EDITOR_STICKY_SCROLL_AUTHOR_ID: &str = "code_editor_sticky_scroll";
+pub const CODE_EDITOR_STICKY_HEADER_AUTHOR_PREFIX: &str = "sticky-header-";
+
+/// Max in-file symbol-palette result-row AccessKit nodes emitted per frame (RISK / node-budget cap, the
+/// analog of the cursor/fold caps). Only the first this-many filtered rows get a `symbol-{index}` node so
+/// a pathological generated file cannot blow the per-frame node budget; the list itself shows them all in
+/// a ScrollArea.
+pub const MAX_ACCESSKIT_SYMBOL_ROWS: usize = 128;
+
 /// MT-007 gutter author_ids (AC-005 / AC-003). The gutter strip is `code_editor_gutter` (the MT names
 /// `Role::Group`, which exists in accesskit 0.21.1 — no fallback). Each breakpoint toggle is
 /// `code_editor_breakpoint_{line}` (the MT names `Role::ToggleButton`, which does NOT exist in
@@ -197,6 +222,18 @@ const PANEL_FOLD_NODE_ID_BASE: u64 = 300;
 const PANEL_MINIMAP_NODE_ID: u64 = 370;
 const PANEL_OUTLINE_NODE_ID: u64 = 371;
 const PANEL_GOTO_LINE_NODE_ID: u64 = 372;
+
+/// MT-053 fixed AccessKit `NodeId`s for the default (single-instance) panel. A fresh band (700..702)
+/// ABOVE the MT-010 command band (600..600+N≈660), disjoint from the container/scroll/text (200/201/202),
+/// cursor (210..274), find-bar (280..283), fold (300..363), nav (370..372), gutter (400/410../480..), and
+/// command (600..) bands. The symbol-palette dialog (the modal window scope), the palette list container,
+/// and the search input get fixed ids; the sticky band container gets a fixed id too. Per-row + per-header
+/// nodes are DYNAMIC (hashed id space). Multi-instance panels hash the suffixed author_id instead
+/// (RISK-004), the same scheme every other panel node uses.
+const PANEL_SYMBOL_PALETTE_DIALOG_NODE_ID: u64 = 700;
+const PANEL_SYMBOL_PALETTE_LIST_NODE_ID: u64 = 701;
+const PANEL_SYMBOL_PALETTE_SEARCH_NODE_ID: u64 = 702;
+const PANEL_STICKY_SCROLL_NODE_ID: u64 = 703;
 
 /// Max per-line breakpoint / diagnostic AccessKit nodes emitted per frame (RISK-004 analog of the
 /// cursor/fold caps). Only the breakpoints/diagnostics on the painted rows are emitted, capped so a
@@ -510,6 +547,15 @@ pub struct CodeEditorPanel {
     /// MT-006 go-to-line palette state. `None` when the palette is closed (no modal, no AccessKit node);
     /// `Some` while it is open (Ctrl+G). Behind a `Mutex` for the same `Sync` reason as the buffer.
     goto_line_state: Mutex<Option<GotoLineState>>,
+    /// MT-053 in-file Go to Symbol palette (Ctrl+Shift+O). The file-scoped quick-outline, sourced by
+    /// flattening the MT-006 outline (no re-parse). Closed by default (no modal, no AccessKit node).
+    /// Behind a `Mutex` for the same `Sync` reason as the buffer. STRICTLY DISTINCT from the global
+    /// MT-030 quick-switcher (different palette, different data scope).
+    symbol_palette: Mutex<super::symbol_palette::SymbolPalette>,
+    /// MT-053 sticky-scroll computer (its config: max pinned headers). Stateless apart from the config;
+    /// the pinned headers are recomputed every frame from the current scroll offset + the live MT-005
+    /// fold regions (no caching across edits — RISK-004 / MC-004).
+    sticky_scroll: super::sticky_scroll::StickyScroll,
     /// MT-006 minimap widget (its configured width). Stateless apart from the width; carried so the
     /// width can be tuned without re-threading it through `show`.
     minimap: Minimap,
@@ -1141,6 +1187,10 @@ impl CodeEditorPanel {
             show_outline: std::sync::atomic::AtomicBool::new(outline_default_on),
             show_minimap: std::sync::atomic::AtomicBool::new(true),
             goto_line_state: Mutex::new(None),
+            // MT-053: the in-file symbol palette starts closed; sticky scroll uses the VS Code default
+            // (max 5 pinned headers).
+            symbol_palette: Mutex::new(super::symbol_palette::SymbolPalette::new()),
+            sticky_scroll: super::sticky_scroll::StickyScroll::new(),
             minimap: Minimap::new(),
             last_minimap_rect: Mutex::new(None),
             last_outline_rect: Mutex::new(None),
@@ -1999,6 +2049,136 @@ impl CodeEditorPanel {
             }
             None => false, // invalid input: no navigation, palette stays open (AC-002).
         }
+    }
+
+    // ── MT-053 in-file Go to Symbol palette (Ctrl+Shift+O) ─────────────────────────────────────────
+
+    /// Open the in-file symbol palette (Ctrl+Shift+O / the GO-menu 'Go to Symbol in File…' item). This is
+    /// the SINGLE entry point both the keybinding dispatch and the menu wiring call (AC-005), so the two
+    /// can never diverge. It sources the symbols by flattening the CURRENT MT-006 outline (the list the
+    /// panel already computed from the highlighter's tree — NO re-parse, RISK-002 / AC-007), mapped
+    /// against the live buffer for the byte ranges. Idempotent: re-opening re-seeds from the current
+    /// outline. STRICTLY DISTINCT from `open_command_palette` / the MT-030 global quick-switcher.
+    pub fn open_symbol_palette(&self) {
+        // Make sure the outline is current (the same MC-002 reuse the outline panel relies on — recompute
+        // only on a version change, never a fresh parse here).
+        self.ensure_outline();
+        let outline = self.outline_items();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .open(&outline, &buffer);
+    }
+
+    /// Close the in-file symbol palette (Escape / after a confirmed jump / clicking away). No-op when
+    /// already closed.
+    pub fn close_symbol_palette(&self) {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .close();
+    }
+
+    /// True while the in-file symbol palette is open.
+    pub fn is_symbol_palette_open(&self) -> bool {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_open()
+    }
+
+    /// Set the symbol-palette query text and re-filter (the modal's TextEdit pushes its edited value here
+    /// each frame — the same pattern the go-to-line palette uses). No-op when the palette is closed.
+    pub fn set_symbol_palette_query(&self, query: impl Into<String>) {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_query(query);
+    }
+
+    /// The current filtered + ranked symbol-palette rows (read-only snapshot for the renderer / tests).
+    pub fn symbol_palette_results(&self) -> Vec<super::symbol_palette::FileSymbol> {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .results()
+            .to_vec()
+    }
+
+    /// The selected row index in the symbol-palette results.
+    pub fn symbol_palette_selected(&self) -> usize {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .selected_index()
+    }
+
+    /// Move the symbol-palette selection down/up one row (arrow-key nav). No-op when closed/empty.
+    pub fn symbol_palette_select_next(&self) {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .select_next();
+    }
+
+    /// Move the symbol-palette selection up one row.
+    pub fn symbol_palette_select_prev(&self) {
+        self.symbol_palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .select_prev();
+    }
+
+    /// Confirm the symbol-palette selection (Enter / row click): emit the [`SymbolPaletteAction::JumpTo`]
+    /// and APPLY it through the EXISTING fold-aware navigate + caret API (no new scroll mechanism). Records
+    /// the pre-jump origin so Navigate Back returns to the call site (MT-052 jump-history site, the same
+    /// the outline-click jump uses), then scrolls to the symbol line and selects its declaration range.
+    /// Returns `true` when a jump happened (a non-empty result set), `false` otherwise. Closes the palette
+    /// on a successful confirm.
+    pub fn confirm_symbol_palette(&self) -> bool {
+        let action = {
+            let mut palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
+            palette.confirm()
+        };
+        match action {
+            Some(super::symbol_palette::SymbolPaletteAction::JumpTo { line, byte_range }) => {
+                self.apply_symbol_jump(line, byte_range);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Apply a symbol-palette / future-caller JumpTo: record the jump origin (cross-file Navigate Back),
+    /// place a SELECTION over the symbol's declaration `byte_range` (clamped to the live buffer — a stale
+    /// range never panics, RISK-004 / MC-004), and scroll the viewport to `line` through the SAME
+    /// fold-aware visible<->buffer mapping `navigate_to_line` uses (no new scroll mechanism). VS Code's
+    /// quick-outline reveals + selects the symbol's range, so this selects the declaration line rather
+    /// than dropping a bare caret.
+    fn apply_symbol_jump(&self, line: usize, byte_range: std::ops::Range<usize>) {
+        // MT-052 jump-history record site (in-file symbol jump): record the pre-jump caret BEFORE moving.
+        self.record_jump_origin();
+        // Clamp the selection range to the live buffer (RISK-004 — a range computed against a since-edited
+        // buffer must never index past it).
+        let (clamped, sel_start, sel_end) = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let last = buffer.len_lines().saturating_sub(1);
+            let clamped = line.min(last);
+            let len = buffer.len_bytes();
+            let start = byte_range.start.min(len);
+            let end = byte_range.end.min(len).max(start);
+            (clamped, start, end)
+        };
+        // Place a selection over the symbol's declaration range (or a bare caret if the range is empty).
+        if sel_end > sel_start {
+            self.set_cursors(vec![Cursor::selection(sel_start, sel_end)]);
+        } else {
+            self.set_single_cursor(sel_start);
+        }
+        // Scroll fold-aware: map the buffer line to its visible row (a fold above the target shifts it up).
+        let visible_line = self.buffer_line_to_visible_line(clamped);
+        self.scroll_to_line(visible_line);
     }
 
     // ── MT-052 GO-menu navigation: diagnostic traversal (F8/Shift+F8) + jump history (Alt+Left/Right) ─
@@ -4266,6 +4446,18 @@ impl CodeEditorPanel {
             let gutter_rect = gutter_resp.response.rect;
             *self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()) = Some(gutter_rect);
 
+            // MT-053: render the STICKY-SCROLL band as a pinned top strip of the CENTER editor area
+            // BEFORE the scroll area, RESERVING vertical space equal to `headers.len() * line_height` so
+            // the first scrolled line is never occluded (RISK-003 / MC-003). The headers are recomputed
+            // every frame from the CURRENT scroll offset (the last painted buffer-line window) + the live
+            // MT-005 fold regions (no caching across edits — RISK-004 / MC-004). A no-op (and no AccessKit
+            // node) when no scope encloses the viewport top. Clicking a header scrolls to its scope (the
+            // SAME fold-aware scroll path JumpTo uses). Rendered as a TopBottomPanel::top INSIDE this
+            // center scope so it claims its strip and the scroll area divides the remaining rect — the
+            // reservation is structural (the scroll area gets `available_height - band_height`), not an
+            // overlay, so occlusion is impossible by construction.
+            self.render_sticky_band(ui, total_lines, line_height);
+
             // SCROLL-AREA scope (AC-004: Role::ScrollView, author_id "code_editor_scroll_area"). The
             // virtualized rows render inside it via `show_rows`, which only invokes the closure for
             // the lines intersecting the viewport.
@@ -4393,6 +4585,11 @@ impl CodeEditorPanel {
         // AccessKit node) when the palette is closed (AC-005). Rendered AFTER the editor scope so it
         // floats above the editor rows.
         self.render_goto_line_modal(ui, &syntax);
+
+        // MT-053: render the in-file Go to Symbol palette as a centered modal overlay (Ctrl+Shift+O). A
+        // no-op (and no AccessKit node) when closed (AC-003). Rendered AFTER the editor scope so it floats
+        // above the rows, like the go-to-line palette.
+        self.render_symbol_palette_modal(ui, &syntax);
 
         // MT-008 LIVE loop: pump the code-intelligence triggers from the running frame — drain LSP
         // diagnostics onto the gutter (AC-008), advance the hover dwell + fire a hover lookup on a dwell
@@ -4991,6 +5188,299 @@ impl CodeEditorPanel {
             node.set_author_id(author.clone());
             node.set_label("Code editor go to line".to_owned());
         });
+    }
+
+    // ── MT-053 author_id helpers + render ──────────────────────────────────────────────────────────
+
+    /// The stable AccessKit author_id for the symbol-palette list container, instance-suffixed.
+    pub fn symbol_palette_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_SYMBOL_PALETTE_AUTHOR_ID)
+    }
+
+    /// The stable AccessKit author_id for the symbol-palette search input, instance-suffixed.
+    pub fn symbol_palette_search_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_SYMBOL_PALETTE_SEARCH_AUTHOR_ID)
+    }
+
+    /// The stable AccessKit author_id for the sticky-scroll band container, instance-suffixed.
+    pub fn sticky_scroll_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_STICKY_SCROLL_AUTHOR_ID)
+    }
+
+    /// Render the MT-053 in-file Go to Symbol palette as a centered modal `egui::Window` (Ctrl+Shift+O),
+    /// mirroring the go-to-line modal + the MT-016/MT-017 overlay-modal pattern. A single-line fuzzy
+    /// search input at the top, a scrollable result list below. Arrow keys move the selection (handled in
+    /// `resolve_contextual`), Enter confirms + jumps, Escape closes; a row click also confirms that row.
+    /// Emits the `code_editor_symbol_palette` (Role::List) container, the `code_editor_symbol_palette_search`
+    /// (Role::TextInput) input, and a `symbol-{index}` (Role::ListItem) node per visible row (AC-003 /
+    /// AC-005 / MC-005). A no-op (and no node) when the palette is closed.
+    fn render_symbol_palette_modal(&self, ui: &mut egui::Ui, syntax: &HsSyntaxTokens) {
+        if !self.is_symbol_palette_open() {
+            return;
+        }
+        // Snapshot the current query + filtered rows + selection for this frame's render.
+        let (mut query, results, selected) = {
+            let palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
+            (palette.query().to_owned(), palette.results().to_vec(), palette.selected_index())
+        };
+        let mut query_changed = false;
+        let mut confirm_index: Option<usize> = None;
+
+        let window_id = if self.instance.is_empty() {
+            egui::Id::new("code_editor_symbol_palette_window")
+        } else {
+            egui::Id::new(format!("code_editor_symbol_palette_window#{}", self.instance))
+        };
+
+        let dialog_node_id = if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_SYMBOL_PALETTE_DIALOG_NODE_ID) }
+        } else {
+            egui::Id::new(format!("{}#dialog", self.symbol_palette_author_id()))
+        };
+        let list_node_id = if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_SYMBOL_PALETTE_LIST_NODE_ID) }
+        } else {
+            egui::Id::new(self.symbol_palette_author_id())
+        };
+        let search_node_id = if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_SYMBOL_PALETTE_SEARCH_NODE_ID) }
+        } else {
+            egui::Id::new(self.symbol_palette_search_author_id())
+        };
+
+        let search_author = self.symbol_palette_search_author_id();
+        let list_author = self.symbol_palette_author_id();
+        let row_count = results.len();
+
+        egui::Window::new("Go to Symbol in File")
+            .id(window_id)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 48.0))
+            .show(ui.ctx(), |ui| {
+                ui.set_min_width(360.0);
+                // Search input.
+                let resp = ui.add(
+                    egui::TextEdit::singleline(&mut query)
+                        .id_salt(("code-editor-symbol-palette-input", self.text_id()))
+                        .desired_width(340.0)
+                        .hint_text("Go to symbol… (fuzzy)"),
+                );
+                if resp.changed() {
+                    query_changed = true;
+                }
+                resp.request_focus();
+                // Name the search node (Role::TextInput) so a swarm agent can address it.
+                {
+                    let author = search_author.clone();
+                    ui.ctx().accesskit_node_builder(search_node_id, move |node| {
+                        node.set_role(accesskit::Role::TextInput);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor symbol palette search".to_owned());
+                    });
+                }
+
+                ui.separator();
+
+                // Result list (scrollable). Each row is clickable + carries a symbol-{index} ListItem node.
+                egui::ScrollArea::vertical()
+                    .id_salt(("code-editor-symbol-palette-scroll", self.text_id()))
+                    .max_height(280.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        if results.is_empty() {
+                            ui.label(
+                                egui::RichText::new("No matching symbols")
+                                    .italics()
+                                    .color(syntax.comment),
+                            );
+                        }
+                        let default_text = ui.visuals().text_color();
+                        for (idx, sym) in results.iter().enumerate() {
+                            let is_sel = idx == selected;
+                            let row_resp = ui.add(
+                                egui::Label::new(
+                                    egui::RichText::new(sym.display_label())
+                                        .monospace()
+                                        .color(if is_sel { syntax.keyword } else { default_text }),
+                                )
+                                .sense(egui::Sense::click()),
+                            );
+                            if is_sel {
+                                // Faint highlight on the selected row (a UI affordance, not a syntax token).
+                                ui.painter().rect_filled(
+                                    row_resp.rect,
+                                    2.0,
+                                    egui::Color32::from_rgba_premultiplied(80, 110, 170, 40),
+                                );
+                            }
+                            if row_resp.clicked() {
+                                confirm_index = Some(idx);
+                            }
+                            // Per-row ListItem node (capped — RISK / node budget). Addressable by
+                            // symbol-{index} so a swarm agent can click a result by id.
+                            if idx < MAX_ACCESSKIT_SYMBOL_ROWS {
+                                let author = format!("{CODE_EDITOR_SYMBOL_ROW_AUTHOR_PREFIX}{idx}");
+                                let author = self.suffixed(&author);
+                                let label = sym.display_label();
+                                ui.ctx().accesskit_node_builder(row_resp.id, move |node| {
+                                    node.set_role(accesskit::Role::ListItem);
+                                    node.set_author_id(author.clone());
+                                    node.set_label(label.clone());
+                                    node.add_action(accesskit::Action::Click);
+                                });
+                            }
+                        }
+                    });
+
+                // The list CONTAINER node (Role::List, AC-003 — the node the test asserts Ctrl+Shift+O
+                // produced). Emitted onto a fixed id so it is stable across frames.
+                let author = list_author.clone();
+                let value = format!("{row_count} symbols");
+                ui.ctx().accesskit_node_builder(list_node_id, move |node| {
+                    node.set_role(accesskit::Role::List);
+                    node.set_author_id(author.clone());
+                    node.set_label("Code editor symbol palette".to_owned());
+                    node.set_value(value.clone());
+                });
+            });
+
+        // The dialog root node (Role::Dialog, modal) so the overlay is addressable as a unit (the same
+        // pattern the MT-016 command palette / MT-017 switcher use). A Dialog is non-interactive, so it
+        // does not need the interactive-gate author_id, but we set one for symmetry + discoverability.
+        {
+            let author = format!("{}_dialog", self.symbol_palette_author_id());
+            ui.ctx().accesskit_node_builder(dialog_node_id, move |node| {
+                node.set_role(accesskit::Role::Dialog);
+                node.set_author_id(author.clone());
+                node.set_modal();
+                node.set_label("Go to symbol in file".to_owned());
+            });
+        }
+
+        // Push the edited query back into the owned state (re-filters) so the next frame + a confirm see
+        // the current value.
+        if query_changed {
+            self.set_symbol_palette_query(query);
+        }
+        // A row click confirms that exact row: set the selection to it, then confirm.
+        if let Some(idx) = confirm_index {
+            {
+                let mut palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
+                // Re-derive the selection to the clicked row by stepping (clamped) — simplest correct path
+                // without exposing a set_selected.
+                let cur = palette.selected_index();
+                if idx >= cur {
+                    for _ in 0..(idx - cur) {
+                        palette.select_next();
+                    }
+                } else {
+                    for _ in 0..(cur - idx) {
+                        palette.select_prev();
+                    }
+                }
+            }
+            self.confirm_symbol_palette();
+        }
+    }
+
+    /// Render the MT-053 sticky-scroll band: a pinned top strip of the center editor area showing the
+    /// declaration lines of every scope enclosing the first visible line, outermost-first, capped at
+    /// `max_sticky_lines`. Reserves vertical space = `headers.len() * line_height` by claiming a
+    /// `TopBottomPanel::top` so the scroll area below gets the remaining height (the first scrolled line is
+    /// NEVER occluded — RISK-003 / MC-003, structural reservation). Clicking a header scrolls to its scope
+    /// (the SAME fold-aware scroll path). Emits the `code_editor_sticky_scroll` (Role::GenericContainer)
+    /// container node and a `sticky-header-{depth}` (Role::Button) node per header. A no-op (and no nodes)
+    /// when no scope encloses the viewport top.
+    fn render_sticky_band(&self, ui: &mut egui::Ui, total_lines: usize, line_height: f32) {
+        // Recompute headers EVERY frame from the CURRENT scroll offset + the live fold regions (RISK-004 /
+        // MC-004 — no caching across edits). The first visible BUFFER line is the start of the last painted
+        // buffer-line window (`show` captured it last frame; on the first frame it is 0..0 -> top line 0).
+        let viewport_top = self.last_painted_buffer_range(total_lines).start;
+        let fold_set = self.fold_set();
+        let headers = {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            self.sticky_scroll.compute(viewport_top, &fold_set.regions, &buffer)
+        };
+        if headers.is_empty() {
+            return;
+        }
+
+        let band_height = headers.len() as f32 * line_height;
+        let panel_id = if self.instance.is_empty() {
+            egui::Id::new("code_editor_sticky_scroll_panel")
+        } else {
+            egui::Id::new(format!("code_editor_sticky_scroll_panel#{}", self.instance))
+        };
+
+        let syntax = syntax_tokens_for(ui.visuals());
+        let mut click_line: Option<usize> = None;
+
+        egui::TopBottomPanel::top(panel_id)
+            .resizable(false)
+            .exact_height(band_height)
+            .show_separator_line(true)
+            .show_inside(ui, |ui| {
+                // Paint the band background from the gutter/editor background so it reads as chrome.
+                let band_rect = ui.available_rect_before_wrap();
+                if ui.is_rect_visible(band_rect) {
+                    ui.painter().rect_filled(band_rect, 0.0, syntax.background);
+                }
+                ui.spacing_mut().item_spacing.y = 0.0;
+                let header_text_color = ui.visuals().text_color();
+                for header in &headers {
+                    // Indent by depth so the pinned stack reads like the source nesting.
+                    let text = format!("{}{}", "  ".repeat(header.depth), header.text.trim_start());
+                    let resp = ui
+                        .add(
+                            egui::Label::new(
+                                egui::RichText::new(text).monospace().color(header_text_color),
+                            )
+                            .sense(egui::Sense::click()),
+                        )
+                        .on_hover_text(format!("Scroll to line {}", header.line + 1));
+                    let resp_id = resp.id;
+                    if resp.clicked() {
+                        click_line = Some(header.line);
+                    }
+                    // Per-header Button node (Role::Button), addressable by sticky-header-{depth} so a
+                    // swarm agent can click a header to scroll to its scope (AC-006 / MC-005).
+                    let author = self.suffixed(&format!(
+                        "{CODE_EDITOR_STICKY_HEADER_AUTHOR_PREFIX}{}",
+                        header.depth
+                    ));
+                    let label = format!("Sticky header: {}", header.text.trim());
+                    ui.ctx().accesskit_node_builder(resp_id, move |node| {
+                        node.set_role(accesskit::Role::Button);
+                        node.set_author_id(author.clone());
+                        node.set_label(label.clone());
+                        node.add_action(accesskit::Action::Click);
+                    });
+                }
+
+                // The band CONTAINER node (Role::GenericContainer, AC-004). Emitted onto a fixed id so it
+                // is stable across frames.
+                let container_node_id = if self.instance.is_empty() {
+                    unsafe { egui::Id::from_high_entropy_bits(PANEL_STICKY_SCROLL_NODE_ID) }
+                } else {
+                    egui::Id::new(self.sticky_scroll_author_id())
+                };
+                let author = self.sticky_scroll_author_id();
+                let count = headers.len();
+                ui.ctx().accesskit_node_builder(container_node_id, move |node| {
+                    node.set_role(accesskit::Role::GenericContainer);
+                    node.set_author_id(author.clone());
+                    node.set_label("Code editor sticky scroll".to_owned());
+                    node.set_value(format!("{count} pinned headers"));
+                });
+            });
+
+        // Apply a header click AFTER the panel closure (fold-aware scroll, the same path JumpTo uses).
+        if let Some(line) = click_line {
+            self.record_jump_origin();
+            let visible_line = self.buffer_line_to_visible_line(line);
+            self.scroll_to_line(visible_line);
+        }
     }
 
     /// The `egui::Id` salt for the outline panel scope (default uses the fixed nav-band slot; instances
@@ -6657,8 +7147,35 @@ impl CodeEditorPanel {
         let completion_open = self.is_completion_open();
         let find_open = self.is_find_open();
         let goto_open = self.is_goto_line_open();
+        let symbol_palette_open = self.is_symbol_palette_open();
 
-        // Escape is the highest-precedence context key.
+        // MT-053: while the in-file symbol palette is open it OWNS Up/Down/Enter/Escape (arrow nav,
+        // confirm, close) — handled BEFORE the other context keys so the palette behaves like the
+        // completion popup / goto-line palette. Up/Down move the selection (Consumed), Enter confirms +
+        // jumps (Consumed — no InsertNewline fall-through), Escape closes (Consumed).
+        if symbol_palette_open {
+            match key {
+                Key::Escape => {
+                    self.close_symbol_palette();
+                    return ContextOutcome::Consumed;
+                }
+                Key::ArrowDown if !modifiers.ctrl && !modifiers.alt => {
+                    self.symbol_palette_select_next();
+                    return ContextOutcome::Consumed;
+                }
+                Key::ArrowUp if !modifiers.ctrl && !modifiers.alt => {
+                    self.symbol_palette_select_prev();
+                    return ContextOutcome::Consumed;
+                }
+                Key::Enter => {
+                    self.confirm_symbol_palette();
+                    return ContextOutcome::Consumed;
+                }
+                _ => {}
+            }
+        }
+
+        // Escape is the highest-precedence context key (for the other surfaces).
         if key == Key::Escape {
             return if completion_open {
                 ContextOutcome::Dispatch(CodeEditorAction::DismissCompletion)
@@ -6855,6 +7372,11 @@ impl CodeEditorPanel {
             A::GoToPrevDiagnostic => self.go_to_prev_diagnostic(),
             A::NavigateBack => self.navigate_back(),
             A::NavigateForward => self.navigate_forward(),
+            // MT-053: Ctrl+Shift+O (and the GO-menu 'Go to Symbol in File…' item once host-mounted)
+            // open the FILE-SCOPED symbol palette. The SAME entry point the menu wiring calls
+            // (`open_symbol_palette`) — one path so the menu + the keybind never diverge (AC-005). This
+            // is STRICTLY DISTINCT from `OpenCommandPalette` / the MT-030 global quick-switcher.
+            A::GoToSymbolInFile => self.open_symbol_palette(),
         }
     }
 

@@ -113,6 +113,14 @@ pub mod rename;
 // fallback signature, rendered as a floating popup above the cursor with the active parameter
 // emphasized. A pure addition on the MT-008 LSP transport + code-nav client.
 pub mod signature_help;
+// WP-KERNEL-012 MT-053 (E1 — VS Code parity): the in-file "Go to Symbol" palette (Ctrl+Shift+O). A pure
+// reuse layer over the MT-006 OutlineItem tree (flattened to FileSymbol) — no re-parse, no backend. The
+// file-scoped quick-outline, STRICTLY DISTINCT from MT-030's global Ctrl+P/Ctrl+T quick-switcher.
+pub mod symbol_palette;
+// WP-KERNEL-012 MT-053 (E1 — VS Code parity): sticky scroll. Pins enclosing-scope declaration lines at
+// the top of the viewport while scrolling inside a nested scope. A pure reuse layer over the MT-005
+// FoldRegion list + the MT-002 buffer (literal declaration lines) — no re-parse, no backend.
+pub mod sticky_scroll;
 pub mod virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
@@ -215,8 +223,15 @@ pub use panel::{
     CODE_EDITOR_FIND_BAR_AUTHOR_ID, CODE_EDITOR_FIND_NEXT_AUTHOR_ID, CODE_EDITOR_FIND_PREV_AUTHOR_ID,
     CODE_EDITOR_GOTO_LINE_AUTHOR_ID, CODE_EDITOR_GUTTER_AUTHOR_ID, CODE_EDITOR_MINIMAP_AUTHOR_ID,
     CODE_EDITOR_OUTLINE_AUTHOR_ID, CODE_EDITOR_PANEL_AUTHOR_ID, CODE_EDITOR_REPLACE_BAR_AUTHOR_ID,
-    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_TEXT_AUTHOR_ID, TWO_CHORD_TIMEOUT,
+    CODE_EDITOR_SCROLL_AREA_AUTHOR_ID, CODE_EDITOR_STICKY_HEADER_AUTHOR_PREFIX,
+    CODE_EDITOR_STICKY_SCROLL_AUTHOR_ID, CODE_EDITOR_SYMBOL_PALETTE_AUTHOR_ID,
+    CODE_EDITOR_SYMBOL_PALETTE_SEARCH_AUTHOR_ID, CODE_EDITOR_SYMBOL_ROW_AUTHOR_PREFIX,
+    CODE_EDITOR_TEXT_AUTHOR_ID, MAX_ACCESSKIT_SYMBOL_ROWS, TWO_CHORD_TIMEOUT,
 };
+pub use symbol_palette::{
+    flatten_outline, FileSymbol, SymbolPalette, SymbolPaletteAction, MAX_FILE_SYMBOLS,
+};
+pub use sticky_scroll::{StickyHeader, StickyScroll, StickyScrollConfig};
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};
 
 use std::sync::Arc;

@@ -108,6 +108,14 @@ pub const GO_PREV_DIAGNOSTIC_AUTHOR_ID: &str = "menu-go-prev-diagnostic";
 pub const GO_BACK_AUTHOR_ID: &str = "menu-go-back";
 pub const GO_FORWARD_AUTHOR_ID: &str = "menu-go-forward";
 
+/// WP-KERNEL-012 MT-053 GO-menu in-file "Go to Symbol in File…" leaf author_id (the exact id the MT
+/// contract's menu wiring names so a swarm agent can SEE the item). Like the MT-052 editor-navigation
+/// leaves it is a `Role::MenuItem` LEAF (dynamic — exists only while the GO menu is open), addressed by
+/// this stable string in egui's hashed id space, rendered DISABLED with a disclosed reason until the
+/// editor is host-mounted (E11 MT-069). Once live the host wires it to the SAME `open_symbol_palette`
+/// entry point the Ctrl+Shift+O keybind reaches (AC-005); until then the LIVE path is the keybind.
+pub const GO_SYMBOL_IN_FILE_AUTHOR_ID: &str = "menu-go-symbol-in-file";
+
 /// The disclosed reason shown on the disabled MT-052 GO-menu editor-navigation leaves until the editor is
 /// host-mounted (E11 MT-069), matching the MT-050 disabled-until-mounted precedent.
 pub const MENU_GO_EDITOR_DISABLED_REASON: &str =
@@ -485,6 +493,13 @@ impl MenuBar {
                 self.disabled_item(ui, GO_PREV_DIAGNOSTIC_AUTHOR_ID, "Go to Previous Problem", Some("Shift+F8"), MENU_GO_EDITOR_DISABLED_REASON);
                 self.disabled_item(ui, GO_BACK_AUTHOR_ID, "Back", Some("Alt+Left"), MENU_GO_EDITOR_DISABLED_REASON);
                 self.disabled_item(ui, GO_FORWARD_AUTHOR_ID, "Forward", Some("Alt+Right"), MENU_GO_EDITOR_DISABLED_REASON);
+                // WP-KERNEL-012 MT-053: in-file Go to Symbol leaf. Present + AccessKit-addressable now
+                // (author_id menu-go-symbol-in-file, Role::MenuItem), rendered DISABLED with a disclosed
+                // reason until the editor is host-mounted (E11 MT-069), the same disabled-until-mounted
+                // precedent as the MT-052 nav leaves. Once live, the host wires it to the SAME
+                // open_symbol_palette entry point the Ctrl+Shift+O keybind reaches (AC-005) — one path, no
+                // divergence. DISTINCT from the Quick Switcher leaf above (global, Ctrl+P). No fake-enable.
+                self.disabled_item(ui, GO_SYMBOL_IN_FILE_AUTHOR_ID, "Go to Symbol in File…", Some("Ctrl+Shift+O"), MENU_GO_EDITOR_DISABLED_REASON);
             }
             MenuId::Run => {
                 self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
