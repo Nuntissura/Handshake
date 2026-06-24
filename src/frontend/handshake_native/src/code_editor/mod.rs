@@ -77,6 +77,13 @@ pub mod gutter;
 pub mod highlight;
 pub mod keymap;
 pub mod keymap_settings;
+// WP-KERNEL-012 MT-051 (E1 — VS Code parity): Line-edit buffer transforms behind the MT-010 keymap. The
+// real handlers for ToggleComment / DuplicateLine / MoveLineUp/Down / DeleteLine / IndentLine /
+// DedentLine / InsertTab — pure functions on the MT-001 TextBuffer + MT-003 CursorSet (no backend). Each
+// transform applies per-affected-line in DESCENDING order (RISK-001), is UTF-8 correct via
+// line_to_byte/byte_to_line (RISK-002), and is recorded as ONE undo entry at the panel/factory bus
+// boundary (the MT-035/050 single-undo pattern, RISK-003).
+pub mod line_ops;
 pub mod lsp_client;
 pub mod minimap;
 // WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the "Notes mentioning this symbol" side panel.
@@ -156,6 +163,11 @@ pub use highlight::{
 };
 pub use keymap::{
     mod_chord, mod_is_ctrl, CodeEditorAction, KeyBinding, KeyChord, Keymap,
+};
+pub use line_ops::{
+    affected_lines, delete_line as line_ops_delete_line, dedent_line, duplicate_line,
+    indent_line, insert_tab, line_comment_token, move_line_down, move_line_up, toggle_comment,
+    LineEditContext,
 };
 pub use keymap_settings::{
     key_from_str, keymap_settings_path, KeymapOverride, KeymapSettings, KeymapSettingsError,

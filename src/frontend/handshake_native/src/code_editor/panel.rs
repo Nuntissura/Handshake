@@ -91,6 +91,9 @@ use super::editor_view::{
     CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
 };
 use super::formatting::{self, FormatOutcome};
+// MT-051 line-edit buffer transforms: the dispatch arms for ToggleComment / DuplicateLine / MoveLine /
+// DeleteLine / Indent / Dedent / InsertTab call into this module (pure TextBuffer + CursorSet transforms).
+use super::line_ops;
 use super::lsp_client::{LspClient, PublishedDiagnostics};
 use super::signature_help::{
     active_parameter_from_commas, render_signature_popup, SignatureHelpState,
@@ -480,6 +483,13 @@ pub struct CodeEditorPanel {
     /// folding's foldable-node table (MT-005). Captured at build time from the document extension so
     /// the fold provider does not re-derive it every frame.
     language_id: &'static str,
+    /// The document's file extension (lowercased), captured at build time so a structural buffer
+    /// replacement (MT-051 line transforms) can rebuild a FRESH highlighter for the same grammar. The
+    /// tree-sitter highlighter re-parses incrementally from its cached tree (highlight.rs); a transform
+    /// that replaces whole lines without an `InputEdit` would leave that cached tree describing offsets
+    /// past the new (shorter) buffer and panic on re-highlight. Rebuilding the highlighter resets its
+    /// incremental state to a clean FULL parse (see `reset_highlighter`).
+    extension: String,
     /// MT-006 outline (symbol tree) cache: the symbols extracted from the SAME tree-sitter tree the
     /// highlighter built (no second parse — MC-002), recomputed only when the buffer version moves
     /// (tracked by `outline_version`). Behind a `Mutex` for the same `Sync` reason as the buffer.
@@ -721,6 +731,25 @@ pub struct CodeEditorPanel {
     /// panel records it on the UI thread (in `drain_format_result`); the factory render drains it into
     /// `interop_adapter::push_code_edit_undo` so ONE undo entry is recorded at the bus boundary (AC-001).
     pending_format_undo: Mutex<Option<(String, String)>>,
+
+    // ── MT-051 line-edit buffer transforms ────────────────────────────────────────────────────────
+
+    /// MT-051 the queued single-undo snapshot `(description, before_text, after_text)` for a just-applied
+    /// line transform (ToggleComment / DuplicateLine / MoveLine / DeleteLine / Indent / Dedent / InsertTab).
+    /// Each `line_ops` transform snapshots the whole buffer before + after and queues ONE entry here; the
+    /// factory render drains it into `interop_adapter::push_code_edit_undo` so a single Ctrl+Z reverts the
+    /// whole transform (RISK-003 / AC-007) — the SAME bus boundary every code edit's undo is recorded at
+    /// (the MT-035/050 wrap-not-fork pattern; no parallel undo stack). Only the latest is kept (a second
+    /// transform before the drain supersedes; the host applies them in order so the newest pair is correct).
+    pending_line_op_undo: Mutex<Option<(&'static str, String, String)>>,
+    /// MT-051 the operator's `editor.tabSize` (one indent unit = this many spaces when `insert_spaces`).
+    /// Sourced from the editor-settings layer via [`set_indent_settings`](Self::set_indent_settings);
+    /// defaults to VS Code's 4. Atomic so the `&self` dispatch reads it without locking. Never hardcoded
+    /// at a `line_ops` call site (MC-006).
+    tab_size: AtomicU64,
+    /// MT-051 the operator's `editor.insertSpaces`: when true one indent unit is `tab_size` spaces, when
+    /// false it is a literal tab (RISK-006 / MC-006). Defaults to VS Code's true. Atomic for `&self` reads.
+    insert_spaces: std::sync::atomic::AtomicBool,
 
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
@@ -1091,6 +1120,7 @@ impl CodeEditorPanel {
             // filled at), so the first render is a fold cache hit; an edit bumps to 2+ and recomputes.
             fold_version: AtomicU64::new(1),
             language_id,
+            extension: extension.to_ascii_lowercase(),
             // The outline was computed at buffer version 1 (same as folds/highlights), so the first
             // access is a cache hit; an edit bumps the version and recomputes from the new tree.
             outline_items: Mutex::new(outline_items),
@@ -1162,6 +1192,12 @@ impl CodeEditorPanel {
             format_result: Arc::new(Mutex::new(None)),
             last_format_toast: Mutex::new(None),
             pending_format_undo: Mutex::new(None),
+            // MT-051 line-edit transforms: undo snapshot empty; tab settings default to VS Code's 4 spaces
+            // (insert_spaces=true). The host overrides them from the operator's editor settings via
+            // set_indent_settings; the dispatch reads them into a LineEditContext each batch (MC-006).
+            pending_line_op_undo: Mutex::new(None),
+            tab_size: AtomicU64::new(4),
+            insert_spaces: std::sync::atomic::AtomicBool::new(true),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -1760,18 +1796,6 @@ impl CodeEditorPanel {
     pub fn unfold_at_cursor(&self) -> bool {
         let line = self.primary_cursor_line();
         self.unfold_at_line(line)
-    }
-
-    /// The text of buffer `line` WITHOUT its trailing newline (for the MT-010 line-edit transforms —
-    /// toggle-comment, duplicate, move-line). Uses [`TextBuffer::slice_to_string`] over the single-line
-    /// range and strips a trailing `\n`/`\r\n` so the caller works with the line content. An
-    /// out-of-range line clamps to empty (never panics).
-    fn line_text(&self, line: usize) -> String {
-        let raw = self.with_buffer(|b| b.slice_to_string(line..line + 1));
-        raw.strip_suffix('\n')
-            .map(|s| s.strip_suffix('\r').unwrap_or(s))
-            .unwrap_or(&raw)
-            .to_owned()
     }
 
     /// The buffer line the primary cursor's head sits on (for the fold/unfold keymap).
@@ -3368,6 +3392,90 @@ impl CodeEditorPanel {
     /// each frame so the single undo entry is recorded at the SAME boundary every code edit's undo is.
     pub fn take_pending_format_undo(&self) -> Option<(String, String)> {
         self.pending_format_undo.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+
+    // ── MT-051 line-edit buffer transforms — settings + dispatch + single-undo ─────────────────────────
+
+    /// MT-051: set the operator's indent settings (`editor.tabSize` + `editor.insertSpaces`) so the
+    /// line-edit transforms use them instead of a hardcoded 4 (MC-006 — RISK-006). The host plumbs these
+    /// from the editor-settings layer; `tab_size` is clamped to >= 1 (a 0-width indent unit is invalid).
+    pub fn set_indent_settings(&self, tab_size: usize, insert_spaces: bool) {
+        self.tab_size.store(tab_size.max(1) as u64, Ordering::Relaxed);
+        self.insert_spaces.store(insert_spaces, Ordering::Relaxed);
+    }
+
+    /// MT-051: the current indent settings `(tab_size, insert_spaces)` (for tests / the host).
+    pub fn indent_settings(&self) -> (usize, bool) {
+        (
+            self.tab_size.load(Ordering::Relaxed) as usize,
+            self.insert_spaces.load(Ordering::Relaxed),
+        )
+    }
+
+    /// MT-051: build the [`LineEditContext`] for one dispatch batch from the panel's language-family id +
+    /// the operator's tab settings (the "build the context once per dispatch batch" rule). The language id
+    /// is the SAME stable family id the highlighter carries (RISK-007 — no second language enum).
+    fn line_edit_context(&self) -> line_ops::LineEditContext {
+        let (tab_size, insert_spaces) = self.indent_settings();
+        line_ops::LineEditContext::new(self.language_id, tab_size, insert_spaces)
+    }
+
+    /// MT-051: run a `line_ops` transform with single-undo coalescing (AC-007 / RISK-003). Snapshots the
+    /// whole buffer BEFORE, runs `transform` (which mutates the buffer + cursor set in place), and — iff
+    /// the buffer text actually changed — snapshots AFTER and queues ONE `(description, before, after)`
+    /// undo entry (drained by the factory render into `interop_adapter::push_code_edit_undo`, the SAME bus
+    /// boundary every code edit's undo is recorded at) and refreshes the highlight cache. No parallel undo
+    /// stack is created. Returns whether the buffer changed.
+    fn apply_line_transform(
+        &self,
+        description: &'static str,
+        transform: impl FnOnce(&mut TextBuffer, &mut CursorSet, &line_ops::LineEditContext) -> bool,
+    ) -> bool {
+        let ctx = self.line_edit_context();
+        // Snapshot BEFORE (ropey clone is O(1) — the MT-035 single-undo pattern).
+        let before = self.with_buffer(|b| b.to_string());
+        let changed = {
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let mut set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            transform(&mut buffer, &mut set, &ctx)
+        };
+        if !changed {
+            return false;
+        }
+        let after = self.with_buffer(|b| b.to_string());
+        if after == before {
+            // The transform reported a change but the text is identical (defensive): nothing to undo.
+            return false;
+        }
+        *self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some((description, before, after));
+        // A line transform replaces whole rows (move/delete/duplicate/comment) WITHOUT feeding tree-sitter
+        // an `InputEdit`, so the highlighter's cached incremental tree would describe byte offsets past the
+        // new buffer and panic on re-highlight. Reset the highlighter to a clean FULL parse before
+        // refreshing the spans (the format/undo `set_text` path replaces the whole buffer too; line
+        // transforms are the in-place sibling that needs the same incremental-state reset).
+        self.reset_highlighter();
+        self.refresh();
+        true
+    }
+
+    /// MT-051: rebuild the tree-sitter highlighter for this document's grammar from scratch, discarding the
+    /// cached incremental parse tree. Called after a structural line transform so the next
+    /// [`ensure_highlight_cache`](Self::ensure_highlight_cache) does a clean FULL parse of the new buffer
+    /// (RISK-002 — never an incremental re-parse against a tree whose node offsets exceed the new, possibly
+    /// shorter, buffer). A no-language / unregistered-extension document keeps its `None` highlighter
+    /// (plain text, no highlighting). Cheap: the grammar load is a pointer copy + a query compile, done only
+    /// on an explicit edit, never per frame.
+    fn reset_highlighter(&self) {
+        let fresh = LanguageRegistry::with_bundled_languages().highlighter_for_extension(&self.extension);
+        *self.highlighter.lock().unwrap_or_else(|e| e.into_inner()) = fresh;
+    }
+
+    /// MT-051: take the queued line-transform undo snapshot `(description, before, after)` the factory
+    /// render pushes onto the shared unified-undo bus as ONE entry. `None` when no transform applied since
+    /// the last drain.
+    pub fn take_pending_line_op_undo(&self) -> Option<(&'static str, String, String)> {
+        self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()).take()
     }
 
     /// MT-049: the screen position to anchor the quick-fix lightbulb / menu for `line` — the start of the
@@ -6451,20 +6559,45 @@ impl CodeEditorPanel {
             A::DeleteRight => self.delete_forward(),
             A::DeleteWordLeft => self.delete_word(true),
             A::DeleteWordRight => self.delete_word(false),
-            A::DeleteLine => self.delete_line(),
+            // MT-051: DeleteLine deletes every affected whole row (incl. trailing newline; the preceding
+            // newline too on the last row so no empty trailing line remains) as ONE undo entry.
+            A::DeleteLine => {
+                self.apply_line_transform("Delete Line", line_ops::delete_line);
+            }
             // ── Insertion / line edits ──
             A::InsertNewline => {
                 self.insert_text("\n");
             }
+            // MT-051: InsertTab inserts one indent unit (tab or tab_size spaces per the operator setting —
+            // MC-006) at every collapsed cursor, OR block-indents when any cursor has a multi-line selection
+            // (VS Code parity, AC-005). One undo entry.
             A::InsertTab => {
-                self.insert_text("    ");
+                self.apply_line_transform("Insert Tab", line_ops::insert_tab);
             }
-            A::IndentLine => self.indent_lines(true),
-            A::DedentLine => self.indent_lines(false),
-            A::ToggleComment => self.toggle_comment(),
-            A::DuplicateLine => self.duplicate_line(),
-            A::MoveLineUp => self.move_line(true),
-            A::MoveLineDown => self.move_line(false),
+            // MT-051: Indent/Dedent add/remove one indent unit at each affected line's start (MC-006).
+            A::IndentLine => {
+                self.apply_line_transform("Indent Line", line_ops::indent_line);
+            }
+            A::DedentLine => {
+                self.apply_line_transform("Dedent Line", line_ops::dedent_line);
+            }
+            // MT-051: ToggleComment = VS Code all-or-nothing (MC-004) over the affected lines, language-aware
+            // (RISK-007; a no-token language is a safe no-op, AC-008). One undo entry.
+            A::ToggleComment => {
+                self.apply_line_transform("Toggle Comment", line_ops::toggle_comment);
+            }
+            // MT-051: DuplicateLine copies each affected line below it; the cursor follows to the duplicate.
+            A::DuplicateLine => {
+                self.apply_line_transform("Duplicate Line", line_ops::duplicate_line);
+            }
+            // MT-051: MoveLineUp/Down swap the affected line(s) with the neighbor (no-op at the doc edge,
+            // MC-005); the cursors travel with their line. One undo entry.
+            A::MoveLineUp => {
+                self.apply_line_transform("Move Line Up", line_ops::move_line_up);
+            }
+            A::MoveLineDown => {
+                self.apply_line_transform("Move Line Down", line_ops::move_line_down);
+            }
             // ── Multi-cursor (existing MT-003 handlers) ──
             A::AddCursorAbove => self.add_cursor_above(),
             A::AddCursorBelow => self.add_cursor_below(),
@@ -6584,184 +6717,6 @@ impl CodeEditorPanel {
             set.select_word_for_bare_carets(to_left, &buffer);
         }
         self.delete_text();
-    }
-
-    /// Delete the whole line(s) the cursors sit on (Ctrl+Shift+K). Operates on the primary cursor's line
-    /// for simplicity (multi-cursor whole-line delete is a later refinement); removes the line including
-    /// its trailing newline.
-    fn delete_line(&self) {
-        let line = self.primary_cursor_line();
-        let (start, end) = {
-            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let total = buffer.len_lines();
-            let start = buffer.line_to_byte(line).unwrap_or(0);
-            // End = start of next line (so the newline goes too), or buffer end on the last line.
-            let end = if line + 1 < total {
-                buffer.line_to_byte(line + 1).unwrap_or_else(|| buffer.len_bytes())
-            } else {
-                buffer.len_bytes()
-            };
-            (start, end)
-        };
-        if end > start {
-            let applied = {
-                let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-                buffer.delete(start..end).is_ok()
-            };
-            if applied {
-                self.set_single_cursor(start.min(self.with_buffer(|b| b.len_bytes())));
-                self.refresh();
-            }
-        }
-    }
-
-    /// Indent (`indent`) or dedent the primary cursor's line by four spaces (Tab when no selection on a
-    /// multi-line block is a later refinement; this is the line-level transform behind the keymap).
-    fn indent_lines(&self, indent: bool) {
-        let line = self.primary_cursor_line();
-        let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
-        if indent {
-            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let _ = buffer.insert(line_start, "    ");
-            drop(buffer);
-            self.refresh();
-        } else {
-            // Dedent: remove up to four leading spaces (or one tab) from the line.
-            let line_text = self.line_text(line);
-            let remove = if line_text.starts_with('\t') {
-                1
-            } else {
-                line_text.chars().take(4).take_while(|c| *c == ' ').count()
-            };
-            if remove > 0 {
-                let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-                let _ = buffer.delete(line_start..line_start + remove);
-                drop(buffer);
-                self.refresh();
-            }
-        }
-    }
-
-    /// Toggle a line comment on the primary cursor's line(s) (Ctrl+/). Detects the language comment
-    /// prefix (`//` for Rust/JS, `#` for Python, else `//`) and adds/removes it at the first non-space
-    /// column (implementation note ToggleComment). Multi-cursor: applies to each cursor's line.
-    fn toggle_comment(&self) {
-        let prefix = self.comment_prefix();
-        // Collect each cursor's line (deduped) so a multi-cursor toggle hits each line once.
-        let mut lines: Vec<usize> = {
-            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
-            set.cursors().iter().map(|c| byte_to_line_col(c.head, &buffer).0).collect()
-        };
-        lines.sort_unstable();
-        lines.dedup();
-        // Decide add vs remove from the FIRST line: if it is already commented, remove on all; else add.
-        let first_commented = lines
-            .first()
-            .map(|&l| self.line_text(l).trim_start().starts_with(&prefix))
-            .unwrap_or(false);
-        // Apply high->low so earlier edits do not shift later line offsets.
-        let mut applied = false;
-        for &line in lines.iter().rev() {
-            let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
-            let line_text = self.line_text(line);
-            let leading = line_text.len() - line_text.trim_start().len();
-            let at = line_start + leading;
-            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            if first_commented {
-                // Remove the prefix (+ one following space if present).
-                let trimmed = line_text.trim_start();
-                if trimmed.starts_with(&prefix) {
-                    let mut remove_len = prefix.len();
-                    if trimmed[prefix.len()..].starts_with(' ') {
-                        remove_len += 1;
-                    }
-                    if buffer.delete(at..at + remove_len).is_ok() {
-                        applied = true;
-                    }
-                }
-            } else if buffer.insert(at, &format!("{prefix} ")).is_ok() {
-                applied = true;
-            }
-        }
-        if applied {
-            self.refresh();
-        }
-    }
-
-    /// The line-comment prefix for the panel's language (implementation note ToggleComment). `//` for
-    /// Rust/JS/TS/C-family, `#` for Python/shell, else `//` as the safe default.
-    fn comment_prefix(&self) -> String {
-        match self.language_id {
-            "python" | "ruby" | "shell" | "bash" => "#".to_owned(),
-            _ => "//".to_owned(),
-        }
-    }
-
-    /// Duplicate the primary cursor's line below it (Ctrl+D-no-selection / VS Code Shift+Alt+Down).
-    fn duplicate_line(&self) {
-        let line = self.primary_cursor_line();
-        let line_text = self.line_text(line);
-        let line_start = self.with_buffer(|b| b.line_to_byte(line).unwrap_or(0));
-        // Insert a copy of the line (with a newline) at the start of the line.
-        let insertion = format!("{line_text}\n");
-        let ok = {
-            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            buffer.insert(line_start, &insertion).is_ok()
-        };
-        if ok {
-            self.refresh();
-        }
-    }
-
-    /// Move the primary cursor's line up (`up`) or down, swapping it with the adjacent line (Alt+Up /
-    /// Alt+Down). A no-op at the document edge.
-    fn move_line(&self, up: bool) {
-        let line = self.primary_cursor_line();
-        let total = self.with_buffer(|b| b.len_lines());
-        let other = if up {
-            if line == 0 {
-                return;
-            }
-            line - 1
-        } else {
-            if line + 1 >= total {
-                return;
-            }
-            line + 1
-        };
-        // Swap by reading both line texts and rewriting the two-line block.
-        let (a, b) = (line.min(other), line.max(other));
-        let a_text = self.line_text(a);
-        let b_text = self.line_text(b);
-        let block_start = self.with_buffer(|buf| buf.line_to_byte(a).unwrap_or(0));
-        let block_end = {
-            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            if b + 1 < buffer.len_lines() {
-                buffer.line_to_byte(b + 1).unwrap_or_else(|| buffer.len_bytes())
-            } else {
-                buffer.len_bytes()
-            }
-        };
-        // Reconstruct the block with the two lines swapped, preserving the trailing newline shape.
-        let had_trailing_newline = b + 1 < total;
-        let swapped = if had_trailing_newline {
-            format!("{b_text}\n{a_text}\n")
-        } else {
-            // Last line has no trailing newline; keep that shape after the swap.
-            format!("{b_text}\n{a_text}")
-        };
-        let ok = {
-            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            buffer.delete(block_start..block_end).is_ok()
-                && buffer.insert(block_start, &swapped).is_ok()
-        };
-        if ok {
-            // Keep the caret on the moved line's new position.
-            let new_line_start = self.with_buffer(|buf| buf.line_to_byte(other).unwrap_or(0));
-            self.set_single_cursor(new_line_start);
-            self.refresh();
-        }
     }
 
     /// Collapse the cursor set to a single caret at the primary head (Escape with a multi-cursor —
@@ -7360,6 +7315,25 @@ impl PaneFactory for CodeEditorPaneFactory {
                     TextBuffer::new(&before),
                     TextBuffer::new(&after),
                     "Format Document",
+                );
+            });
+        }
+
+        // MT-051 (AC-007): record the SINGLE undo entry for a just-applied line transform (ToggleComment /
+        // DuplicateLine / MoveLine / DeleteLine / Indent / Dedent / InsertTab) at the SAME bus boundary
+        // every code edit's undo is recorded at. The panel queued the (before, after) snapshot during the
+        // transform; push it as ONE `UndoAction` so a single Ctrl+Z reverts the whole transform across all
+        // affected lines + cursors. `with_try_lock` so it never blocks the egui frame thread (RISK-1).
+        if let Some((description, before, after)) = self.panel.take_pending_line_op_undo() {
+            let pane_id3: PaneId = Arc::from(ctx.record.pane_id.as_ref());
+            crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                super::interop_adapter::push_code_edit_undo(
+                    b,
+                    pane_id3.clone(),
+                    &self.panel,
+                    TextBuffer::new(&before),
+                    TextBuffer::new(&after),
+                    description,
                 );
             });
         }
