@@ -122,7 +122,7 @@ use super::cursor::MoveDir;
 use super::render_decorations::{
     bracket_pair_colors, find_matching_bracket, indent_guide_x, indent_level_of, BracketMatch,
 };
-use super::word_wrap::{layout_visual_rows, VisualRow, WrapConfig};
+use super::word_wrap::{count_visual_rows_for_line, layout_visual_rows, VisualRow, WrapConfig};
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
 pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
@@ -337,6 +337,14 @@ pub struct PerfStats {
     pub frame_lines_rendered: usize,
     /// Total lines in the buffer (the whole document).
     pub buffer_len_lines: usize,
+    /// MT-054 perf cap: the number of LOGICAL buffer lines whose bytes were materialized + wrapped by the
+    /// per-frame PAINT path this frame. Under word wrap this MUST stay O(painted window), NOT O(document)
+    /// — the wrap VisualRow list for the painted window is built lazily from only the logical lines that
+    /// intersect the on-screen visual-row range, never the whole post-fold document (the perf regression
+    /// the adversarial review caught). `0` when wrap is off (the non-wrap render path materializes lines
+    /// the same way `render_rows` always has) or before the first frame. A perf test asserts this is
+    /// bounded by the painted window even on a large wrapped document.
+    pub frame_lines_wrapped: usize,
 }
 
 /// Map a [`HighlightScope`] to a color from the active theme's syntax tokens — NEVER a hardcoded hex
@@ -455,6 +463,59 @@ fn identifier_before(prefix: &str) -> String {
         }
     }
     chars[start..end].iter().collect()
+}
+
+/// MT-054 PERF CAP: the cache key the [`WrapRowIndex`] is valid for. The index must be rebuilt whenever
+/// any input that changes the per-line wrap-row counts moves — a buffer edit (`buffer_version`), a fold
+/// expand/collapse (`fold_version` + the visible-line count), the wrap toggle / column / viewport width
+/// (`WrapConfig`), or a font-metric change (`glyph_width`). f32 inputs are keyed by their raw bit pattern
+/// so an exact-equality compare is well-defined (NaN never equals NaN, forcing a safe rebuild).
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct WrapRowIndexKey {
+    buffer_version: u64,
+    fold_version: u64,
+    visible_lines: usize,
+    wrap_enabled: bool,
+    wrap_column: Option<usize>,
+    viewport_width_bits: u32,
+    glyph_width_bits: u32,
+}
+
+/// MT-054 PERF CAP (adversarial-review hardening): a cached prefix-sum of per-visible-line visual-row
+/// counts under word wrap, so the paint path never re-wraps the whole post-fold document every frame.
+///
+/// `cumulative[i]` is the total number of visual rows produced by visible lines `0..i` (so
+/// `cumulative[0] == 0` and `cumulative[visible_lines] == total_rows`). Given a visual-row index `v`, a
+/// binary search over `cumulative` yields the visible-line slot that owns it in O(log visible_lines),
+/// and the per-line wrap fragments for only the lines intersecting the painted window are materialized
+/// lazily by [`CodeEditorPanel::wrap_rows_for_window`] (O(painted window), NOT O(document)).
+///
+/// The index is rebuilt only on a [`WrapRowIndexKey`] miss (edit / fold / toggle / resize / metric
+/// change), so a scroll / hover / idle repaint is a cache hit and costs O(1) for the scroll-row count.
+struct WrapRowIndex {
+    key: WrapRowIndexKey,
+    /// `cumulative.len() == visible_lines + 1`; `cumulative[i]` = visual rows in visible lines `0..i`.
+    cumulative: Vec<usize>,
+}
+
+impl WrapRowIndex {
+    /// Total visual rows across the whole visible (post-fold) document — the `show_rows` row count.
+    fn total_rows(&self) -> usize {
+        *self.cumulative.last().unwrap_or(&0)
+    }
+
+    /// The visible-line slot (index into the fold-mapped visible window) that owns visual-row index `v`,
+    /// plus the visual-row index at which that visible line's fragments begin. Returns `None` when `v` is
+    /// past the end. O(log visible_lines).
+    fn visible_line_for_row(&self, v: usize) -> Option<(usize, usize)> {
+        if v >= self.total_rows() {
+            return None;
+        }
+        // `cumulative` is sorted nondecreasing; find the last slot whose start is <= v.
+        // partition_point returns the number of leading elements with start <= v, so subtract 1.
+        let slot = self.cumulative.partition_point(|&start| start <= v) - 1;
+        Some((slot, self.cumulative[slot]))
+    }
 }
 
 /// The native code-editor panel widget. Holds the document buffer + highlighter and renders the
@@ -834,6 +895,14 @@ pub struct CodeEditorPanel {
     /// (RISK-001 / MC-001 — one source of truth). Behind a `Mutex` for the same `Sync` reason as the
     /// buffer; a swarm agent flips it via the `editor-wrap-toggle` AccessKit node.
     wrap_config: Mutex<WrapConfig>,
+    /// MT-054 PERF CAP (adversarial-review hardening): the cached wrap-row COUNT index that lets the paint
+    /// path compute `show_rows`' total visual-row count + map a visual-row index back to its visible line
+    /// WITHOUT re-wrapping the whole post-fold document every frame. Recomputed only when its key changes
+    /// (buffer edit, wrap toggle / column / viewport-width change, glyph-width change, or fold-state
+    /// change) — NOT on a scroll / hover / idle repaint. On a cache hit the per-frame scroll-count lookup
+    /// is O(1) and the per-frame paint materializes ONLY the logical lines intersecting the painted visual
+    /// row window (O(window), not O(document)). `None` until the first wrap frame builds it.
+    wrap_row_index: Mutex<Option<WrapRowIndex>>,
 
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
@@ -1190,6 +1259,7 @@ impl CodeEditorPanel {
             perf: Mutex::new(PerfStats {
                 frame_lines_rendered: 0,
                 buffer_len_lines: len_lines,
+                frame_lines_wrapped: 0,
             }),
             last_visible_range: Mutex::new(0..0),
             pending_scroll_offset: Mutex::new(None),
@@ -1292,6 +1362,7 @@ impl CodeEditorPanel {
             // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
             // width before the wrap layout runs.
             wrap_config: Mutex::new(WrapConfig::default()),
+            wrap_row_index: Mutex::new(None),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -4611,15 +4682,14 @@ impl CodeEditorPanel {
                 // recompute (which adds ±OVERSCAN_LINES egui never applies and divides by the
                 // sans-spacing height) — is the authoritative diagnostics + overlay-positioning surface.
                 let mut painted_range: std::ops::Range<usize> = 0..0;
+                // MT-054 PERF CAP: the count of LOGICAL lines the wrap paint path byte-materialized this
+                // frame. The closure writes it; it stays O(painted window) under wrap and 0 when wrap is
+                // off. A perf test asserts it never approaches the document size on a large wrapped file.
+                let mut frame_lines_wrapped: usize = 0;
 
                 // MT-054: refresh the wrap config's viewport width from the LIVE editor-row width (the
                 // scroll-area inner width minus a small scrollbar allowance) so `wordWrap: on` wraps at
-                // the real visible edge. A no-op for the 1:1 fast path (wrap off ignores the width). Then
-                // build the wrap-aware VisualRow list over the VISIBLE (post-fold) buffer lines — the ONE
-                // source of truth that drives BOTH the `show_rows` row count + scroll math AND the per-row
-                // paint (RISK-001 / MC-001). When wrap is OFF this list is a strict 1:1 identity, so
-                // `wrap_rows.len() == visible_lines` and the non-wrap render path is byte-identical to the
-                // MT-002 baseline (RISK-006 / MC-006).
+                // the real visible edge. A no-op for the 1:1 fast path (wrap off ignores the width).
                 let editor_row_width = (ui.available_width() - 16.0).max(1.0);
                 {
                     let mut cfg = self.wrap_config.lock().unwrap_or_else(|e| e.into_inner());
@@ -4627,18 +4697,20 @@ impl CodeEditorPanel {
                 }
                 let wrap_cfg = self.wrap_config();
                 let wrap_enabled = wrap_cfg.enabled;
-                // The visible (post-fold) buffer lines, in painted order, expanded to VisualRows. The
-                // wrap layout is over BUFFER lines, but driven from the visible window so folded lines do
-                // not contribute rows; `visible_buffer_lines_in_order` returns the buffer line for each
-                // visible index (fold-aware), and we wrap each of those lines.
-                let wrap_rows: Vec<VisualRow> = if wrap_enabled {
-                    self.build_visible_visual_rows(visible_lines, &wrap_cfg, glyph_width)
+                // MT-054 PERF CAP (adversarial-review hardening): the `show_rows` row count under wrap
+                // comes from the CACHED prefix-sum wrap-row index — NOT from eagerly building every
+                // VisualRow in the document every frame (the O(document)/frame regression the review
+                // caught). `ensure_wrap_row_index` rebuilds the index only on a key miss (edit / fold /
+                // toggle / resize / metric change); a scroll / hover / idle repaint is a cache hit and
+                // O(1). The per-row paint inside the closure then materializes ONLY the painted window's
+                // lines (RISK-001 / MC-001 — paint + scrollbar still share ONE source of truth, the index;
+                // RISK-006 / MC-006 — wrap OFF skips the index entirely so the MT-002 baseline is
+                // unchanged).
+                let scroll_row_count = if wrap_enabled {
+                    self.ensure_wrap_row_index(visible_lines, &wrap_cfg, glyph_width)
                 } else {
-                    Vec::new()
+                    visible_lines
                 };
-                // The row count `show_rows` strides over: visual rows under wrap, visible (fold) lines off
-                // (MC-001 — paint + scrollbar share this one count so a wrapped doc scrolls correctly).
-                let scroll_row_count = if wrap_enabled { wrap_rows.len() } else { visible_lines };
 
                 // MT-005: drive `show_rows` over the VISIBLE (post-fold) line count, so a folded region
                 // collapses the scroll content (the scrollbar reflects the folded document). The
@@ -4654,10 +4726,15 @@ impl CodeEditorPanel {
                         // Record egui's actual painted window before painting.
                         painted_range = row_range.clone();
                         if wrap_enabled {
+                            // MT-054 PERF CAP: materialize ONLY the painted visual-row window's logical
+                            // lines (O(window)), translated from the cached index — not the whole doc.
+                            let (window_rows, window_start, lines_touched) =
+                                self.wrap_rows_for_window(row_range.clone(), &wrap_cfg, glyph_width);
+                            frame_lines_wrapped = lines_touched;
                             self.render_wrapped_rows(
                                 ui,
-                                row_range,
-                                &wrap_rows,
+                                &window_rows,
+                                window_start,
                                 &syntax,
                                 total_lines,
                                 text_id,
@@ -4693,6 +4770,7 @@ impl CodeEditorPanel {
                 let stats = PerfStats {
                     frame_lines_rendered: painted_range.len(),
                     buffer_len_lines: total_lines,
+                    frame_lines_wrapped,
                 };
                 *self.perf.lock().unwrap_or_else(|e| e.into_inner()) = stats;
                 *self.last_visible_range.lock().unwrap_or_else(|e| e.into_inner()) =
@@ -6078,56 +6156,161 @@ impl CodeEditorPanel {
 
     // ── MT-054 word-wrap rendering ────────────────────────────────────────────────────────────────
 
-    /// MT-054: build the wrap-aware [`VisualRow`] list for the WHOLE visible (post-fold) document, in
-    /// painted order. Each visible line index is mapped to its buffer line through the FoldSet (so folded
-    /// lines never contribute rows); a folded-region START line contributes a single summary row
-    /// (`wrap_index == 0`, the region's start-line byte span — no wrap), and every other visible line is
-    /// wrapped by [`layout_visual_rows`]. The result is the SINGLE source of truth that drives both the
-    /// `show_rows` row count + scroll math AND the per-row paint (RISK-001 / MC-001).
-    fn build_visible_visual_rows(
+    /// MT-054 PERF CAP (adversarial-review hardening): ensure the cached [`WrapRowIndex`] is current for
+    /// the live `(buffer_version, fold_version, wrap config, glyph_width, visible_lines)` key, rebuilding
+    /// it ONLY on a key miss. The index is a prefix-sum of per-visible-line visual-row COUNTS — it is the
+    /// single source of truth for the `show_rows` total-row count and for mapping a visual-row index back
+    /// to its visible line, WITHOUT materializing the whole post-fold document's VisualRow list. Returns
+    /// the total visual-row count.
+    ///
+    /// On a cache HIT (the common scroll / hover / idle repaint) this is O(1). On a MISS (edit / fold /
+    /// wrap toggle / column / viewport-width / glyph-width change) it walks the visible lines once to
+    /// count each line's fragments via [`count_visual_rows_for_line`] (O(document), but only when an input
+    /// actually changed — never per frame). This is what stops the per-frame O(document) re-wrap the
+    /// review caught: the per-FRAME paint path materializes only the painted window's lines.
+    fn ensure_wrap_row_index(
         &self,
         visible_lines: usize,
         cfg: &WrapConfig,
         glyph_width: f32,
-    ) -> Vec<VisualRow> {
-        let mut rows: Vec<VisualRow> = Vec::with_capacity(visible_lines);
+    ) -> usize {
+        let key = WrapRowIndexKey {
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            fold_version: self.fold_version.load(Ordering::Relaxed),
+            visible_lines,
+            wrap_enabled: cfg.enabled,
+            wrap_column: cfg.wrap_column,
+            viewport_width_bits: cfg.viewport_width_px.to_bits(),
+            glyph_width_bits: glyph_width.to_bits(),
+        };
+        let mut guard = self.wrap_row_index.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(idx) = guard.as_ref() {
+            if idx.key == key {
+                return idx.total_rows();
+            }
+        }
+        // MISS: rebuild the prefix-sum of per-visible-line visual-row counts. `cumulative[i]` is the
+        // visual-row count of visible lines 0..i, so `cumulative[visible_lines]` is the total.
+        let mut cumulative: Vec<usize> = Vec::with_capacity(visible_lines + 1);
+        cumulative.push(0);
+        {
+            let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+            let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            let mut running = 0usize;
+            for visible_idx in 0..visible_lines {
+                let buffer_line = set.visible_line_to_buffer_line(visible_idx);
+                // A folded-region START line is exactly one collapsed summary row (never wrapped).
+                let folded = matches!(set.region_starting_at(buffer_line), Some(r) if r.folded);
+                let n = if folded {
+                    1
+                } else {
+                    count_visual_rows_for_line(&buffer, buffer_line, cfg, glyph_width)
+                };
+                running += n;
+                cumulative.push(running);
+            }
+        }
+        let total = *cumulative.last().unwrap_or(&0);
+        *guard = Some(WrapRowIndex { key, cumulative });
+        total
+    }
+
+    /// MT-054 PERF CAP: materialize the [`VisualRow`]s for ONLY the painted visual-row window
+    /// `row_range` (in visual-row space), using the cached [`WrapRowIndex`] to translate the window into
+    /// the slice of visible lines that intersect it. Per-frame cost is O(painted window), NOT O(document):
+    /// only the logical lines that actually appear on screen are byte-materialized + wrapped this frame.
+    ///
+    /// Returns `(rows, window_start_visual, logical_lines_touched)` where `rows` are the visual rows whose
+    /// indices fall in `row_range`, `window_start_visual` is the visual-row index of `rows[0]` (so paint y
+    /// = `(idx - window_start_visual)`), and `logical_lines_touched` is the count fed to the perf
+    /// diagnostic so a test can assert the paint stayed bounded.
+    fn wrap_rows_for_window(
+        &self,
+        row_range: std::ops::Range<usize>,
+        cfg: &WrapConfig,
+        glyph_width: f32,
+    ) -> (Vec<VisualRow>, usize, usize) {
+        let guard = self.wrap_row_index.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(index) = guard.as_ref() else {
+            return (Vec::new(), row_range.start, 0);
+        };
+        let total = index.total_rows();
+        let want_start = row_range.start.min(total);
+        let want_end = row_range.end.min(total);
+        if want_start >= want_end {
+            return (Vec::new(), want_start, 0);
+        }
+        // Which visible-line slot owns the first painted visual row, and the visual-row index that slot
+        // begins at (so the first painted row may be a continuation fragment of a partly-scrolled line).
+        let Some((first_slot, first_slot_start)) = index.visible_line_for_row(want_start) else {
+            return (Vec::new(), want_start, 0);
+        };
+
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-        for visible_idx in 0..visible_lines {
-            let buffer_line = set.visible_line_to_buffer_line(visible_idx);
-            // A folded-region start line is one collapsed summary row (never wrapped).
+
+        // Walk visible-line slots from `first_slot`, materializing each line's fragments, until we have
+        // covered `want_end`. We materialize the whole of `first_slot`'s line (cheap — one line) and trim
+        // to the window afterwards, because the window may start mid-line.
+        let mut all_rows: Vec<VisualRow> = Vec::new();
+        let mut visual_cursor = first_slot_start; // visual-row index of the next row we push
+        let mut slot = first_slot;
+        let mut logical_lines_touched = 0usize;
+        while visual_cursor < want_end && slot < index.cumulative.len() - 1 {
+            let buffer_line = set.visible_line_to_buffer_line(slot);
             let folded = matches!(set.region_starting_at(buffer_line), Some(r) if r.folded);
+            logical_lines_touched += 1;
             if folded {
                 let start = buffer.line_to_byte(buffer_line).unwrap_or(0);
                 let end = buffer
                     .line_to_byte(buffer_line + 1)
                     .unwrap_or_else(|| buffer.len_bytes());
-                rows.push(VisualRow {
+                all_rows.push(VisualRow {
                     logical_line: buffer_line,
                     byte_start: start,
                     byte_end: end,
                     wrap_index: 0,
                 });
+                visual_cursor += 1;
             } else {
-                let mut line_rows =
+                let line_rows =
                     layout_visual_rows(&buffer, buffer_line..buffer_line + 1, cfg, glyph_width);
-                rows.append(&mut line_rows);
+                visual_cursor += line_rows.len();
+                all_rows.extend(line_rows);
             }
+            slot += 1;
         }
-        rows
+        drop(set);
+        drop(buffer);
+
+        // `all_rows` covers visual indices `[first_slot_start, visual_cursor)`. Trim to `[want_start,
+        // want_end)` so the returned rows align exactly with the painted window (the first fragment of a
+        // partly-scrolled line is dropped when the window starts mid-line).
+        let trim_front = want_start - first_slot_start;
+        let trim_back_extra = visual_cursor.saturating_sub(want_end);
+        let keep_end = all_rows.len().saturating_sub(trim_back_extra);
+        let trimmed: Vec<VisualRow> = all_rows
+            .into_iter()
+            .skip(trim_front)
+            .take(keep_end.saturating_sub(trim_front))
+            .collect();
+        (trimmed, want_start, logical_lines_touched)
     }
 
-    /// MT-054: paint the visual-row window `row_range` (in VISUAL-row space) under word wrap. Each visual
-    /// row is one fragment of a logical line; the fragment text is painted on its own row, decorations
-    /// overlay the painted window, and the AccessKit text node is emitted (the same nesting as
-    /// `render_rows`). Indent guides are drawn ONLY for `wrap_index == 0` rows (RISK-007 / MC-007 — a
-    /// continuation row has no real leading whitespace, so a guide there would be a ghost guide).
+    /// MT-054: paint the ALREADY-WINDOWED visual rows under word wrap. `window_rows` are exactly the
+    /// visual rows egui's `show_rows` asked for this frame (materialized lazily by
+    /// [`wrap_rows_for_window`](Self::wrap_rows_for_window) — O(window), NOT O(document)); `window_start`
+    /// is the GLOBAL visual-row index of `window_rows[0]` (for the scroll/geometry seam). Each visual row
+    /// is one fragment of a logical line; the fragment text is painted on its own row, decorations overlay
+    /// the painted window, and the AccessKit text node is emitted (the same nesting as `render_rows`).
+    /// Indent guides are drawn ONLY for `wrap_index == 0` rows (RISK-007 / MC-007 — a continuation row has
+    /// no real leading whitespace, so a guide there would be a ghost guide).
     #[allow(clippy::too_many_arguments)]
     fn render_wrapped_rows(
         &self,
         ui: &mut egui::Ui,
-        row_range: std::ops::Range<usize>,
-        wrap_rows: &[VisualRow],
+        window_rows: &[VisualRow],
+        window_start: usize,
         syntax: &HsSyntaxTokens,
         total_lines: usize,
         text_id: egui::Id,
@@ -6140,12 +6323,9 @@ impl CodeEditorPanel {
             ui.style_mut().spacing.item_spacing.y = 0.0;
             let origin = ui.cursor().min;
 
-            let visual_end = row_range.end.min(wrap_rows.len());
-            let start = row_range.start.min(visual_end);
-
             // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
-            let (first_buffer_line, last_buffer_line) = if start < visual_end {
-                (wrap_rows[start].logical_line, wrap_rows[visual_end - 1].logical_line)
+            let (first_buffer_line, last_buffer_line) = if !window_rows.is_empty() {
+                (window_rows[0].logical_line, window_rows[window_rows.len() - 1].logical_line)
             } else {
                 (0, 0)
             };
@@ -6158,7 +6338,7 @@ impl CodeEditorPanel {
             let visible_spans = self.spans_in_byte_window(win_start, win_end);
 
             // Paint each visual-row fragment as its own row (the fragment's byte slice, syntax-colored).
-            for row in &wrap_rows[start..visual_end] {
+            for row in window_rows {
                 let folded_label = {
                     let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
                     match set.region_starting_at(row.logical_line) {
@@ -6172,27 +6352,27 @@ impl CodeEditorPanel {
                 }
             }
 
-            // The painted window's RowGeometry: `first_line` is the visual-row index of the first painted
-            // row (NOT a buffer line) because under wrap the rows are in visual space. The decoration +
-            // overlay painters that need this use the wrap-row mapping passed alongside.
+            // The painted window's RowGeometry: `first_line` is the GLOBAL visual-row index of the first
+            // painted row (NOT a buffer line) because under wrap the rows are in visual space. The
+            // decoration painters map a byte offset to a row by its position WITHIN `window_rows`, whose
+            // index 0 is at `geometry.top`, so the y mapping stays correct for the windowed slice.
             let geometry = RowGeometry {
                 left: origin.x,
                 top: origin.y,
-                first_line: start,
+                first_line: window_start,
                 line_height,
             };
             *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
             // MT-054 decorations under wrap: indent guides only on first-fragment rows, bracket colors +
-            // match highlight mapped through the visual-row list (RISK-007 / MC-007).
-            let painted = &wrap_rows[start..visual_end];
+            // match highlight mapped through the painted visual-row window (RISK-007 / MC-007).
             self.paint_chrome_decorations(
                 ui,
                 &geometry,
                 glyph_width,
                 first_buffer_line,
                 buffer_end,
-                Some(painted),
+                Some(window_rows),
             );
 
             let author = text_author.to_owned();

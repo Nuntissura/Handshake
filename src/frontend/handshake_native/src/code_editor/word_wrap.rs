@@ -174,6 +174,68 @@ pub fn layout_visual_rows(
     rows
 }
 
+/// MT-054 PERF CAP: the number of visual rows a SINGLE logical line `line` produces under `cfg`, without
+/// allocating the [`VisualRow`] list. Used by the panel's cached wrap-row-count index
+/// ([`crate::code_editor::panel`]) to size `show_rows` + map a visual-row index back to a logical line
+/// WITHOUT materializing the whole document's VisualRow list every frame. The result equals
+/// `layout_visual_rows(buffer, line..line + 1, cfg, char_width_px).len()` (a debug assertion in the unit
+/// tests enforces this identity), but a long line costs one byte-slice + one char-index pass instead of a
+/// `Vec<VisualRow>` allocation. Always returns at least 1 (an empty / short line is one row), and 1 on
+/// the 1:1 fast path (wrap off / degenerate width).
+pub fn count_visual_rows_for_line(
+    buffer: &TextBuffer,
+    line: usize,
+    cfg: &WrapConfig,
+    char_width_px: f32,
+) -> usize {
+    let Some(cols) = cfg.wrap_columns(char_width_px) else {
+        // 1:1 fast path (wrap off / degenerate width): one row per logical line.
+        return 1;
+    };
+    let line_start = match buffer.line_to_byte(line) {
+        Some(b) => b,
+        None => return 1,
+    };
+    let line_end = buffer
+        .line_to_byte(line + 1)
+        .unwrap_or_else(|| buffer.len_bytes());
+    let text = buffer.byte_slice_to_string(line_start..line_end);
+    let content = text.strip_suffix('\n').unwrap_or(&text);
+    let n = content.chars().count();
+    if n == 0 {
+        return 1;
+    }
+    // Mirror `wrap_one_line`'s fragment count: at each step we advance by at least 1 char and at most
+    // `cols`, soft-breaking at the last whitespace at-or-before the hard limit (which never shortens the
+    // step below 1). The fragment count therefore depends on the soft-break positions, so we walk the
+    // same break logic but count only — this stays O(line), the same per-line cost the layout pays.
+    let chars: Vec<char> = content.chars().collect();
+    let mut count = 0usize;
+    let mut frag_start = 0usize;
+    while frag_start < n {
+        count += 1;
+        let remaining = n - frag_start;
+        if remaining <= cols {
+            break;
+        }
+        let hard_limit = frag_start + cols;
+        let mut break_char = None;
+        let mut i = hard_limit;
+        while i > frag_start + 1 {
+            i -= 1;
+            if chars[i].is_whitespace() {
+                break_char = Some(i + 1);
+                break;
+            }
+        }
+        frag_start = match break_char {
+            Some(bc) if bc > frag_start => bc,
+            _ => hard_limit,
+        };
+    }
+    count
+}
+
 /// Split one logical line `[line_start, line_end)` (line_end includes the trailing `\n` when present)
 /// into wrap fragments of at most `cols` columns each, appending them to `rows`. Soft-breaks at the last
 /// whitespace before the limit; hard-breaks at the limit when a run has no whitespace. Always emits at
@@ -414,5 +476,37 @@ mod tests {
         );
         // The long line contributes ceil(200/80)=3 rows; the two short lines 1 each => 5 total.
         assert_eq!(on_rows.len(), 5, "3 + 1 + 1 = 5 visual rows under wrap");
+    }
+
+    #[test]
+    fn count_visual_rows_matches_layout_len_for_every_line() {
+        // PERF CAP identity: the cheap count-only helper used by the panel's cached wrap-row index must
+        // equal the full layout's fragment count for each logical line, on/off and across soft + hard
+        // breaks + empty lines, so the cached scroll-row count never disagrees with the painted rows.
+        let buf = TextBuffer::new(&format!(
+            "{}\n\naaaa bbbb cccc dddd\nshort\n{}",
+            "x".repeat(200),
+            "tok".repeat(50)
+        ));
+        for cfg in [off(), on_at_cols(6), on_at_cols(40), on_at_cols(80)] {
+            for line in 0..buf.len_lines() {
+                let laid = layout_visual_rows(&buf, line..line + 1, &cfg, 8.0).len();
+                let counted = count_visual_rows_for_line(&buf, line, &cfg, 8.0);
+                assert_eq!(
+                    counted, laid,
+                    "count_visual_rows_for_line disagreed with layout on line {line} cfg {cfg:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn count_visual_rows_is_one_on_fast_path() {
+        let buf = TextBuffer::new(&"a".repeat(500));
+        // Wrap off => always 1 regardless of width.
+        assert_eq!(count_visual_rows_for_line(&buf, 0, &off(), 8.0), 1);
+        // Degenerate width => 1 (no infinite split).
+        let bad = WrapConfig { enabled: true, wrap_column: None, viewport_width_px: 0.0 };
+        assert_eq!(count_visual_rows_for_line(&buf, 0, &bad, 8.0), 1);
     }
 }

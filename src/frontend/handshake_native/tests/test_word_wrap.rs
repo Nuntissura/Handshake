@@ -176,6 +176,84 @@ fn wrap_toggle_persists_and_is_addressable_by_author_id() {
 }
 
 #[test]
+fn wrap_paint_is_bounded_to_window_on_large_document() {
+    // PERF CAP (adversarial-review hardening): under word wrap the per-FRAME paint path must materialize
+    // only the LOGICAL lines that intersect the on-screen visual-row window — O(window) — NOT re-wrap the
+    // whole post-fold document every frame (the O(document)/frame regression the review caught). A 4000-
+    // line doc, each line long enough to wrap into several visual rows, is painted into a fixed-size
+    // harness; `frame_lines_wrapped` must stay a small fraction of the document line count across repeated
+    // (scroll/hover/idle-equivalent) frames, proving the cached prefix-sum index + lazy window
+    // materialization, not a full-document re-wrap.
+    let line = "let value = ".to_owned() + &"abcdefghij ".repeat(12); // ~140 chars -> several wrap rows
+    let src = (0..4000).map(|_| line.as_str()).collect::<Vec<_>>().join("\n");
+    let total_lines = src.matches('\n').count() + 1;
+    assert!(total_lines >= 4000, "large document built; got {total_lines} lines");
+
+    let panel = Arc::new(CodeEditorPanel::new(&src, "rs"));
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(40)); // force a deterministic narrow wrap independent of the viewport
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 400.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+
+    // Run several frames (the first builds the cached index; later frames are cache hits — exactly the
+    // scroll/hover/idle repaints the regression made O(document)).
+    for _ in 0..4 {
+        harness.run();
+    }
+
+    let stats = panel.perf_stats();
+    assert_eq!(stats.buffer_len_lines, total_lines, "whole document line count reported");
+    assert!(stats.frame_lines_rendered > 0, "the wrap path painted a non-empty window");
+    // The load-bearing assertion: the wrap paint touched only a window's worth of logical lines, NOT the
+    // whole document. A 400px viewport at ~13px rows shows well under 100 visual rows; each logical line
+    // wraps into several of them, so the painted logical lines are far fewer still. A generous cap of 200
+    // is orders of magnitude below the 4000-line document and would FAIL hard under the old full-document
+    // re-wrap (which materialized all 4000 every frame).
+    assert!(
+        stats.frame_lines_wrapped > 0,
+        "wrap on -> the paint path materialized at least one logical line"
+    );
+    assert!(
+        stats.frame_lines_wrapped <= 200,
+        "PERF CAP: wrap paint must touch only O(window) logical lines, not O(document); touched {} of {}",
+        stats.frame_lines_wrapped,
+        stats.buffer_len_lines
+    );
+    assert!(
+        stats.frame_lines_wrapped < stats.buffer_len_lines / 10,
+        "PERF CAP: paint touched {} logical lines, far below the {}-line document (no full-document re-wrap)",
+        stats.frame_lines_wrapped,
+        stats.buffer_len_lines
+    );
+}
+
+#[test]
+fn wrap_off_reports_zero_lines_wrapped() {
+    // The non-wrap baseline path never enters the wrap materializer, so `frame_lines_wrapped` is 0 — the
+    // MT-002 baseline render is untouched by the perf-cap plumbing (RISK-006 / MC-006).
+    let panel = Arc::new(CodeEditorPanel::new("fn main() {\n    let x = 1;\n}\n", "rs"));
+    assert!(!panel.is_wrap_enabled());
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 400.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+    let stats = panel.perf_stats();
+    assert_eq!(
+        stats.frame_lines_wrapped, 0,
+        "wrap OFF -> the wrap paint path never ran; got {stats:?}"
+    );
+}
+
+#[test]
 fn live_panel_renders_under_wrap_without_panic() {
     // Drive the REAL panel with wrap ENABLED + a forced narrow wrap column so the wrap render path
     // (render_wrapped_rows) actually runs against a long line. Proves the scroll-row-count + per-row
