@@ -67,6 +67,17 @@ pub enum EditorEvent {
         /// The (trimmed) title of the unresolved link to create.
         title: String,
     },
+    /// WP-KERNEL-012 MT-058: an inline `#tag` chip was clicked. The shell routes the tag onto the
+    /// WP-011 navigation/command bus (`command_registry` + `event_bus`) so the MT-023 tag hub for the
+    /// tag opens — the chip NEVER opens the hub directly (RISK-005 / MC-005, mirroring the wikilink
+    /// navigation-request pattern). Carries the tag's CANONICAL identity (the hub-resolution key, the
+    /// same normalized identity property tags converge on) and the original-case display name.
+    TagActivated {
+        /// The tag's canonical (normalized) identity — the hub-resolution + convergence key.
+        canonical: String,
+        /// The original-case display name (without the leading `#`), for the hub title / display.
+        display: String,
+    },
 }
 
 /// WP-KERNEL-012 MT-057: the editor command-bus intent vocabulary is carried on [`EditorEvent`]

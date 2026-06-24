@@ -24,6 +24,11 @@ pub mod document_model;
 pub mod embeds;
 pub mod find_replace;
 pub mod formatting;
+// WP-KERNEL-012 MT-058 (E2): inline `#tag` authoring in the editor body (Obsidian/Notion parity). Detect,
+// autocomplete, and commit a `#tag` as an `hsLink` atom (ref_kind="tag") that renders as a clickable chip
+// emitting a navigation event to the MT-023 tag hub, converging inline + property tags into ONE deduped
+// loom edge per distinct normalized identity on commit (one tag, one hub).
+pub mod inline_tags;
 // WP-KERNEL-012 MT-056 (E2): the heading Outline / Table-of-Contents navigator (the Obsidian Outline
 // core-plugin / Notion TOC-block parity item). Defines the pure `build_outline` over the MT-011 block
 // DocModel, the `OutlineNode` tree, and the `OutlinePanel` egui widget + AccessKit Tree/TreeItem nodes.

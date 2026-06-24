@@ -77,6 +77,16 @@ pub struct RichEditorState {
     /// so the popup state (filter / selection / active prompt) persists across frames; closed on focus
     /// loss (MC-004) and on Escape / execute / the `/` being deleted.
     pub slash_menu: Option<crate::rich_editor::slash_commands::SlashMenuState>,
+    /// WP-KERNEL-012 MT-058 (E2 — inline `#tag` authoring): the active inline-tag autocomplete popup
+    /// (`Some` while the operator is typing a `#` trigger at a word boundary). Owned HERE so the trigger
+    /// span / query / selection persist across frames; closed on Escape / commit / the `#` being deleted
+    /// or the body ending. Mutually exclusive with the wikilink autocomplete + slash menu.
+    pub tag_autocomplete: Option<crate::rich_editor::inline_tags::TagAutocompleteState>,
+    /// WP-KERNEL-012 MT-058: the cached MT-023 tag-hub list (display names) the `#` autocomplete menu
+    /// sources its existing-tag rows from (`GET /loom/tags` — the VERIFIED route). Refreshed by the shell
+    /// when the menu opens; a free-typed NEW tag is always committable regardless (AC-006). Empty until
+    /// the shell installs the tag list (a unit/kittest seeds it directly).
+    pub tag_list: Vec<String>,
     /// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): the open `/code-ref` code-symbol search
     /// dialog (`Some` while the operator is picking a symbol). Owned HERE so the query + results + load
     /// state persist across frames; closed on select / cancel. The workspace id + runtime it needs are
@@ -207,6 +217,8 @@ impl RichEditorState {
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
             slash_menu: None,
+            tag_autocomplete: None,
+            tag_list: Vec::new(),
             code_symbol_search: None,
             code_ref_workspace_id: String::new(),
             code_ref_runtime: None,
@@ -223,6 +235,60 @@ impl RichEditorState {
             editor_actions: None,
             pending_scroll_block: None,
         }
+    }
+
+    /// WP-KERNEL-012 MT-058: install the cached MT-023 tag list (display names) the inline-tag `#`
+    /// autocomplete menu sources its existing-tag rows from (`GET /loom/tags` — the VERIFIED route the
+    /// shell fetches via [`crate::backend_client::LoomTagClient`]). The shell calls this when the editor
+    /// mounts / when the menu opens; a free-typed NEW tag is always committable regardless (AC-006), so
+    /// an empty list never blocks tag authoring.
+    pub fn set_tag_list(&mut self, tags: Vec<String>) {
+        self.tag_list = tags;
+    }
+
+    /// WP-KERNEL-012 MT-058: collect every distinct inline-tag display name in document order from the
+    /// committed `Child::HsLink(ref_kind="tag")` atoms in the document tree. This is the INLINE half of
+    /// the convergence union (RISK-004 / MC-004) — the caller unions it with the MT-017 property-panel
+    /// tag set via [`crate::rich_editor::inline_tags::build_tag_edge_payload`] at document COMMIT/SAVE
+    /// (never per keystroke). Each name is the original-case display (recovered from the chip label), so
+    /// the convergence builder normalizes them to dedupe.
+    pub fn collect_inline_tags(&self) -> Vec<String> {
+        fn walk(block: &BlockNode, out: &mut Vec<String>) {
+            for child in &block.children {
+                match child {
+                    Child::HsLink(link)
+                        if crate::rich_editor::inline_tags::is_tag_link(link) =>
+                    {
+                        out.push(crate::rich_editor::inline_tags::tag_from_link(link).name);
+                    }
+                    Child::Block(b) => walk(b, out),
+                    _ => {}
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.doc, &mut out);
+        out
+    }
+
+    /// WP-KERNEL-012 MT-058: build the deduped convergence tag-edge payload for a document COMMIT/SAVE —
+    /// the union of this document's inline tags ([`Self::collect_inline_tags`]) with the MT-017
+    /// property-panel tag set, deduped by normalized identity (one tag, one hub — RISK-004 / MC-004 /
+    /// AC-005). This is the payload the shell persists via `POST /loom/edges` (one edge per distinct
+    /// canonical tag) on save; the LIVE POST is gated on a managed PostgreSQL + per-canonical tag_hub
+    /// resolution (NEEDS_MANAGED_RESOURCE_PROOF), but the deduped builder output is provable standalone.
+    /// The property tags are read from the live [`crate::rich_editor::properties::PropertiesState::tags`]
+    /// when present (MT-017's local-only list — see TB-058-NORMALIZE on its persistence gap).
+    pub fn build_tag_edge_payload_for_save(
+        &self,
+    ) -> crate::rich_editor::inline_tags::TagEdgePayload {
+        let inline = self.collect_inline_tags();
+        let property: Vec<String> = self
+            .properties
+            .as_ref()
+            .map(|p| p.tags.clone())
+            .unwrap_or_default();
+        crate::rich_editor::inline_tags::build_tag_edge_payload(inline, property)
     }
 
     /// WP-KERNEL-012 MT-041 (E7): install the shared [`EditorActionRegistry`] this rich pane registers
@@ -952,6 +1018,18 @@ impl RichEditorWidget {
             events = Self::handle_slash_menu_keys(state, events);
         }
 
+        // WP-KERNEL-012 MT-058: when the inline-tag `#` menu is OPEN (and no wikilink autocomplete /
+        // slash menu owns the input), it CLAIMS Up/Down/Enter/Tab/Escape so they drive the menu (Enter
+        // commits the selected/free-typed tag as a chip instead of splitting the paragraph; Escape
+        // closes + removes the `#` trigger). Runs BEFORE the focus gate like the other inline popups so
+        // Escape is not swallowed when egui releases focus in the same frame.
+        if state.wikilink_autocomplete.is_none()
+            && state.slash_menu.is_none()
+            && state.tag_autocomplete.is_some()
+        {
+            events = Self::handle_tag_menu_keys(state, events);
+        }
+
         if !has_focus {
             return; // an unfocused editor ignores the remaining input (and never schedules a repaint).
         }
@@ -1080,6 +1158,17 @@ impl RichEditorWidget {
             && !state.slash_menu.as_ref().is_some_and(|m| m.prompt_active())
         {
             Self::refresh_slash_trigger(state);
+        }
+
+        // WP-KERNEL-012 MT-058: re-detect the `#` inline-tag trigger from the caret's text-before-caret.
+        // Typing `#` at a word boundary (offset 0 or after whitespace/punctuation) opens the tag menu;
+        // typing the body refines the live filter; a space / non-tag char after the body, deleting the
+        // `#`, or moving out of the token closes it (AC-001). Mutually exclusive with the wikilink
+        // autocomplete + the slash menu (those surfaces own the input when open).
+        if state.wikilink_autocomplete.is_none() && state.slash_menu.is_none() {
+            Self::refresh_tag_trigger(state);
+        } else {
+            state.tag_autocomplete = None;
         }
 
         // MT-018: the find/replace panel recomputes its scan on every document change while open
@@ -1871,6 +1960,152 @@ impl RichEditorWidget {
         Some((head.path.clone(), before))
     }
 
+    /// WP-KERNEL-012 MT-058: re-detect the inline-tag `#` trigger from the caret's text-before-caret.
+    /// Opens the tag menu when a new open `#` trigger appears at a word boundary, updates the live filter
+    /// when the body refines, and closes the menu when the caret leaves the open token (a space / non-tag
+    /// char typed after the body, the `#` deleted, or the trigger gone). Mirrors
+    /// [`Self::refresh_autocomplete_trigger`] for `[[`, using the egui-free
+    /// [`crate::rich_editor::inline_tags::open_tag_query`] detector (parser.rs stays AccessKit/egui-free,
+    /// AC-007). Byte-safe on multi-byte UTF-8 (the parser walks chars — RISK-003 / MC-003).
+    fn refresh_tag_trigger(state: &mut RichEditorState) {
+        use crate::rich_editor::inline_tags::{open_tag_query, TagAutocompleteState};
+
+        let Some((leaf_path, before)) = Self::caret_text_before(state) else {
+            state.tag_autocomplete = None; // no text caret -> no menu.
+            return;
+        };
+        match open_tag_query(&before) {
+            Some((trigger_start_char, query)) => {
+                match state.tag_autocomplete.as_mut() {
+                    // Same open token in the same leaf -> update the live filter (selection resets).
+                    Some(ac)
+                        if ac.leaf_path == leaf_path
+                            && ac.trigger_start_char == trigger_start_char =>
+                    {
+                        ac.set_query(query);
+                    }
+                    // A new/relocated trigger -> open a fresh menu.
+                    _ => {
+                        state.tag_autocomplete =
+                            Some(TagAutocompleteState::open(trigger_start_char, leaf_path, query));
+                    }
+                }
+            }
+            // No open trigger before the caret -> close the menu.
+            None => state.tag_autocomplete = None,
+        }
+    }
+
+    /// WP-KERNEL-012 MT-058: handle the inline-tag `#` menu's navigation/confirm/cancel keys while it is
+    /// open. Consumes Up/Down (move selection over the filtered item list), Enter/Tab (commit the
+    /// selected — or free-typed — tag as a `Child::HsLink(ref_kind="tag")` atom via the EXISTING
+    /// [`crate::rich_editor::wikilinks::confirm::confirm_wikilink`] insert), and Escape (cancel ->
+    /// remove the `#query` trigger text). Returns the events NOT claimed by the menu (plain typing that
+    /// refines the filter passes through). The menu item source is the cached MT-023 tag list filtered
+    /// by the live query, ALWAYS allowing a free-typed NEW tag (AC-006).
+    fn handle_tag_menu_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+        use crate::rich_editor::inline_tags::tag_menu_items;
+
+        let mut remaining = Vec::with_capacity(events.len());
+        for ev in events {
+            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+                remaining.push(ev);
+                continue;
+            };
+            match key {
+                egui::Key::ArrowDown => {
+                    let count = state
+                        .tag_autocomplete
+                        .as_ref()
+                        .map(|ac| tag_menu_items(&ac.query, &state.tag_list).len())
+                        .unwrap_or(0);
+                    if let Some(ac) = state.tag_autocomplete.as_mut() {
+                        ac.select_next(count);
+                    }
+                }
+                egui::Key::ArrowUp => {
+                    if let Some(ac) = state.tag_autocomplete.as_mut() {
+                        ac.select_prev();
+                    }
+                }
+                egui::Key::Enter | egui::Key::Tab => {
+                    Self::commit_selected_tag(state);
+                }
+                egui::Key::Escape => {
+                    // Cancel: remove the `#query` trigger text and close the menu.
+                    if let Some(ac) = state.tag_autocomplete.take() {
+                        let caret_char = Self::caret_char_offset(state);
+                        let RichEditorState { doc, selection, .. } = state;
+                        crate::rich_editor::wikilinks::confirm::cancel_wikilink(
+                            doc,
+                            selection,
+                            &ac.leaf_path,
+                            ac.trigger_start_char,
+                            caret_char,
+                        );
+                    }
+                }
+                // Any other key (plain typing, backspace) passes through to the normal editing path,
+                // which mutates the leaf text; the trigger re-detection then refines the filter.
+                _ => remaining.push(ev),
+            }
+        }
+        remaining
+    }
+
+    /// WP-KERNEL-012 MT-058: commit the currently-selected inline-tag menu row (or, when the menu has no
+    /// rows but the query is a valid tag, the free-typed tag) as a `Child::HsLink(ref_kind="tag")` atom
+    /// at the `#` trigger span, then close the menu. Reuses the EXISTING `confirm_wikilink` insert (the
+    /// `[[` confirm path) so the tag atom round-trips `content_json` and the caret lands after the chip.
+    /// A no-op when the resolved tag identity is empty (a bare `#` — never committed).
+    fn commit_selected_tag(state: &mut RichEditorState) {
+        use crate::rich_editor::inline_tags::{menu_item_to_hs_link, tag_menu_items, TagMenuItem};
+
+        let Some(ac) = state.tag_autocomplete.as_ref() else {
+            return;
+        };
+        let items = tag_menu_items(&ac.query, &state.tag_list);
+        // The selected row, or — when the list is empty (no existing match + an empty/invalid query) —
+        // a free-typed tag from the raw query (so Enter on a typed `#wip` with no list still commits).
+        let chosen: Option<TagMenuItem> = items
+            .get(ac.selected)
+            .cloned()
+            .or_else(|| {
+                let q = ac.query.trim();
+                if q.is_empty() {
+                    None
+                } else {
+                    Some(TagMenuItem::new_tag(q))
+                }
+            });
+        let Some(item) = chosen else {
+            // Nothing to commit (empty query, no rows): just close the menu, leave the `#` as text.
+            state.tag_autocomplete = None;
+            return;
+        };
+        let link = menu_item_to_hs_link(&item);
+        // A bare `#` (empty canonical) is never committed (the atom would be identity-less).
+        if link.ref_value.is_empty() {
+            state.tag_autocomplete = None;
+            return;
+        }
+        let leaf_path = ac.leaf_path.clone();
+        let trigger_start = ac.trigger_start_char;
+        let caret_char = Self::caret_char_offset(state);
+        {
+            let RichEditorState { doc, selection, .. } = state;
+            crate::rich_editor::wikilinks::confirm::confirm_wikilink(
+                doc,
+                selection,
+                &leaf_path,
+                trigger_start,
+                caret_char,
+                link,
+            );
+        }
+        state.tag_autocomplete = None;
+    }
+
     /// The caret's in-leaf char offset (the head's `char_offset`), or 0 for a non-text selection.
     fn caret_char_offset(state: &RichEditorState) -> usize {
         match &state.selection {
@@ -2191,12 +2426,26 @@ impl RichEditorWidget {
         // An interactive (clickable) node over the chip rect, addressable by the stable chip author_id.
         // MT-034: a code ref gets the contract `code-ref-chip-{symbol_entity_id}` id (the symbol the
         // chip references — what a kittest / swarm agent targets); other wikilinks keep the hashed id.
-        let author = if is_code_ref(&spec.link) {
+        // WP-KERNEL-012 MT-058: an inline TAG atom (ref_kind="tag") gets the contract `inline-tag-{name}`
+        // id (the canonical tag identity — what a swarm agent / kittest targets), Role::Link.
+        let is_tag = crate::rich_editor::inline_tags::is_tag_link(&spec.link);
+        let author = if is_tag {
+            crate::rich_editor::inline_tags::inline_tag_author_id(
+                &crate::rich_editor::inline_tags::tag_from_link(&spec.link),
+            )
+        } else if is_code_ref(&spec.link) {
             code_ref_chip_author_id(&spec.link.ref_value)
         } else {
             chip_author_id(&spec.link.ref_value)
         };
-        let chip_id = ui.id().with(("wikilink-chip", &author));
+        // WP-KERNEL-012 MT-058 (MC-006): fold the chip's distinct on-screen position into the egui Id so
+        // two occurrences of the SAME tag/ref (e.g. two `#rust` in one doc) get DISTINCT NodeIds while
+        // sharing the same addressable `author_id` STRING. Without this, `ui.id().with((..,&author))`
+        // collides for an identical author and only ONE chip node reaches the AccessKit tree (the
+        // repeated-tag collision the contract red-teams). The position is quantized to whole pixels so a
+        // sub-pixel jitter does not churn the id frame-to-frame.
+        let pos_key = (rect.min.x.round() as i32, rect.min.y.round() as i32);
+        let chip_id = ui.id().with(("wikilink-chip", &author, pos_key));
         let resp = ui.interact(rect, chip_id, egui::Sense::click());
         let role = CHIP_ROLE;
         let author_for_node = author.clone();
@@ -2260,11 +2509,23 @@ impl RichEditorWidget {
         }
 
         if resp.clicked() {
-            Some(EditorEvent::WikilinkActivated {
-                ref_kind: spec.link.ref_kind.clone(),
-                ref_value: spec.link.ref_value.clone(),
-                resolved: spec.link.resolved,
-            })
+            // WP-KERNEL-012 MT-058: a TAG chip emits a TagActivated navigation event (NOT
+            // WikilinkActivated) so the host routes it onto the WP-011 bus to open the MT-023 tag hub —
+            // the chip never opens the hub directly (RISK-005 / MC-005). Carries the canonical identity
+            // (the hub-resolution key) + the original-case display name.
+            if is_tag {
+                let tag = crate::rich_editor::inline_tags::tag_from_link(&spec.link);
+                Some(EditorEvent::TagActivated {
+                    canonical: tag.canonical(),
+                    display: tag.name,
+                })
+            } else {
+                Some(EditorEvent::WikilinkActivated {
+                    ref_kind: spec.link.ref_kind.clone(),
+                    ref_value: spec.link.ref_value.clone(),
+                    resolved: spec.link.resolved,
+                })
+            }
         } else {
             None
         }
@@ -2803,6 +3064,19 @@ impl RichEditorWidget {
                 Self::render_slash_surface(ui, state, palette, caret_pixel);
             }
 
+            // WP-KERNEL-012 MT-058: the inline-tag `#` autocomplete menu, anchored at the caret pixel
+            // (same caret-galley resolution as the wikilink/slash popups). Rendered AFTER the content so
+            // it sits above the blocks. Reuses the same in-process egui popup pattern (HBR-QUIET — no OS
+            // window, no focus theft). A clicked row commits the tag as a chip.
+            if state.tag_autocomplete.is_some() {
+                let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                    let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                    let local = galley.pos_from_cursor(cursor);
+                    egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
+                });
+                Self::render_tag_menu_popup(ui, state, palette, caret_pixel);
+            }
+
             // MT-034: the `/code-ref` code-symbol search dialog (a floating Window, not caret-anchored).
             if state.code_symbol_search.is_some() {
                 Self::drive_code_symbol_search(ui, state, palette);
@@ -2999,6 +3273,76 @@ impl RichEditorWidget {
             let RichEditorState { doc, selection, .. } = state;
             confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
             state.wikilink_autocomplete = None;
+        }
+    }
+
+    /// WP-KERNEL-012 MT-058: render the inline-tag `#` autocomplete menu at the caret pixel (or just
+    /// below the content when the caret pixel is unavailable). Lists the filtered existing-tag rows from
+    /// the cached MT-023 tag list PLUS the "create new tag" row for a free-typed query (AC-006), the
+    /// selected row highlighted. Clicking a row commits it as a `Child::HsLink(ref_kind="tag")` atom via
+    /// [`Self::commit_selected_tag`] (the same effect as Enter) and closes the menu. In-process egui
+    /// `Area` popup (HBR-QUIET — no OS window, no focus theft). AccessKit: the menu container is
+    /// `inline-tag-menu` (Role::ListBox) and each row is `inline-tag-menu-row-{i}`.
+    fn render_tag_menu_popup(
+        ui: &mut egui::Ui,
+        state: &mut RichEditorState,
+        palette: &HsPalette,
+        caret_pixel: Option<egui::Pos2>,
+    ) {
+        use crate::rich_editor::inline_tags::tag_menu_items;
+
+        let Some(ac) = state.tag_autocomplete.clone() else { return };
+        let items = tag_menu_items(&ac.query, &state.tag_list);
+        let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
+
+        // The row index clicked this frame (committed after the Area closes so the state borrow is free).
+        let mut clicked_index: Option<usize> = None;
+        egui::Area::new(ui.id().with("inline-tag-menu-area"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(anchor + egui::vec2(0.0, 4.0))
+            .show(ui.ctx(), |ui| {
+                let frame = egui::Frame::popup(ui.style());
+                let resp = frame
+                    .show(ui, |ui| {
+                        ui.set_max_width(280.0);
+                        if items.is_empty() {
+                            // An empty query with no tags: a hint, not a blank popup.
+                            ui.colored_label(palette.text_subtle, "Type a tag name…");
+                        }
+                        for (i, item) in items.iter().enumerate() {
+                            let selected = i == ac.selected;
+                            let label = item.label();
+                            let row = ui.add(egui::Button::selectable(selected, label.clone()));
+                            // AccessKit: each row is `inline-tag-menu-row-{i}` so a swarm agent / kittest
+                            // targets it deterministically.
+                            let author = format!("inline-tag-menu-row-{i}");
+                            let row_id = row.id;
+                            let label_for_node = label.clone();
+                            ui.ctx().accesskit_node_builder(row_id, move |node| {
+                                node.set_author_id(author.clone());
+                                node.set_label(label_for_node.clone());
+                            });
+                            if row.clicked() {
+                                clicked_index = Some(i);
+                            }
+                        }
+                    })
+                    .response;
+                // AccessKit: the menu container is `inline-tag-menu` (Role::ListBox).
+                let popup_id = resp.id;
+                ui.ctx().accesskit_node_builder(popup_id, |node| {
+                    node.set_role(egui::accesskit::Role::ListBox);
+                    node.set_author_id("inline-tag-menu".to_owned());
+                });
+            });
+
+        if let Some(i) = clicked_index {
+            // Point the selection at the clicked row, then commit it (the same path Enter uses) so the
+            // click and the keyboard commit share one insert path.
+            if let Some(ac_mut) = state.tag_autocomplete.as_mut() {
+                ac_mut.selected = i;
+            }
+            Self::commit_selected_tag(state);
         }
     }
 
