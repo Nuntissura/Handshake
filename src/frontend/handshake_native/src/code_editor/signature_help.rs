@@ -283,13 +283,25 @@ fn documentation_to_string(doc: &lsp_types::Documentation) -> String {
 }
 
 /// Build a synthetic [`SignatureInfo`] from a backend code-nav symbol projection for the fallback path
-/// (AC-003). The backend `CodeSymbolNavProjection` has NO literal `params` field (verified — MT-039 /
-/// the KERNEL_BUILDER gate); the only signature-bearing field is `display_name`. When `display_name`
-/// already carries a parenthesized parameter list (e.g. `add(a: i32, b: i32)` or
-/// `fn add(a: i32, b: i32) -> i32`), the parameter spans are parsed from it (the same depth-aware
-/// argument split the comma scanner uses, so generics/nested types do not split a parameter). When it
-/// carries no parameter list, the signature is the bare name with zero parameters (the popup still
-/// shows the call target — better than nothing). Returns `None` only for an empty display name.
+/// (AC-003).
+///
+/// REAL-SHAPE DISCLOSURE (Spec-Realism Gate sub-rule 2 — verify-over-prose): the backend
+/// `CodeSymbolNavProjection` has NO literal `params` field AND its `display_name` is a BARE identifier,
+/// not a signature. The backend sets `display_name: symbol.name.clone()`
+/// (`knowledge_code_index/engine.rs:781`) and `ExtractedSymbol.name` is documented as "Simple
+/// identifier, e.g. `render`" (`knowledge_code_index/symbols.rs:79-80`); neither
+/// `GET /knowledge/code/symbols/:entity_id` nor `.../spans` returns a parameter signature or the source
+/// text to derive one. So against the CURRENT real backend this function ALWAYS takes the bare-name
+/// branch: the fallback popup shows the call target with ZERO parameters (better than nothing — it still
+/// names what is being called), and the parameter-hint behavior is the code-nav
+/// `NEEDS_MANAGED_RESOURCE_PROOF` gap (a parameter-bearing fallback needs a NEW backend route, which is a
+/// typed blocker, NOT a frontend-faked signature).
+///
+/// FORWARD-COMPAT (no-cost): if `display_name` ever DOES carry a parenthesized parameter list (e.g. a
+/// future server/adapter that emits `add(a: i32, b: i32)` or `fn add(a: i32, b: i32) -> i32`), the
+/// parameter spans are parsed from it via the same depth-aware argument split the comma scanner uses
+/// (generics/nested types do not split a parameter). This branch is retained purely as a forward path;
+/// it is NOT asserted to fire against the current real backend. Returns `None` only for an empty name.
 pub fn signature_from_code_nav_symbol(symbol: &CodeSymbolNavProjection) -> Option<SignatureInfo> {
     let name = symbol.display_name.trim();
     if name.is_empty() {
@@ -884,28 +896,39 @@ mod tests {
     }
 
     #[test]
-    fn code_nav_fallback_builds_signature_from_display_name() {
-        // AC-003: the fallback derives params from the REAL display_name (no assumed 'params' field).
-        let symbol = CodeSymbolNavProjection {
-            display_name: "add(a: i32, b: i32)".into(),
+    fn code_nav_fallback_real_backend_shape_is_bare_name_zero_params() {
+        // REAL-SHAPE PROOF (Spec-Realism sub-rule 2): the backend `symbol_to_json` projection's
+        // `display_name` is a BARE identifier (`display_name = symbol.name.clone()`, engine.rs:781;
+        // `ExtractedSymbol.name` = "Simple identifier, e.g. `render`", symbols.rs:79-80). This fixture
+        // is that captured real shape — NOT a paren-bearing synthetic. Against it the fallback degrades
+        // to a bare-name signature with ZERO parameters (the parameter-hint fallback is the
+        // NEEDS_MANAGED_RESOURCE_PROOF code-nav gap; a param-bearing fallback needs a NEW backend route).
+        let real_symbol = CodeSymbolNavProjection {
+            symbol_entity_id: "ent-add".into(),
+            symbol_key: "fn:src/math.rs#add".into(),
+            display_name: "add".into(), // bare identifier — the real backend shape.
             symbol_kind: "function".into(),
             ..Default::default()
         };
-        let state = SignatureHelpState::from_code_nav(&symbol, 10, 1).expect("Some signature");
+        // Even with a non-zero local comma count (cursor on argument 1), the real symbol exposes no
+        // parameters, so there is no active-parameter run — the popup just names the call target.
+        let state = SignatureHelpState::from_code_nav(&real_symbol, 10, 1).expect("Some signature");
         assert_eq!(state.source, SignatureSource::CodeNavFallback);
         let sig = state.active().unwrap();
-        assert_eq!(sig.parameters.len(), 2, "two params parsed from the display name");
-        assert_eq!(sig.parameters[0].label, "a: i32");
-        assert_eq!(sig.parameters[1].label, "b: i32");
-        // The active run for param 1 is 'b: i32'.
+        assert_eq!(sig.label, "add", "the real fallback label is the bare call-target name");
+        assert!(
+            sig.parameters.is_empty(),
+            "the REAL backend symbol carries no parameter signature -> zero params"
+        );
+        // The whole label is one inactive run: no emphasis against real data.
         let runs = signature_label_runs(sig, state.active_parameter);
-        let active: String = runs.iter().filter(|(_, a)| *a).map(|(t, _)| t.clone()).collect();
-        assert_eq!(active, "b: i32");
+        assert_eq!(runs, vec![("add".to_owned(), false)]);
     }
 
     #[test]
     fn code_nav_fallback_bare_name_has_no_parameters() {
-        // A display name with no paren list -> a bare-name signature (still shown), zero params.
+        // A display name with no paren list -> a bare-name signature (still shown), zero params. This is
+        // also the real backend shape for any non-callable symbol (constants, modules, ...).
         let symbol = CodeSymbolNavProjection {
             display_name: "MY_CONSTANT".into(),
             ..Default::default()
@@ -915,6 +938,27 @@ mod tests {
         // The whole label is one inactive run.
         let runs = signature_label_runs(state.active().unwrap(), 0);
         assert_eq!(runs, vec![("MY_CONSTANT".to_owned(), false)]);
+    }
+
+    #[test]
+    fn code_nav_fallback_parses_params_only_from_a_rich_label_forward_compat() {
+        // FORWARD-COMPAT ONLY (NOT the current real backend): IF a future server/adapter ever emits a
+        // parenthesized `display_name`, the paren-parser splits its params. This proves the retained
+        // forward path; the current real backend emits a bare identifier (see the bare-name test above),
+        // so this case does NOT fire in production today.
+        let future_rich_symbol = CodeSymbolNavProjection {
+            display_name: "add(a: i32, b: i32)".into(),
+            symbol_kind: "function".into(),
+            ..Default::default()
+        };
+        let state = SignatureHelpState::from_code_nav(&future_rich_symbol, 10, 1).expect("Some");
+        let sig = state.active().unwrap();
+        assert_eq!(sig.parameters.len(), 2, "a rich label's two params parse via the forward path");
+        assert_eq!(sig.parameters[0].label, "a: i32");
+        assert_eq!(sig.parameters[1].label, "b: i32");
+        let runs = signature_label_runs(sig, state.active_parameter);
+        let active: String = runs.iter().filter(|(_, a)| *a).map(|(t, _)| t.clone()).collect();
+        assert_eq!(active, "b: i32");
     }
 
     #[test]

@@ -2359,7 +2359,20 @@ impl CodeEditorPanel {
                     .lookup_symbols(&workspace_id, &identifier, 5)
                     .await
                     .unwrap_or_default();
-                let best = matches.into_iter().next();
+                // `lookup_symbols` is a PREFIX query, so `add` also matches `address`/`add_one`. Prefer
+                // an EXACT `display_name == identifier` match (the backend `display_name` is the bare
+                // call-target name) so the popup names the symbol actually being called; only if no
+                // exact match exists do we fall back to the first prefix match (better than nothing).
+                // This is the value-bearing half of the contract's `get_symbol` resolve step: the
+                // per-entity `get_symbol` round-trip is skipped because it returns the SAME bare
+                // `display_name` the lookup already carries (no richer parameter data exists — the
+                // code-nav parameter-signature gap is the named NEEDS_MANAGED_RESOURCE_PROOF resource),
+                // so it would add a backend round-trip without adding any signature content.
+                let best = matches
+                    .iter()
+                    .find(|m| m.display_name == identifier)
+                    .cloned()
+                    .or_else(|| matches.into_iter().next());
                 if let Some(sym) = &best {
                     if let Ok(mut slot) = fallback_cache.lock() {
                         *slot = Some((identifier.clone(), open_paren_byte, sym.clone()));

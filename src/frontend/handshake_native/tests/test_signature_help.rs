@@ -8,8 +8,10 @@
 //!   `active_parameter` index matches the mock. Drives the EXACT production
 //!   `request()` -> framed write -> `read_loop` -> `route_message` path (no parallel reimplementation).
 //! - PT-002 `signature_help_graceful`: with no LSP attached, the code-nav fallback yields a signature
-//!   from the backend symbol's REAL `display_name`; when the backend is also unreachable nothing renders
-//!   and no panic occurs (AC-003 / AC-008).
+//!   from the backend symbol's REAL `display_name` (a BARE identifier — the backend sets
+//!   `display_name = symbol.name.clone()`, so against real data the fallback is a bare-name popup with
+//!   ZERO parameters); when the backend is also unreachable nothing renders and no panic occurs
+//!   (AC-003 / AC-008).
 //! - PT-003 `signature_help_popup`: an egui_kittest screenshot proves the active-parameter run renders
 //!   EMPHASIZED (distinct color) vs the inactive runs; the PNG is saved to the EXTERNAL artifact root.
 //! - PT-004 `signature_help_accesskit`: the live tree contains a `Role::Tooltip` node
@@ -19,10 +21,25 @@
 //!
 //! The screenshot/AccessKit halves are STANDALONE (the popup rendering + AccessKit emission are
 //! independent of the backend — the SignatureHelpState is fed synthetically through the panel's public
-//! `open_signature_help` API, the same way the MT-008 completion/hover proofs feed their state). The
-//! actually-FROM-the-backend code-nav fallback over LIVE PG is gated as a NEEDS_MANAGED_RESOURCE_PROOF
-//! item per the KERNEL_BUILDER Spec-Realism Gate; the fallback LOGIC is proven here against an
-//! in-memory symbol.
+//! `open_signature_help` API, the same way the MT-008 completion/hover proofs feed their state). Those
+//! synthetic states use an LSP-shaped signature with explicit parameter spans BECAUSE an LSP server
+//! (when attached) is the only source that carries real parameter labels; they prove the renderer +
+//! AccessKit emphasis logic, not the code-nav fallback's parameter content.
+//!
+//! NEEDS_MANAGED_RESOURCE_PROOF (Spec-Realism Gate sub-rule 2): the code-nav FALLBACK parameter hints
+//! are NOT provable against the real Handshake backend, because the code-nav resource carries no
+//! parameter data. The backend `symbol_to_json` projection's `display_name` is a BARE identifier
+//! (`display_name = symbol.name.clone()`, engine.rs:781; `ExtractedSymbol.name` = "Simple identifier,
+//! e.g. `render`", symbols.rs:79-80) and neither `GET /knowledge/code/symbols/:entity_id` nor
+//! `GET /knowledge/code/symbols/:entity_id/spans` returns a parameter signature or the source text
+//! needed to derive one (the spans endpoint returns only line/byte ranges + a content hash). So the
+//! production-realistic fallback is a bare-name popup with ZERO parameters (proven by PT-002 against a
+//! captured real-shape symbol). A parameter-bearing code-nav fallback would require a NEW backend route
+//! (source-text-by-span or a server-provided signature field) — a backend gap, reported as a typed
+//! blocker, never a frontend-faked signature. The fallback PARSING code (`signature_from_code_nav_symbol`
+//! splitting a parenthesized `display_name`) is retained as a no-cost forward-compat path for any future
+//! server/adapter that does emit a rich label, and is unit-tested as such — but it is NOT asserted to
+//! produce parameter hints from the current real backend.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -196,19 +213,46 @@ fn signature_help_request_skipped_without_server_capability() {
 
 #[test]
 fn signature_help_graceful_fallback_and_no_panic() {
-    // The fallback LOGIC: a backend symbol's REAL display_name -> a synthetic signature (AC-003).
-    let symbol = CodeSymbolNavProjection {
-        display_name: "add(a: i32, b: i32)".into(),
+    // The fallback LOGIC against the REAL backend shape (AC-003). This fixture is the CAPTURED real
+    // `symbol_to_json` projection a code symbol produces: `display_name` is a BARE identifier
+    // (`add`) — the backend sets `display_name: symbol.name.clone()`
+    // (knowledge_code_index/engine.rs:781) and `ExtractedSymbol.name` is "Simple identifier, e.g.
+    // `render`" (knowledge_code_index/symbols.rs:79-80). The code-nav API (`symbol_to_json` /
+    // `symbol_spans`) carries NO parameter list or signature text, so the production-realistic
+    // fallback is a BARE-NAME popup with ZERO parameters — NOT the paren-bearing synthetic fixture an
+    // earlier draft seeded. The richer-param fallback is the NEEDS_MANAGED_RESOURCE_PROOF gap named in
+    // the MT lifecycle (see the module header).
+    let real_symbol = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-add".into(),
+        symbol_key: "fn:src/math.rs#add".into(),
+        display_name: "add".into(), // bare identifier — the REAL backend shape.
         symbol_kind: "function".into(),
         ..Default::default()
     };
-    // active_parameter computed locally from the comma count (the fallback path).
-    let state = SignatureHelpState::from_code_nav(&symbol, 10, 1)
-        .expect("AC-003: a code-nav symbol yields a fallback signature");
+    // active_parameter computed locally from the comma count (the fallback path). Even though the
+    // local comma count says "the cursor is on argument 1", the REAL backend symbol exposes no
+    // parameters, so the popup degrades to the bare call-target name with no active-parameter run.
+    let state = SignatureHelpState::from_code_nav(&real_symbol, 10, 1)
+        .expect("AC-003: a real code-nav symbol still yields a (bare-name) fallback signature");
     assert_eq!(state.source, SignatureSource::CodeNavFallback);
     let sig = state.active().unwrap();
-    assert_eq!(sig.parameters.len(), 2, "AC-003: two params parsed from display_name");
-    assert_eq!(sig.parameters[1].label, "b: i32");
+    assert_eq!(sig.label, "add", "AC-003: the real fallback label is the bare call-target name");
+    assert!(
+        sig.parameters.is_empty(),
+        "AC-003: the REAL backend symbol carries no parameter signature (bare display_name) — the \
+         fallback shows the call target with zero parameters; the parameter-hint fallback is the \
+         NEEDS_MANAGED_RESOURCE_PROOF code-nav gap"
+    );
+    // The whole label is ONE inactive run — no active-parameter emphasis against real data.
+    let runs = handshake_native::code_editor::signature_help::signature_label_runs(
+        sig,
+        state.active_parameter,
+    );
+    assert_eq!(
+        runs,
+        vec![("add".to_owned(), false)],
+        "AC-003: against the real bare display_name the popup shows no emphasized parameter run"
+    );
 
     // Backend unreachable: a panel with NO runtime + NO workspace renders nothing and never panics. The
     // trigger is a graceful no-op (no runtime to spawn on), and rendering a closed popup is a no-op.
