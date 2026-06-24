@@ -41,13 +41,14 @@ use std::time::Duration;
 
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, Command};
+use tokio::process::{Child, Command};
 use tokio::runtime::Handle;
 use tokio::sync::{mpsc, oneshot};
 
 use lsp_types::{
     CompletionResponse, GotoDefinitionResponse, Hover, HoverContents, Location, MarkedString,
-    Position, PublishDiagnosticsParams, TextDocumentIdentifier, TextDocumentPositionParams, Url,
+    Position, PublishDiagnosticsParams, ServerCapabilities, SignatureHelp, TextDocumentIdentifier,
+    TextDocumentPositionParams, Url,
 };
 
 /// How long [`LspClient::drop`] waits for the server to honor `shutdown`/`exit` before force-killing
@@ -133,10 +134,12 @@ impl LspServerConfig {
 /// only ever held briefly + non-async (clone the `Arc<stdin>` + the `pending` `Arc`, then release).
 struct Transport {
     /// The server's stdin writer (LSP requests are framed + written here), behind an async mutex so the
-    /// framed write can be awaited without holding a std lock across the await.
-    stdin: Arc<tokio::sync::Mutex<ChildStdin>>,
-    /// The spawned child process handle (kept so `Drop` can wait/kill it — RISK-001).
-    child: Child,
+    /// framed write can be awaited without holding a std lock across the await. Generic over the writer
+    /// type so a test can install a duplex-pipe writer (no real process) on the SAME request path.
+    stdin: Arc<tokio::sync::Mutex<Box<dyn tokio::io::AsyncWrite + Send + Unpin>>>,
+    /// The spawned child process handle (kept so `Drop` can wait/kill it — RISK-001). `None` for a
+    /// test transport backed by an in-memory pipe (no OS process to reap).
+    child: Option<Child>,
     /// Pending request id -> the oneshot sender the reader task fulfills when the matching response
     /// arrives. Shared with the reader task.
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
@@ -163,6 +166,16 @@ pub struct LspClient {
     /// graceful shutdown (RISK-001). `None` until the server is spawned (a never-spawned client has no
     /// child to shut down). Behind a `Mutex` so the `&self` lazy-spawn path can set it.
     runtime: Mutex<Option<Handle>>,
+    /// WP-KERNEL-012 MT-047: the `ServerCapabilities` cached from the `initialize` response. The
+    /// signature-help path reads `signature_help_provider` (presence + the server-declared trigger
+    /// characters) so the editor only issues a `textDocument/signatureHelp` request when the server
+    /// supports it (otherwise it falls back to the code-nav signature). `None` until `initialize`
+    /// completes (or when no server is configured — the graceful disabled path).
+    server_capabilities: Mutex<Option<ServerCapabilities>>,
+    /// TEST-ONLY: the mock server's read half of the in-memory transport (installed by
+    /// `install_test_transport`). Production never sets this; it exists so a test can read the framed
+    /// request the client emitted before writing the framed response on the SAME real request path.
+    test_server_read: Mutex<Option<tokio::io::DuplexStream>>,
 }
 
 impl LspClient {
@@ -177,6 +190,8 @@ impl LspClient {
             diagnostics_rx: Mutex::new(Some(diagnostics_rx)),
             diagnostics_tx,
             runtime: Mutex::new(None),
+            server_capabilities: Mutex::new(None),
+            test_server_read: Mutex::new(None),
         }
     }
 
@@ -226,6 +241,78 @@ impl LspClient {
         tokio::spawn(async move {
             transport::read_loop(reader, pending, diagnostics_tx).await;
         });
+    }
+
+    /// TEST HOOK (MT-047): install a `signatureHelpProvider` capability so [`supports_signature_help`]
+    /// returns `true` without a live `initialize` handshake. `triggers` becomes the declared
+    /// trigger-character set (empty -> the `( ,` default). Used by the signature-help request test +
+    /// the capability-gating test.
+    pub fn set_signature_help_capability_for_test(&self, triggers: &[char]) {
+        let trigger_characters = if triggers.is_empty() {
+            None
+        } else {
+            Some(triggers.iter().map(|c| c.to_string()).collect())
+        };
+        let caps = ServerCapabilities {
+            signature_help_provider: Some(lsp_types::SignatureHelpOptions {
+                trigger_characters,
+                retrigger_characters: None,
+                work_done_progress_options: lsp_types::WorkDoneProgressOptions::default(),
+            }),
+            ..Default::default()
+        };
+        *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(caps);
+    }
+
+    /// TEST HOOK (MT-047 / AC-001): install an in-memory duplex-pipe transport (NO OS process) wired to
+    /// THIS client's real `request()` pending table + reader loop, and return the SERVER side of the
+    /// pipe (read the framed request, write the framed response). This drives the EXACT production
+    /// `request()` -> framed write -> `read_loop` -> `route_message` path a real stdio server would,
+    /// so a test feeding a `textDocument/signatureHelp` response proves the real request/response
+    /// routing (not a parallel reimplementation). The returned duplex half is the mock server's
+    /// stdin(write)/stdout(read): the test reads the client's request bytes from it and writes the
+    /// response frame back.
+    pub fn install_test_transport(&self) -> tokio::io::DuplexStream {
+        // client_to_server: the client writes requests here; the mock server reads them.
+        // server_to_client: the mock server writes responses here; the client's reader reads them.
+        let (client_write, server_read) = tokio::io::duplex(64 * 1024);
+        let (server_write, client_read) = tokio::io::duplex(64 * 1024);
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        // Spawn the REAL reader loop on the client_read half wired to this client's pending table +
+        // diagnostics channel — identical to the production reader.
+        let reader_pending = Arc::clone(&pending);
+        let diagnostics_tx = self.diagnostics_tx.clone();
+        tokio::spawn(async move {
+            transport::read_loop(client_read, reader_pending, diagnostics_tx).await;
+        });
+        *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
+        *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
+            stdin: Arc::new(tokio::sync::Mutex::new(
+                Box::new(client_write) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+            )),
+            child: None, // no OS process for an in-memory transport.
+            pending,
+        });
+        // The mock server reads requests from `server_read` and writes responses to `server_write`;
+        // join them into one duplex-like pair the test drives. We return the write half here and the
+        // read half via the companion accessor; to keep a single return, splice them with a small
+        // pump task is overkill — instead return the server_write and stash server_read for the test
+        // to read through `read_test_request`. Simpler: return server_write; the test uses
+        // `read_test_request` to pull the request bytes.
+        *self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()) = Some(server_read);
+        server_write
+    }
+
+    /// TEST HOOK (MT-047): read the next framed JSON-RPC request the client wrote over the test
+    /// transport (installed by [`install_test_transport`]). Returns the parsed request `Value`, or
+    /// `None` on EOF. The test calls this to observe the request before writing the response.
+    pub async fn read_test_request(&self) -> Option<Value> {
+        let mut reader = self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+        let result = read_one_frame(&mut reader).await;
+        // Park the reader back for any subsequent reads.
+        *self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()) = Some(reader);
+        result
     }
 
     /// TEST HOOK (AC-008): frame a JSON-RPC message exactly as the production transport does
@@ -283,8 +370,10 @@ impl LspClient {
         // drive the bounded graceful shutdown (RISK-001).
         *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
         *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
-            stdin: Arc::new(tokio::sync::Mutex::new(stdin)),
-            child,
+            stdin: Arc::new(tokio::sync::Mutex::new(
+                Box::new(stdin) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+            )),
+            child: Some(child),
             pending,
         });
 
@@ -296,8 +385,17 @@ impl LspClient {
             "capabilities": {},
             "clientInfo": { "name": "handshake-native-editor" }
         });
-        let init_ok = self.request("initialize", params).await.is_some();
-        if init_ok {
+        let init_result = self.request("initialize", params).await;
+        if let Some(result) = init_result {
+            // Cache the server's declared capabilities (MT-047: the signature-help path reads
+            // `signature_help_provider`). The `initialize` result is `{ capabilities, serverInfo }`; a
+            // missing/garbled `capabilities` degrades to `None` (the editor then treats every optional
+            // capability as unsupported — graceful, never a panic).
+            if let Some(caps) = result.get("capabilities").cloned() {
+                if let Ok(parsed) = serde_json::from_value::<ServerCapabilities>(caps) {
+                    *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(parsed);
+                }
+            }
             // Per the spec the client sends `initialized` after the handshake. Best-effort.
             self.notify("initialized", serde_json::json!({})).await;
             true
@@ -410,6 +508,58 @@ impl LspClient {
             .unwrap_or_default()
     }
 
+    /// WP-KERNEL-012 MT-047: whether the attached server declared `signatureHelpProvider` in its
+    /// `initialize` capabilities. The editor uses this to SKIP the LSP signature-help request (and fall
+    /// back to the code-nav signature) when the server cannot serve it. `false` when no server is
+    /// configured / `initialize` has not run / the server omitted the capability — all graceful.
+    pub fn supports_signature_help(&self) -> bool {
+        self.server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|c| c.signature_help_provider.is_some())
+            .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-047: the server-declared signature-help trigger characters (the chars that
+    /// initiate a request while typing a call), defaulting to `(` and `,` when the server did not
+    /// declare a set (or no server is attached). The editor prefers the server's set when present so it
+    /// matches the language's call syntax; otherwise the contract's `( ,` default.
+    pub fn signature_help_trigger_chars(&self) -> Vec<char> {
+        let declared = self
+            .server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .and_then(|c| c.signature_help_provider.as_ref())
+            .and_then(|p| p.trigger_characters.clone());
+        match declared {
+            Some(chars) if !chars.is_empty() => chars
+                .iter()
+                .filter_map(|s| s.chars().next())
+                .collect(),
+            _ => vec!['(', ','],
+        }
+    }
+
+    /// WP-KERNEL-012 MT-047: request `textDocument/signatureHelp` (parameter hints) at `position` over
+    /// the EXISTING MT-008 stdio JSON-RPC transport (no second transport — AC-006). Returns the parsed
+    /// `lsp_types::SignatureHelp`, or `None` when: no server is attached, the server did not declare
+    /// `signatureHelpProvider` (the caller then falls back to the code-nav signature — AC-003), the
+    /// request times out, or the response is null/garbled (AC-008 — never a panic). The caller converts
+    /// the result into the transport-agnostic `SignatureHelpState` via `SignatureHelpState::from_lsp`.
+    pub async fn signature_help(&self, uri: &str, position: Position) -> Option<SignatureHelp> {
+        // Skip the round-trip when the server cannot serve signature help (let the caller fall back).
+        if !self.supports_signature_help() {
+            return None;
+        }
+        let params = position_params(uri, position)?;
+        let result = self.request("textDocument/signatureHelp", params).await?;
+        // A null response (the cursor is not inside a call) deserializes to `None`; a present one to
+        // `Some(SignatureHelp)`. A malformed body degrades to `None` (AC-008).
+        serde_json::from_value::<Option<SignatureHelp>>(result).ok().flatten()
+    }
+
     /// Send a JSON-RPC REQUEST and await its `result` (or `None` on no transport / timeout / a server
     /// `error`). The request id is registered in the pending table before the bytes are written, so a
     /// fast response can never race ahead of the registration.
@@ -435,7 +585,7 @@ impl LspClient {
         // Write under the ASYNC stdin lock (await-safe); serialized sends preserve JSON-RPC framing.
         {
             let mut stdin = stdin.lock().await;
-            if transport::write_message(&mut stdin, &message).await.is_err() {
+            if transport::write_message(&mut **stdin, &message).await.is_err() {
                 pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
                 return None;
             }
@@ -467,7 +617,7 @@ impl LspClient {
             }
         };
         let mut stdin = stdin.lock().await;
-        let _ = transport::write_message(&mut stdin, &message).await;
+        let _ = transport::write_message(&mut **stdin, &message).await;
     }
 
     /// Send `shutdown` + `exit` and wait (bounded) for the child to exit, else kill it. The drop path
@@ -490,11 +640,13 @@ impl LspClient {
                 let exit = serde_json::json!({"jsonrpc":"2.0","method":"exit","params":null});
                 {
                     let mut stdin = transport.stdin.lock().await;
-                    let _ = transport::write_message(&mut stdin, &shutdown).await;
-                    let _ = transport::write_message(&mut stdin, &exit).await;
+                    let _ = transport::write_message(&mut **stdin, &shutdown).await;
+                    let _ = transport::write_message(&mut **stdin, &exit).await;
                 }
-                // Wait (bounded) for the server to exit on its own.
-                let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, transport.child.wait()).await;
+                // Wait (bounded) for the server to exit on its own (a test transport has no child).
+                if let Some(child) = transport.child.as_mut() {
+                    let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
+                }
             });
         };
 
@@ -509,7 +661,10 @@ impl LspClient {
         // Force-kill if still alive (the bounded graceful wait may have timed out, or no runtime was
         // available). `start_kill` is non-blocking + safe on an already-exited child; `kill_on_drop`
         // on the Command finishes the reap when `transport.child` drops here (RISK-001 — no zombie).
-        let _ = transport.child.start_kill();
+        // A test transport has no child (nothing to kill).
+        if let Some(child) = transport.child.as_mut() {
+            let _ = child.start_kill();
+        }
     }
 }
 
@@ -596,14 +751,49 @@ fn severity_to_i32(severity: lsp_types::DiagnosticSeverity) -> i32 {
     }
 }
 
+/// TEST HELPER: read exactly one `Content-Length`-framed JSON-RPC message from `reader` and parse it,
+/// or `None` on EOF / a malformed frame. Used by [`LspClient::read_test_request`] so a mock server can
+/// observe the client's request before responding. Mirrors the production `read_loop` framing.
+async fn read_one_frame<R>(reader: &mut R) -> Option<Value>
+where
+    R: tokio::io::AsyncRead + Unpin,
+{
+    let mut buf = BufReader::new(reader);
+    let mut content_length: Option<usize> = None;
+    let mut header_line = String::new();
+    loop {
+        header_line.clear();
+        match buf.read_line(&mut header_line).await {
+            Ok(0) => return None, // EOF.
+            Ok(_) => {}
+            Err(_) => return None,
+        }
+        let trimmed = header_line.trim_end_matches(['\r', '\n']);
+        if trimmed.is_empty() {
+            break;
+        }
+        if let Some(rest) = trimmed.strip_prefix("Content-Length:") {
+            content_length = rest.trim().parse::<usize>().ok();
+        }
+    }
+    let len = content_length?;
+    let mut body = vec![0u8; len];
+    buf.read_exact(&mut body).await.ok()?;
+    serde_json::from_slice(&body).ok()
+}
+
 /// The JSON-RPC-over-stdio framing transport. Kept in its own module so the framing (Content-Length
 /// header + body) is testable in isolation from the process plumbing.
 mod transport {
     use super::*;
 
     /// Serialize `message` and write it to the server's stdin with the LSP `Content-Length` frame
-    /// header. Async (the request/notify paths await it).
-    pub async fn write_message(stdin: &mut ChildStdin, message: &Value) -> std::io::Result<()> {
+    /// header. Async (the request/notify paths await it). Generic over the writer so the production
+    /// `ChildStdin` and a test duplex-pipe writer share the SAME framing path.
+    pub async fn write_message<W>(stdin: &mut W, message: &Value) -> std::io::Result<()>
+    where
+        W: tokio::io::AsyncWrite + Unpin + ?Sized,
+    {
         let body = serde_json::to_vec(message)?;
         let header = format!("Content-Length: {}\r\n\r\n", body.len());
         stdin.write_all(header.as_bytes()).await?;

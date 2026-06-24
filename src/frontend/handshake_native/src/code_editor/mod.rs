@@ -73,6 +73,10 @@ pub mod minimap;
 pub mod note_refs_panel;
 pub mod outline;
 pub mod panel;
+// WP-KERNEL-012 MT-047 (E1 — VS Code parity): LSP signature help (parameter hints) + the code-nav
+// fallback signature, rendered as a floating popup above the cursor with the active parameter
+// emphasized. A pure addition on the MT-008 LSP transport + code-nav client.
+pub mod signature_help;
 pub mod virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
@@ -128,6 +132,11 @@ pub use note_refs_panel::{
     NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
+pub use signature_help::{
+    active_parameter_from_commas, render_signature_popup, signature_from_code_nav_symbol,
+    signature_label_runs, ParamSpan, SignatureHelpState, SignatureInfo, SignatureSource,
+    CODE_EDITOR_SIGNATURE_HELP_AUTHOR_ID, SIGNATURE_HELP_TRIGGER_CHARS,
+};
 pub use panel::{
     scope_to_color, CodeEditorPanel, CodeEditorPaneFactory, FindState, GotoLineState, PerfStats,
     CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX, CODE_EDITOR_COMMAND_AUTHOR_PREFIX,

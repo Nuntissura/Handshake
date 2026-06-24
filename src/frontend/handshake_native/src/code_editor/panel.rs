@@ -91,6 +91,9 @@ use super::editor_view::{
     CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
 };
 use super::lsp_client::{LspClient, PublishedDiagnostics};
+use super::signature_help::{
+    active_parameter_from_commas, render_signature_popup, SignatureHelpState,
+};
 use super::find_replace::{FindEngine, FindQuery, Match};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::folding::{FoldProvider, FoldSet};
@@ -318,6 +321,75 @@ fn lsp_diagnostics_to_markers(published: &PublishedDiagnostics) -> Vec<GutterMar
         .collect()
 }
 
+/// MT-047: find the byte offset of the open-paren of the call whose argument list `prefix` ends inside
+/// (i.e. the cursor sits just after `prefix`), or `None` when `prefix` does not end inside an unclosed
+/// `(`. Scans LEFT from the end of `prefix`, balancing `)` against `(` so a nested CLOSED call is
+/// skipped; the first `(` with no matching later `)` is the active call's open-paren. String and char
+/// literals are respected (a `(` inside a string is not a call). Used to anchor + dismiss the popup.
+fn find_enclosing_open_paren(prefix: &str) -> Option<usize> {
+    // Walk forward tracking literal state + an explicit stack of open-paren byte offsets; a `)` pops.
+    // The TOP of the stack at the end is the enclosing call's open-paren (the cursor is inside it).
+    let mut stack: Vec<usize> = Vec::new();
+    let mut in_string = false;
+    let mut in_char = false;
+    let mut escaped = false;
+    for (i, c) in prefix.char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if in_char {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '\'' {
+                in_char = false;
+            }
+            continue;
+        }
+        match c {
+            '"' => in_string = true,
+            '\'' => in_char = true,
+            '(' => stack.push(i),
+            ')' => {
+                stack.pop();
+            }
+            _ => {}
+        }
+    }
+    stack.pop()
+}
+
+/// MT-047: the identifier token immediately preceding the end of `prefix` (e.g. the `add` in
+/// `... = add` when `prefix` is the text up to a call's `(`), or an empty string when the last
+/// non-whitespace run is not an identifier. Trailing whitespace before the identifier is skipped so
+/// `add (` still resolves `add`.
+fn identifier_before(prefix: &str) -> String {
+    let chars: Vec<char> = prefix.chars().collect();
+    let mut end = chars.len();
+    // Skip trailing whitespace.
+    while end > 0 && chars[end - 1].is_whitespace() {
+        end -= 1;
+    }
+    let mut start = end;
+    while start > 0 {
+        let c = chars[start - 1];
+        if c.is_alphanumeric() || c == '_' {
+            start -= 1;
+        } else {
+            break;
+        }
+    }
+    chars[start..end].iter().collect()
+}
+
 /// The native code-editor panel widget. Holds the document buffer + highlighter and renders the
 /// visible lines as colored runs, virtualized through `ScrollArea::show_rows` (MT-002).
 ///
@@ -537,6 +609,31 @@ pub struct CodeEditorPanel {
     /// `Sync` panel without holding a lock across the input loop.
     completion_request: std::sync::atomic::AtomicBool,
 
+    // ── MT-047 signature help (parameter hints) ───────────────────────────────────────────────────
+
+    /// MT-047 the live signature-help popup state. `None` when no popup is open; `Some` while showing.
+    /// The render path draws the popup + emits its AccessKit node from this; the input handler (trigger
+    /// characters / Ctrl+Shift+Space / dismissal) and the off-thread result drain mutate it. Behind a
+    /// `Mutex` for the same `Sync` reason as the buffer.
+    signature_help_state: Mutex<Option<SignatureHelpState>>,
+    /// MT-047 off-thread signature-help result delivery cell. A spawned LSP-then-code-nav task writes the
+    /// resolved [`SignatureHelpState`] here; the next frame's drain swaps it into `signature_help_state`
+    /// (HBR-QUIET — the egui thread never blocks on the LSP/backend; the MT-008 delivery-cell shape).
+    /// `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
+    signature_help_result: SignatureHelpResultCell,
+    /// MT-047 "a signature-help request is armed this frame" flag, set by `process_cursor_input` on a
+    /// `(`/`,` trigger character or the Ctrl+Shift+Space manual shortcut; consumed (take + reset) by the
+    /// per-frame `pump_code_intelligence` which fires the off-thread LSP-then-fallback request. An atomic
+    /// so the `&self` input path arms it under the `Sync` panel without holding a lock across the input
+    /// loop (the same shape as `completion_request`).
+    signature_help_request: std::sync::atomic::AtomicBool,
+    /// MT-047 cached fallback signature per `(call-target identifier, open_paren_byte)` for the popup
+    /// lifetime (RISK-002 / MC-002), so re-triggering on each comma in the same call does NOT re-hit
+    /// `/knowledge/code/symbols`. `None` until the first fallback resolves. An `Arc<Mutex<..>>` so the
+    /// off-thread resolve task writes the freshly-resolved symbol straight into it (the UI thread reads
+    /// it on the next trigger).
+    signature_fallback_cache: SignatureFallbackCache,
+
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
@@ -690,6 +787,16 @@ type GotoDefResultCell = Arc<Mutex<Option<usize>>>;
 /// references-panel UI in MT-010 scope (that is a follow-on MT — see `lifecycle.blocker` BLOCKER below),
 /// so the result is surfaced as an observable accessor + trace line rather than a rendered panel.
 type ReferencesResultCell = Arc<Mutex<Option<CodeSymbolReferencesResponse>>>;
+
+/// MT-047 off-thread signature-help result delivery cell: the resolved [`SignatureHelpState`] written by
+/// a spawned LSP-then-code-nav task and drained on the next frame into `signature_help_state`. Aliased so
+/// the panel field type stays legible (clippy `type_complexity`).
+type SignatureHelpResultCell = Arc<Mutex<Option<SignatureHelpState>>>;
+
+/// MT-047 fallback-signature cache: the resolved code-nav symbol keyed by `(call-target identifier,
+/// open_paren_byte)` so commas in the same call reuse it instead of re-hitting `/knowledge/code/symbols`
+/// (RISK-002 / MC-002). `Arc<Mutex<..>>` so the off-thread resolve task writes it directly.
+type SignatureFallbackCache = Arc<Mutex<Option<(String, usize, CodeSymbolNavProjection)>>>;
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -920,6 +1027,12 @@ impl CodeEditorPanel {
             lsp_diagnostics_rx: Mutex::new(None),
             runtime: Mutex::new(None),
             completion_request: std::sync::atomic::AtomicBool::new(false),
+            // MT-047 signature help: closed until a trigger fires; the delivery cell + request flag start
+            // empty; the fallback cache is empty until the first code-nav fallback resolves.
+            signature_help_state: Mutex::new(None),
+            signature_help_result: Arc::new(Mutex::new(None)),
+            signature_help_request: std::sync::atomic::AtomicBool::new(false),
+            signature_fallback_cache: Arc::new(Mutex::new(None)),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -1786,6 +1899,35 @@ impl CodeEditorPanel {
         self.file_path.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
+    /// MT-047: the `file://` URI of the document for LSP requests (`textDocument/signatureHelp`), or
+    /// `None` for an in-memory buffer with no file path (the LSP path is then skipped and the editor
+    /// falls back to the code-nav signature). Mirrors the URI the MT-008 `did_open` path uses.
+    fn lsp_uri(&self) -> Option<String> {
+        let path = self.file_path();
+        if path.trim().is_empty() {
+            return None;
+        }
+        // Build a file URL from the path (absolute or relative — `Url::from_file_path` requires an
+        // absolute path, so fall back to a manual `file://` prefix for a relative path so a test with a
+        // bare name still yields a URI the request can carry).
+        match std::path::Path::new(&path).canonicalize() {
+            Ok(abs) => lsp_types::Url::from_file_path(&abs)
+                .ok()
+                .map(|u| u.to_string())
+                .or_else(|| Some(format!("file:///{}", path.trim_start_matches('/')))),
+            Err(_) => Some(format!("file:///{}", path.trim_start_matches('/'))),
+        }
+    }
+
+    /// MT-047: the LSP `Position` (0-based line + character) for `byte_offset` in the buffer. The
+    /// character is the 0-based COLUMN in the line (the simple byte/char column the editor tracks); a
+    /// pedantically-correct UTF-16 code-unit column is a server-tolerated approximation here since the
+    /// signature-help request only needs to land inside the call. Never panics (clamps to the line).
+    fn lsp_position_at(&self, byte_offset: usize) -> lsp_types::Position {
+        let (line, col) = self.with_buffer(|b| byte_to_line_col(byte_offset.min(b.len_bytes()), b));
+        lsp_types::Position { line: line as u32, character: col as u32 }
+    }
+
     /// Reset the gutter's per-file state when a new file is loaded into this panel (RISK-004): clears
     /// stale diagnostic markers so a previous file's errors do not appear on the new file, and seeds the
     /// new `file_path` for breakpoint events. (Breakpoints are intentionally NOT cleared here — they are
@@ -1945,10 +2087,12 @@ impl CodeEditorPanel {
         self.drain_lsp_diagnostics();
 
         let Some(runtime) = self.runtime_handle() else {
-            // No runtime injected: clear any armed completion request so it does not fire later, and
-            // skip the off-thread triggers (the synthetic open_completion/open_hover test paths and the
-            // diagnostics drain above still work without a runtime).
+            // No runtime injected: clear any armed completion / signature-help request so it does not
+            // fire later, and skip the off-thread triggers (the synthetic open_completion/open_hover/
+            // open_signature_help test paths and the diagnostics drain above still work without a
+            // runtime).
             self.completion_request.store(false, Ordering::Relaxed);
+            self.signature_help_request.store(false, Ordering::Relaxed);
             return;
         };
 
@@ -1970,6 +2114,16 @@ impl CodeEditorPanel {
             if !word.is_empty() {
                 self.trigger_completion(&runtime, &word);
             }
+        }
+
+        // MT-047 SIGNATURE HELP: fire only when armed this frame (a `(`/`,`/`)` trigger char or
+        // Ctrl+Shift+Space). `trigger_signature_help` re-evaluates the enclosing call: it opens/updates
+        // the popup when the cursor is inside a call and dismisses it when the cursor has left every
+        // call (so a typed `)` that closes the call dismisses, while a `)` closing only a nested call
+        // re-opens for the outer call).
+        let sig_armed = self.signature_help_request.swap(false, Ordering::Relaxed);
+        if sig_armed {
+            self.trigger_signature_help(&runtime);
         }
     }
 
@@ -2069,6 +2223,163 @@ impl CodeEditorPanel {
     /// Close the hover tooltip (cursor moved / Escape / after go-to-def).
     pub fn close_hover(&self) {
         *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    // ── MT-047 signature help (parameter hints) — public API + triggers ───────────────────────────
+
+    /// A snapshot of the signature-help popup state (`None` when no popup is showing). The deterministic
+    /// observation point for the kittest/unit proofs.
+    pub fn signature_help_state(&self) -> Option<SignatureHelpState> {
+        self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// True while the signature-help popup is showing.
+    pub fn is_signature_help_open(&self) -> bool {
+        self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    /// Open the signature-help popup with `state` (the deterministic path the trigger spawn delivers
+    /// into + the tests drive directly).
+    pub fn open_signature_help(&self, state: SignatureHelpState) {
+        *self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()) = Some(state);
+    }
+
+    /// Close the signature-help popup (`)`/Escape/cursor leaving the call/focus loss) and clear the
+    /// fallback cache so a fresh call site re-resolves (RISK-002).
+    pub fn close_signature_help(&self) {
+        *self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self.signature_fallback_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Cycle the active overload to the NEXT signature (Down arrow while the popup is open). No-op when
+    /// the popup is closed / there is only one signature.
+    pub fn signature_help_next(&self) {
+        if let Some(state) = self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut()
+        {
+            state.select_next_signature();
+        }
+    }
+
+    /// Cycle the active overload to the PREVIOUS signature (Up arrow while the popup is open).
+    pub fn signature_help_prev(&self) {
+        if let Some(state) = self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut()
+        {
+            state.select_prev_signature();
+        }
+    }
+
+    /// Whether a signature-help request is armed this frame (a trigger char / Ctrl+Shift+Space) and not
+    /// yet consumed by the pump. Test-observable so a kittest can prove the live keystroke path arms it.
+    pub fn signature_help_request_armed_for_test(&self) -> bool {
+        self.signature_help_request.load(Ordering::Relaxed)
+    }
+
+    /// Find the byte offset of the open-paren of the call whose argument list the cursor is currently
+    /// inside, or `None` when the cursor is not inside an unclosed `(` at the time of the call. Scans
+    /// LEFT from the cursor over the buffer prefix, balancing `)` against `(` so a nested closed call is
+    /// skipped; the first unbalanced `(` is the active call's open-paren. String/char literals are
+    /// respected so a `(` inside a string is not treated as a call. This anchors the popup to a call
+    /// site (the `anchor_byte`) and is the basis for dismissal (the cursor leaving the call).
+    pub fn active_call_open_paren(&self, cursor_byte: usize) -> Option<usize> {
+        let prefix = self.with_buffer(|b| b.byte_slice_to_string(0..cursor_byte.min(b.len_bytes())));
+        find_enclosing_open_paren(&prefix)
+    }
+
+    /// The identifier token immediately to the LEFT of `open_paren_byte` (the call target), or an empty
+    /// string when there is none. Used to resolve the fallback signature via the code-nav client.
+    fn call_target_identifier(&self, open_paren_byte: usize) -> String {
+        let prefix = self
+            .with_buffer(|b| b.byte_slice_to_string(0..open_paren_byte.min(b.len_bytes())));
+        identifier_before(&prefix)
+    }
+
+    /// Spawn the off-thread signature-help request: try the LSP server first (when one supports it),
+    /// then fall back to the Handshake backend code-nav symbol under the call target. Delivers the
+    /// resolved [`SignatureHelpState`] into `signature_help_result` (drained next frame). A no-op when
+    /// the cursor is not inside a call (`active_call_open_paren` is `None`). The egui thread never blocks
+    /// (HBR-QUIET): both the LSP request and the backend lookup run on the injected runtime.
+    ///
+    /// `anchor_byte` (the call's open-paren) keys the popup so a comma UPDATES the open popup rather than
+    /// opening a second one (RISK-002). The fallback signature is cached per `(identifier, anchor_byte)`
+    /// so commas in the same call do NOT re-hit `/knowledge/code/symbols` (RISK-002 / MC-002).
+    pub fn trigger_signature_help(&self, runtime: &tokio::runtime::Handle) {
+        let cursor_byte = self.primary_cursor_offset();
+        let Some(open_paren_byte) = self.active_call_open_paren(cursor_byte) else {
+            // Cursor is not inside a call: nothing to show; close any stale popup.
+            self.close_signature_help();
+            return;
+        };
+        // Compute the fallback active parameter locally from the top-level comma count between the
+        // open-paren and the cursor (RISK-001 / AC-007). The LSP path overrides this with the server's
+        // active_parameter when it answers.
+        let slice = self.with_buffer(|b| {
+            b.byte_slice_to_string(open_paren_byte..cursor_byte.min(b.len_bytes()))
+        });
+        let active_parameter = active_parameter_from_commas(&slice, open_paren_byte, cursor_byte);
+        let identifier = self.call_target_identifier(open_paren_byte);
+
+        let uri = self.lsp_uri();
+        let position = self.lsp_position_at(cursor_byte);
+        let lsp_client = self.lsp_client();
+        let code_nav = self.code_nav_client.clone();
+        let workspace_id = self.workspace_id();
+        let cell = Arc::clone(&self.signature_help_result);
+        let fallback_cache = Arc::clone(&self.signature_fallback_cache);
+        // The cached fallback symbol (if any) for THIS exact call site, so a comma re-trigger reuses it
+        // instead of re-hitting the backend (RISK-002 / MC-002).
+        let cached_fallback = {
+            let guard = fallback_cache.lock().unwrap_or_else(|e| e.into_inner());
+            match guard.as_ref() {
+                Some((id, paren, sym)) if *id == identifier && *paren == open_paren_byte => {
+                    Some(sym.clone())
+                }
+                _ => None,
+            }
+        };
+
+        runtime.spawn(async move {
+            // 1) LSP path: only issues a request when the server declared signatureHelpProvider (the
+            // client's `signature_help` short-circuits to None otherwise). A present response wins.
+            if let Some(uri) = uri.as_deref() {
+                if let Some(help) = lsp_client.signature_help(uri, position).await {
+                    if let Some(state) = SignatureHelpState::from_lsp(&help, open_paren_byte) {
+                        if let Ok(mut slot) = cell.lock() {
+                            *slot = Some(state);
+                        }
+                        return;
+                    }
+                }
+            }
+            // 2) Code-nav fallback: reuse the cached symbol for this call site, else resolve it once and
+            // cache it against (identifier, open_paren_byte) so later commas reuse it (RISK-002).
+            let symbol = if let Some(sym) = cached_fallback {
+                Some(sym)
+            } else if !workspace_id.is_empty() && !identifier.is_empty() {
+                let matches = code_nav
+                    .lookup_symbols(&workspace_id, &identifier, 5)
+                    .await
+                    .unwrap_or_default();
+                let best = matches.into_iter().next();
+                if let Some(sym) = &best {
+                    if let Ok(mut slot) = fallback_cache.lock() {
+                        *slot = Some((identifier.clone(), open_paren_byte, sym.clone()));
+                    }
+                }
+                best
+            } else {
+                None
+            };
+            let Some(symbol) = symbol else {
+                return; // no LSP, no symbol -> nothing renders (graceful, no panic — AC-003/AC-008).
+            };
+            if let Some(state) =
+                SignatureHelpState::from_code_nav(&symbol, open_paren_byte, active_parameter)
+            {
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(state);
+                }
+            }
+        });
     }
 
     /// The screen pixel of the primary cursor's head on the most recent frame, anchored below the
@@ -2890,6 +3201,31 @@ impl CodeEditorPanel {
                     self.close_hover();
                 }
                 HoverOutcome::None => {}
+            }
+        }
+
+        // MT-047: drain a delivered signature-help result into the popup state. A delivered result that
+        // anchors to a call site the cursor has since left is dropped (the cursor-exit check) so a stale
+        // popup does not linger.
+        if let Some(state) =
+            self.signature_help_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        {
+            // Only show it if the cursor is still inside the same call (RISK-002 — the anchor must still
+            // enclose the caret). Otherwise the call ended while the request was in flight; drop it.
+            let cursor_byte = self.primary_cursor_offset();
+            if self.active_call_open_paren(cursor_byte) == Some(state.anchor_byte) {
+                self.open_signature_help(state);
+            } else {
+                self.close_signature_help();
+            }
+        }
+
+        // Render the signature-help popup (a no-op when closed). It is a non-focus-stealing Tooltip-order
+        // Area above the cursor line (RISK-003/006), with the active parameter emphasized (AC-004) and a
+        // Role::Tooltip AccessKit node `code_editor_signature_help` carrying the active label (AC-005).
+        if let Some(state) = self.signature_help_state() {
+            if let Some(anchor) = self.cursor_screen_pos() {
+                render_signature_popup(ui.ctx(), &state, anchor, &self.instance);
             }
         }
     }
@@ -5547,8 +5883,50 @@ impl CodeEditorPanel {
                     if text.chars().any(|c| matches!(c, '.' | ':' | '_')) {
                         self.completion_request.store(true, Ordering::Relaxed);
                     }
+                    // MT-047 signature help: an open-paren OPENS the popup at a new call site; a comma
+                    // UPDATES the active parameter of the open popup (the pump keys it by the call's
+                    // open-paren). A close-paren `)` DISMISSES the popup (the call's argument list ended).
+                    // The popup is non-focus-stealing, so the character still lands (RISK-003).
+                    if text.chars().any(|c| matches!(c, '(' | ',')) {
+                        self.signature_help_request.store(true, Ordering::Relaxed);
+                    }
+                    if text.contains(')') {
+                        // Only dismiss when the cursor has actually left the call (paren balance);
+                        // `trigger_signature_help` re-evaluates on the next pump and re-opens if the
+                        // cursor is still inside an outer call, so a nested `)` does not wrongly close.
+                        self.signature_help_request.store(true, Ordering::Relaxed);
+                    }
                 }
                 _ => {}
+            }
+        }
+
+        // MT-047 signature-help keys, detected via input STATE queries (NOT an `egui::Event::Key`
+        // match arm — MT-010's single-dispatch invariant keeps `egui::Event::Key` to the one
+        // `process_keymap` site; `keymap.rs`'s `CodeEditorAction` enum is out of MT-047 scope). The
+        // popup is non-focus-stealing, so reading these here does not consume the chord from the editor:
+        // - Ctrl+Shift+Space: arm a manual signature-help request (the manual VS Code shortcut).
+        // - Escape: dismiss the popup when it is open.
+        // - Up/Down: cycle overloads while the popup is open.
+        let (sig_manual, sig_escape, sig_up, sig_down) = ui.input(|i| {
+            let m = i.modifiers;
+            (
+                m.ctrl && m.shift && i.key_pressed(egui::Key::Space),
+                i.key_pressed(egui::Key::Escape),
+                i.key_pressed(egui::Key::ArrowUp),
+                i.key_pressed(egui::Key::ArrowDown),
+            )
+        });
+        if sig_manual {
+            self.signature_help_request.store(true, Ordering::Relaxed);
+        }
+        if self.is_signature_help_open() {
+            if sig_escape {
+                self.close_signature_help();
+            } else if sig_down {
+                self.signature_help_next();
+            } else if sig_up {
+                self.signature_help_prev();
             }
         }
 
