@@ -141,6 +141,14 @@ pub struct RichEditorState {
     /// consolidating — not re-minting — the toolbar/find/save author_ids).
     pub editor_actions:
         Option<(std::sync::Arc<std::sync::Mutex<EditorActionRegistry>>, RegistrationHandle)>,
+    /// WP-KERNEL-012 MT-056 (E2 — outline/TOC): a pending scroll target requested by the outline panel
+    /// (or any caller of [`RichEditorWidget::scroll_to_block`]). Holds the top-level block path (`[idx]`)
+    /// the next render pass must bring into view. The block renderer ([`RichEditorWidget::render_blocks`])
+    /// consumes it on the next frame by calling `ui.scroll_to_rect` over that block's painted rect, then
+    /// clears it (a one-shot request — egui only needs one frame to bring the rect into view). `None`
+    /// between requests so steady-state frames do no scroll work. This is the editor's EXISTING scroll
+    /// surface (the `rich-editor-scroll` ScrollArea), NOT a second scroll mechanism (RISK-002 / MC-002).
+    pub pending_scroll_block: Option<Vec<usize>>,
 }
 
 impl RichEditorState {
@@ -213,6 +221,7 @@ impl RichEditorState {
             undo_batcher: crate::rich_editor::interop_adapter::RichUndoBatcher::new(),
             undo_batch_before: None,
             editor_actions: None,
+            pending_scroll_block: None,
         }
     }
 
@@ -443,6 +452,106 @@ impl RichEditorState {
         }
         Some(s)
     }
+
+    /// WP-KERNEL-012 MT-056 (E2 — outline/TOC): a content-derived REVISION of the heading-relevant
+    /// document structure. The outline panel gates its tree rebuild on this value: it rebuilds ONLY when
+    /// the revision advances and does NOT rebuild on a frame where the revision is unchanged (RISK-001 /
+    /// MC-001 / AC-004 — never a per-frame rebuild).
+    ///
+    /// ## Why a content fingerprint, not an instrumented counter (reconciliation)
+    ///
+    /// The MT contract names `doc.revision()`, but the real MT-011 DocModel is a value tree with NO
+    /// revision/dirty counter, and edits flow through `apply_transaction` at ~50 decentralized call
+    /// sites (input/IME/formatting/find-replace/slash). Instrumenting all of them to bump a counter is
+    /// out of MT-056 scope and risky. Instead this is a PURE fingerprint over only the heading-relevant
+    /// data (each top-level Heading's level + plain text + ordinal position), computed from the PUBLIC
+    /// DocModel surface — no reach into DocModel internals (MC-006), no mutation-site instrumentation. A
+    /// non-heading edit (typing in a paragraph) leaves the fingerprint UNCHANGED, so the outline truly
+    /// does not rebuild then; adding/removing/retitling/re-leveling a heading changes it, firing exactly
+    /// one rebuild on the next frame.
+    pub fn doc_revision(&self) -> u64 {
+        // FNV-1a over the heading-relevant structure, in document order. Deterministic + cheap (one walk
+        // of the top-level blocks). The walk only fingerprints level + plain text + ordinal of each
+        // top-level Heading; everything else contributes nothing, so non-heading edits do not perturb it.
+        const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+        const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+        let mut hash = FNV_OFFSET;
+        let mut mix = |bytes: &[u8]| {
+            for &b in bytes {
+                hash ^= b as u64;
+                hash = hash.wrapping_mul(FNV_PRIME);
+            }
+        };
+        for (idx, child) in self.doc.children.iter().enumerate() {
+            let Some(block) = child.as_block() else { continue };
+            if let Some(level) = block.heading_level() {
+                mix(&(idx as u64).to_le_bytes()); // ordinal position (a re-order changes the outline)
+                mix(&[level]); // heading level (a re-level changes nesting)
+                if let Some(text) = self.block_plain_text(idx) {
+                    mix(text.as_bytes()); // heading text (a retitle changes the entry label)
+                }
+                mix(&[0xff]); // entry separator
+            }
+        }
+        hash
+    }
+
+    /// WP-KERNEL-012 MT-056: resolve a stable `block_id` (the `re-block-{hash}` string from
+    /// [`super::block_author_id`]) back to its top-level block path against the LIVE document. Scans the
+    /// current top-level blocks and returns the path whose [`super::block_author_id`] matches — so the
+    /// lookup is authoritative against the live doc and is ITSELF the stale-id guard: a deleted heading's
+    /// id matches no live block, yielding `None` (RISK-003 / MC-003). O(top-level blocks); called only on
+    /// a click/Press, never per frame. The FNV path hash is one-way, so a forward scan is the correct
+    /// inverse (and it cannot resolve to a block that no longer exists).
+    pub fn block_path_from_id(&self, block_id: &str) -> Option<Vec<usize>> {
+        for idx in 0..self.doc.children.len() {
+            if self.doc.children[idx].as_block().is_some()
+                && super::block_author_id(&[idx]) == block_id
+            {
+                return Some(vec![idx]);
+            }
+        }
+        None
+    }
+
+    /// WP-KERNEL-012 MT-056: true when the top-level block at path `[idx]` still exists in the LIVE
+    /// document (the stale-`block_id` guard, RISK-003 / MC-003). The outline addresses blocks by their
+    /// top-level index path; a deleted heading leaves a dangling entry until the next revision-gated
+    /// rebuild, so click/Press first checks this and skips silently if the block is gone.
+    pub fn block_path_exists(&self, path: &[usize]) -> bool {
+        match path.first() {
+            Some(&idx) => self.doc.children.get(idx).and_then(Child::as_block).is_some(),
+            None => false,
+        }
+    }
+
+    /// WP-KERNEL-012 MT-056: place an anchored whole-block selection across the top-level block at
+    /// `path` THROUGH the EXISTING MT-012 selection model — a [`Selection::Text`] spanning the block's
+    /// first text leaf from offset 0 to its end (so the heading reads as selected), falling back to a
+    /// [`Selection::Node`] whole-node selection when the block has no text leaf (an atom block). This is
+    /// the ONE selection mechanism (RISK-002 / MC-002 — no second selection path), so cross-pane (E5)
+    /// selection stays consistent. No-op when the block is gone (RISK-003 / MC-003).
+    pub fn select_block(&mut self, path: &[usize]) {
+        let Some(&idx) = path.first() else { return };
+        let Some(block) = self.doc.children.get(idx).and_then(Child::as_block) else {
+            return; // stale path — let the next rebuild drop the entry (MC-003).
+        };
+        // Find the first text leaf in the block so the selection covers its heading text. A heading is a
+        // single text leaf at child 0, but we scan to be robust to a marked-run split.
+        let first_text = block
+            .children
+            .iter()
+            .position(|c| c.as_text().is_some())
+            .map(|leaf_idx| (leaf_idx, block.children[leaf_idx].as_text().expect("checked").text.len_chars()));
+        self.selection = match first_text {
+            Some((leaf_idx, len)) => {
+                let anchor = DocPosition::new(vec![idx, leaf_idx], 0);
+                let head = DocPosition::new(vec![idx, leaf_idx], len);
+                Selection::text(anchor, head)
+            }
+            None => Selection::node(vec![idx]),
+        };
+    }
 }
 
 /// WP-KERNEL-012 MT-035 (E5 — unified undo): a decoded undo/redo keyboard chord the rich pane routes
@@ -506,6 +615,31 @@ impl RichEditorWidget {
     /// (AC-001) to assert a `ViewMode::Reading` host builds a `read_only=true` widget.
     pub fn is_read_only(&self) -> bool {
         self.read_only
+    }
+
+    /// WP-KERNEL-012 MT-056 (E2 — outline/TOC): request that the next render bring the top-level block
+    /// addressed by `block_id` into view. `block_id` is the editor's stable block address — the
+    /// `re-block-{hash}` string produced by [`super::block_author_id`] for the block's top-level path —
+    /// the SAME id the per-block AccessKit node and the outline entry use. The request is recorded as a
+    /// pending scroll target on the shared editor state and resolved by [`Self::render_blocks`] on the
+    /// next frame via the editor's EXISTING `rich-editor-scroll` ScrollArea (`ui.scroll_to_rect`), NOT a
+    /// second scroll mechanism (RISK-002 / MC-002). No-op when the id does not resolve to a live block
+    /// (stale id — RISK-003 / MC-003; the next revision-gated rebuild drops the entry).
+    pub fn scroll_to_block(&mut self, block_id: &str) {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(path) = state.block_path_from_id(block_id) {
+            state.pending_scroll_block = Some(path);
+        }
+    }
+
+    /// WP-KERNEL-012 MT-056: place an anchored selection across the heading block addressed by
+    /// `block_id`, routing strictly through the MT-012 selection model ([`RichEditorState::select_block`]
+    /// — no second selection mechanism, RISK-002 / MC-002). No-op for a stale id (RISK-003 / MC-003).
+    pub fn select_block(&mut self, block_id: &str) {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(path) = state.block_path_from_id(block_id) {
+            state.select_block(&path);
+        }
     }
 
     /// Render the editor into `ui`, returning the interaction [`egui::Response`] for the
@@ -2376,6 +2510,20 @@ impl RichEditorWidget {
                     let bp = paint_block(&painter, block, top, content_width, palette, caret_offset, bold_available);
                     if let Some(g) = bp.caret_galley {
                         caret_galley = Some(g.clone());
+                    }
+
+                    // WP-KERNEL-012 MT-056 (E2 — outline/TOC): if the outline requested a scroll to THIS
+                    // top-level block, bring its painted rect into view through the EXISTING scroll area
+                    // (RISK-002 / MC-002 — `ui.scroll_to_rect` on the SAME `rich-editor-scroll` ScrollArea,
+                    // not a second scroll mechanism). One-shot: the pending target is cleared once consumed
+                    // so steady-state frames do no scroll work, and a repaint is scheduled so the scroll
+                    // offset settles. The block is painted with the absolute `painter` at `top`, so its
+                    // rect is `[top, content_width x bp.height]`.
+                    if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
+                        let block_rect = egui::Rect::from_min_size(top, egui::vec2(content_width, bp.height));
+                        ui.scroll_to_rect(block_rect, Some(egui::Align::TOP));
+                        state.pending_scroll_block = None;
+                        ui.ctx().request_repaint();
                     }
 
                     // MT-015: overlay the inline wikilink CHIPs on this paragraph's hsLink atoms. We

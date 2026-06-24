@@ -24,6 +24,11 @@ pub mod document_model;
 pub mod embeds;
 pub mod find_replace;
 pub mod formatting;
+// WP-KERNEL-012 MT-056 (E2): the heading Outline / Table-of-Contents navigator (the Obsidian Outline
+// core-plugin / Notion TOC-block parity item). Defines the pure `build_outline` over the MT-011 block
+// DocModel, the `OutlineNode` tree, and the `OutlinePanel` egui widget + AccessKit Tree/TreeItem nodes.
+// Distinct from the MT-006 CODE outline (tree-sitter symbols) — different module + AccessKit namespace.
+pub mod outline_panel;
 pub mod properties;
 // WP-KERNEL-012 MT-055 (E2): per-document reading/preview mode (the Obsidian "reading view" parity
 // item). Defines `ViewMode`, the per-document `ReadingModeStore`, and the Edit|Reading toggle widget.
