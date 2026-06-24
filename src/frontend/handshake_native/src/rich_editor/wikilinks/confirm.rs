@@ -104,6 +104,51 @@ pub fn confirm_wikilink(
     true
 }
 
+/// WP-KERNEL-012 MT-057: rewrite every UNRESOLVED `hsLink` atom whose `ref_value` (normalized title)
+/// equals `normalized_title` to a RESOLVED note link targeting `document_id` (AC-002 — after a
+/// create-from-unresolved succeeds, the originating mark re-renders LIVE without a document reload).
+/// Walks the whole tree (an unresolved title may appear in more than one place); each match becomes a
+/// resolved `note` link with `ref_value = document_id` and `resolved = true`, so the next render paints
+/// it with the live-link affordance and a click navigates to the document. The label is preserved when
+/// the link had an explicit one, otherwise set to `display_title`. Returns the count of marks rewritten
+/// (0 when none matched — never a panic). Pure over `(doc, …)` so it is unit-testable with no egui.
+pub fn rewrite_mark_to_resolved(
+    doc: &mut BlockNode,
+    normalized_title: &str,
+    document_id: &str,
+    display_title: &str,
+) -> usize {
+    fn norm(s: &str) -> String {
+        crate::rich_editor::wikilinks::resolver::normalize_target(s)
+    }
+    let mut rewritten = 0usize;
+    rewrite_in_block(doc, &mut |link| {
+        // Only an UNRESOLVED link whose target normalizes to the created title is rewritten. A code
+        // ref / already-resolved link is left untouched (it is not the create-from-unresolved subject).
+        if !link.resolved && norm(&link.ref_value) == normalized_title {
+            link.ref_kind = "note".to_owned();
+            link.ref_value = document_id.to_owned();
+            link.resolved = true;
+            if link.label.trim().is_empty() {
+                link.label = display_title.to_owned();
+            }
+            rewritten += 1;
+        }
+    });
+    rewritten
+}
+
+/// Recurse the block tree, applying `f` to every `Child::HsLink`'s [`HsLinkNode`].
+fn rewrite_in_block(block: &mut BlockNode, f: &mut impl FnMut(&mut HsLinkNode)) {
+    for child in block.children.iter_mut() {
+        match child {
+            Child::HsLink(link) => f(link),
+            Child::Block(b) => rewrite_in_block(b, f),
+            _ => {}
+        }
+    }
+}
+
 /// Cancel the autocomplete (Escape): remove the `[[query` trigger text and place the caret where the
 /// trigger started. Returns the number of chars removed.
 pub fn cancel_wikilink(
@@ -212,6 +257,62 @@ mod tests {
         assert_eq!(removed, 4, "removed `[[fi`");
         assert_eq!(doc.children[0].as_block().unwrap().children[0].as_text().unwrap().text.to_string(), "a ");
         assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 2));
+    }
+
+    #[test]
+    fn rewrite_mark_to_resolved_flips_unresolved_link_live_ac002() {
+        // AC-002: an UNRESOLVED `[[My New Note]]` mark (ref_kind=note, resolved=false, ref_value=the
+        // title) becomes Resolved{document_id} after a create — re-rendered live, no reload.
+        use crate::rich_editor::wikilinks::resolver::normalize_target;
+        let mut unresolved = HsLinkNode::new("note", "My New Note", "My New Note");
+        unresolved.resolved = false;
+        let mut doc = BlockNode::doc(vec![BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![Child::Text(TextLeaf::new("see ")), Child::HsLink(unresolved)],
+        )]);
+        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-NEW", "My New Note");
+        assert_eq!(n, 1, "exactly one unresolved mark rewritten");
+        let link = doc.children[0].as_block().unwrap().children[1].as_hs_link().unwrap();
+        assert!(link.resolved, "AC-002: the mark is now Resolved");
+        assert_eq!(link.ref_value, "DOC-NEW", "the mark targets the new document id");
+        assert_eq!(link.ref_kind, "note");
+    }
+
+    #[test]
+    fn rewrite_leaves_already_resolved_and_nonmatching_marks_untouched() {
+        use crate::rich_editor::wikilinks::resolver::normalize_target;
+        // A RESOLVED link to a different doc + an unresolved link to a DIFFERENT title must be left
+        // alone (only the matching unresolved title is rewritten).
+        let resolved = HsLinkNode::new("wp", "WP-1", "WP One"); // resolved=true by default
+        let mut other_unresolved = HsLinkNode::new("note", "Different Title", "Different Title");
+        other_unresolved.resolved = false;
+        let mut doc = BlockNode::doc(vec![BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![Child::HsLink(resolved), Child::HsLink(other_unresolved)],
+        )]);
+        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-NEW", "My New Note");
+        assert_eq!(n, 0, "no mark matches the created title -> nothing rewritten");
+        let para = doc.children[0].as_block().unwrap();
+        assert!(para.children[0].as_hs_link().unwrap().resolved, "the already-resolved link is untouched");
+        assert!(!para.children[1].as_hs_link().unwrap().resolved, "the non-matching unresolved link stays unresolved");
+    }
+
+    #[test]
+    fn rewrite_matches_case_insensitively_via_normalized_title() {
+        use crate::rich_editor::wikilinks::resolver::normalize_target;
+        // The mark's ref_value differs in case/whitespace from the create title; the normalized match
+        // still rewrites it (Obsidian-default).
+        let mut unresolved = HsLinkNode::new("note", "  my   NEW note ", "");
+        unresolved.resolved = false;
+        let mut doc = BlockNode::doc(vec![BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![Child::HsLink(unresolved)],
+        )]);
+        let n = rewrite_mark_to_resolved(&mut doc, &normalize_target("My New Note"), "DOC-X", "My New Note");
+        assert_eq!(n, 1, "a case/whitespace-different unresolved title still matches the normalized created title");
+        let link = doc.children[0].as_block().unwrap().children[0].as_hs_link().unwrap();
+        assert_eq!(link.ref_value, "DOC-X");
+        assert_eq!(link.label, "My New Note", "a blank label is filled from the display title");
     }
 
     #[test]

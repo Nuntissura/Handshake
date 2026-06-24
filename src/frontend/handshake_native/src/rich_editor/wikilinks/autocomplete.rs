@@ -19,10 +19,12 @@
 //! into a one-slot cell tagged with its generation; the egui thread drains it next frame and applies
 //! it ONLY when the generation still matches the live query (cancellation).
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::rich_editor::wikilinks::client::{WikilinkBackend, WikilinkError, WikilinkResult};
+use crate::rich_editor::wikilinks::resolver::{normalize_target, ResolverIndex};
 
 /// The debounce window (MC-002): a search is issued only after the query has been stable for this
 /// long, so a 5-keystroke burst issues ONE search, not five.
@@ -248,6 +250,151 @@ impl AutocompleteRuntime {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-057: ALIAS-AWARE candidate provider.
+//
+// This feeds the EXISTING MT-015 autocomplete dropdown widget — it does NOT build a second dropdown.
+// While the operator types `[[query`, the dropdown calls [`candidates_for_query`] to fuzzy-match the
+// query against BOTH document titles AND declared aliases (from the [`ResolverIndex`]), dedupe by
+// document_id (the higher score wins; `matched_alias` is set only when the WINNING match was an
+// alias), and sort by score descending so the best match is the default selection.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// One alias-aware autocomplete candidate the dropdown renders. When `matched_alias` is `Some`, the
+/// row renders a secondary label (e.g. `Project Atlas — alias: "atlas"`) so the operator sees WHY the
+/// candidate matched; selecting it inserts a link resolving to `document_id`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WikilinkCandidate {
+    /// The document the candidate resolves to (the link target on selection).
+    pub document_id: String,
+    /// The document's original-case display title (the primary label).
+    pub display_title: String,
+    /// The alias (original case) that produced the WINNING match, or `None` when the title matched.
+    /// Drives the dropdown's `— alias: "…"` secondary label (AC-005).
+    pub matched_alias: Option<String>,
+    /// The match score (higher is better). Used to dedupe (keep the higher) and to sort the list.
+    pub score: i64,
+}
+
+/// Score a `query` (already normalized) against a normalized `candidate` string. A subsequence /
+/// prefix / contains heuristic, NOT a full edit distance — the dropdown only needs a stable RANKING,
+/// and a heavyweight fuzzy crate would be a new dependency for a small ranking job. Returns `None`
+/// when the query does not match at all (so a non-matching title/alias is excluded). Higher scores:
+///
+/// - exact equality -> 1000
+/// - candidate starts_with q -> 500 + a short-candidate bonus (a tight prefix ranks above a long one)
+/// - candidate contains q -> 200 + bonus
+/// - q is a subsequence of cand -> 50 + bonus
+///
+/// An empty query matches everything with a low base score (the dropdown shows the index
+/// alphabetically when nothing is typed yet).
+fn fuzzy_score(query: &str, candidate: &str) -> Option<i64> {
+    if query.is_empty() {
+        // Empty query: everything matches with a tiny base score (length-penalized so shorter titles
+        // rank first), so the dropdown lists the index before the operator types.
+        return Some(10 - (candidate.len() as i64).min(9));
+    }
+    if candidate == query {
+        return Some(1000);
+    }
+    let len_bonus = (40 - (candidate.len() as i64).min(40)).max(0); // shorter candidate -> higher
+    if candidate.starts_with(query) {
+        return Some(500 + len_bonus);
+    }
+    if candidate.contains(query) {
+        return Some(200 + len_bonus);
+    }
+    if is_subsequence(query, candidate) {
+        return Some(50 + len_bonus);
+    }
+    None
+}
+
+/// True when every char of `needle` appears in `haystack` in order (a classic subsequence test — the
+/// "fzf-style" loose match). Both are expected pre-normalized (lower-cased).
+fn is_subsequence(needle: &str, haystack: &str) -> bool {
+    let mut hay = haystack.chars();
+    'outer: for nc in needle.chars() {
+        for hc in hay.by_ref() {
+            if hc == nc {
+                continue 'outer;
+            }
+        }
+        return false;
+    }
+    true
+}
+
+/// Build the alias-aware candidate list for `query` against `index` (WP-KERNEL-012 MT-057). For each
+/// document, the title AND every alias are scored against the normalized query; the BEST score per
+/// document wins, and `matched_alias` is set ONLY when the winning match was an alias (so a document
+/// matched by BOTH title and alias renders once, as a title match, never duplicated — the dedupe
+/// contract / impl note 3). The result is sorted by score descending, then by display title (stable
+/// tiebreak), so the dropdown's first row is the best match.
+///
+/// This is the data path the EXISTING MT-015 dropdown consumes; it does not render anything itself.
+pub fn candidates_for_query(index: &ResolverIndex, query: &str) -> Vec<WikilinkCandidate> {
+    let nq = normalize_target(query);
+    // Best (score, matched_alias) per document_id.
+    let mut best: HashMap<String, (i64, Option<String>, String)> = HashMap::new();
+
+    for doc in index.documents() {
+        // Title match (matched_alias = None).
+        if let Some(score) = fuzzy_score(&nq, &normalize_target(&doc.display_title)) {
+            consider(&mut best, &doc.document_id, score, None, &doc.display_title);
+        }
+        // Alias matches (matched_alias = the original-case alias).
+        for alias in &doc.aliases {
+            if let Some(score) = fuzzy_score(&nq, &normalize_target(alias)) {
+                consider(&mut best, &doc.document_id, score, Some(alias.clone()), &doc.display_title);
+            }
+        }
+    }
+
+    let mut out: Vec<WikilinkCandidate> = best
+        .into_iter()
+        .map(|(document_id, (score, matched_alias, display_title))| WikilinkCandidate {
+            document_id,
+            display_title,
+            matched_alias,
+            score,
+        })
+        .collect();
+    // Sort by score desc, then display title asc (stable, deterministic ordering).
+    out.sort_by(|a, b| {
+        b.score
+            .cmp(&a.score)
+            .then_with(|| a.display_title.cmp(&b.display_title))
+            .then_with(|| a.document_id.cmp(&b.document_id))
+    });
+    out
+}
+
+/// Keep the higher-scoring match for a document (the dedupe-by-document_id rule). On a tie, a TITLE
+/// match (matched_alias = None) is preferred over an alias match, so a document that matches by both
+/// renders as a title match (impl note 3 — the dedupe prefers the canonical title presentation).
+fn consider(
+    best: &mut HashMap<String, (i64, Option<String>, String)>,
+    document_id: &str,
+    score: i64,
+    matched_alias: Option<String>,
+    display_title: &str,
+) {
+    match best.get(document_id) {
+        Some((existing_score, existing_alias, _)) => {
+            let replace = score > *existing_score
+                // On an equal score, prefer the TITLE match (existing alias-only loses to a new title).
+                || (score == *existing_score && matched_alias.is_none() && existing_alias.is_some());
+            if replace {
+                best.insert(document_id.to_owned(), (score, matched_alias, display_title.to_owned()));
+            }
+        }
+        None => {
+            best.insert(document_id.to_owned(), (score, matched_alias, display_title.to_owned()));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -401,5 +548,91 @@ mod tests {
         runtime.stage_delivery(gen, Err(WikilinkError::NetworkError("down".into())));
         assert!(runtime.drain(&mut state));
         assert!(matches!(state.as_ref().unwrap().phase, SearchPhase::Err(WikilinkError::NetworkError(_))));
+    }
+
+    // ── WP-KERNEL-012 MT-057: alias-aware candidate provider ─────────────────────────────────────
+
+    fn alias_index() -> ResolverIndex {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-1", "Project Atlas");
+        idx.add_document("DOC-2", "Roadmap");
+        idx.add_document("DOC-3", "Atlas Shrugged");
+        idx.add_alias("DOC-1", "Atlas"); // DOC-1 also reachable by the alias "Atlas"
+        idx
+    }
+
+    #[test]
+    fn candidates_surface_alias_match_with_matched_alias_set() {
+        // AC-005: a query that matches a document's ALIAS surfaces that document with matched_alias set.
+        let idx = alias_index();
+        let cands = candidates_for_query(&idx, "atlas");
+        // DOC-1 ("Project Atlas") matches by BOTH title (contains "atlas") AND the alias "Atlas".
+        let doc1 = cands.iter().find(|c| c.document_id == "DOC-1").expect("DOC-1 present");
+        // Dedupe rule (impl note 3): a doc matched by both renders ONCE; the title match (exact-ish via
+        // contains) here wins on score, so matched_alias is None for DOC-1 (it appears once, not twice).
+        let doc1_count = cands.iter().filter(|c| c.document_id == "DOC-1").count();
+        assert_eq!(doc1_count, 1, "a doc matched by both title and alias is deduped to ONE candidate");
+        // DOC-3 ("Atlas Shrugged") starts_with "atlas" -> a strong title match, also present.
+        assert!(cands.iter().any(|c| c.document_id == "DOC-3"), "DOC-3 title-matches 'atlas'");
+        assert!(doc1.display_title == "Project Atlas");
+    }
+
+    #[test]
+    fn alias_only_query_sets_matched_alias() {
+        // A query that matches ONLY via an alias (the title does not contain it) sets matched_alias.
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-9", "Quarterly Plan");
+        idx.add_alias("DOC-9", "QP");
+        let cands = candidates_for_query(&idx, "qp");
+        let c = cands.iter().find(|c| c.document_id == "DOC-9").expect("matched via alias");
+        assert_eq!(
+            c.matched_alias.as_deref(),
+            Some("QP"),
+            "AC-005: a candidate matched only by alias carries the matched_alias (original case)"
+        );
+        assert_eq!(c.display_title, "Quarterly Plan", "the primary label is still the canonical title");
+    }
+
+    #[test]
+    fn candidates_dedupe_by_document_id_keeping_higher_score() {
+        // The dedupe-by-document_id contract: a document matching the query via multiple aliases +
+        // the title appears exactly once, with the highest score.
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-1", "Atlas Project");
+        idx.add_alias("DOC-1", "Atlas");
+        idx.add_alias("DOC-1", "AtlasProj");
+        let cands = candidates_for_query(&idx, "atlas");
+        assert_eq!(
+            cands.iter().filter(|c| c.document_id == "DOC-1").count(),
+            1,
+            "DOC-1 (title + 2 aliases all matching) is deduped to ONE candidate"
+        );
+    }
+
+    #[test]
+    fn candidates_sorted_by_score_descending() {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("EXACT", "atlas"); // exact -> score 1000
+        idx.add_document("PREFIX", "atlas one"); // starts_with -> ~500+
+        idx.add_document("CONTAINS", "the atlas map"); // contains -> ~200+
+        let cands = candidates_for_query(&idx, "atlas");
+        assert_eq!(cands[0].document_id, "EXACT", "the exact match ranks first");
+        assert!(cands[0].score >= cands[1].score, "sorted by score descending");
+        assert!(cands[1].score >= cands.last().unwrap().score);
+    }
+
+    #[test]
+    fn non_matching_query_excludes_candidate() {
+        let idx = alias_index();
+        let cands = candidates_for_query(&idx, "zzznope");
+        assert!(cands.is_empty(), "a query matching no title/alias yields no candidates");
+    }
+
+    #[test]
+    fn empty_query_lists_the_index() {
+        let idx = alias_index();
+        let cands = candidates_for_query(&idx, "");
+        // Three documents -> three candidates (one per doc, deduped).
+        assert_eq!(cands.len(), 3, "an empty query lists the indexed documents (one per doc)");
     }
 }

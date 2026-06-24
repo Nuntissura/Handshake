@@ -45,5 +45,9 @@ pub mod client;
 pub mod confirm;
 pub mod inline_view;
 pub mod parser;
+/// WP-KERNEL-012 MT-057: the wikilink RESOLUTION engine (exact ref/title/alias resolution + the
+/// create-from-unresolved command-bus intent) layered on the MT-015 wikilink engine. See
+/// [`resolver`].
+pub mod resolver;
 pub mod runtime;
 pub mod transclusion_view;

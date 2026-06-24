@@ -2134,11 +2134,12 @@ impl RichEditorWidget {
         ui: &mut egui::Ui,
         spec: &WikilinkChipSpec,
         origin: egui::Pos2,
-        _palette: &HsPalette,
+        palette: &HsPalette,
+        creating: bool,
     ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
         use crate::rich_editor::wikilinks::inline_view::{
-            chip_author_id, chip_rect_for_span, code_ref_chip_author_id, is_code_ref, EditorEvent,
-            CHIP_ROLE,
+            chip_author_id, chip_rect_for_span, code_ref_chip_author_id, create_affordance_author_id,
+            is_code_ref, EditorEvent, CHIP_ROLE,
         };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
@@ -2172,6 +2173,59 @@ impl RichEditorWidget {
             node.set_author_id(author_for_node.clone());
             node.set_label(label_for_node.clone());
         });
+
+        // WP-KERNEL-012 MT-057: an UNRESOLVED wikilink offers a "Create note" affordance to the RIGHT of
+        // the chip — a small Button addressable by the STABLE `wikilink-create-{hash}` author_id
+        // (MC-005), Role::Button, so a swarm agent / kittest targets it deterministically. While a
+        // create for this title is in flight the affordance is DISABLED (MC-001 — no duplicate POST) and
+        // reads "Creating…". Clicking it emits the COMMAND-BUS CreateNote intent (NOT an inline POST —
+        // RISK-007 / MC-007); the async handler creates the note + rewrites this mark to resolved.
+        let mut create_event: Option<EditorEvent> = None;
+        if let Some(title) = spec.create_title.clone() {
+            let create_author = create_affordance_author_id(&title);
+            let create_id = ui.id().with(("wikilink-create", &create_author));
+            // Place the button just right of the chip, same row height.
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(rect.max.x + 4.0, rect.min.y),
+                egui::vec2(96.0, rect.height().max(super::line_layout::BASE_FONT_SIZE)),
+            );
+            let (label_text, label_color, sense) = if creating {
+                ("Creating…", palette.text_subtle, egui::Sense::hover())
+            } else {
+                ("＋ Create note", palette.accent, egui::Sense::click())
+            };
+            let painter = ui.painter();
+            painter.rect_filled(btn_rect, 4.0, palette.surface);
+            painter.rect_stroke(
+                btn_rect,
+                4.0,
+                egui::Stroke::new(1.0, palette.border),
+                egui::StrokeKind::Inside,
+            );
+            painter.text(
+                egui::pos2(btn_rect.min.x + 4.0, btn_rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                label_text,
+                egui::FontId::proportional(super::line_layout::BASE_FONT_SIZE - 1.0),
+                label_color,
+            );
+            let create_resp = ui.interact(btn_rect, create_id, sense);
+            let author_for_create = create_author.clone();
+            let title_for_label = title.clone();
+            ui.ctx().accesskit_node_builder(create_id, move |node| {
+                node.set_role(egui::accesskit::Role::Button);
+                node.set_author_id(author_for_create.clone());
+                node.set_label(format!("Create note \"{title_for_label}\""));
+            });
+            // The chip itself, when unresolved, also activates the create (clicking the broken link is
+            // the Obsidian gesture); the dedicated button is the discoverable affordance + the stable
+            // swarm/kittest target.
+            if !creating && (create_resp.clicked() || resp.clicked()) {
+                create_event = Some(EditorEvent::CreateNote { title });
+            }
+            return create_event;
+        }
+
         if resp.clicked() {
             Some(EditorEvent::WikilinkActivated {
                 ref_kind: spec.link.ref_kind.clone(),
@@ -2380,6 +2434,23 @@ impl RichEditorWidget {
         if state.wikilinks.autocomplete.drain(&mut state.wikilink_autocomplete) {
             wikilink_applied = true;
         }
+        // WP-KERNEL-012 MT-057: drain a completed create-from-unresolved. On success the runtime already
+        // inserted the new title into the resolver index (so the link resolves live); here we rewrite
+        // the ORIGINATING mark Unresolved -> Resolved so it re-renders as a live link WITHOUT a reload
+        // (AC-002). A failure clears the in-flight guard (the affordance re-enables) and the editor keeps
+        // the link unresolved (no silent success).
+        if let Some(outcome) = state.wikilinks.drain_create() {
+            use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
+            if let CreateNoteOutcome::Created { normalized_title, display_title, document_id } = outcome {
+                crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
+                    &mut state.doc,
+                    &normalized_title,
+                    &document_id,
+                    &display_title,
+                );
+            }
+            wikilink_applied = true;
+        }
         if let Some(ac) = state.wikilink_autocomplete.as_mut() {
             // The autocomplete runtime lives inside the wikilink runtime; borrow it to issue the
             // debounced search for the current query (no-op until the 150ms window elapses).
@@ -2389,6 +2460,29 @@ impl RichEditorWidget {
         }
         if wikilink_applied {
             ui.ctx().request_repaint();
+        }
+
+        // WP-KERNEL-012 MT-057 (AC-006 / RISK-002 / MC-002): when the backend payload lacks an
+        // `aliases` field, alias resolution runs LOCAL-ONLY (the in-session stub). Render a VISIBLE
+        // banner so the operator is NEVER misled into thinking aliases are persisted. Editing surface
+        // only (skipped in reading mode). The banner is an addressable AccessKit-labeled node so a
+        // swarm agent reads the local-only state by a stable id.
+        if !read_only && state.wikilinks.alias_backend_gap {
+            let banner = egui::Frame::new()
+                .fill(palette.error_bg)
+                .inner_margin(egui::Margin::symmetric(8, 4))
+                .show(ui, |ui| {
+                    ui.colored_label(
+                        palette.error_text,
+                        "Alias resolution is running LOCAL-ONLY — backend aliases are unavailable (not persisted).",
+                    );
+                });
+            ui.ctx().accesskit_node_builder(banner.response.id, |node| {
+                node.set_author_id("wikilink-alias-local-only-banner".to_owned());
+                node.set_label(
+                    "Alias resolution local-only: backend aliases unavailable".to_owned(),
+                );
+            });
         }
 
         // MT-015: reserve a bottom strip for the backlinks panel so the full-height content scroll
@@ -2534,9 +2628,31 @@ impl RichEditorWidget {
                     // enqueues a WikilinkActivated event for the shell. The chip specs are computed
                     // into an owned vec FIRST (ending the doc borrow) so `pending_events` can be
                     // borrowed mutably when handling a click.
-                    let chip_specs = wikilink_chip_specs(block, palette, content_width, bold_available, &painter);
+                    let chip_specs = wikilink_chip_specs(
+                        block,
+                        palette,
+                        content_width,
+                        bold_available,
+                        &painter,
+                        &state.wikilinks.resolver_index,
+                    );
                     for spec in chip_specs {
-                        if let Some(ev) = Self::paint_one_wikilink_chip(ui, &spec, top, palette) {
+                        // WP-KERNEL-012 MT-057: an in-flight create (keyed on the normalized title)
+                        // DISABLES the create affordance so a double-click cannot POST twice (MC-001).
+                        let creating = spec
+                            .create_title
+                            .as_ref()
+                            .map(|t| state.wikilinks.is_creating(t))
+                            .unwrap_or(false);
+                        if let Some(ev) = Self::paint_one_wikilink_chip(ui, &spec, top, palette, creating) {
+                            // WP-KERNEL-012 MT-057: a CreateNote intent is DISPATCHED on the runtime
+                            // (off-thread `POST /knowledge/documents` via the MT-037 binding — never
+                            // inline on this frame, RISK-007/MC-007) AND enqueued for the shell to
+                            // observe. The dispatch guards against a duplicate in-flight create (MC-001).
+                            if let crate::rich_editor::wikilinks::inline_view::EditorEvent::CreateNote { title } = &ev {
+                                state.wikilinks.dispatch_create_note(title);
+                                ui.ctx().request_repaint();
+                            }
                             state.pending_events.push(ev);
                         }
                     }
@@ -2889,6 +3005,11 @@ struct WikilinkChipSpec {
     fg: egui::Color32,
     /// The chip display label (the resolved/`?`-prefixed text).
     label: String,
+    /// WP-KERNEL-012 MT-057: `Some(title)` when this wikilink is UNRESOLVED against the resolver index
+    /// (the click offers a "Create note \"{title}\"" affordance). `None` when the link resolved (or is
+    /// a code ref / known-kind chip not subject to create-from-unresolved). The title is the trimmed
+    /// original-case title the create intent + the create affordance author_id are keyed on.
+    create_title: Option<String>,
 }
 
 /// Compute the [`WikilinkChipSpec`]s for every hsLink atom in an inline-content block by re-laying it
@@ -2900,8 +3021,10 @@ fn wikilink_chip_specs(
     content_width: f32,
     bold_available: bool,
     painter: &egui::Painter,
+    resolver_index: &crate::rich_editor::wikilinks::resolver::ResolverIndex,
 ) -> Vec<WikilinkChipSpec> {
-    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label};
+    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label, is_code_ref};
+    use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, WikilinkResolution};
     use egui::epaint::text::cursor::CCursor;
 
     // Only inline-content blocks (paragraph/heading) carry inline hsLink atoms.
@@ -2923,6 +3046,22 @@ fn wikilink_chip_specs(
                 let local_start = galley.pos_from_cursor(CCursor::new(start));
                 let local_end = galley.pos_from_cursor(CCursor::new(end.max(start)));
                 let (bg, fg) = chip_colors(link, palette);
+                // WP-KERNEL-012 MT-057: a create-from-unresolved affordance is offered ONLY for a link
+                // the editor considers UNRESOLVED (`link.resolved == false`) — a `[[Title]]` that did
+                // not bind to a known kind. A link the parser already marked resolved (a known kind such
+                // as `wp:`/`note:`, or a code ref) routes via WikilinkActivated and is NOT a create
+                // candidate (RISK: turning every resolved chip into a create button). For an unresolved
+                // link, the resolver index is consulted: if it now resolves (e.g. a note created earlier
+                // this session, or an alias), the link is treated as resolved (no create offer); only a
+                // still-Unresolved result offers the create affordance keyed on the title.
+                let create_title = if link.resolved || is_code_ref(link) {
+                    None
+                } else {
+                    match resolve_wikilink(resolver_index, &link.ref_value) {
+                        WikilinkResolution::Unresolved { title } if !title.is_empty() => Some(title),
+                        _ => None, // the index now resolves it -> not a create candidate
+                    }
+                };
                 specs.push(WikilinkChipSpec {
                     link: link.clone(),
                     local_start,
@@ -2930,6 +3069,7 @@ fn wikilink_chip_specs(
                     bg,
                     fg,
                     label,
+                    create_title,
                 });
                 char_cursor = end;
             }

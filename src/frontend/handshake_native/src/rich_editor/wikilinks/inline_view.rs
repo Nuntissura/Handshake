@@ -58,6 +58,48 @@ pub enum EditorEvent {
         /// The transcluded block id.
         ref_value: String,
     },
+    /// WP-KERNEL-012 MT-057: the operator confirmed "Create note \"{title}\"" on an UNRESOLVED
+    /// wikilink. This is the COMMAND-BUS intent the click handler emits INSTEAD of calling
+    /// `POST /knowledge/documents` inline on the egui frame (RISK-007 / MC-007 — frame-freeze
+    /// avoidance). The async intent handler ([`super::runtime::WikilinkRuntime::dispatch_create_note`])
+    /// performs the create, then rewrites the originating mark Unresolved -> Resolved (AC-002).
+    CreateNote {
+        /// The (trimmed) title of the unresolved link to create.
+        title: String,
+    },
+}
+
+/// WP-KERNEL-012 MT-057: the editor command-bus intent vocabulary is carried on [`EditorEvent`]
+/// (the events the shell drains from `RichEditorState.pending_events`). The MT contract names the
+/// create intent `EditorIntent::CreateNote`; this alias makes that name available without forking a
+/// second event enum, so `EditorIntent::CreateNote { title }` and `EditorEvent::CreateNote { title }`
+/// are the SAME value type (one command bus, one drain path — REUSE-NOT-FORK).
+pub type EditorIntent = EditorEvent;
+
+/// WP-KERNEL-012 MT-057: the AccessKit author_id for the "Create note" affordance on an UNRESOLVED
+/// wikilink, of the contract form `wikilink-create-{hash}` where `{hash}` is a short STABLE hex hash
+/// of the NORMALIZED title (so the same unresolved title yields the same id across repaints, and a
+/// swarm agent / kittest can target it deterministically — MC-005). The hash is over the NORMALIZED
+/// title (trim + collapse-whitespace + lower-case) so `[[Foo]]` and `[[ foo ]]` — the same logical
+/// target — share one create affordance id.
+pub fn create_affordance_author_id(title: &str) -> String {
+    let norm = crate::rich_editor::wikilinks::resolver::normalize_target(title);
+    format!("wikilink-create-{}", short_hex_hash(norm.as_bytes()))
+}
+
+/// WP-KERNEL-012 MT-057: the AccessKit author_id for one alias-autocomplete candidate row, of the
+/// contract form `wikilink-candidate-{document_id}` (the document the row inserts a link to). The
+/// document id is used verbatim (it is already a stable opaque id), so a swarm agent / kittest targets
+/// a candidate by the document it resolves to.
+pub fn candidate_author_id(document_id: &str) -> String {
+    format!("wikilink-candidate-{document_id}")
+}
+
+/// A short, stable 32-bit hex hash (FNV-1a) for an author_id suffix — the SAME deterministic
+/// no-random-seed hash [`chip_author_id`] uses, so create-affordance ids are stable across runs (NOT
+/// `RandomState`, which would re-seed per process and break kittest/swarm targeting — MC-005).
+fn short_hex_hash(bytes: &[u8]) -> String {
+    format!("{:08x}", fnv1a_hash(bytes))
 }
 
 /// The AccessKit author_id for a wikilink chip (`wikilink-chip-{ref_value_hash}` per the MT contract).
