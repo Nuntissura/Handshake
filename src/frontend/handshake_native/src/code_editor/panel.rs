@@ -117,6 +117,12 @@ use super::keymap_settings::{keymap_settings_path, KeymapSettings};
 use super::minimap::Minimap;
 use super::outline::{OutlineItem, OutlineProvider};
 use super::cursor::MoveDir;
+// MT-054 editor-chrome decorations: bracket match / pair-colorize + indent-guide geometry, and the
+// word-wrap VisualRow layout math. Pure over the buffer; the panel paint path consumes them.
+use super::render_decorations::{
+    bracket_pair_colors, find_matching_bracket, indent_guide_x, indent_level_of, BracketMatch,
+};
+use super::word_wrap::{layout_visual_rows, VisualRow, WrapConfig};
 
 /// The MT-contract author_id for the outer panel container (AC-005: Role::GenericContainer).
 pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
@@ -308,6 +314,15 @@ pub(crate) const MONO_FONT_SIZE: f32 = 13.0;
 const PANEL_CONTAINER_NODE_ID: u64 = 200;
 const PANEL_TEXT_NODE_ID: u64 = 201;
 const PANEL_SCROLL_NODE_ID: u64 = 202;
+
+/// MT-054 word-wrap toggle AccessKit node id (default single-instance panel). A fresh slot (290) ABOVE
+/// the find-bar band (280..283) so it never collides with any other panel node; multi-instance panels
+/// hash the suffixed author_id instead (RISK-004), the same scheme the other panel nodes use.
+pub const EDITOR_WRAP_TOGGLE_NODE_ID: u64 = 290;
+
+/// MT-054 the contract-named stable author_id for the word-wrap toggle node. A swarm agent flips wrap
+/// deterministically by addressing THIS id (the MT names it exactly `editor-wrap-toggle`).
+pub const CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID: &str = "editor-wrap-toggle";
 
 /// Per-frame virtualization diagnostics for the swarm/debug surface (MT-002 step 4). Reports how many
 /// lines were actually painted this frame versus the document size, so a no-context model (or a perf
@@ -810,6 +825,16 @@ pub struct CodeEditorPanel {
     /// false it is a literal tab (RISK-006 / MC-006). Defaults to VS Code's true. Atomic for `&self` reads.
     insert_spaces: std::sync::atomic::AtomicBool,
 
+    // ── MT-054 editor chrome: word wrap + bracket match/colorize + indent guides ──────────────────
+
+    /// MT-054 the word-wrap configuration (Alt+Z). `enabled == false` by default (the MT-002 baseline
+    /// 1:1 render — RISK-006 / MC-006). The `show` path consumes the Alt+Z shortcut to flip `enabled`,
+    /// refreshes `viewport_width_px` each frame from the live editor-area width, and drives BOTH the
+    /// `show_rows` row count + scroll math AND the per-row paint from the resulting VisualRow list
+    /// (RISK-001 / MC-001 — one source of truth). Behind a `Mutex` for the same `Sync` reason as the
+    /// buffer; a swarm agent flips it via the `editor-wrap-toggle` AccessKit node.
+    wrap_config: Mutex<WrapConfig>,
+
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
@@ -1263,6 +1288,10 @@ impl CodeEditorPanel {
             pending_line_op_undo: Mutex::new(None),
             tab_size: AtomicU64::new(4),
             insert_spaces: std::sync::atomic::AtomicBool::new(true),
+            // MT-054 word wrap: OFF by default so the first render is the MT-002 1:1 baseline
+            // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
+            // width before the wrap layout runs.
+            wrap_config: Mutex::new(WrapConfig::default()),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -3772,6 +3801,68 @@ impl CodeEditorPanel {
         )
     }
 
+    // ── MT-054 word wrap (Alt+Z) — toggle + state ─────────────────────────────────────────────────
+
+    /// MT-054: the current word-wrap configuration (for tests / the host / the AccessKit node value).
+    pub fn wrap_config(&self) -> WrapConfig {
+        *self.wrap_config.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// MT-054: whether word wrap is currently enabled (Alt+Z toggles it). Persisted on the panel state.
+    pub fn is_wrap_enabled(&self) -> bool {
+        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).enabled
+    }
+
+    /// MT-054: flip word wrap on/off and return the NEW enabled state. The single mutation point both
+    /// the Alt+Z shortcut and the `editor-wrap-toggle` AccessKit node route through, so the toggle is
+    /// deterministic for a swarm agent and persisted on the panel state (AC-005). Render/decoration only
+    /// — NO buffer mutation (AC-007).
+    pub fn toggle_wrap(&self) -> bool {
+        let mut cfg = self.wrap_config.lock().unwrap_or_else(|e| e.into_inner());
+        cfg.enabled = !cfg.enabled;
+        cfg.enabled
+    }
+
+    /// MT-054: explicitly set the wrap-enabled state (host / settings / a test). Persisted on the panel.
+    pub fn set_wrap_enabled(&self, enabled: bool) {
+        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).enabled = enabled;
+    }
+
+    /// MT-054: set a fixed wrap COLUMN (`wordWrapColumn`), or `None` to wrap at the viewport edge
+    /// (`wordWrap: on`). The host plumbs this from the editor-settings layer; tests use it to force a
+    /// deterministic wrap width without a real viewport.
+    pub fn set_wrap_column(&self, wrap_column: Option<usize>) {
+        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).wrap_column = wrap_column;
+    }
+
+    /// MT-054: the stable AccessKit author_id for this panel's word-wrap toggle node, with the instance
+    /// suffix when present (RISK-004). The default single panel uses the bare `editor-wrap-toggle` id the
+    /// MT names so a swarm agent matches it exactly.
+    pub fn wrap_toggle_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID)
+    }
+
+    /// MT-054: the fixed `egui::Id` for the word-wrap toggle node (band slot 290 for the default panel;
+    /// hashed for instances). See [`container_id`](Self::container_id) for the safety rationale.
+    fn wrap_toggle_node_id(&self) -> egui::Id {
+        if self.instance.is_empty() {
+            unsafe { egui::Id::from_high_entropy_bits(EDITOR_WRAP_TOGGLE_NODE_ID) }
+        } else {
+            egui::Id::new(self.wrap_toggle_author_id())
+        }
+    }
+
+    /// MT-054: dispatch the `editor-wrap-toggle` AccessKit action by author_id (the swarm-agent path).
+    /// Returns the NEW enabled state when the id matched this panel's toggle (so a test/agent can read
+    /// the result), or `None` for an unmatched id (a benign no-op, never a panic — RISK guard).
+    pub fn toggle_wrap_by_author_id(&self, author_id: &str) -> Option<bool> {
+        if author_id == self.wrap_toggle_author_id() {
+            Some(self.toggle_wrap())
+        } else {
+            None
+        }
+    }
+
     /// MT-051: build the [`LineEditContext`] for one dispatch batch from the panel's language-family id +
     /// the operator's tab settings (the "build the context once per dispatch batch" rule). The language id
     /// is the SAME stable family id the highlighter carries (RISK-007 — no second language enum).
@@ -4220,6 +4311,20 @@ impl CodeEditorPanel {
         let text_author = self.text_author_id();
         let text_id = self.text_id();
 
+        // MT-054: consume the Alt+Z word-wrap shortcut BEFORE the keymap dispatch / live-typing loop read
+        // input (RISK-005 / MC-005). `consume_shortcut` removes the matching key event from the queue, so
+        // neither `process_keymap` nor `process_cursor_input`'s Event::Text path ever sees the 'z' — the
+        // toggle flips wrap WITHOUT inserting a literal 'z' into the buffer. Skipped while a rename input
+        // owns the keyboard (the same focus-precedence guard `process_keymap` uses) so Alt+Z does not
+        // fight the rename surface. The toggle is the SINGLE `toggle_wrap` mutation point the AccessKit
+        // node also routes through (AC-005), and it is render-only (no buffer mutation — AC-007).
+        if matches!(*self.rename_state.lock().unwrap_or_else(|e| e.into_inner()), RenameState::Idle) {
+            let wrap_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::ALT, egui::Key::Z);
+            if ui.input_mut(|i| i.consume_shortcut(&wrap_shortcut)) {
+                self.toggle_wrap();
+            }
+        }
+
         // Measure + cache the monospace line height once (implementation note: do it at first show
         // and reuse). `show_rows` needs the per-line height WITHOUT egui's row spacing (it adds the
         // spacing itself), and we zero item-spacing inside the rows, so the measured glyph height is
@@ -4299,6 +4404,18 @@ impl CodeEditorPanel {
                 .clicked()
             {
                 self.toggle_note_refs();
+            }
+            // MT-054: the word-wrap toggle (Alt+Z). A visible selectable label that reflects + flips the
+            // persisted WrapConfig.enabled through the SAME `toggle_wrap` mutation point Alt+Z and the
+            // AccessKit node route through (AC-005). The AccessKit node itself (Role::Button, Toggled
+            // property, author_id `editor-wrap-toggle`) is emitted inside the container scope below so it
+            // is a container descendant a swarm agent can flip by id.
+            if ui
+                .selectable_label(self.is_wrap_enabled(), "\u{21B5} Wrap")
+                .on_hover_text("Toggle word wrap (Alt+Z)")
+                .clicked()
+            {
+                self.toggle_wrap();
             }
             // MT-010 'Configure keybindings' affordance: materializes ~/.handshake/keymap.json (creating
             // it with the current overrides if absent) so the operator can edit it. Deliberately does NOT
@@ -4494,28 +4611,73 @@ impl CodeEditorPanel {
                 // recompute (which adds ±OVERSCAN_LINES egui never applies and divides by the
                 // sans-spacing height) — is the authoritative diagnostics + overlay-positioning surface.
                 let mut painted_range: std::ops::Range<usize> = 0..0;
+
+                // MT-054: refresh the wrap config's viewport width from the LIVE editor-row width (the
+                // scroll-area inner width minus a small scrollbar allowance) so `wordWrap: on` wraps at
+                // the real visible edge. A no-op for the 1:1 fast path (wrap off ignores the width). Then
+                // build the wrap-aware VisualRow list over the VISIBLE (post-fold) buffer lines — the ONE
+                // source of truth that drives BOTH the `show_rows` row count + scroll math AND the per-row
+                // paint (RISK-001 / MC-001). When wrap is OFF this list is a strict 1:1 identity, so
+                // `wrap_rows.len() == visible_lines` and the non-wrap render path is byte-identical to the
+                // MT-002 baseline (RISK-006 / MC-006).
+                let editor_row_width = (ui.available_width() - 16.0).max(1.0);
+                {
+                    let mut cfg = self.wrap_config.lock().unwrap_or_else(|e| e.into_inner());
+                    cfg.viewport_width_px = editor_row_width;
+                }
+                let wrap_cfg = self.wrap_config();
+                let wrap_enabled = wrap_cfg.enabled;
+                // The visible (post-fold) buffer lines, in painted order, expanded to VisualRows. The
+                // wrap layout is over BUFFER lines, but driven from the visible window so folded lines do
+                // not contribute rows; `visible_buffer_lines_in_order` returns the buffer line for each
+                // visible index (fold-aware), and we wrap each of those lines.
+                let wrap_rows: Vec<VisualRow> = if wrap_enabled {
+                    self.build_visible_visual_rows(visible_lines, &wrap_cfg, glyph_width)
+                } else {
+                    Vec::new()
+                };
+                // The row count `show_rows` strides over: visual rows under wrap, visible (fold) lines off
+                // (MC-001 — paint + scrollbar share this one count so a wrapped doc scrolls correctly).
+                let scroll_row_count = if wrap_enabled { wrap_rows.len() } else { visible_lines };
+
                 // MT-005: drive `show_rows` over the VISIBLE (post-fold) line count, so a folded region
                 // collapses the scroll content (the scrollbar reflects the folded document). The
                 // `row_range` egui hands the closure is therefore in VISIBLE-line space; `render_rows`
-                // maps each visible row back to a buffer line via the FoldSet (MT step 4/6).
+                // maps each visible row back to a buffer line via the FoldSet (MT step 4/6). Under wrap
+                // (MT-054) the range is in VISUAL-row space and `render_wrapped_rows` maps each visual row
+                // back to its logical buffer line + byte fragment.
                 scroll_area.show_rows(
                     ui,
                     line_height,
-                    visible_lines,
+                    scroll_row_count,
                     |ui, row_range| {
-                        // Record egui's actual painted window (visible-line space) before painting.
+                        // Record egui's actual painted window before painting.
                         painted_range = row_range.clone();
-                        self.render_rows(
-                            ui,
-                            row_range,
-                            &syntax,
-                            total_lines,
-                            visible_lines,
-                            text_id,
-                            &text_author,
-                            line_height,
-                            glyph_width,
-                        );
+                        if wrap_enabled {
+                            self.render_wrapped_rows(
+                                ui,
+                                row_range,
+                                &wrap_rows,
+                                &syntax,
+                                total_lines,
+                                text_id,
+                                &text_author,
+                                line_height,
+                                glyph_width,
+                            );
+                        } else {
+                            self.render_rows(
+                                ui,
+                                row_range,
+                                &syntax,
+                                total_lines,
+                                visible_lines,
+                                text_id,
+                                &text_author,
+                                line_height,
+                                glyph_width,
+                            );
+                        }
                     },
                 );
 
@@ -4570,6 +4732,12 @@ impl CodeEditorPanel {
             // command without a keystroke (AC-005 / HBR-SWARM). The descriptor set is cached per keymap
             // version (RISK-002 — built once per keymap change, not every frame).
             self.emit_command_nodes(ui);
+
+            // MT-054: emit the word-wrap toggle AccessKit node (author_id `editor-wrap-toggle`,
+            // Role::Button with a Toggled property reflecting the persisted WrapConfig.enabled), INSIDE
+            // the container scope so it is a container descendant a swarm agent can flip by id (AC-005 /
+            // HBR-SWARM). Attached under the MT-002 editor container — NOT a second editor root node.
+            self.emit_wrap_toggle_node(ui);
 
             // Emit the container node onto this scope's Ui id from INSIDE the scope, so it is the
             // node that parents the nested scroll-area scope (AC-005: GenericContainer + author_id).
@@ -5862,9 +6030,18 @@ impl CodeEditorPanel {
 
             let end = buffer_end; // alias kept for the overlay calls below (buffer-line exclusive end).
 
-            // MT-004: paint the find-match highlights FIRST (below the carets) so a caret/selection
-            // stays visible on top of a match rect. Restricted to the painted row window (the same
-            // sans-spacing line_height + monospace glyph_width units as the cursor overlay).
+            // MT-054: paint the editor-chrome decorations (indent guides, bracket-pair colorization,
+            // matching-bracket highlight) over the painted rows in the contract z-order: indent guides
+            // first (faint lines that sit in the whitespace columns, below the glyphs), then re-draw each
+            // bracket glyph in its depth color, then the matching-bracket highlight box. All theme-sourced
+            // (CONTROL-4 — colors come from the palette tokens, never a hex literal here). Each visible
+            // row in this non-wrap path is one logical line, so every row is a `wrap_index == 0` first
+            // fragment and carries its indent guides (RISK-007 trivially holds when wrap is off).
+            self.paint_chrome_decorations(ui, &geometry, glyph_width, first_buffer_line, end, None);
+
+            // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
+            // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
+            // line_height + monospace glyph_width units as the cursor overlay).
             self.paint_match_highlights(ui, &geometry, glyph_width, end);
 
             // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
@@ -5897,6 +6074,402 @@ impl CodeEditorPanel {
             // region by `code_editor_fold_{start_line}`. Nested under the text node like the cursors.
             self.emit_fold_nodes(ui, first_buffer_line, buffer_end);
         });
+    }
+
+    // ── MT-054 word-wrap rendering ────────────────────────────────────────────────────────────────
+
+    /// MT-054: build the wrap-aware [`VisualRow`] list for the WHOLE visible (post-fold) document, in
+    /// painted order. Each visible line index is mapped to its buffer line through the FoldSet (so folded
+    /// lines never contribute rows); a folded-region START line contributes a single summary row
+    /// (`wrap_index == 0`, the region's start-line byte span — no wrap), and every other visible line is
+    /// wrapped by [`layout_visual_rows`]. The result is the SINGLE source of truth that drives both the
+    /// `show_rows` row count + scroll math AND the per-row paint (RISK-001 / MC-001).
+    fn build_visible_visual_rows(
+        &self,
+        visible_lines: usize,
+        cfg: &WrapConfig,
+        glyph_width: f32,
+    ) -> Vec<VisualRow> {
+        let mut rows: Vec<VisualRow> = Vec::with_capacity(visible_lines);
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+        for visible_idx in 0..visible_lines {
+            let buffer_line = set.visible_line_to_buffer_line(visible_idx);
+            // A folded-region start line is one collapsed summary row (never wrapped).
+            let folded = matches!(set.region_starting_at(buffer_line), Some(r) if r.folded);
+            if folded {
+                let start = buffer.line_to_byte(buffer_line).unwrap_or(0);
+                let end = buffer
+                    .line_to_byte(buffer_line + 1)
+                    .unwrap_or_else(|| buffer.len_bytes());
+                rows.push(VisualRow {
+                    logical_line: buffer_line,
+                    byte_start: start,
+                    byte_end: end,
+                    wrap_index: 0,
+                });
+            } else {
+                let mut line_rows =
+                    layout_visual_rows(&buffer, buffer_line..buffer_line + 1, cfg, glyph_width);
+                rows.append(&mut line_rows);
+            }
+        }
+        rows
+    }
+
+    /// MT-054: paint the visual-row window `row_range` (in VISUAL-row space) under word wrap. Each visual
+    /// row is one fragment of a logical line; the fragment text is painted on its own row, decorations
+    /// overlay the painted window, and the AccessKit text node is emitted (the same nesting as
+    /// `render_rows`). Indent guides are drawn ONLY for `wrap_index == 0` rows (RISK-007 / MC-007 — a
+    /// continuation row has no real leading whitespace, so a guide there would be a ghost guide).
+    #[allow(clippy::too_many_arguments)]
+    fn render_wrapped_rows(
+        &self,
+        ui: &mut egui::Ui,
+        row_range: std::ops::Range<usize>,
+        wrap_rows: &[VisualRow],
+        syntax: &HsSyntaxTokens,
+        total_lines: usize,
+        text_id: egui::Id,
+        text_author: &str,
+        line_height: f32,
+        glyph_width: f32,
+    ) {
+        ui.scope_builder(egui::UiBuilder::new().id_salt(text_id), |ui| {
+            let text_node_id = ui.unique_id();
+            ui.style_mut().spacing.item_spacing.y = 0.0;
+            let origin = ui.cursor().min;
+
+            let visual_end = row_range.end.min(wrap_rows.len());
+            let start = row_range.start.min(visual_end);
+
+            // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
+            let (first_buffer_line, last_buffer_line) = if start < visual_end {
+                (wrap_rows[start].logical_line, wrap_rows[visual_end - 1].logical_line)
+            } else {
+                (0, 0)
+            };
+            let buffer_end = (last_buffer_line + 1).min(total_lines);
+            let (win_start, win_end) = self.with_buffer(|b| {
+                let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
+                let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
+                (ws, we)
+            });
+            let visible_spans = self.spans_in_byte_window(win_start, win_end);
+
+            // Paint each visual-row fragment as its own row (the fragment's byte slice, syntax-colored).
+            for row in &wrap_rows[start..visual_end] {
+                let folded_label = {
+                    let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                    match set.region_starting_at(row.logical_line) {
+                        Some(r) if r.folded && row.wrap_index == 0 => Some(r.label.clone()),
+                        _ => None,
+                    }
+                };
+                match folded_label {
+                    Some(label) => self.render_fold_label_line(ui, &label, syntax),
+                    None => self.render_visual_row_fragment(ui, row, &visible_spans, syntax),
+                }
+            }
+
+            // The painted window's RowGeometry: `first_line` is the visual-row index of the first painted
+            // row (NOT a buffer line) because under wrap the rows are in visual space. The decoration +
+            // overlay painters that need this use the wrap-row mapping passed alongside.
+            let geometry = RowGeometry {
+                left: origin.x,
+                top: origin.y,
+                first_line: start,
+                line_height,
+            };
+            *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+
+            // MT-054 decorations under wrap: indent guides only on first-fragment rows, bracket colors +
+            // match highlight mapped through the visual-row list (RISK-007 / MC-007).
+            let painted = &wrap_rows[start..visual_end];
+            self.paint_chrome_decorations(
+                ui,
+                &geometry,
+                glyph_width,
+                first_buffer_line,
+                buffer_end,
+                Some(painted),
+            );
+
+            let author = text_author.to_owned();
+            ui.ctx().accesskit_node_builder(text_node_id, move |node| {
+                node.set_role(accesskit::Role::TextInput);
+                node.set_author_id(author.clone());
+                node.set_label("Code editor text".to_owned());
+                node.set_value(format!("{total_lines} lines (word wrap on)"));
+            });
+        });
+    }
+
+    /// MT-054: paint ONE wrapped visual-row fragment (`row.byte_start..row.byte_end`) as a single row,
+    /// syntax-colored from `visible_spans`. A continuation fragment (`wrap_index > 0`) is NOT re-indented
+    /// (Monaco's default wrap indent is 0); the trailing newline on the final fragment is stripped so the
+    /// row holds one visual line. Mirrors `render_line`'s run-splitting but over the fragment's byte
+    /// window instead of a whole logical line.
+    fn render_visual_row_fragment(
+        &self,
+        ui: &mut egui::Ui,
+        row: &VisualRow,
+        visible_spans: &[HighlightSpan],
+        syntax: &HsSyntaxTokens,
+    ) {
+        let frag_start = row.byte_start;
+        let frag_text_owned = self.with_buffer(|b| b.byte_slice_to_string(row.byte_range()));
+        let frag_text = frag_text_owned.strip_suffix('\n').unwrap_or(&frag_text_owned);
+        let frag_end = frag_start + frag_text.len();
+
+        let mut runs: Vec<(std::ops::Range<usize>, HighlightScope)> = Vec::new();
+        for span in visible_spans {
+            let s = span.byte_range.start.max(frag_start);
+            let e = span.byte_range.end.min(frag_end);
+            if s < e {
+                runs.push((s..e, span.scope));
+            }
+        }
+        runs.sort_by_key(|(r, _)| r.start);
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            let mono = egui::FontId::monospace(MONO_FONT_SIZE);
+            let default_color = syntax.punctuation;
+            let frag_slice = |start: usize, end: usize| -> String {
+                let rel_start = start.saturating_sub(frag_start);
+                let rel_end = end.saturating_sub(frag_start);
+                if rel_start >= rel_end || rel_end > frag_text.len() {
+                    return String::new();
+                }
+                let bytes = frag_text.as_bytes();
+                let mut a = rel_start;
+                while a < frag_text.len() && !frag_text.is_char_boundary(a) {
+                    a += 1;
+                }
+                let mut b = rel_end.min(frag_text.len());
+                while b < frag_text.len() && !frag_text.is_char_boundary(b) {
+                    b += 1;
+                }
+                if a >= b {
+                    return String::new();
+                }
+                std::str::from_utf8(&bytes[a..b]).unwrap_or("").to_owned()
+            };
+
+            let mut cursor = frag_start;
+            for (range, scope) in &runs {
+                if range.start > cursor {
+                    let gap = frag_slice(cursor, range.start);
+                    if !gap.is_empty() {
+                        ui.label(egui::RichText::new(gap).font(mono.clone()).color(default_color));
+                    }
+                }
+                let run_text = frag_slice(range.start, range.end);
+                if !run_text.is_empty() {
+                    let color = scope_to_color(*scope, syntax);
+                    ui.label(egui::RichText::new(run_text).font(mono.clone()).color(color));
+                }
+                cursor = cursor.max(range.end);
+            }
+            if cursor < frag_end {
+                let tail = frag_slice(cursor, frag_end);
+                if !tail.is_empty() {
+                    ui.label(egui::RichText::new(tail).font(mono.clone()).color(default_color));
+                }
+            }
+            if runs.is_empty() && frag_text.is_empty() {
+                ui.label(egui::RichText::new(" ").font(mono.clone()).color(default_color));
+            }
+        });
+    }
+
+    /// MT-054: paint the editor-chrome decorations over the painted row window — vertical indent guides,
+    /// bracket-pair colorization, and the matching-bracket highlight box. Theme-sourced (the indent-guide
+    /// tokens + bracket-pair palette come from `theme/palette.rs`; this fn holds NO color literal —
+    /// CONTROL-4). Render-only (no buffer mutation — AC-007).
+    ///
+    /// `first_buffer_line..end_line` is the BUFFER-line window painted. `wrap_rows`:
+    ///   - `None` (non-wrap path): each painted row is one logical line at buffer-line
+    ///     `geometry.first_line + offset`; guides/brackets map a buffer (line,col) to y via the buffer
+    ///     line index.
+    ///   - `Some(rows)` (wrap path): the painted rows are the given visual rows (in visual order); a
+    ///     decoration's row y is the visual-row index. Indent guides are drawn ONLY for `wrap_index == 0`
+    ///     rows (RISK-007 / MC-007).
+    fn paint_chrome_decorations(
+        &self,
+        ui: &egui::Ui,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+        first_buffer_line: usize,
+        end_line: usize,
+        wrap_rows: Option<&[VisualRow]>,
+    ) {
+        // Resolve the theme tokens (dark/light) for the guides + bracket palette.
+        let palette = if ui.visuals().dark_mode {
+            crate::theme::HsTheme::Dark.palette()
+        } else {
+            crate::theme::HsTheme::Light.palette()
+        };
+        let guide_color = palette.indent_guide;
+        let active_guide_color = palette.indent_guide_active;
+        let bracket_palette = palette.bracket_pair_palette.clone();
+        let (tab_width, _) = self.indent_settings();
+        let tab_width = tab_width.max(1);
+
+        let painter = ui.painter();
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+
+        // The active indent level = the indent level of the cursor's current logical line (the block the
+        // cursor is in). The guide AT that level is drawn in the active color (VS Code semantics).
+        let cursor_line = {
+            let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            byte_to_line_col(set.primary().head, &buffer).0
+        };
+        let active_level = indent_level_of(&buffer, cursor_line, tab_width);
+
+        // 1) INDENT GUIDES (drawn first — faint vertical lines in the whitespace columns).
+        //    Non-wrap: one row per buffer line in [first_buffer_line, end_line); the row y for a buffer
+        //    line is (line - first_buffer_line). Wrap: one row per visual row; only wrap_index==0 rows
+        //    carry guides, and the row y is the visual-row offset.
+        let paint_guides_for = |row_offset: usize, buffer_line: usize| {
+            let level = indent_level_of(&buffer, buffer_line, tab_width);
+            if level == 0 {
+                return;
+            }
+            let y0 = geometry.top + row_offset as f32 * geometry.line_height;
+            let y1 = y0 + geometry.line_height;
+            for lvl in 1..=level {
+                let x = indent_guide_x(geometry.left, lvl, tab_width, glyph_width);
+                // The guide at the cursor's indent level is the ACTIVE guide (VS Code highlights the
+                // guide of the block enclosing the cursor across that block). `active_level` is the
+                // cursor line's indent level; any painted line that is indented at least that deep draws
+                // its level-`active_level` guide in the active color so the enclosing block reads.
+                let color = if active_level > 0 && lvl == active_level {
+                    active_guide_color
+                } else {
+                    guide_color
+                };
+                painter.vline(x, y0..=y1, egui::Stroke::new(1.0, color));
+            }
+        };
+        match wrap_rows {
+            None => {
+                // Buffer lines are contiguous in the non-wrap painted window EXCEPT across folded
+                // regions; we map each buffer line in range to its row offset by counting from
+                // first_buffer_line. A folded gap simply leaves that row offset unused (the guide for a
+                // hidden line is never drawn — correct).
+                for (row_offset, line) in (first_buffer_line..end_line).enumerate() {
+                    paint_guides_for(row_offset, line);
+                }
+            }
+            Some(rows) => {
+                for (row_offset, row) in rows.iter().enumerate() {
+                    if row.is_first_fragment() {
+                        paint_guides_for(row_offset, row.logical_line);
+                    }
+                }
+            }
+        }
+
+        // 2) BRACKET-PAIR COLORIZATION: re-draw each bracket glyph in its depth color over the painted
+        //    text (z-order: above guides + text). Computed over the painted buffer byte window.
+        let (win_start, win_end) = {
+            let ws = buffer.line_to_byte(first_buffer_line).unwrap_or(0);
+            let we = buffer
+                .line_to_byte(end_line)
+                .unwrap_or_else(|| buffer.len_bytes());
+            (ws, we)
+        };
+        if !bracket_palette.is_empty() {
+            let colors = bracket_pair_colors(&buffer, win_start..win_end, &bracket_palette);
+            let mono = egui::FontId::monospace(MONO_FONT_SIZE);
+            for (range, color) in colors {
+                if let Some((x, y)) =
+                    self.decoration_xy(&buffer, range.start, geometry, glyph_width, wrap_rows)
+                {
+                    let ch = buffer.byte_slice_to_string(range.clone());
+                    if !ch.is_empty() {
+                        painter.text(
+                            egui::pos2(x, y),
+                            egui::Align2::LEFT_TOP,
+                            ch,
+                            mono.clone(),
+                            color,
+                        );
+                    }
+                }
+            }
+        }
+
+        // 3) MATCHING-BRACKET HIGHLIGHT: a rounded box behind the two matched brackets when the cursor is
+        //    adjacent to a bracket (VS Code adjacency). Painted last so it sits on top.
+        let cursor_byte = {
+            let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.primary().head
+        };
+        if let Some(BracketMatch { open_byte, close_byte }) =
+            find_matching_bracket(&buffer, cursor_byte)
+        {
+            let stroke = egui::Stroke::new(1.0, active_guide_color);
+            for b in [open_byte, close_byte] {
+                if let Some((x, y)) =
+                    self.decoration_xy(&buffer, b, geometry, glyph_width, wrap_rows)
+                {
+                    let rect = egui::Rect::from_min_size(
+                        egui::pos2(x, y),
+                        egui::vec2(glyph_width, geometry.line_height),
+                    );
+                    painter.rect_stroke(
+                        rect,
+                        2.0,
+                        stroke,
+                        egui::StrokeKind::Inside,
+                    );
+                }
+            }
+        }
+    }
+
+    /// MT-054: map an absolute buffer byte offset to the (x, y) top-left of its glyph in the painted row
+    /// window, or `None` if the offset is not on a painted row. Non-wrap: the row y is the buffer line
+    /// offset from `geometry.first_line`; the column is the char offset within the line. Wrap: find the
+    /// visual row whose byte fragment contains the offset and use its visual-row index for y + the offset
+    /// within the fragment for the column. Reuses the SAME `glyph_width` + `line_height` units the rows
+    /// were painted with (RISK-002 / MC-002 — no independent metric recompute).
+    fn decoration_xy(
+        &self,
+        buffer: &TextBuffer,
+        byte_offset: usize,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+        wrap_rows: Option<&[VisualRow]>,
+    ) -> Option<(f32, f32)> {
+        match wrap_rows {
+            None => {
+                let (line, col) = byte_to_line_col(byte_offset, buffer);
+                if line < geometry.first_line {
+                    return None;
+                }
+                let row_offset = line - geometry.first_line;
+                let x = geometry.left + col as f32 * glyph_width;
+                let y = geometry.top + row_offset as f32 * geometry.line_height;
+                Some((x, y))
+            }
+            Some(rows) => {
+                // Find the visual row whose fragment covers byte_offset.
+                let idx = rows
+                    .iter()
+                    .position(|r| byte_offset >= r.byte_start && byte_offset < r.byte_end)?;
+                let row = &rows[idx];
+                // Column within the fragment = chars between the fragment start and the offset.
+                let frag = buffer.byte_slice_to_string(row.byte_start..byte_offset);
+                let col = frag.chars().count();
+                let x = geometry.left + col as f32 * glyph_width;
+                let y = geometry.top + idx as f32 * geometry.line_height;
+                Some((x, y))
+            }
+        }
     }
 
     /// Render a folded region's collapsed SUMMARY line (the start-line text + ` …`) in place of the
@@ -6162,6 +6735,32 @@ impl CodeEditorPanel {
                 node.add_action(accesskit::Action::Click);
             });
         }
+    }
+
+    /// MT-054: emit the word-wrap toggle AccessKit node. `Role::Button` with a `Toggled` property
+    /// reflecting the persisted `WrapConfig.enabled` and `Action::Click` (the swarm Press action; egui /
+    /// accesskit 0.21 maps a button Press to `Action::Click` — the MT names `actions=[Press]`, the same
+    /// documented deviation pattern the breakpoint node uses for its toggle action). Author_id is the
+    /// contract-named `editor-wrap-toggle` (suffixed for instances). The value carries the on/off state so
+    /// an agent can read it without dispatching. Always emitted (the toggle is always present), so the
+    /// AccessKit-id test + the interactive-naming gate both see a named interactive node.
+    fn emit_wrap_toggle_node(&self, ui: &egui::Ui) {
+        let author = self.wrap_toggle_author_id();
+        let node_id = self.wrap_toggle_node_id();
+        let enabled = self.is_wrap_enabled();
+        let value = if enabled { "word wrap on" } else { "word wrap off" }.to_owned();
+        ui.ctx().accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::Button);
+            node.set_author_id(author.clone());
+            node.set_label("Toggle word wrap".to_owned());
+            node.set_value(value.clone());
+            node.set_toggled(if enabled {
+                accesskit::Toggled::True
+            } else {
+                accesskit::Toggled::False
+            });
+            node.add_action(accesskit::Action::Click);
+        });
     }
 
     /// Emit one `Role::Label` AccessKit node per PAINTED diagnostic line (value = the worst severity +

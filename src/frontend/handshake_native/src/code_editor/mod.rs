@@ -103,6 +103,17 @@ pub mod navigation;
 pub mod note_refs_panel;
 pub mod outline;
 pub mod panel;
+// WP-KERNEL-012 MT-054 (E1 — VS Code parity): editor-chrome decoration math. Pure, egui-free functions
+// over the MT-001 TextBuffer: matching-bracket highlight (VS Code cursor adjacency, BOUNDED scan —
+// RISK-003), bracket-pair colorization (shared-depth color index, same-family match), and indent-guide
+// geometry (level + x). Render/decoration ONLY — no buffer mutation (AC-007). Colors come THROUGH the
+// theme/palette.rs tokens (no hardcoded hex in this file — CONTROL-4).
+pub mod render_decorations;
+// WP-KERNEL-012 MT-054 (E1 — VS Code parity): word-wrap visible-row layout math. The SINGLE source of
+// the wrap-aware VisualRow list that drives BOTH the egui::ScrollArea::show_rows row count + scroll math
+// AND the per-row paint (RISK-001 / MC-001), with a strict 1:1 fast path when wrap is OFF so the MT-002
+// baseline render is unchanged (RISK-006 / MC-006). Pure over the MT-001 TextBuffer.
+pub mod word_wrap;
 // WP-KERNEL-012 MT-048 (E1 — VS Code parity): Rename Symbol (F2). The rename state machine, the inline
 // rename input widget, the multi-file WorkspaceEdit preview model, and the descending-offset/atomic-write
 // apply logic. Builds on the MT-001 tree-sitter highlight tree (identifier resolution) + ropey TextBuffer
@@ -233,6 +244,12 @@ pub use symbol_palette::{
 };
 pub use sticky_scroll::{StickyHeader, StickyScroll, StickyScrollConfig};
 pub use virtual_lines::{VirtualLineLayout, OVERSCAN_LINES};
+pub use render_decorations::{
+    bracket_pair_colors, depth_color_index, find_matching_bracket, indent_guide_x, indent_level_of,
+    BracketMatch, BRACKET_SCAN_CAP_BYTES,
+};
+pub use word_wrap::{layout_visual_rows, VisualRow, WrapConfig};
+pub use panel::{CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID, EDITOR_WRAP_TOGGLE_NODE_ID};
 
 use std::sync::Arc;
 

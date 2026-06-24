@@ -107,6 +107,21 @@ pub struct HsPalette {
     /// across themes: the amber reads against both the light and dark result-row surfaces, matching the
     /// React surface's single `<mark>` colour.
     pub search_highlight_bg: Color32,
+    /// Vertical INDENT-GUIDE line color for the code editor (WP-KERNEL-012 MT-054). The faint 1px
+    /// vertical lines VS Code draws at each indent level. Sourced HERE (a sanctioned `Color32` home) so
+    /// the panel paint path reads a theme token instead of a hardcoded literal (CONTROL-4 — the
+    /// `no_hardcoded_color32_outside_theme_module` guard exempts only palette.rs/syntax.rs). A muted,
+    /// low-contrast line so it reads as a hint, not as content; per-theme so it tracks dark/light.
+    pub indent_guide: Color32,
+    /// ACTIVE indent-guide line color (WP-KERNEL-012 MT-054): the guide enclosing the cursor's current
+    /// block is drawn in this brighter token (VS Code's `editorIndentGuide.activeBackground`). Distinct
+    /// from [`indent_guide`] so the operator can see which block the cursor is in.
+    pub indent_guide_active: Color32,
+    /// Bracket-pair colorization palette for the code editor (WP-KERNEL-012 MT-054). Each bracket is
+    /// drawn in `bracket_pair_palette[depth % len]`, matching VS Code's `bracketPairColorization`.
+    /// Sourced HERE so the panel paint path holds NO color literal (CONTROL-4). A six-hue rotation
+    /// covering the common nesting depths; per-theme so the hues read against the editor background.
+    pub bracket_pair_palette: Vec<Color32>,
 }
 
 impl HsPalette {
@@ -148,6 +163,20 @@ impl HsPalette {
             ),
             // <mark> search-highlight amber (MT-028), ported from the React `<mark>` rgb(255,214,0).
             search_highlight_bg: Color32::from_rgb(255, 214, 0),
+            // MT-054 indent guides: a muted slate at low alpha against the light bg; the active guide a
+            // stronger slate so the cursor's block reads. Stored premultiplied (UI affordance hint).
+            indent_guide: rgba_premultiplied(0x94, 0xa3, 0xb8, 0.35),
+            indent_guide_active: rgba_premultiplied(0x47, 0x55, 0x69, 0.85),
+            // MT-054 bracket-pair palette: six distinct hues that read against the light editor bg
+            // (VS Code's default bracketPairColorization rotation, light-adapted).
+            bracket_pair_palette: vec![
+                Color32::from_rgb(0x00, 0x70, 0xC1), // blue
+                Color32::from_rgb(0x31, 0x9C, 0x31), // green
+                Color32::from_rgb(0xB8, 0x66, 0x00), // amber
+                Color32::from_rgb(0x9C, 0x27, 0xB0), // purple
+                Color32::from_rgb(0x00, 0x88, 0x88), // teal
+                Color32::from_rgb(0xC2, 0x18, 0x5B), // magenta
+            ],
         }
     }
 
@@ -196,6 +225,20 @@ impl HsPalette {
             // <mark> search-highlight amber (MT-028), ported from the React `<mark>` rgb(255,214,0).
             // Identical to light: the amber reads against both result-row surfaces (React parity).
             search_highlight_bg: Color32::from_rgb(255, 214, 0),
+            // MT-054 indent guides: a muted slate at low alpha against the dark bg; the active guide a
+            // brighter slate so the cursor's block reads. Stored premultiplied (UI affordance hint).
+            indent_guide: rgba_premultiplied(0x94, 0xa3, 0xb8, 0.30),
+            indent_guide_active: rgba_premultiplied(0xba, 0xc5, 0xd1, 0.85),
+            // MT-054 bracket-pair palette: six distinct hues that read against the dark editor bg
+            // (VS Code's default bracketPairColorization rotation: gold/orchid/blue, extended).
+            bracket_pair_palette: vec![
+                Color32::from_rgb(0xFF, 0xD7, 0x00), // gold
+                Color32::from_rgb(0xDA, 0x70, 0xD6), // orchid
+                Color32::from_rgb(0x17, 0x9F, 0xFF), // blue
+                Color32::from_rgb(0x7C, 0xC8, 0x4F), // green
+                Color32::from_rgb(0xFF, 0x8C, 0x42), // orange
+                Color32::from_rgb(0x4E, 0xC9, 0xB0), // teal
+            ],
         }
     }
 
@@ -234,6 +277,8 @@ impl HsPalette {
                 "scrollbar_disabled" => self.scrollbar_disabled = color,
                 "graph_canvas" => self.graph_canvas = color,
                 "search_highlight_bg" => self.search_highlight_bg = color,
+                "indent_guide" => self.indent_guide = color,
+                "indent_guide_active" => self.indent_guide_active = color,
                 _ => {} // unknown key: silently ignored
             }
         }
