@@ -688,16 +688,29 @@ impl RichEditorWidget {
                         Self::sync_editor_actions(ui, &mut state);
                     }
 
-                    // 3) Emit the root AccessKit node (AC-10: author_id rich-editor-root,
-                    //    Role::TextInput) onto THIS scope's Ui id so the block nodes nest
-                    //    under it. REUSES the same accesskit_node_builder hook as the shell.
+                    // 3) Emit the root AccessKit node (author_id rich-editor-root) onto THIS scope's
+                    //    Ui id so the block nodes nest under it. REUSES the same accesskit_node_builder
+                    //    hook as the shell.
+                    //
+                    // WP-KERNEL-012 MT-055 (AC-003 / RISK-002 / MC-002): in Reading mode the document
+                    // body must NOT advertise an editable text field. AC-10's editable `Role::TextInput`
+                    // container is correct ONLY for the editable path. In read-only mode we instead emit
+                    // `Role::Document` and set the first-class `ReadOnly` flag (accesskit 0.21.1
+                    // lib.rs:1646 — "a text widget that allows focus/selection but not input"), and we
+                    // drop the editable-looking `set_value("{n} blocks")` so a screen reader / swarm
+                    // agent does not see a populated, editable text field for a read-only note.
                     let root_node_id = ui.unique_id();
                     let value = format!("{} blocks", state.doc.children.len());
                     ui.ctx().accesskit_node_builder(root_node_id, move |node| {
-                        node.set_role(ROOT_ROLE);
                         node.set_author_id(RICH_EDITOR_ROOT_AUTHOR_ID.to_owned());
                         node.set_label("Rich text editor".to_owned());
-                        node.set_value(value.clone());
+                        if read_only {
+                            node.set_role(accesskit::Role::Document);
+                            node.set_read_only();
+                        } else {
+                            node.set_role(ROOT_ROLE);
+                            node.set_value(value.clone());
+                        }
                     });
 
                     surface

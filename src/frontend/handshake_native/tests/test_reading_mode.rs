@@ -204,27 +204,24 @@ fn pt002_reading_tree_has_blocks_and_no_editable_body_node() {
         "AC-002: the wikilink paragraph block node `{link_para_author}` must be present; ids: {ids:?}"
     );
 
-    // AC-003: the document BODY must NOT contain an editable TextInput node. The ONLY allowed
-    // TextInput is the editor-root container (author_id `rich-editor-root`), which is a structural
-    // surface, not an editable run. We assert NO node carries Role::TextInput EXCEPT that root, and
-    // that there is no MultilineTextInput at all.
+    // AC-003 / RISK-002 / MC-002: the document body region must NOT contain ANY editable
+    // TextEdit/TextInput node while in Reading mode — including the editor-root container. The
+    // literal contract invariant is ZERO TextInput/MultilineTextInput nodes anywhere in the
+    // read-only document body; the root container is now emitted as `Role::Document` + the AccessKit
+    // `ReadOnly` flag (not `Role::TextInput`) in read-only mode, so no whitelist is needed.
     let mut editable_body_nodes = Vec::new();
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         let role = format!("{:?}", ak.role());
         let is_textinput = role == "TextInput" || role == "MultilineTextInput";
-        if !is_textinput {
-            continue;
-        }
-        // The editor-root structural container is allowed; an editable body run is not.
-        let is_root = ak.author_id() == Some("rich-editor-root");
-        if !is_root {
+        if is_textinput {
             editable_body_nodes.push((ak.author_id().map(|s| s.to_owned()), role));
         }
     }
     assert!(
         editable_body_nodes.is_empty(),
-        "AC-003: Reading mode must contain ZERO editable TextEdit/TextInput body nodes; found: {editable_body_nodes:?}"
+        "AC-003: Reading mode must contain ZERO editable TextEdit/TextInput nodes anywhere in the \
+         document body (root container included); found: {editable_body_nodes:?}"
     );
     let roles = all_roles(&harness);
     println!(
