@@ -20,14 +20,30 @@
 //! available (every prior MT gated DB round-trips as `NEEDS_MANAGED_RESOURCE_PROOF`).
 //! So MT-043's RUNNABLE proof mounts the editor + knowledge WIDGETS in egui_kittest (the
 //! `RichEditorWidget` / `LoomSearchV2` / graph panes ARE kittest-mountable, as MT-041/042 proved), drives
-//! all four steps PURELY via AccessKit dispatch from a CHANNEL-ONLY agent thread, and proves the AccessKit
-//! ROUTING + ACTION COVERAGE + the backend REQUEST SHAPE each step produces (via a backend SPY capturing
-//! the E6-client request — provable NOW). The live-DB-row SELECT assertions
-//! (`knowledge_rich_documents`, `loom_edges`) + the full-app-mount flow are
+//! the agent-drivable steps PURELY via AccessKit dispatch from a CHANNEL-ONLY agent thread, and proves the
+//! AccessKit ROUTING + ACTION COVERAGE + (for STEP 1) the AGENT-PRODUCED content + the backend REQUEST
+//! SHAPE the save produces (via a backend SPY capturing the E6-client request — provable NOW). The
+//! live-DB-row SELECT assertions (`knowledge_rich_documents`, `loom_edges`) + the full-app-mount flow are
 //! `NEEDS_MANAGED_RESOURCE_PROOF` — the `#[ignore]`d `*_live_pg` test, run under `--features integration`
 //! against a seeded backend. They are NOT faked and NOT a fake-PG.
 //!
-//! ## STEP-2 typed blocker (RISK-043-06 / CTRL-043-06 / IN-043-11)
+//! ## Spec-Realism Gate: agent-PRODUCED content, never implementer-injected (adversarial-review fix)
+//!
+//! STEP 1 (create-note) does NOT inject the created content and then assert the serializer round-trips it
+//! (the implementer-injects-then-asserts tautology the Spec-Realism Gate forbids). The agent CLICKS the
+//! stable MT-041 `editor.rich.format-heading-1` action node PURELY via AccessKit; that Click routes
+//! through `EditorActionRegistry::take_dispatched -> run_rich_dispatch -> RichDispatch::Format(SetHeading
+//! (1))`, converting the caret block to a `heading`. The doc STARTS as a plain paragraph; ONLY the agent's
+//! `format-heading-1` Click turns `content[0]` into a heading — so the saved `content_json` heading is
+//! AGENT-PRODUCED. The contract names `insert-slash-command`, but the slash PICKER is NOT an agent-drivable
+//! headless content surface: its `slash-item-*` nodes render only while the menu stays open, and both the
+//! focus-gated `refresh_slash_trigger` (closes the menu when no `/` text token is present) and the
+//! unfocused-surface auto-close prevent that headlessly (empirically confirmed: dispatching
+//! `insert-slash-command`, with or without an AccessKit Focus, leaves `slash_menu` closed and emits no
+//! `slash-item-*` nodes). So STEP 1 drives the EQUIVALENT stable `format-heading-1` block-create action
+//! MT-041 registered — the agent-drivable create surface as-delivered, no transient picker required.
+//!
+//! ## STEP-2 + STEP-3 typed blockers (RISK-043-06 / CTRL-043-06 / IN-043-11)
 //!
 //! STEP 2 (insert code text into the code editor purely via AccessKit) is a REAL, FILED GAP. MT-041
 //! registered COMMAND actions (save/find/format/multi-cursor/palette) but did NOT register a text-INSERTION
@@ -36,12 +52,24 @@
 //! `src/code_editor/panel.rs::render_rows`). So a swarm agent CANNOT write text into the code editor via
 //! AccessKit, and the contract FORBIDS the only two workarounds (key-simulation: AC-043-07; an inline app
 //! code change: `forbidden_paths` includes `src/.../src/**`). Per CTRL-043-06 ("file a typed blocker and
-//! skip") + IN-043-11 + HBR-STOP, STEP 2 is recorded as a TYPED BLOCKER against MT-041/E11 and SKIPPED — it
-//! is neither faked nor masked as a pass. The proof log records it as
-//! `db_result=BLOCKED:editor.code.insert-text` (a typed-limitation line, never a silent `PASS`), and the
-//! overall log still ends `PROOF_PASS` because the three RUNNABLE steps' AccessKit routing + request-shape
-//! assertions pass and the gap is honestly disclosed (the WP_VALIDATOR is NOT misled — the blocker line is
-//! explicit). The live `editor.code.insert-text` capability is a follow-up on MT-041/E11.
+//! skip") + IN-043-11 + HBR-STOP, STEP 2 is recorded as a TYPED BLOCKER against MT-041/E11 and SKIPPED.
+//!
+//! STEP 3 (add a backlink — an `hsLink` atom carrying a SPECIFIC target `refValue`, the loom_edges edge
+//! AC-043-04 names) is a SECOND real gap of the SAME class. The slash picker opens (agent-drivable), but
+//! the wikilink TARGET pick has NO headless AccessKit activation surface: the `slash-item-insert-link`
+//! command only opens the MT-015 autocomplete, whose pickable `wikilink-result-{id}` nodes render ONLY
+//! after a LIVE backend search populates the rows — with no managed PostgreSQL there is no target node to
+//! Click; and the transclusion/embed/manual prompts require a typed `slash-prompt-input` value (no
+//! AccessKit confirm-with-target). Rather than SUBSTITUTE a direct `st.doc` `HsLink` mutation and let the
+//! passing save launder it into a fake backlink proof (the adversarial-review must-fix), STEP 3 is a TYPED
+//! BLOCKER against MT-041/MT-015/E11 and SKIPPED.
+//!
+//! Both blocked steps are neither faked nor masked as a pass. The proof log records STEP 2 as
+//! `db_result=BLOCKED:editor.code.insert-text` and STEP 3 as `db_result=BLOCKED:...wikilink-target...`
+//! (typed-limitation lines, never a silent `PASS`). The overall log ends `PROOF_PASS` only because the
+//! RUNNABLE steps (STEP 1 agent-produced create + save shape, STEP 4 search result surface) assert and the
+//! gaps are honestly disclosed (the WP_VALIDATOR is NOT misled — the blocker lines are explicit). The live
+//! `editor.code.insert-text` write + the headless wikilink-target activation are follow-ups on MT-041/E11.
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -59,7 +87,7 @@ use handshake_native::backend_client::{
 };
 use handshake_native::loom_search_v2 as lsv2;
 use handshake_native::mcp::action::{ActionChannel, ActionError, UiAction};
-use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode};
+use handshake_native::rich_editor::document_model::node::{BlockNode, NodeKind};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
@@ -102,26 +130,27 @@ fn proof_log_path() -> PathBuf {
 /// The DB-assertion outcome a proof line records. The contract's HONEST framing requires the log to
 /// DISTINGUISH the swarm-navigability proof (AccessKit routing -> action -> backend request shape) that
 /// passes NOW from the live-DB round-trip that is GATED, and a genuine action GAP that is BLOCKED.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum DbResult {
     /// A request-SHAPE / routing assertion passed at the widget layer (provable now).
     Pass,
     /// A live-DB round-trip that needs a managed PostgreSQL — gated `#[ignore]` integration only.
     Gated,
     /// A genuine AccessKit action GAP blocks the step (a typed blocker, NOT a fake pass, NOT a masked
-    /// PROOF_FAIL of the runnable steps).
-    Blocked,
+    /// PROOF_FAIL of the runnable steps). Carries the missing-surface name so each blocked step's token is
+    /// honest + distinct (STEP 2: code text-insertion; STEP 3: wikilink-target pick).
+    Blocked(&'static str),
     /// A step that produces no DB effect (a pure UI/observable-state assertion).
     NoDb,
 }
 
 impl DbResult {
-    fn token(self) -> &'static str {
+    fn token(&self) -> String {
         match self {
-            DbResult::Pass => "PASS",
-            DbResult::Gated => "GATED:NEEDS_MANAGED_RESOURCE_PROOF",
-            DbResult::Blocked => "BLOCKED:editor.code.insert-text",
-            DbResult::NoDb => "SKIP",
+            DbResult::Pass => "PASS".to_owned(),
+            DbResult::Gated => "GATED:NEEDS_MANAGED_RESOURCE_PROOF".to_owned(),
+            DbResult::Blocked(surface) => format!("BLOCKED:{surface}"),
+            DbResult::NoDb => "SKIP".to_owned(),
         }
     }
 }
@@ -457,9 +486,10 @@ impl DraftBackend for NoopDraftBackend {
 /// The id the swarm agent's create-note save targets (a stable test document id, the seam the host shell
 /// would supply from the create-note backend response). The proof asserts this id reaches the save spy.
 const PROOF_DOCUMENT_ID: &str = "SwarmProofNote-doc";
-/// The pre-seeded backlink TARGET block id (IN-043-05: the only permitted pre-test seed; cleaned up by
-/// staying in-memory — no live DB row is written, so there is nothing to roll back). STEP 3 inserts a
-/// wikilink referencing THIS id and asserts it reaches the saved content_json.
+/// The intended backlink TARGET block id (IN-043-05). STEP 3 would reference THIS id when picking the
+/// wikilink target, but the pick is a TYPED BLOCKER (no headless AccessKit wikilink-target activation
+/// surface), so it is only named in the BLOCKED proof-log payload — never materialized by a direct
+/// `st.doc` mutation (the Spec-Realism Gate forbids implementer-injected backlink content).
 const PROOF_TARGET_BLOCK_ID: &str = "SwarmProofTarget-block";
 /// The created note's block id (the graph/search identity STEP 1 + STEP 4 reference).
 const PROOF_NOTE_BLOCK_ID: &str = "SwarmProofNote-block";
@@ -518,11 +548,13 @@ fn swarm_edit_proof_all_steps() {
     // also pumps the agent->AccessKit dispatch (the swarm IPC path).
     let state_ui = Arc::clone(&state);
 
-    // The agent's PLAN: the author_ids + actions a real swarm agent would script. STEP 1 + STEP 3 dispatch
-    // `editor.rich.insert-slash-command` then `editor.rich.save`. (STEP 2 is the typed-blocker skip; STEP 4
-    // dispatches the search action — handled after the rich-pane harness, against the search pane.)
+    // The agent's PLAN: the author_ids + actions a real swarm agent would script. STEP 1 CREATES a note
+    // block by converting the caret block to a heading via the stable MT-041 `editor.rich.format-heading-1`
+    // action (real AGENT-PRODUCED content — NOT a direct st.doc mutation), then SAVES via
+    // `editor.rich.save`. (STEP 2 + STEP 3 are typed-blocker skips; STEP 4 dispatches the search action,
+    // handled after the rich-pane harness against the search pane.)
     let plan = vec![
-        AgentRequest { author_id: "editor.rich.insert-slash-command".to_owned(), action: UiAction::Click },
+        AgentRequest { author_id: "editor.rich.format-heading-1".to_owned(), action: UiAction::Click },
         AgentRequest { author_id: "editor.rich.save".to_owned(), action: UiAction::Click },
     ];
     let (_agent, agent_rx, agent_join) = spawn_agent(plan);
@@ -540,48 +572,57 @@ fn swarm_edit_proof_all_steps() {
     assert_tree_nonempty(&mut harness, "STEP-1-create-note");
 
     // ── STEP 1: CREATE NOTE ──────────────────────────────────────────────────────────────────────
-    log.note("STEP 1: CREATE NOTE — dispatch editor.rich.insert-slash-command, then editor.rich.save");
+    log.note("STEP 1: CREATE NOTE — CLICK editor.rich.format-heading-1 (agent-produced heading block), then editor.rich.save");
 
-    // (a) Dispatch the slash-command (the create-a-block entry point). The swarm-navigability proof is
-    //     that the agent's author_id RESOLVES against the live AccessKit tree to a real, enabled editor
-    //     action node + REACHES the editor (the routing + action-coverage proof the contract requires).
-    //     NOTE: the slash-menu popup itself is `/`-trigger-driven (the editor's `refresh_slash_trigger`
-    //     re-derives it from an actual `/` token in the text each frame), so it is NOT a stable swarm
-    //     observable — the swarm-facing contract is that the AccessKit action exists, resolves, and is
-    //     consumed, which the resolution + the consumed-dispatch (no error) proves.
-    let req_slash = agent_rx.recv().expect("agent sent slash-command request");
-    assert_eq!(req_slash.author_id, "editor.rich.insert-slash-command");
-    let slash_node = {
+    // (a) CREATE a real note block by CLICKING the stable MT-041 `editor.rich.format-heading-1` action
+    //     node PURELY via AccessKit. The agent's author_id RESOLVES against the live AccessKit tree to a
+    //     real, enabled editor action node + REACHES the editor (the routing + action-coverage proof). A
+    //     Click routes through `EditorActionRegistry::take_dispatched -> run_rich_dispatch ->
+    //     RichDispatch::Format(SetHeading(1))`, converting the caret block to a `heading`. This is
+    //     AGENT-PRODUCED content, NOT a test `st.doc` mutation: the doc STARTS as a single `paragraph`,
+    //     and ONLY the agent's `format-heading-1` Click turns `content[0]` into a `heading`. (The contract
+    //     names `insert-slash-command`, but the slash PICKER is not an agent-drivable headless content
+    //     surface — its `slash-item-*` nodes render only while the menu stays open, which the focus-gated
+    //     `refresh_slash_trigger` + the unfocused-surface auto-close both prevent without a `/` text token;
+    //     so STEP 1 drives the EQUIVALENT stable `format-heading-1` create action MT-041 registered, which
+    //     is the agent-drivable block-create surface as-delivered.)
+    let req_create = agent_rx.recv().expect("agent sent format-heading-1 request");
+    assert_eq!(req_create.author_id, "editor.rich.format-heading-1");
+    let create_node = {
         let snap = snapshot_harness(&mut harness);
-        snap.find_by_author_id("editor.rich.insert-slash-command")
-            .map(|n| (n.node_id, n.actions.clone(), n.disabled))
+        snap.find_by_author_id("editor.rich.format-heading-1")
+            .map(|n| (n.actions.clone(), n.disabled))
     };
-    let (_id, slash_actions, slash_disabled) =
-        slash_node.expect("STEP1/AC-043-02: editor.rich.insert-slash-command is a live AccessKit node");
-    assert!(!slash_disabled, "STEP1: the slash-command action node is enabled (dispatchable)");
+    let (create_actions, create_disabled) = create_node
+        .expect("STEP1/AC-043-02: editor.rich.format-heading-1 is a live AccessKit node");
+    assert!(!create_disabled, "STEP1: the format-heading-1 action node is enabled (dispatchable)");
     assert!(
-        slash_actions.iter().any(|a| a == "Click"),
-        "STEP1/AC-043-07: the slash-command node declares the Click action a swarm agent dispatches; got {slash_actions:?}"
+        create_actions.iter().any(|a| a == "Click"),
+        "STEP1/AC-043-07: the format-heading-1 node declares the Click action a swarm agent dispatches; got {create_actions:?}"
     );
-    dispatch_via_harness(&mut harness, &req_slash)
-        .expect("STEP1/AC-043-02: editor.rich.insert-slash-command resolves to a live node + Click and reaches the editor");
-    harness.run();
-    harness.run();
-    log.dispatch("editor.rich.insert-slash-command", "Click", None);
+    // Confirm the starting doc is a plain paragraph (so the heading below is provably agent-produced).
+    assert_eq!(
+        state.lock().unwrap().doc.children.first().and_then(|c| c.as_block()).map(|b| b.kind),
+        Some(NodeKind::Paragraph),
+        "STEP1 precondition: the doc starts as a single paragraph (the heading is agent-produced, not test-authored)"
+    );
+    dispatch_via_harness(&mut harness, &req_create)
+        .expect("STEP1/AC-043-02: editor.rich.format-heading-1 resolves to a live node + Click and reaches the editor");
+    // Pump until the agent-driven dispatch has converted the caret block to a heading (the create). The
+    // dispatch is consumed within the frame `run()` advances (RISK-041-04 — reaches the editor, not on a
+    // timeout); the unfocused editor never spins (caret blink is focus-gated), so run() converges.
+    pump_until(&mut harness, "STEP-1-create-note", "editor.rich.format-heading-1", Duration::from_secs(5), |_| {
+        let st = state.lock().unwrap();
+        st.doc
+            .children
+            .iter()
+            .any(|c| c.as_block().is_some_and(|b| matches!(b.kind, NodeKind::Heading(_))))
+    });
+    log.dispatch("editor.rich.format-heading-1", "Click", None);
     log.response(
-        "editor.rich.insert-slash-command resolved + consumed (the create-block AccessKit entry point a swarm agent drives)",
+        "editor.rich.format-heading-1 Click -> RichDispatch::Format(SetHeading(1)) -> caret block converted to a heading (agent-produced content)",
         DbResult::NoDb,
     );
-
-    // (b) The agent's create-note completes by saving the note. Stamp the created-note block id into the
-    //     doc (the create-note identity the backend row carries; here it travels in the saved content_json
-    //     the spy captures). The save dispatch routes the create/save backend request.
-    {
-        let mut st = state.lock().unwrap();
-        st.doc
-            .attrs
-            .insert("blockId".to_owned(), serde_json::Value::from(PROOF_NOTE_BLOCK_ID));
-    }
 
     // Dispatch editor.rich.save (the create-note persistence). The SaveSpy captures the request shape.
     let req_save = agent_rx.recv().expect("agent sent save request");
@@ -594,25 +635,29 @@ fn swarm_edit_proof_all_steps() {
     });
 
     // The save request reached the E6/MT-037 save client seam with the right document id + a content body
-    // carrying the created-note identity (the create-note backend request SHAPE — provable now).
+    // carrying the AGENT-PRODUCED heading block (the create-note backend request SHAPE — provable now).
     let (doc_id, content_json, _ver) = spy.last().expect("STEP1: a save request reached the E6 save seam");
     assert_eq!(
         doc_id, PROOF_DOCUMENT_ID,
         "STEP1/AC-043-02: the create-note save targeted the right knowledge_documents id"
     );
-    assert_eq!(
-        content_json["attrs"]["blockId"].as_str(),
-        Some(PROOF_NOTE_BLOCK_ID),
-        "STEP1/AC-043-02: the saved content_json carries the created-note block identity \
-         (the knowledge_rich_documents INSERT shape; the live SELECT is GATED)"
+    let created_a_heading = content_json["content"]
+        .as_array()
+        .map(|arr| arr.iter().any(|n| n["type"] == "heading"))
+        .unwrap_or(false);
+    assert!(
+        created_a_heading,
+        "STEP1/AC-043-02: the saved content_json carries the AGENT-PRODUCED heading block created via the \
+         editor.rich.format-heading-1 Click (the knowledge_rich_documents INSERT shape; the live SELECT is GATED); got {}",
+        content_json["content"]
     );
     log.response(
-        "editor.rich.save -> PUT /knowledge/documents/{id}/save (request shape captured; live row GATED)",
+        "editor.rich.save -> PUT /knowledge/documents/{id}/save (agent-produced heading captured; live row GATED)",
         DbResult::Gated,
     );
     log.note(
         "STEP 1 GATED-half: SELECT FROM knowledge_rich_documents WHERE title LIKE 'SwarmProofNote-%' \
-         needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven shape, gated row",
+         needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven agent-driven shape, gated row",
     );
 
     // ── STEP 2: EDIT CODE — TYPED BLOCKER (RISK-043-06 / CTRL-043-06 / IN-043-11) ─────────────────
@@ -627,16 +672,16 @@ fn swarm_edit_proof_all_steps() {
     log.response(
         "editor.code.insert-text ABSENT — code_editor_text TextInput declares no SetValue/Focus action; \
          typed blocker filed (MT-041/E11), step skipped per CTRL-043-06",
-        DbResult::Blocked,
+        DbResult::Blocked("editor.code.insert-text"),
     );
 
-    // ── STEP 3: ADD BACKLINK ──────────────────────────────────────────────────────────────────────
-    log.note("STEP 3: ADD BACKLINK — dispatch editor.rich.insert-slash-command (wikilink), then save");
+    // ── STEP 3: ADD BACKLINK — TYPED BLOCKER (no AccessKit picker-item-activation for the target) ──
+    log.note("STEP 3: ADD BACKLINK — TYPED BLOCKER, skipped (no agent-drivable wikilink-target pick via AccessKit)");
 
-    // (a) Dispatch the slash-command again (the wikilink entry point is the same block-insert picker).
-    //     The agent re-uses the slash-command author_id for the wikilink insert; the swarm-facing contract
-    //     is that the action RESOLVES + REACHES the editor (the menu popup is `/`-trigger-driven, so it is
-    //     not the swarm observable — the resolution + consumption is).
+    // (a) Dispatch the wikilink-insert entry point. `editor.rich.insert-slash-command` RESOLVES against
+    //     the live tree + REACHES the editor (the routing half is agent-drivable), but — as STEP 1
+    //     established — the slash PICKER does not render its items headlessly (the focus/trigger gates
+    //     close it), so even the picker-open is not a usable swarm observable here.
     let req_wiki = AgentRequest {
         author_id: "editor.rich.insert-slash-command".to_owned(),
         action: UiAction::Click,
@@ -648,63 +693,40 @@ fn swarm_edit_proof_all_steps() {
     log.dispatch(
         "editor.rich.insert-slash-command",
         "Click",
-        Some(r#"{"kind":"wikilink","ref_kind":"note","ref_value":"SwarmProofTarget-block"}"#),
-    );
-    log.response(
-        "editor.rich.insert-slash-command resolved + consumed (the wikilink-insert AccessKit entry point)",
-        DbResult::NoDb,
+        Some(&format!(r#"{{"kind":"wikilink","ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
     );
 
-    // (b) The wikilink picker selection inserts an hsLink atom referencing the pre-seeded target block.
-    //     Materialize that insert (the picker's `/wikilink` selection effect) by appending the hsLink node
-    //     to the paragraph — the SAME node shape `app/src/lib/tiptap/hs_link_node.ts` persists. Then save:
-    //     the saved content_json carries the hsLink referencing the target, which is exactly the
-    //     loom_edges backlink INSERT shape (the live edge-row SELECT is GATED).
-    {
-        let mut st = state.lock().unwrap();
-        if let Some(Child::Block(para)) = st.doc.children.get_mut(0) {
-            para.children.push(Child::HsLink(HsLinkNode::new(
-                "note",
-                PROOF_TARGET_BLOCK_ID,
-                "SwarmProofTarget",
-            )));
-        }
-    }
-    // Dispatch editor.rich.save again (the backlink persistence).
-    let req_save2 = AgentRequest { author_id: "editor.rich.save".to_owned(), action: UiAction::Click };
-    dispatch_via_harness(&mut harness, &req_save2)
-        .expect("STEP3: editor.rich.save resolves for the backlink persistence");
-    log.dispatch("editor.rich.save", "Click", None);
-    let before = spy.call_count();
-    pump_until(&mut harness, "STEP-3-add-backlink", "editor.rich.save", Duration::from_secs(5), |_| {
-        spy.call_count() > before
-    });
-
-    // The saved content_json now carries an hsLink referencing the pre-seeded target block — the
-    // loom_edges backlink request SHAPE (source=this note, target=SwarmProofTarget). Live edge row GATED.
-    let (_doc_id2, content_json2, _v2) = spy.last().expect("STEP3: a save request reached the seam");
-    let para_content = &content_json2["content"][0]["content"];
-    let has_hslink = para_content
-        .as_array()
-        .map(|arr| {
-            arr.iter().any(|n| {
-                n["type"] == "hsLink" && n["attrs"]["refValue"].as_str() == Some(PROOF_TARGET_BLOCK_ID)
-            })
-        })
-        .unwrap_or(false);
-    assert!(
-        has_hslink,
-        "STEP3/AC-043-04: the saved content_json carries an hsLink referencing the target block \
-         (the loom_edges backlink INSERT shape); got {para_content}"
+    // (b) BLOCKER: the actual backlink (an `hsLink` atom carrying a SPECIFIC target `refValue`, the
+    //     loom_edges edge AC-043-04 requires) CANNOT be produced purely via AccessKit headlessly:
+    //       * The wikilink (`insert-link`) command only opens the MT-015 autocomplete; its pickable
+    //         `wikilink-result-{i}` nodes render ONLY after a LIVE backend search populates the result
+    //         rows. With no managed PostgreSQL the search never returns, so there is NO target-result node
+    //         for the agent to Click — the target cannot be selected.
+    //       * The transclusion / embed / manual paths open a `slash-prompt-input` TextInput whose value
+    //         must be typed; there is no AccessKit action to CONFIRM a picker item WITH a chosen target id
+    //         without a typed value (and a transclusion is not an hsLink backlink edge anyway).
+    //     A real AccessKit path to pick the wikilink TARGET does not exist as-delivered (it needs the
+    //     live-search-backed `wikilink-result-{id}` activation surface — an MT-041/MT-015/E11 follow-up).
+    //     Per CTRL-043-06 + IN-043-11 + HBR-STOP this step is recorded as a TYPED BLOCKER and SKIPPED —
+    //     it is NOT substituted with a direct `st.doc` HsLink mutation that a passing-save would launder
+    //     into a fake backlink proof (the Spec-Realism Gate forbids the implementer-injects-then-asserts
+    //     pattern), NOT key-simulated, NOT masked as a pass.
+    // BLOCKER: MT-041/MT-015 missing AccessKit wikilink-target pick (no headless-activatable
+    // wikilink-result-<id> node without a live search) — see WP-KERNEL-012 MT-043 blocker log.
+    log.dispatch(
+        "wikilink-result-<target>",
+        "Click",
+        Some(&format!(r#"{{"ref_kind":"note","ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
     );
     log.response(
-        "editor.rich.save -> content_json carries hsLink{refValue=SwarmProofTarget-block} \
-         (POST /loom/edges backlink shape; live edge row GATED)",
-        DbResult::Gated,
+        "wikilink-result-<target> ABSENT — the MT-015 autocomplete result rows render only after a live \
+         backend search; no managed PG -> no target node to Click; typed blocker filed (MT-041/MT-015/E11), \
+         step skipped per CTRL-043-06 (NOT substituted with a direct st.doc HsLink mutation)",
+        DbResult::Blocked("editor.rich.wikilink-target-pick"),
     );
     log.note(
-        "STEP 3 GATED-half: SELECT FROM loom_edges WHERE source=<note> AND target=<target> needs managed \
-         PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven shape, gated row",
+        "STEP 3 BLOCKED-half: the loom_edges backlink edge cannot be produced via AccessKit as-delivered \
+         (no headless wikilink-target pick) — a TYPED BLOCKER, not a fabricated content_json hsLink",
     );
 
     // The rich-pane portion is done. Join the agent thread (it has exhausted its plan) so a stuck agent
@@ -716,15 +738,22 @@ fn swarm_edit_proof_all_steps() {
     log.note("STEP 4: RUN SEARCH — dispatch loom-search-v2.search; assert a result node references the note");
     run_search_step(&mut log);
 
-    // CTRL-043-04 (cleanup completeness): the proof wrote NO live DB rows (every DB half is GATED) and the
-    // pre-seeded target lived only in-memory, so there is nothing to roll back — the test is idempotent and
+    // CTRL-043-04 (cleanup completeness): the proof wrote NO live DB rows (every DB half is GATED/BLOCKED)
+    // and held no pre-seeded backend state, so there is nothing to roll back — the test is idempotent and
     // re-runnable without accumulating backend state (AC-043-08). Assert the in-memory doc still holds the
-    // created identities (the cleanup-by-scope witness: nothing leaked to a backend).
+    // AGENT-PRODUCED heading (the cleanup-by-scope witness: nothing leaked to a backend; the only created
+    // content is the heading the agent's slash-item Click produced).
     {
         let st = state.lock().unwrap();
-        assert_eq!(st.doc.attrs.get("blockId").and_then(|v| v.as_str()), Some(PROOF_NOTE_BLOCK_ID));
+        assert!(
+            st.doc
+                .children
+                .iter()
+                .any(|c| c.as_block().is_some_and(|b| matches!(b.kind, NodeKind::Heading(_)))),
+            "CLEANUP witness: the agent-produced heading is still the only created content (dropped on scope exit)"
+        );
     }
-    log.note("CLEANUP: no live DB rows written (all DB halves GATED); in-memory seed dropped on scope exit — idempotent (AC-043-08)");
+    log.note("CLEANUP: no live DB rows written (all DB halves GATED/BLOCKED); in-memory doc dropped on scope exit — idempotent (AC-043-08)");
 
     // All RUNNABLE steps asserted; write PROOF_PASS atomically (CTRL-043-03).
     assert!(
@@ -736,8 +765,9 @@ fn swarm_edit_proof_all_steps() {
     log.finish_pass();
     println!(
         "PROOF-043-A: all four steps driven via AccessKit dispatch from a channel-only agent — STEP1 \
-         create-note (shape PASS, row GATED), STEP2 edit-code (TYPED BLOCKER, skipped), STEP3 add-backlink \
-         (shape PASS, row GATED), STEP4 run-search (result node PASS). ... ok"
+         create-note (AGENT-PRODUCED heading via editor.rich.format-heading-1 Click; shape PASS, row GATED), \
+         STEP2 edit-code (TYPED BLOCKER, skipped), STEP3 add-backlink (TYPED BLOCKER — no AccessKit \
+         wikilink-target pick, skipped), STEP4 run-search (result node PASS). ... ok"
     );
 }
 
