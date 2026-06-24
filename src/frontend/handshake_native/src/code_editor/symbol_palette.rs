@@ -163,22 +163,26 @@ fn fuzzy_match(query: &str, candidate: &str) -> Option<FuzzyResult> {
         return Some(FuzzyResult { score: 0 });
     }
     let q: Vec<char> = query.chars().flat_map(|c| c.to_lowercase()).collect();
-    let cand: Vec<char> = candidate.chars().collect();
-    let cand_lower: Vec<char> = candidate.chars().flat_map(|c| c.to_lowercase()).collect();
-    // cand_lower can differ in length from cand if a char lowercases to multiple chars; align scoring on
-    // the lowercase stream but read boundary signals from the original where indices line up. To keep the
-    // index mapping simple and correct, fall back to per-char lowercasing inline.
-    let _ = cand; // boundary detection below recomputes from the original via a parallel walk.
+    // ONE canonical `orig` vector of the candidate's chars. The match walk iterates over THIS vector by
+    // index `ci`, so `ci` always maps 1:1 to a valid `orig` position — `is_word_boundary(&orig, ci)` can
+    // never index out of bounds (the prior code walked a separately-flattened lowercase stream whose
+    // length could EXCEED `orig` when a char lowercases to multiple chars, e.g. U+0130 'İ' -> 'i' +
+    // U+0307, panicking the boundary check on `orig[ci]`; regression-locked by `fuzzy_match_handles_*`).
+    let orig: Vec<char> = candidate.chars().collect();
 
     let mut qi = 0usize;
     let mut score: i64 = 0;
     let mut last_match: Option<usize> = None;
-    let orig: Vec<char> = candidate.chars().collect();
 
-    for (ci, &cl) in cand_lower.iter().enumerate() {
+    for (ci, &orig_ch) in orig.iter().enumerate() {
         if qi >= q.len() {
             break;
         }
+        // Lowercase THIS char in place. A char may lowercase to several chars (Unicode special-casing);
+        // a query char matches when it equals the FIRST char of this position's lowercase mapping. This
+        // keeps the index aligned to `orig` (no separate stream) while staying case-insensitive for the
+        // dominant single-char-lowercase identifiers the palette actually matches.
+        let cl = orig_ch.to_lowercase().next().unwrap_or(orig_ch);
         if cl == q[qi] {
             // Base reward for a match.
             score += 10;
@@ -212,12 +216,18 @@ fn fuzzy_match(query: &str, candidate: &str) -> Option<FuzzyResult> {
 /// True when the char at `idx` in `chars` begins a "word" for fuzzy-boundary scoring: index 0, a char
 /// after a separator (`_`, `-`, `.`, `:`, space), or a camelCase boundary (a previous lowercase/digit
 /// followed by an uppercase letter).
+///
+/// Bounds-safe by construction: out-of-range `idx` (or a missing previous char) returns `false` rather
+/// than panicking. The sole caller (`fuzzy_match`) iterates `idx` over the same `chars` slice so the
+/// indices are always in range; the `.get()` guards are defense-in-depth so any future caller cannot
+/// reintroduce the index-out-of-bounds panic class (a query char matching past the slice end).
 fn is_word_boundary(chars: &[char], idx: usize) -> bool {
     if idx == 0 {
         return true;
     }
-    let prev = chars[idx - 1];
-    let cur = chars[idx];
+    let (Some(&prev), Some(&cur)) = (chars.get(idx - 1), chars.get(idx)) else {
+        return false;
+    };
     if matches!(prev, '_' | '-' | '.' | ':' | ' ') {
         return true;
     }
@@ -544,6 +554,40 @@ fn standalone() -> i32 {
         assert!(fuzzy_match("WID", "Widget").is_some());
         // Empty query matches.
         assert!(fuzzy_match("", "anything").is_some());
+    }
+
+    #[test]
+    fn fuzzy_match_handles_multi_char_lowercasing_without_panic() {
+        // REGRESSION (adversarial review must-fix): an identifier whose lowercase mapping expands to MORE
+        // chars than the original must not panic the fuzzy matcher. U+0130 'İ' is ONE char but lowercases
+        // to TWO ('i' + U+0307 combining dot above). Rust permits Unicode XID identifiers, so such a
+        // symbol name reaches the matcher. The previous code walked a flattened lowercase stream (len 2
+        // here) while indexing the original (len 1) in `is_word_boundary`, panicking with
+        // index-out-of-bounds and crashing the egui frame. The matcher now walks ONE `orig` vector so the
+        // boundary index is always in range. These calls must merely return (Some/None), never panic.
+        let weird = "İ"; // U+0130, single char, multi-char lowercase
+        let _ = fuzzy_match("i", weird); // query matches the first lowercase char of position 0
+        let _ = fuzzy_match("\u{307}", weird); // the combining-mark trigger from the review
+        let _ = fuzzy_match("İ", weird);
+        let _ = fuzzy_match("x", weird); // no match path
+        // Mixed: a normal identifier prefixed with the expanding char, querying a later char so the walk
+        // crosses the position whose lowercase expanded — this is the exact ci > orig.len() trigger.
+        assert!(
+            fuzzy_match("name", "İcamelName").is_some() || fuzzy_match("İcn", "İcamelName").is_some(),
+            "an identifier containing a multi-char-lowercasing char still fuzzy-matches without panic"
+        );
+        // The whole flatten + filter path over such a symbol must also be panic-free.
+        let buffer = TextBuffer::new("fn İexample() {}\n");
+        let items = vec![OutlineItem {
+            kind: OutlineKind::Function,
+            name: "İexample".to_string(),
+            line: 0,
+            indent: 0,
+        }];
+        let mut palette = SymbolPalette::new();
+        palette.open(&items, &buffer); // flattens the outline + opens via the real public entry point
+        let _ = palette.filter("example"); // must not panic
+        let _ = palette.filter("İe"); // must not panic
     }
 
     #[test]
