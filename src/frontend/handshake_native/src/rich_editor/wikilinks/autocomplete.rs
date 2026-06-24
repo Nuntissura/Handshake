@@ -33,6 +33,12 @@ pub const SEARCH_DEBOUNCE: Duration = Duration::from_millis(150);
 /// The default number of autocomplete results requested per search.
 pub const AUTOCOMPLETE_LIMIT: usize = 10;
 
+/// WP-KERNEL-012 MT-057: the number of document titles enumerated when seeding the resolver index from
+/// the Loom search binding on document mount (a broader limit than the per-keystroke dropdown, because
+/// the seed populates the WHOLE resolvable-title set for `[[Title]]` runtime resolution — AC-003 — not
+/// just the top-N for a single query).
+pub const RESOLVER_SEED_LIMIT: usize = 200;
+
 /// The result of one autocomplete search (the popup's list state). `Idle` before any search,
 /// `Loading` while one is in flight, `Ready` with the rows, `Err` with the typed failure (shown as a
 /// small inline error row, never a blank popup).

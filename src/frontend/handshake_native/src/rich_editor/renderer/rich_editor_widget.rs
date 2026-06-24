@@ -286,6 +286,18 @@ impl RichEditorState {
     /// calls this when it knows the active document (the production wiring point). Setting the
     /// document triggers a backlinks generation bump (MC-004) so a prior document's in-flight
     /// backlinks response is dropped.
+    ///
+    /// WP-KERNEL-012 MT-057 wiring (the create-from-unresolved + alias-resolution feature goes LIVE
+    /// HERE — this is the single documented production-wiring point):
+    ///   1. installs the production create backend ([`KnowledgeCreateNoteBackend`] -> the MT-037
+    ///      `POST /knowledge/documents` binding) so a click on an unresolved `[[Title]]` actually
+    ///      POSTs (without this, `create_backend` is None and `dispatch_create_note` no-ops);
+    ///   2. SEEDS the resolver index from the EXISTING MT-038 Loom search binding (so a `[[Title]]`
+    ///      classifies Resolved at runtime — AC-003 — instead of always-Unresolved against an empty
+    ///      index); and
+    ///   3. flips the alias-backend-gap banner ([`note_alias_backend_gap`]) because the backend payload
+    ///      carries NO `aliases` field (grep-confirmed), so any in-session aliases are local-only and
+    ///      the operator must see the VISIBLE local-only banner (AC-006).
     pub fn set_wikilink_context(
         &mut self,
         workspace_id: impl Into<String>,
@@ -293,11 +305,32 @@ impl RichEditorState {
         runtime: tokio::runtime::Handle,
     ) {
         let workspace_id = workspace_id.into();
+        let document_id = document_id.into();
         self.wikilinks.workspace_id = workspace_id.clone();
         self.wikilinks.autocomplete.workspace_id = workspace_id;
         self.wikilinks.runtime = Some(runtime.clone());
         self.wikilinks.autocomplete.runtime = Some(runtime.clone());
-        self.wikilinks.set_document(document_id);
+        self.wikilinks.set_document(document_id.clone());
+        // WP-KERNEL-012 MT-057 (1): install the production create backend so the create-from-unresolved
+        // POST path is LIVE. The session run id folds the document id (matching the MT-037 attribution
+        // convention `native-editor-doc-{id}`), so each create is attributable (HBR-SWARM).
+        self.wikilinks.set_create_backend(std::sync::Arc::new(
+            crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(format!(
+                "native-editor-{document_id}"
+            )),
+        ));
+        // WP-KERNEL-012 MT-057 (2): seed the resolver index from the EXISTING Loom search binding so a
+        // `[[Title]]` resolves at runtime (AC-003). A broad empty query lists the workspace's blocks by
+        // the backend's FTS; the (block_id, title) pairs land off-thread and `drain` folds them in. No
+        // new endpoint — read-throughs the same `search()` the autocomplete dropdown uses.
+        self.wikilinks.seed_resolver_index_from_search(
+            "",
+            crate::rich_editor::wikilinks::autocomplete::RESOLVER_SEED_LIMIT,
+        );
+        // WP-KERNEL-012 MT-057 (3): the backend payload has NO `aliases` field, so flag the alias
+        // backend gap -> the editor renders the VISIBLE local-only banner whenever an in-session alias
+        // is in play (AC-006). Idempotent; the flag also flips on the first `add_local_alias`.
+        self.wikilinks.note_alias_backend_gap();
         // MT-034: the `/code-ref` symbol search shares the same workspace + runtime context.
         self.code_ref_workspace_id = self.wikilinks.workspace_id.clone();
         self.code_ref_runtime = Some(runtime);
@@ -2821,24 +2854,42 @@ impl RichEditorWidget {
     }
 
     /// Render the wikilink autocomplete popup at the caret pixel (or, when the caret pixel is
-    /// unavailable, just below the content). Lists the result rows (selectable), the loading spinner,
-    /// or the typed error / "No results" state. Clicking a row confirms it (inserts the hsLink atom)
-    /// and closes the popup — the same effect as Enter. AccessKit: the popup is `wikilink-autocomplete`
-    /// and each row is `wikilink-result-{i}` (the contract ids).
+    /// unavailable, just below the content). Lists the backend result rows (selectable), the loading
+    /// spinner, or the typed error / "No results" state, THEN the WP-KERNEL-012 MT-057 ALIAS candidate
+    /// rows blended from the resolver index. Clicking a row confirms it (inserts the hsLink atom) and
+    /// closes the popup — the same effect as Enter. AccessKit: the popup is `wikilink-autocomplete`,
+    /// each backend row is `wikilink-result-{i}`, and each alias candidate row is
+    /// `wikilink-candidate-{document_id}` (the contract ids).
     fn render_autocomplete_popup(
         ui: &mut egui::Ui,
         state: &mut RichEditorState,
         palette: &HsPalette,
         caret_pixel: Option<egui::Pos2>,
     ) {
-        use crate::rich_editor::wikilinks::autocomplete::SearchPhase;
+        use crate::rich_editor::wikilinks::autocomplete::{candidates_for_query, SearchPhase};
         use crate::rich_editor::wikilinks::confirm;
+        use crate::rich_editor::wikilinks::inline_view::candidate_author_id;
 
         let Some(ac) = state.wikilink_autocomplete.clone() else { return };
         // Anchor the popup at the caret pixel (impl note), defaulting to just below the editor when the
         // caret pixel is not resolvable (e.g. an empty doc).
         let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
 
+        // WP-KERNEL-012 MT-057 (WIRE 1): the ALIAS-aware candidate list for the live query, computed
+        // from the resolver index BEFORE the render closure (it borrows `state.wikilinks` immutably; the
+        // closure borrows `confirmed` mutably). These are MERGED into the dropdown alongside the backend
+        // `search()` rows so an ALIAS-matched document actually appears in the `[[query` dropdown (the
+        // pre-fix defect: `candidates_for_query` had zero production callers). Backend rows that already
+        // cover a document_id are not duplicated by a candidate row (dedupe-by-id — the MT-015 dropdown
+        // contract: one row per target).
+        let alias_candidates = candidates_for_query(&state.wikilinks.resolver_index, &ac.query);
+        let backend_ids: std::collections::HashSet<String> = match &ac.phase {
+            SearchPhase::Ready(rows) => rows.iter().map(|r| r.block_id.clone()).collect(),
+            _ => std::collections::HashSet::new(),
+        };
+
+        // Confirmation can come from EITHER a backend row OR an alias candidate row (both insert an
+        // hsLink atom at the trigger span); a single slot carries whichever fired this frame.
         let mut confirmed: Option<(Vec<usize>, usize, crate::rich_editor::document_model::node::HsLinkNode)> = None;
         egui::Area::new(ui.id().with("wikilink-autocomplete-area"))
             .order(egui::Order::Foreground)
@@ -2848,6 +2899,9 @@ impl RichEditorWidget {
                 let resp = frame
                     .show(ui, |ui| {
                         ui.set_max_width(320.0);
+                        // Whether the backend section rendered ANY selectable/status content; drives the
+                        // "No results" line only when BOTH backend rows AND alias candidates are empty.
+                        let mut backend_rows_shown = 0usize;
                         match &ac.phase {
                             SearchPhase::Idle | SearchPhase::Loading => {
                                 ui.horizontal(|ui| {
@@ -2859,14 +2913,18 @@ impl RichEditorWidget {
                                 ui.colored_label(palette.error_text, format!("Search failed ({}): {e}", e.kind_str()));
                             }
                             SearchPhase::Ready(rows) if rows.is_empty() => {
-                                ui.colored_label(palette.text_subtle, "No results");
+                                // Only show "No results" when there are ALSO no alias candidates below;
+                                // otherwise the alias rows ARE the results.
+                                if alias_candidates.is_empty() {
+                                    ui.colored_label(palette.text_subtle, "No results");
+                                }
                             }
                             SearchPhase::Ready(rows) => {
                                 for (i, row) in rows.iter().enumerate() {
                                     let selected = i == ac.selected;
                                     let label = format!("{}  ({})", row.title, row.content_type);
                                     let item = ui.add(egui::Button::selectable(selected, label));
-                                    // AccessKit: each result row is `wikilink-result-{i}`.
+                                    // AccessKit: each backend result row is `wikilink-result-{i}`.
                                     let author = format!("wikilink-result-{i}");
                                     let row_id = item.id;
                                     let author_for_node = author.clone();
@@ -2885,7 +2943,45 @@ impl RichEditorWidget {
                                             ),
                                         ));
                                     }
+                                    backend_rows_shown += 1;
                                 }
+                            }
+                        }
+                        let _ = backend_rows_shown;
+
+                        // WP-KERNEL-012 MT-057 (WIRE 1): the ALIAS candidate rows, blended below the
+                        // backend rows. Each renders the canonical title as the primary label and, when
+                        // the match came from an alias, the `— alias: "…"` secondary label (AC-005), and
+                        // carries the stable `wikilink-candidate-{document_id}` AccessKit author_id so a
+                        // swarm agent / kittest targets it by the document it resolves to. A candidate
+                        // whose document a backend row already lists is skipped (dedupe-by-id).
+                        for cand in &alias_candidates {
+                            if backend_ids.contains(&cand.document_id) {
+                                continue; // a backend row already covers this target.
+                            }
+                            let label = match &cand.matched_alias {
+                                Some(alias) => format!("{}  — alias: \"{}\"", cand.display_title, alias),
+                                None => cand.display_title.clone(),
+                            };
+                            let item = ui.add(egui::Button::selectable(false, label.clone()));
+                            let author = candidate_author_id(&cand.document_id);
+                            let row_id = item.id;
+                            let label_for_node = label.clone();
+                            let author_for_node = author.clone();
+                            ui.ctx().accesskit_node_builder(row_id, move |node| {
+                                node.set_author_id(author_for_node.clone());
+                                node.set_label(label_for_node.clone());
+                            });
+                            if item.clicked() {
+                                // An alias/title candidate inserts a resolved `note` link targeting the
+                                // document id, labeled with the canonical title.
+                                let mut link = crate::rich_editor::document_model::node::HsLinkNode::new(
+                                    "note",
+                                    cand.document_id.clone(),
+                                    cand.display_title.clone(),
+                                );
+                                link.resolved = true;
+                                confirmed = Some((ac.leaf_path.clone(), ac.trigger_start_char, link));
                             }
                         }
                     })

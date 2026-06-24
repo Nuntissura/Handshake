@@ -181,6 +181,13 @@ fn slugify(title: &str) -> String {
 /// One-slot delivery cell for an off-thread create-note result (WP-KERNEL-012 MT-057).
 type CreateNoteDeliveryCell = Arc<Mutex<Option<CreateNoteOutcome>>>;
 
+/// One-slot delivery cell for the off-thread resolver-index SEED (WP-KERNEL-012 MT-057): a Loom
+/// search enumeration delivers `(document_id, title)` pairs that `drain` folds into
+/// `resolver_index.add_document` so titles classify Resolved at runtime (AC-003). `Err` carries a
+/// typed failure so a seed that fails does not silently leave the index empty (it is dropped — the
+/// links stay Unresolved + offer the create affordance, which is the correct fail-closed behavior).
+type ResolverSeedDeliveryCell = Arc<Mutex<Option<Result<Vec<(String, String)>, WikilinkError>>>>;
+
 /// One-slot delivery cell for an off-thread transclusion resolution: `(ref_value, result)`.
 type TransclusionDeliveryCell = Arc<Mutex<Option<(String, Result<LoomBlockTransclusion, WikilinkError>)>>>;
 
@@ -234,6 +241,15 @@ pub struct WikilinkRuntime {
     transclusion_cell: TransclusionDeliveryCell,
     backlinks_cell: BacklinksDeliveryCell,
     create_cell: CreateNoteDeliveryCell,
+    /// WP-KERNEL-012 MT-057: the off-thread resolver-index seed delivery cell (a Loom search
+    /// enumeration). `drain` folds its `(document_id, title)` pairs into `resolver_index` so a
+    /// `[[Title]]` classifies Resolved at runtime (AC-003). A seed already in flight is not re-issued
+    /// (the `seeding` guard), and a delivered seed clears the guard.
+    resolver_seed_cell: ResolverSeedDeliveryCell,
+    /// WP-KERNEL-012 MT-057: true while a resolver-index seed search is in flight, so a per-mount
+    /// `seed_resolver_index_from_search` is idempotent (no enumeration storm if the shell re-mounts the
+    /// same document repeatedly across frames).
+    resolver_seeding: bool,
 }
 
 impl WikilinkRuntime {
@@ -270,6 +286,8 @@ impl WikilinkRuntime {
             transclusion_cell: Arc::new(Mutex::new(None)),
             backlinks_cell: Arc::new(Mutex::new(None)),
             create_cell: Arc::new(Mutex::new(None)),
+            resolver_seed_cell: Arc::new(Mutex::new(None)),
+            resolver_seeding: false,
         }
     }
 
@@ -385,6 +403,21 @@ impl WikilinkRuntime {
                 // else: a stale (older-generation) backlinks response landed late -> dropped (MC-004).
             }
         }
+        // WP-KERNEL-012 MT-057: fold a delivered resolver-index SEED (a Loom search enumeration) into
+        // the index so a `[[Title]]` classifies Resolved at runtime (AC-003). A failed seed is dropped
+        // (the links stay Unresolved + offer the create affordance — the correct fail-closed behavior);
+        // either way the in-flight `resolver_seeding` guard is cleared so a later refresh can re-seed.
+        if let Ok(mut slot) = self.resolver_seed_cell.lock() {
+            if let Some(result) = slot.take() {
+                self.resolver_seeding = false;
+                if let Ok(pairs) = result {
+                    for (document_id, title) in pairs {
+                        self.resolver_index.add_document(document_id, title);
+                    }
+                }
+                applied = true;
+            }
+        }
         // Drain the autocomplete search delivery too (so all wikilink async results land in one place).
         applied
     }
@@ -402,6 +435,58 @@ impl WikilinkRuntime {
     /// the create-from-unresolved path can dispatch. The shell calls this when it mounts a document.
     pub fn set_create_backend(&mut self, backend: Arc<dyn CreateNoteBackend>) {
         self.create_backend = Some(backend);
+    }
+
+    /// WP-KERNEL-012 MT-057 (AC-003 seed): enumerate document titles from the EXISTING MT-038 Loom
+    /// search binding ([`WikilinkBackend::search`] -> `POST /workspaces/{ws}/loom/search-v2`) and fold
+    /// them into [`Self::resolver_index`] so a `[[Title]]` classifies Resolved at runtime instead of
+    /// always-Unresolved (the inert-index defect). A BROAD `query` ("" lists the index by the backend's
+    /// FTS) with `limit` rows is issued OFF the egui frame thread; the `(block_id, title)` pairs land in
+    /// the seed cell and [`Self::drain`] applies them next frame.
+    ///
+    /// Idempotent + storm-safe: a no-op while a seed is already in flight (`resolver_seeding`) or there
+    /// is no workspace/runtime (headless: the test stages the seed directly via [`Self::stage_resolver_seed`]).
+    /// This adds NO new endpoint — it read-throughs the SAME `search()` the autocomplete dropdown uses
+    /// (AC-007 / MC-006: no SQLite, no backend edit).
+    pub fn seed_resolver_index_from_search(&mut self, query: &str, limit: usize) {
+        if self.resolver_seeding || self.workspace_id.trim().is_empty() {
+            return;
+        }
+        let Some(runtime) = self.runtime.clone() else {
+            return; // headless: the test stages the seed directly.
+        };
+        self.resolver_seeding = true;
+        let backend = Arc::clone(&self.backend);
+        let cell = Arc::clone(&self.resolver_seed_cell);
+        let workspace_id = self.workspace_id.clone();
+        let query = query.to_owned();
+        runtime.spawn(async move {
+            // Each hit's `block_id` is the document/block id a `[[Title]]` resolves to; `title` is the
+            // display title. A blank title is recorded for rendering but not indexed (add_document
+            // skips a blank normalized key), so an untitled block never resolves an empty `[[]]`.
+            let result = backend
+                .search(&workspace_id, &query, limit)
+                .await
+                .map(|rows| rows.into_iter().map(|r| (r.block_id, r.title)).collect::<Vec<_>>());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// TEST SEAM: stage a resolver-index seed delivery into the cell (so a headless test drives
+    /// [`Self::drain`]'s seed-fold without a tokio runtime / real backend). Mirrors the other
+    /// `stage_*` seams.
+    #[cfg(test)]
+    pub fn stage_resolver_seed(&mut self, pairs: Vec<(String, String)>) {
+        self.resolver_seeding = true;
+        *self.resolver_seed_cell.lock().unwrap() = Some(Ok(pairs));
+    }
+
+    /// True while a resolver-index seed search is in flight (the idempotency guard; read by a test that
+    /// proves a re-mount does not re-issue a seed while one is already running).
+    pub fn is_seeding_resolver_index(&self) -> bool {
+        self.resolver_seeding
     }
 
     /// True when a create POST is already in flight for `title` (normalized) — the affordance is
@@ -784,6 +869,42 @@ mod tests {
         rt.note_alias_backend_gap();
         rt.note_alias_backend_gap();
         assert!(rt.alias_backend_gap, "the gap flag flips on (backend lacks aliases)");
+    }
+
+    #[test]
+    fn drain_folds_resolver_seed_into_index_for_live_resolution_ac003() {
+        // AC-003 seed: a delivered Loom-search enumeration folds into the resolver index so a
+        // `[[Title]]` classifies Resolved at runtime (the inert-index defect fix). Before the seed the
+        // title is Unresolved; after the drain it resolves by ExactTitle.
+        use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, MatchKind, WikilinkResolution};
+        let mut rt = rt();
+        assert!(
+            matches!(resolve_wikilink(&rt.resolver_index, "Project Atlas"), WikilinkResolution::Unresolved { .. }),
+            "before seeding the title is Unresolved (empty index)"
+        );
+        rt.stage_resolver_seed(vec![
+            ("DOC-1".into(), "Project Atlas".into()),
+            ("DOC-2".into(), "Roadmap".into()),
+        ]);
+        assert!(rt.is_seeding_resolver_index(), "a staged seed marks seeding in flight");
+        assert!(rt.drain(), "draining the seed applies it");
+        assert!(!rt.is_seeding_resolver_index(), "the seed-in-flight guard clears after the drain");
+        assert_eq!(rt.resolver_index.title_count(), 2, "both seeded titles are indexed");
+        // AC-003: the seeded title now resolves at runtime (no longer Unresolved).
+        assert!(matches!(
+            resolve_wikilink(&rt.resolver_index, "project atlas"),
+            WikilinkResolution::Resolved { matched_by: MatchKind::ExactTitle, ref document_id } if document_id == "DOC-1"
+        ));
+    }
+
+    #[test]
+    fn seed_resolver_index_is_noop_without_workspace_or_runtime() {
+        // Headless (no runtime) + empty workspace: seeding is a no-op (no panic, no seeding flag), so a
+        // unit/kittest that does not exercise the network is unaffected.
+        let mut rt = rt();
+        rt.seed_resolver_index_from_search("", 50);
+        assert!(!rt.is_seeding_resolver_index(), "no seed dispatched without a workspace/runtime");
+        assert_eq!(rt.resolver_index.title_count(), 0, "index stays empty");
     }
 
     #[test]
