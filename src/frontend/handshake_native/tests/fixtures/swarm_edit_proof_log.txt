@@ -1,0 +1,25 @@
+[T0001] NOTE MT-043 SwarmEditProof: channel-only agent drives 4 steps via AccessKit dispatch only
+[T0002] NOTE STEP 1: CREATE NOTE — dispatch editor.rich.insert-slash-command, then editor.rich.save
+[T0003] DISPATCH author_id=editor.rich.insert-slash-command action=Click payload=null
+[T0004] RESPONSE tree_change=editor.rich.insert-slash-command resolved + consumed (the create-block AccessKit entry point a swarm agent drives) db_result=SKIP
+[T0005] DISPATCH author_id=editor.rich.save action=Click payload=null
+[T0006] RESPONSE tree_change=editor.rich.save -> PUT /knowledge/documents/{id}/save (request shape captured; live row GATED) db_result=GATED:NEEDS_MANAGED_RESOURCE_PROOF
+[T0007] NOTE STEP 1 GATED-half: SELECT FROM knowledge_rich_documents WHERE title LIKE 'SwarmProofNote-%' needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven shape, gated row
+[T0008] NOTE STEP 2: EDIT CODE — TYPED BLOCKER, skipped (no AccessKit text-insertion surface)
+[T0009] DISPATCH author_id=editor.code.insert-text action=SetValue payload={"text":"print(\"swarm-proof\")"}
+[T0010] RESPONSE tree_change=editor.code.insert-text ABSENT — code_editor_text TextInput declares no SetValue/Focus action; typed blocker filed (MT-041/E11), step skipped per CTRL-043-06 db_result=BLOCKED:editor.code.insert-text
+[T0011] NOTE STEP 3: ADD BACKLINK — dispatch editor.rich.insert-slash-command (wikilink), then save
+[T0012] DISPATCH author_id=editor.rich.insert-slash-command action=Click payload={"kind":"wikilink","ref_kind":"note","ref_value":"SwarmProofTarget-block"}
+[T0013] RESPONSE tree_change=editor.rich.insert-slash-command resolved + consumed (the wikilink-insert AccessKit entry point) db_result=SKIP
+[T0014] DISPATCH author_id=editor.rich.save action=Click payload=null
+[T0015] RESPONSE tree_change=editor.rich.save -> content_json carries hsLink{refValue=SwarmProofTarget-block} (POST /loom/edges backlink shape; live edge row GATED) db_result=GATED:NEEDS_MANAGED_RESOURCE_PROOF
+[T0016] NOTE STEP 3 GATED-half: SELECT FROM loom_edges WHERE source=<note> AND target=<target> needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven shape, gated row
+[T0017] NOTE STEP 4: RUN SEARCH — dispatch loom-search-v2.search; assert a result node references the note
+[T0018] DISPATCH author_id=loom-search-v2.search action=Click payload={"q":"SwarmProofNote"}
+[T0019] RESPONSE tree_change=loom-search-v2.search resolves to a live node; loom-search-v2.result.SwarmProofNote-block node present referencing the created note db_result=PASS
+[T0020] RESPONSE tree_change=live POST /loom/search/v2 re-fire (sets loading + awaits managed PG) — the GATED half db_result=GATED:NEEDS_MANAGED_RESOURCE_PROOF
+[T0021] DISPATCH author_id=loom-search-v2.result.SwarmProofNote-block action=Click payload=null
+[T0022] RESPONSE tree_change=result row open -> on_open_block(created note id) — cross-surface navigation db_result=PASS
+[T0023] NOTE STEP 4 GATED-half: the live POST /loom/search/v2 round-trip needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — the result AccessKit surface is proven now
+[T0024] NOTE CLEANUP: no live DB rows written (all DB halves GATED); in-memory seed dropped on scope exit — idempotent (AC-043-08)
+PROOF_PASS
