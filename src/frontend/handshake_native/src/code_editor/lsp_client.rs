@@ -566,6 +566,65 @@ impl LspClient {
         }
     }
 
+    /// WP-KERNEL-012 MT-049: request `textDocument/codeAction` (quick fixes) for `range` over the EXISTING
+    /// MT-008 stdio JSON-RPC transport (NO second transport — AC-007 of MT-008). Serializes the
+    /// `CodeActionParams { textDocument, range, context }` and deserializes the response array, where each
+    /// element may be a bare `Command` OR a full `CodeAction` (LSP allows both — RISK-003). Returns the raw
+    /// `Vec<CodeActionOrCommand>` so the caller normalizes BOTH forms via
+    /// [`crate::code_editor::code_actions::normalize_code_actions`]. When no server is attached, the request
+    /// errors/times out, or the response is null/garbled, returns an EMPTY `Vec` — never a panic, never an
+    /// error surfaced to the operator (AC-006 graceful degradation). Reuses the SAME
+    /// `request()` -> framed write -> `read_loop` -> `route_message` path every other LSP request uses.
+    pub async fn code_action(
+        &self,
+        uri: &str,
+        range: lsp_types::Range,
+        context: lsp_types::CodeActionContext,
+    ) -> Vec<lsp_types::CodeActionOrCommand> {
+        let Ok(url) = Url::parse(uri) else {
+            return Vec::new(); // an unparseable URI -> no actions (graceful, no panic — AC-006).
+        };
+        let params = lsp_types::CodeActionParams {
+            text_document: TextDocumentIdentifier { uri: url },
+            range,
+            context,
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            partial_result_params: lsp_types::PartialResultParams::default(),
+        };
+        let Ok(params_value) = serde_json::to_value(params) else {
+            return Vec::new();
+        };
+        let Some(result) = self.request("textDocument/codeAction", params_value).await else {
+            return Vec::new(); // no server / no transport / timeout -> empty (AC-006).
+        };
+        // The response is `Vec<CodeActionOrCommand>` (each element a bare Command or a full CodeAction), or
+        // `null` (no actions). A null / malformed body degrades to an empty Vec (AC-006 — never a panic).
+        serde_json::from_value::<Option<lsp_types::CodeActionResponse>>(result)
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    }
+
+    /// WP-KERNEL-012 MT-049: send `workspace/executeCommand` for a code action that carries only a
+    /// `command` (no `edit`) — the server then typically pushes a `workspace/applyEdit` the editor's edit
+    /// path handles (RISK-003 / MC-003). Reuses the EXISTING MT-008 transport (no second transport).
+    /// Returns `true` when the request was sent AND the server acknowledged it (a non-error response);
+    /// `false` when no server is attached, the server cannot execute the command, or the request times out
+    /// — the caller no-ops GRACEFULLY in that case (a command-only action is never silently dropped, but a
+    /// server that cannot run it degrades cleanly). The `arguments` are passed through verbatim.
+    pub async fn execute_command(&self, command: &str, arguments: &[serde_json::Value]) -> bool {
+        if !self.is_running() {
+            return false; // no server -> graceful no-op (AC-006).
+        }
+        let params = serde_json::json!({
+            "command": command,
+            "arguments": arguments,
+        });
+        // A present (non-error) response = the server accepted the command. A None (timeout / no transport /
+        // server error) = the command could not be executed -> graceful false.
+        self.request("workspace/executeCommand", params).await.is_some()
+    }
+
     /// WP-KERNEL-012 MT-047: whether the attached server declared `signatureHelpProvider` in its
     /// `initialize` capabilities. The editor uses this to SKIP the LSP signature-help request (and fall
     /// back to the code-nav signature) when the server cannot serve it. `false` when no server is

@@ -97,6 +97,7 @@ use super::signature_help::{
 use super::rename::{
     self, PreviewAction, RenameState, WorkspaceEditPreview,
 };
+use super::code_actions::{self, AppliedAction, CodeActionController, MenuAction};
 use super::find_replace::{FindEngine, FindQuery, Match};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::folding::{FoldProvider, FoldSet};
@@ -166,6 +167,11 @@ pub const CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX: &str = "code_editor_diagnostic_"
 /// cap). Only the regions intersecting the painted window are emitted, capped at this many so a
 /// pathological file with thousands of folds cannot blow the per-frame node budget.
 pub const MAX_ACCESSKIT_FOLDS: usize = 64;
+
+/// MT-049: the cursor-rest debounce window (ms) before a passive `textDocument/codeAction` request fires
+/// on a diagnostic line (RISK-001 / MC-001 — only fire once the cursor has settled + only on a line that
+/// carries >=1 diagnostic, never per idle frame). ~300ms matches the VS Code lightbulb dwell.
+pub const CODE_ACTION_REST_MS: u64 = 300;
 
 /// MT-034: the bounded timeout (ms) for the BEST-EFFORT word->symbol_key resolution the code->notes
 /// dwell does before the find-notes search. If the code-nav backend is slow/unreachable, the dwell falls
@@ -651,6 +657,35 @@ pub struct CodeEditorPanel {
     /// thread share it.
     rename_result: RenameResultCell,
 
+    // ── MT-049 Code actions / quick fixes (the lightbulb) ─────────────────────────────────────────
+
+    /// MT-049 the quick-fix controller: owns the code-action request lifecycle, the action-list + menu
+    /// state, the gutter-lightbulb decision, and the apply call (which DELEGATES to the MT-048 apply path).
+    /// The cursor-rest trigger + Ctrl+. + the context-menu 'Quick Fix...' entry feed it; the render path
+    /// draws the lightbulb + menu from it. Behind a `Mutex` for the same `Sync` reason as the buffer.
+    code_action_controller: Mutex<CodeActionController>,
+    /// MT-049 off-thread code-action result delivery cell: a spawned `textDocument/codeAction` task sends
+    /// the resolved [`CodeActionResult`] over this channel; [`CodeActionController::poll_results`] drains it
+    /// each frame (HBR-QUIET — the egui thread never blocks on the LSP; the MT-008 off-thread pattern). The
+    /// sender is cloned into each spawned request; the receiver is installed on the controller once.
+    code_action_tx: mpsc::Sender<code_actions::CodeActionResult>,
+    /// MT-049 the result receiver, parked here until [`pump_code_actions`](Self::pump_code_actions)
+    /// installs it on the controller on the first frame (one consumer per channel). `None` after install.
+    code_action_rx: Mutex<Option<mpsc::Receiver<code_actions::CodeActionResult>>>,
+    /// MT-049 the cursor-rest debounce: the `(line, since)` the cursor has rested on. A code-action request
+    /// fires once the rest exceeds the debounce window AND the line carries >=1 diagnostic (RISK-001 /
+    /// MC-001 — never per idle frame; cancel on a line change). `None` when the cursor is moving / off a
+    /// diagnostic line. Behind a `Mutex` for the same `Sync` reason as the buffer.
+    code_action_rest: Mutex<Option<(usize, std::time::Instant)>>,
+    /// MT-049 the cursor-rest debounce threshold (default [`CODE_ACTION_REST_MS`]ms). A kittest sets it to
+    /// ZERO so the rest crossing fires on the first settled frame, driving the REAL cursor-rest pipeline
+    /// deterministically WITHOUT a wall-clock wait. Behind a `Mutex` for the `Sync` panel.
+    code_action_rest_threshold: Mutex<std::time::Duration>,
+    /// MT-049 one-shot Ctrl+. (or context-menu) arm: set by the keymap dispatch / context-menu entry, drained
+    /// by the per-frame pump which fires the code-action request AND opens the menu immediately (vs the
+    /// passive cursor-rest path that only lights the bulb). Atomic so the `&self` dispatch can arm it.
+    quick_fix_request: std::sync::atomic::AtomicBool,
+
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
@@ -983,6 +1018,10 @@ impl CodeEditorPanel {
         // MT-007 breakpoint publish channel: unbounded so `send` never blocks; the receiver is parked
         // until a future DAP client subscribes (RISK-003 non-blocking discard-on-disconnect publish).
         let (breakpoint_sender, breakpoint_receiver) = mpsc::channel::<BreakpointEvent>();
+        // MT-049 code-action result channel: the sender is cloned into each spawned `textDocument/codeAction`
+        // task; the receiver is parked on the panel until the first pump installs it on the controller.
+        let (code_action_tx_init, code_action_rx_init) =
+            mpsc::channel::<code_actions::CodeActionResult>();
         Self {
             buffer: Mutex::new(buffer),
             highlighter: Mutex::new(highlighter),
@@ -1059,6 +1098,17 @@ impl CodeEditorPanel {
             // MT-048 rename: starts Idle; the result cell is empty until an off-thread rename resolves.
             rename_state: Mutex::new(RenameState::Idle),
             rename_result: Arc::new(Mutex::new(None)),
+            // MT-049 quick fix: an idle controller; the result channel's receiver is installed on the
+            // controller lazily on the first pump (one consumer per channel). The cursor-rest debounce +
+            // the Ctrl+. arm start empty; the rest threshold is the ~300ms VS Code lightbulb dwell.
+            code_action_controller: Mutex::new(CodeActionController::new()),
+            code_action_tx: code_action_tx_init,
+            code_action_rx: Mutex::new(Some(code_action_rx_init)),
+            code_action_rest: Mutex::new(None),
+            code_action_rest_threshold: Mutex::new(std::time::Duration::from_millis(
+                CODE_ACTION_REST_MS,
+            )),
+            quick_fix_request: std::sync::atomic::AtomicBool::new(false),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -2689,6 +2739,335 @@ impl CodeEditorPanel {
         }
     }
 
+    // ── MT-049 Code actions / quick fixes (the lightbulb) — public API + triggers ─────────────────
+
+    /// True when the quick-fix popup menu is currently open (the deterministic observation point for the
+    /// AC-005 interaction proof).
+    pub fn is_quickfix_menu_open(&self) -> bool {
+        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).is_menu_open()
+    }
+
+    /// True when line `line` carries at least one available code action (drives the gutter lightbulb —
+    /// AC-003 / AC-006). False while idle / on a line with no actions / with no LSP attached.
+    pub fn has_quickfix_on_line(&self, line: usize) -> bool {
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .has_actions_on_line(line)
+    }
+
+    /// The titles of the actions currently in the quick-fix list (the deterministic observation point for
+    /// the AC-001/AC-004 proofs). Empty when idle / no actions.
+    pub fn quickfix_action_titles(&self) -> Vec<String> {
+        let guard = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+        match guard.state() {
+            Some(s) => s.actions.iter().map(|a| a.title.clone()).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Install a resolved action list directly (the deterministic path the kittest/unit proofs use, the
+    /// same way `open_signature_help` feeds synthetic state). `open_menu` opens the popup immediately.
+    pub fn set_quickfix_actions(
+        &self,
+        line: usize,
+        actions: Vec<code_actions::CodeActionItem>,
+        open_menu: bool,
+    ) {
+        let version = self.buffer_version.load(Ordering::Relaxed);
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_actions(line, version, actions, open_menu);
+    }
+
+    /// Close the quick-fix menu (Escape / apply / focus loss).
+    pub fn close_quickfix_menu(&self) {
+        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).close_menu();
+    }
+
+    /// Clear the quick-fix controller to idle (no lightbulb, no menu).
+    pub fn clear_quickfix(&self) {
+        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    }
+
+    /// Set the quick-fix cursor-rest debounce threshold (a kittest sets it to ZERO so the rest crossing
+    /// fires on the first settled frame — the same deterministic-dwell hook the MT-034 note-refs path uses).
+    pub fn set_quickfix_rest_threshold(&self, threshold: std::time::Duration) {
+        *self.code_action_rest_threshold.lock().unwrap_or_else(|e| e.into_inner()) = threshold;
+    }
+
+    /// Whether the Ctrl+. quick-fix request is currently armed (not yet consumed by the pump). The
+    /// live-path test reads it to prove the pump CONSUMED the arm in the same frame.
+    pub fn quick_fix_request_armed_for_test(&self) -> bool {
+        self.quick_fix_request.load(Ordering::Relaxed)
+    }
+
+    /// Whether `line` carries at least one diagnostic in the MT-007 gutter diagnostic store (the gate for
+    /// the cursor-rest code-action request — RISK-001 / MC-001: only query the server on a diagnostic line).
+    fn line_has_diagnostic(&self, line: usize) -> bool {
+        self.diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .any(|m| m.line == line && matches!(m.kind, GutterMarkerKind::Diagnostic(_)))
+    }
+
+    /// The LSP diagnostics on `line` (the `context.diagnostics` the `textDocument/codeAction` request
+    /// carries, so the server can scope its quick fixes to those diagnostics). Built from the MT-007 gutter
+    /// store: each diagnostic marker on `line` becomes an `lsp_types::Diagnostic` covering the whole line
+    /// (the gutter store is line-granular — the same line-level shape MT-007 records).
+    fn lsp_diagnostics_on_line(&self, line: usize) -> Vec<lsp_types::Diagnostic> {
+        let markers = self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner());
+        markers
+            .iter()
+            .filter(|m| m.line == line && matches!(m.kind, GutterMarkerKind::Diagnostic(_)))
+            .map(|m| {
+                let severity = match &m.kind {
+                    GutterMarkerKind::Diagnostic(DiagnosticSeverity::Error) => {
+                        Some(lsp_types::DiagnosticSeverity::ERROR)
+                    }
+                    GutterMarkerKind::Diagnostic(DiagnosticSeverity::Warning) => {
+                        Some(lsp_types::DiagnosticSeverity::WARNING)
+                    }
+                    GutterMarkerKind::Diagnostic(DiagnosticSeverity::Info) => {
+                        Some(lsp_types::DiagnosticSeverity::INFORMATION)
+                    }
+                    GutterMarkerKind::Diagnostic(DiagnosticSeverity::Hint) => {
+                        Some(lsp_types::DiagnosticSeverity::HINT)
+                    }
+                    _ => None,
+                };
+                lsp_types::Diagnostic {
+                    range: self.line_lsp_range(line),
+                    severity,
+                    message: m.message.clone(),
+                    ..Default::default()
+                }
+            })
+            .collect()
+    }
+
+    /// The LSP `Range` covering the whole of buffer `line` (the code-action request range + the
+    /// per-diagnostic range). 0-based start of `line` to the start of `line + 1` (clamped at EOF).
+    fn line_lsp_range(&self, line: usize) -> lsp_types::Range {
+        let (start_char, end_char) = self.with_buffer(|b| {
+            let start = b.line_to_byte(line).unwrap_or(0);
+            let end = b.line_to_byte(line + 1).unwrap_or_else(|| b.len_bytes());
+            (0u32, end.saturating_sub(start) as u32)
+        });
+        lsp_types::Range {
+            start: lsp_types::Position { line: line as u32, character: start_char },
+            end: lsp_types::Position { line: line as u32, character: end_char },
+        }
+    }
+
+    /// MT-049: spawn the off-thread `textDocument/codeAction` request for `line` and deliver the normalized
+    /// actions over the result channel (drained next frame by [`pump_code_actions`](Self::pump_code_actions)).
+    /// `open_menu` opens the menu when the result lands (the Ctrl+. / lightbulb / context-menu path) vs only
+    /// lighting the bulb (the passive cursor-rest path). The egui thread never blocks (HBR-QUIET): the LSP
+    /// request runs on the injected runtime. When no LSP is attached the request returns an empty action
+    /// list (graceful — AC-006), which still lands so the Ctrl+. degraded menu can show "No quick fixes".
+    pub fn trigger_quick_fix(&self, runtime: &tokio::runtime::Handle, line: usize, open_menu: bool) {
+        let version = self.buffer_version.load(Ordering::Relaxed);
+        // Mark the request in flight so the debounce guard does not fire a second one (RISK-001 / MC-001).
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .mark_request_in_flight(line, version);
+
+        let Some(uri) = self.lsp_uri() else {
+            // No file URI -> no LSP request possible; deliver an empty list so the degraded menu shows
+            // "No quick fixes available" when open_menu is set (AC-006 — never a panic).
+            let _ = self.code_action_tx.send(code_actions::CodeActionResult {
+                line,
+                buffer_version: version,
+                actions: Vec::new(),
+                open_menu,
+            });
+            return;
+        };
+        let range = self.line_lsp_range(line);
+        let diagnostics = self.lsp_diagnostics_on_line(line);
+        let lsp_client = self.lsp_client();
+        let tx = self.code_action_tx.clone();
+
+        runtime.spawn(async move {
+            // The CodeActionContext scopes the request to the line's diagnostics; `only: None` lets the
+            // server return any kind (quickfix/refactor/source). A no-server client returns empty (AC-006).
+            let context = lsp_types::CodeActionContext {
+                diagnostics,
+                only: None,
+                trigger_kind: None,
+            };
+            let response = lsp_client.code_action(&uri, range, context).await;
+            let actions = code_actions::normalize_code_actions(response);
+            // Deliver the result (empty or not) so the drain installs it; a send error (the panel dropped)
+            // is a benign no-op.
+            let _ = tx.send(code_actions::CodeActionResult {
+                line,
+                buffer_version: version,
+                actions,
+                open_menu,
+            });
+        });
+    }
+
+    /// MT-049: the per-frame quick-fix pump (called from `show` AFTER the cursor input so the caret line is
+    /// current). It (1) installs the result receiver on the controller on the first frame, (2) drains any
+    /// delivered result, (3) fires a Ctrl+. / context-menu request when one is armed, and (4) advances the
+    /// cursor-rest debounce and fires a passive request when the caret has rested ~300ms on a diagnostic
+    /// line (RISK-001 / MC-001 — never per idle frame; cancel on a line change). A graceful no-op without an
+    /// injected runtime (a headless harness drives the deterministic `set_quickfix_actions` path instead).
+    fn pump_code_actions(&self) {
+        // (1) Install the result receiver on the controller once (one consumer per channel).
+        if let Some(rx) = self.code_action_rx.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            self.code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .set_result_receiver(rx);
+        }
+        // (2) Drain any delivered result into the controller state (lights the bulb / opens the menu).
+        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).poll_results();
+
+        let Some(runtime) = self.runtime_handle() else {
+            // No runtime: the off-thread request path is unavailable. Consume any Ctrl+. arm so it does not
+            // linger, and skip the cursor-rest trigger (the deterministic tests drive set_quickfix_actions).
+            self.quick_fix_request.store(false, Ordering::Relaxed);
+            return;
+        };
+
+        let cursor_line = self.primary_cursor_line();
+
+        // (3) Ctrl+. / context-menu arm: fire a request for the caret line and OPEN the menu immediately.
+        if self.quick_fix_request.swap(false, Ordering::Relaxed) {
+            self.trigger_quick_fix(&runtime, cursor_line, /* open_menu */ true);
+            return; // do not also fire the passive cursor-rest request this frame.
+        }
+
+        // (4) Passive cursor-rest trigger: only on a diagnostic line, only once the caret has rested past
+        // the debounce window, and only when a request is not already in flight for this line (RISK-001 /
+        // MC-001 — no per-idle-frame server flood; cancel/restart the dwell on a line change).
+        let threshold = *self.code_action_rest_threshold.lock().unwrap_or_else(|e| e.into_inner());
+        let now = std::time::Instant::now();
+        let mut rest = self.code_action_rest.lock().unwrap_or_else(|e| e.into_inner());
+        let on_diagnostic_line = self.line_has_diagnostic(cursor_line);
+        if !on_diagnostic_line {
+            // Off a diagnostic line: reset the dwell and clear any stale actions for a now-irrelevant line.
+            *rest = None;
+            let mut controller = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            if controller.active_line().map(|l| l != cursor_line).unwrap_or(false)
+                && !controller.is_menu_open()
+            {
+                controller.clear();
+            }
+            return;
+        }
+        // On a diagnostic line: advance / restart the dwell clock for this line.
+        let crossed = match *rest {
+            Some((line, since)) if line == cursor_line => now.duration_since(since) >= threshold,
+            _ => {
+                *rest = Some((cursor_line, now));
+                threshold.is_zero() // a zero threshold fires on the first settled frame (the kittest hook).
+            }
+        };
+        if crossed {
+            // Fire ONCE per rest: clear the dwell so the next frame does not re-fire, and skip when a
+            // request for this line is already in flight or actions are already loaded (RISK-001).
+            let already = {
+                let controller =
+                    self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+                controller.request_in_flight()
+                    || controller.active_line() == Some(cursor_line) && controller.has_actions_on_line(cursor_line)
+            };
+            *rest = Some((cursor_line, now)); // keep the line anchored so a re-rest does not immediately re-fire.
+            if !already {
+                drop(rest); // release before the trigger locks the controller.
+                self.trigger_quick_fix(&runtime, cursor_line, /* open_menu */ false);
+            }
+        }
+    }
+
+    /// MT-049: apply the SELECTED quick-fix action — the menu's Enter / a row click / the swarm Apply node.
+    /// DELEGATES the in-file WorkspaceEdit apply to the MT-048 path via the controller's `apply_selected`
+    /// (RISK-002 / MC-002 / AC-002 — no re-implementation). Cross-file edits are routed through MT-048's
+    /// [`rename::apply_preview`] multi-file/atomic path (RISK-005 / MC-005 — cross-file fixes apply, not
+    /// dropped). A command-only action is routed through `workspace/executeCommand` off-thread (RISK-003 /
+    /// MC-003 — graceful no-op if the server cannot execute it). On a stale buffer the apply is rejected and
+    /// re-requested (RISK-007 / MC-007). Returns the applied-action outcome (or `None` on a reject).
+    pub fn apply_quickfix(&self) -> Option<AppliedAction> {
+        let self_uri = self
+            .lsp_uri()
+            .unwrap_or_else(|| format!("file:///{}", self.file_path().trim_start_matches('/')));
+        let live_version = self.buffer_version.load(Ordering::Relaxed);
+
+        // Apply against a working copy of the buffer + cursors (so the MT-048 apply path mutates them), then
+        // install the result back into the panel + re-highlight (AC-002). Holding the controller + buffer
+        // locks across the MT-048 apply is safe (no egui calls inside).
+        let outcome = {
+            let mut controller =
+                self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let mut cursors = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            match controller.apply_selected(&mut buffer, &mut cursors, &self_uri, live_version) {
+                Ok(applied) => Some((applied, buffer.to_string())),
+                Err(code_actions::CodeActionError::StaleBuffer) => {
+                    // RISK-007 / MC-007: the buffer changed; re-request for the same line and reject the apply.
+                    let line = controller.active_line();
+                    drop(controller);
+                    if let (Some(line), Some(rt)) = (line, self.runtime_handle()) {
+                        self.trigger_quick_fix(&rt, line, true);
+                    }
+                    return None;
+                }
+                Err(_) => {
+                    // A bad range / no-such-action: close the menu, report nothing applied (no panic).
+                    controller.close_menu();
+                    return None;
+                }
+            }
+        };
+
+        let (applied, new_text) = outcome?;
+        match &applied {
+            AppliedAction::Edit { cross_file, .. } => {
+                // Install the in-file result back into the panel buffer + re-highlight (AC-002).
+                self.set_text(&new_text);
+                // Route any cross-file edits through MT-048's multi-file/atomic apply (RISK-005 / MC-005).
+                if !cross_file.files.is_empty() {
+                    let _ = rename::apply_preview(
+                        cross_file,
+                        |_uri| None, // cross-file targets are to-disk (read inside apply_preview).
+                        |_uri, _text| {},
+                    );
+                }
+            }
+            AppliedAction::Command { command } => {
+                // Route a command-only action through workspace/executeCommand off-thread (RISK-003 /
+                // MC-003 — graceful no-op if unsupported). The server then pushes workspace/applyEdit which
+                // the diagnostics/edit path handles; no in-file mutation here.
+                if let Some(rt) = self.runtime_handle() {
+                    let lsp_client = self.lsp_client();
+                    let cmd = command.command.clone();
+                    let args = command.arguments.clone();
+                    rt.spawn(async move {
+                        let _ = lsp_client.execute_command(&cmd, &args).await;
+                    });
+                }
+            }
+            AppliedAction::NoOp => {}
+        }
+        Some(applied)
+    }
+
+    /// MT-049: the screen position to anchor the quick-fix lightbulb / menu for `line` — the start of the
+    /// line in the gutter strip's lightbulb column (next to the MT-007 diagnostic glyphs). `None` before
+    /// the first frame / when the line is off-screen.
+    fn quickfix_line_screen_pos(&self, line: usize) -> Option<egui::Pos2> {
+        let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner())).unwrap_or(8.0);
+        self.screen_pos_for_line_col(line, 0, glyph_width)
+    }
+
     /// Build completion items from backend code-nav symbol projections (the React `suggestions.map`).
     /// The deterministic mapping the off-thread completion task + tests use.
     pub fn completions_from_symbols(symbols: &[CodeSymbolNavProjection]) -> Vec<CompletionItem> {
@@ -3434,6 +3813,12 @@ impl CodeEditorPanel {
         self.pump_note_refs();
         self.drain_note_refs();
 
+        // MT-049 LIVE quick-fix loop: install the result receiver (once), drain any delivered code-action
+        // result onto the controller (lights the bulb / opens the menu), fire a Ctrl+./context-menu request
+        // when armed, and advance the cursor-rest debounce to fire a passive request on a diagnostic line
+        // (RISK-001 / MC-001 — once per dwell, never per idle frame). A graceful no-op without a runtime.
+        self.pump_code_actions();
+
         // MT-008: drain any off-thread code-nav/LSP results into the popup state, then render the
         // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
         // A no-op (and no AccessKit nodes) when neither is open (AC-005/AC-006).
@@ -3533,6 +3918,68 @@ impl CodeEditorPanel {
         // surface (inline input / multi-file preview / error). Both are no-ops when rename is Idle.
         self.drain_rename_result();
         self.render_rename(ui);
+
+        // MT-049: render the quick-fix popup menu (a no-op when the menu is closed). The lightbulb itself is
+        // drawn in the gutter (`render_gutter`); this renders the menu the lightbulb / Ctrl+. / context-menu
+        // entry opened, and handles the menu's keyboard verbs (arrows move selection, Enter applies, Escape
+        // closes).
+        self.render_quickfix_menu(ui);
+    }
+
+    /// MT-049: render the quick-fix popup menu for the current action list (a no-op when the menu is
+    /// closed). Lists each action title; arrow keys move the selection, Enter applies the selected action,
+    /// Escape closes. On apply it calls [`apply_quickfix`](Self::apply_quickfix) (which delegates to the
+    /// MT-048 apply path). When the list is empty (the Ctrl+. degraded path) the menu shows "No quick fixes
+    /// available" and closes (AC-005). Emits the `Role::Menu` + `Role::MenuItem` AccessKit nodes (AC-004).
+    fn render_quickfix_menu(&self, ui: &egui::Ui) {
+        // Snapshot the state so the controller lock is not held across the render closures.
+        let state = {
+            let guard = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            match guard.state() {
+                Some(s) if s.menu_open => s.clone(),
+                _ => return, // menu closed -> nothing to render (AC-005/AC-006: no node when closed).
+            }
+        };
+        // Anchor the menu at the action line's gutter position (or the cursor for a Ctrl+. with no line).
+        let anchor = self
+            .quickfix_line_screen_pos(state.line)
+            .or_else(|| self.cursor_screen_pos())
+            .unwrap_or(egui::pos2(40.0, 40.0));
+        let menu_action = code_actions::render_menu(ui.ctx(), &state, anchor, &self.instance);
+
+        // The menu's keyboard verbs: Up/Down move the selection, Enter applies, Escape closes.
+        let (up, down, enter, escape) = ui.input(|i| {
+            (
+                i.key_pressed(egui::Key::ArrowUp),
+                i.key_pressed(egui::Key::ArrowDown),
+                i.key_pressed(egui::Key::Enter),
+                i.key_pressed(egui::Key::Escape),
+            )
+        });
+        if up {
+            self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).select_prev();
+        }
+        if down {
+            self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).select_next();
+        }
+
+        match menu_action {
+            MenuAction::Apply(index) => {
+                self.code_action_controller
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .select_index(index);
+                let _ = self.apply_quickfix();
+            }
+            MenuAction::Close => self.close_quickfix_menu(),
+            MenuAction::None => {
+                if escape {
+                    self.close_quickfix_menu();
+                } else if enter && !state.actions.is_empty() {
+                    let _ = self.apply_quickfix();
+                }
+            }
+        }
     }
 
     /// MT-048: render the rename surface for the current [`RenameState`] (a no-op when Idle):
@@ -3666,6 +4113,13 @@ impl CodeEditorPanel {
                 self.begin_rename_at_cursor();
                 ui.close();
             }
+            // MT-049 (AC-007): the 'Quick Fix...' entry routes to the SAME request+open_menu flow as
+            // Ctrl+. — it arms the quick-fix request, which the per-frame pump fires for the caret line and
+            // opens the menu (no duplicate apply logic; the controller owns the apply path).
+            if ui.button("Quick Fix...").clicked() {
+                self.quick_fix_request.store(true, Ordering::Relaxed);
+                ui.close();
+            }
         });
 
         // Always-present MenuItem AccessKit node carrying the exact contract author_id (AC-005). A swarm
@@ -3694,6 +4148,31 @@ impl CodeEditorPanel {
             node.set_author_id(author.clone());
             node.set_label("Rename Symbol".to_owned());
             node.set_value("Rename the symbol under the cursor (F2)".to_owned());
+            node.add_action(accesskit::Action::Click);
+        });
+
+        // MT-049 (AC-007 / HBR-SWARM): the always-addressable 'Quick Fix...' context-menu node. A swarm
+        // agent reads/activates it by `code_editor_ctx_quick_fix` to arm the SAME request+open_menu flow as
+        // Ctrl+. (no duplicate apply logic). Emitted EVERY frame so the swarm surface is always present.
+        let qf_author = code_actions::scoped_author_id(
+            code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID,
+            &self.instance,
+        );
+        let qf_node_id = if self.instance.is_empty() {
+            // SAFETY: a single hand-assigned fixed id (721) in the disjoint quick-fix band (720 = the menu
+            // container; 730.. = lightbulbs; 760.. = items), never reused.
+            unsafe { egui::Id::from_high_entropy_bits(721) }
+        } else {
+            egui::Id::new(format!(
+                "{}#{}",
+                code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID, self.instance
+            ))
+        };
+        ui.ctx().accesskit_node_builder(qf_node_id, move |node| {
+            node.set_role(accesskit::Role::MenuItem);
+            node.set_author_id(qf_author.clone());
+            node.set_label("Quick Fix".to_owned());
+            node.set_value("Show code actions / quick fixes for the current line (Ctrl+.)".to_owned());
             node.add_action(accesskit::Action::Click);
         });
     }
@@ -4496,6 +4975,51 @@ impl CodeEditorPanel {
         // budget.
         self.emit_breakpoint_nodes(ui, &visible_rows, &breakpoints, config);
         self.emit_diagnostic_nodes(ui, &visible_rows, &markers, config);
+
+        // MT-049: draw the quick-fix lightbulb on any PAINTED line that currently has available code
+        // actions (AC-003 — only on the diagnostic line with actions, never on a line without). The glyph is
+        // a clickable Role::Button that opens the quick-fix menu (the gutter-click path). Theme-aware
+        // (CONTROL-4 — `lightbulb_color`/`warn_fg_color`, no Color32 literal). Only drawn when the menu is
+        // closed so the bulb does not overdraw the open menu (the bulb stays "lit" via the controller state).
+        self.draw_quickfix_lightbulbs(ui, &visible_rows, &geometry);
+    }
+
+    /// MT-049: draw the quick-fix lightbulb on each painted line that carries available code actions
+    /// (AC-003). A click on the bulb opens the quick-fix menu (the gutter-click trigger). The bulb sits in
+    /// the gutter's left margin, vertically centered on its row. Only the painted lines are considered so a
+    /// huge file cannot draw an off-screen bulb. A clicked bulb opens the menu for that line.
+    fn draw_quickfix_lightbulbs(
+        &self,
+        ui: &mut egui::Ui,
+        visible_rows: &[usize],
+        geometry: &GutterGeometry,
+    ) {
+        let mut open_for: Option<usize> = None;
+        for (painted_idx, &line) in visible_rows.iter().enumerate() {
+            if !self.has_quickfix_on_line(line) {
+                continue;
+            }
+            // Center the bulb on the row, near the gutter's left edge (left of the line number / diagnostic
+            // glyph column). The origin.x is the gutter strip left; offset a half-glyph in so it has margin.
+            let y = geometry.origin.y
+                + painted_idx as f32 * geometry.line_height
+                + geometry.line_height * 0.5;
+            let x = geometry.origin.x + geometry.char_width * 0.6;
+            let pos = egui::pos2(x, y);
+            let resp = code_actions::draw_lightbulb(ui, line, pos, &self.instance);
+            if resp.clicked() {
+                open_for = Some(line);
+            }
+        }
+        // A clicked lightbulb opens the quick-fix menu for that line (AC-003 — gutter-click path). If a
+        // request for the line is not yet resolved the menu opens empty and re-fires on the next pump.
+        if let Some(line) = open_for {
+            let mut controller =
+                self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            if controller.active_line() == Some(line) {
+                controller.open_menu();
+            }
+        }
     }
 
     /// Emit one `Role::CheckBox` AccessKit node per PAINTED breakpoint line (toggled = the line carries
@@ -5657,6 +6181,13 @@ impl CodeEditorPanel {
             // primary caret. `begin_rename` resolves the identifier via tree-sitter and returns None on a
             // non-identifier (so no popup on a keyword/string/whitespace — RISK-006).
             A::RenameSymbol => self.begin_rename_at_cursor(),
+            // MT-049: Ctrl+. (and the editor body context-menu 'Quick Fix...' entry) arm a quick-fix
+            // request: the per-frame pump fires `textDocument/codeAction` for the current cursor range and
+            // OPENS the menu immediately (vs the passive cursor-rest path that only lights the bulb). Armed
+            // here so the request runs on the pump (with the live runtime) rather than mid-key-dispatch.
+            A::QuickFix => {
+                self.quick_fix_request.store(true, Ordering::Relaxed);
+            }
             // ── Code intelligence (existing MT-008 handlers) ──
             A::TriggerCompletion => {
                 self.completion_request.store(true, Ordering::Relaxed);

@@ -53,6 +53,13 @@
 
 pub mod breakpoints;
 pub mod buffer;
+// WP-KERNEL-012 MT-049 (E1 — VS Code parity): Code actions / quick fixes. The lightbulb that turns a
+// read-only diagnostic into an actionable fix. Owns the code-action request lifecycle, the action-list +
+// menu state, the gutter-lightbulb decision, and the apply call — which DELEGATES to the MT-048
+// WorkspaceEdit apply path (`rename::apply_text_edits_to_buffer`), never re-implementing it. Builds on the
+// MT-007 gutter diagnostic store (the cursor-rest trigger), the MT-008 LSP transport (`code_action`), and
+// the MT-048 multi-file/atomic apply (so cross-file fixes apply, not silently dropped).
+pub mod code_actions;
 pub mod code_nav;
 pub mod cursor;
 pub mod diff_editor_panel;
@@ -87,6 +94,13 @@ pub mod virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};
+pub use code_actions::{
+    draw_lightbulb, lightbulb_color, normalize_code_actions, quickfix_item_author_id,
+    quickfix_lightbulb_author_id, render_menu, AppliedAction, CodeActionController, CodeActionError,
+    CodeActionItem, CodeActionResult, CodeActionState, LspCommand, MenuAction,
+    CODE_EDITOR_QUICKFIX_ITEM_AUTHOR_PREFIX, CODE_EDITOR_QUICKFIX_LIGHTBULB_AUTHOR_PREFIX,
+    CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID, MAX_QUICKFIX_NODES, NO_ACTIONS_TEXT,
+};
 pub use diff_editor_panel::{
     build_line_map, right_line_for_left_line, DiffEditorPaneFactory, DiffEditorPanel, DiffMode, Side,
     SyncRow, SyncScrollState, DIFF_BLOCK_ACCEPT_LOCAL_PREFIX, DIFF_EDITOR_PANEL_AUTHOR_ID,
