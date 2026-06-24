@@ -90,7 +90,8 @@ use super::cursor::{
 use super::editor_view::{
     CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
 };
-use super::lsp_client::{LspClient, PublishedDiagnostics};
+use super::formatting::{self, FormatOutcome};
+use super::lsp_client::{LspClient, LspTextEdit, PublishedDiagnostics};
 use super::signature_help::{
     active_parameter_from_commas, render_signature_popup, SignatureHelpState,
 };
@@ -696,6 +697,31 @@ pub struct CodeEditorPanel {
     /// for the same `Sync` reason as the buffer.
     last_quickfix_cross_file: Mutex<Option<Result<RenameApplyReport, String>>>,
 
+    // ── MT-050 Format Document / Format Selection ─────────────────────────────────────────────────
+
+    /// MT-050 one-shot Alt+Shift+F (or EDIT-menu / context-menu 'Format Document') arm: set by the keymap
+    /// dispatch / menu entry, drained by the per-frame pump which fires the `textDocument/formatting`
+    /// request off-thread and applies the returned TextEdits as one undo step. Atomic so the `&self`
+    /// dispatch can arm it. A no-op when no formatter is available (the disabled keymap path — AC-003).
+    format_document_request: std::sync::atomic::AtomicBool,
+    /// MT-050 one-shot 'Format Selection' arm (context-menu / AccessKit node). Same off-thread pump path,
+    /// issuing `textDocument/rangeFormatting` for the current selection (empty selection -> current line).
+    format_selection_request: std::sync::atomic::AtomicBool,
+    /// MT-050 off-thread format result delivery cell: a spawned format task writes the resolved
+    /// [`FormatOutcome`] here; the next frame's drain installs the formatted text (single undo) + surfaces a
+    /// non-blocking toast on the error path (HBR-QUIET — the egui thread never blocks on the LSP). The
+    /// payload also carries the pre-format snapshot + the formatted text so the drain can record the single
+    /// undo entry on the UI thread (the off-thread task does not touch the buffer). `Arc<Mutex<..>>` so the
+    /// spawned task + the UI thread share it.
+    format_result: FormatResultCell,
+    /// MT-050 the LAST format toast (the non-blocking LspError / NoFormatter surface — AC-006). Queryable by
+    /// a swarm agent + a unit test; `None` until the first non-applied format outcome that warrants a toast.
+    last_format_toast: Mutex<Option<String>>,
+    /// MT-050 the queued single-undo snapshot `(before_text, after_text)` for a just-applied format. The
+    /// panel records it on the UI thread (in `drain_format_result`); the factory render drains it into
+    /// `interop_adapter::push_code_edit_undo` so ONE undo entry is recorded at the bus boundary (AC-001).
+    pending_format_undo: Mutex<Option<(String, String)>>,
+
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
@@ -865,6 +891,30 @@ type SignatureFallbackCache = Arc<Mutex<Option<(String, usize, CodeSymbolNavProj
 /// `Ok(WorkspaceEditPreview)` variant becomes `RenameState::Previewing`; the `Err(message)` variant
 /// becomes `RenameState::Error`. Aliased so the panel field type stays legible (clippy `type_complexity`).
 type RenameResultCell = Arc<Mutex<Option<Result<WorkspaceEditPreview, String>>>>;
+
+/// MT-050 off-thread format result delivery cell: a spawned `textDocument/formatting` /
+/// `textDocument/rangeFormatting` task writes `(pre_format_snapshot, FormatOutcome_with_formatted_text)`
+/// here, and the next frame's drain installs the formatted text (recording ONE undo entry on the UI
+/// thread) or surfaces the no-formatter / error toast. The `Option<String>` is the formatted text (present
+/// only on an `Applied` outcome that changed the buffer); the `FormatOutcome` carries the typed result the
+/// drain reports + toasts. Aliased so the field type stays legible (clippy `type_complexity`).
+type FormatResultCell = Arc<Mutex<Option<(String, Option<String>, FormatOutcome)>>>;
+
+/// MT-050: resolve a delivered format `edits` array against the pre-format `before` text into
+/// `(formatted_text_if_changed, FormatOutcome)`, off the UI thread (no panel access). An empty edit array
+/// or a no-change result yields `(None, NoChange)`; a successful change yields `(Some(after), Applied)`; a
+/// resolve/apply failure yields `(None, LspError)`. The UI-thread drain then installs `after` + records the
+/// single undo entry. Kept module-level so the spawned task can call it without borrowing the panel.
+fn resolve_format_outcome(before: &str, edits: &[LspTextEdit]) -> (Option<String>, FormatOutcome) {
+    if edits.is_empty() {
+        return (None, FormatOutcome::NoChange);
+    }
+    match formatting::apply_text_edits_to_string(before, edits) {
+        Ok(after) if after == before => (None, FormatOutcome::NoChange),
+        Ok(after) => (Some(after), FormatOutcome::Applied { edit_count: edits.len() }),
+        Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+    }
+}
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -1122,6 +1172,12 @@ impl CodeEditorPanel {
             // MT-049 cross-file quick-fix outcome surface (RISK-005 / MC-005): empty until the first
             // cross-file apply records its Ok(report)/Err(message) here (never silently dropped).
             last_quickfix_cross_file: Mutex::new(None),
+            // MT-050 format: the request arms + the result cell + the toast surface start empty.
+            format_document_request: std::sync::atomic::AtomicBool::new(false),
+            format_selection_request: std::sync::atomic::AtomicBool::new(false),
+            format_result: Arc::new(Mutex::new(None)),
+            last_format_toast: Mutex::new(None),
+            pending_format_undo: Mutex::new(None),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -3122,6 +3178,213 @@ impl CodeEditorPanel {
             .clone()
     }
 
+    // ── MT-050 Format Document / Format Selection — public API + triggers ──────────────────────────
+
+    /// MT-050: the buffer's resolved language id (e.g. `"rust"`), the gate `formatter_available` consults.
+    /// Empty for a plain/unhighlighted document (no grammar -> no formatter).
+    pub fn language_id(&self) -> String {
+        self.language_id.to_owned()
+    }
+
+    /// MT-050: the document URI for a formatting request (`file://`), or `None` for an in-memory buffer with
+    /// no file path. Reuses the MT-047/048 `lsp_uri` mapping; falls back to a `file:///<path>` form so a
+    /// test with a bare relative path still yields a URI the request can carry.
+    pub fn format_uri(&self) -> Option<String> {
+        self.lsp_uri()
+            .or_else(|| {
+                let path = self.file_path();
+                if path.trim().is_empty() {
+                    None
+                } else {
+                    Some(format!("file:///{}", path.trim_start_matches('/')))
+                }
+            })
+    }
+
+    /// MT-050: the primary selection as a `(start, end)` BYTE range. A collapsed caret yields
+    /// `(caret, caret)`; `formatting::selection_range_for` then maps an empty range to the current line.
+    pub fn primary_selection_bytes(&self) -> (usize, usize) {
+        let primary = self.cursors().primary();
+        let r = primary.range();
+        let len = self.with_buffer(|b| b.len_bytes());
+        let end = r.end.min(len);
+        let start = r.start.min(end);
+        (start, end)
+    }
+
+    /// MT-050: whether a formatter is available for this buffer (an LSP attached + the server advertised
+    /// `documentFormattingProvider`). Drives the EDIT-menu / context-menu enabled state + the keymap
+    /// no-op gate (AC-003). The `&self` convenience over `formatting::formatter_available`.
+    pub fn formatter_available(&self) -> bool {
+        let lsp = self.lsp_client();
+        formatting::formatter_available(&lsp, &self.language_id())
+    }
+
+    /// MT-050: the format menu descriptors (EDIT-menu + context-menu Format Document / Format Selection),
+    /// each reflecting the live enabled/disabled state (RISK-007 — the menu builders consume these rather
+    /// than this MT forking a menu file). The host menu builders render each descriptor as an enabled item
+    /// (dispatching the format action) or a disabled item (greyed + the no-formatter tooltip + AccessKit
+    /// disabled node).
+    pub fn format_menu_descriptors(&self) -> [formatting::FormatMenuDescriptor; 3] {
+        let lsp = self.lsp_client();
+        formatting::menu_descriptors(&lsp, &self.language_id())
+    }
+
+    /// MT-050: the LAST format toast (the non-blocking LspError / NoFormatter surface — AC-006), or `None`.
+    /// Queryable by a swarm agent + the unit tests to prove the error path surfaces a toast (not a panic /
+    /// a blocking dialog).
+    pub fn last_format_toast(&self) -> Option<String> {
+        self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// TEST/dispatch hook: whether the Format Document request is currently armed (drained by the pump).
+    pub fn format_request_armed_for_test(&self) -> bool {
+        self.format_document_request.load(Ordering::Relaxed)
+            || self.format_selection_request.load(Ordering::Relaxed)
+    }
+
+    /// MT-050: arm a Format Document request (the Alt+Shift+F keymap / EDIT-menu / context-menu entry). When
+    /// no formatter is available this is a NO-OP that records the no-formatter toast (AC-003 — never a
+    /// panic, never a frame block); otherwise the per-frame pump fires the off-thread request and applies
+    /// the result. Armed here (not run mid-key-dispatch) so the request runs on the pump with the live
+    /// runtime — the same arm-then-pump discipline MT-049's Ctrl+. uses.
+    pub fn request_format_document(&self) {
+        if !self.formatter_available() {
+            // The disabled keymap path: a no-op + a (queryable) toast, no panic, no frame block (AC-003).
+            *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
+            return;
+        }
+        self.format_document_request.store(true, Ordering::Relaxed);
+    }
+
+    /// MT-050: arm a Format Selection request (the context-menu 'Format Selection' entry / AccessKit node).
+    /// Same gating + arm-then-pump discipline as [`request_format_document`], using
+    /// `documentRangeFormattingProvider` as the gate.
+    pub fn request_format_selection(&self) {
+        let lsp = self.lsp_client();
+        if !formatting::range_formatter_available(&lsp, &self.language_id()) {
+            *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
+            return;
+        }
+        self.format_selection_request.store(true, Ordering::Relaxed);
+    }
+
+    /// MT-050 per-frame format pump (called from the code-intelligence pump). Drains any delivered format
+    /// result (installing the formatted text as ONE undo step + surfacing the error toast), then, if a
+    /// format request is armed this frame, fires the off-thread `textDocument/formatting` /
+    /// `rangeFormatting` request. The egui thread NEVER blocks on the LSP (HBR-QUIET / RISK-005): the
+    /// request runs on the injected runtime and writes its typed outcome to the delivery cell for the next
+    /// frame's drain. A no-op without a runtime (the deterministic tests drive `apply_format_result`).
+    fn pump_formatting(&self) {
+        // (1) Drain any delivered off-thread format result.
+        self.drain_format_result();
+
+        let Some(runtime) = self.runtime_handle() else {
+            // No runtime: clear any arm so it does not linger (the synthetic apply path still works).
+            self.format_document_request.store(false, Ordering::Relaxed);
+            self.format_selection_request.store(false, Ordering::Relaxed);
+            return;
+        };
+
+        let want_doc = self.format_document_request.swap(false, Ordering::Relaxed);
+        let want_sel = self.format_selection_request.swap(false, Ordering::Relaxed);
+        if !want_doc && !want_sel {
+            return;
+        }
+
+        // Resolve everything the off-thread task needs from the UI thread (no &self capture across .await).
+        let Some(uri) = self.format_uri() else { return };
+        let lsp_client = self.lsp_client();
+        let options = formatting::default_formatting_options();
+        let before = self.with_buffer(|b| b.to_string());
+        let cell = Arc::clone(&self.format_result);
+
+        if want_doc {
+            runtime.spawn(async move {
+                let outcome = match lsp_client.format_document(&uri, options).await {
+                    Ok(edits) => resolve_format_outcome(&before, &edits),
+                    Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+                };
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some((before, outcome.0, outcome.1));
+                }
+            });
+        } else {
+            // Format Selection: compute the UTF-16-correct range from the current selection on the UI thread.
+            let (start, end) = self.primary_selection_bytes();
+            let range = {
+                let buffer = self.buffer();
+                formatting::selection_range_for(&buffer, start, end)
+            };
+            let Some(range) = range else { return };
+            runtime.spawn(async move {
+                let outcome = match lsp_client.format_range(&uri, range, options).await {
+                    Ok(edits) => resolve_format_outcome(&before, &edits),
+                    Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+                };
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some((before, outcome.0, outcome.1));
+                }
+            });
+        }
+    }
+
+    /// MT-050: drain a delivered off-thread format result into the buffer (called each frame). On an
+    /// `Applied` outcome with formatted text the text is installed via `set_text` (re-clamping the cursor —
+    /// RISK-006) and the single undo entry is recorded through the host bus (AC-001). On `LspError` /
+    /// `NoFormatter` the toast surface is set (AC-006). `NoChange` is silent. A no-op when nothing pending.
+    fn drain_format_result(&self) {
+        let pending = self.format_result.lock().unwrap_or_else(|e| e.into_inner()).take();
+        let Some((before, formatted, outcome)) = pending else { return };
+        match &outcome {
+            FormatOutcome::Applied { edit_count } => {
+                if let Some(after) = formatted {
+                    if after != before {
+                        // Install the formatted text (re-clamps the cursor — RISK-006) and record ONE undo
+                        // entry (before -> after) so a single Ctrl+Z reverts the WHOLE format (AC-001).
+                        self.set_text(&after);
+                        self.record_format_undo(&before, &after);
+                        tracing::debug!("code editor: formatted document, {edit_count} edits (single undo)");
+                    }
+                }
+            }
+            FormatOutcome::NoChange => {
+                tracing::debug!("code editor: format produced no changes (already formatted)");
+            }
+            FormatOutcome::NoFormatter => {
+                *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+                    Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
+            }
+            FormatOutcome::LspError(msg) => {
+                // A non-blocking toast (NOT a frame-blocking dialog — AC-006 / MC-006). Surfaced + logged.
+                tracing::warn!("code editor: format failed: {msg}");
+                *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
+            }
+        }
+    }
+
+    /// MT-050: queue the SINGLE undo snapshot for a format (before -> after whole-buffer text) so the host
+    /// factory render records ONE undo entry through the unified-undo bus next frame, so a single Ctrl+Z
+    /// reverts the entire format (AC-001). The panel itself does NOT hold the bus / pane id / its own
+    /// `Arc` self-handle (those live at the factory render boundary where every code edit's undo is
+    /// recorded — the wrap-not-fork discipline), so the panel records the (before, after) pair here and
+    /// [`CodeEditorPaneFactory::render`] drains it into `interop_adapter::push_code_edit_undo`. Only the
+    /// LATEST format's snapshot is kept (a second format before the drain supersedes the first — the
+    /// host applies them in order, so the newest before/after pair is the correct single entry to push).
+    fn record_format_undo(&self, before: &str, after: &str) {
+        *self.pending_format_undo.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some((before.to_owned(), after.to_owned()));
+    }
+
+    /// MT-050: take the queued format undo snapshot (before, after) the factory render pushes onto the
+    /// shared unified-undo bus. `None` when no format applied since the last drain. The factory drains this
+    /// each frame so the single undo entry is recorded at the SAME boundary every code edit's undo is.
+    pub fn take_pending_format_undo(&self) -> Option<(String, String)> {
+        self.pending_format_undo.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+
     /// MT-049: the screen position to anchor the quick-fix lightbulb / menu for `line` — the start of the
     /// line in the gutter strip's lightbulb column (next to the MT-007 diagnostic glyphs). `None` before
     /// the first frame / when the line is off-screen.
@@ -3880,6 +4143,11 @@ impl CodeEditorPanel {
         // when armed, and advance the cursor-rest debounce to fire a passive request on a diagnostic line
         // (RISK-001 / MC-001 — once per dwell, never per idle frame). A graceful no-op without a runtime.
         self.pump_code_actions();
+
+        // MT-050 LIVE format loop: drain any delivered format result (install the formatted text as one
+        // undo step + surface the error toast), then fire an armed Alt+Shift+F / context-menu format request
+        // off-thread (HBR-QUIET — the egui frame never blocks on the LSP). A graceful no-op without a runtime.
+        self.pump_formatting();
 
         // MT-008: drain any off-thread code-nav/LSP results into the popup state, then render the
         // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
@@ -6250,6 +6518,14 @@ impl CodeEditorPanel {
             A::QuickFix => {
                 self.quick_fix_request.store(true, Ordering::Relaxed);
             }
+            // MT-050: Alt+Shift+F (and the EDIT-menu / editor body context-menu 'Format Document' entry) arm
+            // a whole-document format request. The pump fires `textDocument/formatting` off-thread (with the
+            // live runtime) and applies the returned TextEdits as one undo step. A no-op + toast when no
+            // formatter is available (the disabled keymap path — AC-003); never panics, never blocks.
+            A::FormatDocument => self.request_format_document(),
+            // MT-050: 'Format Selection' (context-menu / AccessKit node — no default keybinding) arms a
+            // `textDocument/rangeFormatting` request for the current selection (empty -> current line).
+            A::FormatSelection => self.request_format_selection(),
             // ── Code intelligence (existing MT-008 handlers) ──
             A::TriggerCompletion => {
                 self.completion_request.store(true, Ordering::Relaxed);
@@ -7084,6 +7360,24 @@ impl PaneFactory for CodeEditorPaneFactory {
         self.bus_registered.store(registered, Ordering::Relaxed);
 
         self.panel.show(ui);
+
+        // MT-050 (AC-001): record the SINGLE undo entry for a just-applied format at the SAME bus boundary
+        // every code edit's undo is recorded (the wrap-not-fork discipline). The panel queued the
+        // (before, after) snapshot during its format drain; push it as ONE `UndoAction` so a single Ctrl+Z
+        // reverts the entire format. `with_try_lock` so it never blocks the egui frame thread (RISK-1).
+        if let Some((before, after)) = self.panel.take_pending_format_undo() {
+            let pane_id2: PaneId = Arc::from(ctx.record.pane_id.as_ref());
+            crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                super::interop_adapter::push_code_edit_undo(
+                    b,
+                    pane_id2.clone(),
+                    &self.panel,
+                    TextBuffer::new(&before),
+                    TextBuffer::new(&after),
+                    "Format Document",
+                );
+            });
+        }
     }
 
     fn accesskit_role(&self) -> accesskit::Role {

@@ -127,6 +127,90 @@ pub struct PublishedDiagnostics {
     pub diagnostics: Vec<LspDiagnostic>,
 }
 
+// ── WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Document / Format Selection typed request/response
+//    surfaces. These mirror the LSP wire shapes the contract names (`FormattingOptions`, `LspTextEdit`,
+//    `LspRange`, `LspPosition`) and are kept transport-agnostic (own types, not `lsp_types` re-exports) so
+//    the formatting module + tests speak one stable shape regardless of how the request is serialized. The
+//    request methods below build the `lsp_types` params under the hood and deserialize the response into
+//    `Vec<LspTextEdit>` so the formatting applier never depends on `lsp_types` directly.
+
+/// The format options sent with a `textDocument/formatting` / `textDocument/rangeFormatting` request: the
+/// editor's tab size + whether spaces are used for indentation (MT-001/MT-010 indent config; default 4 /
+/// true, sourced via `formatting::default_formatting_options` — never hardcoded at the request site).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FormattingOptions {
+    /// Size of a tab in spaces.
+    pub tab_size: u32,
+    /// Prefer spaces over tabs.
+    pub insert_spaces: bool,
+}
+
+impl FormattingOptions {
+    /// Convert to the `lsp_types::FormattingOptions` the request params carry (the extra LSP fields
+    /// default to empty/None — the editor only sends the two core fields).
+    fn to_lsp(self) -> lsp_types::FormattingOptions {
+        lsp_types::FormattingOptions {
+            tab_size: self.tab_size,
+            insert_spaces: self.insert_spaces,
+            properties: std::collections::HashMap::new(),
+            trim_trailing_whitespace: None,
+            insert_final_newline: None,
+            trim_final_newlines: None,
+        }
+    }
+}
+
+/// A 0-based LSP position: a line index + a UTF-16-code-unit character column (LSP's default position
+/// encoding). Kept as its own type so the formatting applier converts byte offsets <-> UTF-16 columns
+/// explicitly (AC-007) rather than assuming bytes == columns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LspPosition {
+    pub line: u32,
+    /// UTF-16 code units into the line (NOT a byte offset, NOT a char index).
+    pub character: u32,
+}
+
+impl LspPosition {
+    fn from_lsp(p: Position) -> Self {
+        Self { line: p.line, character: p.character }
+    }
+    fn to_lsp(self) -> Position {
+        Position { line: self.line, character: self.character }
+    }
+}
+
+/// A half-open LSP range (0-based line/UTF-16-character start..end) — the wire form a formatting
+/// `TextEdit` carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LspRange {
+    pub start: LspPosition,
+    pub end: LspPosition,
+}
+
+impl LspRange {
+    fn from_lsp(r: lsp_types::Range) -> Self {
+        Self { start: LspPosition::from_lsp(r.start), end: LspPosition::from_lsp(r.end) }
+    }
+    fn to_lsp(self) -> lsp_types::Range {
+        lsp_types::Range { start: self.start.to_lsp(), end: self.end.to_lsp() }
+    }
+}
+
+/// One LSP `TextEdit`: a UTF-16 line/character range plus the replacement text. A format request returns
+/// an array of these, applied to the buffer as one undo step (descending-offset, UTF-16-correct) by
+/// `formatting::apply_text_edits`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LspTextEdit {
+    pub range: LspRange,
+    pub new_text: String,
+}
+
+impl LspTextEdit {
+    fn from_lsp(te: lsp_types::TextEdit) -> Self {
+        Self { range: LspRange::from_lsp(te.range), new_text: te.new_text }
+    }
+}
+
 /// The configuration for launching a language server: the executable + its args. `None` everywhere
 /// means "no server configured" and the client degrades to empty results (AC-004).
 #[derive(Debug, Clone, Default)]
@@ -675,6 +759,137 @@ impl LspClient {
         // A null response (the cursor is not inside a call) deserializes to `None`; a present one to
         // `Some(SignatureHelp)`. A malformed body degrades to `None` (AC-008).
         serde_json::from_value::<Option<SignatureHelp>>(result).ok().flatten()
+    }
+
+    /// WP-KERNEL-012 MT-050: whether the attached server declared `documentFormattingProvider` in its
+    /// `initialize` capabilities (the gate for "Format Document"). The editor uses this to enable/disable
+    /// the EDIT-menu + context-menu item and to no-op the Alt+Shift+F keymap when no formatter exists
+    /// (AC-003). `false` when no server is configured / `initialize` has not run / the server omitted the
+    /// capability — all graceful. A `documentFormattingProvider` of `OneOf::Left(false)` (the server
+    /// explicitly declined the capability) is treated as NOT supported.
+    pub fn supports_document_formatting(&self) -> bool {
+        self.server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|c| match &c.document_formatting_provider {
+                Some(lsp_types::OneOf::Left(enabled)) => *enabled,
+                Some(lsp_types::OneOf::Right(_)) => true, // options object present -> supported.
+                None => false,
+            })
+            .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-050: whether the attached server declared `documentRangeFormattingProvider` (the
+    /// gate for "Format Selection"). A server may support whole-document formatting but not range
+    /// formatting, so this is checked independently of [`supports_document_formatting`]. Same graceful
+    /// semantics as the document-formatting gate.
+    pub fn supports_document_range_formatting(&self) -> bool {
+        self.server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|c| match &c.document_range_formatting_provider {
+                Some(lsp_types::OneOf::Left(enabled)) => *enabled,
+                Some(lsp_types::OneOf::Right(_)) => true,
+                None => false,
+            })
+            .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-050: request `textDocument/formatting` (whole-document format) over the EXISTING
+    /// MT-008 stdio JSON-RPC transport (NO second transport — the MT-008 AC-007 reuse rule). Serializes the
+    /// `DocumentFormattingParams { textDocument, options }` and deserializes the response `TextEdit[]` into
+    /// the transport-agnostic [`LspTextEdit`] array the formatting applier consumes. Returns `Ok(Vec)` on a
+    /// successful (possibly empty) format, `Ok(empty)` when no server is attached / the request times out
+    /// (a graceful no-op — the caller treats it as "no changes"/no-formatter per the capability gate), and
+    /// `Err(LspError)` only on an unparseable URI or a garbled response body (never a panic — AC-006).
+    /// Reuses the SAME `request()` -> framed write -> `read_loop` -> `route_message` path every other LSP
+    /// request uses.
+    pub async fn format_document(
+        &self,
+        uri: &str,
+        options: FormattingOptions,
+    ) -> Result<Vec<LspTextEdit>, LspError> {
+        let Ok(url) = Url::parse(uri) else {
+            return Err(LspError::BadUri);
+        };
+        let params = lsp_types::DocumentFormattingParams {
+            text_document: TextDocumentIdentifier { uri: url },
+            options: options.to_lsp(),
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+        };
+        let Ok(params_value) = serde_json::to_value(params) else {
+            return Err(LspError::Parse);
+        };
+        let Some(result) = self.request("textDocument/formatting", params_value).await else {
+            // No server / no transport / timeout -> a graceful empty result (no edits).
+            return Ok(Vec::new());
+        };
+        Self::parse_text_edits(result)
+    }
+
+    /// WP-KERNEL-012 MT-050: request `textDocument/rangeFormatting` (format only `range`) over the EXISTING
+    /// MT-008 stdio transport (no second transport). Same shape + error/graceful semantics as
+    /// [`format_document`], with the selection range added to the params. The caller computes `range` from
+    /// the editor's primary selection (UTF-16-correct via `formatting::selection_range_for`).
+    pub async fn format_range(
+        &self,
+        uri: &str,
+        range: LspRange,
+        options: FormattingOptions,
+    ) -> Result<Vec<LspTextEdit>, LspError> {
+        let Ok(url) = Url::parse(uri) else {
+            return Err(LspError::BadUri);
+        };
+        let params = lsp_types::DocumentRangeFormattingParams {
+            text_document: TextDocumentIdentifier { uri: url },
+            range: range.to_lsp(),
+            options: options.to_lsp(),
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+        };
+        let Ok(params_value) = serde_json::to_value(params) else {
+            return Err(LspError::Parse);
+        };
+        let Some(result) = self.request("textDocument/rangeFormatting", params_value).await else {
+            return Ok(Vec::new());
+        };
+        Self::parse_text_edits(result)
+    }
+
+    /// Deserialize a formatting response (`TextEdit[]` or `null`) into the transport-agnostic
+    /// [`LspTextEdit`] array. A `null` response (the server has no edits) maps to an empty Vec; a garbled
+    /// body maps to `Err(LspError::Parse)` so the caller surfaces a toast rather than silently dropping a
+    /// real format (never a panic — AC-006).
+    fn parse_text_edits(result: Value) -> Result<Vec<LspTextEdit>, LspError> {
+        match serde_json::from_value::<Option<Vec<lsp_types::TextEdit>>>(result) {
+            Ok(Some(edits)) => Ok(edits.into_iter().map(LspTextEdit::from_lsp).collect()),
+            Ok(None) => Ok(Vec::new()),
+            Err(_) => Err(LspError::Parse),
+        }
+    }
+
+    /// TEST HOOK (MT-050): install `documentFormattingProvider` (+ optionally
+    /// `documentRangeFormattingProvider`) capabilities so [`supports_document_formatting`] /
+    /// [`supports_document_range_formatting`] return `true` without a live `initialize` handshake. Used by
+    /// the format request + capability-gating tests. Preserves any already-installed capabilities by
+    /// overwriting only the formatting fields would require a read-modify-write; for the tests a fresh
+    /// capability set with the formatting fields set is sufficient.
+    pub fn set_formatting_capability_for_test(&self, document: bool, range: bool) {
+        let caps = ServerCapabilities {
+            document_formatting_provider: if document {
+                Some(lsp_types::OneOf::Left(true))
+            } else {
+                None
+            },
+            document_range_formatting_provider: if range {
+                Some(lsp_types::OneOf::Left(true))
+            } else {
+                None
+            },
+            ..Default::default()
+        };
+        *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(caps);
     }
 
     /// Send a JSON-RPC REQUEST and await its `result` (or `None` on no transport / timeout / a server

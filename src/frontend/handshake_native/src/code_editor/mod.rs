@@ -67,6 +67,12 @@ pub mod diff_engine;
 pub mod editor_view;
 pub mod find_replace;
 pub mod folding;
+// WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Document (Alt+Shift+F) + Format Selection. Owns the
+// LSP-TextEdit-to-buffer applier (descending-offset, UTF-16-correct), the single-undo grouping at the
+// panel boundary, the formatter-capability gate, and the menu descriptors. DELEGATES the descending-offset
+// apply discipline to the same pattern MT-048's `rename::apply_text_edits_to_buffer` established; binds the
+// MT-008 LSP transport (`format_document`/`format_range`) additively — no second transport.
+pub mod formatting;
 pub mod gutter;
 pub mod highlight;
 pub mod keymap;
@@ -131,6 +137,14 @@ pub use gutter::{
     GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
 };
 pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
+pub use formatting::{
+    apply_text_edits, apply_text_edits_to_string as apply_format_edits_to_string,
+    byte_to_lsp_position, default_formatting_options, format_document, format_selection,
+    formatter_available, lsp_range_to_byte_range, menu_descriptors as format_menu_descriptors,
+    range_formatter_available, selection_range_for, FormatApplyError, FormatMenuDescriptor,
+    FormatOutcome, FORMAT_DOCUMENT_CTX_AUTHOR_ID, FORMAT_DOCUMENT_MENU_AUTHOR_ID,
+    FORMAT_SELECTION_CTX_AUTHOR_ID, NO_FORMATTER_TOOLTIP,
+};
 pub use cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet, MoveDir,
     MAX_ACCESSKIT_CURSORS,

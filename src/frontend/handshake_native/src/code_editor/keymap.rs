@@ -177,6 +177,16 @@ pub enum CodeEditorAction {
     // current cursor range and opens the quick-fix menu. The single command id the Ctrl+. binding + the
     // editor body context-menu 'Quick Fix...' entry + the AccessKit command node all reference.
     QuickFix,
+    // WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Document (Alt+Shift+F). Requests
+    // `textDocument/formatting` and applies the returned TextEdits as one undo step. The single command id
+    // the Alt+Shift+F binding + the EDIT-menu / editor body context-menu 'Format Document' entry + the
+    // AccessKit command node all reference.
+    FormatDocument,
+    // WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Selection (no default binding — menu/context-menu
+    // invoked). Requests `textDocument/rangeFormatting` for the current selection (empty selection -> the
+    // current line, matching VS Code). The single command id the editor body context-menu 'Format
+    // Selection' entry + the AccessKit command node reference.
+    FormatSelection,
     // ── Code intelligence ─────────────────────────────────────────────────────────────────────────
     TriggerCompletion,
     AcceptCompletion,
@@ -246,6 +256,8 @@ impl CodeEditorAction {
             ShowHover,
             RenameSymbol,
             QuickFix,
+            FormatDocument,
+            FormatSelection,
             TriggerCompletion,
             AcceptCompletion,
             DismissCompletion,
@@ -314,6 +326,8 @@ impl CodeEditorAction {
             ShowHover => "show_hover",
             RenameSymbol => "rename_symbol",
             QuickFix => "quick_fix",
+            FormatDocument => "format_document",
+            FormatSelection => "format_selection",
             TriggerCompletion => "trigger_completion",
             AcceptCompletion => "accept_completion",
             DismissCompletion => "dismiss_completion",
@@ -379,6 +393,8 @@ impl CodeEditorAction {
             ShowHover => "Show hover",
             RenameSymbol => "Rename symbol",
             QuickFix => "Quick fix / code actions",
+            FormatDocument => "Format document",
+            FormatSelection => "Format selection",
             TriggerCompletion => "Trigger completion",
             AcceptCompletion => "Accept completion",
             DismissCompletion => "Dismiss completion",
@@ -507,6 +523,13 @@ impl Keymap {
             KeyBinding::single(plain(Key::F2), A::RenameSymbol, "Rename symbol"),
             // ── Quick Fix (MT-049) ── Ctrl+. = code actions / quick-fix menu (VS Code parity).
             KeyBinding::single(m(Key::Period), A::QuickFix, "Quick fix"),
+            // ── Formatting (MT-050) ── Alt+Shift+F = Format Document (VS Code parity). Format Selection has
+            // NO default binding (menu / context-menu invoked, matching VS Code).
+            KeyBinding::single(
+                KeyChord { key: Key::F, ctrl: false, alt: true, shift: true, mac_cmd: false },
+                A::FormatDocument,
+                "Format document",
+            ),
             // ── Code intelligence (MT-008) ──
             KeyBinding::single(m(Key::Space), A::TriggerCompletion, "Trigger completion"),
             // Tab is context-sensitive: AcceptCompletion when the popup is open, else InsertTab. The
@@ -646,8 +669,9 @@ mod tests {
     #[test]
     fn all_covers_every_variant_and_names_are_unique() {
         let all = CodeEditorAction::all();
-        // 58 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix).
-        assert_eq!(all.len(), 58, "all() must list every variant exactly once");
+        // 60 variants in the contract enum (56 base + MT-048 RenameSymbol + MT-049 QuickFix + MT-050
+        // FormatDocument + FormatSelection).
+        assert_eq!(all.len(), 60, "all() must list every variant exactly once");
         let mut names: Vec<&str> = all.iter().map(|a| a.name()).collect();
         names.sort_unstable();
         let before = names.len();

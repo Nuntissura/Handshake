@@ -394,6 +394,16 @@ impl MenuBar {
                 self.disabled_item(ui, "menu.edit.copy", "Copy", Some("Ctrl+C"), "Needs the editor surface (future MT)");
                 self.disabled_item(ui, "menu.edit.paste", "Paste", Some("Ctrl+V"), "Needs the editor surface (future MT)");
                 ui.separator();
+                // WP-KERNEL-012 MT-050: EDIT-menu 'Format Document' (Alt+Shift+F). The leaf is present +
+                // addressable now; it renders DISABLED with the contract's no-formatter tooltip until the
+                // live editor is host-mounted (E11 MT-069) and a formatter is attached, at which point the
+                // host wires it to `CodeEditorPanel::request_format_document` reflecting
+                // `formatter_available` (the `code_editor::formatting::menu_descriptors` helper supplies the
+                // enabled-state + author_id so this menu file is not forked beyond a minimal additive entry —
+                // RISK-007). The disabled_item path sets the AccessKit node disabled so a swarm agent
+                // observes the same gating the human sees (MC-003 / AC-003).
+                self.disabled_item(ui, crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID, "Format Document", Some("Alt+Shift+F"), crate::code_editor::NO_FORMATTER_TOOLTIP);
+                ui.separator();
                 self.disabled_item(ui, "menu.edit.find-replace", "Find / Replace", Some("Ctrl+F"), "Needs the editor surface (future MT)");
                 self.disabled_item(ui, "menu.edit.find-all", "Find in All Documents", Some("Ctrl+Shift+F"), "Needs workspace search (future MT)");
             }
