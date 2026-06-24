@@ -73,6 +73,12 @@ pub mod minimap;
 pub mod note_refs_panel;
 pub mod outline;
 pub mod panel;
+// WP-KERNEL-012 MT-048 (E1 — VS Code parity): Rename Symbol (F2). The rename state machine, the inline
+// rename input widget, the multi-file WorkspaceEdit preview model, and the descending-offset/atomic-write
+// apply logic. Builds on the MT-001 tree-sitter highlight tree (identifier resolution) + ropey TextBuffer
+// (apply) + the MT-008 LSP transport (textDocument/rename). A pure addition; mutates the operator's source
+// files, so descending-offset apply (RISK-001) + atomic temp+rename disk writes (RISK-002) are the bar.
+pub mod rename;
 // WP-KERNEL-012 MT-047 (E1 — VS Code parity): LSP signature help (parameter hints) + the code-nav
 // fallback signature, rendered as a floating popup above the cursor with the active parameter
 // emphasized. A pure addition on the MT-008 LSP transport + code-nav client.
@@ -104,7 +110,7 @@ pub use editor_view::{
 };
 pub use lsp_client::{
     published_diagnostics_from_lsp, HoverResult as LspHoverResult, LspClient, LspCompletionItem,
-    LspDiagnostic, LspServerConfig, PublishedDiagnostics, REQUEST_TIMEOUT, SHUTDOWN_TIMEOUT,
+    LspDiagnostic, LspError, LspServerConfig, PublishedDiagnostics, REQUEST_TIMEOUT, SHUTDOWN_TIMEOUT,
 };
 pub use gutter::{
     breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
@@ -132,6 +138,15 @@ pub use note_refs_panel::{
     NoteRefsState, PANEL_AUTHOR_ID as NOTE_REFS_PANEL_AUTHOR_ID,
 };
 pub use outline::{OutlineItem, OutlineKind, OutlineProvider};
+pub use rename::{
+    apply_preview, apply_text_edits_to_buffer, apply_text_edits_to_string, begin_rename,
+    identifier_occurrences, identifier_range_at, is_identifier_kind, references_lack_precise_ranges,
+    render_inline_input, render_no_lsp_banner, render_preview, write_file_atomic, FileEditPreview,
+    LspRange, PreviewAction, PreviewHunk, RenameApplyReport, RenameError, RenameState,
+    TextEdit as RenameTextEdit, WorkspaceEditPreview, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+    CODE_EDITOR_RENAME_APPLY_AUTHOR_ID, CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
+    CODE_EDITOR_RENAME_INPUT_AUTHOR_ID, CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID, NO_LSP_BANNER_TEXT,
+};
 pub use signature_help::{
     active_parameter_from_commas, render_signature_popup, signature_from_code_nav_symbol,
     signature_label_runs, ParamSpan, SignatureHelpState, SignatureInfo, SignatureSource,

@@ -59,6 +59,30 @@ pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 /// that never replies must not hang the editor's result-delivery task.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Why an LSP request that the editor treats as fallible (currently only `textDocument/rename` — MT-048)
+/// could not produce a usable result. A no-server / timeout case is NOT an error for rename (it maps to an
+/// empty WorkspaceEdit so the editor falls back to the single-file path); an error is reserved for an
+/// unparseable URI or a garbled response body, so the caller can show a message instead of silently
+/// dropping a real rename (AC-008 — never a panic).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LspError {
+    /// The document URI could not be parsed into an LSP `Url`.
+    BadUri,
+    /// The server's response body could not be deserialized into the expected type.
+    Parse,
+}
+
+impl std::fmt::Display for LspError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LspError::BadUri => write!(f, "the document URI is not a valid LSP Url"),
+            LspError::Parse => write!(f, "the LSP response body could not be parsed"),
+        }
+    }
+}
+
+impl std::error::Error for LspError {}
+
 /// The completion items a single completion response yields (the popup list). Mirrors the LSP
 /// `CompletionItem` but flattened to just the fields the popup renders.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -506,6 +530,40 @@ impl LspClient {
             .ok()
             .flatten()
             .unwrap_or_default()
+    }
+
+    /// WP-KERNEL-012 MT-048: request `textDocument/rename` at `position` over the EXISTING MT-008 stdio
+    /// JSON-RPC transport (NO second transport — AC-007). Serializes the params
+    /// `{ textDocument: { uri }, position: { line, character }, newName }` and deserializes the
+    /// `WorkspaceEdit` response (the `lsp_types::WorkspaceEdit` type covers BOTH the `changes` map form
+    /// `{ [uri]: TextEdit[] }` AND the `documentChanges` array form `[{ textDocument, edits }]` — RISK-003
+    /// / MC-003 / AC-007). A null/empty WorkspaceEdit response maps to `Ok(WorkspaceEdit::default())` (the
+    /// no-op rename — the caller shows "no changes"); any LSP error / no server / no transport / a garbled
+    /// body maps to `Err(LspError)` or `Ok(empty)` so the editor never panics (AC-008). Reuses the same
+    /// `request()` -> framed write -> `read_loop` -> `route_message` path every other LSP request uses.
+    pub async fn rename(
+        &self,
+        uri: &str,
+        position: Position,
+        new_name: &str,
+    ) -> Result<lsp_types::WorkspaceEdit, LspError> {
+        let Some(base) = position_params(uri, position) else {
+            return Err(LspError::BadUri);
+        };
+        // The rename request adds `newName` to the position params.
+        let mut params = base;
+        params["newName"] = serde_json::json!(new_name);
+        let Some(result) = self.request("textDocument/rename", params).await else {
+            // No server / no transport / timeout: a graceful no-op rename (empty WorkspaceEdit), NOT an
+            // error — the caller falls back to the single-file path when no LSP is attached (AC-003).
+            return Ok(lsp_types::WorkspaceEdit::default());
+        };
+        // A null response (the server declined the rename) deserializes to `None` -> an empty edit (no-op).
+        match serde_json::from_value::<Option<lsp_types::WorkspaceEdit>>(result) {
+            Ok(Some(edit)) => Ok(edit),
+            Ok(None) => Ok(lsp_types::WorkspaceEdit::default()),
+            Err(_) => Err(LspError::Parse),
+        }
     }
 
     /// WP-KERNEL-012 MT-047: whether the attached server declared `signatureHelpProvider` in its

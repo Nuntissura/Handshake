@@ -169,6 +169,10 @@ pub enum CodeEditorAction {
     GoToDefinition,
     ShowReferences,
     ShowHover,
+    // WP-KERNEL-012 MT-048 (E1 — VS Code parity): Rename Symbol (F2). Dispatched by this keymap; the
+    // panel calls `rename::begin_rename` on dispatch. The single command id the F2 binding + the editor
+    // body context-menu 'Rename Symbol' entry + the AccessKit command node all reference.
+    RenameSymbol,
     // ── Code intelligence ─────────────────────────────────────────────────────────────────────────
     TriggerCompletion,
     AcceptCompletion,
@@ -236,6 +240,7 @@ impl CodeEditorAction {
             GoToDefinition,
             ShowReferences,
             ShowHover,
+            RenameSymbol,
             TriggerCompletion,
             AcceptCompletion,
             DismissCompletion,
@@ -302,6 +307,7 @@ impl CodeEditorAction {
             GoToDefinition => "go_to_definition",
             ShowReferences => "show_references",
             ShowHover => "show_hover",
+            RenameSymbol => "rename_symbol",
             TriggerCompletion => "trigger_completion",
             AcceptCompletion => "accept_completion",
             DismissCompletion => "dismiss_completion",
@@ -365,6 +371,7 @@ impl CodeEditorAction {
             GoToDefinition => "Go to definition",
             ShowReferences => "Show references",
             ShowHover => "Show hover",
+            RenameSymbol => "Rename symbol",
             TriggerCompletion => "Trigger completion",
             AcceptCompletion => "Accept completion",
             DismissCompletion => "Dismiss completion",
@@ -489,6 +496,8 @@ impl Keymap {
             // ── LSP navigation (MT-008) ──
             KeyBinding::single(plain(Key::F12), A::GoToDefinition, "Go to definition"),
             KeyBinding::single(shift(Key::F12), A::ShowReferences, "Show references"),
+            // ── Refactoring (MT-048) ── F2 = Rename Symbol (VS Code parity).
+            KeyBinding::single(plain(Key::F2), A::RenameSymbol, "Rename symbol"),
             // ── Code intelligence (MT-008) ──
             KeyBinding::single(m(Key::Space), A::TriggerCompletion, "Trigger completion"),
             // Tab is context-sensitive: AcceptCompletion when the popup is open, else InsertTab. The
@@ -628,8 +637,8 @@ mod tests {
     #[test]
     fn all_covers_every_variant_and_names_are_unique() {
         let all = CodeEditorAction::all();
-        // 56 variants in the contract enum.
-        assert_eq!(all.len(), 56, "all() must list every variant exactly once");
+        // 57 variants in the contract enum (56 base + MT-048 RenameSymbol).
+        assert_eq!(all.len(), 57, "all() must list every variant exactly once");
         let mut names: Vec<&str> = all.iter().map(|a| a.name()).collect();
         names.sort_unstable();
         let before = names.len();

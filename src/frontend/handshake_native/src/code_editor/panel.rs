@@ -94,6 +94,9 @@ use super::lsp_client::{LspClient, PublishedDiagnostics};
 use super::signature_help::{
     active_parameter_from_commas, render_signature_popup, SignatureHelpState,
 };
+use super::rename::{
+    self, PreviewAction, RenameState, WorkspaceEditPreview,
+};
 use super::find_replace::{FindEngine, FindQuery, Match};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 use super::folding::{FoldProvider, FoldSet};
@@ -634,6 +637,20 @@ pub struct CodeEditorPanel {
     /// it on the next trigger).
     signature_fallback_cache: SignatureFallbackCache,
 
+    // ── MT-048 Rename Symbol (F2) ─────────────────────────────────────────────────────────────────
+
+    /// MT-048 the rename state machine phase (Idle / Editing the inline input / Previewing the multi-file
+    /// WorkspaceEdit / Error). The render path draws the input/preview/banner from this; the F2 keymap, the
+    /// context-menu entry, and the off-thread rename result drain mutate it. Behind a `Mutex` for the same
+    /// `Sync` reason as the buffer.
+    rename_state: Mutex<RenameState>,
+    /// MT-048 off-thread rename result delivery cell: a spawned LSP-`textDocument/rename`-then-fallback
+    /// task writes the resolved [`WorkspaceEditPreview`] (or an error message) here; the next frame's
+    /// drain swaps it into `rename_state::Previewing`/`Error` (HBR-QUIET — the egui thread never blocks on
+    /// the LSP/backend; the MT-008 delivery-cell shape). `Arc<Mutex<..>>` so the spawned task + the UI
+    /// thread share it.
+    rename_result: RenameResultCell,
+
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
 
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
@@ -797,6 +814,12 @@ type SignatureHelpResultCell = Arc<Mutex<Option<SignatureHelpState>>>;
 /// open_paren_byte)` so commas in the same call reuse it instead of re-hitting `/knowledge/code/symbols`
 /// (RISK-002 / MC-002). `Arc<Mutex<..>>` so the off-thread resolve task writes it directly.
 type SignatureFallbackCache = Arc<Mutex<Option<(String, usize, CodeSymbolNavProjection)>>>;
+
+/// MT-048 off-thread rename result delivery cell: the resolved rename outcome written by a spawned
+/// LSP-`textDocument/rename`-then-fallback task and drained on the next frame into `rename_state`. The
+/// `Ok(WorkspaceEditPreview)` variant becomes `RenameState::Previewing`; the `Err(message)` variant
+/// becomes `RenameState::Error`. Aliased so the panel field type stays legible (clippy `type_complexity`).
+type RenameResultCell = Arc<Mutex<Option<Result<WorkspaceEditPreview, String>>>>;
 
 /// The cached minimap row colors plus the cache key they were computed for: `(colors, buffer_version,
 /// painted_rows, dark_mode)`. Aliased so the `minimap_row_cache` field type stays legible (clippy
@@ -1033,6 +1056,9 @@ impl CodeEditorPanel {
             signature_help_result: Arc::new(Mutex::new(None)),
             signature_help_request: std::sync::atomic::AtomicBool::new(false),
             signature_fallback_cache: Arc::new(Mutex::new(None)),
+            // MT-048 rename: starts Idle; the result cell is empty until an off-thread rename resolves.
+            rename_state: Mutex::new(RenameState::Idle),
+            rename_result: Arc::new(Mutex::new(None)),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -2409,6 +2435,260 @@ impl CodeEditorPanel {
         Some(pos + egui::vec2(0.0, 14.0))
     }
 
+    // ── MT-048 Rename Symbol (F2) — public API + triggers ─────────────────────────────────────────
+
+    /// A snapshot of the rename state (the deterministic observation point for the kittest/unit proofs).
+    pub fn rename_state(&self) -> RenameState {
+        self.rename_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// True while the inline rename input is open (Editing phase).
+    pub fn is_rename_input_open(&self) -> bool {
+        matches!(
+            *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+            RenameState::Editing { .. }
+        )
+    }
+
+    /// True while the multi-file rename preview is shown (Previewing phase).
+    pub fn is_rename_preview_open(&self) -> bool {
+        matches!(
+            *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+            RenameState::Previewing { .. }
+        )
+    }
+
+    /// Set the rename state directly (the deterministic path the tests drive + the off-thread drain uses).
+    pub fn set_rename_state(&self, state: RenameState) {
+        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = state;
+    }
+
+    /// Cancel any rename in progress (Escape / Cancel / focus loss): back to Idle, and clear a pending
+    /// off-thread result so a stale preview never lands after cancel.
+    pub fn cancel_rename(&self) {
+        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Idle;
+        *self.rename_result.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// The rename preview state, or `None` when not in the Previewing phase (the deterministic preview
+    /// observation point for the AC-004 proof).
+    pub fn rename_preview(&self) -> Option<WorkspaceEditPreview> {
+        match &*self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) {
+            RenameState::Previewing { workspace_edit } => Some(workspace_edit.clone()),
+            _ => None,
+        }
+    }
+
+    /// MT-048: begin a rename at the primary caret (the F2 keymap dispatch + the context-menu entry both
+    /// call this). Resolves the identifier under the cursor via the highlighter's tree-sitter parse tree
+    /// (`begin_rename` returns None on a non-identifier — RISK-006, no popup on a keyword/string/space).
+    /// On success the rename state becomes `Editing` with the input pre-filled + select-all-on-open armed.
+    pub fn begin_rename_at_cursor(&self) {
+        let cursor_byte = self.primary_cursor_offset();
+        // Ensure the highlight tree reflects the current buffer before resolving (cache hit when unchanged).
+        self.ensure_highlight_cache();
+        let new_state = {
+            let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+            match highlighter.as_ref().and_then(|hl| hl.tree()) {
+                Some(tree) => {
+                    let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                    // No backend symbol entity id is resolved here (the local fallback works off the
+                    // identifier text); the off-thread request resolves it for the LSP path. Empty is fine.
+                    rename::begin_rename(tree, &buffer, cursor_byte, "")
+                }
+                None => None, // an unhighlighted/plain document has no parse tree -> no tree-sitter rename.
+            }
+        };
+        if let Some(state) = new_state {
+            *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = state;
+        }
+        // On None (non-identifier / no tree) nothing happens — no popup on a non-identifier (RISK-006).
+    }
+
+    /// MT-048: confirm the rename (Enter in the inline input). When the draft is empty/whitespace or equals
+    /// the original, this is a no-op CANCEL (no rename — the VS Code F2 behavior). Otherwise it spawns the
+    /// off-thread LSP-`textDocument/rename`-then-fallback request on `runtime`; the resolved preview is
+    /// drained into the Previewing state next frame. The egui thread never blocks (HBR-QUIET).
+    pub fn confirm_rename(&self, runtime: &tokio::runtime::Handle) {
+        let (original, draft, ident_range) = {
+            let guard = self.rename_state.lock().unwrap_or_else(|e| e.into_inner());
+            match &*guard {
+                RenameState::Editing { original, draft, ident_range, .. } => {
+                    (original.clone(), draft.clone(), ident_range.clone())
+                }
+                _ => return, // not editing -> nothing to confirm.
+            }
+        };
+        let new_name = draft.trim().to_owned();
+        if new_name.is_empty() || new_name == original {
+            // No-op rename: cancel back to Idle (VS Code F2 behavior).
+            self.cancel_rename();
+            return;
+        }
+
+        // Resolve everything the off-thread task needs from the UI thread (no &self capture across .await).
+        let uri = self.lsp_uri();
+        let position = self.lsp_position_at(ident_range.start);
+        let lsp_client = self.lsp_client();
+        let buffer_text = self.with_buffer(|b| b.to_string());
+        let file_uri = uri
+            .clone()
+            .unwrap_or_else(|| format!("file:///{}", self.file_path().trim_start_matches('/')));
+        let is_open_buffer = true; // the current document is, by definition, an open buffer.
+        let occurrence_ranges = self.identifier_occurrences_in_buffer(&original);
+        // The set of currently-open buffer URIs, so the preview marks each LSP-edited file open vs to-disk.
+        let self_uri = file_uri.clone();
+        let cell = Arc::clone(&self.rename_result);
+
+        runtime.spawn(async move {
+            // 1) LSP path: issue textDocument/rename over the EXISTING transport (no second transport).
+            if let Some(uri_str) = uri.as_deref() {
+                match lsp_client.rename(uri_str, position, &new_name).await {
+                    Ok(edit) => {
+                        // An empty WorkspaceEdit = a no-op rename (the server declined / nothing to change)
+                        // OR no server attached (the disabled client returns an empty edit). Distinguish:
+                        // when the client is configured + running we trust the empty edit as "no changes";
+                        // otherwise fall through to the single-file fallback below.
+                        let has_lsp = lsp_client.is_running();
+                        let preview = WorkspaceEditPreview::from_lsp(&edit, |u| {
+                            if u == self_uri {
+                                Some(buffer_text.clone())
+                            } else {
+                                None // other files are to-disk (read for the preview hunks).
+                            }
+                        });
+                        if has_lsp && !preview.is_empty() {
+                            if let Ok(mut slot) = cell.lock() {
+                                *slot = Some(Ok(preview));
+                            }
+                            return;
+                        }
+                        if has_lsp && preview.is_empty() {
+                            // A running server returned no changes: surface "no changes" (empty preview).
+                            if let Ok(mut slot) = cell.lock() {
+                                *slot = Some(Ok(WorkspaceEditPreview::empty()));
+                            }
+                            return;
+                        }
+                        // No running server: fall through to the single-file fallback below.
+                    }
+                    Err(e) => {
+                        if let Ok(mut slot) = cell.lock() {
+                            *slot = Some(Err(format!("LSP rename failed: {e}")));
+                        }
+                        return;
+                    }
+                }
+            }
+            // 2) No-LSP single-file fallback (RISK-004 / MC-004 / AC-003): rename only THIS file's
+            // occurrences (resolved from tree-sitter — a safe local source), with the banner flag set so
+            // the operator is never misled that the rename was project-wide. The references API is NOT
+            // consulted for ranges (it has none — the recorded typed blocker); occurrences come from
+            // tree-sitter.
+            let preview = WorkspaceEditPreview::single_file_fallback(
+                file_uri,
+                &buffer_text,
+                &new_name,
+                &occurrence_ranges,
+                is_open_buffer,
+            );
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Ok(preview));
+            }
+        });
+    }
+
+    /// MT-048: the in-file occurrence byte ranges of `name` resolved from the highlighter's tree-sitter
+    /// parse tree (the SAFE local source for the no-LSP single-file fallback — RISK-006, never a
+    /// word-scan). Empty when the document has no parse tree (a plain/unhighlighted document).
+    fn identifier_occurrences_in_buffer(&self, name: &str) -> Vec<std::ops::Range<usize>> {
+        let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+        match highlighter.as_ref().and_then(|hl| hl.tree()) {
+            Some(tree) => {
+                let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+                rename::identifier_occurrences(tree, &buffer, name)
+            }
+            None => Vec::new(),
+        }
+    }
+
+    /// MT-048: apply the current rename preview (the Apply button / the swarm Apply node). Applies the
+    /// edits to the open buffer (this document) in DESCENDING offset order (RISK-001) and writes any
+    /// to-disk file atomically (RISK-002). On success the buffer is updated, the document re-highlighted,
+    /// and the rename returns to Idle. On failure the state becomes `Error` with the message (and the
+    /// already-applied files stay applied — the truthful partial report). Returns the apply report on
+    /// success. The current document's URI is matched against the preview's open-buffer files so the
+    /// in-memory `TextBuffer` is the apply target for this file.
+    pub fn apply_rename_preview(&self) -> Option<rename::RenameApplyReport> {
+        let preview = self.rename_preview()?;
+        let self_uri = self
+            .lsp_uri()
+            .unwrap_or_else(|| format!("file:///{}", self.file_path().trim_start_matches('/')));
+        // Apply: open-buffer files for THIS document route to the in-memory TextBuffer; any other
+        // open-buffer URI is unknown to this panel (a multi-pane host would route it — out of this MT's
+        // single-panel scope), so it reads the panel's buffer only for the self uri.
+        let buffer_text = self.with_buffer(|b| b.to_string());
+        let mut new_self_text: Option<String> = None;
+        let result = rename::apply_preview(
+            &preview,
+            |uri| {
+                if uri == self_uri {
+                    Some(buffer_text.clone())
+                } else {
+                    // Another open buffer in a multi-pane host; this single-panel MT does not own it, so
+                    // read it from disk as a to-disk file would be — but the preview already marked it
+                    // open. Returning None makes apply treat it as to-disk (read from disk). For the
+                    // common single-file + cross-file-to-disk rename this is correct.
+                    None
+                }
+            },
+            |uri, text| {
+                if uri == self_uri {
+                    new_self_text = Some(text.to_owned());
+                }
+            },
+        );
+        match result {
+            Ok(report) => {
+                // Install the renamed text back into THIS document's buffer + re-highlight (AC-002).
+                if let Some(text) = new_self_text {
+                    self.set_text(&text);
+                }
+                *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Idle;
+                Some(report)
+            }
+            Err(e) => {
+                *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                    RenameState::Error { message: e.to_string() };
+                None
+            }
+        }
+    }
+
+    /// MT-048: drain a delivered off-thread rename result into the rename state (called each frame). An
+    /// `Ok(preview)` becomes `Previewing` (or stays Idle on an empty no-op preview with a trace); an
+    /// `Err(message)` becomes `Error`. A no-op when no result is pending.
+    fn drain_rename_result(&self) {
+        let pending = self.rename_result.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(result) = pending {
+            match result {
+                Ok(preview) if preview.is_empty() => {
+                    // No changes (the server declined / nothing to rename): return to Idle silently.
+                    *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Idle;
+                    tracing::debug!("code editor: rename produced no changes");
+                }
+                Ok(preview) => {
+                    *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        RenameState::Previewing { workspace_edit: preview };
+                }
+                Err(message) => {
+                    *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        RenameState::Error { message };
+                }
+            }
+        }
+    }
+
     /// Build completion items from backend code-nav symbol projections (the React `suggestions.map`).
     /// The deterministic mapping the off-thread completion task + tests use.
     pub fn completions_from_symbols(symbols: &[CodeSymbolNavProjection]) -> Vec<CompletionItem> {
@@ -2962,6 +3242,13 @@ impl CodeEditorPanel {
                 ui.painter().rect_filled(full_rect, 0.0, bg);
             }
 
+            // MT-048: the Editor Body Context Menu code-pane 'Rename Symbol' entry. A secondary-click
+            // anywhere over the editor body opens the menu; choosing 'Rename Symbol' runs the SAME
+            // `begin_rename` path as F2. Built through egui's `response.context_menu` (the same surface the
+            // WP-011 context_menu_surfaces uses for simple panes) with the exact contract author_id +
+            // Role::MenuItem AccessKit node so a swarm agent can trigger it by id (AC-005 / HBR-SWARM).
+            self.render_editor_context_menu(ui, full_rect);
+
             // MT-007: RESERVE the gutter strip on the LEFT of the center editor area BEFORE the scroll
             // area, so the editor rows start to the right of the gutter (no overlap). The strip width is
             // recomputed every frame from the LIVE buffer line count (RISK-001 / MC-001) so a
@@ -3241,6 +3528,174 @@ impl CodeEditorPanel {
                 render_signature_popup(ui.ctx(), &state, anchor, &self.instance);
             }
         }
+
+        // MT-048: drain a delivered off-thread rename result into the rename state, then render the rename
+        // surface (inline input / multi-file preview / error). Both are no-ops when rename is Idle.
+        self.drain_rename_result();
+        self.render_rename(ui);
+    }
+
+    /// MT-048: render the rename surface for the current [`RenameState`] (a no-op when Idle):
+    /// - `Editing`  -> the inline rename input at the identifier, pre-filled + select-all on open; Enter
+    ///   confirms, Escape cancels.
+    /// - `Previewing` -> the multi-file WorkspaceEdit preview window (Apply/Cancel + the no-LSP banner when
+    ///   it is a single-file fallback). Apply applies the preview; Cancel returns to Idle.
+    /// - `Error` -> a small error frame; Escape/click dismisses.
+    fn render_rename(&self, ui: &egui::Ui) {
+        // Snapshot the phase so we do not hold the rename_state lock across the render closures.
+        let phase = self.rename_state();
+        match phase {
+            RenameState::Idle => {}
+            RenameState::Editing { ident_range, .. } => {
+                // Anchor the input at the identifier's screen position (the start of the identifier).
+                let (line, col) = self.with_buffer(|b| byte_to_line_col(ident_range.start, b));
+                let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner()))
+                    .unwrap_or(8.0);
+                let anchor = self
+                    .screen_pos_for_line_col(line, col, glyph_width)
+                    .unwrap_or(egui::pos2(20.0, 20.0));
+                // Render against a mutable copy of the state so the input edits the draft, then write back.
+                let mut state = self.rename_state();
+                rename::render_inline_input(ui.ctx(), &mut state, anchor, &self.instance);
+                // Persist the edited draft + the (now-consumed) one-shot focus flag.
+                self.set_rename_state(state);
+                // Read Enter (confirm) / Escape (cancel) from the frame's key events. The input is a
+                // singleline TextEdit, so Enter is delivered as a Key event (not inserted), and Escape too.
+                let (enter, escape) = ui.input(|i| {
+                    (
+                        i.key_pressed(egui::Key::Enter),
+                        i.key_pressed(egui::Key::Escape),
+                    )
+                });
+                if escape {
+                    self.cancel_rename();
+                } else if enter {
+                    match self.runtime_handle() {
+                        Some(rt) => self.confirm_rename(&rt),
+                        // No runtime (headless harness): the LSP/off-thread path is unavailable, so confirm
+                        // synchronously via the single-file fallback so the deterministic path still works.
+                        None => self.confirm_rename_sync_fallback(),
+                    }
+                }
+            }
+            RenameState::Previewing { workspace_edit } => {
+                let action = rename::render_preview(ui.ctx(), &workspace_edit, &self.instance);
+                match action {
+                    PreviewAction::Apply => {
+                        let _ = self.apply_rename_preview();
+                    }
+                    PreviewAction::Cancel => self.cancel_rename(),
+                    PreviewAction::None => {
+                        // Escape also cancels the preview.
+                        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                            self.cancel_rename();
+                        }
+                    }
+                }
+            }
+            RenameState::Error { message } => {
+                let area_id = egui::Id::new(("code-editor-rename-error", &self.instance));
+                egui::Area::new(area_id)
+                    .order(egui::Order::Foreground)
+                    .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 40.0))
+                    .show(ui.ctx(), |ui| {
+                        egui::Frame::popup(ui.style()).show(ui, |ui| {
+                            ui.colored_label(ui.visuals().error_fg_color, &message);
+                            if ui.button("Dismiss").clicked() {
+                                self.cancel_rename();
+                            }
+                        });
+                    });
+                if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    self.cancel_rename();
+                }
+            }
+        }
+    }
+
+    /// MT-048: the synchronous single-file fallback used when no tokio runtime is injected (a headless
+    /// kittest harness): resolve the in-file occurrences from tree-sitter + build the single-file preview
+    /// directly, with the no-LSP banner. This keeps the deterministic input->preview->apply path provable
+    /// WITHOUT a runtime / live PG (the MT proof discipline). The live path uses [`confirm_rename`] +
+    /// the off-thread LSP request.
+    fn confirm_rename_sync_fallback(&self) {
+        let (original, draft) = {
+            let guard = self.rename_state.lock().unwrap_or_else(|e| e.into_inner());
+            match &*guard {
+                RenameState::Editing { original, draft, .. } => (original.clone(), draft.clone()),
+                _ => return,
+            }
+        };
+        let new_name = draft.trim().to_owned();
+        if new_name.is_empty() || new_name == original {
+            self.cancel_rename();
+            return;
+        }
+        let buffer_text = self.with_buffer(|b| b.to_string());
+        let file_uri = self
+            .lsp_uri()
+            .unwrap_or_else(|| format!("file:///{}", self.file_path().trim_start_matches('/')));
+        let occurrences = self.identifier_occurrences_in_buffer(&original);
+        let preview = WorkspaceEditPreview::single_file_fallback(
+            file_uri,
+            &buffer_text,
+            &new_name,
+            &occurrences,
+            true,
+        );
+        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
+            RenameState::Previewing { workspace_edit: preview };
+    }
+
+    /// MT-048: the editor body context menu with the code-pane 'Rename Symbol' entry. A secondary-click
+    /// over `rect` opens the menu; clicking 'Rename Symbol' runs the SAME `begin_rename` path as F2. Emits
+    /// the `Role::MenuItem` AccessKit node `code_editor_ctx_rename_symbol` (suffixed by instance) so a
+    /// swarm agent can trigger the rename by id without a right-click (AC-005 / HBR-SWARM). The node is
+    /// emitted EVERY frame (not just while the menu is open) so the swarm surface is always addressable;
+    /// an AccessKit `Click` action on it dispatches the rename via the editor-action wiring's command
+    /// path the same way F2 does.
+    fn render_editor_context_menu(&self, ui: &mut egui::Ui, rect: egui::Rect) {
+        // A secondary-click sensing response over the editor body so `context_menu` can open on it.
+        let resp = ui.interact(
+            rect,
+            ui.id().with(("code-editor-ctx-menu", &self.instance)),
+            egui::Sense::click(),
+        );
+        resp.context_menu(|ui| {
+            if ui.button("Rename Symbol").clicked() {
+                self.begin_rename_at_cursor();
+                ui.close();
+            }
+        });
+
+        // Always-present MenuItem AccessKit node carrying the exact contract author_id (AC-005). A swarm
+        // agent reads/activates it by id; the value names the action so a no-context model knows what it
+        // does. Emitted on a fixed node id in the rename overlay band, distinct from the popup nodes.
+        let author = if self.instance.is_empty() {
+            rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID.to_owned()
+        } else {
+            format!(
+                "{}#{}",
+                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, self.instance
+            )
+        };
+        let node_id = if self.instance.is_empty() {
+            // SAFETY: a single hand-assigned fixed id (715) in the disjoint rename overlay band (above the
+            // 710..714 rename popup nodes); never reused, cannot self-collide.
+            unsafe { egui::Id::from_high_entropy_bits(715) }
+        } else {
+            egui::Id::new(format!(
+                "{}#{}",
+                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, self.instance
+            ))
+        };
+        ui.ctx().accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::MenuItem);
+            node.set_author_id(author.clone());
+            node.set_label("Rename Symbol".to_owned());
+            node.set_value("Rename the symbol under the cursor (F2)".to_owned());
+            node.add_action(accesskit::Action::Click);
+        });
     }
 
     /// Render the MT-006 outline (symbol) tree in the left side panel, with the AccessKit `Role::Tree`
@@ -4970,6 +5425,15 @@ impl CodeEditorPanel {
     /// (`Event::Text` insert, `Backspace`/`Delete` delete) stays in `process_cursor_input` because it is
     /// character production, not a chord — and the keymap deliberately does not bind printable typing.
     fn process_keymap(&self, ui: &egui::Ui) {
+        // MT-048: while a rename is active (the inline input / preview / error is open), the rename surface
+        // OWNS the keyboard — the editor body must NOT also process keys, or an Enter that confirms the
+        // rename would ALSO insert a newline into the buffer (the focus-precedence bug). The rename's own
+        // render path (`render_rename`) reads Enter/Escape; the editor keymap is suppressed entirely this
+        // frame so no editor action (InsertNewline / movement / etc.) fires under the open rename input.
+        if !matches!(*self.rename_state.lock().unwrap_or_else(|e| e.into_inner()), RenameState::Idle) {
+            return;
+        }
+
         // Clear a stale two-chord prefix BEFORE reading events so a timed-out Ctrl+K never wedges
         // single-chord shortcuts (RISK-001 / MC-001 / AC-002 timeout case).
         {
@@ -5189,6 +5653,10 @@ impl CodeEditorPanel {
             A::GoToDefinition => self.request_go_to_definition(),
             A::ShowReferences => self.request_show_references(),
             A::ShowHover => self.request_show_hover(),
+            // MT-048: F2 (and the editor body context-menu 'Rename Symbol' entry) begin a rename at the
+            // primary caret. `begin_rename` resolves the identifier via tree-sitter and returns None on a
+            // non-identifier (so no popup on a keyword/string/whitespace — RISK-006).
+            A::RenameSymbol => self.begin_rename_at_cursor(),
             // ── Code intelligence (existing MT-008 handlers) ──
             A::TriggerCompletion => {
                 self.completion_request.store(true, Ordering::Relaxed);
@@ -5887,6 +6355,15 @@ impl CodeEditorPanel {
                 // character still lands. egui never emits an Event::Text for a chord (Ctrl+C etc.), so a
                 // shortcut does not also type a character.
                 egui::Event::Text(text) if !text.is_empty() => {
+                    // MT-048: while the rename input is open (Editing phase) the FOCUSED input owns typed
+                    // text — do NOT also insert it into the editor buffer (the focus-precedence rule). A
+                    // preview/error phase has no text target either; skip in any non-Idle rename phase.
+                    if !matches!(
+                        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+                        RenameState::Idle
+                    ) {
+                        continue;
+                    }
                     // Skip while a completion popup is open AND the text would be consumed by an accept —
                     // but the popup is non-focus-stealing, so normal typing still flows; only the explicit
                     // Tab/Enter accept (handled in process_keymap) consumes. Insert the text at all
