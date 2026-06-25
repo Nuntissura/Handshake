@@ -85,6 +85,14 @@ pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
 /// This is the melt-together Editors<->Stage (Pillar 17) navigation primitive. The DEEPER Stage backend
 /// interop (capture/embed-back with manifest provenance) is E10 (MT-066), NOT this command.
 pub const CMD_ROUTE_TO_STAGE: &str = "interop.route-to-stage";
+/// WP-KERNEL-012 MT-066 (E10 — Stage embed-back): the embed-back leg command id. Dispatch runs the Stage
+/// pane's "Capture -> Embed back": it fetches a Stage capture artifact (with SHA-256 manifest provenance)
+/// and inserts it into the focused note/canvas as an MT-014 embed NodeView. This EXTENDS the Stage
+/// round-trip; the route-to-stage leg stays [`CMD_ROUTE_TO_STAGE`] (NOT duplicated — AC-005/MC-003). The
+/// runtime handler is registered by `crate::interop::stage_interop::register_embed_stage_capture_command`;
+/// the Stage embed-back backend route is ABSENT, so the embed-back raises the typed blocker
+/// `StageInteropError::EmbedBackEndpointAbsent` rather than fabricating an artifact.
+pub const CMD_EMBED_STAGE_CAPTURE: &str = "interop.embed-stage-capture";
 /// WP-KERNEL-012 MT-034 (E5 — code<->note cross-refs): cross-pane Open-Code-Symbol command id. A
 /// clicked `[[code:…]]` chip in a note dispatches this with the target symbol entity id staged via
 /// [`InteractionBus::request_open_code_symbol`]; the shell drains

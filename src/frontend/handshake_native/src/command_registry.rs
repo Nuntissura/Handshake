@@ -219,6 +219,23 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-stage-palette-route",
         disabled: false,
     },
+    // WP-KERNEL-012 MT-066 (E10 — Stage embed-back): the discoverable palette entry for the
+    // "Embed Stage Capture" command — the embed-back leg of the Stage round-trip. It fetches a Stage
+    // capture artifact (with its SHA-256 manifest provenance) and inserts it into the focused note/canvas
+    // as an MT-014 embed NodeView. This is the NEW command this MT adds; the route-to-stage command
+    // (`interop.route-to-stage`, above) is REUSED from MT-033, NOT duplicated (AC-005/MC-003). The Stage
+    // embed-back backend route is ABSENT in this build, so the runtime handler raises the typed blocker
+    // `StageInteropError::EmbedBackEndpointAbsent` and the Stage pane shows the empty-state — never a fake
+    // artifact. Enabled (palette-driven; no keybind — does NOT steal a VS Code binding).
+    AppCommand {
+        id: "interop.embed-stage-capture",
+        kind: CommandKind::App,
+        label: "Embed Stage Capture",
+        description: "Insert a Stage capture artifact (with SHA-256 manifest provenance) into the focused note or canvas.",
+        keywords: &["embed", "stage", "capture", "artifact", "provenance", "interop", "pillar 17"],
+        stable_id: "hs-stage-palette-embed-capture",
+        disabled: false,
+    },
     // WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal): the discoverable palette entry for the
     // "Propose to Memory" command. It turns the current selection into a review-gated FEMS memory-write
     // PROPOSAL (never a direct commit) and submits it to the review-gated FEMS write path; the proposal
