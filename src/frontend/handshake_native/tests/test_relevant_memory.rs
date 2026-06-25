@@ -6,6 +6,19 @@
 //! so the typed-blocker + empty-state path is the production reality; the live fetch against a real FEMS
 //! route is `NEEDS_MANAGED_RESOURCE_PROOF` and not asserted here.
 //!
+//! PROOF-POSTURE GATE (must_fix #3): the decode/round-trip tests below feed IMPLEMENTER-AUTHORED JSON
+//! matching the contract-dictated client model into the client's OWN deserializer over an in-process
+//! mock `TcpListener`. They are FIXTURE-ONLY proof of transport + typed-blocker + defensive clamp +
+//! tolerant decode + render/AccessKit — they are NOT interop proof against the real FEMS resource and
+//! MUST NOT be read as backend-aligned. The client model is currently FIXTURE-ALIGNED, NOT
+//! backend-aligned: it diverges from the only `MemoryPack` the backend produces (`crate::ace::MemoryPack`
+//! / `MemoryPackItem` / `FemsSourceRef`: `memory_id` not `id`, free-form `memory_class` incl. `"working"`
+//! not a 3-variant `kind`, `source_refs` not `source`, required `token_estimate`, no `truncated`/
+//! `context_key`). That shape drift is a CONTRACT DEFECT surfaced as a typed blocker to the WP validator/
+//! orchestrator (see `src/fems/memory_client.rs` module docs). The IN-SCOPE hardening here is the
+//! tolerance floor: `fetch_decodes_capsule_with_unknown_class` proves an unknown/future `memory_class`
+//! is skipped (not fatal) through the full fetch+decode path.
+//!
 //! Proof map:
 //! - PT-001 / AC-001 / AC-002: `fetch_pack` over the mock server decodes episodic+semantic+procedural
 //!   items; a 30-item response clamps to 24 with `truncated=true`. (`fetch_live_*` tests.)
@@ -225,6 +238,37 @@ fn fetch_live_clamps_thirty_to_24() {
     assert_eq!(pack.items.len(), 24, "AC-002: clamped to exactly 24 client-side");
     assert!(pack.truncated, "AC-002: truncated must be true after the defensive clamp");
     println!("PT-001 clamp OK: 30 -> {} items, truncated={}", pack.items.len(), pack.truncated);
+}
+
+#[test]
+fn fetch_decodes_capsule_with_unknown_class() {
+    // must_fix #2 (through the full fetch path): a capsule that mixes the real backend's `"working"`
+    // class (ace/mod.rs:1927,2024,2095) with the three rendered kinds must NOT fail the whole decode.
+    // The unknown-class item is skipped + logged; the known-kind items survive. Before the tolerant
+    // decode, `resp.json::<MemoryPack>()` would error with `unknown variant 'working'` and the consumer
+    // would surface a permanent Decode error for every such capsule.
+    let body = json!({
+        "context_key": "k",
+        "token_estimate": 120,
+        "items": [
+            {"id": "ep", "kind": "episodic", "summary": "edited", "source": {"event_id": "E"}},
+            {"id": "work", "kind": "working", "summary": "scratch buffer", "source": {"event_id": "W"}},
+            {"id": "sem", "kind": "semantic", "summary": "fact", "source": {"uri": "loom://x"}}
+        ]
+    });
+    let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
+    let client = MemoryClient::with_base_url(base_url);
+    let ctx = MemoryContext::for_workspace("W1");
+    let pack = rt()
+        .block_on(async { client.fetch_pack("W1", &ctx).await })
+        .expect("must_fix #2: an unknown memory_class must NOT fail the capsule decode");
+    let _ = server.join();
+
+    assert_eq!(pack.items.len(), 2, "the two known-kind items survive; the 'working' item is skipped");
+    assert_eq!(pack.items_of_kind(MemoryKind::Episodic).count(), 1);
+    assert_eq!(pack.items_of_kind(MemoryKind::Semantic).count(), 1);
+    assert!(pack.items.iter().all(|i| i.id != "work"), "the unknown-class item is dropped");
+    println!("must_fix #2 OK: capsule with 'working' class decoded, unknown item skipped, 2 kept");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

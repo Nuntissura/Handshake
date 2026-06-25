@@ -37,6 +37,34 @@
 //! proven against FIXTURE JSON regardless of whether the live endpoint exists; the live fetch (if the
 //! route is ever added) is `NEEDS_MANAGED_RESOURCE_PROOF`.
 //!
+//! ## CONTRACT-vs-BACKEND SHAPE DRIFT — this model is FIXTURE-ALIGNED, NOT yet backend-aligned (TYPED BLOCKER)
+//!
+//! IMPORTANT for whoever wires the live FEMS route: the [`MemoryPack`] / [`MemoryItem`] / [`MemorySource`]
+//! model below is the shape the MT-063 contract DICTATED (`id`/`kind`/`source{uri,document_id,byte_range,
+//! event_id}`/`truncated`/`context_key`). It does NOT match the only `MemoryPack` the backend actually
+//! produces today — `crate::ace::MemoryPack` / `MemoryPackItem` / `FemsSourceRef` — which uses
+//! `memory_id` (not `id`), a free-form `memory_class: String` (not a 3-variant `kind`, and the builder
+//! already emits a 4th class `"working"`), `source_refs: Vec<FemsSourceRef>` (not a single `source`),
+//! a REQUIRED `token_estimate: u32`, and has NO `truncated`/`context_key`. If a FEMS read route is later
+//! added that returns the real `ace::MemoryPack` JSON verbatim, [`MemoryClient::fetch_pack`]'s
+//! `resp.json::<MemoryPack>()` would FAIL to decode the differently-shaped item objects. This is a
+//! CONTRACT DEFECT surfaced as a TYPED BLOCKER to the WP validator / orchestrator: aligning the client
+//! model to the real `ace::MemoryPack` shape (or amending the MT contract to the real Pillar-12 shape)
+//! is an orchestrator decision — `src/backend` is frozen read-only and the coder does not re-model
+//! unilaterally. The IN-SCOPE hardening applied here is the must_fix #2 FLOOR: the `kind`/`memory_class`
+//! decode is now TOLERANT (an unknown/future class such as `"working"` is skipped with a logged warning
+//! instead of hard-failing the whole capsule — see [`deserialize_tolerant_items`]), so a single
+//! unknown-class item can never zero out all relevant memory.
+//!
+//! ## Proof posture: the mock round-trip is FIXTURE-ONLY, NOT managed-resource interop proof
+//!
+//! The decode/round-trip tests (in `tests/test_relevant_memory.rs` + the unit tests below) feed
+//! implementer-authored JSON matching THIS model into THIS model's deserializer over an in-process mock
+//! `TcpListener`. They prove transport + the typed-blocker + the defensive clamp + the AccessKit/render
+//! contract — they do NOT prove interop against the real FEMS resource (`NEEDS_MANAGED_RESOURCE_PROOF`,
+//! Spec-Realism sub-rule 2) and MUST NOT be read by the validator as backend-aligned interop proof while
+//! the shape drift above stands.
+//!
 //! ## Reuse, no second HTTP stack (RISK-006/MC-005)
 //!
 //! [`MemoryClient`] holds a cloned [`reqwest::Client`] (the process-wide
@@ -118,6 +146,22 @@ impl MemoryKind {
         }
     }
 
+    /// Map a wire `memory_class`/`kind` string to one of the three rendered kinds, or `None` for any
+    /// other class. The REAL backend ([`crate::ace::MemoryPack`]) emits `memory_class` as a free-form
+    /// String and the builder already emits a 4th class (`"working"`); future classes are expected.
+    /// Returning `None` (instead of a hard serde failure) is what lets a single unknown-class item be
+    /// SKIPPED rather than aborting the entire capsule decode (see [`MemoryPack`]'s custom items
+    /// deserializer). This is the must_fix #2 "tolerate the `working` class (and any future class)"
+    /// floor; the panel only renders the three known kinds via [`Self::ORDER`].
+    pub fn from_wire(s: &str) -> Option<MemoryKind> {
+        match s {
+            "episodic" => Some(MemoryKind::Episodic),
+            "semantic" => Some(MemoryKind::Semantic),
+            "procedural" => Some(MemoryKind::Procedural),
+            _ => None,
+        }
+    }
+
     /// The three kinds in their fixed render order (Episodic, Semantic, Procedural).
     pub const ORDER: [MemoryKind; 3] =
         [MemoryKind::Episodic, MemoryKind::Semantic, MemoryKind::Procedural];
@@ -154,7 +198,13 @@ impl MemorySource {
 }
 
 /// One item in the retrieval capsule: a provenance-first memory atom of one [`MemoryKind`].
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+///
+/// NOTE on decode tolerance (must_fix #2): the item's `kind` is decoded leniently through the raw
+/// wire string (see [`RawMemoryItem`] + [`MemoryPack`]'s custom items deserializer), so a capsule item
+/// carrying a class outside the three rendered kinds (e.g. the backend builder's `"working"` class, or
+/// any future class) is SKIPPED with a logged warning rather than hard-failing the whole capsule
+/// decode. A `MemoryItem` value therefore always carries one of the three known [`MemoryKind`]s.
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemoryItem {
     /// A stable id for the item (used as the AccessKit address suffix `mem-item-{id}` and to key the
     /// per-item source link). Item ids must be unique within a pack (the panel dedups defensively so a
@@ -165,11 +215,9 @@ pub struct MemoryItem {
     /// The human/agent-readable one-line summary (always rendered, provenance-first).
     pub summary: String,
     /// The machine provenance reference (may be non-navigable — see [`MemorySource::validate`]).
-    #[serde(default)]
     pub source: MemorySource,
     /// The retrieval relevance score, if the server supplied one (advisory; rendered subtly, never
     /// recomputed client-side).
-    #[serde(default)]
     pub score: Option<f32>,
 }
 
@@ -181,13 +229,48 @@ impl MemoryItem {
     }
 }
 
+/// The raw wire form of one capsule item, used ONLY for tolerant decode. `kind` is a free-form String
+/// here (matching the real backend's free-form `memory_class`) so an unknown/future class does NOT fail
+/// the serde decode of the whole capsule; the conversion to a typed [`MemoryItem`] in
+/// [`MemoryPack`]'s items deserializer drops (and logs) any item whose class is not one of the three
+/// rendered [`MemoryKind`]s (must_fix #2).
+#[derive(Debug, Clone, Deserialize)]
+struct RawMemoryItem {
+    id: String,
+    kind: String,
+    summary: String,
+    #[serde(default)]
+    source: MemorySource,
+    #[serde(default)]
+    score: Option<f32>,
+}
+
+impl RawMemoryItem {
+    /// Convert to a typed [`MemoryItem`], or `None` if the wire `kind` is not one of the three rendered
+    /// kinds (an unknown/future class — e.g. the backend's `"working"`). `None` items are skipped + logged
+    /// by the caller rather than failing the whole capsule decode.
+    fn into_typed(self) -> Option<MemoryItem> {
+        let kind = MemoryKind::from_wire(&self.kind)?;
+        Some(MemoryItem {
+            id: self.id,
+            kind,
+            summary: self.summary,
+            source: self.source,
+            score: self.score,
+        })
+    }
+}
+
 /// The deserialized retrieval capsule (the Pillar 12 MemoryPack). `token_estimate` is ADVISORY metadata
 /// surfaced by the client (never recomputed); `truncated` is `true` if the client clamped the item list
 /// to [`MEMORY_PACK_MAX_ITEMS`] after decode (or if the server already marked it truncated).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct MemoryPack {
-    /// The capsule items (already clamped to <=24 by [`MemoryClient::fetch_pack`]).
-    #[serde(default)]
+    /// The capsule items (already clamped to <=24 by [`MemoryClient::fetch_pack`]). Decoded via
+    /// [`deserialize_tolerant_items`]: an item whose `kind` is outside the three rendered kinds (an
+    /// unknown/future `memory_class` such as the backend builder's `"working"`) is SKIPPED with a logged
+    /// warning rather than aborting the whole capsule decode (must_fix #2).
+    #[serde(default, deserialize_with = "deserialize_tolerant_items")]
     pub items: Vec<MemoryItem>,
     /// The advisory total token estimate the server reported (<=500 by the Pillar 12 budget). Surfaced
     /// as metadata; the client never recomputes it.
@@ -226,6 +309,35 @@ impl MemoryPack {
             .map(|t| t > MEMORY_PACK_TOKEN_BUDGET)
             .unwrap_or(false)
     }
+}
+
+/// Tolerantly deserialize the capsule item list (must_fix #2). Each item is decoded with `kind` as a
+/// free-form wire String (matching the real backend's free-form `memory_class`); an item whose class is
+/// not one of the three rendered [`MemoryKind`]s (an unknown or future class, e.g. the backend builder's
+/// `"working"`) is SKIPPED with a logged warning rather than aborting the WHOLE capsule decode. This is
+/// the defensive posture the review requires: one unknown-class item must not zero out all relevant
+/// memory. Items that DO map to a known kind are preserved in order.
+fn deserialize_tolerant_items<'de, D>(deserializer: D) -> Result<Vec<MemoryItem>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw: Vec<RawMemoryItem> = Vec::deserialize(deserializer)?;
+    let mut out = Vec::with_capacity(raw.len());
+    for item in raw {
+        let raw_kind = item.kind.clone();
+        let raw_id = item.id.clone();
+        match item.into_typed() {
+            Some(typed) => out.push(typed),
+            None => {
+                tracing::warn!(
+                    item_id = %raw_id,
+                    memory_class = %raw_kind,
+                    "MT-063 FEMS capsule item dropped: unknown memory_class '{raw_kind}' (not episodic/semantic/procedural) — item skipped, capsule decode continues"
+                );
+            }
+        }
+    }
+    Ok(out)
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -667,5 +779,60 @@ mod tests {
         assert_eq!(pack.items_of_kind(MemoryKind::Episodic).count(), 2);
         assert_eq!(pack.items_of_kind(MemoryKind::Procedural).count(), 1);
         assert_eq!(pack.items_of_kind(MemoryKind::Semantic).count(), 0);
+    }
+
+    /// must_fix #2 FLOOR: an unknown `memory_class` (here the backend builder's `"working"` class — see
+    /// `ace/mod.rs:1927,2024,2095`) does NOT hard-fail the whole capsule decode. The unknown-class item
+    /// is SKIPPED (logged) and the three known-kind items still decode. Before this fix, the strict
+    /// 3-variant enum would abort the entire pack with `unknown variant 'working'`, zeroing out ALL
+    /// relevant memory because of one item.
+    #[test]
+    fn unknown_memory_class_is_skipped_not_fatal() {
+        let raw = json!({
+            "context_key": "k",
+            "items": [
+                {"id": "ep", "kind": "episodic", "summary": "ok", "source": {"event_id": "E"}},
+                // A 4th class the real builder emits — must be tolerated (skipped), not a decode error.
+                {"id": "work", "kind": "working", "summary": "scratch", "source": {"event_id": "W"}},
+                {"id": "sem", "kind": "semantic", "summary": "fact", "source": {"uri": "loom://x"}},
+                // A future/unknown class — also tolerated.
+                {"id": "future", "kind": "telemetric", "summary": "future", "source": {"event_id": "F"}}
+            ]
+        });
+        let pack: MemoryPack =
+            serde_json::from_value(raw).expect("must_fix #2: an unknown class must NOT fail decode");
+        assert_eq!(pack.items.len(), 2, "only the two known-kind items survive (working + telemetric dropped)");
+        assert_eq!(pack.items_of_kind(MemoryKind::Episodic).count(), 1);
+        assert_eq!(pack.items_of_kind(MemoryKind::Semantic).count(), 1);
+        // The dropped item ids are gone (no panic, no fatal).
+        assert!(pack.items.iter().all(|i| i.id != "work" && i.id != "future"));
+    }
+
+    /// must_fix #2: a capsule whose items are ALL unknown classes decodes to an EMPTY pack (each item
+    /// skipped + logged), NOT a decode error. The panel then renders the neutral "no relevant memory"
+    /// state rather than the generic error label.
+    #[test]
+    fn all_unknown_classes_decode_to_empty_pack() {
+        let raw = json!({
+            "context_key": "k",
+            "items": [
+                {"id": "w1", "kind": "working", "summary": "a", "source": {"event_id": "E1"}},
+                {"id": "w2", "kind": "working", "summary": "b", "source": {"event_id": "E2"}}
+            ]
+        });
+        let pack: MemoryPack = serde_json::from_value(raw).expect("all-unknown must decode to empty, not fail");
+        assert!(pack.items.is_empty(), "all unknown-class items skipped -> empty pack (neutral state)");
+    }
+
+    /// [`MemoryKind::from_wire`] maps the three rendered kinds and returns `None` for anything else
+    /// (the tolerance primitive the capsule decoder uses).
+    #[test]
+    fn from_wire_maps_known_and_rejects_unknown() {
+        assert_eq!(MemoryKind::from_wire("episodic"), Some(MemoryKind::Episodic));
+        assert_eq!(MemoryKind::from_wire("semantic"), Some(MemoryKind::Semantic));
+        assert_eq!(MemoryKind::from_wire("procedural"), Some(MemoryKind::Procedural));
+        assert_eq!(MemoryKind::from_wire("working"), None, "backend's 4th class is not a rendered kind");
+        assert_eq!(MemoryKind::from_wire("EPISODIC"), None, "wire is lowercase; case-sensitive");
+        assert_eq!(MemoryKind::from_wire(""), None);
     }
 }

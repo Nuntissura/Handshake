@@ -802,4 +802,51 @@ mod tests {
         assert_eq!(reg.accesskit_id(&pid).unwrap(), before, "AccessKit id stable across re-register");
         assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-other"));
     }
+
+    /// WP-KERNEL-012 MT-063 (PT-005 / AC-007 pane-id half): the Relevant Memory pane registers under the
+    /// stable `fems.relevant_memory` id, is retrievable by that id, carries a stable AccessKit node id
+    /// (the swarm address), and binds the active document as its content. Re-registering on a context
+    /// change keeps the SAME AccessKit id so an agent that targeted the pane does not lose its handle.
+    /// This is the proof floor the sibling `registers_outgoing_links_pane_under_stable_id` set one MT
+    /// earlier; MT-063 must not fall below it (the must_fix #1 unwired-registration gap).
+    #[test]
+    fn registers_relevant_memory_pane_under_stable_id() {
+        let mut reg = PaneRegistry::new();
+        let id = register_relevant_memory_pane(&mut reg, "project-1", Some("DOC-active".to_owned()));
+        assert_eq!(id.as_ref(), RELEVANT_MEMORY_PANE_ID);
+        assert_eq!(RELEVANT_MEMORY_PANE_ID, "fems.relevant_memory");
+
+        let pid: PaneId = Arc::from(RELEVANT_MEMORY_PANE_ID);
+        let rec = reg.get(&pid).expect("fems.relevant_memory pane registered");
+        assert_eq!(
+            rec.content_id.as_deref(),
+            Some("DOC-active"),
+            "active document bound as the pane's memory context"
+        );
+        let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
+        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+
+        // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address — the
+        // pane-id half of the AC-007 stable-address claim).
+        let (_nid, akn) = reg
+            .build_accesskit_node(&pid, accesskit::Role::Group)
+            .expect("node built");
+        assert_eq!(
+            akn.author_id(),
+            Some("fems.relevant_memory"),
+            "author_id equals the stable pane id"
+        );
+
+        // Re-register on a document/context change: the AccessKit id is stable across the in-place update
+        // (the re-registration-preserves-handle behavior the doc comment on register_relevant_memory_pane
+        // promises), and the new active document is bound.
+        let before = reg.accesskit_id(&pid).unwrap();
+        register_relevant_memory_pane(&mut reg, "project-1", Some("DOC-other".to_owned()));
+        assert_eq!(
+            reg.accesskit_id(&pid).unwrap(),
+            before,
+            "AccessKit id stable across re-register (handle preserved)"
+        );
+        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-other"));
+    }
 }
