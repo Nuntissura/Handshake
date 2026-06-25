@@ -1175,6 +1175,376 @@ pub fn status_bar_action_for_id(id: &str, state: &StatusBarSegmentState) -> Opti
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-070 (E11 — melt-together click-through): the EDITOR-BODY and CANVAS/LOOM-NODE
+// context menus that bind to the REAL WP-012 editor actions (no placeholders on the required path).
+//
+// This is the MT-070 per-surface layer for the two right-clickable EDITOR surfaces WP-012 added on top
+// of the WP-011 shell: the code-editor BODY and the canvas/loom NODE. Same shape as every MT-020/MT-021
+// surface above — a pure `*_context_items(...)` builder returning the typed item list and a pure
+// `*_action_for_id(...)` mapper turning a confirmed stable id into a typed action enum; builders/mappers
+// hold NO egui state and perform NO mutation (dispatch happens at the wiring site, exactly as the
+// MT-019 primitive's `into_items()`/`show_on` split requires).
+//
+// DISPATCH-ONLY (RISK-070-1/MC-070-1, RISK-070-4/MC-070-4): every required entry resolves to a REAL,
+// already-built editor action — never a placeholder/no-op/TODO. The bindings reuse:
+//   - Rename Symbol    -> the MT-048 code-panel rename action (the SAME `begin_rename` path F2 + the
+//                         existing `code_editor/panel.rs` inline body menu fire), addressed by the
+//                         existing `code_editor::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID`.
+//   - Quick Fix        -> the MT-049 code-actions request+open-menu (the SAME Ctrl+. path), addressed by
+//                         the existing `code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID`.
+//   - Format Selection -> the MT-050 format-selection action, addressed by the existing
+//                         `code_editor::FORMAT_SELECTION_CTX_AUTHOR_ID`.
+//   - Peek/Go-to-Def   -> the MT-008 code-nav go-to-definition (the ONLY backend-touching one, indirect
+//                         via its existing handler), addressed by the existing
+//                         `code_editor::CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID`.
+//   - Create note      -> the MT-057 create-note-from-link intent (`EditorEvent::CreateNote`), which is a
+//                         cross-pane navigation that lands a new note via the MT-070 navigation bus
+//                         (`OpenNote`); addressed by a stable `ctxmenu-{editor,node}-create-note` id.
+//
+// The required entries are addressed by STABLE AccessKit author_ids reusing the WP-011 / WP-012 id
+// scheme (the existing `code_editor` CTX ids + the contract's `ctxmenu-editor-{action}` /
+// `ctxmenu-node-{action}` scheme); NO parallel id scheme (RISK-070-5/MC-070-5). The MT-019 infra turns
+// each item id into the `ctx-menu.{id}` AccessKit author_id and the menu container/items into
+// Role::Menu / Role::MenuItem nodes (AC-070-9). Because these author_ids are *stable strings already
+// chosen by the owning code-editor MTs*, the `item.id` carried by the typed model IS that exact author
+// id, so a swarm agent addresses the menu entry by the SAME id the inline editor body menu emits.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Surface 11: code-editor body
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Stable ids for the code-editor-body context menu (MT-070). The four code-editor actions reuse the
+/// EXACT author_ids their owning MTs (048/049/050/008) already emit on the code panel's inline body menu
+/// and AccessKit nodes, so the menu-model entry is addressable by the SAME stable id a swarm agent uses
+/// to drive the action directly (no parallel id scheme — RISK-070-5). Create-note follows the contract's
+/// `ctxmenu-editor-{action}` scheme (no pre-existing id for it on the code body).
+pub mod editor_body_ids {
+    /// MT-048 Rename Symbol — the existing code-panel context-menu author_id.
+    pub const RENAME_SYMBOL: &str = crate::code_editor::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID;
+    /// MT-049 Quick Fix — the existing code-actions context-menu author_id.
+    pub const QUICK_FIX: &str = crate::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID;
+    /// MT-050 Format Selection — the existing formatting context-menu author_id.
+    pub const FORMAT_SELECTION: &str = crate::code_editor::FORMAT_SELECTION_CTX_AUTHOR_ID;
+    /// MT-008 Peek / Go to Definition — the existing hover go-to-def author_id (the only backend-touching
+    /// action, indirect via its handler).
+    pub const PEEK_DEFINITION: &str = crate::code_editor::CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID;
+    /// MT-057 Create note from link — the contract `ctxmenu-editor-{action}` id (no pre-existing id).
+    pub const CREATE_NOTE_FROM_LINK: &str = "ctxmenu-editor-create-note";
+}
+
+/// The REAL editor action a confirmed code-editor-body menu id maps to. Each variant names a concrete,
+/// already-built WP-012 editor action — there is NO "placeholder" / "todo" variant, so a confirmed
+/// required entry can ONLY map to a live action (the type system enforces the no-dead-handler contract,
+/// AC-070-5). The wiring site dispatches the matching action:
+/// - `RenameSymbol`/`QuickFix`/`FormatSelection`/`PeekDefinition` fire the code panel's existing action
+///   (the SAME path F2 / Ctrl+. / the format menu / F12 use) via the code panel handle, and
+/// - `CreateNoteFromLink` emits the MT-057 `EditorEvent::CreateNote` intent + a `NavigationTarget`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorBodyMenuAction {
+    /// MT-048: rename the symbol under the cursor (the code panel's `begin_rename` path).
+    RenameSymbol,
+    /// MT-049: show code actions / quick fixes for the current line (the code panel's quick-fix request).
+    QuickFix,
+    /// MT-050: format the current selection (the code panel's format-selection action).
+    FormatSelection,
+    /// MT-008: peek / go to the definition of the symbol under the cursor (the only backend-touching one).
+    PeekDefinition,
+    /// MT-057: create a note from the link under the cursor (emits the create-note intent + a navigation
+    /// target to the new note).
+    CreateNoteFromLink,
+}
+
+impl EditorBodyMenuAction {
+    /// True iff this action is one of the FOUR code-editor actions AC-070-1 requires on the editor body
+    /// (Rename / Quick Fix / Format Selection / Peek). Create-note is the AC-070-2 entry, tested
+    /// separately, so it is excluded here.
+    pub fn is_required_code_action(self) -> bool {
+        matches!(
+            self,
+            EditorBodyMenuAction::RenameSymbol
+                | EditorBodyMenuAction::QuickFix
+                | EditorBodyMenuAction::FormatSelection
+                | EditorBodyMenuAction::PeekDefinition
+        )
+    }
+}
+
+/// The live availability of each editor-body action for the CURRENT caret/selection. Drives honest
+/// enable/disable: an action with no valid target is rendered DISABLED + disclosed (a disabled entry is
+/// acceptable; a dead-but-ENABLED entry is a FAIL — RISK-070-1). Read fresh from the code panel at
+/// right-click time so a stale snapshot never enables a dead entry (the same fresh-state discipline the
+/// MT-021 Loom/canvas surfaces use).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorBodyAvailability {
+    /// A renameable symbol is under the cursor (else Rename Symbol is disabled — MT note step 3).
+    pub symbol_under_cursor: bool,
+    /// At least one quick fix is available on the caret line (else Quick Fix is disabled).
+    pub quick_fix_available: bool,
+    /// A non-empty selection exists to format (else Format Selection is disabled).
+    pub has_selection: bool,
+    /// A definition can be resolved for the symbol under the cursor (else Peek is disabled).
+    pub definition_available: bool,
+    /// An unresolved `[[link]]` is under the cursor that a note can be created from (else Create-note is
+    /// disabled).
+    pub unresolved_link_under_cursor: bool,
+}
+
+impl Default for EditorBodyAvailability {
+    /// The "nothing actionable" default: every action disabled. A live caret over a symbol/selection/link
+    /// flips the matching flag true.
+    fn default() -> Self {
+        Self {
+            symbol_under_cursor: false,
+            quick_fix_available: false,
+            has_selection: false,
+            definition_available: false,
+            unresolved_link_under_cursor: false,
+        }
+    }
+}
+
+/// Build the code-editor-body context menu for the live `availability`. EVERY required entry is RENDERED
+/// (no fake-drop) and bound to its REAL action id (no placeholder); an action with no valid target for
+/// the current caret/selection is rendered DISABLED + disclosed (RISK-070-1 — a disabled entry is OK, a
+/// dead-but-enabled entry FAILS). The item ids ARE the stable AccessKit author_ids the owning MTs emit,
+/// so the menu-model entry and the inline editor body node share one address (no parallel id scheme,
+/// AC-070-7 / RISK-070-5).
+pub fn editor_body_context_items(availability: EditorBodyAvailability) -> Vec<ContextMenuItem> {
+    let rename = enabled_or(
+        ContextMenuItem::action(editor_body_ids::RENAME_SYMBOL, "Rename Symbol").with_shortcut("F2"),
+        availability.symbol_under_cursor,
+        "No symbol under the cursor to rename",
+    );
+    let quick_fix = enabled_or(
+        ContextMenuItem::action(editor_body_ids::QUICK_FIX, "Quick Fix...").with_shortcut("Ctrl+."),
+        availability.quick_fix_available,
+        "No quick fixes available on this line",
+    );
+    let format_selection = enabled_or(
+        ContextMenuItem::action(editor_body_ids::FORMAT_SELECTION, "Format Selection")
+            .with_shortcut("Ctrl+K Ctrl+F"),
+        availability.has_selection,
+        "Select code first to format a range",
+    );
+    let peek = enabled_or(
+        ContextMenuItem::action(editor_body_ids::PEEK_DEFINITION, "Peek Definition")
+            .with_shortcut("F12"),
+        availability.definition_available,
+        "No definition under the cursor",
+    );
+    let create_note = enabled_or(
+        ContextMenuItem::action(editor_body_ids::CREATE_NOTE_FROM_LINK, "Create note from link"),
+        availability.unresolved_link_under_cursor,
+        "No unresolved [[link]] under the cursor",
+    );
+    ContextMenu::new("editor-body")
+        .item(rename)
+        .item(quick_fix)
+        .item(format_selection)
+        .separator()
+        .item(peek)
+        .separator()
+        .item(create_note)
+        .into_items()
+}
+
+/// Map a confirmed code-editor-body menu id to its REAL editor action, honoring `availability` (a
+/// disabled entry — no valid target — maps to `None`, the belt-and-braces second line of defence that
+/// also guarantees a dead-but-enabled entry can never reach the action layer, AC-070-5 / MC-070-1).
+/// Every REQUIRED id, when available, maps to a real `EditorBodyMenuAction` — there is no id on the
+/// required path that resolves to a placeholder/no-op.
+pub fn editor_body_action_for_id(
+    id: &str,
+    availability: EditorBodyAvailability,
+) -> Option<EditorBodyMenuAction> {
+    match id {
+        editor_body_ids::RENAME_SYMBOL if availability.symbol_under_cursor => {
+            Some(EditorBodyMenuAction::RenameSymbol)
+        }
+        editor_body_ids::QUICK_FIX if availability.quick_fix_available => {
+            Some(EditorBodyMenuAction::QuickFix)
+        }
+        editor_body_ids::FORMAT_SELECTION if availability.has_selection => {
+            Some(EditorBodyMenuAction::FormatSelection)
+        }
+        editor_body_ids::PEEK_DEFINITION if availability.definition_available => {
+            Some(EditorBodyMenuAction::PeekDefinition)
+        }
+        editor_body_ids::CREATE_NOTE_FROM_LINK if availability.unresolved_link_under_cursor => {
+            Some(EditorBodyMenuAction::CreateNoteFromLink)
+        }
+        _ => None,
+    }
+}
+
+/// The five required code-editor-body entry ids, in menu order, for the no-dead-handler audit (AC-070-5
+/// / MC-070-1). A test walks each one with full availability and asserts it resolves to a real
+/// `EditorBodyMenuAction` — never `None` (a no-op) — and that every required id is one of the stable
+/// reused author_ids (no parallel id scheme).
+pub const EDITOR_BODY_REQUIRED_IDS: &[&str] = &[
+    editor_body_ids::RENAME_SYMBOL,
+    editor_body_ids::QUICK_FIX,
+    editor_body_ids::FORMAT_SELECTION,
+    editor_body_ids::PEEK_DEFINITION,
+    editor_body_ids::CREATE_NOTE_FROM_LINK,
+];
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Surface 12: canvas / loom node (MT-070 editor-node menu)
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Stable ids for the canvas/loom-NODE editor context menu (MT-070). DISTINCT from the MT-021
+/// `loom_ids`/`canvas_ids` surfaces above (those are the WP-011 graph/canvas management menus — pin,
+/// favorite, z-order, …); THIS surface is the MT-070 melt-together NODE menu offering the node-appropriate
+/// subset of EDITOR navigation actions the contract names (Open note / Reveal node / Create note from
+/// link). Ids follow the contract's `ctxmenu-node-{action}` scheme (no parallel id scheme — RISK-070-5).
+pub mod node_menu_ids {
+    /// Open the node's backing note/document (a `NavigationTarget::OpenNote`).
+    pub const OPEN_NOTE: &str = "ctxmenu-node-open-note";
+    /// Reveal/focus the node in its pane (a `NavigationTarget::RevealNode`).
+    pub const REVEAL_NODE: &str = "ctxmenu-node-reveal-node";
+    /// Create a note from the node's link (the SAME MT-057 create-note action the editor body offers).
+    pub const CREATE_NOTE_FROM_LINK: &str = "ctxmenu-node-create-note";
+}
+
+/// The REAL navigation/editor action a confirmed canvas/loom-NODE editor-menu id maps to. Like
+/// [`EditorBodyMenuAction`], there is NO placeholder variant — every variant is a live action: the two
+/// navigation actions dispatch a `NavigationTarget` through the MT-070 navigation bus, and create-note
+/// emits the SAME MT-057 intent the editor body uses (AC-070-4 — each entry resolves to a registered
+/// NavHandler target or the real create-note handler).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeMenuAction {
+    /// Open the node's backing note (`NavigationTarget::OpenNote`).
+    OpenNote,
+    /// Reveal/focus the node in its pane (`NavigationTarget::RevealNode`).
+    RevealNode,
+    /// Create a note from the node's link (the MT-057 create-note action).
+    CreateNoteFromLink,
+}
+
+/// What a canvas/loom node can navigate to, driving honest enable/disable: a node backed by a real
+/// document enables Open note; a node with a stable id enables Reveal node; a node carrying an unresolved
+/// link enables Create-note. Read fresh from the clicked node at right-click time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NodeMenuAvailability {
+    /// The node has a backing note/document to open (else Open note is disabled).
+    pub has_note: bool,
+    /// The node has a stable id to reveal/focus (else Reveal node is disabled).
+    pub has_node_id: bool,
+    /// The node carries an unresolved link a note can be created from (else Create-note is disabled).
+    pub unresolved_link: bool,
+}
+
+/// Build the canvas/loom-NODE editor context menu for the live `availability`. EVERY entry is RENDERED
+/// and bound to its REAL action; an action with no valid target for the node is DISABLED + disclosed
+/// (RISK-070-1). The node menu offers the node-appropriate SUBSET (Open note / Reveal node / Create note
+/// from link) the contract names.
+pub fn node_context_items(availability: NodeMenuAvailability) -> Vec<ContextMenuItem> {
+    let open_note = enabled_or(
+        ContextMenuItem::action(node_menu_ids::OPEN_NOTE, "Open Note"),
+        availability.has_note,
+        "This node has no backing note to open",
+    );
+    let reveal_node = enabled_or(
+        ContextMenuItem::action(node_menu_ids::REVEAL_NODE, "Reveal Node"),
+        availability.has_node_id,
+        "This node has no stable id to reveal",
+    );
+    let create_note = enabled_or(
+        ContextMenuItem::action(node_menu_ids::CREATE_NOTE_FROM_LINK, "Create note from link"),
+        availability.unresolved_link,
+        "No unresolved link on this node",
+    );
+    ContextMenu::new("editor-node")
+        .item(open_note)
+        .item(reveal_node)
+        .separator()
+        .item(create_note)
+        .into_items()
+}
+
+/// Map a confirmed canvas/loom-NODE editor-menu id to its REAL action, honoring `availability` (a
+/// disabled entry maps to `None`). Every entry, when available, maps to a real `NodeMenuAction` — no id
+/// on this surface resolves to a placeholder (AC-070-4 / MC-070-1).
+pub fn node_action_for_id(id: &str, availability: NodeMenuAvailability) -> Option<NodeMenuAction> {
+    match id {
+        node_menu_ids::OPEN_NOTE if availability.has_note => Some(NodeMenuAction::OpenNote),
+        node_menu_ids::REVEAL_NODE if availability.has_node_id => Some(NodeMenuAction::RevealNode),
+        node_menu_ids::CREATE_NOTE_FROM_LINK if availability.unresolved_link => {
+            Some(NodeMenuAction::CreateNoteFromLink)
+        }
+        _ => None,
+    }
+}
+
+/// The three required canvas/loom-NODE editor-menu ids, in menu order, for the no-dead-handler audit
+/// (AC-070-4 / MC-070-1).
+pub const NODE_MENU_REQUIRED_IDS: &[&str] = &[
+    node_menu_ids::OPEN_NOTE,
+    node_menu_ids::REVEAL_NODE,
+    node_menu_ids::CREATE_NOTE_FROM_LINK,
+];
+
+/// Build the [`crate::navigation_bus::NavigationTarget`] a confirmed node nav action maps to, so a node
+/// menu Open-Note / Reveal-Node activation dispatches through the MT-070 navigation bus to the live pane
+/// by stable id (AC-070-4). `pane_id` is the clicked node's pane; `node_id` is its stable node/block id;
+/// `note_id` is its backing note id (for Open Note). Returns `None` for `CreateNoteFromLink` (which emits
+/// the MT-057 create-note intent rather than navigating an existing target) and for any non-navigation
+/// action.
+pub fn node_navigation_target(
+    action: NodeMenuAction,
+    pane_id: &crate::pane_registry::PaneId,
+    node_id: &str,
+    note_id: Option<&str>,
+) -> Option<crate::navigation_bus::NavigationTarget> {
+    use crate::navigation_bus::NavigationTarget;
+    match action {
+        NodeMenuAction::OpenNote => {
+            note_id.map(|id| NavigationTarget::OpenNote { note_id: id.to_owned() })
+        }
+        NodeMenuAction::RevealNode => Some(NavigationTarget::RevealNode {
+            pane_id: pane_id.clone(),
+            node_id: node_id.to_owned(),
+        }),
+        // Create-note is not a navigation to an EXISTING target; the wiring site emits the MT-057
+        // EditorEvent::CreateNote intent and then navigates to the NEW note once it is created.
+        NodeMenuAction::CreateNoteFromLink => None,
+    }
+}
+
+/// Open the code-editor-body context menu on `response` (secondary-click) and return the REAL editor
+/// action a confirmed enabled entry maps to, or `None` (no confirmation this frame, or a disabled entry).
+/// This is the ONE call a code-editor body wires to its right-click: it builds the typed item list for
+/// the live `availability`, renders it through the MT-019 [`ContextMenu::show_on`] primitive (which emits
+/// the Role::Menu container + Role::MenuItem nodes carrying the stable `ctx-menu.{id}` author_ids —
+/// AC-070-9), and maps the confirmed id back to its real action through [`editor_body_action_for_id`]
+/// (so a disabled/dead entry can never fire — AC-070-5). The wiring site then dispatches the returned
+/// action through the code panel (the same path F2 / Ctrl+. / the format menu / F12 use). Reuses the
+/// WP-011 primitive verbatim — NO new menu-rendering infrastructure (AC-070-7 / RISK-070-4).
+pub fn show_editor_body_menu(
+    response: &egui::Response,
+    availability: EditorBodyAvailability,
+) -> Option<EditorBodyMenuAction> {
+    let menu = ContextMenu::new("editor-body").items(editor_body_context_items(availability));
+    let confirmed = menu.show_on(response)?;
+    editor_body_action_for_id(confirmed, availability)
+}
+
+/// Open the canvas/loom-NODE editor context menu on `response` (secondary-click) and return the REAL node
+/// action a confirmed enabled entry maps to, or `None`. The node-surface twin of
+/// [`show_editor_body_menu`]: same WP-011 primitive, same no-dead-handler mapping (AC-070-4), same
+/// Role::Menu / Role::MenuItem AccessKit emission (AC-070-9).
+pub fn show_node_menu(
+    response: &egui::Response,
+    availability: NodeMenuAvailability,
+) -> Option<NodeMenuAction> {
+    let menu = ContextMenu::new("editor-node").items(node_context_items(availability));
+    let confirmed = menu.show_on(response)?;
+    node_action_for_id(confirmed, availability)
+}
+
 /// Helper: keep `item` enabled, or disable it with `reason` when `enabled` is false. Centralizes the
 /// "render-but-disable when the precondition fails" pattern the MT-021 surfaces share.
 fn enabled_or(item: ContextMenuItem, enabled: bool, reason: &'static str) -> ContextMenuItem {

@@ -70,6 +70,8 @@ pub mod loom_address;
 pub mod loom_search_v2;
 pub mod mcp;
 pub mod module_switcher;
+/// WP-KERNEL-012 MT-070 (E11): the thin NavigationTarget layer over the existing MT-030 ShellNavigator.
+pub mod navigation_bus;
 pub mod pane_header;
 pub mod pane_registry;
 pub mod popout_window;
