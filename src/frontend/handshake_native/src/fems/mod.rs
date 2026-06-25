@@ -40,10 +40,11 @@ pub use relevant_memory_panel::{
 };
 
 pub use memory_proposal::{
-    build_proposal, content_hash_of_selection, fems_class_author_id, proposal_path,
-    register_propose_to_memory_command, submit_proposal, submit_proposal_and_emit,
+    build_proposal, content_hash_of_selection, fems_class_author_id, propose_to_memory_descriptor,
+    proposal_path, register_propose_to_memory_command, submit_proposal, submit_proposal_and_emit,
     HandshakeCoreClient, MemoryClass, MemoryProposalError, MemorySourceProvenance,
     MemoryWriteProposal, ProposalAck, ProposeDialogOutcome, ProposeToMemoryDialog,
     FEMS_CLASS_AUTHOR_PREFIX, FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_COMMAND_LABEL,
-    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, PROPOSE_TO_MEMORY_COMMAND,
+    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_DIALOG_NODE_ID,
+    PROPOSE_TO_MEMORY_COMMAND,
 };

@@ -44,7 +44,8 @@ use handshake_native::event_emitter::{
 use handshake_native::fems::memory_proposal::{
     content_hash_of_selection, fems_class_author_id, submit_proposal, submit_proposal_and_emit,
     HandshakeCoreClient, MemoryClass, MemoryProposalError, ProposeToMemoryDialog,
-    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+    FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+    FEMS_PROPOSE_DIALOG_NODE_ID,
 };
 use handshake_native::interop::{EditorSurfaceKind, SharedSelection};
 use handshake_native::theme::HsTheme;
@@ -403,7 +404,18 @@ fn propose_dialog_accesskit_nodes_present() {
         Some("Button"),
         "AC-007: '{FEMS_PROPOSE_CONFIRM_AUTHOR_ID}' must be Role::Button (got {confirm_role:?})"
     );
-    println!("PT-005 AccessKit OK: dialog(Dialog) + 3 class radios(RadioButton) + confirm(Button) present");
+    // RISK-010 / must-fix #5: the dialog author_id appears EXACTLY ONCE in the live tree (a swarm agent
+    // gets a single deterministic match — the prior build emitted a SECOND node with the same author_id).
+    let dialog_node_count = root
+        .children_recursive()
+        .filter(|n| n.accesskit_node().author_id() == Some(FEMS_PROPOSE_DIALOG_AUTHOR_ID))
+        .count();
+    assert_eq!(
+        dialog_node_count, 1,
+        "RISK-010: exactly ONE node may carry author_id '{FEMS_PROPOSE_DIALOG_AUTHOR_ID}' \
+         (got {dialog_node_count}) — a duplicate breaks deterministic swarm addressing"
+    );
+    println!("PT-005 AccessKit OK: dialog(Dialog, x1) + 3 class radios(RadioButton) + confirm(Button) present");
 
     // Screenshot to the EXTERNAL root ONLY (best-effort pixel readback).
     if let Ok(image) = harness.render() {
@@ -457,6 +469,64 @@ fn read_no_direct_commit_site() {
         "MC-002/AC-002: review_gated is NEVER set false from the editor"
     );
     println!("MC-001/AC-009 OK: only write path is the proposal POST; no direct-commit, no SQLite; review_gated hard-true");
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-007 / MC-010 — the dialog id is REGISTERED in the WP-011 AccessKit id registry (must-fix #3/#4).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn propose_dialog_id_is_in_declared_identities() {
+    // The dialog ROOT must be enrolled in `accessibility::registry::DECLARED_IDENTITIES` so the
+    // registry's compile-time collision/coverage test covers it (MC-010 de-duplication). Before the
+    // hardening the id was emitted ad-hoc and was NOT in the registry, so a future collision against
+    // `fems-propose-dialog` would have been silent (RISK-010).
+    let entry = handshake_native::accessibility::DECLARED_IDENTITIES
+        .iter()
+        .find(|d| d.author_id == FEMS_PROPOSE_DIALOG_AUTHOR_ID)
+        .unwrap_or_else(|| {
+            panic!(
+                "AC-007/MC-010: '{FEMS_PROPOSE_DIALOG_AUTHOR_ID}' must be registered in \
+                 DECLARED_IDENTITIES so the collision/coverage test covers it"
+            )
+        });
+    assert_eq!(
+        entry.node_id, FEMS_PROPOSE_DIALOG_NODE_ID,
+        "the registry entry's NodeId must match the module's fixed dialog NodeId (single source of truth)"
+    );
+    println!(
+        "AC-007/MC-010 OK: '{FEMS_PROPOSE_DIALOG_AUTHOR_ID}' (NodeId {FEMS_PROPOSE_DIALOG_NODE_ID}) is registry-declared"
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-006 — the palette command has a REAL dispatch arm (must-fix #2): the enabled catalog row is not a
+// silent no-op. Source-level proof that `dispatch_palette_action` matches the command id (the absence of
+// this arm was exactly how the dead-row slipped through) + that it opens the dialog over the selection.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn palette_command_has_real_dispatch_arm() {
+    let app_src = std::fs::read_to_string("src/app.rs").expect("read app.rs");
+    // The dispatch arm matches the command id (by the const, not a string literal) and opens the dialog.
+    assert!(
+        app_src.contains("memory_proposal::FEMS_PROPOSE_COMMAND_ID =>"),
+        "AC-006/must-fix #2: dispatch_palette_action must have a match arm for the Propose-to-Memory \
+         command id (an enabled catalog row with no dispatch arm is a silent no-op)"
+    );
+    assert!(
+        app_src.contains("ProposeToMemoryDialog::open")
+            && app_src.contains("register_propose_to_memory_command"),
+        "must-fix #2: the dispatch arm opens the dialog over the live selection AND registers the \
+         runtime command (wiring register_propose_to_memory_command to a live call site)"
+    );
+    assert!(
+        app_src.contains("self.drive_propose_to_memory(ctx)"),
+        "must-fix #2: the open dialog is rendered each frame (a visible result, not a no-op)"
+    );
+    // Sanity: the command id const is the addressable id a swarm agent dispatches.
+    assert_eq!(FEMS_PROPOSE_COMMAND_ID, "fems.propose_to_memory");
+    println!("AC-006 OK: real dispatch arm opens the dialog + registers the runtime command (no dead row)");
 }
 
 // ── kittest AccessKit dump helpers ────────────────────────────────────────────────────────────────

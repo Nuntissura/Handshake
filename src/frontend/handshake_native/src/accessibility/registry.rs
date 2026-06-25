@@ -40,6 +40,7 @@ use crate::settings_dialog::{
     SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID,
     SETTINGS_LIST_NODE_ID, SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
 };
+use crate::fems::memory_proposal::{FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_DIALOG_NODE_ID};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
@@ -442,6 +443,21 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: SETTINGS_LIST_AUTHOR_ID,
         node_id: SETTINGS_LIST_NODE_ID,
+    },
+    // WP-KERNEL-012 MT-064 FEMS "Propose to Memory" dialog ROOT (Role::Dialog, modal), fresh band slot
+    // 25: above the settings band (17..=19) / chrome (20..=21) / search-rail band (22..=24), below the
+    // dividers (30..=31) and the pane id base (100). The dialog renders ONLY while the proposal dialog is
+    // open (closed by default), so the default-seed live tree never contains it (like the palette /
+    // switcher / settings overlay nodes); the collision test still covers its fixed id here so it can
+    // never overlap any other declared identity (RISK-010, MC-010, AC-007). The three class RADIOS
+    // (fems-class-{episodic|semantic|procedural}, Role::RadioButton) + the confirm BUTTON
+    // (fems-propose-confirm, Role::Button) are NON-container controls addressed by their stable author_id
+    // STRING in egui's hashed id space (the same pattern as the settings-dialog form controls / palette
+    // command rows / palette Close button), so they are not enumerated here — only the fixed dialog ROOT
+    // id is. The single source of truth for the id + author_id is `fems::memory_proposal`.
+    DeclaredIdentity {
+        author_id: FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        node_id: FEMS_PROPOSE_DIALOG_NODE_ID,
     },
     // MT-022 bottom search rail fixed CONTROLS, fresh band 22..=24: above the theme toggle (10) /
     // command-palette (11..=13) / quick-switcher (14..=16) / settings (17..=19) / chrome (20..=21)

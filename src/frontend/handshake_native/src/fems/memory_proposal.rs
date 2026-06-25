@@ -91,6 +91,22 @@ pub const FEMS_PROPOSE_CONFIRM_AUTHOR_ID: &str = "fems-propose-confirm";
 /// `Role::RadioButton`). The full id is built by [`fems_class_author_id`].
 pub const FEMS_CLASS_AUTHOR_PREFIX: &str = "fems-class-";
 
+// ── Fixed AccessKit `NodeId` for the dialog ROOT (the WP-011 registry convention — AC-007, MC-010) ──
+// Every other shell modal dialog (command_palette/quick_switcher/settings) pins a fixed `NodeId` for its
+// dialog ROOT container and enrolls it in `accessibility::registry::DECLARED_IDENTITIES` so the
+// compile-time collision/coverage test proves the id is globally unique (de-duplicated, RISK-010). The
+// proposal dialog root takes the FRESH band slot 25 (above the MT-022 search-rail band 22..=24, below the
+// divider band 30..=31, strictly below the pane id base 100). A fixed-value `egui::Id`
+// (`from_high_entropy_bits`) yields the same `NodeId` across frames + restarts. The dialog renders ONLY
+// while the proposal dialog is open, so the default-seed live tree never contains it — but the collision
+// test still covers it. The three class RADIOS + the confirm BUTTON are NON-container controls addressed
+// by their stable author_id STRING in egui's HASHED id space (the exact convention the settings-dialog
+// form controls + the palette command rows + the palette Close button use — see registry.rs), so they are
+// NOT enumerated in DECLARED_IDENTITIES; the dialog ROOT is the one fixed-band identity this MT declares.
+
+/// Fixed AccessKit/egui `NodeId` of the proposal dialog root (`Role::Dialog`, modal). Fresh band slot 25.
+pub const FEMS_PROPOSE_DIALOG_NODE_ID: u64 = 25;
+
 /// The dispatch id of the "Propose to Memory" command registered into the WP-011 command registry
 /// (`fems.propose_to_memory`; palette-driven, no keybind — does NOT steal a VS Code binding, RISK-010).
 pub const FEMS_PROPOSE_COMMAND_ID: &str = "fems.propose_to_memory";
@@ -583,78 +599,76 @@ impl ProposeToMemoryDialog {
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> ProposeDialogOutcome {
         let mut outcome = ProposeDialogOutcome::Pending;
 
-        // The dialog root container node (Role::Dialog, modal) addressed by the stable author_id so a
-        // swarm agent can drive the proposal flow deterministically (AC-007).
-        let dialog_id = egui::Id::new(FEMS_PROPOSE_DIALOG_AUTHOR_ID);
-        let dialog_resp = ui
-            .vertical(|ui| {
-                ui.label(
-                    egui::RichText::new(FEMS_PROPOSE_COMMAND_LABEL)
-                        .color(palette.text)
-                        .strong(),
-                );
-                ui.label(
-                    egui::RichText::new(
-                        "Review-gated proposal — the editor never commits memory directly.",
-                    )
-                    .color(palette.text_subtle),
-                );
+        ui.vertical(|ui| {
+            ui.label(
+                egui::RichText::new(FEMS_PROPOSE_COMMAND_LABEL)
+                    .color(palette.text)
+                    .strong(),
+            );
+            ui.label(
+                egui::RichText::new(
+                    "Review-gated proposal — the editor never commits memory directly.",
+                )
+                .color(palette.text_subtle),
+            );
 
-                // Class radios (Episodic default). Each is a Role::RadioButton addressed
-                // fems-class-{class} (AC-007). egui's radio_value already derives the interactive role +
-                // actions; emit_interactive_node adds the stable author_id without overwriting them.
-                ui.horizontal(|ui| {
-                    for class in MemoryClass::ORDER {
-                        let resp = ui.radio_value(&mut self.class, class, class.label());
-                        emit_interactive_node(ui.ctx(), resp.id, &fems_class_author_id(class));
-                    }
-                });
-                // Keep the previewed proposal's class in sync with the radio selection.
-                if self.proposal.class != self.class {
-                    self.set_class(self.class);
+            // Class radios (Episodic default). Each is a Role::RadioButton addressed by the stable
+            // fems-class-{class} author_id (AC-007). egui's radio_value derives the interactive role +
+            // actions; emit_interactive_node adds the stable author_id without overwriting them. Like the
+            // settings-dialog form controls, the radios live in egui's hashed id space (author_id-keyed),
+            // not the fixed registry band.
+            ui.horizontal(|ui| {
+                for class in MemoryClass::ORDER {
+                    let resp = ui.radio_value(&mut self.class, class, class.label());
+                    emit_interactive_node(ui.ctx(), resp.id, &fems_class_author_id(class));
                 }
+            });
+            // Keep the previewed proposal's class in sync with the radio selection.
+            if self.proposal.class != self.class {
+                self.set_class(self.class);
+            }
 
-                // Preview: the selected content + the computed content_hash (short prefix) so the operator
-                // sees exactly what will be proposed.
-                ui.separator();
-                let preview = preview_text(&self.proposal.content);
-                ui.label(egui::RichText::new(preview).color(palette.text));
-                ui.label(
-                    egui::RichText::new(format!(
-                        "hash {} · {}",
-                        short_hash(&self.proposal.source.content_hash),
-                        self.class.label()
-                    ))
-                    .color(palette.text_subtle),
-                );
+            // Preview: the selected content + the computed content_hash (short prefix) so the operator
+            // sees exactly what will be proposed.
+            ui.separator();
+            let preview = preview_text(&self.proposal.content);
+            ui.label(egui::RichText::new(preview).color(palette.text));
+            ui.label(
+                egui::RichText::new(format!(
+                    "hash {} · {}",
+                    short_hash(&self.proposal.source.content_hash),
+                    self.class.label()
+                ))
+                .color(palette.text_subtle),
+            );
 
-                ui.separator();
-                ui.horizontal(|ui| {
-                    // The confirm button (Role::Button) addressed fems-propose-confirm (AC-007).
-                    let confirm = ui.button("Propose");
-                    emit_interactive_node(ui.ctx(), confirm.id, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
-                    if confirm.clicked() {
-                        outcome = ProposeDialogOutcome::Confirmed(Box::new(self.proposal.clone()));
-                    }
-                    if ui.button("Cancel").clicked() {
-                        outcome = ProposeDialogOutcome::Cancelled;
-                    }
-                });
-            })
-            .response;
+            ui.separator();
+            ui.horizontal(|ui| {
+                // The confirm button (Role::Button) addressed by the stable fems-propose-confirm
+                // author_id (AC-007); like the radios it lives in egui's hashed id space.
+                let confirm = ui.button("Propose");
+                emit_interactive_node(ui.ctx(), confirm.id, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
+                if confirm.clicked() {
+                    outcome = ProposeDialogOutcome::Confirmed(Box::new(self.proposal.clone()));
+                }
+                if ui.button("Cancel").clicked() {
+                    outcome = ProposeDialogOutcome::Cancelled;
+                }
+            });
+        });
 
-        // Own the dialog root node (Role::Dialog, modal) on the container's id.
+        // The dialog ROOT node (Role::Dialog, modal) — emitted EXACTLY ONCE on its fixed registry NodeId
+        // (the command_palette::emit_dialog_node precedent). A swarm agent querying the tree by
+        // `fems-propose-dialog` gets exactly ONE match (RISK-010, HBR-SWARM); the previous build emitted a
+        // SECOND node carrying the same author_id, which broke deterministic addressing. The fixed NodeId
+        // is declared in accessibility::registry::DECLARED_IDENTITIES so the collision/coverage test
+        // proves it is globally unique (MC-010).
+        let dialog_id = unsafe { egui::Id::from_high_entropy_bits(FEMS_PROPOSE_DIALOG_NODE_ID) };
         ui.ctx().accesskit_node_builder(dialog_id, |node| {
             node.set_role(egui::accesskit::Role::Dialog);
             node.set_author_id(FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned());
             node.set_label(FEMS_PROPOSE_COMMAND_LABEL.to_owned());
             node.set_modal();
-        });
-        // Attach the dialog author_id node under the rendered container so it is part of the live tree.
-        ui.ctx().accesskit_node_builder(dialog_resp.id, |node| {
-            node.set_author_id(FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned());
-            node.set_role(egui::accesskit::Role::Dialog);
-            node.set_label(FEMS_PROPOSE_COMMAND_LABEL.to_owned());
         });
 
         outcome
@@ -692,23 +706,16 @@ fn short_hash(hash: &str) -> &str {
     }
 }
 
-/// Register the "Propose to Memory" command into the WP-011 command registry's runtime command bus,
-/// reusing the existing [`crate::interop::InteractionBus`] registration API (NO duplicate registry/bus,
-/// RISK-008, MC-008, AC-006). The handler opens the proposal dialog over the live selection; the live
-/// focus→selection→confirm→submit wiring lands at E11/MT-069 (like every other pane), so the handler
-/// here records the open intent on the bus. `emitter` + `client` are cloned into the handler so the
-/// confirm path can submit off-thread without re-entering the bus lock.
-///
-/// This is the WRAP-not-fork registration: the static [`crate::command_registry`] catalog carries the
-/// discoverable palette row ([`PROPOSE_TO_MEMORY_COMMAND`]); this registers the runtime handler on the
-/// same bus the other melt-together commands use.
-pub fn register_propose_to_memory_command(
-    bus: &mut crate::interop::InteractionBus,
-    _emitter: Arc<NativeEditorEventEmitter>,
-    _client: Arc<HandshakeCoreClient>,
-) {
-    use crate::interop::CommandDescriptor;
-    let descriptor = CommandDescriptor {
+/// The runtime [`crate::interop::CommandDescriptor`] for the "Propose to Memory" command. The shell's
+/// palette dispatch arm (`app::dispatch_palette_action`) registers this on the live MT-031
+/// [`crate::interop::InteractionBus`] and then opens the [`ProposeToMemoryDialog`] over the live
+/// `SharedSelection` — the dialog mount IS the visible result the dispatch produces NOW. The handler
+/// here is the bus-side seam: it requests a repaint so the shell's dialog render runs next frame (the
+/// same stage-then-drain split the MT-033 route-to-stage / MT-032 open-document commands use). It
+/// performs NO direct memory write (the only write path is the review-gated proposal POST). Palette-
+/// driven: NO keybind (does not steal a VS Code binding — RISK-010).
+pub fn propose_to_memory_descriptor() -> crate::interop::CommandDescriptor {
+    crate::interop::CommandDescriptor {
         id: FEMS_PROPOSE_COMMAND_ID,
         name: "ProposeToMemory",
         label: FEMS_PROPOSE_COMMAND_LABEL.to_owned(),
@@ -718,24 +725,26 @@ pub fn register_propose_to_memory_command(
             "propose".to_owned(),
             "review".to_owned(),
         ],
-        // Palette-driven: NO keybind (does not steal a VS Code binding — RISK-010).
         keybind: None,
-        // The handler opens the dialog flow at E11/MT-069 over the live selection. It is registered now
-        // so the command is addressable on the bus; the live open/submit wiring is the host's E11 job
-        // (the same deferred-live-wiring shape MT-036's emit call sites use). It must NOT re-enter the
-        // bus lock (the bus is already locked when a handler runs).
-        handler: Arc::new(move |_ctx: &egui::Context, _bus: &mut crate::interop::InteractionBus| {
-            // Open intent: the live dialog mount + off-thread submit lands at E11/MT-069. The command is
-            // registered + addressable now; this handler is the seam the host fills with the live
-            // dialog-open + submit_proposal_and_emit dispatch. It deliberately performs NO direct memory
-            // write (the only write path is the review-gated proposal POST).
-            tracing::debug!(
-                command = FEMS_PROPOSE_COMMAND_ID,
-                "Propose to Memory invoked (dialog mount + off-thread submit lands at E11/MT-069)"
-            );
+        handler: Arc::new(|ctx: &egui::Context, _bus: &mut crate::interop::InteractionBus| {
+            // The shell's dispatch arm opens the dialog over the live selection (the visible result);
+            // this bus-side handler requests a repaint so that render runs. NO direct memory write here.
+            ctx.request_repaint();
         }),
-    };
-    bus.register_command(descriptor);
+    }
+}
+
+/// Register the "Propose to Memory" command into the WP-011 command registry's runtime command bus,
+/// reusing the existing [`crate::interop::InteractionBus`] registration API (NO duplicate registry/bus,
+/// RISK-008, MC-008, AC-006). Idempotent (last registration wins). Called from the shell's palette
+/// dispatch arm (`app::dispatch_palette_action`) — a LIVE call site — so the command is addressable
+/// out-of-process before the dialog opens over the live selection.
+///
+/// This is the WRAP-not-fork registration: the static [`crate::command_registry`] catalog carries the
+/// discoverable palette row ([`PROPOSE_TO_MEMORY_COMMAND`]); this registers the runtime handler on the
+/// same bus the other melt-together commands use.
+pub fn register_propose_to_memory_command(bus: &mut crate::interop::InteractionBus) {
+    bus.register_command(propose_to_memory_descriptor());
 }
 
 #[cfg(test)]
@@ -886,12 +895,19 @@ mod tests {
     }
 
     /// The command descriptor is the WP-011 palette catalog row for 'fems.propose_to_memory', enabled
-    /// and palette-driven (no keybind, RISK-010).
+    /// and palette-driven (no keybind, RISK-010). Asserted against the RUNTIME catalog
+    /// ([`crate::command_registry::all_commands`]) — the actual list the palette + dispatcher read — not
+    /// against the const's own fields (a const-on-assert is optimized out, clippy::assertions_on_constants
+    /// under `-D warnings`); this also proves the row really lives in the shared catalog.
     #[test]
     fn propose_command_descriptor_is_palette_driven() {
-        assert_eq!(PROPOSE_TO_MEMORY_COMMAND.id, "fems.propose_to_memory");
-        assert!(!PROPOSE_TO_MEMORY_COMMAND.disabled);
-        assert_eq!(PROPOSE_TO_MEMORY_COMMAND.label, "Propose to Memory");
+        let row = crate::command_registry::all_commands()
+            .iter()
+            .find(|c| c.id == FEMS_PROPOSE_COMMAND_ID)
+            .expect("AC-006: 'fems.propose_to_memory' is registered in the shared palette catalog");
+        assert!(!row.disabled, "AC-006: the Propose-to-Memory palette row is enabled (runnable)");
+        assert_eq!(row.label, FEMS_PROPOSE_COMMAND_LABEL);
+        assert_eq!(row.kind, crate::command_registry::CommandKind::App);
     }
 
     /// The class radio author ids follow the fems-class-{class} convention.

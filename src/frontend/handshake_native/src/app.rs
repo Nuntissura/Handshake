@@ -360,6 +360,17 @@ pub struct HandshakeApp {
     pending_rename: Option<PendingRename>,
     /// The last explorer-row rename error, surfaced on the rename dialog status row (HBR: visible).
     rename_error: Option<String>,
+    /// WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal): the open "Propose to Memory" dialog, set
+    /// when the `fems.propose_to_memory` palette command dispatches over a live SharedSelection. `Some`
+    /// while the dialog is open; rendered by `drive_propose_to_memory`. Kept as app state (not a
+    /// foreground OS popup) so it is observable + non-intrusive (HBR-QUIET). The live submit
+    /// (POST proposal + FR-EVT-MEM-001 emit) lands at E11/MT-069 — and the proposal WRITE endpoint is
+    /// absent in this build, so confirming surfaces the typed `MissingEndpoint` blocker rather than a
+    /// silent no-op or a direct memory write.
+    pending_memory_proposal: Option<crate::fems::memory_proposal::ProposeToMemoryDialog>,
+    /// The last "Propose to Memory" outcome message (the typed blocker / disclosed-no-runtime note),
+    /// surfaced on the dialog status row so the operator/agent sees a real result, never a silent drop.
+    memory_proposal_status: Option<String>,
     /// MT-021 source-control off-thread client (verified `/source-control/*` endpoints). `None` in the
     /// no-runtime test app (the SCM menu is then a disclosed no-op rather than a panic). Wired so the
     /// production shell can drive stage/unstage/diff/blame off the UI thread (HBR-QUIET) when the native
@@ -869,6 +880,8 @@ impl HandshakeApp {
             rename_cell: Arc::new(Mutex::new(None)),
             pending_rename: None,
             rename_error: None,
+            pending_memory_proposal: None,
+            memory_proposal_status: None,
             source_control_client: Some(crate::backend_client::SourceControlClient::production(
                 rt_handle.clone(),
             )),
@@ -1066,6 +1079,8 @@ impl HandshakeApp {
             rename_cell: Arc::new(Mutex::new(None)),
             pending_rename: None,
             rename_error: None,
+            pending_memory_proposal: None,
+            memory_proposal_status: None,
             // Headless/test shell: no runtime to bridge the SCM/canvas clients onto. A test injects a
             // runtime via `set_runtime_handle` if it wants live calls; without one these stay None.
             source_control_client: None,
@@ -1413,6 +1428,61 @@ impl HandshakeApp {
             "drawer.bottom.toggle" => {
                 self.bottom_drawer_open = !self.bottom_drawer_open;
                 true
+            }
+            crate::fems::memory_proposal::FEMS_PROPOSE_COMMAND_ID => {
+                // WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal): register the runtime handler on
+                // the shared MT-031 InteractionBus (idempotent), read the LIVE SharedSelection, and open
+                // the review-gated "Propose to Memory" dialog over it. This is a REAL dispatch arm that
+                // produces a visible result (the dialog mounts on the live selection), not a silent
+                // `other =>` no-op — exactly the bar the MT-033 route-to-stage arm set. The live
+                // confirm→submit (POST proposal + FR-EVT-MEM-001 emit) lands at E11/MT-069; the proposal
+                // WRITE endpoint is absent in this build, so confirming surfaces the typed `MissingEndpoint`
+                // blocker (never a direct memory write). With no selection the command discloses that
+                // instead of opening an empty dialog.
+                let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                let selection = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    // Register the runtime command on the bus so it is addressable out-of-process
+                    // (WRAP-not-fork; idempotent — last registration wins). The emitter/client the live
+                    // E11 submit needs are wired at the E11 call site; today the dialog-open is the proven,
+                    // visible result.
+                    crate::fems::memory_proposal::register_propose_to_memory_command(bus);
+                    bus.shared_selection().clone()
+                });
+                let Some(selection) = selection else {
+                    return false; // bus contended this frame; a later dispatch re-opens (no-op, no panic).
+                };
+                let workspace_id = self
+                    .left_rail
+                    .project_tree
+                    .workspace_id()
+                    .map(|s| s.to_owned())
+                    .or_else(|| {
+                        let p = self.active_project_id.clone();
+                        (!p.is_empty()).then_some(p)
+                    })
+                    .unwrap_or_default();
+                let actor_id = selection
+                    .pane_id()
+                    .map(|p| crate::event_emitter::native_editor_actor_id(p.as_ref()))
+                    .unwrap_or_else(|| "native_editor_human".to_owned());
+                match crate::fems::memory_proposal::ProposeToMemoryDialog::open(
+                    &selection,
+                    &workspace_id,
+                    &actor_id,
+                ) {
+                    Ok(dialog) => {
+                        self.pending_memory_proposal = Some(dialog);
+                        self.memory_proposal_status = None;
+                        true
+                    }
+                    Err(_no_selection) => {
+                        // No live selection: disclose it on the next dialog-status surface rather than
+                        // opening an empty dialog or fabricating a proposal.
+                        self.memory_proposal_status =
+                            Some("Select text or a block first, then run Propose to Memory.".to_owned());
+                        true
+                    }
+                }
             }
             "interop.route-to-stage" => {
                 // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): dispatch the Route-to-Stage command on the
@@ -3164,6 +3234,86 @@ impl HandshakeApp {
         }
     }
 
+    /// WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal): render the open "Propose to Memory" dialog
+    /// while `pending_memory_proposal` is `Some`. The dialog (built by `fems::memory_proposal`) lets the
+    /// operator pick the memory class, previews the selected content + its loom content_hash, and confirms
+    /// or cancels. Rendered as a non-foreground `egui::Window` (HBR-QUIET — never an OS popup that steals
+    /// focus), the same observable, non-intrusive pattern `drive_rename` uses.
+    ///
+    /// Confirm: the live focus→selection→confirm→submit POST + FR-EVT-MEM-001 emit lands at E11/MT-069, AND
+    /// the proposal WRITE endpoint is absent in this build — so confirming does NOT silently no-op and does
+    /// NOT write memory directly; it surfaces the typed blocker on the status row (the honest live result)
+    /// and closes the dialog. Cancel closes it with no write. A stale `memory_proposal_status` (e.g. the
+    /// no-selection note) is also rendered when no dialog is open so the dispatch result is never lost.
+    fn drive_propose_to_memory(&mut self, ctx: &egui::Context) {
+        let Some(mut dialog) = self.pending_memory_proposal.take() else {
+            // No dialog open: surface a pending status note (e.g. "select text first" / the typed blocker
+            // from the last confirm) in a small non-foreground window with an OK dismiss. Clicking OK
+            // clears the note; otherwise it persists so the operator/agent always sees the dispatch result.
+            if let Some(note) = self.memory_proposal_status.clone() {
+                let palette = self.current_theme.palette();
+                let mut dismissed = false;
+                egui::Window::new("Propose to Memory")
+                    .id(egui::Id::new("fems-propose-status"))
+                    .collapsible(false)
+                    .resizable(false)
+                    .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 48.0))
+                    .show(ctx, |ui| {
+                        ui.colored_label(palette.text_subtle, &note);
+                        if ui.button("OK").clicked() {
+                            dismissed = true;
+                        }
+                    });
+                if dismissed {
+                    self.memory_proposal_status = None;
+                }
+            }
+            return;
+        };
+
+        let palette = self.current_theme.palette();
+        let status_note = self.memory_proposal_status.clone();
+        let mut closed = false;
+        let mut outcome = crate::fems::memory_proposal::ProposeDialogOutcome::Pending;
+        egui::Window::new("Propose to Memory")
+            .id(egui::Id::new("fems-propose-to-memory-dialog"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .show(ctx, |ui| {
+                outcome = dialog.show(ui, &palette);
+                if let Some(status) = &status_note {
+                    ui.separator();
+                    ui.colored_label(palette.error_text, status);
+                }
+            });
+
+        match outcome {
+            crate::fems::memory_proposal::ProposeDialogOutcome::Confirmed(_proposal) => {
+                // The proposal WRITE endpoint is absent in this build and the live off-thread submit lands
+                // at E11/MT-069. We do NOT fabricate a submit and NEVER write memory directly: surface the
+                // typed blocker as the honest live result and close the dialog.
+                let probed = crate::fems::memory_proposal::proposal_path(
+                    &dialog.proposal.source.workspace_id,
+                );
+                self.memory_proposal_status = Some(format!(
+                    "Proposal endpoint not present in this build (probed {probed}); live submit lands at \
+                     E11/MT-069. Nothing was committed — the editor never writes memory directly."
+                ));
+                closed = true;
+            }
+            crate::fems::memory_proposal::ProposeDialogOutcome::Cancelled => {
+                self.memory_proposal_status = None;
+                closed = true;
+            }
+            crate::fems::memory_proposal::ProposeDialogOutcome::Pending => {}
+        }
+
+        if !closed {
+            self.pending_memory_proposal = Some(dialog);
+        }
+    }
+
     /// A canvas placement at the FRONT of the board gets this `z_index` (top of the stack); the BACK gets
     /// [`CANVAS_Z_BACK`]. The live canvas-board host (future content WP) refines these to the actual
     /// `max+1`/`min-1` of the loaded board; these sentinels are the V1 front/back the menu sends so the
@@ -4492,6 +4642,9 @@ impl HandshakeApp {
         }
         // MT-020 explorer-row rename: drain any delivered PATCH result, then render the rename dialog.
         self.drive_rename(ctx);
+        // MT-064 FEMS "Propose to Memory": render the open proposal dialog (or its status note) — the
+        // visible result of dispatching the `fems.propose_to_memory` palette command over a selection.
+        self.drive_propose_to_memory(ctx);
         // MT-021: drain any delivered SCM / canvas / Loom-node-flag off-thread results into panel state
         // (the network already ran off the UI thread — these just read the delivery cells, HBR-QUIET).
         self.drive_source_control(ctx);
