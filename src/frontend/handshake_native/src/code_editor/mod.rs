@@ -65,8 +65,18 @@ pub mod cursor;
 pub mod diff_editor_panel;
 pub mod diff_engine;
 pub mod editor_view;
+// WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): EOL / indent / encoding / render-whitespace
+// file-metadata model. Pure, egui-free logic over the document text; the per-document STATE hangs off
+// the MT-010 doc model (panel.rs), and the status-bar segments (top_menu_bar.rs) read it. EOL convert
+// is ONE undo step via the panel's whole-buffer `set_text` (the MT-035/050 single-undo pattern).
+pub mod file_meta;
 pub mod find_replace;
 pub mod folding;
+// WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): language-mode detection + per-document
+// override. Strict precedence UserOverride > Shebang > Content > Extension layered ABOVE the MT-001
+// extension-only highlight.rs path; `available_languages()` is sourced from the MT-001 LanguageRegistry
+// so the picker set matches the highlighter. The override slot hangs off the MT-010 doc model (panel.rs).
+pub mod language_mode;
 // WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Document (Alt+Shift+F) + Format Selection. Owns the
 // LSP-TextEdit-to-buffer applier (descending-offset, UTF-16-correct), the single-undo grouping at the
 // panel boundary, the formatter-capability gate, and the menu descriptors. DELEGATES the descending-offset
@@ -171,6 +181,12 @@ pub use lsp_client::{
 pub use gutter::{
     breakpoint_color, diagnostic_tokens_for, DiagnosticSeverity, Gutter, GutterConfig,
     GutterGeometry, GutterMarker, GutterMarkerKind, GutterResponse,
+};
+pub use file_meta::{
+    detect_indent, Encoding, Eol, IndentKind, IndentStyle, RenderWhitespace,
+};
+pub use language_mode::{
+    available_languages, detect_language, DetectionSource, LanguageDetection, LanguageId,
 };
 pub use find_replace::{FindEngine, FindQuery, Match, MAX_PATTERN_LEN};
 pub use formatting::{

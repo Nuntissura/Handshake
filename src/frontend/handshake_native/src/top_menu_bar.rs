@@ -655,6 +655,501 @@ impl MenuBar {
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): editor file-metadata segments.
+//
+// Five interactive, editor-aware segments that bring VS-Code-class file-metadata controls to the
+// shell's status/menu bar: LanguageMode, Eol, Indent, Encoding, RenderWhitespace (left-to-right). They
+// reuse the WP-011 STATUS-BAR SEGMENT rendering pattern (a galley + a fixed-id interactive node + a
+// stable author_id — the same shape `app::status_bar_segment` / `top_menu_bar` menu buttons use; NO new
+// status bar, NO new segment TYPE — RISK-001/MC-001/AC-008) and the WP-011 SEGMENT CONTEXT-MENU infra
+// ([`crate::context_menu`] + [`crate::context_menu_surfaces::status_bar_context_items`]) for the
+// right-click menus. Each segment reads the ACTIVE code document's metadata
+// ([`EditorMetaSegmentState::from_panel`]); when no code-editor document is active the whole cluster
+// HIDES (returns early — RISK-006/AC-005), never stale data.
+//
+// State LIVES on the MT-010 doc model ([`crate::code_editor::panel::CodeEditorPanel`]) — these segments
+// only render it + emit a typed [`EditorSegmentAction`] the host applies back onto that model, so the
+// metadata persists across re-render + re-focus and the MT-001 draw + Tab-key path reads it
+// (RISK-004/MC-004). The segment never mutates the document itself (the same "report the action, the
+// shell applies it" discipline the menu bar uses).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::code_editor::file_meta::{Encoding, Eol, IndentKind, IndentStyle};
+use crate::code_editor::language_mode::{DetectionSource, LanguageId};
+
+/// The five editor-metadata segments, left-to-right in the right cluster. The order is the MT-071
+/// contract order (LanguageMode, Eol, Indent, Encoding, RenderWhitespace).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorSegment {
+    LanguageMode,
+    Eol,
+    Indent,
+    Encoding,
+    RenderWhitespace,
+}
+
+impl EditorSegment {
+    /// The five segments in render order.
+    pub const ALL: [EditorSegment; 5] = [
+        EditorSegment::LanguageMode,
+        EditorSegment::Eol,
+        EditorSegment::Indent,
+        EditorSegment::Encoding,
+        EditorSegment::RenderWhitespace,
+    ];
+
+    /// The stable AccessKit author_id a swarm agent addresses the segment by (the EXACT ids the MT-071
+    /// contract names: `status-bar-language-mode` / `-eol` / `-indent` / `-encoding` /
+    /// `-render-whitespace`, each role=Button).
+    pub const fn author_id(self) -> &'static str {
+        match self {
+            EditorSegment::LanguageMode => "status-bar-language-mode",
+            EditorSegment::Eol => "status-bar-eol",
+            EditorSegment::Indent => "status-bar-indent",
+            EditorSegment::Encoding => "status-bar-encoding",
+            EditorSegment::RenderWhitespace => "status-bar-render-whitespace",
+        }
+    }
+
+    /// The stable segment id used by the WP-011 status-bar context-menu state (Copy / Hide / Refresh).
+    const fn segment_id(self) -> &'static str {
+        match self {
+            EditorSegment::LanguageMode => "language-mode",
+            EditorSegment::Eol => "eol",
+            EditorSegment::Indent => "indent",
+            EditorSegment::Encoding => "encoding",
+            EditorSegment::RenderWhitespace => "render-whitespace",
+        }
+    }
+
+    /// The author_id of one picker LIST ITEM (`status-bar-{segment}-item-{value}`, role=ListItem). The
+    /// `value` is the stable id for the option (the language family id, `lf`/`crlf`, the indent key, the
+    /// encoding id, or `on`/`off`).
+    fn item_author_id(self, value: &str) -> String {
+        format!("{}-item-{value}", self.author_id())
+    }
+}
+
+/// A typed action a segment click / picker selection / context-menu confirm produces. The host applies
+/// it to the active [`CodeEditorPanel`](crate::code_editor::panel::CodeEditorPanel) AFTER the picker /
+/// menu closes (so the closure never holds a `&mut` to the doc model). Mirrors the menu bar's
+/// "report the action, the shell applies it" discipline (RISK-004 — the doc model owns the mutation).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EditorSegmentAction {
+    /// Set the user language override to this family id (the picker selection).
+    SetLanguage(LanguageId),
+    /// Convert the document's line endings to this EOL as one undo step.
+    ConvertEol(Eol),
+    /// Set the active indent style (tabs-vs-spaces + size); flips the Tab-key behavior.
+    SetIndent(IndentStyle),
+    /// Reopen the document re-decoded under this encoding (in-process; no backend).
+    ReopenWithEncoding(Encoding),
+    /// Toggle render-whitespace to this value.
+    SetRenderWhitespace(bool),
+    /// Copy the segment's display text to the clipboard (the WP-011 status-bar Copy action).
+    CopySegmentText(String),
+}
+
+/// A read-only snapshot of the active code document's file metadata, built from the live
+/// [`CodeEditorPanel`](crate::code_editor::panel::CodeEditorPanel) each frame. The segments render from
+/// this and never hold a reference to the panel while egui's picker/menu closures borrow `ui`. When the
+/// focused pane is NOT a code editor, the host passes `None` and the whole cluster hides (AC-005).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditorMetaSegmentState {
+    /// The resolved language label (e.g. `Rust`) + its detection source (drives the `(override)`/`(auto)`
+    /// hint).
+    pub language_label: String,
+    pub language_source: DetectionSource,
+    /// The picker option list (family ids), sourced from the MT-001 registry (AC-001).
+    pub available_languages: Vec<LanguageId>,
+    pub eol: Eol,
+    pub indent: IndentStyle,
+    pub encoding: Encoding,
+    pub render_whitespace: bool,
+}
+
+impl EditorMetaSegmentState {
+    /// Build the snapshot from a live code-editor panel (the MT-010 doc model). Reads the resolved
+    /// language, EOL, indent, encoding, and whitespace flag off the panel — the SINGLE source of truth
+    /// (no parallel store — RISK-004).
+    pub fn from_panel(panel: &crate::code_editor::panel::CodeEditorPanel) -> Self {
+        let detection = panel.resolved_language();
+        Self {
+            language_label: detection.detected.display_label(),
+            language_source: detection.source,
+            available_languages: crate::code_editor::language_mode::available_languages(),
+            eol: panel.eol(),
+            indent: panel.indent_style(),
+            encoding: panel.encoding(),
+            render_whitespace: panel.render_whitespace(),
+        }
+    }
+
+    /// The compact display label for one segment (what the status-bar text shows).
+    fn segment_label(&self, segment: EditorSegment) -> String {
+        match segment {
+            EditorSegment::LanguageMode => {
+                let hint = match self.language_source {
+                    DetectionSource::UserOverride => " (override)",
+                    _ => "",
+                };
+                format!("{}{hint}", self.language_label)
+            }
+            EditorSegment::Eol => self.eol.label().to_owned(),
+            EditorSegment::Indent => self.indent.label(),
+            EditorSegment::Encoding => self.encoding.label().to_owned(),
+            EditorSegment::RenderWhitespace => {
+                if self.render_whitespace {
+                    "Whitespace ✓".to_owned()
+                } else {
+                    "Whitespace".to_owned()
+                }
+            }
+        }
+    }
+}
+
+/// The stateless editor-metadata status-bar segment cluster. Construct from an optional
+/// [`EditorMetaSegmentState`] (None = no code document active -> the cluster HIDES, AC-005) and call
+/// [`show`](EditorStatusSegments::show). The widget reuses the WP-011 segment rendering pattern + the
+/// WP-011 context-menu infra; it introduces NO new status bar and NO new segment type (AC-008).
+pub struct EditorStatusSegments {
+    state: Option<EditorMetaSegmentState>,
+}
+
+impl EditorStatusSegments {
+    /// Build the per-frame cluster. `state == None` hides every segment (no code-editor document
+    /// active).
+    pub fn new(state: Option<EditorMetaSegmentState>) -> Self {
+        Self { state }
+    }
+
+    /// Render the five segments left-to-right and return the typed action the user triggered this frame
+    /// (`None` if nothing fired or no code document is active). When `state` is `None`, renders NOTHING
+    /// (returns early — RISK-006/AC-005), so the bar carries no stale editor metadata when a non-code
+    /// pane is focused.
+    pub fn show(&self, ui: &mut egui::Ui) -> Option<EditorSegmentAction> {
+        let state = self.state.as_ref()?; // hide all five when no code-editor document is active.
+        let mut action: Option<EditorSegmentAction> = None;
+        // Render in the contract order; a separator between segments mirrors the WP-011 segment styling.
+        // Each segment owns its own `Popup::menu(&response)` picker (the WP-011 segment pattern); no outer
+        // `MenuBar` wrapper is needed (the pickers are independent per-segment popups, like the WP-011
+        // status-bar segment context menus, not a shared menu-bar row).
+        for (idx, segment) in EditorSegment::ALL.iter().enumerate() {
+            if idx > 0 {
+                ui.separator();
+            }
+            self.segment(ui, *segment, state, &mut action);
+        }
+        action
+    }
+
+    /// Render ONE segment as a WP-011-style status-bar segment: a galley + an interactive node carrying
+    /// the stable author_id (`Role::Button`), a LEFT-click picker/toggle, and a RIGHT-click context menu
+    /// (the WP-011 segment context-menu infra). Accumulates the typed action into `action`.
+    fn segment(
+        &self,
+        ui: &mut egui::Ui,
+        segment: EditorSegment,
+        state: &EditorMetaSegmentState,
+        action: &mut Option<EditorSegmentAction>,
+    ) {
+        let label = state.segment_label(segment);
+
+        if matches!(segment, EditorSegment::RenderWhitespace) {
+            // RenderWhitespace is a DIRECT toggle (no picker): a plain clickable segment button.
+            let response = ui.add(egui::Button::new(&label).frame(false));
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
+            });
+            Self::name_segment_node(ui, response.id, segment.author_id(), &label);
+            if response.clicked() {
+                *action = Some(EditorSegmentAction::SetRenderWhitespace(!state.render_whitespace));
+            }
+            // RIGHT-click context menu (WP-011 infra + the toggle quick action).
+            if let Some(menu_action) = self.segment_context_menu(segment, state, &response) {
+                *action = Some(menu_action);
+            }
+            return;
+        }
+
+        // The other four segments open a PICKER on LEFT-click, built with the EXACT WP-011 `MenuBar::menu`
+        // pattern: a galley-sized rect + `ui.interact(..., Sense::click())` (so the ONE interactive node
+        // carries the stable author_id) + `egui::Popup::menu(&response)` (egui's own menu primitive — opens
+        // on the segment's primary click, closes on item-click / Escape / click-outside). This is the same
+        // open path the menu-bar buttons use, proven click-driveable out-of-process.
+        let galley = ui.painter().layout_no_wrap(
+            label.clone(),
+            egui::FontId::proportional(12.0),
+            ui.visuals().text_color(),
+        );
+        let pad = egui::vec2(6.0, 3.0);
+        let desired = galley.size() + pad * 2.0;
+        let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
+        let response = ui.interact(
+            rect,
+            ui.id().with(("editor-segment", segment.author_id())),
+            egui::Sense::click(),
+        );
+        if ui.is_rect_visible(rect) {
+            let visuals = ui.style().interact(&response);
+            let popup_open =
+                egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
+            if popup_open || response.hovered() {
+                ui.painter().rect_filled(rect, 3.0, visuals.bg_fill);
+            }
+            let text_pos = egui::pos2(rect.left() + pad.x, rect.center().y - galley.size().y * 0.5);
+            ui.painter().galley(text_pos, galley, visuals.text_color());
+        }
+        response.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
+        });
+        Self::name_segment_node(ui, response.id, segment.author_id(), &label);
+
+        // A STABLE picker popup id derived from the segment author_id (not the auto response id), so a
+        // left-click opens it AND an out-of-process driver / test can open it deterministically via
+        // `Popup::open_id(ctx, EditorStatusSegments::picker_popup_id(segment))` (the same programmatic-open
+        // seam the WP-011 context-menu `request_open` provides).
+        let popup_id = Self::picker_popup_id(segment);
+        if response.clicked() {
+            egui::Popup::open_id(&response.ctx, popup_id);
+        }
+        egui::Popup::menu(&response).id(popup_id).show(|ui| {
+            ui.set_min_width(160.0);
+            // Tag the popup container as a List for the AccessKit dump (the picker is a list of options —
+            // the MT names role=List on the container).
+            let container_id = ui.id();
+            ui.ctx().accesskit_node_builder(container_id, |node| {
+                node.set_role(accesskit::Role::List);
+                node.set_author_id(format!("{}-picker", segment.author_id()));
+            });
+            self.picker_rows(ui, segment, state, action);
+        });
+
+        // RIGHT-click context menu: the WP-011 status-bar segment menu (Copy / Hide / Open Panel /
+        // Refresh) PLUS the segment-specific quick actions (e.g. Convert to LF/CRLF on EOL). Reuses
+        // `context_menu_surfaces::status_bar_context_items` (no hand-rolled menu — AC-008).
+        if let Some(menu_action) = self.segment_context_menu(segment, state, &response) {
+            *action = Some(menu_action);
+        }
+    }
+
+    /// The STABLE egui popup id of a segment's LEFT-click picker, derived from the segment's author_id
+    /// (process-stable, not the per-frame auto response id). A left-click opens it; an out-of-process
+    /// driver or test opens it deterministically via `egui::Popup::open_id(ctx, picker_popup_id(segment))`
+    /// — the programmatic-open seam (mirrors the WP-011 context-menu `request_open`).
+    pub fn picker_popup_id(segment: EditorSegment) -> egui::Id {
+        egui::Id::new(("editor-segment-picker", segment.author_id()))
+    }
+
+    /// Render the picker LIST ROWS for a segment inside the open picker popup. Each row carries
+    /// `status-bar-{segment}-item-{value}` (`Role::ListItem`). A confirmed row sets `action`.
+    fn picker_rows(
+        &self,
+        ui: &mut egui::Ui,
+        segment: EditorSegment,
+        state: &EditorMetaSegmentState,
+        action: &mut Option<EditorSegmentAction>,
+    ) {
+                match segment {
+                    EditorSegment::LanguageMode => {
+                        for lang in &state.available_languages {
+                            let selected = lang.display_label() == state.language_label;
+                            if self.picker_row(ui, segment, lang.as_str(), &lang.display_label(), selected) {
+                                *action = Some(EditorSegmentAction::SetLanguage(lang.clone()));
+                                ui.close();
+                            }
+                        }
+                    }
+                    EditorSegment::Eol => {
+                        for eol in [Eol::Lf, Eol::Crlf] {
+                            let selected = eol == state.eol;
+                            if self.picker_row(ui, segment, eol_value(eol), eol.label(), selected) {
+                                *action = Some(EditorSegmentAction::ConvertEol(eol));
+                                ui.close();
+                            }
+                        }
+                    }
+                    EditorSegment::Indent => {
+                        // Tabs + Spaces 2/4/8 (the VS Code indent picker set).
+                        let tabs = IndentStyle { kind: IndentKind::Tabs, size: state.indent.size.max(1) };
+                        let tab_selected = matches!(state.indent.kind, IndentKind::Tabs);
+                        if self.picker_row(ui, segment, "tabs", "Indent Using Tabs", tab_selected) {
+                            *action = Some(EditorSegmentAction::SetIndent(tabs));
+                            ui.close();
+                        }
+                        for size in [2usize, 4, 8] {
+                            let style = IndentStyle { kind: IndentKind::Spaces, size };
+                            let selected = matches!(state.indent.kind, IndentKind::Spaces)
+                                && state.indent.size == size;
+                            let value = format!("spaces-{size}");
+                            let label = format!("Indent Using {size} Spaces");
+                            if self.picker_row(ui, segment, &value, &label, selected) {
+                                *action = Some(EditorSegmentAction::SetIndent(style));
+                                ui.close();
+                            }
+                        }
+                    }
+                    EditorSegment::Encoding => {
+                        for enc in Encoding::ALL {
+                            let selected = enc == state.encoding;
+                            if self.picker_row(ui, segment, enc.id(), enc.label(), selected) {
+                                *action = Some(EditorSegmentAction::ReopenWithEncoding(enc));
+                                ui.close();
+                            }
+                        }
+                    }
+            EditorSegment::RenderWhitespace => {} // toggle, no picker
+        }
+    }
+
+    /// Render one picker row as a `selectable_label` carrying the stable `status-bar-{segment}-item-{value}`
+    /// author_id (`Role::ListItem`). Returns `true` when clicked this frame.
+    fn picker_row(
+        &self,
+        ui: &mut egui::Ui,
+        segment: EditorSegment,
+        value: &str,
+        label: &str,
+        selected: bool,
+    ) -> bool {
+        let response = ui.selectable_label(selected, label);
+        let author = segment.item_author_id(value);
+        let label_owned = label.to_owned();
+        ui.ctx().accesskit_node_builder(response.id, move |node| {
+            node.set_role(accesskit::Role::ListItem);
+            node.set_author_id(author);
+            node.set_label(label_owned);
+        });
+        response.clicked()
+    }
+
+    /// Build + show the segment's RIGHT-click context menu, reusing the WP-011 status-bar segment items
+    /// (Copy / Hide / Open Panel / Refresh) plus the segment-specific quick actions the MT names
+    /// (Convert to LF/CRLF on EOL; Convert indentation + Change tab size on Indent; Reopen with Encoding
+    /// on Encoding; toggle on RenderWhitespace). Returns the confirmed typed action this frame.
+    fn segment_context_menu(
+        &self,
+        segment: EditorSegment,
+        state: &EditorMetaSegmentState,
+        response: &egui::Response,
+    ) -> Option<EditorSegmentAction> {
+        use crate::context_menu::{ContextMenu, ContextMenuItem};
+        use crate::context_menu_surfaces::{
+            status_bar_action_for_id, status_bar_context_items, statusbar_ids, StatusBarMenuAction,
+            StatusBarSegmentState,
+        };
+
+        let label = state.segment_label(segment);
+        let base_state = StatusBarSegmentState {
+            segment_id: segment.segment_id().to_owned(),
+            segment_label: label.clone(),
+            visible: true,
+            related_panel_name: None,
+        };
+        // Start from the shared WP-011 status-bar items (Copy / Hide / Open Panel / Refresh), then append
+        // the segment-specific quick actions as additional stable-id items in the SAME menu model (no new
+        // menu system — AC-008).
+        let mut menu = ContextMenu::new("statusbar").items(status_bar_context_items(&base_state));
+        match segment {
+            EditorSegment::Eol => {
+                menu = menu
+                    .separator()
+                    .item(ContextMenuItem::action(EOL_CONVERT_LF_ID, "Convert to LF"))
+                    .item(ContextMenuItem::action(EOL_CONVERT_CRLF_ID, "Convert to CRLF"));
+            }
+            EditorSegment::Indent => {
+                menu = menu
+                    .separator()
+                    .item(ContextMenuItem::action(INDENT_TO_TABS_ID, "Convert Indentation to Tabs"))
+                    .item(ContextMenuItem::action(INDENT_TO_SPACES_ID, "Convert Indentation to Spaces"));
+            }
+            EditorSegment::Encoding => {
+                menu = menu
+                    .separator()
+                    .item(ContextMenuItem::action(ENCODING_REOPEN_UTF8_ID, "Reopen with UTF-8"))
+                    .item(ContextMenuItem::action(ENCODING_REOPEN_UTF16LE_ID, "Reopen with UTF-16 LE"));
+            }
+            EditorSegment::RenderWhitespace => {
+                let toggle_label = if state.render_whitespace {
+                    "Hide Whitespace"
+                } else {
+                    "Render Whitespace"
+                };
+                menu = menu
+                    .separator()
+                    .item(ContextMenuItem::action(WHITESPACE_TOGGLE_ID, toggle_label));
+            }
+            EditorSegment::LanguageMode => {} // language change is the left-click picker
+        }
+
+        let confirmed = menu.show_on(response)?;
+        // Segment-specific quick actions first; fall back to the shared status-bar mapping.
+        match confirmed {
+            EOL_CONVERT_LF_ID => Some(EditorSegmentAction::ConvertEol(Eol::Lf)),
+            EOL_CONVERT_CRLF_ID => Some(EditorSegmentAction::ConvertEol(Eol::Crlf)),
+            INDENT_TO_TABS_ID => Some(EditorSegmentAction::SetIndent(IndentStyle {
+                kind: IndentKind::Tabs,
+                size: state.indent.size.max(1),
+            })),
+            INDENT_TO_SPACES_ID => Some(EditorSegmentAction::SetIndent(IndentStyle {
+                kind: IndentKind::Spaces,
+                size: if state.indent.size == 0 { 4 } else { state.indent.size },
+            })),
+            ENCODING_REOPEN_UTF8_ID => Some(EditorSegmentAction::ReopenWithEncoding(Encoding::Utf8)),
+            ENCODING_REOPEN_UTF16LE_ID => {
+                Some(EditorSegmentAction::ReopenWithEncoding(Encoding::Utf16Le))
+            }
+            WHITESPACE_TOGGLE_ID => {
+                Some(EditorSegmentAction::SetRenderWhitespace(!state.render_whitespace))
+            }
+            // The shared status-bar items (Copy / Hide / Refresh): only Copy maps to a doc action here
+            // (Hide/Refresh are status-bar-chrome concerns the host can ignore for these editor segments).
+            statusbar_ids::COPY_SEGMENT => match status_bar_action_for_id(confirmed, &base_state) {
+                Some(StatusBarMenuAction::CopySegment) => {
+                    Some(EditorSegmentAction::CopySegmentText(label))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Attach the stable author_id + `Role::Button` to a segment's live node (the same `name_node`
+    /// pattern the menu leaves use — egui keys node builders by the response id, so this enriches the
+    /// exact node egui emitted). Segments are a fixed-count, count-stable set addressed by their stable
+    /// author_id STRING in egui's hashed id space (the MT-007 dynamic-author_id pattern), so they need no
+    /// fixed-band DECLARED_IDENTITIES entry.
+    fn name_segment_node(ui: &mut egui::Ui, widget_node_id: egui::Id, author_id: &str, label: &str) {
+        let author_id = author_id.to_owned();
+        let label = label.to_owned();
+        ui.ctx().accesskit_node_builder(widget_node_id, move |node| {
+            node.set_role(accesskit::Role::Button);
+            node.set_author_id(author_id);
+            node.set_label(label);
+        });
+    }
+}
+
+/// The stable id (the `value` suffix) for an EOL picker row.
+fn eol_value(eol: Eol) -> &'static str {
+    match eol {
+        Eol::Lf => "lf",
+        Eol::Crlf => "crlf",
+    }
+}
+
+// Stable ids for the MT-071 segment-specific context-menu quick actions (asserted by the segment test
+// so a typo cannot drift between the builder and the dispatcher).
+const EOL_CONVERT_LF_ID: &str = "statusbar.eol.convert_lf";
+const EOL_CONVERT_CRLF_ID: &str = "statusbar.eol.convert_crlf";
+const INDENT_TO_TABS_ID: &str = "statusbar.indent.to_tabs";
+const INDENT_TO_SPACES_ID: &str = "statusbar.indent.to_spaces";
+const ENCODING_REOPEN_UTF8_ID: &str = "statusbar.encoding.reopen_utf8";
+const ENCODING_REOPEN_UTF16LE_ID: &str = "statusbar.encoding.reopen_utf16le";
+const WHITESPACE_TOGGLE_ID: &str = "statusbar.whitespace.toggle";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -834,5 +1329,141 @@ mod tests {
             })
             .count();
         assert_eq!(menu_nodes, 6, "six top-level menu buttons in the live tree");
+    }
+
+    // ── MT-071 editor status-bar segment unit tests ──────────────────────────────────────────────────
+
+    /// The five segment author_ids are exactly the ids the MT-071 contract names (role=Button), in the
+    /// contract order, with no duplicates (MC-001 — the segment identity gate).
+    #[test]
+    fn segment_author_ids_match_the_contract() {
+        let ids: Vec<&str> = EditorSegment::ALL.iter().map(|s| s.author_id()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "status-bar-language-mode",
+                "status-bar-eol",
+                "status-bar-indent",
+                "status-bar-encoding",
+                "status-bar-render-whitespace",
+            ],
+            "segment author_ids + order match the MT-071 contract",
+        );
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), ids.len(), "segment author_ids are unique");
+    }
+
+    /// Picker item author_ids follow the `status-bar-{segment}-item-{value}` scheme the MT names.
+    #[test]
+    fn picker_item_author_ids_follow_the_scheme() {
+        assert_eq!(
+            EditorSegment::LanguageMode.item_author_id("rust"),
+            "status-bar-language-mode-item-rust",
+        );
+        assert_eq!(EditorSegment::Eol.item_author_id("lf"), "status-bar-eol-item-lf");
+        assert_eq!(
+            EditorSegment::Encoding.item_author_id("utf8"),
+            "status-bar-encoding-item-utf8",
+        );
+    }
+
+    /// The segment label reflects the active document metadata, and the language segment shows the
+    /// `(override)` hint only when the source is a user override (so the operator/agent sees provenance).
+    #[test]
+    fn segment_labels_reflect_metadata_and_override_hint() {
+        let auto = EditorMetaSegmentState {
+            language_label: "Rust".to_owned(),
+            language_source: DetectionSource::Extension,
+            available_languages: vec![],
+            eol: Eol::Crlf,
+            indent: IndentStyle { kind: IndentKind::Tabs, size: 4 },
+            encoding: Encoding::Utf8Bom,
+            render_whitespace: false,
+        };
+        assert_eq!(auto.segment_label(EditorSegment::LanguageMode), "Rust");
+        assert_eq!(auto.segment_label(EditorSegment::Eol), "CRLF");
+        assert_eq!(auto.segment_label(EditorSegment::Indent), "Tab Size: 4");
+        assert_eq!(auto.segment_label(EditorSegment::Encoding), "UTF-8 with BOM");
+        assert_eq!(auto.segment_label(EditorSegment::RenderWhitespace), "Whitespace");
+
+        let overridden = EditorMetaSegmentState {
+            language_source: DetectionSource::UserOverride,
+            render_whitespace: true,
+            ..auto
+        };
+        assert_eq!(
+            overridden.segment_label(EditorSegment::LanguageMode),
+            "Rust (override)",
+            "an override shows the provenance hint",
+        );
+        assert_eq!(overridden.segment_label(EditorSegment::RenderWhitespace), "Whitespace ✓");
+    }
+
+    /// The segment-specific context-menu quick-action ids are stable + distinct (a typo gate, MC-001).
+    #[test]
+    fn segment_context_menu_quick_action_ids_are_stable() {
+        let ids = [
+            EOL_CONVERT_LF_ID,
+            EOL_CONVERT_CRLF_ID,
+            INDENT_TO_TABS_ID,
+            INDENT_TO_SPACES_ID,
+            ENCODING_REOPEN_UTF8_ID,
+            ENCODING_REOPEN_UTF16LE_ID,
+            WHITESPACE_TOGGLE_ID,
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for id in ids {
+            assert!(id.starts_with("statusbar."), "quick-action id namespaced: {id}");
+            assert!(seen.insert(id), "quick-action id is unique: {id}");
+        }
+    }
+
+    /// `EditorStatusSegments::show` paints the five segment buttons with their stable author_ids when a
+    /// code document is active, and NOTHING when none is (AC-005).
+    #[test]
+    fn show_paints_five_segments_and_hides_when_none() {
+        use egui_kittest::kittest::NodeT;
+        let state = EditorMetaSegmentState {
+            language_label: "Rust".to_owned(),
+            language_source: DetectionSource::Extension,
+            available_languages: crate::code_editor::language_mode::available_languages(),
+            eol: Eol::Lf,
+            indent: IndentStyle::DEFAULT,
+            encoding: Encoding::Utf8,
+            render_whitespace: false,
+        };
+        let mut shown = egui_kittest::Harness::builder().build_ui(move |ui| {
+            let _ = EditorStatusSegments::new(Some(state.clone())).show(ui);
+        });
+        shown.run();
+        let seg_nodes = shown
+            .root()
+            .children_recursive()
+            .filter(|n| {
+                n.accesskit_node()
+                    .author_id()
+                    .map(|a| a.starts_with("status-bar-"))
+                    .unwrap_or(false)
+            })
+            .count();
+        assert_eq!(seg_nodes, 5, "five editor segments painted when a code document is active");
+
+        let mut hidden = egui_kittest::Harness::builder().build_ui(move |ui| {
+            let _ = EditorStatusSegments::new(None).show(ui);
+        });
+        hidden.run();
+        let hidden_nodes = hidden
+            .root()
+            .children_recursive()
+            .filter(|n| {
+                n.accesskit_node()
+                    .author_id()
+                    .map(|a| a.starts_with("status-bar-"))
+                    .unwrap_or(false)
+            })
+            .count();
+        assert_eq!(hidden_nodes, 0, "no segments painted when no code document is active");
     }
 }

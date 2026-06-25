@@ -886,6 +886,29 @@ pub struct CodeEditorPanel {
     /// false it is a literal tab (RISK-006 / MC-006). Defaults to VS Code's true. Atomic for `&self` reads.
     insert_spaces: std::sync::atomic::AtomicBool,
 
+    // ── MT-071 file-metadata state (status-bar segments: language / EOL / encoding / whitespace) ───
+    //
+    // These hang OFF the doc model (RISK-004/MC-004) so they survive re-render + re-focus and the
+    // MT-001 draw + the language resolver read them. (Indent lives in the existing tab_size/insert_spaces
+    // above, REUSED — the Indent segment drives those.)
+    /// MT-071 the per-document USER language override (the highest-precedence detection layer). `None`
+    /// while the language is auto-detected; `Some(family_id)` once the user picks one from the status-bar
+    /// language picker. Read by [`resolved_language`](Self::resolved_language) (override beats shebang /
+    /// content / extension — RISK-003) and persists across re-render + re-focus (RISK-004).
+    language_override: Mutex<Option<super::language_mode::LanguageId>>,
+    /// MT-071 the document's active line-ending style (LF / CRLF). Seeded from the buffer on build
+    /// ([`Eol::detect`](super::file_meta::Eol::detect)); the status-bar EOL segment + its "Convert to
+    /// LF/CRLF" actions read + set it. Behind a `Mutex` for the same `Sync` reason as the buffer.
+    eol: Mutex<super::file_meta::Eol>,
+    /// MT-071 the document's active text encoding (default UTF-8). The status-bar encoding segment shows
+    /// it and "Reopen with Encoding" re-decodes the on-disk bytes under the chosen encoding through the
+    /// MT-010 load path (no backend call — RISK-005).
+    encoding: Mutex<super::file_meta::Encoding>,
+    /// MT-071 the render-whitespace toggle. `true` makes the MT-001 editor DRAW path render middots for
+    /// spaces + arrows for tabs; the status-bar whitespace segment flips it. Atomic so the `&self` draw
+    /// path / an agent reads it without locking.
+    render_whitespace: std::sync::atomic::AtomicBool,
+
     // ── MT-054 editor chrome: word wrap + bracket match/colorize + indent guides ──────────────────
 
     /// MT-054 the word-wrap configuration (Alt+Z). `enabled == false` by default (the MT-002 baseline
@@ -1248,6 +1271,11 @@ impl CodeEditorPanel {
         // task; the receiver is parked on the panel until the first pump installs it on the controller.
         let (code_action_tx_init, code_action_rx_init) =
             mpsc::channel::<code_actions::CodeActionResult>();
+        // MT-071: detect the document's EOL + indent style from its text on open so the status-bar
+        // segments + the Tab key reflect the file's real metadata from frame 1 (defaults LF / Spaces 4
+        // when ambiguous — MC-007). Pure string analysis, no backend.
+        let detected_eol = super::file_meta::Eol::detect(text);
+        let detected_indent = super::file_meta::detect_indent(text);
         Self {
             buffer: Mutex::new(buffer),
             highlighter: Mutex::new(highlighter),
@@ -1356,8 +1384,22 @@ impl CodeEditorPanel {
             // (insert_spaces=true). The host overrides them from the operator's editor settings via
             // set_indent_settings; the dispatch reads them into a LineEditContext each batch (MC-006).
             pending_line_op_undo: Mutex::new(None),
-            tab_size: AtomicU64::new(4),
-            insert_spaces: std::sync::atomic::AtomicBool::new(true),
+            // MT-071: seed indent from the document so the Indent segment + Tab key reflect the file's
+            // actual style on open (tab-indented file -> Tabs; 4-space file -> Spaces 4), defaulting to
+            // VS Code's Spaces 4 when ambiguous (MC-007). The host may still override via
+            // set_indent_settings; the line-edit dispatch reads these into a LineEditContext each batch.
+            tab_size: AtomicU64::new(detected_indent.size.max(1) as u64),
+            insert_spaces: std::sync::atomic::AtomicBool::new(matches!(
+                detected_indent.kind,
+                super::file_meta::IndentKind::Spaces
+            )),
+            // MT-071 file-metadata: seed EOL from the buffer (LF default — MC-007); language override
+            // none (auto-detect); encoding UTF-8; render-whitespace off. These hang off the doc model so
+            // they survive re-render + re-focus and the language resolver / draw path read them.
+            language_override: Mutex::new(None),
+            eol: Mutex::new(detected_eol),
+            encoding: Mutex::new(super::file_meta::Encoding::default()),
+            render_whitespace: std::sync::atomic::AtomicBool::new(false),
             // MT-054 word wrap: OFF by default so the first render is the MT-002 1:1 baseline
             // (RISK-006 / MC-006). The viewport width is filled in each frame from the live editor-area
             // width before the wrap layout runs.
@@ -3872,6 +3914,161 @@ impl CodeEditorPanel {
         )
     }
 
+    // ── MT-071 file-metadata API (status-bar segments: language / EOL / indent / encoding / whitespace) ──
+
+    /// MT-071: the current indent style as a typed [`IndentStyle`](super::file_meta::IndentStyle),
+    /// derived from the REUSED MT-051 `(tab_size, insert_spaces)` slot (not a parallel store — RISK-004).
+    /// The Indent status-bar segment reads this; "Convert indentation" / "Change tab size" write it back
+    /// via [`set_indent_style`](Self::set_indent_style).
+    pub fn indent_style(&self) -> super::file_meta::IndentStyle {
+        let (size, insert_spaces) = self.indent_settings();
+        let kind = if insert_spaces {
+            super::file_meta::IndentKind::Spaces
+        } else {
+            super::file_meta::IndentKind::Tabs
+        };
+        super::file_meta::IndentStyle { kind, size }
+    }
+
+    /// MT-071: set the active indent style (tabs-vs-spaces + size). Writes the REUSED MT-051 indent slot
+    /// so the Tab key's editing behavior follows immediately (AC-003) — Tabs inserts a literal tab,
+    /// Spaces inserts `size` spaces. No parallel store (RISK-004/MC-004).
+    pub fn set_indent_style(&self, style: super::file_meta::IndentStyle) {
+        let insert_spaces = matches!(style.kind, super::file_meta::IndentKind::Spaces);
+        self.set_indent_settings(style.size, insert_spaces);
+    }
+
+    /// MT-071: the document's active line-ending style (LF / CRLF). The status-bar EOL segment reads it.
+    pub fn eol(&self) -> super::file_meta::Eol {
+        *self.eol.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// MT-071: convert the document's line endings to `target` as EXACTLY ONE undo step
+    /// (RISK-002/MC-002). Rewrites the WHOLE buffer through [`set_text`](Self::set_text) — the same
+    /// whole-buffer replace the MT-035/050 single-undo path uses — and queues ONE `(description, before,
+    /// after)` snapshot into the line-op undo slot the factory render drains into
+    /// `interop_adapter::push_code_edit_undo`, so a single Ctrl+Z reverts the ENTIRE conversion at the
+    /// SAME unified-undo bus boundary every code edit records at (no per-line edits, no parallel undo
+    /// stack). Records the new EOL on the doc model. Returns `true` when the buffer text changed (a no-op
+    /// when the document is already in the target EOL, so re-running is idempotent).
+    pub fn convert_eol(&self, target: super::file_meta::Eol) -> bool {
+        let before = self.buffer().to_string();
+        let after = target.rewrite(&before);
+        *self.eol.lock().unwrap_or_else(|e| e.into_inner()) = target;
+        if after == before {
+            return false;
+        }
+        // ONE whole-buffer replace = one undo step. Queue the before/after snapshot so the factory render
+        // records it as a SINGLE unified-undo entry (the MT-035/051 single-undo bus boundary).
+        *self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some(("Convert Line Endings", before, after.clone()));
+        self.set_text(&after);
+        true
+    }
+
+    /// MT-071: the document's active text encoding (default UTF-8). The status-bar encoding segment
+    /// reads it.
+    pub fn encoding(&self) -> super::file_meta::Encoding {
+        *self.encoding.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// MT-071: re-decode the document's ON-DISK bytes under `encoding` and reload the buffer (the
+    /// "Reopen with Encoding" action). Reads the file at the panel's `file_path` IN-PROCESS, decodes it
+    /// under the chosen encoding ([`Encoding::decode`](super::file_meta::Encoding::decode) — BOM-aware),
+    /// and installs the text via [`set_text`](Self::set_text). NO backend call (RISK-005). Records the
+    /// new encoding on the doc model. Returns `Ok(())` on success, or `Err(message)` when there is no
+    /// file path or the bytes cannot be read — a TYPED outcome the segment surfaces (never a silent
+    /// no-op, never a backend rewrite). The undo records as one whole-buffer entry like any reload.
+    pub fn reopen_with_encoding(
+        &self,
+        encoding: super::file_meta::Encoding,
+    ) -> Result<(), String> {
+        let path = self.file_path();
+        if path.trim().is_empty() {
+            return Err("Reopen with Encoding needs a saved file (this buffer is in-memory)".to_owned());
+        }
+        let bytes = std::fs::read(&path)
+            .map_err(|e| format!("Reopen with Encoding: cannot read {path}: {e}"))?;
+        let text = encoding.decode(&bytes);
+        *self.encoding.lock().unwrap_or_else(|e| e.into_inner()) = encoding;
+        self.set_text(&text);
+        Ok(())
+    }
+
+    /// MT-071: TEST/host seam — set the active encoding WITHOUT a disk reload (records the encoding the
+    /// document was loaded under, e.g. by the MT-010 load path that already decoded the bytes). The
+    /// status-bar segment reads it. Distinct from [`reopen_with_encoding`](Self::reopen_with_encoding),
+    /// which re-reads + re-decodes the file.
+    pub fn set_encoding(&self, encoding: super::file_meta::Encoding) {
+        *self.encoding.lock().unwrap_or_else(|e| e.into_inner()) = encoding;
+    }
+
+    /// MT-071: the per-document user language override, or `None` while auto-detecting.
+    pub fn language_override(&self) -> Option<super::language_mode::LanguageId> {
+        self.language_override.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// MT-071: set (or clear with `None`) the per-document user language override — the highest-precedence
+    /// detection layer (RISK-003). Persists on the doc model across re-render + re-focus (RISK-004), so the
+    /// next [`resolved_language`](Self::resolved_language) reflects it. (Re-highlighting under the new
+    /// grammar is a follow-on once more grammars are bundled; the override is recorded + reported now so
+    /// the status-bar segment + the resolver honor the user's choice — the contract's "override sticks per
+    /// document".)
+    pub fn set_language_override(&self, lang: Option<super::language_mode::LanguageId>) {
+        *self.language_override.lock().unwrap_or_else(|e| e.into_inner()) = lang;
+    }
+
+    /// MT-071: resolve the document's language with the strict precedence `UserOverride > Shebang >
+    /// Content > Extension` (RISK-003), reading the override off the doc model and the shebang/content
+    /// off the live buffer. The status-bar language segment shows
+    /// [`detected.display_label()`](super::language_mode::LanguageId::display_label) + a source hint.
+    pub fn resolved_language(&self) -> super::language_mode::LanguageDetection {
+        let override_id = self.language_override();
+        let full_text = self.buffer().to_string();
+        // The first line is enough for the shebang sniff; cap the bytes so a huge buffer does not copy
+        // its whole head needlessly (the detector only reads the first line of `first_bytes`).
+        let first_bytes: Vec<u8> = full_text.as_bytes().iter().take(256).copied().collect();
+        // The extension layer needs an extension. Prefer the real file path; for an in-memory buffer
+        // (no path) fall back to the panel's grammar `extension` so the extension layer still resolves
+        // (a `.rs` in-memory buffer is still Rust). Synthesize a bare `buffer.<ext>` name the
+        // extension-of helper reads (no filesystem access).
+        let path = self.file_path();
+        let synthesized = if path.trim().is_empty() {
+            if self.extension.is_empty() {
+                String::new()
+            } else {
+                format!("buffer.{}", self.extension)
+            }
+        } else {
+            path
+        };
+        let path_opt = if synthesized.is_empty() { None } else { Some(synthesized.as_str()) };
+        super::language_mode::detect_language(
+            override_id.as_ref(),
+            path_opt,
+            &first_bytes,
+            &full_text,
+        )
+    }
+
+    /// MT-071: whether the render-whitespace toggle is on. The MT-001 editor DRAW path reads this to
+    /// render middots for spaces + arrows for tabs.
+    pub fn render_whitespace(&self) -> bool {
+        self.render_whitespace.load(Ordering::Relaxed)
+    }
+
+    /// MT-071: set the render-whitespace toggle (the status-bar whitespace segment / an agent flips it).
+    pub fn set_render_whitespace(&self, on: bool) {
+        self.render_whitespace.store(on, Ordering::Relaxed);
+    }
+
+    /// MT-071: flip the render-whitespace toggle and return the NEW value (the segment's left-click).
+    pub fn toggle_render_whitespace(&self) -> bool {
+        // `fetch_xor(true)` returns the PREVIOUS value, so the new value is its negation.
+        let prev = self.render_whitespace.fetch_xor(true, Ordering::Relaxed);
+        !prev
+    }
+
     // ── MT-054 word wrap (Alt+Z) — toggle + state ─────────────────────────────────────────────────
 
     /// MT-054: the current word-wrap configuration (for tests / the host / the AccessKit node value).
@@ -6117,6 +6314,15 @@ impl CodeEditorPanel {
             // fragment and carries its indent guides (RISK-007 trivially holds when wrap is off).
             self.paint_chrome_decorations(ui, &geometry, glyph_width, first_buffer_line, end, None);
 
+            // MT-071: when the render-whitespace toggle is ON, overlay middots for spaces + arrows for
+            // tabs in the painted row window (VS Code's "render whitespace" — read from the doc-model
+            // flag the status-bar segment flips). Theme-sourced color (no hex literal); restricted to the
+            // visible window so it stays cheap on a large file. A no-op when the toggle is off (the
+            // baseline render is unchanged).
+            if self.render_whitespace() {
+                self.paint_whitespace_glyphs(ui, &geometry, glyph_width, end, syntax);
+            }
+
             // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
             // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
             // line_height + monospace glyph_width units as the cursor overlay).
@@ -7223,6 +7429,68 @@ impl CodeEditorPanel {
                     egui::pos2(x1, y0 + geometry.line_height),
                 );
                 painter.rect_filled(rect, 0.0, color);
+            }
+        }
+    }
+
+    /// MT-071: paint the render-whitespace glyphs (a middot `·` for each space, an arrow `→` for each
+    /// tab) over the painted rows when the doc-model `render_whitespace` flag is on. Restricted to the
+    /// on-screen buffer window `geometry.first_line..end_line` so it stays cheap on a large file (the
+    /// same window discipline the find-match + cursor overlays use). The glyph color is the theme's
+    /// subtle `punctuation` token (no hex literal — the theme guard), one tone below the code text so the
+    /// markers read as faint guides, not content. Whitespace INSIDE the line (not just leading) is
+    /// marked, matching VS Code's "all" render mode.
+    fn paint_whitespace_glyphs(
+        &self,
+        ui: &egui::Ui,
+        geometry: &RowGeometry,
+        glyph_width: f32,
+        end_line: usize,
+        syntax: &HsSyntaxTokens,
+    ) {
+        let painter = ui.painter();
+        let color = syntax.punctuation;
+        let font = egui::FontId::monospace(MONO_FONT_SIZE);
+        let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
+        let y_for =
+            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
+        // Read only the visible line window (never the whole rope — RISK-003 window discipline).
+        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        for line in geometry.first_line..end_line {
+            let line_text = buffer.slice_to_string(line..line + 1);
+            // Column index in CHARS (the editor's monospace column unit), tracking each glyph.
+            let mut col = 0usize;
+            for ch in line_text.chars() {
+                match ch {
+                    ' ' => {
+                        let center =
+                            egui::pos2(x_for(col) + glyph_width * 0.5, y_for(line) + geometry.line_height * 0.5);
+                        painter.text(
+                            center,
+                            egui::Align2::CENTER_CENTER,
+                            "·",
+                            font.clone(),
+                            color,
+                        );
+                        col += 1;
+                    }
+                    '\t' => {
+                        let center =
+                            egui::pos2(x_for(col) + glyph_width * 0.5, y_for(line) + geometry.line_height * 0.5);
+                        painter.text(
+                            center,
+                            egui::Align2::CENTER_CENTER,
+                            "→",
+                            font.clone(),
+                            color,
+                        );
+                        col += 1;
+                    }
+                    '\n' | '\r' => {} // do not mark the trailing newline
+                    _ => {
+                        col += 1;
+                    }
+                }
             }
         }
     }
