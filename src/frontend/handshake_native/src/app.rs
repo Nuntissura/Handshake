@@ -2978,6 +2978,17 @@ impl HandshakeApp {
         self.workspace_settings.set_chord(action_id, chord.to_owned());
     }
 
+    /// Test helper (MT-072): seed the workspace syntax palette directly so a kittest can render the
+    /// Custom swatch controls (whose author_ids exist only in Custom mode) and assert the section reflects
+    /// the stored palette state.
+    #[doc(hidden)]
+    pub fn set_workspace_syntax_palette_for_test(
+        &mut self,
+        palette: crate::workspace_settings::SyntaxPalette,
+    ) {
+        self.workspace_settings.syntax_palette = palette;
+    }
+
     /// Test helper (MT-018): apply a [`crate::settings_dialog::SettingsOutcome`] directly, the same way
     /// `drive_settings_dialog` does after rendering. A kittest cannot reliably click into an egui
     /// ComboBox popup item across frames, so the wired-change ACs (theme/view-mode) are exercised through
@@ -3086,6 +3097,33 @@ impl HandshakeApp {
                 // here. A future confirmation overlay / agent path triggers `confirm_reset_layout`.
                 self.reset_layout_pending = true;
                 true
+            }
+            // MT-072 editor settings: mutate the corresponding field on workspace_settings and schedule
+            // the SAME debounced PUT every other wired outcome uses (no new save code — AC-009). The new
+            // fields ride the same serialized settings struct.
+            O::EditorPrefsChanged(prefs) => {
+                self.workspace_settings.editor_prefs = prefs;
+                self.schedule_settings_save();
+                true
+            }
+            O::SyntaxPaletteChanged(palette) => {
+                self.workspace_settings.syntax_palette = palette;
+                self.schedule_settings_save();
+                true
+            }
+            O::EditorKeybindingChanged { action_id, chord } => {
+                // Stored in the SEPARATE editor_keybindings list (NOT the WP-011 keybindings map — the
+                // backend deny-unknown-validates that map; RISK-001).
+                self.workspace_settings.set_editor_chord(&action_id, chord);
+                self.schedule_settings_save();
+                true
+            }
+            O::EditorKeybindingReset { action_id } => {
+                if self.workspace_settings.clear_editor_chord(&action_id) {
+                    self.schedule_settings_save();
+                    return true;
+                }
+                false
             }
         }
     }

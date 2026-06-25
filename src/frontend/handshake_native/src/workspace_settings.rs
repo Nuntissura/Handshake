@@ -161,8 +161,363 @@ pub struct Keybinding {
     pub chord: String,
 }
 
-/// The full persisted workspace settings state. Port of the React `WorkspaceSettingsState`.
+// ===========================================================================
+// WP-KERNEL-012 MT-072 — editor-specific settings (EditorPrefs + SyntaxPalette
+// + editor keybinding overrides). These are NEW NESTED FIELDS appended into the
+// SAME WorkspaceSettingsState the WP-011 dialog already serializes through the
+// existing PostgreSQL-backed GET/PUT /workspaces/:id/settings surface. No new
+// persistence system, no SQLite, no new endpoint (AC-009).
+//
+// PERSISTENCE-AUTHORITY NOTE (the load-bearing extensibility question — RISK-001):
+// the backend `validate_workspace_settings_state_shape`
+// (src/backend/handshake_core/src/storage/postgres.rs) inspects ONLY the known
+// top-level keys (`theme`, `custom_theme_tokens`, `keybindings`, `settings`) and
+// NEVER rejects EXTRA top-level keys. So `editor_prefs` and `syntax_palette`,
+// emitted as NEW TOP-LEVEL keys, ride the opaque settings_state JSON through PUT
+// and are stored verbatim in PostgreSQL (verified read-only against the backend
+// validator). The `keybindings` map, however, IS deny-unknown on the backend
+// (its keys MUST equal exactly ["app.quick_switcher.open", "app.command_palette.open"]),
+// so editor keybinding OVERRIDES are kept in a SEPARATE top-level `editor_keybindings`
+// list, NOT written into the shared `keybindings` map — writing them there would
+// hard-fail every PUT for the workspace (RISK-001 realized). See the MT handoff
+// typed blocker for the editor-keybindings-into-shared-map path.
+// ===========================================================================
+
+/// The editor word-wrap mode. Port of the VS Code `editor.wordWrap` setting
+/// (`off` | `on` | `wordWrapColumn`). `BoundedColumn(n)` wraps at a fixed column `n`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WordWrapMode {
+    /// No wrapping (long lines scroll horizontally). Default.
+    Off,
+    /// Wrap at the viewport edge.
+    On,
+    /// Wrap at a fixed column.
+    BoundedColumn(u16),
+}
+
+impl WordWrapMode {
+    /// The default editor wrap mode (Off — VS Code parity).
+    pub const fn default_mode() -> Self {
+        WordWrapMode::Off
+    }
+
+    /// Serialize to the persisted JSON value. `Off`/`On` are strings; `BoundedColumn` is
+    /// `{"boundedColumn": n}` so the column round-trips.
+    pub fn to_json(self) -> Value {
+        match self {
+            WordWrapMode::Off => Value::String("off".to_owned()),
+            WordWrapMode::On => Value::String("on".to_owned()),
+            WordWrapMode::BoundedColumn(n) => {
+                serde_json::json!({ "boundedColumn": n })
+            }
+        }
+    }
+
+    /// Parse from the persisted JSON value; `None` for an unrecognized shape so the caller falls back.
+    pub fn from_json(value: &Value) -> Option<Self> {
+        match value {
+            Value::String(s) => match s.as_str() {
+                "off" => Some(WordWrapMode::Off),
+                "on" => Some(WordWrapMode::On),
+                _ => None,
+            },
+            Value::Object(map) => map
+                .get("boundedColumn")
+                .and_then(Value::as_u64)
+                .map(|n| WordWrapMode::BoundedColumn(n.min(u16::MAX as u64) as u16)),
+            _ => None,
+        }
+    }
+}
+
+/// Whether the code editor draws whitespace glyphs. Port of VS Code `editor.renderWhitespace`
+/// (`none` | `boundary` | `all`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderWhitespaceMode {
+    /// Never draw whitespace glyphs. Default.
+    None,
+    /// Draw whitespace at word boundaries (between words, not inside indentation runs).
+    Boundary,
+    /// Draw every whitespace glyph.
+    All,
+}
+
+impl RenderWhitespaceMode {
+    /// The default render-whitespace mode (None).
+    pub const fn default_mode() -> Self {
+        RenderWhitespaceMode::None
+    }
+
+    /// The persisted string form.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RenderWhitespaceMode::None => "none",
+            RenderWhitespaceMode::Boundary => "boundary",
+            RenderWhitespaceMode::All => "all",
+        }
+    }
+
+    /// Parse the persisted string form; `None` for an unrecognized value.
+    pub fn from_str_opt(value: &str) -> Option<Self> {
+        match value {
+            "none" => Some(RenderWhitespaceMode::None),
+            "boundary" => Some(RenderWhitespaceMode::Boundary),
+            "all" => Some(RenderWhitespaceMode::All),
+            _ => None,
+        }
+    }
+
+    /// Whether this mode draws ANY whitespace glyphs (the boolean the code editor's existing
+    /// `set_render_whitespace` slot consumes — Boundary and All both enable drawing).
+    pub fn draws_whitespace(self) -> bool {
+        !matches!(self, RenderWhitespaceMode::None)
+    }
+}
+
+/// User-configurable editor text preferences, distinct from the UI/chrome appearance the
+/// Appearance section manages. Editor text surfaces read these; the app chrome does NOT.
+///
+/// `editor_font_size` is DELIBERATELY a separate field from the WP-011 chrome/UI font size
+/// (RISK-002 / AC-002): mutating the editor font size MUST NOT resize the app chrome and vice
+/// versa. (The WP-011 shell has no persisted chrome-font field today — chrome uses egui's default
+/// text styles — so "separate field" is satisfied structurally: `editor_font_size` lives ONLY
+/// under `editor_prefs` and feeds ONLY the editor text surfaces.)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EditorPrefs {
+    /// Point size used ONLY by editor text surfaces. Clamped to 6.0..=48.0 by the UI.
+    pub editor_font_size: f32,
+    /// Columns per tab (indent unit). Clamped to 1..=16 by the UI. Default 4.
+    pub tab_size: u8,
+    /// Tabs-vs-spaces: `true` inserts `tab_size` spaces, `false` keeps hard tabs. Default `true`.
+    pub insert_spaces: bool,
+    /// The default editor word-wrap mode. Default `Off`.
+    pub word_wrap: WordWrapMode,
+    /// Whether the code editor draws whitespace glyphs. Default `None`.
+    pub render_whitespace: RenderWhitespaceMode,
+}
+
+impl Default for EditorPrefs {
+    fn default() -> Self {
+        Self {
+            editor_font_size: DEFAULT_EDITOR_FONT_SIZE,
+            tab_size: 4,
+            insert_spaces: true,
+            word_wrap: WordWrapMode::default_mode(),
+            render_whitespace: RenderWhitespaceMode::default_mode(),
+        }
+    }
+}
+
+/// The default editor font point size. Matches the code editor's current `MONO_FONT_SIZE` (13.0)
+/// so a fresh workspace renders editor text at the same size as before this MT.
+pub const DEFAULT_EDITOR_FONT_SIZE: f32 = 13.0;
+
+/// The inclusive editor-font-size clamp range (the UI `DragValue` enforces it; the loader clamps a
+/// stored value too, so a hand-edited out-of-range PostgreSQL row cannot smuggle an invalid size).
+pub const EDITOR_FONT_SIZE_RANGE: std::ops::RangeInclusive<f32> = 6.0..=48.0;
+
+/// The inclusive tab-size clamp range.
+pub const TAB_SIZE_RANGE: std::ops::RangeInclusive<u8> = 1..=16;
+
+impl EditorPrefs {
+    /// Serialize to the persisted JSON object.
+    pub fn to_json(&self) -> Value {
+        serde_json::json!({
+            "editor_font_size": self.editor_font_size,
+            "tab_size": self.tab_size,
+            "insert_spaces": self.insert_spaces,
+            "word_wrap": self.word_wrap.to_json(),
+            "render_whitespace": self.render_whitespace.as_str(),
+        })
+    }
+
+    /// Parse from the persisted JSON value, using `fallback` for any missing/invalid field. A non-object
+    /// or absent `editor_prefs` key yields `fallback` wholesale (AC-006 legacy compat — a WP-011-era row
+    /// has no `editor_prefs` key, so the defaults are used and the dialog opens normally).
+    pub fn from_json(value: Option<&Value>, fallback: &EditorPrefs) -> EditorPrefs {
+        let Some(obj) = value.and_then(Value::as_object) else {
+            return *fallback;
+        };
+        let editor_font_size = obj
+            .get("editor_font_size")
+            .and_then(Value::as_f64)
+            .map(|v| (v as f32).clamp(*EDITOR_FONT_SIZE_RANGE.start(), *EDITOR_FONT_SIZE_RANGE.end()))
+            .unwrap_or(fallback.editor_font_size);
+        let tab_size = obj
+            .get("tab_size")
+            .and_then(Value::as_u64)
+            .map(|v| (v as u8).clamp(*TAB_SIZE_RANGE.start(), *TAB_SIZE_RANGE.end()))
+            .unwrap_or(fallback.tab_size);
+        let insert_spaces = obj
+            .get("insert_spaces")
+            .and_then(Value::as_bool)
+            .unwrap_or(fallback.insert_spaces);
+        let word_wrap = obj
+            .get("word_wrap")
+            .and_then(WordWrapMode::from_json)
+            .unwrap_or(fallback.word_wrap);
+        let render_whitespace = obj
+            .get("render_whitespace")
+            .and_then(Value::as_str)
+            .and_then(RenderWhitespaceMode::from_str_opt)
+            .unwrap_or(fallback.render_whitespace);
+        EditorPrefs {
+            editor_font_size,
+            tab_size,
+            insert_spaces,
+            word_wrap,
+            render_whitespace,
+        }
+    }
+}
+
+/// The syntax color-scheme palette mode. `Custom` exposes a per-scope swatch editor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxPaletteMode {
+    /// The muted built-in palette.
+    Muted,
+    /// The standard (VS-Code-like) built-in palette. Default.
+    Standard,
+    /// User-edited per-scope colors (falling back to Standard for any un-overridden scope).
+    Custom,
+}
+
+impl SyntaxPaletteMode {
+    /// The persisted string form.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SyntaxPaletteMode::Muted => "muted",
+            SyntaxPaletteMode::Standard => "standard",
+            SyntaxPaletteMode::Custom => "custom",
+        }
+    }
+
+    /// Parse the persisted string form; `None` for an unrecognized value.
+    pub fn from_str_opt(value: &str) -> Option<Self> {
+        match value {
+            "muted" => Some(SyntaxPaletteMode::Muted),
+            "standard" => Some(SyntaxPaletteMode::Standard),
+            "custom" => Some(SyntaxPaletteMode::Custom),
+            _ => None,
+        }
+    }
+}
+
+/// The stable string key for a [`crate::code_editor::HighlightScope`] used in the persisted
+/// `syntax_palette.custom` map. A small fixed vocabulary (one per HighlightScope variant) so the
+/// Custom swatch map round-trips through JSON object keys. Mirrors the variant names lowercased.
+pub const SYNTAX_SCOPE_KEYS: &[&str] = &[
+    "keyword", "string", "comment", "number", "function", "type", "operator", "other",
+];
+
+/// The syntax color-scheme palette: the mode plus, for `Custom`, a per-scope sRGBA override map keyed
+/// by [`SYNTAX_SCOPE_KEYS`]. Stored as `[u8; 4]` sRGBA so it round-trips through JSON as a 4-element
+/// array and converts to `egui::Color32` via `Color32::from_rgba_unmultiplied` for live use.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyntaxPalette {
+    /// The active palette mode.
+    pub mode: SyntaxPaletteMode,
+    /// Per-scope sRGBA overrides (only consulted when `mode == Custom`). Keyed by [`SYNTAX_SCOPE_KEYS`].
+    /// Absent scopes fall back to the Standard built-in palette (no missing scope — AC-004).
+    pub custom: std::collections::HashMap<String, [u8; 4]>,
+}
+
+impl Default for SyntaxPalette {
+    fn default() -> Self {
+        Self {
+            mode: SyntaxPaletteMode::Standard,
+            custom: std::collections::HashMap::new(),
+        }
+    }
+}
+
+impl SyntaxPalette {
+    /// The sRGBA override for `scope_key` if the user has set one in Custom mode (always `None` when
+    /// the key is absent — the caller falls back to a built-in palette table).
+    pub fn custom_for(&self, scope_key: &str) -> Option<[u8; 4]> {
+        self.custom.get(scope_key).copied()
+    }
+
+    /// Set (or replace) the Custom override for `scope_key`.
+    pub fn set_custom(&mut self, scope_key: &str, rgba: [u8; 4]) {
+        self.custom.insert(scope_key.to_owned(), rgba);
+    }
+
+    /// Serialize to the persisted JSON object: `{ "mode": "...", "custom": { "keyword": [r,g,b,a], ... } }`.
+    /// Custom entries are emitted in [`SYNTAX_SCOPE_KEYS`] order for deterministic output.
+    pub fn to_json(&self) -> Value {
+        let mut custom = serde_json::Map::new();
+        for key in SYNTAX_SCOPE_KEYS {
+            if let Some(rgba) = self.custom.get(*key) {
+                custom.insert(
+                    (*key).to_owned(),
+                    Value::Array(rgba.iter().map(|c| Value::from(*c)).collect()),
+                );
+            }
+        }
+        serde_json::json!({
+            "mode": self.mode.as_str(),
+            "custom": Value::Object(custom),
+        })
+    }
+
+    /// Parse from the persisted JSON value, using `fallback` for a missing/invalid mode. A non-object or
+    /// absent `syntax_palette` key yields `fallback` wholesale (AC-006 legacy compat). Only well-formed
+    /// `[u8;4]` entries keyed by a known [`SYNTAX_SCOPE_KEYS`] scope are taken into `custom`.
+    pub fn from_json(value: Option<&Value>, fallback: &SyntaxPalette) -> SyntaxPalette {
+        let Some(obj) = value.and_then(Value::as_object) else {
+            return fallback.clone();
+        };
+        let mode = obj
+            .get("mode")
+            .and_then(Value::as_str)
+            .and_then(SyntaxPaletteMode::from_str_opt)
+            .unwrap_or(fallback.mode);
+        let mut custom = std::collections::HashMap::new();
+        if let Some(custom_obj) = obj.get("custom").and_then(Value::as_object) {
+            for key in SYNTAX_SCOPE_KEYS {
+                if let Some(arr) = custom_obj.get(*key).and_then(Value::as_array) {
+                    if arr.len() == 4 {
+                        let mut rgba = [0u8; 4];
+                        let mut ok = true;
+                        for (i, c) in arr.iter().enumerate() {
+                            match c.as_u64() {
+                                Some(v) if v <= 255 => rgba[i] = v as u8,
+                                _ => {
+                                    ok = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if ok {
+                            custom.insert((*key).to_owned(), rgba);
+                        }
+                    }
+                }
+            }
+        }
+        SyntaxPalette { mode, custom }
+    }
+}
+
+/// One editor keybinding OVERRIDE (action id -> chord). Stored in a SEPARATE top-level
+/// `editor_keybindings` list, NOT in the WP-011 `keybindings` map (which the backend validates with a
+/// fixed action-id allowlist — RISK-001). The action id is a code-editor action `name()`
+/// (snake_case, e.g. `"open_find"`) or a rich-editor `command_id()` (e.g. `"toggle_bold"`); the chord
+/// is the human-readable form (`"Ctrl+Shift+P"`). Default-vs-custom is resolved by
+/// "custom if present in this list else the built-in default" (AC-005).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditorKeybinding {
+    /// The editor action id this override is for.
+    pub action_id: String,
+    /// The chord the user bound it to.
+    pub chord: String,
+}
+
+/// The full persisted workspace settings state. Port of the React `WorkspaceSettingsState`.
+///
+/// `PartialEq` only (not `Eq`) since MT-072's [`EditorPrefs::editor_font_size`] is an `f32`.
+#[derive(Debug, Clone, PartialEq)]
 pub struct WorkspaceSettingsState {
     /// Workspace-scoped shell theme (wired: drives `HsTheme`).
     pub theme: WorkspaceTheme,
@@ -172,6 +527,14 @@ pub struct WorkspaceSettingsState {
     pub view_mode: SettingsViewMode,
     /// Whether the Swarm Board opens on launch (wired).
     pub swarm_board_default_open: bool,
+    /// MT-072 editor text preferences (font size, tab size, tabs-vs-spaces, word wrap, whitespace).
+    /// A NEW nested field: rides the SAME serialized struct through the existing PUT/GET surface.
+    pub editor_prefs: EditorPrefs,
+    /// MT-072 syntax color-scheme palette (Muted | Standard | Custom + per-scope overrides).
+    pub syntax_palette: SyntaxPalette,
+    /// MT-072 editor keybinding OVERRIDES (kept SEPARATE from the WP-011 `keybindings` map — the
+    /// backend deny-unknown-validates that map's keys, so editor bindings live here; RISK-001).
+    pub editor_keybindings: Vec<EditorKeybinding>,
 }
 
 impl WorkspaceSettingsState {
@@ -195,6 +558,41 @@ impl WorkspaceSettingsState {
         }
     }
 
+    /// MT-072: the custom editor-keybinding override for `action_id`, if the user has set one. `None`
+    /// means "use the action's built-in default" (default-vs-custom resolution — AC-005).
+    pub fn editor_chord_override(&self, action_id: &str) -> Option<&str> {
+        self.editor_keybindings
+            .iter()
+            .find(|b| b.action_id == action_id)
+            .map(|b| b.chord.as_str())
+    }
+
+    /// MT-072: set (or replace) the editor-keybinding override for `action_id`. Writes into the
+    /// SEPARATE `editor_keybindings` list (NOT the WP-011 `keybindings` map — RISK-001), so the custom
+    /// binding overrides the default for that action without touching the backend-validated map.
+    pub fn set_editor_chord(&mut self, action_id: &str, chord: String) {
+        if let Some(existing) = self
+            .editor_keybindings
+            .iter_mut()
+            .find(|b| b.action_id == action_id)
+        {
+            existing.chord = chord;
+        } else {
+            self.editor_keybindings.push(EditorKeybinding {
+                action_id: action_id.to_owned(),
+                chord,
+            });
+        }
+    }
+
+    /// MT-072: remove the editor-keybinding override for `action_id` (revert to the built-in default).
+    /// Returns `true` if an override was removed.
+    pub fn clear_editor_chord(&mut self, action_id: &str) -> bool {
+        let before = self.editor_keybindings.len();
+        self.editor_keybindings.retain(|b| b.action_id != action_id);
+        self.editor_keybindings.len() != before
+    }
+
     /// Serialize to the backend `settings_state` JSON shape (React `WorkspaceSettingsState` JSON).
     /// `keybindings` is emitted as a JSON object keyed by action id (React parity), `settings` is the
     /// nested object the React schema uses for view_mode + swarm_board_default_open.
@@ -203,6 +601,13 @@ impl WorkspaceSettingsState {
         for binding in &self.keybindings {
             keybindings.insert(binding.action_id.clone(), Value::String(binding.chord.clone()));
         }
+        // MT-072: editor keybinding overrides emit as a separate top-level array (NOT into the
+        // backend-validated `keybindings` map — RISK-001). Each entry is `{action, chord}`.
+        let editor_keybindings: Vec<Value> = self
+            .editor_keybindings
+            .iter()
+            .map(|b| serde_json::json!({ "action": b.action_id, "chord": b.chord }))
+            .collect();
         serde_json::json!({
             "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
             "theme": self.theme.as_str(),
@@ -212,6 +617,11 @@ impl WorkspaceSettingsState {
                 "view_mode": self.view_mode.as_str(),
                 "swarm_board_default_open": self.swarm_board_default_open,
             },
+            // MT-072 NEW top-level keys (the backend stores settings_state as an opaque JSON object and
+            // does NOT reject unknown top-level keys — verified read-only against the backend validator).
+            "editor_prefs": self.editor_prefs.to_json(),
+            "syntax_palette": self.syntax_palette.to_json(),
+            "editor_keybindings": Value::Array(editor_keybindings),
         })
     }
 }
@@ -232,6 +642,11 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
             .collect(),
         view_mode: SettingsViewMode::Nsfw,
         swarm_board_default_open: false,
+        // MT-072 editor settings default to the built-in editor prefs + Standard syntax palette + no
+        // editor keybinding overrides (every editor action keeps its built-in default chord).
+        editor_prefs: EditorPrefs::default(),
+        syntax_palette: SyntaxPalette::default(),
+        editor_keybindings: Vec::new(),
     }
 }
 
@@ -406,11 +821,36 @@ pub fn normalize_workspace_settings_state(
         .and_then(Value::as_bool)
         .unwrap_or(fallback.swarm_board_default_open);
 
+    // MT-072: the three new top-level keys parse with a per-field fallback so a WP-011-era stored
+    // document (which lacks them entirely) deserializes cleanly to the defaults (AC-006 legacy compat —
+    // this is the manual-round-trip analogue of #[serde(default)]; the struct uses an explicit
+    // normalize, not serde-derive, so "absent => fallback" is implemented here per field).
+    let editor_prefs = EditorPrefs::from_json(obj.get("editor_prefs"), &fallback.editor_prefs);
+    let syntax_palette = SyntaxPalette::from_json(obj.get("syntax_palette"), &fallback.syntax_palette);
+    let editor_keybindings = match obj.get("editor_keybindings").and_then(Value::as_array) {
+        Some(arr) => arr
+            .iter()
+            .filter_map(|entry| {
+                let o = entry.as_object()?;
+                let action_id = o.get("action").and_then(Value::as_str)?.to_owned();
+                let chord = o.get("chord").and_then(Value::as_str)?.to_owned();
+                if action_id.is_empty() || chord.is_empty() {
+                    return None;
+                }
+                Some(EditorKeybinding { action_id, chord })
+            })
+            .collect(),
+        None => fallback.editor_keybindings.clone(),
+    };
+
     WorkspaceSettingsState {
         theme,
         keybindings,
         view_mode,
         swarm_board_default_open,
+        editor_prefs,
+        syntax_palette,
+        editor_keybindings,
     }
 }
 
@@ -749,5 +1189,135 @@ mod tests {
         assert_ne!(ABOUT_VERSION, "n/a");
         assert_eq!(ABOUT_VERSION, env!("CARGO_PKG_VERSION"));
         assert_eq!(ABOUT_APP_NAME, "Handshake");
+    }
+
+    // ── MT-072 editor settings serde round-trip + legacy compat (AC-001/002/006/009) ─────────────────
+
+    /// AC-001 (shape side): editor prefs + syntax palette + editor keybindings round-trip through the
+    /// SAME `to_settings_state` / `normalize_workspace_settings_state` path the existing PUT/GET uses.
+    #[test]
+    fn editor_settings_round_trip_through_settings_state_json() {
+        let mut settings = default_workspace_settings_state();
+        settings.editor_prefs = EditorPrefs {
+            editor_font_size: 17.5,
+            tab_size: 8,
+            insert_spaces: false,
+            word_wrap: WordWrapMode::BoundedColumn(100),
+            render_whitespace: RenderWhitespaceMode::All,
+        };
+        settings.syntax_palette = SyntaxPalette {
+            mode: SyntaxPaletteMode::Custom,
+            custom: std::collections::HashMap::from([("keyword".to_owned(), [10, 20, 30, 255])]),
+        };
+        settings.set_editor_chord("code.open_find", "Mod+Alt+F".to_owned());
+        settings.set_editor_chord("rich.toggle_bold", "Mod+Shift+B".to_owned());
+
+        let json = settings.to_settings_state();
+        let back = normalize_workspace_settings_state(&json, &default_workspace_settings_state());
+        assert_eq!(back, settings, "editor settings round-trip through the backend JSON shape");
+
+        // The new fields are NEW TOP-LEVEL keys (NOT inside the backend-validated `keybindings` map).
+        let obj = json.as_object().unwrap();
+        assert!(obj.contains_key("editor_prefs"), "editor_prefs is a top-level key");
+        assert!(obj.contains_key("syntax_palette"), "syntax_palette is a top-level key");
+        assert!(obj.contains_key("editor_keybindings"), "editor_keybindings is a top-level key");
+        // RISK-001 guard: the editor bindings did NOT leak into the backend-validated `keybindings` map.
+        let kb = obj.get("keybindings").and_then(Value::as_object).unwrap();
+        assert!(
+            kb.keys().all(|k| k == "app.quick_switcher.open" || k == "app.command_palette.open"),
+            "the WP-011 keybindings map keeps ONLY the two app actions the backend allows (RISK-001); \
+             editor bindings live in the separate editor_keybindings list, got {:?}",
+            kb.keys().collect::<Vec<_>>()
+        );
+    }
+
+    /// AC-002: `editor_font_size` is a SEPARATE field from the chrome/UI appearance — it lives ONLY under
+    /// `editor_prefs`, and mutating it does not touch the theme (the chrome appearance field). The
+    /// serialized payload proves the two are distinct keys.
+    #[test]
+    fn editor_font_size_is_separate_from_chrome_appearance() {
+        let mut settings = default_workspace_settings_state();
+        let theme_before = settings.theme;
+        settings.editor_prefs.editor_font_size = 28.0;
+
+        // Mutating editor font size left the chrome theme untouched.
+        assert_eq!(settings.theme, theme_before, "editor font size change must not alter chrome theme");
+
+        let json = settings.to_settings_state();
+        let obj = json.as_object().unwrap();
+        // editor_font_size is under editor_prefs, NOT a top-level theme/appearance key.
+        let editor_prefs = obj.get("editor_prefs").and_then(Value::as_object).unwrap();
+        assert!(editor_prefs.contains_key("editor_font_size"));
+        // The top-level appearance key (`theme`) carries NO font size — they are distinct surfaces.
+        assert!(!obj.contains_key("editor_font_size"), "editor font size is NOT a top-level chrome key");
+        assert!(obj.contains_key("theme"), "chrome appearance (theme) is its own top-level key");
+    }
+
+    /// AC-006: a legacy WP-011-era settings document WITHOUT any of the new keys deserializes cleanly to
+    /// the defaults (the manual-normalize analogue of #[serde(default)] — absent => fallback per field).
+    #[test]
+    fn legacy_settings_doc_without_editor_fields_deserializes_to_defaults() {
+        // A WP-011-era blob: valid schema_id + theme + keybindings + settings, but NO editor_prefs /
+        // syntax_palette / editor_keybindings keys at all (exactly what a pre-MT-072 PostgreSQL row holds).
+        let legacy = serde_json::json!({
+            "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
+            "theme": "dark",
+            "custom_theme_tokens": {},
+            "keybindings": {
+                "app.quick_switcher.open": "Mod-p",
+                "app.command_palette.open": "Mod-Shift-p",
+            },
+            "settings": { "view_mode": "NSFW", "swarm_board_default_open": false },
+        });
+        let fallback = default_workspace_settings_state();
+        let got = normalize_workspace_settings_state(&legacy, &fallback);
+
+        // It deserialized without error and the new fields are the DEFAULTS (no panic, no missing key).
+        assert_eq!(got.editor_prefs, EditorPrefs::default(), "legacy doc -> default editor prefs");
+        assert_eq!(got.syntax_palette, SyntaxPalette::default(), "legacy doc -> default syntax palette");
+        assert!(got.editor_keybindings.is_empty(), "legacy doc -> no editor keybinding overrides");
+        // And the existing fields still parsed correctly.
+        assert_eq!(got.theme, WorkspaceTheme::Dark);
+        assert_eq!(got.chord_for("app.quick_switcher.open"), Some("Mod-p"));
+    }
+
+    /// A stored value out of the clamp ranges is clamped on load (a hand-edited PostgreSQL row cannot
+    /// smuggle an invalid font size / tab size into the live editor).
+    #[test]
+    fn out_of_range_stored_editor_prefs_are_clamped_on_load() {
+        let blob = serde_json::json!({
+            "editor_font_size": 999.0,
+            "tab_size": 99,
+            "insert_spaces": true,
+            "word_wrap": "off",
+            "render_whitespace": "none",
+        });
+        let got = EditorPrefs::from_json(Some(&blob), &EditorPrefs::default());
+        assert_eq!(got.editor_font_size, *EDITOR_FONT_SIZE_RANGE.end(), "font size clamped to max");
+        assert_eq!(got.tab_size, *TAB_SIZE_RANGE.end(), "tab size clamped to max");
+    }
+
+    /// `WordWrapMode::BoundedColumn` round-trips its column through JSON.
+    #[test]
+    fn word_wrap_bounded_column_round_trips() {
+        for mode in [
+            WordWrapMode::Off,
+            WordWrapMode::On,
+            WordWrapMode::BoundedColumn(72),
+        ] {
+            let j = mode.to_json();
+            assert_eq!(WordWrapMode::from_json(&j), Some(mode), "wrap mode {mode:?} round-trips");
+        }
+    }
+
+    /// The editor keybinding override is custom-if-present-else-default (AC-005 resolution).
+    #[test]
+    fn editor_chord_override_is_custom_if_present_else_none() {
+        let mut settings = default_workspace_settings_state();
+        assert_eq!(settings.editor_chord_override("code.open_find"), None, "no override => None (default)");
+        settings.set_editor_chord("code.open_find", "Mod+Alt+F".to_owned());
+        assert_eq!(settings.editor_chord_override("code.open_find"), Some("Mod+Alt+F"));
+        assert!(settings.clear_editor_chord("code.open_find"), "clear removes the override");
+        assert_eq!(settings.editor_chord_override("code.open_find"), None, "cleared => back to default");
     }
 }

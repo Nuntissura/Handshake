@@ -110,7 +110,11 @@ pub const SECTION_HEADER_AUTHOR_ID_PREFIX: &str = "settings.section.";
 /// `workspace_settings` / `current_theme` / `view_mode` and persists via `PUT /workspaces/{id}/settings`;
 /// `Close` clears the open flag; `None` leaves the dialog open. At most one outcome per frame (a single
 /// control interaction), so the shell never has to reconcile two simultaneous changes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `PartialEq` only (not `Eq`): the MT-072 [`SettingsOutcome::EditorPrefsChanged`] carries an
+/// [`crate::workspace_settings::EditorPrefs`] whose `editor_font_size` is an `f32`. Every call site
+/// compares with `==` (which `PartialEq` satisfies); no `Eq`-requiring use exists.
+#[derive(Debug, Clone, PartialEq)]
 pub enum SettingsOutcome {
     /// Nothing happened this frame; keep the dialog open.
     None,
@@ -128,6 +132,16 @@ pub enum SettingsOutcome {
     SwarmBoardDefaultOpenChanged(bool),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
+    /// MT-072: the Editor prefs group changed (font/tab/insert-spaces/wrap/whitespace). WIRED — the
+    /// shell stores the new `editor_prefs` and persists via the existing debounced `PUT`.
+    EditorPrefsChanged(crate::workspace_settings::EditorPrefs),
+    /// MT-072: the Syntax palette changed (mode and/or a Custom swatch). WIRED.
+    SyntaxPaletteChanged(crate::workspace_settings::SyntaxPalette),
+    /// MT-072: an editor keybinding override changed to a non-empty chord. WIRED — stored in the
+    /// SEPARATE `editor_keybindings` list (not the WP-011 `keybindings` map — RISK-001).
+    EditorKeybindingChanged { action_id: String, chord: String },
+    /// MT-072: an editor keybinding override was reset to its built-in default (override removed). WIRED.
+    EditorKeybindingReset { action_id: String },
     /// The user dismissed the dialog (Escape, the Close button, or a backdrop click). The shell clears
     /// the open flag.
     Close,
@@ -138,11 +152,19 @@ pub enum SettingsOutcome {
 pub struct SettingsView<'a> {
     /// Monotonic open generation; a new value resets the dialog's transient state.
     pub open_count: u64,
-    /// The live workspace settings (theme, keybindings, view mode, swarm board flag).
+    /// The live workspace settings (theme, keybindings, view mode, swarm board flag, MT-072 editor
+    /// prefs / syntax palette / editor keybindings).
     pub settings: &'a WorkspaceSettingsState,
     /// The last transient persistence error, if any, surfaced on the status row.
     pub persist_error: Option<&'a str>,
 }
+
+/// MT-072: the read-only auto-save interval string surfaced (NOT owned) inside the Editor section so the
+/// editor prefs read as a complete group. WP-011 does NOT persist an auto-save-interval field today (the
+/// MT contract assumed one exists; it does not — see the MT handoff note), so this honest fixed label
+/// states the current build's behavior rather than inventing a new persisted field. The dialog passes it
+/// to the Editor section.
+pub const AUTO_SAVE_INTERVAL_LABEL: &str = "On focus loss / close (not yet interval-configurable)";
 
 /// Transient per-open dialog UI state: the search query + the in-progress draft keybinding text per
 /// action. Stored in egui persistent memory keyed to the dialog id, and RESET when [`open_count`]
@@ -205,6 +227,12 @@ impl DialogState {
             keybindings,
             view_mode: live.view_mode,
             swarm_board_default_open: live.swarm_board_default_open,
+            // MT-072: this snapshot is used ONLY for APP-level keybinding conflict detection; the
+            // editor settings ride along unchanged from the live state so the snapshot stays a faithful
+            // copy of everything the conflict check does not touch.
+            editor_prefs: live.editor_prefs,
+            syntax_palette: live.syntax_palette.clone(),
+            editor_keybindings: live.editor_keybindings.clone(),
         }
     }
 }
@@ -226,6 +254,16 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     let state_id = egui::Id::new("settings.state");
     let mut state: DialogState = ctx
         .data_mut(|d| d.get_temp::<DialogState>(state_id))
+        .unwrap_or_default();
+
+    // MT-072: the editor sections widget (catalog + per-open keybinding-row drafts), persisted in egui
+    // temp memory across frames keyed to the dialog so the row drafts survive between frames and reset on
+    // (re-)open (the `open_count`-keyed reseed lives inside the widget).
+    let editor_section_id = egui::Id::new("settings.editor-section");
+    let mut editor_section: crate::settings_editor_section::EditorSettingsSection = ctx
+        .data_mut(|d| {
+            d.get_temp::<crate::settings_editor_section::EditorSettingsSection>(editor_section_id)
+        })
         .unwrap_or_default();
 
     // Reset transient state on (re-)open: a new open generation clears the query + reseeds drafts from
@@ -366,7 +404,14 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                     .max_height(440.0)
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        outcome = render_sections(ui, &query, &mut state, &view, outcome.clone());
+                        outcome = render_sections(
+                            ui,
+                            &query,
+                            &mut state,
+                            &view,
+                            &mut editor_section,
+                            outcome.clone(),
+                        );
                     });
             });
             emit_list_node(ui.ctx(), list_egui_id);
@@ -377,6 +422,8 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     emit_dialog_node(ctx, dialog_egui_id);
 
     persist(ctx, state_id, &state);
+    // MT-072: store the editor section (with its updated keybinding-row drafts) back to temp memory.
+    ctx.data_mut(|d| d.insert_temp(editor_section_id, editor_section));
     outcome
 }
 
@@ -387,9 +434,17 @@ fn render_sections(
     query: &str,
     state: &mut DialogState,
     view: &SettingsView<'_>,
+    editor_section: &mut crate::settings_editor_section::EditorSettingsSection,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
     let settings = view.settings;
+
+    // MT-072: the read-only editor view the three new sections render from (the live settings + the
+    // surfaced auto-save interval label).
+    let editor_view = crate::settings_editor_section::EditorSettingsView {
+        settings,
+        auto_save_interval_label: AUTO_SAVE_INTERVAL_LABEL,
+    };
 
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
     let show_appearance = setting_matches_query(
@@ -568,6 +623,39 @@ fn render_sections(
                         );
                     });
                 }
+
+                // ── MT-072: EXTEND this SAME Keybindings section in place (NOT a 2nd section —
+                //    RISK-005) with the editor-specific actions (MT-010 code chords + rich-editor
+                //    commands). A custom binding overrides the default and persists into the SEPARATE
+                //    editor_keybindings list (the backend deny-unknown-validates the app keybindings
+                //    map — RISK-001). The conflict banner above is for the APP keybindings; editor
+                //    bindings are namespaced (code./rich.) and live in their own list.
+                //
+                //    The ~85-row editor-action table is wrapped in a NESTED collapsing sub-header that is
+                //    CLOSED BY DEFAULT so it does not push the Swarm/Terminal/Layout/About sections below
+                //    the scroll viewport (which would make them unreachable by a single pointer click —
+                //    the WP-011 reset-layout interaction test relies on Layout staying reachable). It is
+                //    still the SAME one Keybindings section (RISK-005); the editor rows render + become
+                //    AccessKit-addressable once the sub-header is expanded.
+                ui.separator();
+                let editor_kb_header = egui::CollapsingHeader::new("Editor actions")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        let o = editor_section.render_editor_keybindings(
+                            ui,
+                            &editor_view,
+                            query,
+                            view.open_count,
+                        );
+                        if outcome == SettingsOutcome::None {
+                            outcome = map_editor_outcome(o);
+                        }
+                    });
+                set_author_id(
+                    ui,
+                    editor_kb_header.header_response.id,
+                    &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}keybindings-editor"),
+                );
             });
         set_author_id(
             ui,
@@ -682,7 +770,91 @@ fn render_sections(
         // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
     }
 
+    // ── [MT-072 / Editor] Editor preferences (font/tab/insert-spaces/wrap/whitespace) ──────────────
+    //
+    // The MT-072 editor sections (Editor, Syntax) are rendered AFTER the WP-011 sections and CLOSED BY
+    // DEFAULT. Two reasons: (1) appending them keeps the EXISTING sections' positions byte-stable, so a
+    // single-pointer-click interaction on a lower WP-011 control (e.g. the reset-layout test) is
+    // unaffected; (2) collapsed-by-default keeps the dialog's default body short — the user expands the
+    // editor sections they need (a search query auto-expands a matching section). The editor Keybindings
+    // EXTENSION stays IN PLACE inside the one Keybindings section above (RISK-005 — not a 2nd keybindings
+    // store), wrapped in its own collapsed sub-header for the same length reason. Relative order of the
+    // new sections is Editor -> Syntax (the contract's order); the Keybindings extension is in its section.
+    let show_editor = setting_matches_query(
+        query,
+        &[
+            "editor", "font", "size", "tab", "spaces", "indent", "wrap", "word", "whitespace",
+            "render", "auto", "save",
+        ],
+    );
+    if show_editor {
+        // FORCE open while a search query is active (`.open(Some(true))` overrides egui's persisted
+        // collapsed state — `default_open` would be ignored after the header was first rendered closed);
+        // with no query, leave egui's own open/close state alone (`.open(None)`) so the user's manual
+        // expand/collapse sticks, starting collapsed.
+        let force_open = (!query.is_empty()).then_some(true);
+        let editor_header = egui::CollapsingHeader::new("Editor")
+            .default_open(false)
+            .open(force_open)
+            .show(ui, |ui| {
+                let o = editor_section.render_editor_prefs(ui, &editor_view);
+                if outcome == SettingsOutcome::None {
+                    outcome = map_editor_outcome(o);
+                }
+            });
+        set_author_id(
+            ui,
+            editor_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}editor"),
+        );
+    }
+
+    // ── [MT-072 / Syntax] Syntax color-scheme palette editor (Muted | Standard | Custom) ───────────
+    let show_syntax = setting_matches_query(
+        query,
+        &[
+            "syntax", "palette", "color", "colour", "scheme", "muted", "standard", "custom",
+            "keyword", "string", "comment", "highlight",
+        ],
+    );
+    if show_syntax {
+        let force_open = (!query.is_empty()).then_some(true);
+        let syntax_header = egui::CollapsingHeader::new("Syntax")
+            .default_open(false)
+            .open(force_open)
+            .show(ui, |ui| {
+                let o = editor_section.render_syntax_palette(ui, &editor_view);
+                if outcome == SettingsOutcome::None {
+                    outcome = map_editor_outcome(o);
+                }
+            });
+        set_author_id(
+            ui,
+            syntax_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}syntax"),
+        );
+    }
+
     outcome
+}
+
+/// MT-072: map an [`crate::settings_editor_section::EditorSectionOutcome`] from the editor sections onto
+/// the dialog's [`SettingsOutcome`] the shell already applies + persists. `None` maps to `None`.
+fn map_editor_outcome(
+    o: crate::settings_editor_section::EditorSectionOutcome,
+) -> SettingsOutcome {
+    use crate::settings_editor_section::EditorSectionOutcome as E;
+    match o {
+        E::None => SettingsOutcome::None,
+        E::EditorPrefsChanged(prefs) => SettingsOutcome::EditorPrefsChanged(prefs),
+        E::SyntaxPaletteChanged(p) => SettingsOutcome::SyntaxPaletteChanged(p),
+        E::EditorKeybindingChanged { action_id, chord } => {
+            SettingsOutcome::EditorKeybindingChanged { action_id, chord }
+        }
+        E::EditorKeybindingReset { action_id } => {
+            SettingsOutcome::EditorKeybindingReset { action_id }
+        }
+    }
 }
 
 /// Render one not-yet-wired row: label + note on the left, a DISABLED read-only text input pinned to the

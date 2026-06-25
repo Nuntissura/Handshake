@@ -203,8 +203,8 @@ pub use cursor::{
 };
 pub use folding::{FoldProvider, FoldRegion, FoldSet, FoldableNodeTypes};
 pub use highlight::{
-    language_id_for_extension, HighlightScope, HighlightSpan, Highlighter, LanguageRegistry,
-    SafeLanguage,
+    language_id_for_extension, resolve_scope_color, HighlightScope, HighlightSpan, Highlighter,
+    LanguageRegistry, SafeLanguage,
 };
 pub use keymap::{
     mod_chord, mod_is_ctrl, CodeEditorAction, KeyBinding, KeyChord, Keymap,

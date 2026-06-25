@@ -42,6 +42,8 @@ use std::sync::Arc;
 
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator, Tree};
 
+use crate::theme::{SyntaxPaletteEntry, MUTED_PALETTE, STANDARD_PALETTE};
+
 /// Semantic highlight class for a span of source text. The panel maps each variant to a theme color
 /// (`theme::HsSyntaxTokens`) — variants are deliberately a small, stable set rather than raw
 /// tree-sitter capture strings so the renderer's color table is exhaustive and theme-driven.
@@ -74,6 +76,98 @@ impl HighlightScope {
             "operator" => HighlightScope::Operator,
             _ => HighlightScope::Other,
         }
+    }
+
+    /// All eight scope variants, in declaration order. Lets a palette-completeness test iterate every
+    /// scope (AC-004) without re-listing the variants.
+    pub const ALL: &'static [HighlightScope] = &[
+        HighlightScope::Keyword,
+        HighlightScope::String,
+        HighlightScope::Comment,
+        HighlightScope::Number,
+        HighlightScope::Function,
+        HighlightScope::Type,
+        HighlightScope::Operator,
+        HighlightScope::Other,
+    ];
+
+    /// The stable lowercase string key for this scope, used in the persisted
+    /// `syntax_palette.custom` map (see `crate::workspace_settings::SYNTAX_SCOPE_KEYS`). Round-trips
+    /// with [`from_scope_key`](HighlightScope::from_scope_key).
+    pub fn scope_key(self) -> &'static str {
+        match self {
+            HighlightScope::Keyword => "keyword",
+            HighlightScope::String => "string",
+            HighlightScope::Comment => "comment",
+            HighlightScope::Number => "number",
+            HighlightScope::Function => "function",
+            HighlightScope::Type => "type",
+            HighlightScope::Operator => "operator",
+            HighlightScope::Other => "other",
+        }
+    }
+
+    /// Parse a scope key (the [`scope_key`](HighlightScope::scope_key) form) back to a scope; `None`
+    /// for an unknown key.
+    pub fn from_scope_key(key: &str) -> Option<Self> {
+        HighlightScope::ALL
+            .iter()
+            .copied()
+            .find(|s| s.scope_key() == key)
+    }
+
+    /// Index a built-in [`SyntaxPaletteEntry`] color by this scope (MT-072). The mapping is total —
+    /// every variant resolves to a concrete field, so there is NO missing scope and NO panic on lookup
+    /// (AC-004).
+    pub fn builtin_color(self, entry: &SyntaxPaletteEntry) -> egui::Color32 {
+        match self {
+            HighlightScope::Keyword => entry.keyword,
+            HighlightScope::String => entry.string,
+            HighlightScope::Comment => entry.comment,
+            HighlightScope::Number => entry.number,
+            HighlightScope::Function => entry.function,
+            HighlightScope::Type => entry.type_name,
+            HighlightScope::Operator => entry.operator,
+            HighlightScope::Other => entry.other,
+        }
+    }
+}
+
+/// Resolve the color the code editor should paint for `scope` given the active [`SyntaxPalette`]
+/// (WP-KERNEL-012 MT-072). This is the LIVE palette path: the code editor calls it every frame, so a
+/// Custom swatch edit takes effect in the SAME frame with no restart (AC-003).
+///
+/// Resolution:
+/// - `Muted`    -> the [`MUTED_PALETTE`] built-in color for the scope;
+/// - `Standard` -> the [`STANDARD_PALETTE`] built-in color for the scope;
+/// - `Custom`   -> the user's per-scope sRGBA override if present (converted via
+///   `Color32::from_rgba_unmultiplied` — the CONTROL-4-sanctioned RGBA form), ELSE the
+///   [`STANDARD_PALETTE`] color for that scope (so an un-overridden scope is never missing — AC-004).
+///
+/// Every mode resolves EVERY scope to a concrete color: there is no gap and no panic on any
+/// `HighlightScope` lookup (AC-004 — a test iterates all variants for all three modes).
+///
+/// FOLLOW-UP WIRING NOTE (panel.rs is OUTSIDE MT-072's allowed_paths): the existing
+/// `code_editor::panel::scope_to_color(scope, &HsSyntaxTokens)` still reads the theme's fixed
+/// `HsSyntaxTokens`. To make the live code editor pick up palette changes, the host should route its
+/// per-frame syntax color lookup through THIS function with the workspace's `syntax_palette`. That
+/// host edit lives in `panel.rs` / the editor mount (not allowed by this MT's scope), so it is recorded
+/// as a typed follow-up in the MT handoff; this function is the seam it routes through, and it is
+/// directly proven live here + in the MT tests.
+pub fn resolve_scope_color(
+    scope: HighlightScope,
+    palette: &crate::workspace_settings::SyntaxPalette,
+) -> egui::Color32 {
+    use crate::workspace_settings::SyntaxPaletteMode;
+    match palette.mode {
+        SyntaxPaletteMode::Muted => scope.builtin_color(&MUTED_PALETTE),
+        SyntaxPaletteMode::Standard => scope.builtin_color(&STANDARD_PALETTE),
+        SyntaxPaletteMode::Custom => match palette.custom_for(scope.scope_key()) {
+            // A Custom override: sRGBA [u8;4] -> Color32 (the sanctioned RGBA construction form).
+            Some([r, g, b, a]) => egui::Color32::from_rgba_unmultiplied(r, g, b, a),
+            // No override for this scope -> fall back to Standard (no missing scope — AC-004).
+            None => scope.builtin_color(&STANDARD_PALETTE),
+        },
     }
 }
 
@@ -422,5 +516,96 @@ function greet(name) {
         fn assert_send<T: Send>() {}
         assert_send::<SafeLanguage>();
         assert_send::<Highlighter>();
+    }
+
+    // ── MT-072 syntax-palette resolution (AC-003 live update / AC-004 completeness) ──────────────────
+
+    use crate::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
+
+    /// AC-004: Muted, Standard, and Custom modes each yield a color for EVERY HighlightScope variant —
+    /// no missing scope, no panic on any lookup.
+    #[test]
+    fn every_mode_resolves_every_scope_with_no_gap() {
+        for mode in [
+            SyntaxPaletteMode::Muted,
+            SyntaxPaletteMode::Standard,
+            SyntaxPaletteMode::Custom,
+        ] {
+            let palette = SyntaxPalette { mode, custom: std::collections::HashMap::new() };
+            for scope in HighlightScope::ALL.iter().copied() {
+                // Each lookup returns a concrete Color32 (the call itself cannot panic — the mapping is
+                // total). The assertion is that ALL eight scopes resolve under all three modes.
+                let _color = resolve_scope_color(scope, &palette);
+            }
+        }
+        // The built-in tables also cover all eight scopes by construction (the struct fields ARE the
+        // scopes), proven by indexing each.
+        for scope in HighlightScope::ALL.iter().copied() {
+            let _muted = scope.builtin_color(&MUTED_PALETTE);
+            let _standard = scope.builtin_color(&STANDARD_PALETTE);
+        }
+    }
+
+    /// AC-003: a Custom swatch edit changes the resolved color in the SAME call (no caching / restart).
+    /// Custom mode reads the override map LIVE: mutate the map, call resolve again, get the new color.
+    #[test]
+    fn custom_swatch_edit_changes_resolved_color_live() {
+        let mut palette = SyntaxPalette {
+            mode: SyntaxPaletteMode::Custom,
+            custom: std::collections::HashMap::new(),
+        };
+        // With no override, Custom falls back to Standard for Keyword (no gap — AC-004).
+        let before = resolve_scope_color(HighlightScope::Keyword, &palette);
+        assert_eq!(
+            before,
+            HighlightScope::Keyword.builtin_color(&STANDARD_PALETTE),
+            "un-overridden Custom scope falls back to Standard"
+        );
+
+        // Edit the Keyword swatch: the SAME-frame resolve returns the new color immediately.
+        let new_rgba = [0xAB, 0xCD, 0xEF, 0xFF];
+        palette.set_custom("keyword", new_rgba);
+        let after = resolve_scope_color(HighlightScope::Keyword, &palette);
+        assert_eq!(
+            after,
+            egui::Color32::from_rgba_unmultiplied(0xAB, 0xCD, 0xEF, 0xFF),
+            "a Custom Keyword swatch edit changes the resolved color in the same frame (no restart)"
+        );
+        assert_ne!(after, before, "the color actually changed");
+
+        // Other un-overridden scopes still resolve to Standard (only the edited scope changed).
+        assert_eq!(
+            resolve_scope_color(HighlightScope::String, &palette),
+            HighlightScope::String.builtin_color(&STANDARD_PALETTE),
+            "editing Keyword did not affect String"
+        );
+    }
+
+    /// Muted and Standard are distinct palettes (the mode selector visibly changes colors).
+    #[test]
+    fn muted_and_standard_modes_differ() {
+        let muted = SyntaxPalette { mode: SyntaxPaletteMode::Muted, custom: Default::default() };
+        let standard = SyntaxPalette { mode: SyntaxPaletteMode::Standard, custom: Default::default() };
+        let any_differ = HighlightScope::ALL.iter().copied().any(|s| {
+            resolve_scope_color(s, &muted) != resolve_scope_color(s, &standard)
+        });
+        assert!(any_differ, "Muted and Standard must produce different colors for at least one scope");
+    }
+
+    /// `scope_key` round-trips with `from_scope_key`, and matches the persisted SYNTAX_SCOPE_KEYS list.
+    #[test]
+    fn scope_key_round_trips_and_matches_persisted_keys() {
+        for scope in HighlightScope::ALL.iter().copied() {
+            assert_eq!(HighlightScope::from_scope_key(scope.scope_key()), Some(scope));
+            assert!(
+                crate::workspace_settings::SYNTAX_SCOPE_KEYS.contains(&scope.scope_key()),
+                "scope key '{}' is in the persisted vocabulary",
+                scope.scope_key()
+            );
+        }
+        // And every persisted key maps back to a scope (the two lists agree exactly).
+        for key in crate::workspace_settings::SYNTAX_SCOPE_KEYS {
+            assert!(HighlightScope::from_scope_key(key).is_some(), "persisted key '{key}' maps to a scope");
+        }
     }
 }

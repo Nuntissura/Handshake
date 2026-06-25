@@ -84,6 +84,11 @@ pub mod rails;
 pub mod rich_editor;
 pub mod search_rail;
 pub mod settings_dialog;
+// WP-KERNEL-012 MT-072 (E12 — structured settings): the editor-specific Settings sections (Editor prefs,
+// Syntax palette editor, editor Keybindings) mounted INTO the WP-011 settings_dialog. Renders from a
+// read-only view + returns outcomes the shell applies + persists via the existing PostgreSQL-backed
+// /workspaces/:id/settings surface (no new persistence, no SQLite).
+pub mod settings_editor_section;
 pub mod split_layout;
 // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): the LOCAL Stage pane (Pillar 17) that DISPLAYS content
 // routed to it (a document, a selection, or a CKC item) via the route-to-stage command on the MT-031
