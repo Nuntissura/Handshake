@@ -245,7 +245,11 @@ pub fn normalize_locus_id(kind: LocusRefKind, id: &str) -> String {
 /// Parse a Locus reference, the PURE side-effect-free entry point (AC-001). Recognizes:
 ///
 /// - the full URI form `locus://wp/{id}` -> [`LocusRef`] (kind=WorkPacket), `locus://mt/{id}` ->
-///   (kind=Microtask), and
+///   (kind=Microtask),
+/// - the prefix-stripped `{kind}/{id}` form the WIKILINK parser emits for `[[locus:wp/WP-KERNEL-012]]`
+///   (the wikilink stores everything after the `locus:` prefix as `ref_value`, so the authored atom carries
+///   `ref_value="wp/WP-KERNEL-012"` — this branch makes every chip/dispatch helper that re-parses
+///   `ref_value` key on the SAME canonical `normalized` as the URI form), and
 /// - the bare-id shorthand the MT-032 scheme already normalizes consistently: a bare `WP-...` -> a WP ref,
 ///   a bare `MT-...` -> an MT ref (so a comment can write the bare id and still resolve — kept consistent
 ///   with the loom scheme's bare-id normalization).
@@ -276,7 +280,29 @@ pub fn parse_locus_ref(raw: &str) -> Option<LocusRef> {
         });
     }
 
-    // 2) The bare-id shorthand (consistent with the MT-032 scheme's bare-id normalization): infer the kind
+    // 2) The prefix-stripped `{kind}/{id}` form the WIKILINK parser emits for `[[locus:wp/WP-KERNEL-012]]`.
+    //    The wikilink machinery stores everything AFTER the `locus:` prefix as `ref_value` (group 2 of the
+    //    regex), so an authored `[[locus:wp/WP-KERNEL-012]]` round-trips an hsLink atom with
+    //    `ref_value="wp/WP-KERNEL-012"` (NOT the full `locus://` URI). This branch recognizes that exact
+    //    authoring form so every chip/dispatch helper that re-parses `ref_value` keys on the SAME canonical
+    //    `normalized` value as the URI/bare-id forms (the single-shared-key invariant, RISK-001/MC-001). The
+    //    leading segment must be a known kind (`wp`/`mt`); a bare `path/to/file.ts` value (a code/file ref)
+    //    has no `wp`/`mt` leading segment and so does NOT match here, falling through to `None`.
+    if let Some((kind_seg, id_seg)) = trimmed.split_once('/') {
+        if let Some(kind) = LocusRefKind::from_segment(kind_seg) {
+            let id = id_seg.trim();
+            if !id.is_empty() {
+                return Some(LocusRef {
+                    kind,
+                    raw: trimmed.to_owned(),
+                    id: id.to_owned(),
+                    normalized: normalize_locus_id(kind, id),
+                });
+            }
+        }
+    }
+
+    // 3) The bare-id shorthand (consistent with the MT-032 scheme's bare-id normalization): infer the kind
     //    from the id prefix. `WP-...` -> WorkPacket, `MT-...` -> Microtask. The id keeps its original case.
     let upper = trimmed.to_ascii_uppercase();
     let kind = if upper.starts_with("WP-") {

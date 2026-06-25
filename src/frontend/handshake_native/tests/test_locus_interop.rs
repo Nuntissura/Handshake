@@ -253,10 +253,28 @@ fn ac001_parse_locus_ref_wp_and_mt() {
     assert_eq!(mt.id, "MT-034");
     assert_eq!(mt.normalized, "locus://mt/mt-034");
 
+    // The prefix-stripped `{kind}/{id}` form the WIKILINK parser emits (`[[locus:wp/WP-KERNEL-012]]` ->
+    // ref_value="wp/WP-KERNEL-012") parses to the SAME canonical key as the URI form (the must-fix /
+    // RISK-001 single-shared-key invariant for the form a user actually authors).
+    let authored_wp = parse_locus_ref("wp/WP-KERNEL-012").expect("AC-001: the wikilink authoring form parses");
+    assert_eq!(authored_wp.kind, LocusRefKind::WorkPacket);
+    assert_eq!(authored_wp.id, "WP-KERNEL-012");
+    assert_eq!(
+        authored_wp.normalized, "locus://wp/wp-kernel-012",
+        "AC-001/RISK-001: the authored wp/ form normalizes to the same single key as the URI form"
+    );
+    let authored_mt = parse_locus_ref("mt/MT-034").expect("AC-001: the mt authoring form parses");
+    assert_eq!(authored_mt.kind, LocusRefKind::Microtask);
+    assert_eq!(authored_mt.normalized, "locus://mt/mt-034");
+
     // An invalid scheme returns None (AC-001).
     assert!(parse_locus_ref("https://wp/WP-1").is_none(), "AC-001: an invalid scheme returns None");
     assert!(parse_locus_ref("loom://ws/blk").is_none(), "AC-001: the loom scheme is not a locus ref");
     assert!(parse_locus_ref("locus://zz/X").is_none(), "AC-001: an unknown kind returns None");
+    // A non-locus prefix-stripped value (a code/file ref, no wp/mt leading segment) does NOT match the
+    // `{kind}/{id}` branch — only `wp/`/`mt/` leading segments are locus refs.
+    assert!(parse_locus_ref("src/app.ts").is_none(), "AC-001: a file path is not a locus ref");
+    assert!(parse_locus_ref("zz/Q").is_none(), "AC-001: an unknown kind/id leading segment returns None");
 
     // The normalized key is consistent with the MT-032/MT-015 normalizer (no second normalizer — AC-007).
     assert_eq!(wp.normalized, normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012"));
@@ -824,4 +842,99 @@ fn parses_locus_wikilink_to_locus_hs_link() {
     assert!(link.resolved, "the locus: prefix is a known resolved kind");
     assert!(is_locus_ref(&link), "is_locus_ref recognizes the atom");
     println!("AC-007 OK: [[locus:wp/WP-KERNEL-012]] -> hsLink(locus, wp/WP-KERNEL-012)");
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// REAL-AUTHORING END-TO-END (closes the tautology the adversarial review found): every other chip /
+// dispatch / author_id proof hand-builds the hsLink atom with the FULL URI `ref_value`
+// (`locus://wp/WP-KERNEL-012`) — a value the wikilink parser NEVER emits. The authoring path produces
+// the prefix-stripped `ref_value="wp/WP-KERNEL-012"`. This test drives that EXACT value (from the real
+// `parse_wikilink(...).to_hs_link()`) through `locus_ref_chip_author_id`, `chip_label`, and
+// `dispatch_locus_ref_open`, asserting the contract author_id (AC-008), the short label (the work-unit
+// id, not the raw `wp/...` form), and the normalized single-key stage (RISK-001) all hold for the form
+// a user actually types.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
+    // (1) Drive the REAL authoring path: parse the wikilink + materialize the hsLink atom exactly as the
+    // editor stores it on autocomplete-confirm. The `ref_value` is the prefix-stripped `wp/WP-KERNEL-012`.
+    let link = parse_wikilink("[[locus:wp/WP-KERNEL-012]]")
+        .expect("a valid locus wikilink")
+        .to_hs_link();
+    assert_eq!(
+        link.ref_value, "wp/WP-KERNEL-012",
+        "the authoring path stores the prefix-stripped kind/id form (NOT the full locus:// URI)"
+    );
+
+    // (2) parse_locus_ref must accept the prefix-stripped authoring form and normalize it to the SAME
+    // canonical key as the URI form (the single-shared-key invariant for the form a user actually types).
+    let parsed = parse_locus_ref(&link.ref_value)
+        .expect("parse_locus_ref accepts the wikilink authoring form `wp/WP-KERNEL-012` (the must-fix)");
+    assert_eq!(parsed.kind, LocusRefKind::WorkPacket, "wp/ -> WorkPacket");
+    assert_eq!(parsed.id, "WP-KERNEL-012", "the id keeps its original case");
+    assert_eq!(
+        parsed.normalized, "locus://wp/wp-kernel-012",
+        "the authored form normalizes to the SAME single key as locus://wp/WP-KERNEL-012 (RISK-001)"
+    );
+    assert_eq!(
+        parsed.normalized,
+        normalize_locus_id(LocusRefKind::WorkPacket, "WP-KERNEL-012"),
+        "the authored form and the explicit normalizer agree on the single key"
+    );
+
+    // (3) AC-008: the chip author_id for the REAL authored ref_value is the contract id (NOT the
+    // `locus-ref-chip-unknown-{hash}` fallback the parse-None defect produced).
+    assert_eq!(
+        locus_ref_chip_author_id(&link.ref_value),
+        "locus-ref-chip-wp-WP-KERNEL-012",
+        "AC-008: the authored chip is swarm-addressable by its work unit (no unknown-hash fallback)"
+    );
+
+    // (4) The chip label is the SHORT work-unit id with the work-unit glyph, NOT the raw `wp/WP-KERNEL-012`.
+    let mut resolved_link = link.clone();
+    resolved_link.resolved = true;
+    assert_eq!(
+        chip_label(&resolved_link),
+        "⎘ WP-KERNEL-012",
+        "the authored chip renders the short work-unit id, not the raw wp/... value"
+    );
+
+    // (5) dispatch_locus_ref_open stages the NORMALIZED single key for the authored ref_value, so
+    // resolution + reverse-lookup key on the SAME value (RISK-001 — divergence eliminated for the
+    // authoring form).
+    let ctx = egui::Context::default();
+    let mut bus = InteractionBus::new();
+    bus.register_open_locus_ref_command();
+    let evt = EditorEvent::WikilinkActivated {
+        ref_kind: link.ref_kind.clone(),
+        ref_value: link.ref_value.clone(),
+        resolved: true,
+    };
+    let staged = dispatch_locus_ref_open(&ctx, &mut bus, &evt);
+    assert_eq!(
+        staged.as_deref(),
+        Some("locus://wp/wp-kernel-012"),
+        "RISK-001: the authored ref stages the NORMALIZED single key (not the raw wp/WP-KERNEL-012)"
+    );
+    assert_eq!(
+        bus.take_pending_locus_ref().as_deref(),
+        Some("locus://wp/wp-kernel-012"),
+        "the normalized key is staged on the nav seam for the authored form"
+    );
+
+    // (6) The MT authoring form `[[locus:mt/MT-034]]` proves the sibling kind through the same path.
+    let mt_link = parse_wikilink("[[locus:mt/MT-034]]")
+        .expect("a valid locus mt wikilink")
+        .to_hs_link();
+    assert_eq!(mt_link.ref_value, "mt/MT-034");
+    assert_eq!(
+        locus_ref_chip_author_id(&mt_link.ref_value),
+        "locus-ref-chip-mt-MT-034",
+        "AC-008: the authored MT chip is swarm-addressable too"
+    );
+
+    println!(
+        "MUST-FIX OK: authored ref_value=wp/WP-KERNEL-012 -> author_id=locus-ref-chip-wp-WP-KERNEL-012, label=WP-KERNEL-012, staged=locus://wp/wp-kernel-012"
+    );
 }
