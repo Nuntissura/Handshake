@@ -29,6 +29,12 @@ pub mod formatting;
 // emitting a navigation event to the MT-023 tag hub, converging inline + property tags into ONE deduped
 // loom edge per distinct normalized identity on commit (one tag, one hub).
 pub mod inline_tags;
+// WP-KERNEL-012 MT-059 (E2): the SHARED CommonMark markdown-string -> displayable-blocks adapter. Parses a
+// rendered markdown STRING (e.g. the read-only Loom wiki projection `rendered_content`) into typed
+// MdBlock/MdSpan values and paints them REUSING the MT-012 block_renderer styling (heading scale / quote
+// bar / code frame / list indent). The single rendering path wiki pages, reading mode, and the rich editor
+// reuse so they never drift visually. Resolves the MT-025 markdown-rendering deferral.
+pub mod markdown_render;
 // WP-KERNEL-012 MT-056 (E2): the heading Outline / Table-of-Contents navigator (the Obsidian Outline
 // core-plugin / Notion TOC-block parity item). Defines the pure `build_outline` over the MT-011 block
 // DocModel, the `OutlineNode` tree, and the `OutlinePanel` egui widget + AccessKit Tree/TreeItem nodes.

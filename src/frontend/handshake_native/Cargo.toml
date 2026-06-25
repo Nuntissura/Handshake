@@ -208,6 +208,17 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 # wasm + flight-recorder stack), so declaring it adds NO new dependency family — it only enables the `v4`
 # feature so the native crate can mint ids directly. Pure-Rust, no native build; Cargo.lock pins the version.
 uuid = { version = "1", features = ["v4"] }
+# WP-KERNEL-012 MT-059 wiki-page markdown rendering: `pulldown-cmark` (0.11) is the de-facto Rust
+# CommonMark parser (pure-Rust, MIT/Apache-2.0; used by mdBook and docs.rs). The shared
+# `rich_editor::markdown_render` adapter runs it over the read-only wiki projection `rendered_content`
+# string (GFM tables + strikethrough enabled via Options) and folds its FLAT event stream into typed
+# `MdBlock`/`MdSpan` values, which `render_blocks` then paints REUSING the MT-012 line_layout styling
+# constants (heading scale / quote bar / code frame / list indent). It is the ONLY new dependency family
+# MT-059 adds; pure-Rust, no native build, no transitive HTTP/server stack. `default-features = false`
+# drops the `getopts` CLI feature (only the library parser is used); the parser itself is always built.
+# Cargo.lock pins the resolved version (commit it). The contract's "same Cargo.toml MT-012 added
+# cosmic-text to" is STALE — MT-012 used egui LayoutJob/Galley, NOT cosmic-text; only pulldown-cmark is added.
+pulldown-cmark = { version = "0.11", default-features = false }
 # WP-KERNEL-012 MT-020 save-to-format file dialog: `rfd` (0.14) is the native Rust file-dialog crate
 # (Windows: the Win32 IFileSaveDialog COM API; no wry/webview dependency, unlike tauri-plugin-dialog).
 # It is the ONLY new dependency family MT-020 adds — `sha2` (canonical draft hash) and `base64` (HTML

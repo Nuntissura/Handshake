@@ -366,29 +366,39 @@ impl LoomWikiPagePanel {
 
         ui.separator();
 
-        // Rendered content (plain text — markdown rendering is DEFERRED to MT-055). Capped at
-        // CONTENT_DISPLAY_CAP (RISK-2). AccessKit Role::Document `wiki.content.{id}`.
+        // Rendered content as FORMATTED MARKDOWN (WP-KERNEL-012 MT-059 — resolves the MT-025 deferral that
+        // shipped this as a single raw egui::Label printing `rendered_content` verbatim). The read-only
+        // view now parses `rendered_content` as CommonMark and paints headings/lists/tables/quotes/code/
+        // links via the SHARED `rich_editor::markdown_render` adapter (the SAME styling the MT-012 block
+        // renderer uses — one rendering path for wiki pages, reading mode, and the editor). Capped at
+        // CONTENT_DISPLAY_CAP bytes BEFORE parsing (RISK-2: a multi-hundred-KB page can never stall the
+        // frame). AccessKit Role::Document `wiki.content.{id}` is PRESERVED on the ScrollArea response id
+        // (AC7 — downstream swarm selectors depend on it); the markdown blocks render INSIDE it.
         let (shown, truncated) = display_content(&page.rendered_content);
-        let content_resp = egui::ScrollArea::vertical()
+        let content_scroll = egui::ScrollArea::vertical()
             .id_salt(content_author_id(&self.projection_id))
             .max_height(ui.available_height() - 40.0)
             .show(ui, |ui| {
-                let text = if shown.is_empty() {
-                    "No rendered wiki content.".to_owned()
-                } else {
-                    shown
-                };
-                ui.add(
-                    egui::Label::new(egui::RichText::new(&text).color(palette.text))
-                        .wrap()
+                if shown.trim().is_empty() {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new("No rendered wiki content.").color(palette.text_subtle),
+                        )
                         .sense(Sense::hover()),
-                )
-            })
-            .inner;
-        // Emit the Document node onto the inner label's id so the content area is addressable + non-empty.
+                    );
+                } else {
+                    let blocks = crate::rich_editor::markdown_render::parse_markdown(&shown);
+                    crate::rich_editor::markdown_render::render_blocks(ui, &blocks);
+                }
+            });
+        // Emit the Document node onto the ScrollArea response id so the content area stays addressable and
+        // carries the rendered source as its value (the markdown blocks render inside this node). REUSE the
+        // MT-025 `emit_document_accesskit` helper unchanged so the node role (Document), author_id
+        // (`wiki.content.{id}`), and value-cap behavior are byte-identical to MT-025 (AC7 — no node
+        // removed/renamed; only the Label was swapped for rendered markdown blocks).
         emit_document_accesskit(
             ui,
-            content_resp.id,
+            content_scroll.id,
             &content_author_id(&self.projection_id),
             &page.rendered_content,
         );

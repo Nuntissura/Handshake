@@ -417,6 +417,74 @@ const fn _no_color() -> Color32 {
     Color32::TRANSPARENT
 }
 
+// ── MT-059 shared per-span styling shim ───────────────────────────────────────────────────────────────
+//
+// MT-059's `rich_editor::markdown_render::render_blocks` paints a parsed CommonMark string with the SAME
+// look as this MT-012 block renderer. To keep ONE source of truth for the per-span look (RISK-1 / MC-1 /
+// AC5: no duplicated heading-scale / bold / italic / code styling), `render_blocks` does NOT re-implement
+// inline styling — it calls [`md_span_text_format`] below, which delegates to the canonical
+// [`super::line_layout::text_format_for_run`] used by the live editor. The block-level look constants
+// (heading scale, quote-bar width, code padding, list indent, block gap) are the `pub` consts already in
+// [`super::line_layout`]; `render_blocks` imports THOSE directly rather than copying their values. This
+// shim is the thin `pub` seam the contract sanctions ("if those are not yet pub, add a minimal pub shim
+// there and import it — keep one source of truth for the look").
+
+/// The inline mark flags for one rendered span (the MT-059 `MdSpan` shape, kept dependency-free here so
+/// the shim does not depend on the `markdown_render` module — `markdown_render` depends on the renderer,
+/// not the reverse). All four map onto the editor's [`super::super::document_model::node::Mark`] set.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MdSpanStyle {
+    pub bold: bool,
+    pub italic: bool,
+    pub code: bool,
+    pub strikethrough: bool,
+    /// True when the span is a link (rendered in the accent/link color + underline like the editor's
+    /// link runs). MT-059 paints links via `ui.hyperlink_to`, but a NON-clickable link label (e.g. inside
+    /// a heading) still uses this format so the look matches.
+    pub link: bool,
+}
+
+/// Build the canonical [`egui::text::TextFormat`] for one markdown inline span at `size` points, REUSING
+/// the live editor's [`super::line_layout::text_format_for_run`] (the single per-run styling source —
+/// MT-059 AC5 / RISK-1). The `MdSpanStyle` flags are translated into the editor's
+/// [`Mark`](super::super::document_model::node::Mark) set so bold selects the bundled `Inter-Bold` family
+/// (when bound), italic gets epaint's real skew, code becomes monospace over the code color, strikethrough
+/// strikes, and a link reads in the accent color — EXACTLY as the WYSIWYG editor renders the same marks.
+/// `bold_available` MUST be the live `line_layout::bold_family_available(ctx)` result so a bold run never
+/// requests an unbound family (epaint panics on that — the same guard the editor uses).
+pub fn md_span_text_format(
+    style: MdSpanStyle,
+    size: f32,
+    palette: &HsPalette,
+    bold_available: bool,
+) -> egui::text::TextFormat {
+    use crate::rich_editor::document_model::node::Mark;
+    let mut marks: Vec<Mark> = Vec::new();
+    if style.bold {
+        marks.push(Mark::Bold);
+    }
+    if style.italic {
+        marks.push(Mark::Italic);
+    }
+    if style.code {
+        marks.push(Mark::Code);
+    }
+    if style.strikethrough {
+        marks.push(Mark::Strike);
+    }
+    if style.link {
+        marks.push(Mark::Link { href: String::new() });
+    }
+    // A code span keeps the base size in monospace (force_monospace mirrors the editor's code style);
+    // every other span uses the caller-provided size (body or a heading-scaled size).
+    let block_style = if style.code {
+        super::line_layout::BlockTextStyle { size, force_monospace: true }
+    } else {
+        super::line_layout::BlockTextStyle { size, force_monospace: false }
+    };
+    super::line_layout::text_format_for_run(&marks, block_style, palette, bold_available)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
