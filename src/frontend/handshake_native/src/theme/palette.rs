@@ -390,3 +390,29 @@ pub fn tag_chip_palette() -> [Color32; 12] {
         Color32::from_rgb(0x6D, 0x4C, 0x41), // brown
     ]
 }
+
+/// Number of distinct default group-color tokens for the WP-KERNEL-012 MT-060 graph control panel.
+pub const GRAPH_GROUP_PALETTE_LEN: usize = 8;
+
+/// A stable 8-hue default palette for graph filter/group swatches (WP-KERNEL-012 MT-060). A group's
+/// default color is assigned by its discovery order modulo this palette (a deterministic, theme-stable
+/// identity hue), NOT a semantic theme token — the same group key always reads with the same hue across
+/// light/dark so the graph legend and node coloring are consistent. It lives in `palette.rs` because
+/// that is the sanctioned home for `Color32` literals: the no-hardcoded-color guard
+/// (`tests/test_theme.rs` `no_hardcoded_color32_outside_theme_module`) exempts `palette.rs`/`syntax.rs`
+/// ONLY, so the MT-060 "NO `Color32::from_rgb` literal in graph_controls.rs/graph_view.rs" control
+/// (CONTROL-4) is satisfied by sourcing every group hue from this function. The hues are a distinct,
+/// evenly-spaced subset reusing the tag-chip vocabulary so a tag group's default graph hue is in the
+/// same visual family as its chip (interop legibility).
+pub fn graph_group_palette() -> [Color32; GRAPH_GROUP_PALETTE_LEN] {
+    [
+        Color32::from_rgb(0x1E, 0x88, 0xE5), // blue
+        Color32::from_rgb(0x43, 0xA0, 0x47), // green
+        Color32::from_rgb(0xFB, 0x8C, 0x00), // orange
+        Color32::from_rgb(0x8E, 0x24, 0xAA), // purple
+        Color32::from_rgb(0x00, 0xAC, 0xC1), // cyan
+        Color32::from_rgb(0xD8, 0x1B, 0x60), // pink
+        Color32::from_rgb(0xFD, 0xD8, 0x35), // amber
+        Color32::from_rgb(0x00, 0x89, 0x7B), // teal
+    ]
+}

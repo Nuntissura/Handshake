@@ -46,6 +46,12 @@ use crate::accessibility::knowledge_action_registry::{
     self, AddEdgePayload, AxRole as KAxRole, BlockIdPayload, EdgeIdPayload, KnowledgeActionRegistry,
     KnowledgeNodeState, GRAPH_CONTROL_CATALOG, VIEWPORT_LOOKAHEAD,
 };
+// WP-KERNEL-012 MT-060: the Obsidian-class control panel + its pure filter/group/sizing fns. The view
+// OWNS a `GraphControls`, renders it each frame, and CONSUMES the pure results in the live painter pass.
+use crate::graph::graph_controls::{
+    assign_group_color, compute_visibility, node_degree, node_radius, GraphControls,
+    GraphControlsEvent, NodeVisibility, DIM_ALPHA,
+};
 use crate::theme::HsPalette;
 
 /// Default node circle radius in WORLD space (px before zoom). Click detection uses this same radius
@@ -109,6 +115,20 @@ impl GraphMode {
 
 /// One graph node: a Loom block placed in WORLD space. Positions are EPHEMERAL UI state (re-run on
 /// open) and never persisted to the backend (the MT "do not store node positions in backend" rule).
+///
+/// ## Group-identity fields (WP-KERNEL-012 MT-060)
+///
+/// `tags` and `folder_path` are the OPTIONAL group-identity the MT-060 control panel matches against
+/// for tag/folder GROUP coloring. They default EMPTY: the `views/all` / `graph-search` payload the
+/// MT-021 backend client parses (`backend_client::block_to_node`) carries ONLY `block_id` / `title` /
+/// `content_type` — it does NOT yet expose per-node tag identity or folder-path identity. So the node's
+/// group identity is host-populated from the SAME identity surfaces the trees use (MT-023 tag identity =
+/// a tag-hub's `title`; MT-022 folder identity = the `loom_folders` folder-path string sanitized by
+/// [`crate::project_tree::stable_part`]) via [`GraphNode::with_tags`] / [`GraphNode::with_folder_path`],
+/// NEVER re-derived from raw strings inside the widget (RISK-1 / MC-1). When the host has no tag/folder
+/// identity for a node (the current backend gap — disclosed as a TYPED BLOCKER in the MT handoff), the
+/// node simply matches no group and falls back to its `content_type` colour, exactly as before. This is
+/// a CLIENT-SIDE field on the already-loaded vec — it adds NO backend endpoint and NO network call.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphNode {
     pub block_id: String,
@@ -116,6 +136,13 @@ pub struct GraphNode {
     /// Loom `content_type` string (note/file/tag_hub/journal/canvas/view_def/...). Drives the node
     /// colour via [`content_type_color`].
     pub content_type: String,
+    /// The tag-hub identities this node carries (MT-023 tag identity = the hub title). Empty by default;
+    /// host-populated. Used by [`graph_controls::assign_group_color`] for tag GROUP matching.
+    pub tags: Vec<String>,
+    /// The node's folder-path identity (MT-022 folder identity, the `loom_folders` path string). `None`
+    /// by default; host-populated. Used by [`graph_controls::assign_group_color`] for folder GROUP
+    /// matching (a folder group matches when this path starts with the folder key).
+    pub folder_path: Option<String>,
     pub x: f32,
     pub y: f32,
 }
@@ -126,9 +153,27 @@ impl GraphNode {
             block_id: block_id.into(),
             title: title.into(),
             content_type: content_type.into(),
+            tags: Vec::new(),
+            folder_path: None,
             x: 0.0,
             y: 0.0,
         }
+    }
+
+    /// Builder: attach the node's tag-hub identities (MT-023 identity surface). The host calls this when
+    /// it knows a node's tags so a tag GROUP can colour it (RISK-1 / MC-1 — same identity the tag tree
+    /// uses). Chainable; replaces any prior tags.
+    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
+        self.tags = tags;
+        self
+    }
+
+    /// Builder: attach the node's folder-path identity (MT-022 identity surface). The host calls this
+    /// when it knows a node's folder so a folder GROUP can colour it (RISK-1 / MC-1 — same path identity
+    /// the folder tree uses). Chainable.
+    pub fn with_folder_path(mut self, folder_path: impl Into<String>) -> Self {
+        self.folder_path = Some(folder_path.into());
+        self
     }
 
     fn pos(&self) -> Pos2 {
@@ -190,6 +235,11 @@ pub enum GraphEvent {
     ModeChanged { to_global: bool },
     /// The Re-layout button was pressed; positions were reset and layout restarts.
     Relayout,
+    /// WP-KERNEL-012 MT-060: the link-depth slider was released at a new value in Local mode. The host
+    /// re-fires the EXISTING `GET /loom/graph-search?q={focused_title}&limit=&backlink_depth={depth}` and
+    /// replaces the node/edge set (then `set_graph` re-runs the force layout). NO new endpoint. In Global
+    /// mode the slider is disabled and this event never fires.
+    DepthChanged { depth: u32 },
     /// WP-KERNEL-012 MT-042: a node was selected (not opened) — a swarm `graph.select-node` dispatch or
     /// the host's selection sync. The host publishes the selection to the shared bus (E5).
     SelectNode { block_id: String },
@@ -224,6 +274,21 @@ pub struct LoomGraphView {
     pub last_max_step: f32,
     /// True once the layout positions have been seeded (a circle) for the current node set.
     seeded: bool,
+    /// WP-KERNEL-012 MT-060 (E3): the Obsidian-class control panel state (search / groups / link-depth /
+    /// orphans / size-by-degree / collapsed). Rendered each frame by [`Self::show`]; its pure results are
+    /// applied in the painter pass via the overlays below.
+    pub controls: GraphControls,
+    /// MT-060: the cached visibility overlay (`block_id -> NodeVisibility`), recomputed on a
+    /// [`GraphControlsEvent::FiltersChanged`] (and on load). A SEPARATE map — it NEVER mutates `nodes` /
+    /// `edges`, so click/open + pan/zoom keep using the canonical vecs (RISK-6 / MC-6). Empty => every node
+    /// fully visible.
+    visibility: HashMap<String, NodeVisibility>,
+    /// MT-060: the cached per-node group colour overlay (`block_id -> Color32`), recomputed alongside
+    /// `visibility`. A node absent from this map falls back to its `content_type` colour.
+    group_colors: HashMap<String, Color32>,
+    /// MT-060: true once [`Self::controls`].`groups` have been discovered for the current node set, so the
+    /// idempotent discovery runs once per load (re-running is still safe — discovery is idempotent).
+    groups_discovered: bool,
     /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
     /// installs it via [`LoomGraphView::install_knowledge_action_registry`]. Skipped from `Clone`/`Debug`
     /// equality by being an `Arc` handle (cheap clone of the shared registry, never deep-copied).
@@ -256,6 +321,10 @@ impl Default for LoomGraphView {
             iters_done: 0,
             last_max_step: f32::INFINITY,
             seeded: false,
+            controls: GraphControls::default(),
+            visibility: HashMap::new(),
+            group_colors: HashMap::new(),
+            groups_discovered: false,
             knowledge_registry: None,
             last_canvas_rect: None,
             pending_knowledge_events: Vec::new(),
@@ -292,6 +361,66 @@ impl LoomGraphView {
         self.reset_layout();
         self.loading = false;
         self.error = None;
+        // MT-060: discover groups from the freshly-loaded nodes (idempotent — user state survives a
+        // depth-change reload, RISK-7 / MC-7) and recompute the visibility/colour overlay over the new
+        // vecs. Discovery is keyed on the stable group key so it never duplicates or resets enabled/colour.
+        self.controls.discover_groups(&self.nodes);
+        self.groups_discovered = true;
+        self.recompute_overlays();
+    }
+
+    /// MT-060: recompute the cached visibility + group-colour overlays from the CURRENT controls + the
+    /// loaded vecs. Called on load and on each [`GraphControlsEvent::FiltersChanged`]. A SEPARATE overlay
+    /// keyed by `block_id` — it NEVER mutates `nodes`/`edges` (RISK-6 / MC-6). O(nodes + edges) (MC-4).
+    pub fn recompute_overlays(&mut self) {
+        self.visibility = compute_visibility(
+            &self.nodes,
+            &self.edges,
+            &self.controls.search,
+            self.controls.show_orphans,
+        );
+        let enabled = self.controls.enabled_groups();
+        self.group_colors.clear();
+        if !enabled.is_empty() {
+            for node in &self.nodes {
+                if let Some(color) = assign_group_color(node, &enabled) {
+                    self.group_colors.insert(node.block_id.clone(), color);
+                }
+            }
+        }
+    }
+
+    /// The canvas [`Rect`] the last [`Self::show`] allocated (the area the nodes/edges paint into, AFTER
+    /// the MT-060 control panel consumed its left strip). `None` before the first render. A host/test uses
+    /// this to map a node's world position to its screen position with the SAME transform the widget uses,
+    /// rather than guessing the canvas centre (which moved when the control panel took left space).
+    pub fn canvas_rect(&self) -> Option<Rect> {
+        self.last_canvas_rect
+    }
+
+    /// MT-060: the group colour the painter will use for `block_id`, or `None` when no enabled group
+    /// matches (the painter then falls back to the `content_type` colour). Reads the SAME cached overlay
+    /// the painter reads, so a test asserting this matches exactly what renders.
+    pub fn group_color_for(&self, block_id: &str) -> Option<Color32> {
+        self.group_colors.get(block_id).copied()
+    }
+
+    /// MT-060: the visibility overlay value the painter will use for `block_id` (test/host visibility into
+    /// the same map the painter reads). `None` => the node is fully visible (not in the overlay).
+    pub fn node_visibility(&self, block_id: &str) -> Option<NodeVisibility> {
+        self.visibility.get(block_id).copied()
+    }
+
+    /// MT-060: is this node hidden by the current visibility overlay (the orphan filter)? A hidden node is
+    /// not drawn and is NOT selectable (RISK-6 / MC-6 — click detection skips it).
+    fn is_hidden(&self, block_id: &str) -> bool {
+        self.visibility.get(block_id).map(|v| v.hidden).unwrap_or(false)
+    }
+
+    /// MT-060: is this node dimmed by the current visibility overlay (a search non-match)? A dimmed node
+    /// renders at reduced alpha but stays on the canvas (spatial context — Obsidian behaviour).
+    fn is_dimmed(&self, block_id: &str) -> bool {
+        self.visibility.get(block_id).map(|v| v.dimmed).unwrap_or(false)
     }
 
     /// Reset the force layout so it re-seeds positions and re-converges from scratch (Re-layout button,
@@ -426,7 +555,8 @@ impl LoomGraphView {
     }
 
     /// Find the node whose circle contains `screen_pos` (topmost / last drawn wins). Used by click
-    /// detection and pan-vs-node hit testing.
+    /// detection and pan-vs-node hit testing. MT-060: a HIDDEN node (orphan filter) is NOT drawn and so is
+    /// NOT hit-testable — click detection skips it so a hidden node can never be selected (RISK-6 / MC-6).
     fn node_at_screen(&self, screen_pos: Pos2, center: Vec2) -> Option<usize> {
         let world = self.to_world(screen_pos, center);
         // Radius in WORLD space is constant; compare world distances so zoom does not skew hit area.
@@ -434,7 +564,7 @@ impl LoomGraphView {
             .iter()
             .enumerate()
             .rev()
-            .find(|(_, n)| (n.pos() - world).length() <= NODE_RADIUS)
+            .find(|(_, n)| !self.is_hidden(&n.block_id) && (n.pos() - world).length() <= NODE_RADIUS)
             .map(|(i, _)| i)
     }
 
@@ -508,6 +638,42 @@ impl LoomGraphView {
             ui.label(count_label);
         });
 
+        // ── MT-060 control panel (left strip alongside the canvas) ─────────────────────────────────
+        // A late group-discovery safety net: if the host populated nodes WITHOUT calling set_graph (rare),
+        // discover once so groups still appear. Idempotent, so calling again after set_graph is harmless.
+        if !self.groups_discovered && !self.nodes.is_empty() {
+            self.controls.discover_groups(&self.nodes);
+            self.groups_discovered = true;
+            self.recompute_overlays();
+        }
+        let is_local_mode = self.mode.is_local();
+        // Render the control panel as a left SidePanel scoped to THIS ui, so it sits beside the canvas and
+        // the canvas takes the remaining width. When collapsed (panel_open=false) the panel renders only
+        // its expand toggle, so it does not steal canvas space.
+        let controls_event = egui::SidePanel::left(ui.id().with("graph-controls"))
+            .resizable(false)
+            .min_width(if self.controls.panel_open { 160.0 } else { 0.0 })
+            .frame(egui::Frame::default().fill(palette.surface).inner_margin(6.0))
+            .show_inside(ui, |ui| self.controls.show(ui, is_local_mode))
+            .inner;
+        // Apply the control event: a DepthChanged is a backend re-query (Local only); a FiltersChanged is a
+        // pure client-side overlay recompute (NO network — AC7 / AC8).
+        match controls_event {
+            GraphControlsEvent::DepthChanged(depth) if is_local_mode => {
+                // Re-query SIGNAL only: the host re-fires the existing graph-search endpoint with the new
+                // depth and calls set_graph with the result. The host sets `loading=true` when it ACTUALLY
+                // dispatches the runtime-backed request (the MT-021 idle-repaint discipline: the spinner
+                // animates ONLY during a genuine in-flight fetch, never merely because a control changed) —
+                // the view does NOT set loading here, so a headless/no-host render never spins forever.
+                event = Some(GraphEvent::DepthChanged { depth });
+            }
+            GraphControlsEvent::DepthChanged(_) => { /* Global: slider is disabled; unreachable no-op. */ }
+            GraphControlsEvent::FiltersChanged => {
+                self.recompute_overlays();
+            }
+            GraphControlsEvent::None => {}
+        }
+
         // ── Canvas ───────────────────────────────────────────────────────────────────────────────
         let (rect, canvas_resp) =
             ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
@@ -557,36 +723,66 @@ impl LoomGraphView {
             }
         }
 
-        // Edges first (so nodes render on top — MT implementation_notes).
-        let edge_stroke = Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6));
+        // Edges first (so nodes render on top — MT implementation_notes). MT-060: an edge with a HIDDEN
+        // endpoint is skipped entirely (the orphan filter removed that node); an edge with a DIMMED
+        // endpoint draws at reduced alpha (the node it connects to is a search non-match).
+        let edge_stroke_full = Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6));
+        let edge_stroke_dim =
+            Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6).gamma_multiply(0.35));
         let pos_by_id: HashMap<&str, Pos2> =
             self.nodes.iter().map(|n| (n.block_id.as_str(), n.pos())).collect();
         for e in &self.edges {
+            // Skip any edge touching a hidden node (RISK-6 / MC-6: its node is off the canvas).
+            if self.is_hidden(&e.source) || self.is_hidden(&e.target) {
+                continue;
+            }
             if let (Some(&s), Some(&t)) = (pos_by_id.get(e.source.as_str()), pos_by_id.get(e.target.as_str())) {
+                let dimmed = self.is_dimmed(&e.source) || self.is_dimmed(&e.target);
+                let stroke = if dimmed { edge_stroke_dim } else { edge_stroke_full };
                 painter.line_segment(
                     [self.to_screen(s, center), self.to_screen(t, center)],
-                    edge_stroke,
+                    stroke,
                 );
             }
         }
 
         // Nodes + labels + AccessKit. Each node is an addressable Role::Button (Action::Click) the
-        // swarm can drive by `graph.node.{id}` (AC6 / HBR-SWARM).
-        let r = NODE_RADIUS * self.zoom;
+        // swarm can drive by `graph.node.{id}` (AC6 / HBR-SWARM). MT-060 applies the overlays HERE: a
+        // hidden node is skipped (and not addressable); a dimmed node renders at reduced alpha; a node in
+        // an enabled group uses the group colour (else the content_type colour); size-by-degree scales the
+        // radius by the node's edge degree.
         for node in &self.nodes {
+            // Skip hidden nodes entirely — not drawn, not labelled, not AccessKit-addressable, not
+            // selectable (the hit test already skips them). RISK-6 / MC-6.
+            if self.is_hidden(&node.block_id) {
+                continue;
+            }
             let screen = self.to_screen(node.pos(), center);
-            let color = content_type_color(&node.content_type, palette);
+            let dimmed = self.is_dimmed(&node.block_id);
+            // Group colour wins over content_type; fall back to content_type when no enabled group matches.
+            let base_color = self
+                .group_colors
+                .get(&node.block_id)
+                .copied()
+                .unwrap_or_else(|| content_type_color(&node.content_type, palette));
+            let color = if dimmed { dim_color(base_color) } else { base_color };
+            // Size-by-degree: radius scales with the node's edge degree (clamped to 3x base). World-space
+            // base radius is NODE_RADIUS; the screen radius multiplies by zoom (as before).
+            let degree = node_degree(&node.block_id, &self.edges);
+            let world_r = node_radius(NODE_RADIUS, degree, self.controls.size_by_degree);
+            let r = world_r * self.zoom;
             painter.circle_filled(screen, r, color);
             if self.selected.as_deref() == Some(node.block_id.as_str()) {
                 painter.circle_stroke(screen, r + 2.0, Stroke::new(2.0, palette.accent));
             }
-            // Title label beneath the node.
+            // Title label beneath the node (dimmed too when the node is a search non-match).
+            let label_color = if dimmed { dim_color(palette.text) } else { palette.text };
             painter.text(
                 Pos2::new(screen.x, screen.y + r + 2.0),
                 egui::Align2::CENTER_TOP,
                 &node.title,
                 egui::FontId::proportional(11.0),
-                palette.text,
+                label_color,
             );
             emit_node_accesskit(ui, node);
         }
@@ -767,6 +963,14 @@ impl LoomGraphView {
         }
         events
     }
+}
+
+/// MT-060: dim a colour to [`DIM_ALPHA`] for a search non-match (reduced alpha, kept on the canvas for
+/// spatial context). Reuses the colour's RGB and lowers its alpha via `from_rgba_unmultiplied` (the
+/// sanctioned DYNAMIC form the no-hardcoded-colour guard does NOT flag — it is data, not a palette
+/// literal). Obsidian dims non-matches rather than removing them.
+fn dim_color(color: Color32) -> Color32 {
+    Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), DIM_ALPHA)
 }
 
 /// Draw a dotted grid background across `rect` (so the canvas is visibly non-blank for PROOF4).

@@ -8,6 +8,11 @@
 pub mod block_collection_view;
 pub mod canvas_board;
 pub mod folder_tree;
+// WP-KERNEL-012 MT-060 (E3): the Obsidian-class graph control panel (search filter / tag+folder groups /
+// link-depth slider / orphan + size-by-degree toggles) rendered alongside the MT-021 graph canvas. Pure
+// filter/group/sizing fns are unit-testable; the panel re-fires ONLY the existing graph-search endpoint
+// on a depth change (Local mode), all other controls are client-side over the loaded vecs.
+pub mod graph_controls;
 pub mod graph_view;
 pub mod sidebar_panel;
 pub mod tags_panel;
@@ -28,6 +33,15 @@ pub use graph_view::{
     content_type_color, node_author_id, GraphEdge, GraphEvent, GraphMode, GraphNode, LoomGraphView,
     MAX_LAYOUT_ITERS, MODE_GLOBAL_AUTHOR_ID, MODE_LOCAL_AUTHOR_ID, NODE_AUTHOR_ID_PREFIX, NODE_CAP,
     RELAYOUT_AUTHOR_ID, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID,
+};
+
+// WP-KERNEL-012 MT-060 (E3): the graph control panel state + pure filter/group/sizing fns + AccessKit
+// author_ids, re-exported flat for the host pane + the proof tests.
+pub use graph_controls::{
+    assign_group_color, compute_visibility, group_author_id, node_degree, node_radius, GraphControls,
+    GraphControlsEvent, GraphGroup, GroupKind, NodeVisibility, DEPTH_AUTHOR_ID, DIM_ALPHA,
+    GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID, SEARCH_AUTHOR_ID as GRAPH_FILTER_SEARCH_AUTHOR_ID,
+    SIZE_DEGREE_AUTHOR_ID, TOGGLE_AUTHOR_ID,
 };
 
 pub use folder_tree::{

@@ -193,18 +193,23 @@ fn graph_view_click_node_fires_open() {
     harness.run();
 
     // Compute block-001's screen position using the SAME transform the widget uses. The canvas rect is
-    // the panel minus the toolbar strip; the widget centres on the canvas rect. We reproduce the
-    // transform by reading the node's converged world pos and the public zoom/pan (default 1.0 / 0).
+    // the panel minus the toolbar strip AND minus the MT-060 control panel's left strip; the widget
+    // centres on that canvas rect. We read the ACTUAL canvas rect the widget allocated (its public
+    // accessor) rather than guessing the centre — the canvas centre shifted right once the MT-060 control
+    // panel took the left strip, so a hardcoded centre would miss the node.
     let (target_world, zoom, pan) = {
         let v = view.lock().unwrap();
         let node = v.nodes.iter().find(|n| n.block_id == "block-001").expect("block-001 present");
         (egui::pos2(node.x, node.y), v.zoom, v.pan)
     };
-    // The canvas center: the panel is 800x600; the toolbar consumes ~30px at the top, so the canvas is
-    // roughly y in [30, 600]. Its centre x = 400, centre y ≈ (30+600)/2 = 315. We do not depend on the
-    // exact value — instead we inject the click at the transform-derived screen pos and let egui's
-    // pointer hit-test run. The transform is screen = center + pan + world*zoom.
-    let center = egui::vec2(400.0, 315.0);
+    let center = view
+        .lock()
+        .unwrap()
+        .canvas_rect()
+        .expect("canvas rect recorded after a render")
+        .center()
+        .to_vec2();
+    // The transform is screen = center + pan + world*zoom.
     let click_pos = egui::pos2(
         center.x + pan.x + target_world.x * zoom,
         center.y + pan.y + target_world.y * zoom,
