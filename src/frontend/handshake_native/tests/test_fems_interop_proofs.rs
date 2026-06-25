@@ -526,17 +526,31 @@ fn proof_fems_03_swarm_id_stability() {
 
 #[test]
 fn proof_fems_dsn_absent_panics() {
+    // Capture any ambient DSN env so we can RESTORE it after the panic check — this test must not pollute
+    // process-global env for a co-run live (`--ignored`) proof in the same binary.
+    let saved_primary = std::env::var(LIVE_PG_DSN_ENV).ok();
+    let saved_alt = std::env::var(LIVE_PG_DSN_ENV_ALT).ok();
+
     // Run the resolver in a child thread with the DSN env vars CLEARED, and assert it panics with the
-    // mandated message — never a SQLite/in-memory/mock fallback. (Env mutation is scoped to the asserted
-    // branch; this test does not depend on the ambient environment because it clears both keys.)
+    // mandated message — never a SQLite/in-memory/mock fallback.
     let outcome = std::thread::spawn(|| {
-        // SAFETY: single-threaded within this spawned thread; we only remove the two DSN keys to exercise
-        // the absent-DSN branch, then call the resolver, which must panic.
+        // We only remove the two DSN keys to exercise the absent-DSN branch, then call the resolver,
+        // which must panic.
         std::env::remove_var(LIVE_PG_DSN_ENV);
         std::env::remove_var(LIVE_PG_DSN_ENV_ALT);
         resolve_live_pg_dsn()
     })
     .join();
+
+    // Restore the ambient env exactly as it was (no cross-test pollution).
+    match saved_primary {
+        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV, v),
+        None => std::env::remove_var(LIVE_PG_DSN_ENV),
+    }
+    match saved_alt {
+        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV_ALT, v),
+        None => std::env::remove_var(LIVE_PG_DSN_ENV_ALT),
+    }
 
     let panic_payload = outcome.expect_err(
         "IN-065-01: resolve_live_pg_dsn must PANIC when no live PostgreSQL DSN is configured — it must \
