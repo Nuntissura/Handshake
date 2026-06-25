@@ -231,7 +231,9 @@ pub enum InteropError {
     /// open-or-create delegates to MT-019; its failure surfaces here distinctly so the panel can show the
     /// MT-019 error chip rather than a calendar empty-state.
     DailyNoteServiceError(String),
-    /// A transport failure (connect / timeout / TLS) that is not an HTTP status. Carries the reason.
+    /// A resource was addressed but not found in a way distinct from the typed endpoint-absent blocker
+    /// (reserved for a future per-resource 404 that is NOT a missing `/calendar/` route). Carries no
+    /// payload; the typed blocker for an absent route is [`Self::EndpointUnavailable`], not this.
     NotFound,
     /// A transport-layer failure (connect / timeout / TLS). Carries the reason.
     Transport(String),

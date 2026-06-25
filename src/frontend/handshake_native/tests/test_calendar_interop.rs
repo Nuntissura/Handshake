@@ -250,6 +250,73 @@ fn open_or_create_is_idempotent_and_delegates() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-1 / PT-2 (LIVE) — GATED #[ignore] integration: the REAL daily-note PUT round-trip against managed PG.
+//
+// The contract's "REAL and FULLY PROVABLE" daily-note half (MT-067.json implementation_notes line 84:
+// "GATED #[ignore]+integration: the LIVE daily-note PUT round-trip (real PG)") must touch the REAL
+// MT-019 resource — the `PUT /workspaces/{ws}/loom/journals/{date}` route backed by
+// PostgreSQL/EventLedger — not only the implementer-authored CountingJournalBackend mock above
+// (Spec-Realism Gate Sub-rule 2: "a trait abstraction plus an in-memory impl this role also authored
+// does not count as touching the resource"). This test builds the SAME CalendarInteropService with a
+// REAL `ReqwestJournalBackend` (the production MT-019 transport) pointed at a managed handshake_core +
+// PostgreSQL, calls `open_or_create_daily_note` TWICE for one date, and asserts identical DocId and a
+// single durable journal block per date — the idempotent get-or-create against the real route. It is
+// `#[ignore]` so the default (no-backend) `cargo test` run never depends on a live server; the WP
+// validator runs it with `-- --ignored` against managed PG to transition the daily-note half from
+// NEEDS_MANAGED_RESOURCE_PROOF to proven. It NEVER fabricates a doc and NEVER touches a DB directly.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// The managed handshake_core base URL the gated live tests probe (the same address the WP-011 MT-023/
+/// MT-024 live-PG integration tests use). Only reached under `-- --ignored` with a live backend.
+const LIVE_BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
+
+#[test]
+#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID (the LIVE MT-019 daily-note PUT round-trip)"]
+fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
+    use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
+
+    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
+        .expect("set HSK_TEST_WORKSPACE_ID to a real workspace on the managed handshake_core/PG backend");
+
+    // The REAL MT-019 daily-note transport: the production ReqwestJournalBackend issuing the verified
+    // PUT /workspaces/{ws}/loom/journals/{date} get-or-create against managed PostgreSQL/EventLedger.
+    let backend = Arc::new(ReqwestJournalBackend::new(LIVE_BACKEND_BASE_URL));
+    let svc = CalendarInteropService::with_base_url(LIVE_BACKEND_BASE_URL, &workspace_id, backend);
+    let date = d(2026, 6, 21);
+
+    // Call the SAME production open_or_create_daily_note twice for one date against the REAL route.
+    let (a, b) = rt().block_on(async {
+        let a = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("AC-1 LIVE: first open against the real PUT /loom/journals/:date route succeeds");
+        let b = svc
+            .open_or_create_daily_note(date)
+            .await
+            .expect("AC-1 LIVE: second open against the real route succeeds");
+        (a, b)
+    });
+
+    // Idempotency against managed PG: the same date maps to exactly ONE durable journal block/doc id,
+    // so the two real round-trips return the SAME DocId (no duplicate journal block was created).
+    assert_eq!(
+        a.doc_id, b.doc_id,
+        "AC-1 LIVE: open_or_create_daily_note twice for one date returns the SAME DocId from real PG \
+         (single durable journal block per date — idempotent get-or-create, no duplicate)"
+    );
+    assert_eq!(a.date, date, "AC-1 LIVE: the binding carries the requested date");
+    assert!(
+        !a.doc_id.as_str().trim().is_empty(),
+        "AC-1 LIVE: the real route returns a non-empty stable doc/block id for the date"
+    );
+    println!(
+        "AC-1/PT-2 LIVE OK: open_or_create_daily_note idempotent against real PG-backed \
+         PUT /workspaces/{workspace_id}/loom/journals/2026-06-21 -> single DocId {} on both calls",
+        a.doc_id
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-2 / PT-3 — a resolved event renders a clickable chip; its click emits focus-calendar-event on the bus.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
